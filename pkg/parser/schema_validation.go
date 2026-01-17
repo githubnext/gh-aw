@@ -40,20 +40,20 @@ var sharedWorkflowForbiddenFields = map[string]bool{
 // validateSharedWorkflowFields checks that a shared workflow doesn't contain forbidden fields
 func validateSharedWorkflowFields(frontmatter map[string]any) error {
 	var forbiddenFound []string
-	
+
 	for key := range frontmatter {
 		if sharedWorkflowForbiddenFields[key] {
 			forbiddenFound = append(forbiddenFound, key)
 		}
 	}
-	
+
 	if len(forbiddenFound) > 0 {
 		if len(forbiddenFound) == 1 {
 			return fmt.Errorf("field '%s' cannot be used in shared workflows (only allowed in main workflows with 'on' trigger)", forbiddenFound[0])
 		}
 		return fmt.Errorf("fields %v cannot be used in shared workflows (only allowed in main workflows with 'on' trigger)", forbiddenFound)
 	}
-	
+
 	return nil
 }
 
@@ -112,14 +112,22 @@ func ValidateIncludedFileFrontmatterWithSchema(frontmatter map[string]any) error
 		return err
 	}
 
-	// Then run the standard schema validation using main workflow schema
-	// The schema allows all fields, but we've already checked for forbidden ones above
-	if err := validateWithSchema(filtered, mainWorkflowSchema, "included file"); err != nil {
+	// To validate shared workflows against the main schema, we temporarily add an 'on' field
+	// This allows us to use the full schema validation while still enforcing the forbidden field check above
+	tempFrontmatter := make(map[string]any)
+	for k, v := range filtered {
+		tempFrontmatter[k] = v
+	}
+	// Add a temporary 'on' field to satisfy the schema's required field
+	tempFrontmatter["on"] = "push"
+
+	// Validate with the main schema (which will catch unknown fields)
+	if err := validateWithSchema(tempFrontmatter, mainWorkflowSchema, "included file"); err != nil {
 		schemaValidationLog.Printf("Schema validation failed for included file: %v", err)
 		return err
 	}
 
-	// Finally run custom validation for engine-specific rules
+	// Run custom validation for engine-specific rules
 	return validateEngineSpecificRules(filtered)
 }
 
@@ -133,13 +141,20 @@ func ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatter map[string
 		return err
 	}
 
-	// Then run the standard schema validation with location using main workflow schema
-	// The schema allows all fields, but we've already checked for forbidden ones above
-	if err := validateWithSchemaAndLocation(filtered, mainWorkflowSchema, "included file", filePath); err != nil {
+	// To validate shared workflows against the main schema, we temporarily add an 'on' field
+	tempFrontmatter := make(map[string]any)
+	for k, v := range filtered {
+		tempFrontmatter[k] = v
+	}
+	// Add a temporary 'on' field to satisfy the schema's required field
+	tempFrontmatter["on"] = "push"
+
+	// Validate with the main schema (which will catch unknown fields)
+	if err := validateWithSchemaAndLocation(tempFrontmatter, mainWorkflowSchema, "included file", filePath); err != nil {
 		return err
 	}
 
-	// Finally run custom validation for engine-specific rules
+	// Run custom validation for engine-specific rules
 	return validateEngineSpecificRules(filtered)
 }
 
