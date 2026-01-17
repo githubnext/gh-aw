@@ -56,11 +56,13 @@ Review all daily report discussions from the last 24 hours and:
 
 ### Step 1.1: Query Recent Discussions
 
-Use the `github-discussion-query` safe-input tool to find all daily report discussions created in the last 24-48 hours:
+Use the `github-discussion-query` safe-input tool to find all daily report discussions created in the last 24-48 hours. Call the tool with appropriate parameters:
 
 ```
 github-discussion-query with limit: 100, jq: "."
 ```
+
+This will return all discussions which you can then filter locally.
 
 ### Step 1.2: Filter Daily Report Discussions
 
@@ -70,10 +72,13 @@ From the discussions, identify those that are daily report outputs. Look for com
 - Discussion body contains metrics, statistics, or report data
 - Created by automated workflows (author contains "bot" or specific workflow patterns)
 
-Use jq to filter:
+After saving the discussion query output to a file, use jq to filter:
 ```bash
-# Filter discussions with daily-related titles
-jq '[.[] | select(.title | test("daily|Daily|\\[daily|team-status|Chronicle|Report"; "i"))]' /tmp/discussions.json
+# Save discussion output to a file first
+# The github-discussion-query tool will provide JSON output that you should save
+
+# Then filter discussions with daily-related titles
+jq '[.[] | select(.title | test("daily|Daily|\\[daily|team-status|Chronicle|Report"; "i"))]' discussions_output.json
 ```
 
 ### Step 1.3: Identify Report Types
@@ -130,12 +135,11 @@ For each identified daily report, extract key metrics:
 2. Use regex or structured parsing to extract numeric values
 3. Store extracted metrics in a structured format for analysis
 
-Example parsing approach:
+Example parsing approach (for each discussion in your data):
 ```bash
-# Save discussion data to file
-echo "$DISCUSSION_BODY" > /tmp/report.md
+# For each discussion body extracted from the query results, parse metrics
 
-# Extract numeric patterns
+# Extract numeric patterns from discussion body content
 grep -oE '[0-9,]+\s+(issues|PRs|tokens|runs)' /tmp/report.md
 grep -oE '\$[0-9]+\.[0-9]+' /tmp/report.md  # Cost values
 grep -oE '[0-9]+%' /tmp/report.md  # Percentages
