@@ -3,7 +3,48 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// Helper functions for test setup
+
+// testCompiler creates a test compiler with validation skipped
+func testCompiler() *Compiler {
+	c := NewCompiler(false, "", "test")
+	c.SetSkipValidation(true)
+	return c
+}
+
+// workflowDataWithAgenticWorkflows creates test workflow data with agentic-workflows tool
+func workflowDataWithAgenticWorkflows(options ...func(*WorkflowData)) *WorkflowData {
+	wd := &WorkflowData{
+		Tools: map[string]any{
+			"agentic-workflows": nil,
+		},
+	}
+	for _, opt := range options {
+		opt(wd)
+	}
+	return wd
+}
+
+// withCustomToken is an option for workflowDataWithAgenticWorkflows
+func withCustomToken(token string) func(*WorkflowData) {
+	return func(wd *WorkflowData) {
+		wd.GitHubToken = token
+	}
+}
+
+// withImportedFiles is an option for workflowDataWithAgenticWorkflows
+func withImportedFiles(files ...string) func(*WorkflowData) {
+	return func(wd *WorkflowData) {
+		wd.ImportedFiles = files
+	}
+}
+
+// Test functions
 
 func TestAgenticWorkflowsSyntaxVariations(t *testing.T) {
 	tests := []struct {
@@ -34,30 +75,21 @@ func TestAgenticWorkflowsSyntaxVariations(t *testing.T) {
 				"tools": map[string]any{"agentic-workflows": tt.toolValue},
 			}
 
-			// Create compiler
-			c := NewCompiler(false, "", "test")
-			c.SetSkipValidation(true)
+			// Create compiler using helper
+			c := testCompiler()
 
 			// Extract tools from frontmatter
 			tools := extractToolsFromFrontmatter(frontmatter)
 
 			// Merge tools
 			mergedTools, err := c.mergeToolsAndMCPServers(tools, make(map[string]any), "")
-			if err != nil {
-				if tt.shouldWork {
-					t.Errorf("Expected tool to work but got error: %v", err)
-				}
-				return
-			}
 
-			if !tt.shouldWork {
-				t.Errorf("Expected tool to fail but it succeeded")
-				return
-			}
-
-			// Verify the agentic-workflows tool is present
-			if _, exists := mergedTools["agentic-workflows"]; !exists {
-				t.Errorf("Expected agentic-workflows tool to be present in merged tools")
+			if tt.shouldWork {
+				require.NoError(t, err, "agentic-workflows tool should merge without errors for: %s", tt.description)
+				assert.Contains(t, mergedTools, "agentic-workflows",
+					"merged tools should contain agentic-workflows after successful merge")
+			} else {
+				require.Error(t, err, "agentic-workflows tool should fail for: %s", tt.description)
 			}
 		})
 	}
@@ -76,12 +108,8 @@ func TestAgenticWorkflowsMCPConfigGeneration(t *testing.T) {
 
 	for _, e := range engines {
 		t.Run(e.name, func(t *testing.T) {
-			// Create workflow data with agentic-workflows tool
-			workflowData := &WorkflowData{
-				Tools: map[string]any{
-					"agentic-workflows": nil,
-				},
-			}
+			// Create workflow data using helper
+			workflowData := workflowDataWithAgenticWorkflows()
 
 			// Generate MCP config
 			var yaml strings.Builder
@@ -91,46 +119,30 @@ func TestAgenticWorkflowsMCPConfigGeneration(t *testing.T) {
 			result := yaml.String()
 
 			// Verify the MCP config contains agentic-workflows
-			if !strings.Contains(result, "agentic_workflows") {
-				t.Errorf("Expected MCP config to contain 'agentic_workflows', got: %s", result)
-			}
-
-			// Verify it has the correct command
-			if !strings.Contains(result, "gh") {
-				t.Errorf("Expected MCP config to contain 'gh' command, got: %s", result)
-			}
-
-			// Verify it has the mcp-server argument
-			if !strings.Contains(result, "mcp-server") {
-				t.Errorf("Expected MCP config to contain 'mcp-server' argument, got: %s", result)
-			}
+			assert.Contains(t, result, "agentic_workflows",
+				"%s engine should generate MCP config with agentic_workflows server name", e.name)
+			assert.Contains(t, result, "gh",
+				"%s engine MCP config should use gh CLI command for agentic-workflows", e.name)
+			assert.Contains(t, result, "mcp-server",
+				"%s engine MCP config should include mcp-server argument for gh-aw extension", e.name)
 		})
 	}
 }
 
 func TestAgenticWorkflowsHasMCPServers(t *testing.T) {
-	workflowData := &WorkflowData{
-		Tools: map[string]any{
-			"agentic-workflows": nil,
-		},
-	}
+	// Create workflow data using helper
+	workflowData := workflowDataWithAgenticWorkflows()
 
-	if !HasMCPServers(workflowData) {
-		t.Error("Expected HasMCPServers to return true for agentic-workflows tool")
-	}
+	assert.True(t, HasMCPServers(workflowData),
+		"HasMCPServers should return true when agentic-workflows tool is configured")
 }
 
 func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
-	// Create workflow data with agentic-workflows tool
-	workflowData := &WorkflowData{
-		Tools: map[string]any{
-			"agentic-workflows": nil,
-		},
-	}
+	// Create workflow data using helper
+	workflowData := workflowDataWithAgenticWorkflows()
 
-	// Create compiler
-	c := NewCompiler(false, "", "test")
-	c.SetSkipValidation(true)
+	// Create compiler using helper
+	c := testCompiler()
 
 	// Generate MCP setup
 	var yaml strings.Builder
@@ -140,37 +152,28 @@ func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
 	result := yaml.String()
 
 	// Verify the install step is present
-	if !strings.Contains(result, "Install gh-aw extension") {
-		t.Error("Expected 'Install gh-aw extension' step not found in generated YAML")
-	}
+	assert.Contains(t, result, "Install gh-aw extension",
+		"MCP setup should include gh-aw installation step when agentic-workflows tool is enabled and no import is present")
 
 	// Verify GH_TOKEN environment variable is set with the default token expression
-	if !strings.Contains(result, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
-		t.Errorf("Expected GH_TOKEN environment variable to be set with default token expression in install step, got:\n%s", result)
-	}
+	assert.Contains(t, result, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+		"install step should use default GH_TOKEN fallback chain when no custom token is specified")
 
 	// Verify the install commands are present
-	if !strings.Contains(result, "gh extension install githubnext/gh-aw") {
-		t.Error("Expected 'gh extension install' command not found in generated YAML")
-	}
-
-	if !strings.Contains(result, "gh aw --version") {
-		t.Error("Expected 'gh aw --version' command not found in generated YAML")
-	}
+	assert.Contains(t, result, "gh extension install githubnext/gh-aw",
+		"install step should include command to install gh-aw extension")
+	assert.Contains(t, result, "gh aw --version",
+		"install step should include command to verify gh-aw installation")
 }
 
 func TestAgenticWorkflowsInstallStepWithCustomToken(t *testing.T) {
-	// Create workflow data with agentic-workflows tool and custom github-token
-	workflowData := &WorkflowData{
-		Tools: map[string]any{
-			"agentic-workflows": nil,
-		},
-		GitHubToken: "${{ secrets.CUSTOM_PAT }}",
-	}
+	// Create workflow data using helper with custom token option
+	workflowData := workflowDataWithAgenticWorkflows(
+		withCustomToken("${{ secrets.CUSTOM_PAT }}"),
+	)
 
-	// Create compiler
-	c := NewCompiler(false, "", "test")
-	c.SetSkipValidation(true)
+	// Create compiler using helper
+	c := testCompiler()
 
 	// Generate MCP setup
 	var yaml strings.Builder
@@ -180,33 +183,26 @@ func TestAgenticWorkflowsInstallStepWithCustomToken(t *testing.T) {
 	result := yaml.String()
 
 	// Verify the install step is present
-	if !strings.Contains(result, "Install gh-aw extension") {
-		t.Error("Expected 'Install gh-aw extension' step not found in generated YAML")
-	}
+	assert.Contains(t, result, "Install gh-aw extension",
+		"MCP setup should include gh-aw installation step even with custom token")
 
 	// Verify GH_TOKEN environment variable is set with the custom token
-	if !strings.Contains(result, "GH_TOKEN: ${{ secrets.CUSTOM_PAT }}") {
-		t.Errorf("Expected GH_TOKEN environment variable to use custom token in install step, got:\n%s", result)
-	}
+	assert.Contains(t, result, "GH_TOKEN: ${{ secrets.CUSTOM_PAT }}",
+		"install step should use custom GitHub token when specified in workflow config")
 
 	// Verify it doesn't use the default token when custom is provided
-	if strings.Contains(result, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
-		t.Error("Should not use default token when custom token is specified")
-	}
+	assert.NotContains(t, result, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+		"install step should not use default token fallback when custom token is specified")
 }
 
 func TestAgenticWorkflowsInstallStepSkippedWithImport(t *testing.T) {
-	// Create workflow data with agentic-workflows tool AND shared/mcp/gh-aw.md import
-	workflowData := &WorkflowData{
-		Tools: map[string]any{
-			"agentic-workflows": nil,
-		},
-		ImportedFiles: []string{"shared/mcp/gh-aw.md"},
-	}
+	// Create workflow data using helper with imported files option
+	workflowData := workflowDataWithAgenticWorkflows(
+		withImportedFiles("shared/mcp/gh-aw.md"),
+	)
 
-	// Create compiler
-	c := NewCompiler(false, "", "test")
-	c.SetSkipValidation(true)
+	// Create compiler using helper
+	c := testCompiler()
 
 	// Generate MCP setup
 	var yaml strings.Builder
@@ -216,28 +212,22 @@ func TestAgenticWorkflowsInstallStepSkippedWithImport(t *testing.T) {
 	result := yaml.String()
 
 	// Verify the install step is NOT present when import exists
-	if strings.Contains(result, "Install gh-aw extension") {
-		t.Error("Expected 'Install gh-aw extension' step to be skipped when shared/mcp/gh-aw.md is imported, but it was present")
-	}
+	assert.NotContains(t, result, "Install gh-aw extension",
+		"install step should be skipped when shared/mcp/gh-aw.md is imported")
 
 	// Verify the install command is also not present
-	if strings.Contains(result, "gh extension install githubnext/gh-aw") {
-		t.Error("Expected 'gh extension install' command to be absent when shared/mcp/gh-aw.md is imported, but it was present")
-	}
+	assert.NotContains(t, result, "gh extension install githubnext/gh-aw",
+		"gh extension install command should be absent when shared/mcp/gh-aw.md is imported")
 }
 
 func TestAgenticWorkflowsInstallStepPresentWithoutImport(t *testing.T) {
-	// Create workflow data with agentic-workflows tool but NO import
-	workflowData := &WorkflowData{
-		Tools: map[string]any{
-			"agentic-workflows": nil,
-		},
-		ImportedFiles: []string{}, // Empty imports
-	}
+	// Create workflow data using helper with empty imports
+	workflowData := workflowDataWithAgenticWorkflows(
+		withImportedFiles(), // Empty imports
+	)
 
-	// Create compiler
-	c := NewCompiler(false, "", "test")
-	c.SetSkipValidation(true)
+	// Create compiler using helper
+	c := testCompiler()
 
 	// Generate MCP setup
 	var yaml strings.Builder
@@ -247,12 +237,10 @@ func TestAgenticWorkflowsInstallStepPresentWithoutImport(t *testing.T) {
 	result := yaml.String()
 
 	// Verify the install step IS present when no import exists
-	if !strings.Contains(result, "Install gh-aw extension") {
-		t.Error("Expected 'Install gh-aw extension' step to be present when shared/mcp/gh-aw.md is NOT imported, but it was missing")
-	}
+	assert.Contains(t, result, "Install gh-aw extension",
+		"install step should be present when shared/mcp/gh-aw.md is NOT imported")
 
 	// Verify the install command is present
-	if !strings.Contains(result, "gh extension install githubnext/gh-aw") {
-		t.Error("Expected 'gh extension install' command to be present when shared/mcp/gh-aw.md is NOT imported, but it was missing")
-	}
+	assert.Contains(t, result, "gh extension install githubnext/gh-aw",
+		"gh extension install command should be present when shared/mcp/gh-aw.md is NOT imported")
 }
