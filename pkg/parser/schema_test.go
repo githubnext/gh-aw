@@ -1565,6 +1565,242 @@ func TestValidateIncludedFileFrontmatterWithSchema(t *testing.T) {
 	}
 }
 
+// TestSchemaRestrictionEnforcement verifies that schema restrictions are properly enforced
+// when validating included files vs main workflows
+func TestSchemaRestrictionEnforcement(t *testing.T) {
+	t.Run("engine.command rejected in included files", func(t *testing.T) {
+		// engine.command should fail for included files
+		includedFrontmatter := map[string]any{
+			"engine": map[string]any{
+				"id":      "claude",
+				"command": "custom-command",
+			},
+			"tools": map[string]any{
+				"bash": true,
+			},
+		}
+
+		err := ValidateIncludedFileFrontmatterWithSchema(includedFrontmatter)
+		if err == nil {
+			t.Error("ValidateIncludedFileFrontmatterWithSchema() expected error for engine.command, got nil")
+		} else if !strings.Contains(err.Error(), "additional properties 'command' not allowed") {
+			t.Errorf("ValidateIncludedFileFrontmatterWithSchema() error = %v, expected 'additional properties 'command' not allowed'", err)
+		}
+
+		// engine.command should pass for main workflows
+		mainFrontmatter := map[string]any{
+			"on": "push",
+			"engine": map[string]any{
+				"id":      "claude",
+				"command": "custom-command",
+			},
+			"tools": map[string]any{
+				"bash": true,
+			},
+		}
+
+		err = ValidateMainWorkflowFrontmatterWithSchema(mainFrontmatter)
+		if err != nil {
+			t.Errorf("ValidateMainWorkflowFrontmatterWithSchema() unexpected error for engine.command: %v", err)
+		}
+	})
+
+	t.Run("MCP config in mcp-servers section allowed in both schemas", func(t *testing.T) {
+		// MCP servers configuration is allowed in both included files and main workflows
+		// using the mcp-servers top-level property
+		includedFrontmatter := map[string]any{
+			"mcp-servers": map[string]any{
+				"myMCP": map[string]any{
+					"type":    "stdio",
+					"command": "npx",
+					"args": []any{
+						"-y",
+						"@modelcontextprotocol/server-filesystem",
+						"/tmp",
+					},
+					"env": map[string]any{
+						"API_KEY": "${{ secrets.API_KEY }}",
+					},
+					"allowed": []string{"read_file", "write_file"},
+				},
+			},
+		}
+
+		err := ValidateIncludedFileFrontmatterWithSchema(includedFrontmatter)
+		if err != nil {
+			t.Errorf("ValidateIncludedFileFrontmatterWithSchema() unexpected error for MCP server config: %v", err)
+		}
+
+		// Same configuration should pass for main workflows
+		mainFrontmatter := map[string]any{
+			"on": "push",
+			"mcp-servers": map[string]any{
+				"myMCP": map[string]any{
+					"type":    "stdio",
+					"command": "npx",
+					"args": []any{
+						"-y",
+						"@modelcontextprotocol/server-filesystem",
+						"/tmp",
+					},
+					"env": map[string]any{
+						"API_KEY": "${{ secrets.API_KEY }}",
+					},
+					"allowed": []string{"read_file", "write_file"},
+				},
+			},
+		}
+
+		err = ValidateMainWorkflowFrontmatterWithSchema(mainFrontmatter)
+		if err != nil {
+			t.Errorf("ValidateMainWorkflowFrontmatterWithSchema() unexpected error for MCP server config: %v", err)
+		}
+	})
+
+	t.Run("missing 'on' field in main workflow", func(t *testing.T) {
+		// Missing 'on' field should fail for main workflows
+		mainFrontmatter := map[string]any{
+			"engine": "claude",
+			"tools": map[string]any{
+				"bash": true,
+			},
+		}
+
+		err := ValidateMainWorkflowFrontmatterWithSchema(mainFrontmatter)
+		if err == nil {
+			t.Error("ValidateMainWorkflowFrontmatterWithSchema() expected error for missing 'on' field, got nil")
+		} else if !strings.Contains(err.Error(), "missing property 'on'") {
+			t.Errorf("ValidateMainWorkflowFrontmatterWithSchema() error = %v, expected 'missing property 'on''", err)
+		}
+
+		// Missing 'on' field should pass for included files
+		includedFrontmatter := map[string]any{
+			"engine": "claude",
+			"tools": map[string]any{
+				"bash": true,
+			},
+		}
+
+		err = ValidateIncludedFileFrontmatterWithSchema(includedFrontmatter)
+		if err != nil {
+			t.Errorf("ValidateIncludedFileFrontmatterWithSchema() unexpected error for missing 'on' field: %v", err)
+		}
+	})
+
+	t.Run("'on' field rejected in included files", func(t *testing.T) {
+		// 'on' field should fail for included files
+		includedFrontmatter := map[string]any{
+			"on": "push",
+			"tools": map[string]any{
+				"bash": true,
+			},
+		}
+
+		err := ValidateIncludedFileFrontmatterWithSchema(includedFrontmatter)
+		if err == nil {
+			t.Error("ValidateIncludedFileFrontmatterWithSchema() expected error for 'on' field, got nil")
+		} else if !strings.Contains(err.Error(), "additional properties 'on' not allowed") {
+			t.Errorf("ValidateIncludedFileFrontmatterWithSchema() error = %v, expected 'additional properties 'on' not allowed'", err)
+		}
+	})
+
+	t.Run("valid included file with all allowed properties", func(t *testing.T) {
+		// Test that all 15 allowed properties work in included files
+		// Based on included_file_schema.json properties: description, metadata, inputs, applyTo, services,
+		// mcp-servers, steps, tools, engine, safe-outputs, safe-inputs, secret-masking, runtimes, network, permissions
+		includedFrontmatter := map[string]any{
+			"description": "Shared configuration for workflows",
+			"metadata": map[string]any{
+				"author":  "Test User",
+				"version": "1.0.0",
+			},
+			"inputs": map[string]any{
+				"count": map[string]any{
+					"description": "Number of items",
+					"type":        "number",
+					"default":     100,
+				},
+			},
+			"applyTo": "**/*.py",
+			"services": map[string]any{
+				"redis": map[string]any{
+					"image": "redis:latest",
+				},
+			},
+			"mcp-servers": map[string]any{
+				"filesystem": map[string]any{
+					"command": "npx",
+					"args":    []string{"-y", "@modelcontextprotocol/server-filesystem"},
+				},
+			},
+			"steps": []any{
+				map[string]any{
+					"name": "Test step",
+					"run":  "echo test",
+				},
+			},
+			"tools": map[string]any{
+				"github": map[string]any{
+					"allowed": []string{"issue_read"},
+				},
+				"bash": true,
+			},
+			"engine": map[string]any{
+				"id":    "claude",
+				"model": "claude-3-5-sonnet-20241022",
+			},
+			"safe-outputs": map[string]any{
+				"jobs": map[string]any{},
+			},
+			"safe-inputs": map[string]any{},
+			"secret-masking": map[string]any{
+				"steps": []any{},
+			},
+			"runtimes": map[string]any{
+				"node": map[string]any{
+					"version": "20",
+				},
+			},
+			"network": map[string]any{
+				"allowed": []string{"example.com"},
+			},
+			"permissions": map[string]any{
+				"contents": "read",
+				"issues":   "write",
+			},
+		}
+
+		err := ValidateIncludedFileFrontmatterWithSchema(includedFrontmatter)
+		if err != nil {
+			t.Errorf("ValidateIncludedFileFrontmatterWithSchema() unexpected error for valid included file with all allowed properties: %v", err)
+		}
+	})
+
+	t.Run("valid included file with subset of allowed properties", func(t *testing.T) {
+		// Test a realistic subset of properties commonly used in included files
+		includedFrontmatter := map[string]any{
+			"description": "Common tools configuration",
+			"tools": map[string]any{
+				"github": map[string]any{
+					"allowed": []string{"issue_read", "pull_request_read"},
+				},
+				"bash": []string{"ls", "cat", "grep"},
+			},
+			"permissions": map[string]any{
+				"contents":      "read",
+				"issues":        "read",
+				"pull-requests": "read",
+			},
+			"network": "defaults",
+		}
+
+		err := ValidateIncludedFileFrontmatterWithSchema(includedFrontmatter)
+		if err != nil {
+			t.Errorf("ValidateIncludedFileFrontmatterWithSchema() unexpected error for valid included file with subset of properties: %v", err)
+		}
+	})
+}
+
 func TestValidateWithSchema(t *testing.T) {
 	tests := []struct {
 		name        string
