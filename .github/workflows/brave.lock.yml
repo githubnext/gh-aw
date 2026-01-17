@@ -122,6 +122,7 @@ jobs:
       model: ${{ steps.generate_aw_info.outputs.model }}
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
+      secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -164,6 +165,7 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Validate COPILOT_GITHUB_TOKEN secret
+        id: validate-secret
         run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -380,17 +382,9 @@ jobs:
             "mcpServers": {
               "brave-search": {
                 "type": "stdio",
-                "command": "docker",
+                "container": "docker.io/mcp/brave-search",
                 "tools": [
                   "*"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "BRAVE_API_KEY",
-                  "docker.io/mcp/brave-search"
                 ],
                 "env": {
                   "BRAVE_API_KEY": "${{ secrets.BRAVE_API_KEY }}"
@@ -931,6 +925,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Brave Web Search Agent"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🦁 *Search results brought to you by [{workflow_name}]({run_url})*\",\"footerWorkflowRecompile\":\"\\u003e 🔄 *Maintenance report by [{workflow_name}]({run_url}) for {repository}*\",\"runStarted\":\"🔍 Brave Search activated! [{workflow_name}]({run_url}) is venturing into the web on this {event_type}...\",\"runSuccess\":\"🦁 Mission accomplished! [{workflow_name}]({run_url}) has returned with the findings. Knowledge acquired! 🏆\",\"runFailure\":\"🔍 Search interrupted! [{workflow_name}]({run_url}) {status}. The web remains unexplored...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1054,6 +1049,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Validate COPILOT_GITHUB_TOKEN secret
+        id: validate-secret
         run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

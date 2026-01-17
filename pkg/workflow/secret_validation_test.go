@@ -136,6 +136,11 @@ func TestGenerateMultiSecretValidationStep(t *testing.T) {
 					t.Errorf("Expected step to have environment variable: %s", expectedEnvVar)
 				}
 			}
+
+			// Verify step has id field
+			if !strings.Contains(stepContent, "id: validate-secret") {
+				t.Error("Expected step to have 'id: validate-secret' field")
+			}
 		})
 	}
 }

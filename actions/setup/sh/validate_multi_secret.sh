@@ -79,6 +79,11 @@ if [ "$all_empty" = true ]; then
   echo "Please configure one of these secrets in your repository settings." >&2
   echo "Documentation: $DOCS_URL" >&2
   
+  # Set step output to indicate verification failed
+  if [ -n "$GITHUB_OUTPUT" ]; then
+    echo "verification_result=failed" >> "$GITHUB_OUTPUT"
+  fi
+  
   exit 1
 fi
 
@@ -121,3 +126,8 @@ else
 fi
 
 echo "</details>"
+
+# Set step output to indicate verification succeeded
+if [ -n "$GITHUB_OUTPUT" ]; then
+  echo "verification_result=success" >> "$GITHUB_OUTPUT"
+fi

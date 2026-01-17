@@ -166,6 +166,7 @@ jobs:
       model: ${{ steps.generate_aw_info.outputs.model }}
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
+      secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -228,6 +229,7 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
       - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
+        id: validate-secret
         run: /opt/gh-aw/actions/validate_multi_secret.sh CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY 'Claude Code' https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -437,25 +439,11 @@ jobs:
             "mcpServers": {
               "arxiv": {
                 "type": "stdio",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "mcp/arxiv-mcp-server"
-                ]
+                "container": "mcp/arxiv-mcp-server"
               },
               "context7": {
                 "type": "stdio",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "CONTEXT7_API_KEY",
-                  "mcp/context7"
-                ],
+                "container": "mcp/context7",
                 "env": {
                   "CONTEXT7_API_KEY": "${{ secrets.CONTEXT7_API_KEY }}"
                 }
@@ -1270,6 +1258,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Scout"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔭 *Intelligence gathered by [{workflow_name}]({run_url})*\",\"runStarted\":\"🏕️ Scout on patrol! [{workflow_name}]({run_url}) is blazing trails through this {event_type}...\",\"runSuccess\":\"🔭 Recon complete! [{workflow_name}]({run_url}) has charted the territory. Map ready! 🗺️\",\"runFailure\":\"🏕️ Lost in the wilderness! [{workflow_name}]({run_url}) {status}. Sending search party...\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1393,6 +1382,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
+        id: validate-secret
         run: /opt/gh-aw/actions/validate_multi_secret.sh CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY 'Claude Code' https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
