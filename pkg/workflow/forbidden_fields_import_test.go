@@ -15,7 +15,6 @@ import (
 func TestForbiddenFieldsImportRejection(t *testing.T) {
 	forbiddenFields := map[string]string{
 		"on":              `on: issues`,
-		"bots":            `bots: ["copilot"]`,
 		"cache":           `cache: npm`,
 		"command":         `command: /help`,
 		"concurrency":     `concurrency: production`,
@@ -28,7 +27,6 @@ func TestForbiddenFieldsImportRejection(t *testing.T) {
 		// Note: "imports" is skipped because it triggers import file resolution before field validation
 		"labels":          `labels: ["bug"]`,
 		"name":            `name: Test Workflow`,
-		"post-steps":      `post-steps: [{run: echo done}]`,
 		"roles":           `roles: ["admin"]`,
 		"run-name":        `run-name: Test Run`,
 		"runs-on":         `runs-on: ubuntu-latest`,
@@ -111,6 +109,8 @@ func TestAllowedFieldsImportSuccess(t *testing.T) {
   test_input:
     description: "Test input"
     type: string`,
+		"bots":       `bots: ["copilot", "dependabot"]`,
+		"post-steps": `post-steps: [{run: echo cleanup}]`,
 	}
 
 	for field, yaml := range allowedFields {

@@ -11,7 +11,6 @@ var schemaValidationLog = logger.New("parser:schema_validation")
 // Fields that cannot be used in shared/included workflows (only allowed in main workflows with 'on' field)
 var sharedWorkflowForbiddenFields = map[string]bool{
 	"on":              true, // Trigger field - only for main workflows
-	"bots":            true,
 	"cache":           true,
 	"command":         true,
 	"concurrency":     true,
@@ -24,7 +23,6 @@ var sharedWorkflowForbiddenFields = map[string]bool{
 	"imports":         true,
 	"labels":          true,
 	"name":            true,
-	"post-steps":      true,
 	"roles":           true,
 	"run-name":        true,
 	"runs-on":         true,

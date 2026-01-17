@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -25,6 +26,8 @@ type ImportsResult struct {
 	MergedNetwork       string   // Merged network configuration from all imports
 	MergedPermissions   string   // Merged permissions configuration from all imports
 	MergedSecretMasking string   // Merged secret-masking steps from all imports
+	MergedBots          []string // Merged bots list from all imports (union of bot names)
+	MergedPostSteps     string   // Merged post-steps configuration from all imports (appended in order)
 	ImportedFiles       []string // List of imported file paths (for manifest)
 	AgentFile           string   // Path to custom agent file (if imported)
 	// ImportInputs uses map[string]any because input values can be different types (string, number, boolean).
@@ -163,10 +166,13 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	var networkBuilder strings.Builder
 	var permissionsBuilder strings.Builder
 	var secretMaskingBuilder strings.Builder
+	var postStepsBuilder strings.Builder
 	var engines []string
 	var safeOutputs []string
 	var safeInputs []string
-	var agentFile string                 // Track custom agent file
+	var bots []string                  // Track unique bot names
+	botsSet := make(map[string]bool)   // Set for deduplicating bots
+	var agentFile string               // Track custom agent file
 	importInputs := make(map[string]any) // Aggregated input values from all imports
 
 	// Seed the queue with initial imports
@@ -432,6 +438,27 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		if err == nil && secretMaskingContent != "" && secretMaskingContent != "{}" {
 			secretMaskingBuilder.WriteString(secretMaskingContent + "\n")
 		}
+
+		// Extract bots from imported file (merge into set to avoid duplicates)
+		botsContent, err := extractBotsFromContent(string(content))
+		if err == nil && botsContent != "" && botsContent != "[]" {
+			// Parse bots JSON array
+			var importedBots []string
+			if jsonErr := json.Unmarshal([]byte(botsContent), &importedBots); jsonErr == nil {
+				for _, bot := range importedBots {
+					if !botsSet[bot] {
+						botsSet[bot] = true
+						bots = append(bots, bot)
+					}
+				}
+			}
+		}
+
+		// Extract post-steps from imported file (append in order)
+		postStepsContent, err := extractPostStepsFromContent(string(content))
+		if err == nil && postStepsContent != "" {
+			postStepsBuilder.WriteString(postStepsContent + "\n")
+		}
 	}
 
 	log.Printf("Completed BFS traversal. Processed %d imports in total", len(processedOrder))
@@ -453,6 +480,8 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		MergedNetwork:       networkBuilder.String(),
 		MergedPermissions:   permissionsBuilder.String(),
 		MergedSecretMasking: secretMaskingBuilder.String(),
+		MergedBots:          bots,
+		MergedPostSteps:     postStepsBuilder.String(),
 		ImportedFiles:       topologicalOrder,
 		AgentFile:           agentFile,
 		ImportInputs:        importInputs,
