@@ -382,17 +382,9 @@ jobs:
             "mcpServers": {
               "brave-search": {
                 "type": "stdio",
-                "command": "docker",
+                "container": "docker.io/mcp/brave-search",
                 "tools": [
                   "*"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "BRAVE_API_KEY",
-                  "docker.io/mcp/brave-search"
                 ],
                 "env": {
                   "BRAVE_API_KEY": "${{ secrets.BRAVE_API_KEY }}"

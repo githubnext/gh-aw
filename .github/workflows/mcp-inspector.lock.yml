@@ -226,7 +226,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh @sentry/mcp-server@0.26.0 docker.io/mcp/brave-search ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.62 mcp/arxiv-mcp-server mcp/ast-grep:latest mcp/context7 mcp/memory mcp/notion microsoft-fabric-rti-mcp node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh docker.io/mcp/brave-search ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.62 mcp/arxiv-mcp-server mcp/ast-grep:latest mcp/context7 mcp/memory mcp/notion node:lts-alpine python:alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -459,45 +459,25 @@ jobs:
             "mcpServers": {
               "arxiv": {
                 "type": "stdio",
-                "command": "docker",
+                "container": "mcp/arxiv-mcp-server",
                 "tools": [
                   "search_arxiv",
                   "get_paper_details",
                   "get_paper_pdf"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "mcp/arxiv-mcp-server"
                 ]
               },
               "ast-grep": {
                 "type": "stdio",
-                "command": "docker",
+                "container": "mcp/ast-grep:latest",
                 "tools": [
                   "*"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "mcp/ast-grep:latest"
                 ]
               },
               "brave-search": {
                 "type": "stdio",
-                "command": "docker",
+                "container": "docker.io/mcp/brave-search",
                 "tools": [
                   "*"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "BRAVE_API_KEY",
-                  "docker.io/mcp/brave-search"
                 ],
                 "env": {
                   "BRAVE_API_KEY": "${{ secrets.BRAVE_API_KEY }}"
@@ -505,18 +485,10 @@ jobs:
               },
               "context7": {
                 "type": "stdio",
-                "command": "docker",
+                "container": "mcp/context7",
                 "tools": [
                   "get-library-docs",
                   "resolve-library-id"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "CONTEXT7_API_KEY",
-                  "mcp/context7"
                 ],
                 "env": {
                   "CONTEXT7_API_KEY": "${{ secrets.CONTEXT7_API_KEY }}"
@@ -553,7 +525,12 @@ jobs:
               },
               "fabric-rti": {
                 "type": "stdio",
-                "command": "docker",
+                "container": "python:alpine",
+                "entrypoint": "uvx",
+                "entrypointArgs": [
+                  "uvx",
+                  "microsoft-fabric-rti-mcp"
+                ],
                 "tools": [
                   "kusto_known_services",
                   "kusto_query",
@@ -568,22 +545,6 @@ jobs:
                   "list_eventstreams",
                   "get_eventstream",
                   "get_eventstream_definition"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "AZURE_CLIENT_ID",
-                  "-e",
-                  "AZURE_CLIENT_SECRET",
-                  "-e",
-                  "AZURE_TENANT_ID",
-                  "--entrypoint",
-                  "uvx",
-                  "python:alpine",
-                  "uvx",
-                  "microsoft-fabric-rti-mcp"
                 ],
                 "env": {
                   "AZURE_CLIENT_ID": "${{ secrets.AZURE_CLIENT_ID }}",
@@ -617,20 +578,16 @@ jobs:
               },
               "memory": {
                 "type": "stdio",
-                "command": "docker",
+                "container": "mcp/memory",
+                "args": [
+                  "-v",
+                  "/tmp/gh-aw/cache-memory:/app/dist"
+                ],
                 "tools": [
                   "store_memory",
                   "retrieve_memory",
                   "list_memories",
                   "delete_memory"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-v",
-                  "/tmp/gh-aw/cache-memory:/app/dist",
-                  "mcp/memory"
                 ]
               },
               "microsoftdocs": {
@@ -642,20 +599,12 @@ jobs:
               },
               "notion": {
                 "type": "stdio",
-                "command": "docker",
+                "container": "mcp/notion",
                 "tools": [
                   "search_pages",
                   "get_page",
                   "get_database",
                   "query_database"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "NOTION_API_TOKEN",
-                  "mcp/notion"
                 ],
                 "env": {
                   "NOTION_API_TOKEN": "${{ secrets.NOTION_API_TOKEN }}"
@@ -684,7 +633,12 @@ jobs:
               },
               "sentry": {
                 "type": "stdio",
-                "command": "docker",
+                "container": "node:lts-alpine",
+                "entrypoint": "npx",
+                "entrypointArgs": [
+                  "npx",
+                  "@sentry/mcp-server@0.26.0"
+                ],
                 "tools": [
                   "whoami",
                   "find_organizations",
@@ -700,22 +654,6 @@ jobs:
                   "analyze_issue_with_seer",
                   "search_docs requires SENTRY_OPENAI_API_KEY",
                   "get_doc"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "OPENAI_API_KEY",
-                  "-e",
-                  "SENTRY_ACCESS_TOKEN",
-                  "-e",
-                  "SENTRY_HOST",
-                  "--entrypoint",
-                  "npx",
-                  "node:lts-alpine",
-                  "npx",
-                  "@sentry/mcp-server@0.26.0"
                 ],
                 "env": {
                   "OPENAI_API_KEY": "${{ secrets.SENTRY_OPENAI_API_KEY }}",

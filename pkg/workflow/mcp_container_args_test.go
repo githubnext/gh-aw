@@ -21,13 +21,14 @@ func TestContainerWithCustomArgs(t *testing.T) {
 		t.Fatalf("getMCPConfig failed: %v", err)
 	}
 
-	// Check that command is docker
-	if result.Command != "docker" {
-		t.Errorf("Expected command 'docker', got '%s'", result.Command)
+	// Check that container is set (MCP Gateway format)
+	expectedContainer := "test:latest" // version should be appended
+	if result.Container != expectedContainer {
+		t.Errorf("Expected container '%s', got '%s'", expectedContainer, result.Container)
 	}
 
-	// Check that args contain the expected elements (with version appended to container)
-	expectedArgs := []string{"run", "--rm", "-i", "-e", "TEST_VAR", "-v", "/tmp:/tmp:ro", "-w", "/tmp", "test:latest"}
+	// Check that custom Docker runtime args are preserved
+	expectedArgs := []string{"-v", "/tmp:/tmp:ro", "-w", "/tmp"}
 	if len(result.Args) != len(expectedArgs) {
 		t.Errorf("Expected %d args, got %d: %v", len(expectedArgs), len(result.Args), result.Args)
 	}
@@ -50,11 +51,6 @@ func TestContainerWithCustomArgs(t *testing.T) {
 	if !hasWorkdir {
 		t.Error("Expected working directory '-w /tmp' in args")
 	}
-
-	// Check that container with version is the last arg
-	if result.Args[len(result.Args)-1] != "test:latest" {
-		t.Errorf("Expected container 'test:latest' as last arg, got '%s'", result.Args[len(result.Args)-1])
-	}
 }
 
 func TestContainerWithoutCustomArgs(t *testing.T) {
@@ -72,20 +68,14 @@ func TestContainerWithoutCustomArgs(t *testing.T) {
 		t.Fatalf("getMCPConfig failed: %v", err)
 	}
 
-	// Check that command is docker
-	if result.Command != "docker" {
-		t.Errorf("Expected command 'docker', got '%s'", result.Command)
+	// Check that container is set (MCP Gateway format)
+	if result.Container != "test:latest" {
+		t.Errorf("Expected container 'test:latest', got '%s'", result.Container)
 	}
 
-	// Check that args contain the expected elements (no custom args)
-	expectedArgs := []string{"run", "--rm", "-i", "-e", "TEST_VAR", "test:latest"}
-	if len(result.Args) != len(expectedArgs) {
-		t.Errorf("Expected %d args, got %d: %v", len(expectedArgs), len(result.Args), result.Args)
-	}
-
-	// Check that container is the last arg (backward compatibility - container with :tag in it)
-	if result.Args[len(result.Args)-1] != "test:latest" {
-		t.Errorf("Expected container 'test:latest' as last arg, got '%s'", result.Args[len(result.Args)-1])
+	// Check that args are empty (no custom args)
+	if len(result.Args) != 0 {
+		t.Errorf("Expected 0 args, got %d: %v", len(result.Args), result.Args)
 	}
 }
 
@@ -105,20 +95,15 @@ func TestContainerWithVersionField(t *testing.T) {
 		t.Fatalf("getMCPConfig failed: %v", err)
 	}
 
-	// Check that command is docker
-	if result.Command != "docker" {
-		t.Errorf("Expected command 'docker', got '%s'", result.Command)
-	}
-
-	// Check that container with version is the last arg
+	// Check that container includes the version
 	expectedContainer := "ghcr.io/test/image:v1.2.3"
-	if result.Args[len(result.Args)-1] != expectedContainer {
-		t.Errorf("Expected container '%s' as last arg, got '%s'", expectedContainer, result.Args[len(result.Args)-1])
+	if result.Container != expectedContainer {
+		t.Errorf("Expected container '%s', got '%s'", expectedContainer, result.Container)
 	}
 }
 
 func TestContainerWithEntrypointArgs(t *testing.T) {
-	// Test that entrypointArgs are added after the container image
+	// Test that entrypointArgs are preserved in MCP Gateway format
 	config := map[string]any{
 		"container":      "test-image",
 		"version":        "latest",
@@ -134,47 +119,26 @@ func TestContainerWithEntrypointArgs(t *testing.T) {
 		t.Fatalf("getMCPConfig failed: %v", err)
 	}
 
-	// Check that command is docker
-	if result.Command != "docker" {
-		t.Errorf("Expected command 'docker', got '%s'", result.Command)
+	// Check that container is set with version
+	expectedContainer := "test-image:latest"
+	if result.Container != expectedContainer {
+		t.Errorf("Expected container '%s', got '%s'", expectedContainer, result.Container)
 	}
 
-	// Expected args structure: ["run", "--rm", "-i", "-e", "TEST_VAR", "test-image:latest", "--config", "/app/config.json", "--verbose"]
-	expectedArgs := []string{"run", "--rm", "-i", "-e", "TEST_VAR", "test-image:latest", "--config", "/app/config.json", "--verbose"}
-	if len(result.Args) != len(expectedArgs) {
-		t.Errorf("Expected %d args, got %d: %v", len(expectedArgs), len(result.Args), result.Args)
+	// Check that entrypointArgs are set
+	expectedEntrypointArgs := []string{"--config", "/app/config.json", "--verbose"}
+	if len(result.EntrypointArgs) != len(expectedEntrypointArgs) {
+		t.Errorf("Expected %d entrypointArgs, got %d: %v", len(expectedEntrypointArgs), len(result.EntrypointArgs), result.EntrypointArgs)
 	}
 
-	// Check that entrypoint args come after container image
-	containerImageIndex := -1
-	for i, arg := range result.Args {
-		if arg == "test-image:latest" {
-			containerImageIndex = i
-			break
+	// Verify each entrypoint arg
+	for i, expectedArg := range expectedEntrypointArgs {
+		if i >= len(result.EntrypointArgs) {
+			t.Errorf("Missing entrypoint arg at index %d: expected '%s'", i, expectedArg)
+			continue
 		}
-	}
-
-	if containerImageIndex == -1 {
-		t.Fatal("Container image not found in args")
-	}
-
-	// Verify entrypoint args are after container image
-	if containerImageIndex+1 >= len(result.Args) {
-		t.Error("No args found after container image")
-	} else {
-		// Check each entrypoint arg
-		entrypointArgsStart := containerImageIndex + 1
-		expectedEntrypointArgs := []string{"--config", "/app/config.json", "--verbose"}
-
-		for i, expectedArg := range expectedEntrypointArgs {
-			actualIndex := entrypointArgsStart + i
-			if actualIndex >= len(result.Args) {
-				t.Errorf("Missing entrypoint arg at index %d: expected '%s'", i, expectedArg)
-				continue
-			}
-			if result.Args[actualIndex] != expectedArg {
-				t.Errorf("Entrypoint arg %d: expected '%s', got '%s'", i, expectedArg, result.Args[actualIndex])
-			}
+		if result.EntrypointArgs[i] != expectedArg {
+			t.Errorf("Entrypoint arg %d: expected '%s', got '%s'", i, expectedArg, result.EntrypointArgs[i])
 		}
 	}
 }
@@ -197,54 +161,44 @@ func TestContainerWithArgsAndEntrypointArgs(t *testing.T) {
 		t.Fatalf("getMCPConfig failed: %v", err)
 	}
 
-	// Check that command is docker
-	if result.Command != "docker" {
-		t.Errorf("Expected command 'docker', got '%s'", result.Command)
+	// Check that container is set with version
+	expectedContainer := "test-image:v1.0"
+	if result.Container != expectedContainer {
+		t.Errorf("Expected container '%s', got '%s'", expectedContainer, result.Container)
 	}
 
-	// Expected structure: ["run", "--rm", "-i", "-e", "ENV_VAR", "-v", "/host:/container", "test-image:v1.0", "serve", "--port", "8080"]
-	expectedArgs := []string{"run", "--rm", "-i", "-e", "ENV_VAR", "-v", "/host:/container", "test-image:v1.0", "serve", "--port", "8080"}
+	// Check that Docker runtime args (before container) are preserved
+	expectedArgs := []string{"-v", "/host:/container"}
 	if len(result.Args) != len(expectedArgs) {
 		t.Errorf("Expected %d args, got %d: %v", len(expectedArgs), len(result.Args), result.Args)
 	}
 
-	// Find container image position
-	containerImageIndex := -1
+	// Verify volume mount is in args
+	hasVolume := false
 	for i, arg := range result.Args {
-		if arg == "test-image:v1.0" {
-			containerImageIndex = i
+		if arg == "-v" && i+1 < len(result.Args) && result.Args[i+1] == "/host:/container" {
+			hasVolume = true
 			break
 		}
 	}
-
-	if containerImageIndex == -1 {
-		t.Fatal("Container image not found in args")
+	if !hasVolume {
+		t.Error("Expected volume mount args in Docker runtime args")
 	}
 
-	// Verify args come before container image (specifically the volume mount)
-	hasVolumeBefore := false
-	for i := 0; i < containerImageIndex; i++ {
-		if result.Args[i] == "-v" && i+1 < containerImageIndex && result.Args[i+1] == "/host:/container" {
-			hasVolumeBefore = true
-			break
-		}
-	}
-	if !hasVolumeBefore {
-		t.Error("Expected volume mount args before container image")
-	}
-
-	// Verify entrypoint args come after container image
+	// Check that entrypointArgs are preserved
 	expectedEntrypointArgs := []string{"serve", "--port", "8080"}
-	entrypointArgsStart := containerImageIndex + 1
+	if len(result.EntrypointArgs) != len(expectedEntrypointArgs) {
+		t.Errorf("Expected %d entrypointArgs, got %d: %v", len(expectedEntrypointArgs), len(result.EntrypointArgs), result.EntrypointArgs)
+	}
 
+	// Verify entrypoint args
 	for i, expectedArg := range expectedEntrypointArgs {
-		actualIndex := entrypointArgsStart + i
-		if actualIndex >= len(result.Args) {
+		if i >= len(result.EntrypointArgs) {
 			t.Errorf("Missing entrypoint arg at index %d: expected '%s'", i, expectedArg)
 			continue
 		}
-		if result.Args[actualIndex] != expectedArg {
-			t.Errorf("Entrypoint arg %d: expected '%s', got '%s'", i, expectedArg, result.Args[actualIndex])
+		if result.EntrypointArgs[i] != expectedArg {
+			t.Errorf("Entrypoint arg %d: expected '%s', got '%s'", i, expectedArg, result.EntrypointArgs[i])
 		}
 	}
 }

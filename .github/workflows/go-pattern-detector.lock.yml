@@ -385,13 +385,7 @@ jobs:
             "mcpServers": {
               "ast-grep": {
                 "type": "stdio",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "mcp/ast-grep:latest"
-                ]
+                "container": "mcp/ast-grep:latest"
               },
               "github": {
                 "container": "ghcr.io/github/github-mcp-server:v0.28.1",
