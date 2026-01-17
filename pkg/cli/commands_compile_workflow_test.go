@@ -187,7 +187,7 @@ Test compilation with invalid engine.
 			verbose:        false,
 			engineOverride: "invalid-engine",
 			expectError:    true,
-			errorContains:  "invalid engine",
+			errorContains:  "Invalid engine",
 		},
 	}
 
