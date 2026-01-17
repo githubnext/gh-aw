@@ -27,7 +27,10 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -35,11 +38,55 @@ import (
 
 var compileCompilerSetupLog = logger.New("cli:compile_compiler_setup")
 
+// resetActionPinsFile resets the action_pins.json file to an empty state
+func resetActionPinsFile() error {
+	compileCompilerSetupLog.Print("Resetting action_pins.json to empty state")
+
+	// Get the path to action_pins.json relative to the repository root
+	// This assumes the command is run from the repository root
+	actionPinsPath := filepath.Join("pkg", "workflow", "data", "action_pins.json")
+
+	// Check if file exists
+	if _, err := os.Stat(actionPinsPath); os.IsNotExist(err) {
+		compileCompilerSetupLog.Printf("action_pins.json does not exist at %s, skipping reset", actionPinsPath)
+		return nil
+	}
+
+	// Create empty structure matching the schema
+	emptyData := map[string]any{
+		"entries": map[string]any{},
+	}
+
+	// Marshal with pretty printing
+	data, err := json.MarshalIndent(emptyData, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal empty action pins: %w", err)
+	}
+
+	// Add trailing newline for prettier compliance
+	data = append(data, '\n')
+
+	// Write the file
+	if err := os.WriteFile(actionPinsPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write action_pins.json: %w", err)
+	}
+
+	compileCompilerSetupLog.Printf("Successfully reset %s to empty state", actionPinsPath)
+	return nil
+}
+
 // createAndConfigureCompiler creates a new compiler instance and configures it
 // based on the provided configuration
 func createAndConfigureCompiler(config CompileConfig) *workflow.Compiler {
 	compileCompilerSetupLog.Printf("Creating compiler with config: verbose=%v, validate=%v, strict=%v, trialMode=%v",
 		config.Verbose, config.Validate, config.Strict, config.TrialMode)
+
+	// Handle force refresh action pins - reset the source action_pins.json file
+	if config.ForceRefreshActionPins {
+		if err := resetActionPinsFile(); err != nil {
+			compileCompilerSetupLog.Printf("Warning: failed to reset action_pins.json: %v", err)
+		}
+	}
 
 	// Create compiler with verbose flag and AI engine override
 	compiler := workflow.NewCompiler(config.Verbose, config.EngineOverride, GetVersion())
@@ -87,6 +134,12 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 	compiler.SetRefreshStopTime(config.RefreshStopTime)
 	if config.RefreshStopTime {
 		compileCompilerSetupLog.Print("Stop time refresh enabled: will regenerate stop-after times")
+	}
+
+	// Set force refresh action pins flag
+	compiler.SetForceRefreshActionPins(config.ForceRefreshActionPins)
+	if config.ForceRefreshActionPins {
+		compileCompilerSetupLog.Print("Force refresh action pins enabled: will clear cache and resolve all actions from GitHub API")
 	}
 }
 

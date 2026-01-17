@@ -26,6 +26,7 @@ type Compiler struct {
 	trialMode            bool                // If true, suppress safe outputs for trial mode execution
 	trialLogicalRepoSlug string              // If set in trial mode, the logical repository to checkout
 	refreshStopTime      bool                // If true, regenerate stop-after times instead of preserving existing ones
+	forceRefreshActionPins bool              // If true, clear action cache and resolve all actions from GitHub API
 	markdownPath         string              // Path to the markdown file being compiled (for context in dynamic tool generation)
 	actionMode           ActionMode          // Mode for generating JavaScript steps (inline vs custom actions)
 	actionTag            string              // Override action SHA or tag for actions/setup (when set, overrides actionMode to release)
@@ -113,6 +114,11 @@ func (c *Compiler) SetRefreshStopTime(refresh bool) {
 	c.refreshStopTime = refresh
 }
 
+// SetForceRefreshActionPins configures whether to force refresh of action pins
+func (c *Compiler) SetForceRefreshActionPins(force bool) {
+	c.forceRefreshActionPins = force
+}
+
 // SetActionMode configures the action mode for JavaScript step generation
 func (c *Compiler) SetActionMode(mode ActionMode) {
 	c.actionMode = mode
@@ -189,9 +195,20 @@ func (c *Compiler) getSharedActionResolver() (*ActionCache, *ActionResolver) {
 			cwd = "."
 		}
 		c.actionCache = NewActionCache(cwd)
-		_ = c.actionCache.Load() // Ignore errors if cache doesn't exist
+		
+		// Load existing cache unless force refresh is enabled
+		if !c.forceRefreshActionPins {
+			_ = c.actionCache.Load() // Ignore errors if cache doesn't exist
+		} else {
+			logTypes.Print("Force refresh action pins enabled: skipping cache load and will resolve all actions dynamically")
+		}
+		
 		c.actionResolver = NewActionResolver(c.actionCache)
 		logTypes.Print("Initialized shared action cache and resolver for compiler")
+	} else if c.forceRefreshActionPins && c.actionCache != nil {
+		// If cache already exists but force refresh is set, clear it
+		logTypes.Print("Force refresh action pins: clearing existing cache")
+		c.actionCache.Entries = make(map[string]ActionCacheEntry)
 	}
 	return c.actionCache, c.actionResolver
 }

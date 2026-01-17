@@ -214,6 +214,7 @@ Examples:
 		dependabot, _ := cmd.Flags().GetBool("dependabot")
 		forceOverwrite, _ := cmd.Flags().GetBool("force")
 		refreshStopTime, _ := cmd.Flags().GetBool("refresh-stop-time")
+		forceRefreshActionPins, _ := cmd.Flags().GetBool("force-refresh-action-pins")
 		zizmor, _ := cmd.Flags().GetBool("zizmor")
 		poutine, _ := cmd.Flags().GetBool("poutine")
 		actionlint, _ := cmd.Flags().GetBool("actionlint")
@@ -248,28 +249,29 @@ Examples:
 			workflowDir = workflowsDir
 		}
 		config := cli.CompileConfig{
-			MarkdownFiles:        args,
-			Verbose:              verbose,
-			EngineOverride:       engineOverride,
-			ActionMode:           actionMode,
-			ActionTag:            actionTag,
-			Validate:             validate,
-			Watch:                watch,
-			WorkflowDir:          workflowDir,
-			SkipInstructions:     false, // Deprecated field, kept for backward compatibility
-			NoEmit:               noEmit,
-			Purge:                purge,
-			TrialMode:            trial,
-			TrialLogicalRepoSlug: logicalRepo,
-			Strict:               strict,
-			Dependabot:           dependabot,
-			ForceOverwrite:       forceOverwrite,
-			RefreshStopTime:      refreshStopTime,
-			Zizmor:               zizmor,
-			Poutine:              poutine,
-			Actionlint:           actionlint,
-			JSONOutput:           jsonOutput,
-			Stats:                stats,
+			MarkdownFiles:          args,
+			Verbose:                verbose,
+			EngineOverride:         engineOverride,
+			ActionMode:             actionMode,
+			ActionTag:              actionTag,
+			Validate:               validate,
+			Watch:                  watch,
+			WorkflowDir:            workflowDir,
+			SkipInstructions:       false, // Deprecated field, kept for backward compatibility
+			NoEmit:                 noEmit,
+			Purge:                  purge,
+			TrialMode:              trial,
+			TrialLogicalRepoSlug:   logicalRepo,
+			Strict:                 strict,
+			Dependabot:             dependabot,
+			ForceOverwrite:         forceOverwrite,
+			RefreshStopTime:        refreshStopTime,
+			ForceRefreshActionPins: forceRefreshActionPins,
+			Zizmor:                 zizmor,
+			Poutine:                poutine,
+			Actionlint:             actionlint,
+			JSONOutput:             jsonOutput,
+			Stats:                  stats,
 		}
 		if _, err := cli.CompileWorkflows(cmd.Context(), config); err != nil {
 			errMsg := err.Error()
@@ -493,6 +495,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("dependabot", false, "Generate dependency manifests (package.json, requirements.txt, go.mod) and Dependabot config when dependencies are detected")
 	compileCmd.Flags().Bool("force", false, "Force overwrite of existing dependency files (e.g., dependabot.yml)")
 	compileCmd.Flags().Bool("refresh-stop-time", false, "Force regeneration of stop-after times instead of preserving existing values from lock files")
+	compileCmd.Flags().Bool("force-refresh-action-pins", false, "Force refresh of action pins by clearing the cache and resolving all action SHAs from GitHub API")
 	compileCmd.Flags().Bool("zizmor", false, "Run zizmor security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("poutine", false, "Run poutine security scanner on generated .lock.yml files")
 	compileCmd.Flags().Bool("actionlint", false, "Run actionlint linter on generated .lock.yml files")
