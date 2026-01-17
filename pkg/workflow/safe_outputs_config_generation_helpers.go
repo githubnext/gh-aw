@@ -92,14 +92,17 @@ func generateMaxWithReviewersConfig(max int, defaultMax int, reviewers []string)
 	return config
 }
 
-// generateAssignToAgentConfig creates a config with optional max and default_agent
-func generateAssignToAgentConfig(max int, defaultAgent string) map[string]any {
+// generateAssignToAgentConfig creates a config with optional max, default_agent, and target
+func generateAssignToAgentConfig(max int, defaultAgent string, target string) map[string]any {
 	config := make(map[string]any)
 	if max > 0 {
 		config["max"] = max
 	}
 	if defaultAgent != "" {
 		config["default_agent"] = defaultAgent
+	}
+	if target != "" {
+		config["target"] = target
 	}
 	return config
 }

@@ -5,6 +5,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { AGENT_LOGIN_NAMES, getAvailableAgentLogins, findAgent, getIssueDetails, getPullRequestDetails, assignAgentToIssue, generatePermissionErrorSummary } = require("./assign_agent_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { resolveTarget } = require("./safe_output_helpers.cjs");
 
 async function main() {
   const result = loadAgentOutput();
@@ -44,6 +45,10 @@ async function main() {
   // Get default agent from configuration
   const defaultAgent = process.env.GH_AW_AGENT_DEFAULT?.trim() ?? "copilot";
   core.info(`Default agent: ${defaultAgent}`);
+
+  // Get target configuration (defaults to "triggering")
+  const targetConfig = process.env.GH_AW_AGENT_TARGET?.trim() || "triggering";
+  core.info(`Target configuration: ${targetConfig}`);
 
   // Get max count configuration
   const maxCountEnv = process.env.GH_AW_AGENT_MAX_COUNT;
@@ -85,38 +90,40 @@ async function main() {
   // Process each agent assignment
   const results = [];
   for (const item of itemsToProcess) {
-    // Determine if this is an issue or PR assignment
-    const issueNumber = item.issue_number ? (typeof item.issue_number === "number" ? item.issue_number : parseInt(String(item.issue_number), 10)) : null;
-    const pullNumber = item.pull_number ? (typeof item.pull_number === "number" ? item.pull_number : parseInt(String(item.pull_number), 10)) : null;
     const agentName = item.agent ?? defaultAgent;
 
-    // Validate that we have either issue_number or pull_number
-    if (!issueNumber && !pullNumber) {
-      core.error("Missing both issue_number and pull_number in assign_to_agent item");
-      results.push({
-        issue_number: issueNumber,
-        pull_number: pullNumber,
-        agent: agentName,
-        success: false,
-        error: "Missing both issue_number and pull_number",
-      });
+    // Resolve target number using the same logic as other safe outputs
+    // This allows automatic resolution from workflow context when issue_number/pull_number is not explicitly provided
+    const targetResult = resolveTarget({
+      targetConfig,
+      item,
+      context,
+      itemType: "assign_to_agent",
+      supportsPR: true, // Supports both issues and PRs
+      supportsIssue: false, // Use supportsPR=true to indicate both are supported
+    });
+
+    if (!targetResult.success) {
+      if (targetResult.shouldFail) {
+        core.error(targetResult.error);
+        results.push({
+          issue_number: item.issue_number || null,
+          pull_number: item.pull_number || null,
+          agent: agentName,
+          success: false,
+          error: targetResult.error,
+        });
+      } else {
+        // Just skip this item (e.g., wrong event type for "triggering" target)
+        core.info(targetResult.error);
+      }
       continue;
     }
 
-    if (issueNumber && pullNumber) {
-      core.error("Cannot specify both issue_number and pull_number in the same assign_to_agent item");
-      results.push({
-        issue_number: issueNumber,
-        pull_number: pullNumber,
-        agent: agentName,
-        success: false,
-        error: "Cannot specify both issue_number and pull_number",
-      });
-      continue;
-    }
-
-    const number = issueNumber || pullNumber;
-    const type = issueNumber ? "issue" : "pull request";
+    const number = targetResult.number;
+    const type = targetResult.contextType;
+    const issueNumber = type === "issue" ? number : null;
+    const pullNumber = type === "pull request" ? number : null;
 
     if (isNaN(number) || number <= 0) {
       core.error(`Invalid ${type} number: ${number}`);
