@@ -38,6 +38,7 @@ func GetAllCodemods() []Codemod {
 		getSandboxAgentFalseRemovalCodemod(),
 		getScheduleAtToAroundCodemod(),
 		getDeleteSchemaFileCodemod(),
+		getGrepToolRemovalCodemod(),
 	}
 }
 
@@ -1089,6 +1090,94 @@ func getDeleteSchemaFileCodemod() Codemod {
 			// This codemod is handled by the fix command itself (see runFixCommand)
 			// It doesn't modify workflow files, so we just return content unchanged
 			return content, false, nil
+		},
+	}
+}
+
+// getGrepToolRemovalCodemod creates a codemod for removing the deprecated tools.grep field
+func getGrepToolRemovalCodemod() Codemod {
+	return Codemod{
+		ID:           "grep-tool-removal",
+		Name:         "Remove deprecated tools.grep field",
+		Description:  "Removes 'tools.grep' field as grep is now always enabled as part of default bash tools",
+		IntroducedIn: "0.7.0",
+		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
+			// Check if tools.grep exists
+			toolsValue, hasTools := frontmatter["tools"]
+			if !hasTools {
+				return content, false, nil
+			}
+
+			toolsMap, ok := toolsValue.(map[string]any)
+			if !ok {
+				return content, false, nil
+			}
+
+			// Check if grep field exists in tools
+			_, hasGrep := toolsMap["grep"]
+			if !hasGrep {
+				return content, false, nil
+			}
+
+			// Parse frontmatter to get raw lines
+			result, err := parser.ExtractFrontmatterFromContent(content)
+			if err != nil {
+				return content, false, fmt.Errorf("failed to parse frontmatter: %w", err)
+			}
+
+			// Find and remove the grep line within the tools block
+			var modified bool
+			var inToolsBlock bool
+			var toolsIndent string
+
+			frontmatterLines := make([]string, 0, len(result.FrontmatterLines))
+
+			for i, line := range result.FrontmatterLines {
+				trimmedLine := strings.TrimSpace(line)
+
+				// Track if we're in the tools block
+				if strings.HasPrefix(trimmedLine, "tools:") {
+					inToolsBlock = true
+					toolsIndent = line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					frontmatterLines = append(frontmatterLines, line)
+					continue
+				}
+
+				// Check if we've left the tools block (new top-level key with same or less indentation)
+				if inToolsBlock && len(trimmedLine) > 0 && !strings.HasPrefix(trimmedLine, "#") {
+					currentIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					if len(currentIndent) <= len(toolsIndent) && strings.Contains(line, ":") {
+						inToolsBlock = false
+					}
+				}
+
+				// Remove grep line if in tools block
+				if inToolsBlock && strings.HasPrefix(trimmedLine, "grep:") {
+					modified = true
+					codemodsLog.Printf("Removed tools.grep on line %d", i+1)
+					continue
+				}
+
+				frontmatterLines = append(frontmatterLines, line)
+			}
+
+			if !modified {
+				return content, false, nil
+			}
+
+			// Reconstruct the content
+			var lines []string
+			lines = append(lines, "---")
+			lines = append(lines, frontmatterLines...)
+			lines = append(lines, "---")
+			if result.Markdown != "" {
+				lines = append(lines, "")
+				lines = append(lines, result.Markdown)
+			}
+
+			newContent := strings.Join(lines, "\n")
+			codemodsLog.Print("Applied grep tool removal")
+			return newContent, true, nil
 		},
 	}
 }

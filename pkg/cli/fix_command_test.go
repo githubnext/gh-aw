@@ -702,3 +702,114 @@ This is a test workflow.
 		t.Error("Expected upgrade workflow prompt file to be created/updated")
 	}
 }
+
+func TestFixCommand_GrepToolRemoval(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
+
+	// Create a workflow with deprecated tools.grep field
+	content := `---
+on:
+  workflow_dispatch:
+
+tools:
+  bash: ["echo", "ls"]
+  grep: true
+  github:
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This workflow uses the deprecated grep tool.
+`
+
+	if err := os.WriteFile(workflowFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	// Get the grep removal codemod
+	grepCodemod := getCodemodByID("grep-tool-removal")
+	if grepCodemod == nil {
+		t.Fatal("grep-tool-removal codemod not found")
+	}
+
+	// Process the file
+	fixed, err := processWorkflowFile(workflowFile, []Codemod{*grepCodemod}, true, false)
+	if err != nil {
+		t.Fatalf("Failed to process workflow file: %v", err)
+	}
+
+	if !fixed {
+		t.Error("Expected file to be fixed, but no changes were made")
+	}
+
+	// Read the updated content
+	updatedContent, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	updatedStr := string(updatedContent)
+
+	// Verify the change - grep should be removed
+	if strings.Contains(updatedStr, "grep:") {
+		t.Errorf("Expected grep to be removed, but it still exists:\n%s", updatedStr)
+	}
+
+	// Verify other tools are preserved
+	if !strings.Contains(updatedStr, "bash:") {
+		t.Error("Expected bash tool to be preserved")
+	}
+
+	if !strings.Contains(updatedStr, "github:") {
+		t.Error("Expected github tool to be preserved")
+	}
+}
+
+func TestFixCommand_GrepToolRemoval_NoGrep(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
+
+	// Create a workflow without grep field
+	content := `---
+on:
+  workflow_dispatch:
+
+tools:
+  bash: ["echo", "ls"]
+  github:
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This workflow doesn't have grep.
+`
+
+	if err := os.WriteFile(workflowFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	// Get the grep removal codemod
+	grepCodemod := getCodemodByID("grep-tool-removal")
+	if grepCodemod == nil {
+		t.Fatal("grep-tool-removal codemod not found")
+	}
+
+	// Process the file
+	fixed, err := processWorkflowFile(workflowFile, []Codemod{*grepCodemod}, true, false)
+	if err != nil {
+		t.Fatalf("Failed to process workflow file: %v", err)
+	}
+
+	if fixed {
+		t.Error("Expected file to not be modified when grep is not present")
+	}
+}
