@@ -115,7 +115,7 @@ jobs:
           GH_AW_CURSOR_PATH: /tmp/gh-aw/repo-memory/campaigns/issue-10444-campaign/cursor.json
           GH_AW_MAX_DISCOVERY_ITEMS: "50"
           GH_AW_MAX_DISCOVERY_PAGES: "3"
-          GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/42
+          GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/102
           GH_AW_TRACKER_LABEL: campaign:security-alert-burndown
           GH_AW_WORKFLOWS: security-review,code-scanning-fixer,static-analysis-report,daily-malicious-code-scan
         id: discovery
@@ -783,7 +783,7 @@ jobs:
           - Memory paths: memory/campaigns/security-alert-burndown/**
           - Metrics glob: `memory/campaigns/security-alert-burndown/metrics/*.json`
           - Cursor glob: `memory/campaigns/security-alert-burndown/cursor.json`
-          - Project URL: https://github.com/orgs/githubnext/projects/42
+          - Project URL: https://github.com/orgs/githubnext/projects/102
           - Governance: max new items per run: 5
           - Governance: max discovery items per run: 50
           - Governance: max discovery pages per run: 3
@@ -897,7 +897,7 @@ jobs:
                  
                  **Campaign Details:**
                  - Campaign ID: `issue-10444-campaign`
-                 - Project Board: https://github.com/orgs/githubnext/projects/42
+                 - Project Board: https://github.com/orgs/githubnext/projects/102
                  - Worker Workflows: `security-review`, `code-scanning-fixer`, `static-analysis-report`, `daily-malicious-code-scan`
                  
                  ---
@@ -910,7 +910,7 @@ jobs:
           3) **After creating the Epic** (or if Epic exists but not on board), add it to the project board:
              ```yaml
              update-project:
-               project: "https://github.com/orgs/githubnext/projects/42"
+               project: "https://github.com/orgs/githubnext/projects/102"
                campaign_id: "issue-10444-campaign"
                content_type: "issue"
                content_number: <EPIC_ISSUE_NUMBER>
@@ -1026,7 +1026,7 @@ jobs:
           Example status update:
           ```yaml
           create-project-status-update:
-            project: "https://github.com/orgs/githubnext/projects/42"
+            project: "https://github.com/orgs/githubnext/projects/102"
             status: "ON_TRACK"
             start_date: "2026-01-06"
             target_date: "2026-01-31"
@@ -1103,7 +1103,7 @@ jobs:
           
           - Writes MUST use only the `update-project` safe-output.
           - All writes MUST target exactly:
-            - **Project URL**: `https://github.com/orgs/githubnext/projects/42`
+            - **Project URL**: `https://github.com/orgs/githubnext/projects/102`
           - Every item MUST include:
             - `campaign_id: "issue-10444-campaign"`
           
@@ -1174,7 +1174,7 @@ jobs:
           
           ```yaml
           update-project:
-            project: "https://github.com/orgs/githubnext/projects/42"
+            project: "https://github.com/orgs/githubnext/projects/102"
             campaign_id: "issue-10444-campaign"
             content_type: "issue"              # or "pull_request"
             content_number: 123
@@ -1211,7 +1211,7 @@ jobs:
           
           ```yaml
           update-project:
-            project: "https://github.com/orgs/githubnext/projects/42"
+            project: "https://github.com/orgs/githubnext/projects/102"
             campaign_id: "issue-10444-campaign"
             content_type: "issue"              # or "pull_request"
             content_number: 123
@@ -1223,7 +1223,7 @@ jobs:
           
           ```yaml
           update-project:
-            project: "https://github.com/orgs/githubnext/projects/42"
+            project: "https://github.com/orgs/githubnext/projects/102"
             campaign_id: "issue-10444-campaign"
             content_type: "issue"              # or "pull_request"
             content_number: 123

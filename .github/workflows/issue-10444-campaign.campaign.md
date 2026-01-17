@@ -4,7 +4,7 @@ name: Security Alert Burndown
 version: v1
 description: Systematically identify, track, and resolve security alerts across the repository
 state: active
-project-url: https://github.com/orgs/githubnext/projects/42
+project-url: https://github.com/orgs/githubnext/projects/102
 tracker-label: campaign:security-alert-burndown
 
 # Worker workflows that will discover and address security issues
