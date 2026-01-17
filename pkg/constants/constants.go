@@ -667,7 +667,7 @@ var IgnoredFrontmatterFields = []string{}
 // Forbidden fields fall into these categories:
 //   - Workflow triggers: on (defines it as a main workflow)
 //   - Workflow execution: command, run-name, runs-on, concurrency, if, timeout-minutes, timeout_minutes
-//   - Workflow metadata: name, tracker-id, source, strict
+//   - Workflow metadata: name, tracker-id, strict
 //   - Workflow features: container, env, environment, sandbox, features
 //   - Access control: roles, github-token
 //
@@ -688,7 +688,6 @@ var SharedWorkflowForbiddenFields = []string{
 	"run-name",        // Run display name
 	"runs-on",         // Runner specification
 	"sandbox",         // Sandbox configuration
-	"source",          // Source repository
 	"strict",          // Strict mode
 	"timeout-minutes", // Timeout in minutes
 	"timeout_minutes", // Timeout in minutes (underscore variant)

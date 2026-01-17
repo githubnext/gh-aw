@@ -54,6 +54,7 @@ allowedFields := map[string]any{
 "labels":         []string{"automation", "testing"},
 "imports":        []string{"./shared.md"},
 "cache":          map[string]any{"key": "test-key", "path": "node_modules"},
+"source":         "githubnext/agentics/workflows/ci-doctor.md@v1.0.0",
 }
 
 for field, value := range allowedFields {

@@ -30,7 +30,6 @@ func TestForbiddenFieldsImportRejection(t *testing.T) {
 		"run-name":        `run-name: Test Run`,
 		"runs-on":         `runs-on: ubuntu-latest`,
 		"sandbox":         `sandbox: {enabled: true}`,
-		"source":          `source: owner/repo`,
 		"strict":          `strict: true`,
 		"timeout-minutes": `timeout-minutes: 30`,
 		"timeout_minutes": `timeout_minutes: 30`,
@@ -119,6 +118,7 @@ func TestAllowedFieldsImportSuccess(t *testing.T) {
 		"cache": `cache:
   key: "cache-key"
   path: "node_modules"`,
+		"source": `source: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0"`,
 	}
 
 	for field, yaml := range allowedFields {
