@@ -368,11 +368,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		}
 
 		// Build the command with AWF wrapper
-		// AWF requires the command to be wrapped in a shell invocation because the claude command
-		// contains && chains that need shell interpretation. We use bash -c with properly escaped command.
+		// AWF will wrap the command with /bin/bash -c automatically, so we only need to escape single quotes.
+		// The claude command contains && chains that need shell interpretation, which AWF's bash -c will handle.
 		// Escape single quotes in the command by replacing ' with '\''
 		escapedClaudeCommand := strings.ReplaceAll(claudeCommand, "'", "'\\''")
-		shellWrappedCommand := fmt.Sprintf("/bin/bash -c '%s'", escapedClaudeCommand)
+		shellWrappedCommand := escapedClaudeCommand
 
 		if promptSetup != "" {
 			command = fmt.Sprintf(`set -o pipefail
