@@ -284,6 +284,30 @@ const DefaultMCPGatewayVersion Version = "v0.0.62"
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/githubnext/gh-aw-mcpg"
 
+// DefaultSerenaMCPServerContainer is the default container image for the Serena MCP server
+const DefaultSerenaMCPServerContainer = "ghcr.io/githubnext/serena-mcp-server"
+
+// OraiosSerenaContainer is the Oraios Serena MCP server container image (legacy)
+const OraiosSerenaContainer = "ghcr.io/oraios/serena"
+
+// SerenaLanguageSupport defines the supported languages for each Serena container image
+var SerenaLanguageSupport = map[string][]string{
+	DefaultSerenaMCPServerContainer: {
+		"go", "typescript", "javascript", "python", "java", "rust", "csharp",
+		"cpp", "c", "ruby", "php", "bash", "swift", "kotlin", "scala",
+		"haskell", "elixir", "erlang", "clojure", "lua", "perl", "r",
+		"dart", "julia", "fortran", "nix", "rego", "terraform", "yaml",
+		"markdown", "zig", "elm",
+	},
+	OraiosSerenaContainer: {
+		"go", "typescript", "javascript", "python", "java", "rust", "csharp",
+		"cpp", "c", "ruby", "php", "bash", "swift", "kotlin", "scala",
+		"haskell", "elixir", "erlang", "clojure", "lua", "perl", "r",
+		"dart", "julia", "fortran", "nix", "rego", "terraform", "yaml",
+		"markdown", "zig", "elm",
+	},
+}
+
 // DefaultSandboxRuntimeVersion is the default version of the @anthropic-ai/sandbox-runtime package (SRT)
 const DefaultSandboxRuntimeVersion Version = "0.0.28"
 
