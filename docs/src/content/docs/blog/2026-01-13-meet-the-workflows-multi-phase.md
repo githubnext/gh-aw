@@ -3,7 +3,7 @@ title: "Meet the Workflows: Multi-Phase Improvers"
 description: "A curated tour of multi-phase workflows that tackle long-running projects"
 authors:
   - dsyme
-  - peli
+  - pelikhan
   - mnkiefer
 date: 2026-01-13T13:00:00
 sidebar:
@@ -51,4 +51,4 @@ Continue reading: [Organization & Cross-Repo Workflows →](/gh-aw/blog/2026-01-
 
 ---
 
-*This is part 13 of a 16-part series exploring the workflows in Peli's Agent Factory.*
+*This is part 16 of a 19-part series exploring the workflows in Peli's Agent Factory.*

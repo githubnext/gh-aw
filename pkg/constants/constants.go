@@ -243,12 +243,12 @@ const GitHubCopilotMCPDomain = "api.githubcopilot.com"
 const DefaultCampaignTemplateProjectURL URL = "https://github.com/orgs/githubnext/projects/74"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.7"
+const DefaultClaudeCodeVersion Version = "2.1.9"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY.
-const DefaultCopilotVersion Version = "0.0.382"
+const DefaultCopilotVersion Version = "0.0.384"
 
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
 const DefaultCopilotDetectionModel ModelName = "gpt-5-mini"
@@ -270,7 +270,7 @@ const (
 )
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.85.0"
+const DefaultCodexVersion Version = "0.87.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v0.28.1"
@@ -279,7 +279,7 @@ const DefaultGitHubMCPServerVersion Version = "v0.28.1"
 const DefaultFirewallVersion Version = "v0.9.1"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.0.60"
+const DefaultMCPGatewayVersion Version = "v0.0.62"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/githubnext/gh-aw-mcpg"
@@ -312,6 +312,18 @@ const DefaultNodeAlpineLTSImage = "node:lts-alpine"
 // DefaultPythonAlpineLTSImage is the default Python Alpine LTS container image for MCP servers
 // Using python:alpine provides the latest stable version with minimal footprint
 const DefaultPythonAlpineLTSImage = "python:alpine"
+
+// DefaultAlpineImage is the default minimal Alpine container image for running Go binaries
+// Used for MCP servers that run statically-linked Go binaries like gh-aw mcp-server
+const DefaultAlpineImage = "alpine:latest"
+
+// DefaultGhAwMount is the mount path for the gh-aw directory in containerized MCP servers
+// The gh-aw binary and supporting files are mounted read-only from /opt/gh-aw
+const DefaultGhAwMount = "/opt/gh-aw:/opt/gh-aw:ro"
+
+// DefaultTmpGhAwMount is the mount path for temporary gh-aw files in containerized MCP servers
+// Used for logs, cache, and other runtime data that needs read-write access
+const DefaultTmpGhAwMount = "/tmp/gh-aw:/tmp/gh-aw:rw"
 
 // DefaultPythonVersion is the default version of Python for runtime setup
 const DefaultPythonVersion Version = "3.12"

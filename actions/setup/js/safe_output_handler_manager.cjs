@@ -42,8 +42,6 @@ const HANDLER_MAP = {
   assign_to_user: "./assign_to_user.cjs",
   create_code_scanning_alert: "./create_code_scanning_alert.cjs",
   autofix_code_scanning_alert: "./autofix_code_scanning_alert.cjs",
-  create_project: "./create_project.cjs",
-  create_project_status_update: "./create_project_status_update.cjs",
   dispatch_workflow: "./dispatch_workflow.cjs",
   create_missing_tool_issue: "./create_missing_tool_issue.cjs",
   missing_tool: "./missing_tool.cjs",
@@ -55,8 +53,11 @@ const HANDLER_MAP = {
 /**
  * Message types handled by standalone steps (not through the handler manager)
  * These types should not trigger warnings when skipped by the handler manager
+ *
+ * Note: Project-related types (create_project, create_project_status_update, update_project, copy_project)
+ * require GH_AW_PROJECT_GITHUB_TOKEN and are processed in the dedicated project handler manager
  */
-const STANDALONE_STEP_TYPES = new Set(["assign_to_agent", "create_agent_task", "update_project", "upload_asset", "noop"]);
+const STANDALONE_STEP_TYPES = new Set(["assign_to_agent", "create_agent_task", "create_project", "create_project_status_update", "update_project", "copy_project", "upload_asset", "noop"]);
 
 /**
  * Load configuration for safe outputs

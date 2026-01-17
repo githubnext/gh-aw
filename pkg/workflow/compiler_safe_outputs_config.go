@@ -93,6 +93,9 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.CloseOlderDiscussions {
 			handlerConfig["close_older_discussions"] = true
 		}
+		if cfg.RequiredCategory != "" {
+			handlerConfig["required_category"] = cfg.RequiredCategory
+		}
 		if cfg.Expires > 0 {
 			handlerConfig["expires"] = cfg.Expires
 		}
@@ -141,9 +144,6 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		}
 		if cfg.RequiredTitlePrefix != "" {
 			handlerConfig["required_title_prefix"] = cfg.RequiredTitlePrefix
-		}
-		if cfg.RequiredCategory != "" {
-			handlerConfig["required_category"] = cfg.RequiredCategory
 		}
 		if cfg.TargetRepoSlug != "" {
 			handlerConfig["target-repo"] = cfg.TargetRepoSlug
@@ -452,32 +452,8 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		config["dispatch_workflow"] = handlerConfig
 	}
 
-	if data.SafeOutputs.CreateProjectStatusUpdates != nil {
-		cfg := data.SafeOutputs.CreateProjectStatusUpdates
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.GitHubToken != "" {
-			handlerConfig["github-token"] = cfg.GitHubToken
-		}
-		config["create_project_status_update"] = handlerConfig
-	}
-
-	if data.SafeOutputs.CreateProjects != nil {
-		cfg := data.SafeOutputs.CreateProjects
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.TargetOwner != "" {
-			handlerConfig["target_owner"] = cfg.TargetOwner
-		}
-		if cfg.GitHubToken != "" {
-			handlerConfig["github-token"] = cfg.GitHubToken
-		}
-		config["create_project"] = handlerConfig
-	}
+	// Note: CreateProjects and CreateProjectStatusUpdates are handled by the project handler manager
+	// (see addProjectHandlerManagerConfigEnvVar) because they require GH_AW_PROJECT_GITHUB_TOKEN
 
 	if data.SafeOutputs.MissingTool != nil {
 		cfg := data.SafeOutputs.MissingTool
@@ -519,6 +495,96 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		// Escape the JSON for YAML (handle quotes and special chars)
 		configStr := string(configJSON)
 		*steps = append(*steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: %q\n", configStr))
+	}
+}
+
+// addProjectHandlerManagerConfigEnvVar adds the GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG environment variable
+// containing JSON configuration for project-related safe output handlers (create_project, create_project_status_update).
+// These handlers require GH_AW_PROJECT_GITHUB_TOKEN and are processed separately from the main handler manager.
+func (c *Compiler) addProjectHandlerManagerConfigEnvVar(steps *[]string, data *WorkflowData) {
+	if data.SafeOutputs == nil {
+		return
+	}
+
+	config := make(map[string]map[string]any)
+
+	// Add config for project-related safe output types
+	if data.SafeOutputs.CreateProjects != nil {
+		cfg := data.SafeOutputs.CreateProjects
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.TargetOwner != "" {
+			handlerConfig["target_owner"] = cfg.TargetOwner
+		}
+		if cfg.TitlePrefix != "" {
+			handlerConfig["title_prefix"] = cfg.TitlePrefix
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		if len(cfg.Views) > 0 {
+			handlerConfig["views"] = cfg.Views
+		}
+		config["create_project"] = handlerConfig
+	}
+
+	if data.SafeOutputs.CreateProjectStatusUpdates != nil {
+		cfg := data.SafeOutputs.CreateProjectStatusUpdates
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		config["create_project_status_update"] = handlerConfig
+	}
+
+	if data.SafeOutputs.UpdateProjects != nil {
+		cfg := data.SafeOutputs.UpdateProjects
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		if len(cfg.Views) > 0 {
+			handlerConfig["views"] = cfg.Views
+		}
+		config["update_project"] = handlerConfig
+	}
+
+	if data.SafeOutputs.CopyProjects != nil {
+		cfg := data.SafeOutputs.CopyProjects
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if cfg.GitHubToken != "" {
+			handlerConfig["github-token"] = cfg.GitHubToken
+		}
+		if cfg.SourceProject != "" {
+			handlerConfig["source_project"] = cfg.SourceProject
+		}
+		if cfg.TargetOwner != "" {
+			handlerConfig["target_owner"] = cfg.TargetOwner
+		}
+		config["copy_project"] = handlerConfig
+	}
+
+	// Only add the env var if there are project handlers to configure
+	if len(config) > 0 {
+		configJSON, err := json.Marshal(config)
+		if err != nil {
+			consolidatedSafeOutputsLog.Printf("Failed to marshal project handler config: %v", err)
+			return
+		}
+		// Escape the JSON for YAML (handle quotes and special chars)
+		configStr := string(configJSON)
+		*steps = append(*steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG: %q\n", configStr))
 	}
 }
 

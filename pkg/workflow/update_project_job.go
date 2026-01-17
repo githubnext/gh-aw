@@ -57,7 +57,7 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 		StepID:        "update_project",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
-		Script:        getUpdateProjectScript(),
+		Script:        "", // Script is now handled by project handler manager
 		ScriptName:    "update_project",
 		Permissions:   permissions,
 		Outputs:       nil,

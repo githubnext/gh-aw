@@ -167,18 +167,15 @@ func TestBuildActivationJobWithReaction(t *testing.T) {
 		t.Fatalf("buildActivationJob() returned error: %v", err)
 	}
 
-	// Check that outputs include reaction-related outputs
-	if _, ok := job.Outputs["reaction_id"]; !ok {
-		t.Error("Expected 'reaction_id' output")
-	}
+	// Check that outputs include comment-related outputs (but not reaction_id since reaction is in pre-activation)
 	if _, ok := job.Outputs["comment_id"]; !ok {
 		t.Error("Expected 'comment_id' output")
 	}
 
-	// Check for reaction step
+	// Check for comment step (not reaction, since reaction moved to pre-activation)
 	stepsContent := strings.Join(job.Steps, "")
-	if !strings.Contains(stepsContent, "rocket reaction") {
-		t.Error("Expected reaction step with 'rocket'")
+	if !strings.Contains(stepsContent, "Add comment with workflow run link") {
+		t.Error("Expected comment step in activation job")
 	}
 }
 

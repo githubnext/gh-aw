@@ -270,7 +270,7 @@ Agent output includes `parent_issue_number` and `sub_issue_number`. Validation e
 
 ### Project Creation (`create-project:`)
 
-Creates new GitHub Projects V2 boards. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2))—default `GITHUB_TOKEN` lacks Projects v2 access. Creates empty projects that can be configured with custom fields and views using `update-project`.
+Creates new GitHub Projects V2 boards. Requires PAT or GitHub App token ([`GH_AW_PROJECT_GITHUB_TOKEN`](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2))—default `GITHUB_TOKEN` lacks Projects v2 access. Supports optional view configuration to create custom project views at creation time.
 
 ```yaml wrap
 safe-outputs:
@@ -278,7 +278,16 @@ safe-outputs:
     max: 1                              # max operations (default: 1)
     github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
     target-owner: "myorg"               # default target owner (optional)
+    title-prefix: "Campaign"            # default title prefix (optional)
+    views:                              # optional: auto-create views
+      - name: "Sprint Board"
+        layout: board
+        filter: "is:issue is:open"
+      - name: "Task Tracker"
+        layout: table
 ```
+
+When `views` are configured, they are created automatically after project creation. GitHub's default "View 1" will remain, and configured views are created as additional views.
 
 The `target-owner` field is an optional default. When configured, the agent can omit the owner field in tool calls, and the default will be used. The agent can still override by providing an explicit owner value.
 
@@ -310,7 +319,7 @@ Optionally include `item_url` (GitHub issue URL) to add the issue as the first p
 > - **Fine-grained PAT**: Organization permissions → Projects: Read & Write
 
 > [!NOTE]
-> After creating a project, use `update-project` to configure custom fields, views, and add items. See [Project Management Guide](/gh-aw/guides/campaigns/project-management/) for field and view configuration patterns.
+> You can configure views directly during project creation using the `views` field (see above), or later using `update-project` to add custom fields and additional views. See [Project Management Guide](/gh-aw/guides/campaigns/project-management/) for field and view configuration patterns.
 
 ### Project Board Updates (`update-project:`)
 
@@ -371,7 +380,7 @@ safe-outputs:
         filter: "is:issue is:open"  # optional: filter query
       - name: "Task Tracker"
         layout: table
-        filter: "is:issue,is:pull_request"
+        filter: "is:issue is:pr"
       - name: "Campaign Timeline"
         layout: roadmap
 ```
@@ -392,8 +401,8 @@ safe-outputs:
 
 **Filter syntax examples:**
 - `is:issue is:open` — Open issues only
-- `is:pull_request` — Pull requests only  
-- `is:issue,is:pull_request` — Both issues and PRs
+- `is:pr` — Pull requests only  
+- `is:issue is:pr` — Both issues and PRs
 - `label:bug` — Items with bug label
 - `assignee:@me` — Items assigned to viewer
 

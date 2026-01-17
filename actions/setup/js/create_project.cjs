@@ -1,14 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getOctokit } = require("@actions/github");
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-
-// Module-level variable to hold the Octokit instance (either custom or global github)
-// This is initialized once in main() and used by all handler invocations
-// Safe because handlers are initialized once and called sequentially
-let octokitInstance;
 
 /**
  * Log detailed GraphQL error information
@@ -53,7 +47,7 @@ function logGraphQLError(error, operation) {
  */
 async function getOwnerId(ownerType, ownerLogin) {
   if (ownerType === "org") {
-    const result = await octokitInstance.graphql(
+    const result = await github.graphql(
       `query($login: String!) {
         organization(login: $login) {
           id
@@ -63,7 +57,7 @@ async function getOwnerId(ownerType, ownerLogin) {
     );
     return result.organization.id;
   } else {
-    const result = await octokitInstance.graphql(
+    const result = await github.graphql(
       `query($login: String!) {
         user(login: $login) {
           id
@@ -84,7 +78,7 @@ async function getOwnerId(ownerType, ownerLogin) {
 async function createProjectV2(ownerId, title) {
   core.info(`Creating project with title: "${title}"`);
 
-  const result = await octokitInstance.graphql(
+  const result = await github.graphql(
     `mutation($ownerId: ID!, $title: String!) {
       createProjectV2(input: { ownerId: $ownerId, title: $title }) {
         projectV2 {
@@ -119,7 +113,7 @@ async function createProjectV2(ownerId, title) {
 async function addItemToProject(projectId, contentId) {
   core.info(`Adding item to project...`);
 
-  const result = await octokitInstance.graphql(
+  const result = await github.graphql(
     `mutation($projectId: ID!, $contentId: ID!) {
       addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
         item {
@@ -144,7 +138,7 @@ async function addItemToProject(projectId, contentId) {
  * @returns {Promise<string>} Issue node ID
  */
 async function getIssueNodeId(owner, repo, issueNumber) {
-  const result = await octokitInstance.graphql(
+  const result = await github.graphql(
     `query($owner: String!, $repo: String!, $issueNumber: Int!) {
       repository(owner: $owner, name: $repo) {
         issue(number: $issueNumber) {
@@ -159,6 +153,135 @@ async function getIssueNodeId(owner, repo, issueNumber) {
 }
 
 /**
+ * Parse project URL into components
+ * @param {string} projectUrl - Project URL
+ * @returns {{ scope: string, ownerLogin: string, projectNumber: string }} Project info
+ */
+function parseProjectUrl(projectUrl) {
+  if (!projectUrl || typeof projectUrl !== "string") {
+    throw new Error(`Invalid project URL: expected string, got ${typeof projectUrl}`);
+  }
+
+  const match = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/);
+  if (!match) {
+    throw new Error(`Invalid project URL: "${projectUrl}". Expected format: https://github.com/orgs/myorg/projects/123`);
+  }
+
+  return {
+    scope: match[1],
+    ownerLogin: match[2],
+    projectNumber: match[3],
+  };
+}
+
+/**
+ * List all views for a project
+ * @param {string} projectId - Project node ID
+ * @returns {Promise<Array<{id: string, name: string, number: number}>>} Array of views
+ */
+async function listProjectViews(projectId) {
+  core.info(`Listing views for project...`);
+
+  const result = await github.graphql(
+    `query($projectId: ID!) {
+      node(id: $projectId) {
+        ... on ProjectV2 {
+          views(first: 20) {
+            nodes {
+              id
+              name
+              number
+            }
+          }
+        }
+      }
+    }`,
+    { projectId }
+  );
+
+  const views = result.node.views.nodes;
+  core.info(`Found ${views.length} view(s) in project`);
+
+  return views;
+}
+
+/**
+ * Create a project view
+ * @param {string} projectUrl - Project URL
+ * @param {Object} viewConfig - View configuration
+ * @param {string} viewConfig.name - View name
+ * @param {string} viewConfig.layout - View layout (table, board, roadmap)
+ * @param {string} [viewConfig.filter] - View filter
+ * @param {Array<number>} [viewConfig.visible_fields] - Visible field IDs
+ * @param {string} [viewConfig.description] - View description (not supported by GitHub API, will be ignored)
+ * @returns {Promise<void>}
+ */
+async function createProjectView(projectUrl, viewConfig) {
+  const projectInfo = parseProjectUrl(projectUrl);
+  const projectNumber = parseInt(projectInfo.projectNumber, 10);
+
+  const name = typeof viewConfig.name === "string" ? viewConfig.name.trim() : "";
+  if (!name) {
+    throw new Error("View name is required and must be a non-empty string");
+  }
+
+  const layout = typeof viewConfig.layout === "string" ? viewConfig.layout.trim() : "";
+  if (!layout || !["table", "board", "roadmap"].includes(layout)) {
+    throw new Error(`Invalid view layout "${layout}". Must be one of: table, board, roadmap`);
+  }
+
+  const filter = typeof viewConfig.filter === "string" ? viewConfig.filter : undefined;
+  let visibleFields = Array.isArray(viewConfig.visible_fields) ? viewConfig.visible_fields : undefined;
+
+  if (visibleFields) {
+    const invalid = visibleFields.filter(v => typeof v !== "number" || !Number.isFinite(v));
+    if (invalid.length > 0) {
+      throw new Error(`Invalid visible_fields. Must be an array of numbers (field IDs). Invalid values: ${invalid.map(v => JSON.stringify(v)).join(", ")}`);
+    }
+  }
+
+  if (layout === "roadmap" && visibleFields && visibleFields.length > 0) {
+    core.warning('visible_fields is not applicable to layout "roadmap"; ignoring.');
+    visibleFields = undefined;
+  }
+
+  if (typeof viewConfig.description === "string" && viewConfig.description.trim()) {
+    core.warning("view.description is not supported by the GitHub Projects Views API; ignoring.");
+  }
+
+  const route = projectInfo.scope === "orgs" ? "POST /orgs/{org}/projectsV2/{project_number}/views" : "POST /users/{user_id}/projectsV2/{project_number}/views";
+
+  const params =
+    projectInfo.scope === "orgs"
+      ? {
+          org: projectInfo.ownerLogin,
+          project_number: projectNumber,
+          name,
+          layout,
+          ...(filter ? { filter } : {}),
+          ...(visibleFields ? { visible_fields: visibleFields } : {}),
+        }
+      : {
+          user_id: projectInfo.ownerLogin,
+          project_number: projectNumber,
+          name,
+          layout,
+          ...(filter ? { filter } : {}),
+          ...(visibleFields ? { visible_fields: visibleFields } : {}),
+        };
+
+  core.info(`Creating project view: ${name} (${layout})...`);
+  const response = await github.request(route, params);
+  const created = response?.data;
+
+  if (created?.id) {
+    core.info(`✓ Created view: ${name} (ID: ${created.id})`);
+  } else {
+    core.info(`✓ Created view: ${name}`);
+  }
+}
+
+/**
  * Main entry point - handler factory that returns a message handler function
  * @param {Object} config - Handler configuration
  * @returns {Promise<Function>} Message handler function
@@ -168,16 +291,10 @@ async function main(config = {}) {
   const defaultTargetOwner = config.target_owner || "";
   const maxCount = config.max || 1;
   const titlePrefix = config.title_prefix || "Campaign";
-  const customToken = config["github-token"] || "";
+  const configuredViews = Array.isArray(config.views) ? config.views : [];
 
-  // Initialize Octokit instance with custom token if provided, otherwise use global github
-  if (customToken) {
-    core.info("Using custom GitHub token for create_project operations");
-    octokitInstance = getOctokit(customToken);
-  } else {
-    core.info("Using default GitHub token for create_project operations");
-    octokitInstance = github;
-  }
+  // The github object is already authenticated with the custom token via the
+  // github-token parameter set on the actions/github-script action
 
   if (defaultTargetOwner) {
     core.info(`Default target owner: ${defaultTargetOwner}`);
@@ -185,6 +302,9 @@ async function main(config = {}) {
   core.info(`Max count: ${maxCount}`);
   if (config.title_prefix) {
     core.info(`Title prefix: ${titlePrefix}`);
+  }
+  if (configuredViews.length > 0) {
+    core.info(`Found ${configuredViews.length} configured view(s) in frontmatter`);
   }
 
   // Track state
@@ -269,6 +389,27 @@ async function main(config = {}) {
       }
 
       core.info(`✓ Successfully created project: ${projectInfo.projectUrl}`);
+
+      // Create configured views if any
+      if (configuredViews.length > 0) {
+        core.info(`Creating ${configuredViews.length} configured view(s) on project: ${projectInfo.projectUrl}`);
+
+        for (let i = 0; i < configuredViews.length; i++) {
+          const viewConfig = configuredViews[i];
+          try {
+            await createProjectView(projectInfo.projectUrl, viewConfig);
+            core.info(`✓ Created view ${i + 1}/${configuredViews.length}: ${viewConfig.name} (${viewConfig.layout})`);
+          } catch (err) {
+            // prettier-ignore
+            const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
+            core.error(`Failed to create configured view ${i + 1}: ${viewConfig.name}`);
+            logGraphQLError(error, `Creating configured view: ${viewConfig.name}`);
+          }
+        }
+
+        // Note: GitHub's default "View 1" will remain. The deleteProjectV2View GraphQL mutation
+        // is not documented and may not work reliably. Configured views are created as additional views.
+      }
 
       // Return result
       return {

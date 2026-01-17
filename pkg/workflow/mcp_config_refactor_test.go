@@ -200,6 +200,7 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 
 // TestRenderAgenticWorkflowsMCPConfigWithOptions verifies the shared Agentic Workflows config helper
 // works correctly with both Copilot and non-Copilot engines
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 	tests := []struct {
 		name                 string
@@ -209,40 +210,44 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 		unexpectedContent    []string
 	}{
 		{
-			name:                 "Copilot with type/tools and escaped env vars",
+			name:                 "Copilot with type and escaped env vars",
 			isLast:               false,
 			includeCopilotFields: true,
 			expectedContent: []string{
 				`"agentic_workflows": {`,
-				`"type": "local"`,
-				`"command": "gh"`,
-				`"args": ["aw", "mcp-server"]`,
-				`"tools": ["*"]`,
+				`"type": "stdio"`,
+				`"container": "alpine:latest"`,
+				`"entrypoint": "/opt/gh-aw/gh-aw"`,
+				`"entrypointArgs": ["mcp-server"]`,
+				`"mounts": ["/opt/gh-aw:/opt/gh-aw:ro"]`,
 				`"GITHUB_TOKEN": "\${GITHUB_TOKEN}"`,
 				`              },`,
 			},
 			unexpectedContent: []string{
 				`${{ secrets.`,
+				`"command":`, // Should NOT use command - must use container
 			},
 		},
 		{
-			name:                 "Claude/Custom without type/tools, with shell env vars",
+			name:                 "Claude/Custom without type, with shell env vars",
 			isLast:               true,
 			includeCopilotFields: false,
 			expectedContent: []string{
 				`"agentic_workflows": {`,
-				`"command": "gh"`,
-				`"args": ["aw", "mcp-server"]`,
+				`"container": "alpine:latest"`,
+				`"entrypoint": "/opt/gh-aw/gh-aw"`,
+				`"entrypointArgs": ["mcp-server"]`,
+				`"mounts": ["/opt/gh-aw:/opt/gh-aw:ro"]`,
 				// Security fix: Now uses shell variable instead of GitHub secret expression
 				`"GITHUB_TOKEN": "$GITHUB_TOKEN"`,
 				`              }`,
 			},
 			unexpectedContent: []string{
 				`"type"`,
-				`"tools"`,
 				`\\${`,
 				// Verify GitHub expressions are NOT in the output (security fix)
 				`${{ secrets.`,
+				`"command":`, // Should NOT use command - must use container
 			},
 		},
 	}
@@ -369,6 +374,7 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 }
 
 // TestRenderAgenticWorkflowsMCPConfigTOML verifies the Agentic Workflows TOML format helper
+// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 func TestRenderAgenticWorkflowsMCPConfigTOML(t *testing.T) {
 	var output strings.Builder
 
@@ -378,15 +384,18 @@ func TestRenderAgenticWorkflowsMCPConfigTOML(t *testing.T) {
 
 	expectedContent := []string{
 		`[mcp_servers.agentic_workflows]`,
-		`command = "gh"`,
-		`args = [`,
-		`"aw"`,
-		`"mcp-server"`,
+		`container = "alpine:latest"`,
+		`entrypoint = "/opt/gh-aw/gh-aw"`,
+		`entrypointArgs = ["mcp-server"]`,
+		`mounts = ["/opt/gh-aw:/opt/gh-aw:ro"]`,
 		`env_vars = ["GITHUB_TOKEN"]`,
 	}
 
 	unexpectedContent := []string{
-		`env = {`, // Should use env_vars instead
+		`env = {`,        // Should use env_vars instead
+		`command = "gh"`, // Should NOT use command - must use container
+		`"aw"`,           // Old arg format
+		`args = [`,       // Old args format
 	}
 
 	for _, expected := range expectedContent {

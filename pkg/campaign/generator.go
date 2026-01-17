@@ -76,17 +76,17 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 				{
 					Name:   "Campaign Roadmap",
 					Layout: "roadmap",
-					Filter: "is:issue,is:pull_request",
+					Filter: "is:issue is:pr",
 				},
 				{
 					Name:   "Task Tracker",
 					Layout: "table",
-					Filter: "is:issue,is:pull_request",
+					Filter: "is:issue is:pr",
 				},
 				{
 					Name:   "Progress Board",
 					Layout: "board",
-					Filter: "is:issue,is:pull_request",
+					Filter: "is:issue is:pr",
 				},
 			},
 		},
@@ -104,8 +104,8 @@ func buildGeneratorPrompt() string {
 	var prompt strings.Builder
 
 	prompt.WriteString("{{#runtime-import? .github/shared-instructions.md}}\n")
-	prompt.WriteString("{{#runtime-import? pkg/campaign/prompts/campaign_creation_instructions.md}}\n")
-	prompt.WriteString("{{#runtime-import? .github/aw/campaign-generator-instructions.md}}\n")
+	prompt.WriteString("{{#runtime-import? .github/aw/create-campaign.md}}\n")
+	prompt.WriteString("{{#runtime-import? .github/aw/generate-campaign.md}}\n")
 
 	return prompt.String()
 }

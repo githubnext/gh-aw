@@ -70,9 +70,8 @@ func TestMCPServerEntrypointField(t *testing.T) {
 
 			require.NotNil(t, extracted, "Extraction should not return nil")
 
-			// Note: This test will fail initially because Entrypoint field doesn't exist yet
-			// We'll add it as part of the fix
-			// assert.Equal(t, tt.expectEntrypoint, extracted.Entrypoint, "Entrypoint mismatch")
+			// Verify entrypoint extraction
+			assert.Equal(t, tt.expectEntrypoint, extracted.Entrypoint, "Entrypoint mismatch")
 			assert.ElementsMatch(t, tt.expectEntrypointArgs, extracted.EntrypointArgs, "EntrypointArgs mismatch")
 		})
 	}
@@ -82,55 +81,80 @@ func TestMCPServerEntrypointField(t *testing.T) {
 func TestMCPServerMountsInServerConfig(t *testing.T) {
 	tests := []struct {
 		name         string
-		toolsConfig  map[string]any
-		serverName   string
+		mcpConfig    map[string]any
 		expectMounts []string
 		expectError  bool
 	}{
 		{
 			name: "mcp server with mounts",
-			toolsConfig: map[string]any{
-				"custom-server": map[string]any{
-					"container": "ghcr.io/example/server:latest",
-					"mounts": []any{
-						"/host/data:/container/data:ro",
-						"/host/config:/container/config:rw",
-					},
+			mcpConfig: map[string]any{
+				"container": "ghcr.io/example/server:latest",
+				"mounts": []any{
+					"/host/data:/container/data:ro",
+					"/host/config:/container/config:rw",
 				},
 			},
-			serverName:   "custom-server",
 			expectMounts: []string{"/host/data:/container/data:ro", "/host/config:/container/config:rw"},
 			expectError:  false,
 		},
 		{
 			name: "mcp server without mounts",
-			toolsConfig: map[string]any{
-				"simple-server": map[string]any{
-					"container": "ghcr.io/example/simple:latest",
+			mcpConfig: map[string]any{
+				"container": "ghcr.io/example/simple:latest",
+			},
+			expectMounts: nil,
+			expectError:  false,
+		},
+		{
+			name: "mcp server with single mount",
+			mcpConfig: map[string]any{
+				"container": "ghcr.io/example/server:latest",
+				"mounts": []any{
+					"/tmp/data:/app/data:ro",
 				},
 			},
-			serverName:   "simple-server",
-			expectMounts: nil,
+			expectMounts: []string{"/tmp/data:/app/data:ro"},
 			expectError:  false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Parse the tools config
-			toolsConfigStruct, err := ParseToolsConfig(tt.toolsConfig)
-			require.NoError(t, err, "Failed to parse tools config")
+			compiler := &Compiler{}
+			extracted := compiler.extractMCPGatewayConfig(tt.mcpConfig)
 
-			// Get the specific MCP server config
-			serverConfig, exists := toolsConfigStruct.Custom[tt.serverName]
-			require.True(t, exists, "Server not found in custom tools")
+			if tt.expectError {
+				// For now, we don't expect errors, but this is for future validation
+				return
+			}
 
-			// Note: This test will fail initially because Mounts field doesn't exist in MCPServerConfig
-			// We'll add it as part of the fix
-			// assert.ElementsMatch(t, tt.expectMounts, serverConfig.Mounts, "Mounts mismatch")
+			require.NotNil(t, extracted, "Extraction should not return nil")
 
-			// For now, just verify the server exists
-			_ = serverConfig
+			// Verify mounts extraction
+			assert.ElementsMatch(t, tt.expectMounts, extracted.Mounts, "Mounts mismatch")
 		})
 	}
+}
+
+// TestMCPServerEntrypointAndMountsCombined tests entrypoint and mounts together in extraction
+func TestMCPServerEntrypointAndMountsCombinedExtraction(t *testing.T) {
+	mcpConfig := map[string]any{
+		"container":      "ghcr.io/example/server:latest",
+		"entrypoint":     "/usr/bin/custom-start",
+		"entrypointArgs": []any{"--config", "/etc/app.conf"},
+		"mounts": []any{
+			"/var/data:/app/data:rw",
+			"/etc/secrets:/app/secrets:ro",
+		},
+	}
+
+	compiler := &Compiler{}
+	extracted := compiler.extractMCPGatewayConfig(mcpConfig)
+
+	require.NotNil(t, extracted, "Extraction should not return nil")
+
+	// Verify all fields are extracted correctly
+	assert.Equal(t, "/usr/bin/custom-start", extracted.Entrypoint, "Entrypoint mismatch")
+	assert.ElementsMatch(t, []string{"--config", "/etc/app.conf"}, extracted.EntrypointArgs, "EntrypointArgs mismatch")
+	assert.ElementsMatch(t, []string{"/var/data:/app/data:rw", "/etc/secrets:/app/secrets:ro"}, extracted.Mounts, "Mounts mismatch")
 }

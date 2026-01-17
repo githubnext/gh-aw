@@ -336,28 +336,84 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
 			},
 		},
+		// Note: create_project and create_project_status_update are now handled by
+		// the project handler manager (buildProjectHandlerManagerStep), not the main handler manager
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "test")
+
+			workflowData := &WorkflowData{
+				Name:        "Test Workflow",
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			steps := compiler.buildHandlerManagerStep(workflowData)
+
+			require.NotEmpty(t, steps)
+
+			stepsContent := strings.Join(steps, "")
+
+			for _, expected := range tt.checkContains {
+				assert.Contains(t, stepsContent, expected, "Expected to find: "+expected)
+			}
+		})
+	}
+}
+
+// TestBuildProjectHandlerManagerStep tests project handler manager step generation
+func TestBuildProjectHandlerManagerStep(t *testing.T) {
+	tests := []struct {
+		name          string
+		safeOutputs   *SafeOutputsConfig
+		checkContains []string
+	}{
 		{
-			name: "handler manager with create_project uses project token",
+			name: "project handler manager with create_project",
 			safeOutputs: &SafeOutputsConfig{
 				CreateProjects: &CreateProjectsConfig{
-					GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+					GitHubToken: "${{ secrets.PROJECTS_PAT }}",
 					TargetOwner: "test-org",
 				},
 			},
 			checkContains: []string{
-				"name: Process Safe Outputs",
-				"github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+				"name: Process Project-Related Safe Outputs",
+				"id: process_project_safe_outputs",
+				"uses: actions/github-script@",
+				"GH_AW_AGENT_OUTPUT",
+				"GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG",
+				"GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.PROJECTS_PAT }}",
+				"github-token: ${{ secrets.PROJECTS_PAT }}",
+				"setupGlobals",
+				"safe_output_project_handler_manager.cjs",
 			},
 		},
 		{
-			name: "handler manager with create_project_status_update uses project token",
+			name: "project handler manager with create_project_status_update",
 			safeOutputs: &SafeOutputsConfig{
 				CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{
-					GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+					GitHubToken: "${{ secrets.PROJECTS_PAT }}",
 				},
 			},
 			checkContains: []string{
-				"name: Process Safe Outputs",
+				"name: Process Project-Related Safe Outputs",
+				"id: process_project_safe_outputs",
+				"GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG",
+				"GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.PROJECTS_PAT }}",
+				"github-token: ${{ secrets.PROJECTS_PAT }}",
+			},
+		},
+		{
+			name: "project handler manager without custom token uses default",
+			safeOutputs: &SafeOutputsConfig{
+				CreateProjects: &CreateProjectsConfig{
+					TargetOwner: "test-org",
+				},
+			},
+			checkContains: []string{
+				"name: Process Project-Related Safe Outputs",
+				"GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 				"github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 			},
 		},
@@ -372,7 +428,7 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				SafeOutputs: tt.safeOutputs,
 			}
 
-			steps := compiler.buildHandlerManagerStep(workflowData)
+			steps := compiler.buildProjectHandlerManagerStep(workflowData)
 
 			require.NotEmpty(t, steps)
 
@@ -430,6 +486,51 @@ func TestStepOrderInConsolidatedJob(t *testing.T) {
 	if gitConfigPos != -1 && handlerPos != -1 {
 		assert.Less(t, gitConfigPos, handlerPos, "Git config should come before handler")
 	}
+}
+
+// TestHandlerManagerOrderWithProjects tests that project handler manager comes before general handler manager
+func TestHandlerManagerOrderWithProjects(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+	compiler.jobManager = NewJobManager()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreateProjects: &CreateProjectsConfig{
+				GitHubToken: "${{ secrets.PROJECTS_PAT }}",
+				TargetOwner: "test-org",
+			},
+			CreateIssues: &CreateIssuesConfig{
+				TitlePrefix: "[Test] ",
+			},
+			AssignToAgent: &AssignToAgentConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: 1,
+				},
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+
+	require.NoError(t, err)
+	require.NotNil(t, job)
+
+	stepsContent := strings.Join(job.Steps, "")
+
+	// Find positions of handler steps
+	projectHandlerPos := strings.Index(stepsContent, "name: Process Project-Related Safe Outputs")
+	generalHandlerPos := strings.Index(stepsContent, "name: Process Safe Outputs")
+	assignAgentPos := strings.Index(stepsContent, "name: Assign To Agent")
+
+	// Verify all steps are present
+	assert.NotEqual(t, -1, projectHandlerPos, "Project handler manager step should be present")
+	assert.NotEqual(t, -1, generalHandlerPos, "General handler manager step should be present")
+	assert.NotEqual(t, -1, assignAgentPos, "Assign to agent step should be present")
+
+	// Verify correct order: Project Handler → General Handler → Assign To Agent
+	assert.Less(t, projectHandlerPos, generalHandlerPos, "Project handler should come before general handler")
+	assert.Less(t, generalHandlerPos, assignAgentPos, "General handler should come before assign to agent")
 }
 
 // TestStepWithoutCondition tests step building without condition

@@ -222,7 +222,7 @@ The campaign generator creates three views automatically. Here's how to use them
 
 **Cross-Team Campaign** (with optional Team field): Use Roadmap grouped by Team for cross-team coordination, Task Tracker sliced by Status (Blocked) for identifying blockers.
 
-For advanced view configuration and creating additional custom views, see the [ProjectOps guide](/gh-aw/examples/issue-pr-events/projectops/#creating-project-views).
+For advanced view configuration and creating additional custom views, see the [update-project safe output reference](/gh-aw/reference/safe-outputs/#creating-project-views).
 
 ## Project status updates
 

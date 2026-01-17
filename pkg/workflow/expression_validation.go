@@ -44,6 +44,8 @@ package workflow
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -218,6 +220,43 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 		}
 	}
 
+	// Check for OR expressions with literals (e.g., "inputs.repository || 'default'")
+	// Pattern: safe_expression || 'literal' or safe_expression || "literal" or safe_expression || `literal`
+	// Also supports numbers and booleans as literals
+	if !allowed {
+		// Match pattern: something || something_else
+		orPattern := regexp.MustCompile(`^(.+?)\s*\|\|\s*(.+)$`)
+		orMatch := orPattern.FindStringSubmatch(expression)
+		if len(orMatch) > 2 {
+			leftExpr := strings.TrimSpace(orMatch[1])
+			rightExpr := strings.TrimSpace(orMatch[2])
+
+			// Check if left side is safe (recursively validate)
+			leftErr := validateSingleExpression(leftExpr, opts)
+			leftIsSafe := leftErr == nil && !containsExpression(opts.UnauthorizedExpressions, leftExpr)
+
+			if leftIsSafe {
+				// Check if right side is a literal string (single, double, or backtick quotes)
+				// Note: Using (?:) for non-capturing group and checking each quote type separately
+				isStringLiteral := regexp.MustCompile(`^'[^']*'$|^"[^"]*"$|^` + "`[^`]*`$").MatchString(rightExpr)
+				// Check if right side is a number literal
+				isNumberLiteral := regexp.MustCompile(`^-?\d+(\.\d+)?$`).MatchString(rightExpr)
+				// Check if right side is a boolean literal
+				isBooleanLiteral := rightExpr == "true" || rightExpr == "false"
+
+				if isStringLiteral || isNumberLiteral || isBooleanLiteral {
+					allowed = true
+				} else {
+					// If right side is also a safe expression, recursively check it
+					rightErr := validateSingleExpression(rightExpr, opts)
+					if rightErr == nil && !containsExpression(opts.UnauthorizedExpressions, rightExpr) {
+						allowed = true
+					}
+				}
+			}
+		}
+	}
+
 	// If not allowed as a whole, try to extract and validate property accesses from comparisons
 	if !allowed {
 		// Extract property accesses from comparison expressions (e.g., "github.workflow == 'value'")
@@ -270,8 +309,133 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 	return nil
 }
 
+// containsExpression checks if an expression is in the list
+func containsExpression(list *[]string, expr string) bool {
+	for _, item := range *list {
+		if item == expr {
+			return true
+		}
+	}
+	return false
+}
+
 // ValidateExpressionSafetyPublic is a public wrapper for validateExpressionSafety
 // that allows testing expression validation from external packages
 func ValidateExpressionSafetyPublic(markdownContent string) error {
 	return validateExpressionSafety(markdownContent)
+}
+
+// extractRuntimeImportPaths extracts all runtime-import file paths from markdown content.
+// Returns a list of file paths (not URLs) referenced in {{#runtime-import}} macros.
+// URLs (http:// or https://) are excluded since they are validated separately.
+func extractRuntimeImportPaths(markdownContent string) []string {
+	if markdownContent == "" {
+		return nil
+	}
+
+	var paths []string
+	seen := make(map[string]bool)
+
+	// Pattern to match {{#runtime-import filepath}} or {{#runtime-import? filepath}}
+	// Also handles line ranges like filepath:10-20
+	macroPattern := `\{\{#runtime-import\??[ \t]+([^\}]+)\}\}`
+	macroRe := regexp.MustCompile(macroPattern)
+	matches := macroRe.FindAllStringSubmatch(markdownContent, -1)
+
+	for _, match := range matches {
+		if len(match) > 1 {
+			pathWithRange := strings.TrimSpace(match[1])
+
+			// Remove line range if present (e.g., "file.md:10-20" -> "file.md")
+			filepath := pathWithRange
+			if colonIdx := strings.Index(pathWithRange, ":"); colonIdx > 0 {
+				// Check if what follows colon looks like a line range (digits-digits)
+				afterColon := pathWithRange[colonIdx+1:]
+				if regexp.MustCompile(`^\d+-\d+$`).MatchString(afterColon) {
+					filepath = pathWithRange[:colonIdx]
+				}
+			}
+
+			// Skip URLs - they don't need file validation
+			if strings.HasPrefix(filepath, "http://") || strings.HasPrefix(filepath, "https://") {
+				continue
+			}
+
+			// Add to list if not already seen
+			if !seen[filepath] {
+				paths = append(paths, filepath)
+				seen[filepath] = true
+			}
+		}
+	}
+
+	return paths
+}
+
+// validateRuntimeImportFiles validates expressions in all runtime-import files at compile time.
+// This catches expression errors early, before the workflow runs.
+// workspaceDir should be the root of the repository (containing .github folder).
+func validateRuntimeImportFiles(markdownContent string, workspaceDir string) error {
+	expressionValidationLog.Print("Validating runtime-import files")
+
+	// Extract all runtime-import file paths
+	paths := extractRuntimeImportPaths(markdownContent)
+	if len(paths) == 0 {
+		expressionValidationLog.Print("No runtime-import files to validate")
+		return nil
+	}
+
+	expressionValidationLog.Printf("Found %d runtime-import file(s) to validate", len(paths))
+
+	var validationErrors []string
+
+	for _, filePath := range paths {
+		// Normalize the path to be relative to .github folder
+		normalizedPath := filePath
+		if strings.HasPrefix(normalizedPath, ".github/") {
+			normalizedPath = normalizedPath[8:] // Remove ".github/"
+		} else if strings.HasPrefix(normalizedPath, ".github\\") {
+			normalizedPath = normalizedPath[8:] // Remove ".github\" (Windows)
+		}
+		if strings.HasPrefix(normalizedPath, "./") {
+			normalizedPath = normalizedPath[2:] // Remove "./"
+		} else if strings.HasPrefix(normalizedPath, ".\\") {
+			normalizedPath = normalizedPath[2:] // Remove ".\" (Windows)
+		}
+
+		// Build absolute path to the file
+		githubFolder := filepath.Join(workspaceDir, ".github")
+		absolutePath := filepath.Join(githubFolder, normalizedPath)
+
+		// Check if file exists
+		if _, err := os.Stat(absolutePath); os.IsNotExist(err) {
+			// Skip validation for optional imports ({{#runtime-import? ...}})
+			// We can't determine if it's optional here, but missing files will be caught at runtime
+			expressionValidationLog.Printf("Skipping validation for non-existent file: %s", filePath)
+			continue
+		}
+
+		// Read the file content
+		content, err := os.ReadFile(absolutePath)
+		if err != nil {
+			validationErrors = append(validationErrors, fmt.Sprintf("%s: failed to read file: %v", filePath, err))
+			continue
+		}
+
+		// Validate expressions in the imported file
+		if err := validateExpressionSafety(string(content)); err != nil {
+			validationErrors = append(validationErrors, fmt.Sprintf("%s: %v", filePath, err))
+		} else {
+			expressionValidationLog.Printf("✓ Validated expressions in %s", filePath)
+		}
+	}
+
+	if len(validationErrors) > 0 {
+		expressionValidationLog.Printf("Runtime-import validation failed: %d file(s) with errors", len(validationErrors))
+		return fmt.Errorf("runtime-import files contain expression errors:\n\n%s",
+			strings.Join(validationErrors, "\n\n"))
+	}
+
+	expressionValidationLog.Print("All runtime-import files validated successfully")
+	return nil
 }

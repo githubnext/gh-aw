@@ -442,7 +442,6 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 // that reference files from the repository (not URLs).
 // Patterns detected:
 //   - {{#runtime-import filepath}} or {{#runtime-import? filepath}} where filepath is not a URL
-//   - @./path or @../path (inline syntax - these must start with ./ or ../)
 //
 // URLs (http:// or https://) are excluded as they don't require repository checkout.
 func containsRuntimeImports(markdownContent string) bool {
@@ -450,7 +449,7 @@ func containsRuntimeImports(markdownContent string) bool {
 		return false
 	}
 
-	// Pattern 1: {{#runtime-import filepath}} or {{#runtime-import? filepath}}
+	// Pattern: {{#runtime-import filepath}} or {{#runtime-import? filepath}}
 	// Match any runtime-import macro
 	macroPattern := `\{\{#runtime-import\??[ \t]+([^\}]+)\}\}`
 	macroRe := regexp.MustCompile(macroPattern)
@@ -466,12 +465,7 @@ func containsRuntimeImports(markdownContent string) bool {
 		}
 	}
 
-	// Pattern 2: @./path or @../path (inline syntax)
-	// Must start with @ followed by ./ or ../
-	// Exclude email addresses and URLs
-	inlinePattern := `@(\.\./|\./)[^\s]+`
-	inlineRe := regexp.MustCompile(inlinePattern)
-	return inlineRe.MatchString(markdownContent)
+	return false
 }
 
 // shouldAddCheckoutStep determines if the checkout step should be added based on permissions and custom steps

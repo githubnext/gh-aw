@@ -350,13 +350,14 @@ describe("handle_agent_failure.cjs", () => {
 
       // Verify body contains required sections (check second call - failure issue)
       const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
-      expect(failureIssueCreateCall.body).toContain("## Workflow Failure");
-      expect(failureIssueCreateCall.body).toContain("## Action Required");
+      expect(failureIssueCreateCall.body).toContain("### Workflow Failure");
+      expect(failureIssueCreateCall.body).toContain("### Action Required");
       expect(failureIssueCreateCall.body).toContain("agentic-workflows");
       expect(failureIssueCreateCall.body).toContain("https://github.com/test-owner/test-repo/actions/runs/123");
+      expect(failureIssueCreateCall.body).toContain("**Branch:**");
       expect(failureIssueCreateCall.body).toContain("<!-- gh-aw-expires:");
-      expect(failureIssueCreateCall.body).not.toContain("## Common Causes");
-      expect(failureIssueCreateCall.body).not.toContain("```bash");
+      expect(failureIssueCreateCall.body).not.toContain("## Root Cause");
+      expect(failureIssueCreateCall.body).not.toContain("## Expected Outcome");
       expect(failureIssueCreateCall.body).toContain("Generated from Test Workflow");
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Created new issue #42"));
@@ -674,6 +675,40 @@ describe("handle_agent_failure.cjs", () => {
       const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
       // Verify PR information is NOT included in the issue body
       expect(failureIssueCreateCall.body).not.toContain("**Pull Request:**");
+    });
+
+    it("should include branch information in the issue body", async () => {
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          // First search: PR search (no PR found)
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Second search: parent issue
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Third search: failure issue
+          data: { total_count: 0, items: [] },
+        });
+
+      mockGithub.rest.issues.create
+        .mockResolvedValueOnce({
+          data: { number: 1, html_url: "https://example.com/1", node_id: "I_1" },
+        })
+        .mockResolvedValueOnce({
+          data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
+        });
+
+      mockGithub.graphql = vi.fn().mockResolvedValue({});
+
+      await main();
+
+      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
+      // Verify branch information is included in the issue body
+      expect(failureIssueCreateCall.body).toContain("**Branch:**");
+      // The actual branch will be determined by getCurrentBranch() which may get it from git or env
+      // Just verify the branch field exists
     });
   });
 });

@@ -39,12 +39,6 @@ Your goal is to:
 6. **Create Pull Request**: Submit a pull request with the fix
 7. **Record in cache**: Store the alert number to prevent duplicate fixes
 
-## Current Context
-
-- **Repository**: ${{ github.repository }}
-- **Triggered by**: @${{ github.actor }}
-- **Run ID**: ${{ github.run_id }}
-
 ## Workflow Steps
 
 ### 1. Check Cache for Previously Fixed Alerts
@@ -59,8 +53,8 @@ Before selecting an alert, check the cache memory to see which alerts have been 
 
 Use the GitHub MCP server to list all open code scanning alerts with high severity:
 - Use `list_code_scanning_alerts` with the following parameters:
-  - `owner`: ${{ github.repository_owner }}
-  - `repo`: The repository name (extract from `${{ github.repository }}` - it's the part after the slash)
+  - `owner`: The repository owner (available in the GitHub context)
+  - `repo`: The repository name (available in the GitHub context)
   - `state`: open
   - `severity`: high
 - This will return only high severity alerts that are currently open
@@ -77,8 +71,8 @@ From the list of high severity alerts:
 
 Get detailed information about the selected alert using `get_code_scanning_alert`:
 - Call with parameters:
-  - `owner`: ${{ github.repository_owner }}
-  - `repo`: The repository name (extract from `${{ github.repository }}` - it's the part after the slash)
+  - `owner`: The repository owner (available in the GitHub context)
+  - `repo`: The repository name (available in the GitHub context)
   - `alertNumber`: The alert number from step 3
 - Extract key information:
   - Alert number
@@ -92,8 +86,8 @@ Get detailed information about the selected alert using `get_code_scanning_alert
 
 Understand the security issue:
 - Read the affected file using `get_file_contents`:
-  - `owner`: ${{ github.repository_owner }}
-  - `repo`: The repository name (extract from `${{ github.repository }}` - it's the part after the slash)
+  - `owner`: The repository owner (available in the GitHub context)
+  - `repo`: The repository name (available in the GitHub context)
   - `path`: The file path from the alert
 - Review the code context around the vulnerability (at least 20 lines before and after)
 - Understand the root cause of the security issue
@@ -153,7 +147,7 @@ After making the code changes, create a pull request with:
 
 ---
 **Automated by**: Code Scanning Fixer Workflow
-**Run ID**: ${{ github.run_id }}
+**Run ID**: (available in GitHub context)
 ```
 
 ### 8. Record Fixed Alert in Cache

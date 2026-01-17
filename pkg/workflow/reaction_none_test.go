@@ -159,25 +159,25 @@ Test command workflow with default (eyes) reaction.
 	}
 	compiled := string(compiledBytes)
 
-	// Verify that activation job HAS reaction step
-	if !strings.Contains(compiled, "Add eyes reaction to the triggering item") {
-		t.Error("Activation job should have reaction step when reaction defaults to 'eyes'")
+	// Verify that pre-activation job HAS reaction step (moved for immediate feedback)
+	if !strings.Contains(compiled, "Add eyes reaction for immediate feedback") {
+		t.Error("Pre-activation job should have reaction step when reaction defaults to 'eyes'")
 	}
 
-	// Verify that activation job HAS reaction permissions
-	activationJobSection := extractJobSection(compiled, string(constants.ActivationJobName))
-	if !strings.Contains(activationJobSection, "issues: write") {
-		t.Error("Activation job should have 'issues: write' permission when reaction is enabled")
+	// Verify that pre-activation job HAS reaction permissions
+	preActivationJobSection := extractJobSection(compiled, string(constants.PreActivationJobName))
+	if !strings.Contains(preActivationJobSection, "issues: write") {
+		t.Error("Pre-activation job should have 'issues: write' permission when reaction is enabled")
 	}
-	if !strings.Contains(activationJobSection, "pull-requests: write") {
-		t.Error("Activation job should have 'pull-requests: write' permission when reaction is enabled")
+	if !strings.Contains(preActivationJobSection, "pull-requests: write") {
+		t.Error("Pre-activation job should have 'pull-requests: write' permission when reaction is enabled")
 	}
-	if !strings.Contains(activationJobSection, "discussions: write") {
-		t.Error("Activation job should have 'discussions: write' permission when reaction is enabled")
+	if !strings.Contains(preActivationJobSection, "discussions: write") {
+		t.Error("Pre-activation job should have 'discussions: write' permission when reaction is enabled")
 	}
 
-	// Verify that activation job also has contents: read permission for checkout
-	if !strings.Contains(activationJobSection, "contents: read") {
+	// Verify that pre-activation job also has contents: read permission for checkout
+	if !strings.Contains(preActivationJobSection, "contents: read") {
 		t.Error("Activation job should have 'contents: read' permission for checkout step")
 	}
 
@@ -243,9 +243,9 @@ Test command workflow with explicit rocket reaction.
 	}
 	compiled := string(compiledBytes)
 
-	// Verify that activation job HAS rocket reaction step
-	if !strings.Contains(compiled, "Add rocket reaction to the triggering item") {
-		t.Error("Activation job should have rocket reaction step")
+	// Verify that pre-activation job HAS rocket reaction step (moved for immediate feedback)
+	if !strings.Contains(compiled, "Add rocket reaction for immediate feedback") {
+		t.Error("Pre-activation job should have rocket reaction step")
 	}
 
 	// Verify that conclusion job IS created
@@ -325,15 +325,15 @@ Test workflow triggered by issue template with "eyes" reaction.
 	}
 	compiled := string(compiledBytes)
 
-	// Verify that activation job HAS eyes reaction step
-	if !strings.Contains(compiled, "Add eyes reaction to the triggering item") {
-		t.Error("Activation job should have eyes reaction step for issue template workflow")
+	// Verify that pre-activation job HAS eyes reaction step (moved for immediate feedback)
+	if !strings.Contains(compiled, "Add eyes reaction for immediate feedback") {
+		t.Error("Pre-activation job should have eyes reaction step for issue template workflow")
 	}
 
-	// Verify that activation job HAS reaction permissions
-	activationJobSection := extractJobSection(compiled, string(constants.ActivationJobName))
-	if !strings.Contains(activationJobSection, "issues: write") {
-		t.Error("Activation job should have 'issues: write' permission when reaction is enabled")
+	// Verify that pre-activation job HAS reaction permissions
+	preActivationJobSection := extractJobSection(compiled, string(constants.PreActivationJobName))
+	if !strings.Contains(preActivationJobSection, "issues: write") {
+		t.Error("Pre-activation job should have 'issues: write' permission when reaction is enabled")
 	}
 
 	// Verify that lock issue step is present (due to lock-for-agent: true)

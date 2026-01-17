@@ -67,7 +67,7 @@ async function main(config = {}) {
         core.info(`Found existing issue #${existingIssue.number}: ${existingIssue.html_url}`);
 
         // Build comment body
-        const commentLines = [`## Missing Tools Reported (${new Date().toISOString()})`, ``, `The following tools were reported as missing during [workflow run](${runUrl}):`, ``];
+        const commentLines = [`## Missing Tools Reported`, ``, `The following tools were reported as missing during [workflow run](${runUrl}):`, ``];
 
         missingTools.forEach((tool, index) => {
           commentLines.push(`### ${index + 1}. \`${tool.tool}\``);
