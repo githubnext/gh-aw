@@ -267,9 +267,11 @@ jobs:
           echo "Downloading release binaries..."
           mkdir -p dist
           
-          # Get the release assets using GitHub API (works for both draft and published releases)
-          gh api "/repos/${{ github.repository }}/releases/tags/$RELEASE_TAG" \
-            --jq '.assets[] | select(.name | startswith("linux-")) | {name: .name, url: .url}' \
+          # Get the release assets using GitHub API
+          # Use /releases endpoint which works for both draft and published releases
+          # The /releases/tags/{tag} endpoint returns 404 for draft releases
+          gh api "/repos/${{ github.repository }}/releases" \
+            --jq ".[] | select(.tag_name == \"$RELEASE_TAG\") | .assets[] | select(.name | startswith(\"linux-\")) | {name: .name, url: .url}" \
             > /tmp/assets.json
           
           if [ ! -s /tmp/assets.json ]; then
