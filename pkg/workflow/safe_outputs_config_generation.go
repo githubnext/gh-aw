@@ -25,11 +25,17 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 	// Handle safe-outputs configuration if present
 	if data.SafeOutputs != nil {
 		if data.SafeOutputs.CreateIssues != nil {
-			safeOutputsConfig["create_issue"] = generateMaxWithAllowedLabelsConfig(
+			config := generateMaxWithAllowedLabelsConfig(
 				data.SafeOutputs.CreateIssues.Max,
 				1, // default max
 				data.SafeOutputs.CreateIssues.AllowedLabels,
 			)
+			// Add group flag if enabled
+			if data.SafeOutputs.CreateIssues.Group {
+				config["group"] = true
+				safeOutputsConfigLog.Printf("Adding group flag to create_issue config: Group=%v", data.SafeOutputs.CreateIssues.Group)
+			}
+			safeOutputsConfig["create_issue"] = config
 		}
 		if data.SafeOutputs.CreateAgentSessions != nil {
 			safeOutputsConfig["create_agent_task"] = generateMaxConfig(
@@ -379,6 +385,11 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		if len(dispatchWorkflowConfig) > 0 {
 			safeOutputsConfig["dispatch_workflow"] = dispatchWorkflowConfig
 		}
+	}
+
+	// Debug log the config before marshaling
+	if safeOutputsConfigLog.Enabled() {
+		safeOutputsConfigLog.Printf("Final safeOutputsConfig before marshaling: %+v", safeOutputsConfig)
 	}
 
 	configJSON, _ := json.Marshal(safeOutputsConfig)

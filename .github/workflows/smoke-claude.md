@@ -45,6 +45,7 @@ safe-outputs:
       hide-older-comments: true
     create-issue:
       expires: 2h
+      group: true
     add-labels:
       allowed: [smoke-claude]
     messages:
