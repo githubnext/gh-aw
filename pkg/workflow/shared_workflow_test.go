@@ -11,7 +11,7 @@ import (
 )
 
 // TestSharedWorkflowWithoutOn tests that a workflow without an 'on' field
-// is validated with the included_file_schema and returns a SharedWorkflowError
+// is validated with the main_workflow_schema (with forbidden field checks) and returns a SharedWorkflowError
 func TestSharedWorkflowWithoutOn(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-shared-workflow-*")
 

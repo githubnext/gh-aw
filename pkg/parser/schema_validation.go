@@ -8,6 +8,55 @@ import (
 
 var schemaValidationLog = logger.New("parser:schema_validation")
 
+// Fields that cannot be used in shared/included workflows (only allowed in main workflows with 'on' field)
+var sharedWorkflowForbiddenFields = map[string]bool{
+	"on":              true, // Trigger field - only for main workflows
+	"bots":            true,
+	"cache":           true,
+	"command":         true,
+	"concurrency":     true,
+	"container":       true,
+	"env":             true,
+	"environment":     true,
+	"features":        true,
+	"github-token":    true,
+	"if":              true,
+	"imports":         true,
+	"jobs":            true,
+	"labels":          true,
+	"name":            true,
+	"post-steps":      true,
+	"roles":           true,
+	"run-name":        true,
+	"runs-on":         true,
+	"sandbox":         true,
+	"source":          true,
+	"strict":          true,
+	"timeout-minutes": true,
+	"timeout_minutes": true,
+	"tracker-id":      true,
+}
+
+// validateSharedWorkflowFields checks that a shared workflow doesn't contain forbidden fields
+func validateSharedWorkflowFields(frontmatter map[string]any) error {
+	var forbiddenFound []string
+	
+	for key := range frontmatter {
+		if sharedWorkflowForbiddenFields[key] {
+			forbiddenFound = append(forbiddenFound, key)
+		}
+	}
+	
+	if len(forbiddenFound) > 0 {
+		if len(forbiddenFound) == 1 {
+			return fmt.Errorf("field '%s' cannot be used in shared workflows (only allowed in main workflows with 'on' trigger)", forbiddenFound[0])
+		}
+		return fmt.Errorf("fields %v cannot be used in shared workflows (only allowed in main workflows with 'on' trigger)", forbiddenFound)
+	}
+	
+	return nil
+}
+
 // ValidateMainWorkflowFrontmatterWithSchema validates main workflow frontmatter using JSON schema
 func ValidateMainWorkflowFrontmatterWithSchema(frontmatter map[string]any) error {
 	schemaValidationLog.Print("Validating main workflow frontmatter with schema")
@@ -57,13 +106,20 @@ func ValidateIncludedFileFrontmatterWithSchema(frontmatter map[string]any) error
 	// Filter out ignored fields before validation
 	filtered := filterIgnoredFields(frontmatter)
 
-	// First run the standard schema validation
-	if err := validateWithSchema(filtered, includedFileSchema, "included file"); err != nil {
+	// First check for forbidden fields in shared workflows
+	if err := validateSharedWorkflowFields(filtered); err != nil {
+		schemaValidationLog.Printf("Shared workflow field validation failed: %v", err)
+		return err
+	}
+
+	// Then run the standard schema validation using main workflow schema
+	// The schema allows all fields, but we've already checked for forbidden ones above
+	if err := validateWithSchema(filtered, mainWorkflowSchema, "included file"); err != nil {
 		schemaValidationLog.Printf("Schema validation failed for included file: %v", err)
 		return err
 	}
 
-	// Then run custom validation for engine-specific rules
+	// Finally run custom validation for engine-specific rules
 	return validateEngineSpecificRules(filtered)
 }
 
@@ -72,12 +128,18 @@ func ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatter map[string
 	// Filter out ignored fields before validation
 	filtered := filterIgnoredFields(frontmatter)
 
-	// First run the standard schema validation with location
-	if err := validateWithSchemaAndLocation(filtered, includedFileSchema, "included file", filePath); err != nil {
+	// First check for forbidden fields in shared workflows
+	if err := validateSharedWorkflowFields(filtered); err != nil {
 		return err
 	}
 
-	// Then run custom validation for engine-specific rules
+	// Then run the standard schema validation with location using main workflow schema
+	// The schema allows all fields, but we've already checked for forbidden ones above
+	if err := validateWithSchemaAndLocation(filtered, mainWorkflowSchema, "included file", filePath); err != nil {
+		return err
+	}
+
+	// Finally run custom validation for engine-specific rules
 	return validateEngineSpecificRules(filtered)
 }
 
