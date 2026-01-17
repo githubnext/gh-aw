@@ -633,8 +633,10 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		if renderer.Format == "toml" {
 			propertyOrder = []string{"command", "args", "env", "proxy-args", "registry"}
 		} else {
-			// JSON format - include copilot fields if required
-			propertyOrder = []string{"type", "command", "tools", "args", "env", "proxy-args", "registry"}
+			// JSON format - use MCP Gateway schema format (container-based) OR legacy command-based
+			// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio servers SHOULD be containerized
+			// But we also support legacy command-based tools for backwards compatibility
+			propertyOrder = []string{"type", "container", "entrypoint", "entrypointArgs", "mounts", "command", "args", "tools", "env", "proxy-args", "registry"}
 		}
 	case "http":
 		if renderer.Format == "toml" {
@@ -668,6 +670,22 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		case "tools":
 			// Include tools field only for engines that require copilot fields
 			if renderer.RequiresCopilotFields {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "container":
+			if mcpConfig.Container != "" {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "entrypoint":
+			if mcpConfig.Entrypoint != "" {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "entrypointArgs":
+			if len(mcpConfig.EntrypointArgs) > 0 {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "mounts":
+			if len(mcpConfig.Mounts) > 0 {
 				existingProperties = append(existingProperties, prop)
 			}
 		case "command":
@@ -748,6 +766,54 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				fmt.Fprintf(yaml, "%s  \"*\"\n", renderer.IndentLevel)
 				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
 			}
+		case "container":
+			comma := ","
+			if isLast {
+				comma = ""
+			}
+			// Container field - per MCP Gateway Specification v1.0.0 section 4.1.2
+			// Required for stdio servers (containerized servers)
+			fmt.Fprintf(yaml, "%s\"container\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Container, comma)
+		case "entrypoint":
+			comma := ","
+			if isLast {
+				comma = ""
+			}
+			// Entrypoint field - per MCP Gateway Specification v1.0.0
+			// Optional entrypoint override for container
+			fmt.Fprintf(yaml, "%s\"entrypoint\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Entrypoint, comma)
+		case "entrypointArgs":
+			comma := ","
+			if isLast {
+				comma = ""
+			}
+			// EntrypointArgs field - per MCP Gateway Specification v1.0.0
+			// Arguments passed to the container entrypoint
+			fmt.Fprintf(yaml, "%s\"entrypointArgs\": [\n", renderer.IndentLevel)
+			for argIndex, arg := range mcpConfig.EntrypointArgs {
+				argComma := ","
+				if argIndex == len(mcpConfig.EntrypointArgs)-1 {
+					argComma = ""
+				}
+				fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, arg, argComma)
+			}
+			fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
+		case "mounts":
+			comma := ","
+			if isLast {
+				comma = ""
+			}
+			// Mounts field - per MCP Gateway Specification v1.0.0
+			// Volume mounts for the container
+			fmt.Fprintf(yaml, "%s\"mounts\": [\n", renderer.IndentLevel)
+			for mountIndex, mount := range mcpConfig.Mounts {
+				mountComma := ","
+				if mountIndex == len(mcpConfig.Mounts)-1 {
+					mountComma = ""
+				}
+				fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, mount, mountComma)
+			}
+			fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
 		case "command":
 			if renderer.Format == "toml" {
 				fmt.Fprintf(yaml, "%scommand = \"%s\"\n", renderer.IndentLevel, mcpConfig.Command)
@@ -1198,68 +1264,12 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		}
 	}
 
-	// Handle container transformation for stdio type
-	if result.Type == "stdio" && result.Container != "" {
-		// Save user-provided args before transforming
-		userProvidedArgs := result.Args
-		entrypoint := result.Entrypoint
-		entrypointArgs := result.EntrypointArgs
-		mounts := result.Mounts
-
-		// Transform container field to docker command and args
-		result.Command = "docker"
-		result.Args = []string{"run", "--rm", "-i"}
-
-		// Add environment variables as -e flags (sorted for deterministic output)
-		envKeys := make([]string, 0, len(result.Env))
-		for envKey := range result.Env {
-			envKeys = append(envKeys, envKey)
-		}
-		sort.Strings(envKeys)
-		for _, envKey := range envKeys {
-			result.Args = append(result.Args, "-e", envKey)
-		}
-
-		// Add volume mounts if configured (sorted for deterministic output)
-		if len(mounts) > 0 {
-			sortedMounts := make([]string, len(mounts))
-			copy(sortedMounts, mounts)
-			sort.Strings(sortedMounts)
-			for _, mount := range sortedMounts {
-				result.Args = append(result.Args, "-v", mount)
-			}
-		}
-
-		// Insert user-provided args (e.g., additional docker flags) before the container image
-		if len(userProvidedArgs) > 0 {
-			result.Args = append(result.Args, userProvidedArgs...)
-		}
-
-		// Add entrypoint override if specified
-		if entrypoint != "" {
-			result.Args = append(result.Args, "--entrypoint", entrypoint)
-		}
-
-		// Build container image with version if provided
-		containerImage := result.Container
-		if result.Version != "" {
-			containerImage = containerImage + ":" + result.Version
-		}
-
-		// Add the container image
-		result.Args = append(result.Args, containerImage)
-
-		// Add entrypoint args after the container image
-		if len(entrypointArgs) > 0 {
-			result.Args = append(result.Args, entrypointArgs...)
-		}
-
-		// Clear the container, version, entrypoint, entrypointArgs, and mounts fields since they're now part of the command
-		result.Container = ""
-		result.Version = ""
-		result.Entrypoint = ""
-		result.EntrypointArgs = nil
-		result.Mounts = nil
+	// Combine container and version fields into a single container image string
+	// Per MCP Gateway Specification, the container field should include the full image reference
+	// including the tag (e.g., "mcp/ast-grep:latest" instead of separate container + version fields)
+	if result.Type == "stdio" && result.Container != "" && result.Version != "" {
+		result.Container = result.Container + ":" + result.Version
+		result.Version = "" // Clear version since it's now part of container
 	}
 
 	return result, nil
