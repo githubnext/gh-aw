@@ -158,41 +158,6 @@ jobs:
           bash scripts/build-release.sh "$RELEASE_TAG"
           echo "✓ Binaries built successfully"
 
-      - name: Download Go modules
-        run: go mod download
-
-      - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@v0
-        with:
-          artifact-name: sbom.spdx.json
-          output-file: sbom.spdx.json
-          format: spdx-json
-
-      - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@v0
-        with:
-          artifact-name: sbom.cdx.json
-          output-file: sbom.cdx.json
-          format: cyclonedx-json
-
-      - name: Audit SBOM files for secrets
-        run: |
-          echo "Auditing SBOM files for potential secrets..."
-          if grep -rE "GITHUB_TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY" sbom.*.json; then
-            echo "Error: Potential secrets found in SBOM files"
-            exit 1
-          fi
-          echo "✓ No secrets detected in SBOM files"
-
-      - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: sbom-artifacts
-          path: |
-            sbom.spdx.json
-            sbom.cdx.json
-          retention-days: 7  # Minimize exposure window
-
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -253,18 +218,16 @@ jobs:
         run: |
           echo "Creating GitHub release: $RELEASE_TAG"
           
-          # Create release with all binaries
+          # Create release with binaries (SBOM files will be added later)
           RELEASE_ARGS=()
           if [ "$DRAFT_MODE" = "true" ]; then
             RELEASE_ARGS+=(--draft)
             echo "Creating draft release"
           fi
           
-          # Create the release and upload all artifacts
+          # Create the release and upload binaries
           gh release create "$RELEASE_TAG" \
             dist/* \
-            sbom.spdx.json \
-            sbom.cdx.json \
             --title "$RELEASE_TAG" \
             --generate-notes \
             "${RELEASE_ARGS[@]}"
@@ -275,6 +238,52 @@ jobs:
           echo "✓ Release created: $RELEASE_TAG"
           echo "✓ Release ID: $RELEASE_ID"
           echo "✓ Draft mode: $DRAFT_MODE"
+
+      - name: Download Go modules
+        run: go mod download
+
+      - name: Generate SBOM (SPDX format)
+        uses: anchore/sbom-action@v0
+        with:
+          artifact-name: sbom.spdx.json
+          output-file: sbom.spdx.json
+          format: spdx-json
+
+      - name: Generate SBOM (CycloneDX format)
+        uses: anchore/sbom-action@v0
+        with:
+          artifact-name: sbom.cdx.json
+          output-file: sbom.cdx.json
+          format: cyclonedx-json
+
+      - name: Audit SBOM files for secrets
+        run: |
+          echo "Auditing SBOM files for potential secrets..."
+          if grep -rE "GITHUB_TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY" sbom.*.json; then
+            echo "Error: Potential secrets found in SBOM files"
+            exit 1
+          fi
+          echo "✓ No secrets detected in SBOM files"
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: sbom-artifacts
+          path: |
+            sbom.spdx.json
+            sbom.cdx.json
+          retention-days: 7  # Minimize exposure window
+
+      - name: Upload SBOM files to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+        run: |
+          echo "Uploading SBOM files to release: $RELEASE_TAG"
+          gh release upload "$RELEASE_TAG" \
+            sbom.spdx.json \
+            sbom.cdx.json
+          echo "✓ SBOM files uploaded to release"
 
 steps:
   - name: Setup environment and fetch release data
