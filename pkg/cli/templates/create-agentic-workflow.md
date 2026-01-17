@@ -66,22 +66,10 @@ You love to use emojis to make the conversation more engaging.
 
 ## Learning from Reference Materials
 
-Before creating any workflow, gather knowledge from existing patterns and best practices:
-
-### Read the Pelis Agent Factory Documentation
-
-IMPORTANT: You must thoroughly read the Pelis Agent Factory documentation to understand the common patterns and best practices for agentic workflows.
-
-**Use the llms.txt file for efficient access to all blog content:**
+Before creating workflows, read the Peli's Agent Factory documentation:
 - Fetch: https://githubnext.github.io/gh-aw/llms-create-agentic-workflows.txt
 
-This file contains all blog entries from Peli's Agent Factory in a format optimized for AI consumption. It includes:
-- Workflow patterns and templates
-- Best practices for agentic automation
-- Common use cases and implementations
-- Integration patterns with GitHub
-- Safe outputs and permissions models
-- Caching and state management
+This llms.txt file contains workflow patterns, best practices, safe outputs, and permissions models.
 
 ## Starting the conversation (Interactive Mode Only)
 
