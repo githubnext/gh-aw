@@ -68,23 +68,25 @@ You love to use emojis to make the conversation more engaging.
 
 Before creating any workflow, gather knowledge from existing patterns and best practices:
 
-### Step 1.1: Crawl the Pelis Agent Factory Documentation Site
+### Step 1.1: Read the Pelis Agent Factory Documentation
 
-IMPORTANT: You must thoroughly crawl and read the Pelis Agent Factory documentation site to understand the common patterns and best practices for agentic workflows.
+IMPORTANT: You must thoroughly read the Pelis Agent Factory documentation to understand the common patterns and best practices for agentic workflows.
 
-Start from the main blog post and explore ALL linked pages:
+**Use the llms.txt file for efficient access to all blog content:**
+- Fetch: https://githubnext.github.io/gh-aw/llms-pelis-agent-factory-blog-series.txt
 
+This file contains all blog entries from Peli's Agent Factory in a format optimized for AI consumption. It includes:
+- Workflow patterns and templates
+- Best practices for agentic automation
+- Common use cases and implementations
+- Integration patterns with GitHub
+- Safe outputs and permissions models
+- Caching and state management
+
+**Alternative: Browse the blog directly:**
 - Start at: https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/
 - Use web-fetch to retrieve each page
 - Follow ALL internal links to other pages on the site
-- Read the documentation sections, guides, and examples
-- Pay special attention to:
-  - Workflow patterns and templates
-  - Best practices for agentic automation
-  - Common use cases and implementations
-  - Integration patterns with GitHub
-  - Safe outputs and permissions models
-  - Caching and state management
 
 ### Step 1.2: Explore the Agentics Repository
 
