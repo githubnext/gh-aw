@@ -238,7 +238,7 @@ jobs:
           gh release upload "$RELEASE_TAG" sbom.spdx.json sbom.cdx.json --clobber
           echo "✓ SBOM files attached to release"
   docker-image:
-    needs: ["release"]
+    needs: ["release", "config"]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -263,10 +263,35 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
+          DRAFT_MODE: ${{ needs.config.outputs.draft_mode }}
         run: |
           echo "Downloading release binaries..."
           mkdir -p dist
-          gh release download "$RELEASE_TAG" --pattern "linux-*" --dir dist
+          
+          if [ "$DRAFT_MODE" = "true" ]; then
+            echo "Release is in draft mode - using API to download assets"
+            # Get the release assets using GitHub API (works for draft releases)
+            gh api "/repos/${{ github.repository }}/releases/tags/$RELEASE_TAG" \
+              --jq '.assets[] | select(.name | startswith("linux-")) | {name: .name, url: .url}' \
+              > /tmp/assets.json
+            
+            if [ ! -s /tmp/assets.json ]; then
+              echo "Error: No linux-* assets found in draft release $RELEASE_TAG"
+              exit 1
+            fi
+            
+            # Download each asset using authenticated API call
+            while IFS= read -r asset; do
+              ASSET_NAME=$(echo "$asset" | jq -r '.name')
+              ASSET_URL=$(echo "$asset" | jq -r '.url')
+              echo "Downloading $ASSET_NAME..."
+              gh api "$ASSET_URL" -H "Accept: application/octet-stream" > "dist/$ASSET_NAME"
+            done < <(jq -c '.' /tmp/assets.json)
+          else
+            echo "Release is published - using standard download"
+            gh release download "$RELEASE_TAG" --pattern "linux-*" --dir dist
+          fi
+          
           ls -lh dist/
           echo "✓ Release binaries downloaded"
 
