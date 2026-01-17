@@ -264,6 +264,8 @@ sandbox:
 
 ### Example: Container Mode
 
+The MCP gateway container runs on the host (outside the agent sandbox) and communicates with the agent via HTTP:
+
 ```yaml wrap
 features:
   mcp-gateway: true
@@ -271,14 +273,14 @@ features:
 sandbox:
   mcp:
     container: "ghcr.io/githubnext/gh-aw-mcpg:latest"
-    args: ["--rm", "-i"]
+    args: ["--rm", "-i"]  # Docker run args: auto-remove container, interactive mode
     entrypointArgs: ["--routed", "--listen", "0.0.0.0:8000", "--config-stdin"]
     port: 8000
 ```
 
 > [!CAUTION]
 > No Docker Socket Access
-> The agent container does not have access to the Docker socket (`/var/run/docker.sock`). This is a security feature that prevents container escape attacks and ensures complete isolation. MCP servers should use `mode: remote` for GitHub MCP or be configured as HTTP endpoints rather than spawned via Docker socket.
+> The agent container does not have access to the Docker socket (`/var/run/docker.sock`). This is a security feature that prevents container escape attacks. The MCP gateway container runs on the host and is started before the agent executes. MCP servers should use `mode: remote` for GitHub MCP or be configured as HTTP endpoints.
 
 ## Legacy Format
 
