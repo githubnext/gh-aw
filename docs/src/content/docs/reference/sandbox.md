@@ -93,10 +93,11 @@ AWF automatically mounts several paths from the host into the container to enabl
 These default mounts ensure the agent has access to essential tools and the repository files. Custom mounts specified via `sandbox.agent.mounts` are added alongside these defaults.
 
 > [!WARNING]
-> Docker socket access is not supported. The agent
-> firewall does not mount `/var/run/docker.sock`, and
-> custom mounts cannot add it. Agents cannot spawn
-> Docker containers for security reasons.
+> Docker socket access is not supported for security
+> reasons. The agent firewall does not mount
+> `/var/run/docker.sock`, and custom mounts cannot add
+> it, preventing agents from spawning Docker
+> containers.
 
 #### Custom AWF Configuration
 

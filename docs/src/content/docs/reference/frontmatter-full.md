@@ -868,8 +868,8 @@ sandbox:
     # (optional)
     type: "awf"
 
-    # Custom command to replace the default AWF or SRT installation. For AWF: '/usr/
-    # local/bin/custom-awf-wrapper'. For SRT: '/usr/local/bin/custom-srt-wrapper'
+    # Custom command to replace the default AWF or SRT installation. For AWF:
+    # '/usr/local/bin/custom-awf-wrapper'. For SRT: '/usr/local/bin/custom-srt-wrapper'
     # (optional)
     command: "example-value"
 
