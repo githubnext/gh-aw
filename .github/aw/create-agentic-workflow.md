@@ -79,7 +79,9 @@ Analyze the user's response and map it to agentic workflows. Ask clarifying ques
    - What should trigger the workflow (`on:` — e.g., issues, pull requests, schedule, slash command)?
    - What should the agent do (comment, triage, create PR, fetch API data, etc.)?
    - ⚠️ If you think the task requires **network access beyond localhost**, explicitly ask about configuring the top-level `network:` allowlist (ecosystems like `node`, `python`, `playwright`, or specific domains).
-   - 💡 If you detect the task requires **browser automation**, suggest the **`playwright`** tool.
+   - 💡 If you detect the task requires **browser automation**, suggest the **`playwright`** tool and reference the [setup examples](@.github/agents/developer.instructions.md#playwright-browser-automation).
+   - ♿ If you detect the task requires **accessibility testing**, suggest **`axe-core`** integration and reference the [axe-core setup examples](@.github/agents/developer.instructions.md#axe-core-accessibility-testing).
+   - 📦 If you detect the task requires **bundle size analysis**, suggest **`webpack-bundle-analyzer`** and reference the [bundle analyzer setup examples](@.github/agents/developer.instructions.md#webpack-bundle-analyzer).
    - 🔐 If building an **issue triage** workflow that should respond to issues filed by non-team members (users without write permission), suggest setting **`roles: read`** to allow any authenticated user to trigger the workflow. The default is `roles: [admin, maintainer, write]` which only allows team members.
 
 **Scheduling Best Practices:**
@@ -95,7 +97,9 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
 3. **Tools & MCP Servers**
    - Detect which tools are needed based on the task. Examples:
      - API integration → `github` (use `toolsets: [default]`), `web-fetch`, `web-search`, `jq` (via `bash`)
-     - Browser automation → `playwright`
+     - Browser automation → `playwright` (see [Playwright setup examples](@.github/agents/developer.instructions.md#playwright-browser-automation))
+     - Accessibility testing → `playwright` + `axe-core` (see [axe-core integration examples](@.github/agents/developer.instructions.md#axe-core-accessibility-testing))
+     - Bundle analysis → `webpack-bundle-analyzer` (see [webpack-bundle-analyzer examples](@.github/agents/developer.instructions.md#webpack-bundle-analyzer))
      - Media manipulation → `ffmpeg` (installed via `steps:`)
      - Code parsing/analysis → `ast-grep`, `codeql` (installed via `steps:`)
      - **Language server for code analysis** → `serena: ["<language>"]` - Detect the repository's primary programming language (check file extensions, go.mod, package.json, requirements.txt, etc.) and specify it in the array. Supported languages: `go`, `typescript`, `python`, `ruby`, `rust`, `java`, `cpp`, `csharp`, and many more (see `.serena/project.yml` for full list).
@@ -105,6 +109,7 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
      - Explain why it's needed.
      - Declare it in **`tools:`** (for built-in tools) or in **`mcp-servers:`** (for MCP servers).
      - If a tool needs installation (e.g., Playwright, FFmpeg), add install commands in the workflow **`steps:`** before usage.
+     - **Reference concrete setup examples** from @.github/agents/developer.instructions.md when suggesting Playwright, axe-core, or webpack-bundle-analyzer
    - For MCP inspection/listing details in workflows, use:
      - `gh aw mcp inspect` (and flags like `--server`, `--tool`) to analyze configured MCP servers and tool availability.
 

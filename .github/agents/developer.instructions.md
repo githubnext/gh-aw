@@ -21,6 +21,7 @@ This document consolidates development guidelines, architectural patterns, and i
 - [Repo-Memory System](#repo-memory-system)
 - [Hierarchical Agent Management](#hierarchical-agent-management)
 - [Release Management](#release-management)
+- [Tool Setup Reference](#tool-setup-reference)
 - [Quick Reference](#quick-reference)
 
 ---
@@ -631,6 +632,239 @@ For manual feature testing in pull requests:
 4. Do not merge dev.md changes - it remains a reusable test harness
 
 **Implementation**: See specs/changesets.md and specs/end-to-end-feature-testing.md
+
+---
+
+## Tool Setup Reference
+
+This section provides concrete, copy-paste-ready configuration examples for commonly used tools in agentic workflows. These examples are production-ready and follow security best practices.
+
+### Playwright Browser Automation
+
+**When to use**: Browser automation, accessibility testing, UI testing, web scraping, visual regression testing
+
+**Minimal Configuration** (playwright.config.js):
+```javascript
+// playwright.config.js
+module.exports = {
+  use: {
+    headless: true,
+    viewport: { width: 1280, height: 720 },
+    screenshot: 'only-on-failure',
+  },
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    { name: 'firefox', use: { browserName: 'firefox' } },
+    { name: 'webkit', use: { browserName: 'webkit' } },
+  ],
+};
+```
+
+**Package Installation**:
+```json
+{
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  }
+}
+```
+
+**Basic Test Template**:
+```javascript
+const { test, expect } = require('@playwright/test');
+
+test('basic page test', async ({ page }) => {
+  await page.goto('https://example.com');
+  await expect(page).toHaveTitle(/Example/);
+});
+```
+
+**Workflow Integration**:
+```yaml
+tools:
+  playwright:
+    version: "v1.40.0"
+    allowed_domains: ["example.com", "api.example.com"]
+
+steps:
+  - name: Install Playwright
+    run: npm install -D @playwright/test && npx playwright install
+```
+
+### axe-core Accessibility Testing
+
+**When to use**: Accessibility audits, WCAG compliance testing, automated a11y checks
+
+**Installation**:
+```bash
+npm install --save-dev axe-core @axe-core/playwright
+```
+
+**Import and Usage Pattern**:
+```javascript
+const { test } = require('@playwright/test');
+const { injectAxe, checkA11y } = require('@axe-core/playwright');
+
+test('accessibility check', async ({ page }) => {
+  await page.goto('https://example.com');
+  await injectAxe(page);
+  
+  // Check entire page
+  await checkA11y(page);
+  
+  // Check specific element
+  await checkA11y(page, '#main-content');
+  
+  // With custom configuration
+  await checkA11y(page, null, {
+    rules: {
+      'color-contrast': { enabled: true },
+      'image-alt': { enabled: true },
+    },
+  });
+});
+```
+
+**Configuration Options**:
+```javascript
+// axe.config.js
+module.exports = {
+  rules: {
+    'color-contrast': { enabled: true },
+    'image-alt': { enabled: true },
+    'label': { enabled: true },
+    'button-name': { enabled: true },
+  },
+  runOnly: {
+    type: 'tag',
+    values: ['wcag2a', 'wcag2aa', 'wcag21aa'],
+  },
+};
+```
+
+**Workflow Integration**:
+```yaml
+steps:
+  - name: Install axe-core
+    run: |
+      npm install --save-dev axe-core @axe-core/playwright
+      npx playwright install chromium
+  
+  - name: Run accessibility tests
+    run: npx playwright test accessibility.spec.js
+```
+
+### webpack-bundle-analyzer
+
+**When to use**: Bundle size analysis, dependency visualization, bundle optimization, performance audits
+
+**webpack.config.js Integration**:
+```javascript
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+
+module.exports = {
+  plugins: [
+    new BundleAnalyzerPlugin({
+      analyzerMode: 'static',
+      reportFilename: 'bundle-report.html',
+      openAnalyzer: false,
+      generateStatsFile: true,
+      statsFilename: 'bundle-stats.json',
+    }),
+  ],
+};
+```
+
+**CLI Usage Examples**:
+```bash
+# Basic analysis
+npx webpack-bundle-analyzer stats.json
+
+# Generate report without opening browser
+npx webpack-bundle-analyzer stats.json -m static -r report.html
+
+# With custom port
+npx webpack-bundle-analyzer stats.json -p 8888
+
+# JSON output for CI
+npx webpack-bundle-analyzer stats.json -m json -r bundle-analysis.json
+```
+
+**Size Threshold Configuration**:
+```javascript
+// webpack.config.js
+module.exports = {
+  performance: {
+    hints: 'warning',
+    maxEntrypointSize: 512000,  // 500 KiB
+    maxAssetSize: 512000,       // 500 KiB
+  },
+  plugins: [
+    new BundleAnalyzerPlugin({
+      analyzerMode: 'static',
+      defaultSizes: 'gzip',
+      statsOptions: {
+        assets: true,
+        chunks: true,
+        modules: true,
+      },
+    }),
+  ],
+};
+```
+
+**Workflow Integration**:
+```yaml
+steps:
+  - name: Install webpack-bundle-analyzer
+    run: npm install --save-dev webpack-bundle-analyzer
+  
+  - name: Build and analyze bundle
+    run: |
+      npm run build
+      npx webpack-bundle-analyzer dist/stats.json -m static -r bundle-report.html
+  
+  - name: Check bundle size thresholds
+    run: |
+      SIZE=$(stat -f%z dist/main.js)
+      if [ $SIZE -gt 524288 ]; then
+        echo "Bundle size exceeds 512KB threshold"
+        exit 1
+      fi
+```
+
+### Using These Examples in Workflows
+
+When the agent suggests one of these tools:
+
+1. **Reference the appropriate section** from this guide
+2. **Explain why the tool is needed** for the specific use case
+3. **Provide the minimal configuration** from the examples above
+4. **Add installation steps** to the workflow's `steps:` section
+5. **Configure network access** if the tool requires external domains
+
+**Example workflow snippet**:
+```yaml
+---
+engine: copilot
+tools:
+  playwright:
+    version: "v1.40.0"
+    allowed_domains: ["example.com"]
+network:
+  allowed:
+    - playwright
+steps:
+  - name: Setup tools
+    run: |
+      npm install -D @playwright/test @axe-core/playwright
+      npx playwright install chromium
+---
+
+Test the website for accessibility issues using Playwright and axe-core.
+```
+
+**Implementation**: These examples provide copy-paste-ready configurations that follow security best practices and require minimal customization.
 
 ---
 
