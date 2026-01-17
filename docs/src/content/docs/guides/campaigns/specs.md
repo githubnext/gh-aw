@@ -36,6 +36,15 @@ tracker-label: "campaign:framework-upgrade"
 # Optional: Custom GitHub token for Projects v2 operations
 # project-github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
 
+# Required: Repositories this campaign can operate on
+allowed-repos:
+  - "myorg/service-a"
+  - "myorg/service-b"
+
+# Optional: Organizations this campaign can operate on
+# allowed-orgs:
+#   - "myorg"
+
 objective: "Upgrade all services to Framework vNext with zero downtime."
 kpis:
   - id: services_upgraded
@@ -59,6 +68,8 @@ owners:
 ## Core fields (what they do)
 
 - `id`: stable identifier used for file naming, reporting, and (if used) repo-memory paths.
+- `allowed-repos` (required): list of repositories (in `owner/repo` format) that this campaign is allowed to discover and operate on. Defines the campaign scope as a reviewable contract for security and governance. Must include at least one repository.
+- `allowed-orgs` (optional): list of GitHub organizations that this campaign is allowed to discover and operate on. Provides additional scope control when operating across multiple repositories in an organization.
 - `project-url` (optional): the GitHub Project that acts as the campaign dashboard and canonical source of campaign membership. If not provided, the campaign generator will automatically create a new project board with custom fields and views.
 - `project-github-token` (optional): a GitHub token expression (e.g., `${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}`) used for GitHub Projects v2 operations. When specified, this token is passed to the `update-project` safe output configuration in the generated orchestrator workflow. Use this when the default `GITHUB_TOKEN` doesn't have sufficient permissions for project board operations.
 - `tracker-label` (optional): an ingestion hint label that helps discover issues and pull requests created by workers (commonly `campaign:<id>`). When provided, the orchestrator's discovery precomputation step can discover work across runs. The project board remains the canonical source of truth.
