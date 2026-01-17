@@ -37,7 +37,6 @@ Labels help organize and triage issues for better project management. Use labels
 - **ai-generated** - Issue created by AI workflow (Plan Command, etc.)
 - **plan** - Planning issue with sub-tasks
 - **ai-inspected** - Issue reviewed by AI workflow
-- **smoke-copilot** - Smoke test results
 
 ### Status Labels
 - **good first issue** - Suitable for new contributors
@@ -107,9 +106,9 @@ Labels help organize and triage issues for better project management. Use labels
 Type: bug, enhancement, documentation, question, testing
 Priority: priority-high, priority-medium, priority-low
 Component: cli, workflow, mcp, actions, engine, automation
-Workflow: ai-generated, plan, ai-inspected, smoke-copilot
+Workflow: ai-generated, plan, ai-inspected
 Status: good first issue, dependencies
-```text
+```
 
 This taxonomy provides clear filtering while avoiding label sprawl. Use GitHub's issue search to combine labels effectively:
 - `is:issue is:open label:bug label:priority-high` - Critical bugs

@@ -73,7 +73,7 @@ Instead of remembering complex webhook URLs or GitHub Actions syntax, team membe
 
 Frequent, lightweight validation tests (every 12 hours) catch regressions quickly. These "heartbeat" agents keep the infrastructure healthy without manual monitoring.
 
-Instead of waiting for production failures, we deploy multiple [smoke test workflows](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/smoke-copilot.md) that continuously validate core functionality. When a smoke test fails, we know immediately which component broke. This proactive monitoring prevents cascading failures and gives us confidence that the ecosystem is actually stable.
+Instead of waiting for production failures, we deploy multiple smoke test workflows that continuously validate core functionality. When a smoke test fails, we know immediately which component broke. This proactive monitoring prevents cascading failures and gives us confidence that the ecosystem is actually stable.
 
 ### MCP Inspection Is Essential
 
