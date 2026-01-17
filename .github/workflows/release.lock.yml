@@ -85,8 +85,6 @@ jobs:
     needs:
       - activation
       - config
-      - docker-image
-      - generate-sbom
       - release
     runs-on: ubuntu-latest
     permissions:
@@ -129,9 +127,9 @@ jobs:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ID: ${{ needs.release.outputs.release_id }}
-          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
         name: Setup environment and fetch release data
-        run: "set -e\nmkdir -p /tmp/gh-aw/release-data\n\n# Use the release ID and tag from the release job\necho \"Release ID from release job: $RELEASE_ID\"\necho \"Release tag from release job: $RELEASE_TAG\"\n\necho \"Processing release: $RELEASE_TAG\"\necho \"RELEASE_TAG=$RELEASE_TAG\" >> \"$GITHUB_ENV\"\n\n# Get the current release information\ngh release view \"$RELEASE_TAG\" --json name,tagName,createdAt,publishedAt,url,body > /tmp/gh-aw/release-data/current_release.json\necho \"✓ Fetched current release information\"\n\n# Get the previous release to determine the range\nPREV_RELEASE_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName // empty')\n\nif [ -z \"$PREV_RELEASE_TAG\" ]; then\n  echo \"No previous release found. This appears to be the first release.\"\n  echo \"PREV_RELEASE_TAG=\" >> \"$GITHUB_ENV\"\n  touch /tmp/gh-aw/release-data/pull_requests.json\n  echo \"[]\" > /tmp/gh-aw/release-data/pull_requests.json\nelse\n  echo \"Previous release: $PREV_RELEASE_TAG\"\n  echo \"PREV_RELEASE_TAG=$PREV_RELEASE_TAG\" >> \"$GITHUB_ENV\"\n  \n  # Get commits between releases\n  echo \"Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG...\"\n  git fetch --unshallow 2>/dev/null || git fetch --depth=1000\n  \n  # Get all merged PRs between the two releases\n  echo \"Fetching pull requests merged between releases...\"\n  PREV_PUBLISHED_AT=$(gh release view \"$PREV_RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  CURR_PUBLISHED_AT=$(gh release view \"$RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  gh pr list \\\n    --state merged \\\n    --limit 1000 \\\n    --json number,title,author,labels,mergedAt,url,body \\\n    --jq \"[.[] | select(.mergedAt >= \\\"$PREV_PUBLISHED_AT\\\" and .mergedAt <= \\\"$CURR_PUBLISHED_AT\\\")]\" \\\n    > /tmp/gh-aw/release-data/pull_requests.json\n  \n  PR_COUNT=$(jq length \"/tmp/gh-aw/release-data/pull_requests.json\")\n  echo \"✓ Fetched $PR_COUNT pull requests\"\nfi\n\n# Get the CHANGELOG.md content around this version\nif [ -f \"CHANGELOG.md\" ]; then\n  cp CHANGELOG.md /tmp/gh-aw/release-data/CHANGELOG.md\n  echo \"✓ Copied CHANGELOG.md for reference\"\nfi\n\n# List documentation files for linking\nfind docs -type f -name \"*.md\" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo \"No docs directory found\"\n\necho \"✓ Setup complete. Data available in /tmp/gh-aw/release-data/\""
+        run: "set -e\nmkdir -p /tmp/gh-aw/release-data\n\n# Use the release ID and tag from the release job\necho \"Release ID from release job: $RELEASE_ID\"\necho \"Release tag from release job: $RELEASE_TAG\"\n\necho \"Processing release: $RELEASE_TAG\"\necho \"RELEASE_TAG=$RELEASE_TAG\" >> \"$GITHUB_ENV\"\n\n# Get the current release information\n# Use release ID to fetch release data (works for draft releases)\ngh api \"/repos/${{ github.repository }}/releases/$RELEASE_ID\" > /tmp/gh-aw/release-data/current_release.json\necho \"✓ Fetched current release information\"\n\n# Get the previous release to determine the range\nPREV_RELEASE_TAG=$(gh release list --limit 2 --json tagName --jq '.[1].tagName // empty')\n\nif [ -z \"$PREV_RELEASE_TAG\" ]; then\n  echo \"No previous release found. This appears to be the first release.\"\n  echo \"PREV_RELEASE_TAG=\" >> \"$GITHUB_ENV\"\n  touch /tmp/gh-aw/release-data/pull_requests.json\n  echo \"[]\" > /tmp/gh-aw/release-data/pull_requests.json\nelse\n  echo \"Previous release: $PREV_RELEASE_TAG\"\n  echo \"PREV_RELEASE_TAG=$PREV_RELEASE_TAG\" >> \"$GITHUB_ENV\"\n  \n  # Get commits between releases\n  echo \"Fetching commits between $PREV_RELEASE_TAG and $RELEASE_TAG...\"\n  git fetch --unshallow 2>/dev/null || git fetch --depth=1000\n  \n  # Get all merged PRs between the two releases\n  echo \"Fetching pull requests merged between releases...\"\n  PREV_PUBLISHED_AT=$(gh release view \"$PREV_RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  CURR_PUBLISHED_AT=$(gh release view \"$RELEASE_TAG\" --json publishedAt --jq .publishedAt)\n  gh pr list \\\n    --state merged \\\n    --limit 1000 \\\n    --json number,title,author,labels,mergedAt,url,body \\\n    --jq \"[.[] | select(.mergedAt >= \\\"$PREV_PUBLISHED_AT\\\" and .mergedAt <= \\\"$CURR_PUBLISHED_AT\\\")]\" \\\n    > /tmp/gh-aw/release-data/pull_requests.json\n  \n  PR_COUNT=$(jq length \"/tmp/gh-aw/release-data/pull_requests.json\")\n  echo \"✓ Fetched $PR_COUNT pull requests\"\nfi\n\n# Get the CHANGELOG.md content around this version\nif [ -f \"CHANGELOG.md\" ]; then\n  cp CHANGELOG.md /tmp/gh-aw/release-data/CHANGELOG.md\n  echo \"✓ Copied CHANGELOG.md for reference\"\nfi\n\n# List documentation files for linking\nfind docs -type f -name \"*.md\" 2>/dev/null > /tmp/gh-aw/release-data/docs_files.txt || echo \"No docs directory found\"\n\necho \"✓ Setup complete. Data available in /tmp/gh-aw/release-data/\""
 
       - name: Configure Git credentials
         env:
@@ -999,53 +997,62 @@ jobs:
           persist-credentials: false
       - name: Compute release configuration
         id: compute_config
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            # For workflow_dispatch, compute next version based on release type
-            RELEASE_TYPE="${{ inputs.release_type }}"
-            DRAFT_MODE="${{ inputs.draft }}"
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const isWorkflowDispatch = context.eventName === 'workflow_dispatch';
 
-            echo "Computing next version for release type: $RELEASE_TYPE"
+            let releaseTag, draftMode;
 
-            # Get the latest release tag
-            LATEST_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // "v0.0.0"')
-            echo "Latest release tag: $LATEST_TAG"
+            if (isWorkflowDispatch) {
+              const releaseType = context.payload.inputs.release_type;
+              draftMode = context.payload.inputs.draft;
 
-            # Parse version components (strip 'v' prefix)
-            VERSION="${LATEST_TAG#v}"
-            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+              console.log(`Computing next version for release type: ${releaseType}`);
 
-            # Increment based on release type
-            case "$RELEASE_TYPE" in
-              major)
-                MAJOR=$((MAJOR + 1))
-                MINOR=0
-                PATCH=0
-                ;;
-              minor)
-                MINOR=$((MINOR + 1))
-                PATCH=0
-                ;;
-              patch)
-                PATCH=$((PATCH + 1))
-                ;;
-            esac
+              // Get the latest release tag
+              const { data: releases } = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 1
+              });
 
-            RELEASE_TAG="v${MAJOR}.${MINOR}.${PATCH}"
-            echo "Computed release tag: $RELEASE_TAG"
-          else
-            # For tag push events, use the tag from GITHUB_REF
-            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
-            DRAFT_MODE="false"
-            echo "Using tag from push event: $RELEASE_TAG"
-          fi
+              const latestTag = releases[0]?.tag_name || 'v0.0.0';
+              console.log(`Latest release tag: ${latestTag}`);
 
-          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-          echo "draft_mode=$DRAFT_MODE" >> "$GITHUB_OUTPUT"
-          echo "✓ Release tag: $RELEASE_TAG"
-          echo "✓ Draft mode: $DRAFT_MODE"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              // Parse version components (strip 'v' prefix)
+              const version = latestTag.replace(/^v/, '');
+              let [major, minor, patch] = version.split('.').map(Number);
+
+              // Increment based on release type
+              switch (releaseType) {
+                case 'major':
+                  major += 1;
+                  minor = 0;
+                  patch = 0;
+                  break;
+                case 'minor':
+                  minor += 1;
+                  patch = 0;
+                  break;
+                case 'patch':
+                  patch += 1;
+                  break;
+              }
+
+              releaseTag = `v${major}.${minor}.${patch}`;
+              console.log(`Computed release tag: ${releaseTag}`);
+            } else {
+              // For tag push events, use the tag from GITHUB_REF
+              releaseTag = context.ref.replace('refs/tags/', '');
+              draftMode = 'false';
+              console.log(`Using tag from push event: ${releaseTag}`);
+            }
+
+            core.setOutput('release_tag', releaseTag);
+            core.setOutput('draft_mode', draftMode);
+            console.log(`✓ Release tag: ${releaseTag}`);
+            console.log(`✓ Draft mode: ${draftMode}`);
 
   detection:
     needs: agent
@@ -1206,170 +1213,6 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  docker-image:
-    needs: release
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      attestations: write
-      contents: read
-      id-token: write
-      packages: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        with:
-          password: ${{ secrets.GITHUB_TOKEN }}
-          registry: ghcr.io
-          username: ${{ github.actor }}
-      - name: Download release artifacts
-        run: |
-          echo "Downloading release binaries for release ID: $RELEASE_ID, tag: $RELEASE_TAG"
-          mkdir -p dist
-
-          # Get the release by ID (works for both draft and published releases)
-          # Draft releases lose their tag association, so we must query by ID
-          echo "Fetching release information..."
-          gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
-            --jq '{id, tag_name, name, draft, created_at, asset_count: (.assets | length)}' \
-            > /tmp/release_info.json
-
-          echo "Release info:"
-          cat /tmp/release_info.json
-
-          # Get all linux-* assets from this specific release
-          echo ""
-          echo "Fetching linux-* assets..."
-          gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
-            --jq ".assets[] | select(.name | startswith(\"linux-\")) | {name: .name, url: .url, size: .size}" \
-            > /tmp/assets.json
-
-          if [ ! -s /tmp/assets.json ]; then
-            echo "Error: No linux-* assets found in release $RELEASE_TAG (ID: $RELEASE_ID)"
-            echo ""
-            echo "Available assets:"
-            gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" \
-              --jq '.assets[] | .name'
-            exit 1
-          fi
-
-          echo "Found $(jq -s length /tmp/assets.json) linux assets:"
-          cat /tmp/assets.json
-
-          # Download each asset using authenticated API call
-          echo ""
-          while IFS= read -r asset; do
-            ASSET_NAME=$(echo "$asset" | jq -r '.name')
-            ASSET_URL=$(echo "$asset" | jq -r '.url')
-            ASSET_SIZE=$(echo "$asset" | jq -r '.size')
-            echo "Downloading $ASSET_NAME ($(numfmt --to=iec-i --suffix=B $ASSET_SIZE))..."
-            gh api "$ASSET_URL" -H "Accept: application/octet-stream" > "dist/$ASSET_NAME"
-          done < <(jq -c '.' /tmp/assets.json)
-
-          echo ""
-          echo "Downloaded binaries:"
-          ls -lh dist/
-          echo "✓ Release binaries downloaded successfully"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_ID: ${{ needs.release.outputs.release_id }}
-          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha,format=long
-            type=raw,value=latest,enable={{is_default_branch}}
-      - name: Build and push Docker image (amd64)
-        id: build
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
-        with:
-          build-args: |
-            BINARY=dist/linux-amd64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          context: .
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-      - name: Generate SBOM for Docker image
-        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
-        with:
-          artifact-name: docker-sbom.spdx.json
-          format: spdx-json
-          image: ghcr.io/${{ github.repository }}:${{ needs.release.outputs.release_tag }}
-          output-file: docker-sbom.spdx.json
-      - name: Attest Docker image
-        uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
-        with:
-          push-to-registry: true
-          subject-digest: ${{ steps.build.outputs.digest }}
-          subject-name: ghcr.io/${{ github.repository }}
-
-  generate-sbom:
-    needs: release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-      - name: Setup Go
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
-        with:
-          cache: false
-          go-version-file: go.mod
-      - name: Download Go modules
-        run: go mod download
-      - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
-        with:
-          artifact-name: sbom.spdx.json
-          format: spdx-json
-          output-file: sbom.spdx.json
-      - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
-        with:
-          artifact-name: sbom.cdx.json
-          format: cyclonedx-json
-          output-file: sbom.cdx.json
-      - name: Audit SBOM files for secrets
-        run: |
-          echo "Auditing SBOM files for potential secrets..."
-          if grep -rE "GITHUB_TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY" sbom.*.json; then
-            echo "Error: Potential secrets found in SBOM files"
-            exit 1
-          fi
-          echo "✓ No secrets detected in SBOM files"
-      - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: sbom-artifacts
-          path: |
-            sbom.spdx.json
-            sbom.cdx.json
-          retention-days: 7
-      - name: Attach SBOM to release
-        run: |
-          echo "Attaching SBOM files to release: $RELEASE_TAG"
-          gh release upload "$RELEASE_TAG" sbom.spdx.json sbom.cdx.json --clobber
-          echo "✓ SBOM files attached to release"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
-
   pre_activation:
     runs-on: ubuntu-slim
     permissions:
@@ -1413,7 +1256,6 @@ jobs:
 
     outputs:
       release_id: ${{ steps.get_release.outputs.release_id }}
-      release_tag: ${{ steps.get_release.outputs.release_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -1431,44 +1273,122 @@ jobs:
           echo "✓ Tag created: $RELEASE_TAG"
         env:
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-      - name: Release with gh-extension-precompile
-        uses: cli/gh-extension-precompile@9e2237c30f869ad3bcaed6a4be2cd43564dd421b # v2.1.0
+      - name: Setup Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
-          build_script_override: scripts/build-release.sh
-          go_version_file: go.mod
-          release_tag: ${{ needs.config.outputs.release_tag }}
-      - name: Set release to draft mode
-        if: needs.config.outputs.draft_mode == 'true'
+          cache: false
+          go-version-file: go.mod
+      - name: Build binaries
         run: |
-          echo "Setting release to draft mode: $RELEASE_TAG"
-          # Edit the release to set it as draft
-          gh release edit "$RELEASE_TAG" --draft
-          echo "✓ Release set to draft mode"
+          echo "Building binaries for release: $RELEASE_TAG"
+          bash scripts/build-release.sh "$RELEASE_TAG"
+          echo "✓ Binaries built successfully"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-      - name: Upload checksums file
+      - name: Download Go modules
+        run: go mod download
+      - name: Generate SBOM (SPDX format)
+        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
+        with:
+          artifact-name: sbom.spdx.json
+          format: spdx-json
+          output-file: sbom.spdx.json
+      - name: Generate SBOM (CycloneDX format)
+        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
+        with:
+          artifact-name: sbom.cdx.json
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+      - name: Audit SBOM files for secrets
         run: |
-          if [ -f "dist/checksums.txt" ]; then
-            echo "Uploading checksums file to release: $RELEASE_TAG"
-            gh release upload "$RELEASE_TAG" dist/checksums.txt --clobber
-            echo "✓ Checksums file uploaded to release"
-          else
-            echo "Warning: checksums.txt not found in dist/"
+          echo "Auditing SBOM files for potential secrets..."
+          if grep -rE "GITHUB_TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY" sbom.*.json; then
+            echo "Error: Potential secrets found in SBOM files"
+            exit 1
           fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-      - name: Get release ID
+          echo "✓ No secrets detected in SBOM files"
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: sbom-artifacts
+          path: |
+            sbom.spdx.json
+            sbom.cdx.json
+          retention-days: 7
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Build and push Docker image (amd64)
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        with:
+          build-args: |
+            BINARY=dist/linux-amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          context: .
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+      - name: Generate SBOM for Docker image
+        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
+        with:
+          artifact-name: docker-sbom.spdx.json
+          format: spdx-json
+          image: ghcr.io/${{ github.repository }}:${{ needs.config.outputs.release_tag }}
+          output-file: docker-sbom.spdx.json
+      - name: Attest Docker image
+        uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+        with:
+          push-to-registry: true
+          subject-digest: ${{ steps.build.outputs.digest }}
+          subject-name: ghcr.io/${{ github.repository }}
+      - name: Create GitHub release
         id: get_release
         run: |
-          echo "Getting release ID for tag: $RELEASE_TAG"
+          echo "Creating GitHub release: $RELEASE_TAG"
+
+          # Create release with all binaries
+          RELEASE_ARGS=()
+          if [ "$DRAFT_MODE" = "true" ]; then
+            RELEASE_ARGS+=(--draft)
+            echo "Creating draft release"
+          fi
+
+          # Create the release and upload all artifacts
+          gh release create "$RELEASE_TAG" \
+            dist/* \
+            sbom.spdx.json \
+            sbom.cdx.json \
+            --title "$RELEASE_TAG" \
+            --generate-notes \
+            "${RELEASE_ARGS[@]}"
+
+          # Get release ID
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
-          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "✓ Release created: $RELEASE_TAG"
           echo "✓ Release ID: $RELEASE_ID"
-          echo "✓ Release Tag: $RELEASE_TAG"
+          echo "✓ Draft mode: $DRAFT_MODE"
         env:
+          DRAFT_MODE: ${{ needs.config.outputs.draft_mode }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
 
