@@ -1210,6 +1210,7 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       attestations: write
       contents: read
       id-token: write
