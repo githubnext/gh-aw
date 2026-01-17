@@ -310,6 +310,7 @@ type MCPServerConfig struct {
 type MCPGatewayRuntimeConfig struct {
 	Container      string            `yaml:"container,omitempty"`      // Container image for the gateway (required)
 	Version        string            `yaml:"version,omitempty"`        // Optional version/tag for the container
+	Entrypoint     string            `yaml:"entrypoint,omitempty"`     // Optional entrypoint override for the container
 	Args           []string          `yaml:"args,omitempty"`           // Arguments for docker run
 	EntrypointArgs []string          `yaml:"entrypointArgs,omitempty"` // Arguments passed to container entrypoint
 	Env            map[string]string `yaml:"env,omitempty"`            // Environment variables for the gateway

@@ -598,6 +598,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			}
 		}
 
+		// Add entrypoint override if specified
+		if gatewayConfig.Entrypoint != "" {
+			containerCmd += " --entrypoint " + shellQuote(gatewayConfig.Entrypoint)
+		}
+
 		containerCmd += " " + containerImage
 
 		if len(gatewayConfig.EntrypointArgs) > 0 {
