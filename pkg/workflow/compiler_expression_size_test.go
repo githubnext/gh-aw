@@ -99,8 +99,8 @@ safe-outputs:
 		// This should fail with an expression size validation error
 		if err == nil {
 			t.Error("Expected error for workflow with oversized expressions, got nil")
-		} else if !strings.Contains(err.Error(), "exceeds maximum allowed") {
-			t.Errorf("Expected 'exceeds maximum allowed' error, got: %v", err)
+		} else if !strings.Contains(err.Error(), "is too large") {
+			t.Errorf("Expected 'is too large' error, got: %v", err)
 		} else if !strings.Contains(err.Error(), "expression size validation failed") {
 			t.Errorf("Expected 'expression size validation failed' error, got: %v", err)
 		}
@@ -146,8 +146,8 @@ safe-outputs:
 		// This should fail with an expression size validation error even without explicit validation enablement
 		if err == nil {
 			t.Error("Expected error for workflow with oversized expressions with default validation settings, got nil")
-		} else if !strings.Contains(err.Error(), "exceeds maximum allowed") {
-			t.Errorf("Expected 'exceeds maximum allowed' error with default validation, got: %v", err)
+		} else if !strings.Contains(err.Error(), "is too large") {
+			t.Errorf("Expected 'is too large' error with default validation, got: %v", err)
 		} else if !strings.Contains(err.Error(), "expression size validation failed") {
 			t.Errorf("Expected 'expression size validation failed' error with default validation, got: %v", err)
 		}
@@ -166,12 +166,12 @@ safe-outputs:
 		actualSize := console.FormatFileSize(testLineSize)
 		maxSizeFormatted := console.FormatFileSize(int64(MaxExpressionSize))
 
-		expectedMessage := fmt.Sprintf("expression value for 'WORKFLOW_MARKDOWN' (%s) exceeds maximum allowed size (%s)",
+		expectedMessage := fmt.Sprintf("expression value for 'WORKFLOW_MARKDOWN' (%s) is too large size (%s)",
 			actualSize, maxSizeFormatted)
 
 		// Verify the message contains expected elements
-		if !strings.Contains(expectedMessage, "exceeds maximum allowed size") {
-			t.Error("Error message should contain 'exceeds maximum allowed size'")
+		if !strings.Contains(expectedMessage, "is too large size") {
+			t.Error("Error message should contain 'is too large size'")
 		}
 		if !strings.Contains(expectedMessage, "KB") {
 			t.Error("Error message should contain size in KB")

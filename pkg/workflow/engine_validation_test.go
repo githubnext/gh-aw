@@ -137,7 +137,7 @@ func TestValidateSingleEngineSpecification(t *testing.T) {
 			includedEnginesJSON: []string{`"claude"`},
 			expectedEngine:      "",
 			expectError:         true,
-			errorMsg:            "multiple engine fields found",
+			errorMsg:            "Multiple engine specifications detected",
 		},
 		{
 			name:                "multiple engines in different included files",
@@ -145,7 +145,7 @@ func TestValidateSingleEngineSpecification(t *testing.T) {
 			includedEnginesJSON: []string{`"copilot"`, `"claude"`},
 			expectedEngine:      "",
 			expectError:         true,
-			errorMsg:            "multiple engine fields found",
+			errorMsg:            "Multiple engine specifications detected",
 		},
 		{
 			name:                "empty string in main engine setting",
@@ -167,7 +167,7 @@ func TestValidateSingleEngineSpecification(t *testing.T) {
 			includedEnginesJSON: []string{`{invalid json}`},
 			expectedEngine:      "",
 			expectError:         true,
-			errorMsg:            "failed to parse",
+			errorMsg:            "trouble parsing the engine configuration",
 		},
 		{
 			name:                "included engine with invalid object format (no id)",

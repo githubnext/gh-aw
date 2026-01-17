@@ -252,8 +252,8 @@ This is a test agent file.
 		err := compiler.validateAgentFile(workflowData, workflowPath)
 		if err == nil {
 			t.Error("Expected error for non-existent agent file, got nil")
-		} else if !strings.Contains(err.Error(), "does not exist") {
-			t.Errorf("Expected 'does not exist' error, got: %v", err)
+		} else if !strings.Contains(err.Error(), "Can't find the agent file") {
+			t.Errorf("Expected 'Can't find the agent file' error, got: %v", err)
 		}
 	})
 

@@ -27,13 +27,13 @@ func TestValidateDangerousPermissions(t *testing.T) {
 			name:          "write permission without feature flag - should error",
 			permissions:   "permissions:\n  contents: write",
 			shouldError:   true,
-			errorContains: "Write permissions are not allowed",
+			errorContains: "Write permissions detected",
 		},
 		{
 			name:          "multiple write permissions without feature flag - should error",
 			permissions:   "permissions:\n  contents: write\n  issues: write",
 			shouldError:   true,
-			errorContains: "Write permissions are not allowed",
+			errorContains: "Write permissions detected",
 		},
 		{
 			name:        "write permission with feature flag enabled - should pass",
@@ -50,7 +50,7 @@ func TestValidateDangerousPermissions(t *testing.T) {
 				"dangerous-permissions-write": false,
 			},
 			shouldError:   true,
-			errorContains: "Write permissions are not allowed",
+			errorContains: "Write permissions detected",
 		},
 		{
 			name:        "shorthand read-all - should pass",
@@ -61,7 +61,7 @@ func TestValidateDangerousPermissions(t *testing.T) {
 			name:          "shorthand write-all without feature flag - should error",
 			permissions:   "permissions: write-all",
 			shouldError:   true,
-			errorContains: "Write permissions are not allowed",
+			errorContains: "Write permissions detected",
 		},
 		{
 			name:        "shorthand write-all with feature flag - should pass",
