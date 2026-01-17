@@ -51,7 +51,7 @@ jobs:
       release_tag: ${{ steps.compute_config.outputs.release_tag }}
       draft_mode: ${{ steps.compute_config.outputs.draft_mode }}
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           fetch-depth: 0
@@ -118,7 +118,7 @@ jobs:
       release_id: ${{ steps.get_release.outputs.release_id }}
       release_tag: ${{ steps.get_release.outputs.release_tag }}
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           fetch-depth: 0
