@@ -555,7 +555,10 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
-          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" > "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
+          <system>
+          PROMPT_EOF
+          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
@@ -570,6 +573,9 @@ jobs:
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
           </safe-outputs>
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          </system>
           PROMPT_EOF
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           **IMPORTANT**: Always use the `safeinputs-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `safeinputs-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.

@@ -456,7 +456,10 @@ jobs:
           GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
-          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" > "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
+          <system>
+          PROMPT_EOF
+          cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
@@ -499,6 +502,9 @@ jobs:
           {{/if}}
           </github-context>
           
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          </system>
           PROMPT_EOF
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           
