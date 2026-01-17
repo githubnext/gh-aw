@@ -392,7 +392,19 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	inHeredoc := false
 	isFirstContent := true
 
-	// 1. Write built-in sections first (prepended)
+	// 1. Write built-in sections first (prepended), wrapped in <system> tags
+	if len(builtinSections) > 0 {
+		// Open system tag for built-in prompts
+		if isFirstContent {
+			yaml.WriteString("          cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"\n")
+			isFirstContent = false
+		} else {
+			yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
+		}
+		yaml.WriteString("          <system>\n")
+		yaml.WriteString("          PROMPT_EOF\n")
+	}
+
 	for i, section := range builtinSections {
 		unifiedPromptLog.Printf("Writing built-in section %d/%d: hasCondition=%v, isFile=%v",
 			i+1, len(builtinSections), section.ShellCondition != "", section.IsFile)
@@ -468,6 +480,18 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 				}
 			}
 		}
+	}
+
+	// Close system tag for built-in prompts
+	if len(builtinSections) > 0 {
+		// Close heredoc if open
+		if inHeredoc {
+			yaml.WriteString("          PROMPT_EOF\n")
+			inHeredoc = false
+		}
+		yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
+		yaml.WriteString("          </system>\n")
+		yaml.WriteString("          PROMPT_EOF\n")
 	}
 
 	// 2. Write user prompt chunks (appended after built-in sections)

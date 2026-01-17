@@ -163,9 +163,13 @@ func TestGenerateUnifiedPromptCreationStep_MultipleUserChunks(t *testing.T) {
 
 	output := yaml.String()
 
-	// Count PROMPT_EOF markers (should be: 1 for temp_folder file, 1 per user chunk)
+	// Count PROMPT_EOF markers
+	// With system tags:
+	// - 2 for opening <system> tag
+	// - 2 for closing </system> tag
+	// - 2 per user chunk
 	eofCount := strings.Count(output, "PROMPT_EOF")
-	expectedEOFCount := len(userPromptChunks) * 2 // Each chunk has opening and closing PROMPT_EOF
+	expectedEOFCount := 4 + (len(userPromptChunks) * 2) // 4 for system tags, 2 per user chunk
 	assert.Equal(t, expectedEOFCount, eofCount, "Should have correct number of PROMPT_EOF markers")
 
 	// Verify all user chunks are present and in order
@@ -184,6 +188,15 @@ func TestGenerateUnifiedPromptCreationStep_MultipleUserChunks(t *testing.T) {
 	tempFolderPos := strings.Index(output, "temp_folder_prompt.md")
 	require.NotEqual(t, -1, tempFolderPos, "Temp folder prompt should be present")
 	assert.Less(t, tempFolderPos, part1Pos, "Built-in prompt should come before user prompt chunks")
+
+	// Verify system tags wrap built-in prompts
+	systemOpenPos := strings.Index(output, "<system>")
+	systemClosePos := strings.Index(output, "</system>")
+	require.NotEqual(t, -1, systemOpenPos, "Opening system tag should be present")
+	require.NotEqual(t, -1, systemClosePos, "Closing system tag should be present")
+	assert.Less(t, systemOpenPos, tempFolderPos, "System tag should open before built-in prompts")
+	assert.Less(t, tempFolderPos, systemClosePos, "System tag should close after built-in prompts")
+	assert.Less(t, systemClosePos, part1Pos, "System tag should close before user prompt")
 }
 
 // TestGenerateUnifiedPromptCreationStep_CombinedExpressions tests that expressions
@@ -334,4 +347,62 @@ func TestGenerateUnifiedPromptCreationStep_FirstContentUsesCreate(t *testing.T) 
 		assert.Contains(t, remainingOutput, `>> "$GH_AW_PROMPT"`,
 			"Subsequent content should use >> (append mode)")
 	}
+}
+
+// TestGenerateUnifiedPromptCreationStep_SystemTags tests that built-in prompts
+// are wrapped in <system> XML tags
+func TestGenerateUnifiedPromptCreationStep_SystemTags(t *testing.T) {
+	compiler := &Compiler{
+		trialMode:            false,
+		trialLogicalRepoSlug: "",
+	}
+
+	// Create data with multiple built-in sections
+	data := &WorkflowData{
+		ParsedTools: NewTools(map[string]any{
+			"playwright": true,
+		}),
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{},
+		},
+	}
+
+	// Collect built-in sections
+	builtinSections := compiler.collectPromptSections(data)
+
+	// Create user prompt
+	userPromptChunks := []string{"# User Task\n\nThis is the user's task."}
+
+	var yaml strings.Builder
+	compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, nil, data)
+
+	output := yaml.String()
+
+	// Verify system tags are present
+	assert.Contains(t, output, "<system>", "Should have opening system tag")
+	assert.Contains(t, output, "</system>", "Should have closing system tag")
+
+	// Verify system tags wrap built-in content
+	systemOpenPos := strings.Index(output, "<system>")
+	systemClosePos := strings.Index(output, "</system>")
+
+	// Find positions of built-in content
+	tempFolderPos := strings.Index(output, "temp_folder_prompt.md")
+	playwrightPos := strings.Index(output, "playwright_prompt.md")
+	safeOutputsPos := strings.Index(output, "<safe-outputs>")
+
+	// Find position of user content
+	userTaskPos := strings.Index(output, "# User Task")
+
+	// Verify ordering: <system> -> built-in content -> </system> -> user content
+	require.NotEqual(t, -1, systemOpenPos, "Opening system tag should be present")
+	require.NotEqual(t, -1, systemClosePos, "Closing system tag should be present")
+	require.NotEqual(t, -1, tempFolderPos, "Temp folder should be present")
+	require.NotEqual(t, -1, userTaskPos, "User task should be present")
+
+	assert.Less(t, systemOpenPos, tempFolderPos, "System tag should open before temp folder")
+	assert.Less(t, tempFolderPos, playwrightPos, "Temp folder should come before playwright")
+	assert.Less(t, playwrightPos, safeOutputsPos, "Playwright should come before safe outputs")
+	assert.Less(t, safeOutputsPos, systemClosePos, "Safe outputs should come before system close tag")
+	assert.Less(t, systemClosePos, userTaskPos, "System tag should close before user content")
 }
