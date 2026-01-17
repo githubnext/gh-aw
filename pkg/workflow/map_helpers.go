@@ -39,6 +39,12 @@ func parseIntValue(value any) (int, bool) {
 	case int64:
 		return int(v), true
 	case uint64:
+		// Check for overflow before converting uint64 to int
+		const maxInt = int(^uint(0) >> 1)
+		if v > uint64(maxInt) {
+			mapHelpersLog.Printf("uint64 value %d exceeds max int value, returning 0", v)
+			return 0, false
+		}
 		return int(v), true
 	case float64:
 		intVal := int(v)

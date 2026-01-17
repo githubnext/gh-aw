@@ -274,36 +274,12 @@ func ParseIntFromConfig(m map[string]any, key string, log *logger.Logger) int {
 		if log != nil {
 			log.Printf("Parsing %s from config", key)
 		}
-		// Try different numeric types
-		switch v := value.(type) {
-		case int:
+		// Use parseIntValue for the actual type conversion
+		if result, ok := parseIntValue(value); ok {
 			if log != nil {
-				log.Printf("Parsed %s from config: %d", key, v)
+				log.Printf("Parsed %s from config: %d", key, result)
 			}
-			return v
-		case int64:
-			if log != nil {
-				log.Printf("Parsed %s from config: %d", key, v)
-			}
-			return int(v)
-		case float64:
-			if log != nil {
-				log.Printf("Parsed %s from config: %d", key, int(v))
-			}
-			return int(v)
-		case uint64:
-			// Check for overflow before converting uint64 to int
-			const maxInt = int(^uint(0) >> 1)
-			if v > uint64(maxInt) {
-				if log != nil {
-					log.Printf("uint64 value %d for %s exceeds max int value, returning 0", v, key)
-				}
-				return 0
-			}
-			if log != nil {
-				log.Printf("Parsed %s from config: %d", key, v)
-			}
-			return int(v)
+			return result
 		}
 	}
 	return 0
