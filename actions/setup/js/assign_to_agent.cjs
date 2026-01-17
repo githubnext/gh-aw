@@ -92,10 +92,29 @@ async function main() {
   for (const item of itemsToProcess) {
     const agentName = item.agent ?? defaultAgent;
 
+    // Validate that both issue_number and pull_number are not specified simultaneously
+    if (item.issue_number != null && item.pull_number != null) {
+      core.error("Cannot specify both issue_number and pull_number in the same assign_to_agent item");
+      results.push({
+        issue_number: item.issue_number,
+        pull_number: item.pull_number,
+        agent: agentName,
+        success: false,
+        error: "Cannot specify both issue_number and pull_number",
+      });
+      continue;
+    }
+
+    // Determine the effective target configuration:
+    // - If issue_number or pull_number is explicitly provided, use "*" (explicit mode)
+    // - Otherwise use the configured target (defaults to "triggering")
+    const hasExplicitTarget = item.issue_number != null || item.pull_number != null;
+    const effectiveTarget = hasExplicitTarget ? "*" : targetConfig;
+
     // Resolve target number using the same logic as other safe outputs
     // This allows automatic resolution from workflow context when issue_number/pull_number is not explicitly provided
     const targetResult = resolveTarget({
-      targetConfig,
+      targetConfig: effectiveTarget,
       item,
       context,
       itemType: "assign_to_agent",
@@ -176,13 +195,16 @@ async function main() {
         }
         assignableId = issueDetails.issueId;
         currentAssignees = issueDetails.currentAssignees;
-      } else {
+      } else if (pullNumber) {
         const prDetails = await getPullRequestDetails(targetOwner, targetRepo, pullNumber);
         if (!prDetails) {
           throw new Error(`Failed to get pull request details`);
         }
         assignableId = prDetails.pullRequestId;
         currentAssignees = prDetails.currentAssignees;
+      } else {
+        // This should never happen due to resolveTarget logic, but TypeScript needs it
+        throw new Error(`No issue or pull request number available`);
       }
 
       core.info(`${type} ID: ${assignableId}`);
