@@ -26,6 +26,18 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_TARGET: %q\n", cfg.Target))
 	}
 
+	// Add allowed agents list environment variable (comma-separated)
+	if len(cfg.Allowed) > 0 {
+		allowedStr := ""
+		for i, agent := range cfg.Allowed {
+			if i > 0 {
+				allowedStr += ","
+			}
+			allowedStr += agent
+		}
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_ALLOWED: %q\n", allowedStr))
+	}
+
 	condition := BuildSafeOutputType("assign_to_agent")
 
 	return SafeOutputStepConfig{

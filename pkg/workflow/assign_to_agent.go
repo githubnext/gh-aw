@@ -10,7 +10,8 @@ var assignToAgentLog = logger.New("workflow:assign_to_agent")
 type AssignToAgentConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
-	DefaultAgent           string `yaml:"name,omitempty"` // Default agent to assign (e.g., "copilot")
+	DefaultAgent           string   `yaml:"name,omitempty"`    // Default agent to assign (e.g., "copilot")
+	Allowed                []string `yaml:"allowed,omitempty"` // Optional list of allowed agent names. If omitted, any agents are allowed.
 }
 
 // parseAssignToAgentConfig handles assign-to-agent configuration
@@ -30,7 +31,7 @@ func (c *Compiler) parseAssignToAgentConfig(outputMap map[string]any) *AssignToA
 		return &AssignToAgentConfig{}
 	}
 
-	assignToAgentLog.Printf("Parsed assign-to-agent config: default_agent=%s, target=%s", config.DefaultAgent, config.Target)
+	assignToAgentLog.Printf("Parsed assign-to-agent config: default_agent=%s, allowed_count=%d, target=%s", config.DefaultAgent, len(config.Allowed), config.Target)
 
 	return &config
 }

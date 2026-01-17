@@ -50,6 +50,18 @@ async function main() {
   const targetConfig = process.env.GH_AW_AGENT_TARGET?.trim() || "triggering";
   core.info(`Target configuration: ${targetConfig}`);
 
+  // Get allowed agents list (comma-separated)
+  const allowedAgentsEnv = process.env.GH_AW_AGENT_ALLOWED?.trim();
+  const allowedAgents = allowedAgentsEnv
+    ? allowedAgentsEnv
+        .split(",")
+        .map(a => a.trim())
+        .filter(a => a)
+    : null;
+  if (allowedAgents) {
+    core.info(`Allowed agents: ${allowedAgents.join(", ")}`);
+  }
+
   // Get max count configuration
   const maxCountEnv = process.env.GH_AW_AGENT_MAX_COUNT;
   const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 1;
@@ -165,6 +177,19 @@ async function main() {
         agent: agentName,
         success: false,
         error: `Unsupported agent: ${agentName}`,
+      });
+      continue;
+    }
+
+    // Check if agent is in allowed list (if configured)
+    if (allowedAgents && !allowedAgents.includes(agentName)) {
+      core.error(`Agent "${agentName}" is not in the allowed list. Allowed agents: ${allowedAgents.join(", ")}`);
+      results.push({
+        issue_number: issueNumber,
+        pull_number: pullNumber,
+        agent: agentName,
+        success: false,
+        error: `Agent not allowed: ${agentName}`,
       });
       continue;
     }
