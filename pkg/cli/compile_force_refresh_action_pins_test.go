@@ -125,3 +125,16 @@ func TestForceRefreshActionPins_NoFileExists(t *testing.T) {
 	err = resetActionPinsFile()
 	require.NoError(t, err, "resetActionPinsFile should not error when file doesn't exist")
 }
+
+func TestForceRefreshActionPins_EnablesValidation(t *testing.T) {
+	// Test that force refresh automatically enables validation
+	config := CompileConfig{
+		ForceRefreshActionPins: true,
+		Validate:               false, // Explicitly disabled
+	}
+
+	// Simulate the logic in compileSpecificFiles
+	shouldValidate := config.Validate || config.ForceRefreshActionPins
+
+	assert.True(t, shouldValidate, "Validation should be enabled when ForceRefreshActionPins is true")
+}

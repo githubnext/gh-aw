@@ -45,6 +45,13 @@ func compileSpecificFiles(
 ) ([]*workflow.WorkflowData, error) {
 	compileOrchestrationLog.Printf("Compiling %d specific workflow files", len(config.MarkdownFiles))
 
+	// Enable validation automatically when force-refresh-action-pins is used
+	// to verify all resolved action SHAs are valid
+	shouldValidate := config.Validate || config.ForceRefreshActionPins
+	if config.ForceRefreshActionPins && !config.Validate {
+		compileOrchestrationLog.Print("Automatically enabling action SHA validation due to --force-refresh-action-pins")
+	}
+
 	var workflowDataList []*workflow.WorkflowData
 	var compiledCount int
 	var errorCount int
@@ -102,7 +109,7 @@ func compileSpecificFiles(
 				Poutine:      false,
 				Actionlint:   false,
 				Strict:       config.Strict,
-				Validate:     config.Validate,
+				Validate:     shouldValidate,
 			})
 			if !success {
 				errorCount++
@@ -118,7 +125,7 @@ func compileSpecificFiles(
 		fileResult := compileWorkflowFile(
 			compiler, resolvedFile, config.Verbose, config.JSONOutput,
 			config.NoEmit, false, false, false, // Disable per-file security tools
-			config.Strict, config.Validate,
+			config.Strict, shouldValidate,
 		)
 
 		if !fileResult.success {
@@ -249,6 +256,13 @@ func compileAllFilesInDirectory(
 		purgeData = collectPurgeData(workflowsDir, mdFiles, config.Verbose)
 	}
 
+	// Enable validation automatically when force-refresh-action-pins is used
+	// to verify all resolved action SHAs are valid
+	shouldValidate := config.Validate || config.ForceRefreshActionPins
+	if config.ForceRefreshActionPins && !config.Validate {
+		compileOrchestrationLog.Print("Automatically enabling action SHA validation due to --force-refresh-action-pins")
+	}
+
 	// Compile each file
 	var workflowDataList []*workflow.WorkflowData
 	var successCount int
@@ -271,7 +285,7 @@ func compileAllFilesInDirectory(
 				Poutine:      false,
 				Actionlint:   false,
 				Strict:       config.Strict,
-				Validate:     config.Validate,
+				Validate:     shouldValidate,
 			})
 			if !success {
 				errorCount++
@@ -286,7 +300,7 @@ func compileAllFilesInDirectory(
 		fileResult := compileWorkflowFile(
 			compiler, file, config.Verbose, config.JSONOutput,
 			config.NoEmit, false, false, false, // Disable per-file security tools
-			config.Strict, config.Validate,
+			config.Strict, shouldValidate,
 		)
 
 		if !fileResult.success {
