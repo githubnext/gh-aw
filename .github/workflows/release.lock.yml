@@ -1285,36 +1285,6 @@ jobs:
           echo "✓ Binaries built successfully"
         env:
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-      - name: Download Go modules
-        run: go mod download
-      - name: Generate SBOM (SPDX format)
-        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
-        with:
-          artifact-name: sbom.spdx.json
-          format: spdx-json
-          output-file: sbom.spdx.json
-      - name: Generate SBOM (CycloneDX format)
-        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
-        with:
-          artifact-name: sbom.cdx.json
-          format: cyclonedx-json
-          output-file: sbom.cdx.json
-      - name: Audit SBOM files for secrets
-        run: |
-          echo "Auditing SBOM files for potential secrets..."
-          if grep -rE "GITHUB_TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY" sbom.*.json; then
-            echo "Error: Potential secrets found in SBOM files"
-            exit 1
-          fi
-          echo "✓ No secrets detected in SBOM files"
-      - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: sbom-artifacts
-          path: |
-            sbom.spdx.json
-            sbom.cdx.json
-          retention-days: 7
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - name: Log in to GitHub Container Registry
@@ -1365,18 +1335,16 @@ jobs:
         run: |
           echo "Creating GitHub release: $RELEASE_TAG"
 
-          # Create release with all binaries
+          # Create release with binaries (SBOM files will be added later)
           RELEASE_ARGS=()
           if [ "$DRAFT_MODE" = "true" ]; then
             RELEASE_ARGS+=(--draft)
             echo "Creating draft release"
           fi
 
-          # Create the release and upload all artifacts
+          # Create the release and upload binaries
           gh release create "$RELEASE_TAG" \
             dist/* \
-            sbom.spdx.json \
-            sbom.cdx.json \
             --title "$RELEASE_TAG" \
             --generate-notes \
             "${RELEASE_ARGS[@]}"
@@ -1389,6 +1357,46 @@ jobs:
           echo "✓ Draft mode: $DRAFT_MODE"
         env:
           DRAFT_MODE: ${{ needs.config.outputs.draft_mode }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+      - name: Download Go modules
+        run: go mod download
+      - name: Generate SBOM (SPDX format)
+        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
+        with:
+          artifact-name: sbom.spdx.json
+          format: spdx-json
+          output-file: sbom.spdx.json
+      - name: Generate SBOM (CycloneDX format)
+        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
+        with:
+          artifact-name: sbom.cdx.json
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+      - name: Audit SBOM files for secrets
+        run: |
+          echo "Auditing SBOM files for potential secrets..."
+          if grep -rE "GITHUB_TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY" sbom.*.json; then
+            echo "Error: Potential secrets found in SBOM files"
+            exit 1
+          fi
+          echo "✓ No secrets detected in SBOM files"
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: sbom-artifacts
+          path: |
+            sbom.spdx.json
+            sbom.cdx.json
+          retention-days: 7
+      - name: Upload SBOM files to release
+        run: |
+          echo "Uploading SBOM files to release: $RELEASE_TAG"
+          gh release upload "$RELEASE_TAG" \
+            sbom.spdx.json \
+            sbom.cdx.json
+          echo "✓ SBOM files uploaded to release"
+        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
 

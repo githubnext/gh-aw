@@ -93,14 +93,6 @@ This section provides an overview of artifacts organized by job name, with dupli
   - **Download paths**: `/tmp/gh-aw/threat-detection/`
   - **Used in**: 63 workflow(s) - agent-performance-analyzer.md, agent-persona-explorer.md, archie.md, brave.md, breaking-change-checker.md, campaign-generator.md, changeset.md, ci-coach.md, ci-doctor.md, cli-consistency-checker.md, cloclo.md, code-scanning-fixer.md, commit-changes-analyzer.md, copilot-pr-merged-report.md, copilot-pr-nlp-analysis.md, craft.md, daily-choice-test.md, daily-copilot-token-report.md, daily-fact.md, daily-file-diet.md, daily-issues-report.md, daily-news.md, daily-observability-report.md, daily-repo-chronicle.md, deep-report.md, dependabot-go-checker.md, dev-hawk.md, dev.md, dictation-prompt.md, github-mcp-structural-analysis.md, glossary-maintainer.md, go-fan.md, go-pattern-detector.md, grumpy-reviewer.md, hourly-ci-cleaner.md, issue-classifier.md, issue-triage-agent.md, layout-spec-maintainer.md, mergefest.md, notion-issue-summary.md, pdf-summary.md, plan.md, poem-bot.md, pr-nitpick-reviewer.md, python-data-charts.md, q.md, release.md, repo-audit-analyzer.md, repository-quality-improver.md, research.md, scout.md, security-compliance.md, security-review.md, slide-deck-maintainer.md, stale-repo-identifier.md, super-linter.md, technical-doc-writer.md, tidy.md, typist.md, video-analyzer.md, weekly-issue-summary.md, workflow-generator.md, workflow-health-manager.md
 
-### Job: `generate-sbom`
-
-**Artifacts Uploaded:**
-
-- `sbom-artifacts`
-  - **Paths**: `sbom.cdx.json`, `sbom.spdx.json`
-  - **Used in**: 1 workflow(s) - release.md
-
 ### Job: `notion_add_comment`
 
 **Artifacts Downloaded:**
@@ -116,6 +108,14 @@ This section provides an overview of artifacts organized by job name, with dupli
 - `repo-memory-default`
   - **Download paths**: `/tmp/gh-aw/repo-memory/default`
   - **Used in**: 8 workflow(s) - agent-performance-analyzer.md, copilot-pr-nlp-analysis.md, daily-copilot-token-report.md, daily-news.md, deep-report.md, metrics-collector.md, security-compliance.md, workflow-health-manager.md
+
+### Job: `release`
+
+**Artifacts Uploaded:**
+
+- `sbom-artifacts`
+  - **Paths**: `sbom.cdx.json`, `sbom.spdx.json`
+  - **Used in**: 1 workflow(s) - release.md
 
 ### Job: `safe_outputs`
 
@@ -3703,7 +3703,7 @@ This section provides an overview of artifacts organized by job name, with dupli
   - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
 
-#### Job: `generate-sbom`
+#### Job: `release`
 
 **Uploads:**
 
