@@ -39,6 +39,16 @@ type CampaignSpec struct {
 	// step will search for items with this label.
 	TrackerLabel string `yaml:"tracker-label,omitempty" json:"tracker_label,omitempty" console:"header:Tracker Label,omitempty,maxlen:40"`
 
+	// AllowedRepos defines the explicit list of repositories (in owner/repo format)
+	// that this campaign is allowed to discover and operate on. This is a required
+	// field that makes the campaign scope a reviewable contract.
+	AllowedRepos []string `yaml:"allowed-repos" json:"allowed_repos" console:"header:Allowed Repos,maxlen:60"`
+
+	// AllowedOrgs optionally defines the list of GitHub organizations that this
+	// campaign is allowed to discover and operate on. When specified, any repository
+	// within these organizations is considered in-scope.
+	AllowedOrgs []string `yaml:"allowed-orgs,omitempty" json:"allowed_orgs,omitempty" console:"header:Allowed Orgs,omitempty,maxlen:40"`
+
 	// MemoryPaths documents where this campaign writes its repo-memory
 	// (for example: memory/campaigns/incident-response/**).
 	MemoryPaths []string `yaml:"memory-paths,omitempty" json:"memory_paths,omitempty" console:"header:Memory Paths,omitempty,maxlen:40"`

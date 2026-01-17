@@ -216,18 +216,6 @@ func ensureAgenticCampaignsDispatcher(verbose bool, skipInstructions bool) error
 	return ensureAgentFromTemplate("agentic-campaigns.agent.md", agenticCampaignsDispatcherTemplate, verbose, skipInstructions)
 }
 
-// ensureCampaignCreationInstructions ensures that .github/aw/create-campaign.md exists
-func ensureCampaignCreationInstructions(verbose bool, skipInstructions bool) error {
-	return ensureFileMatchesTemplate(
-		filepath.Join(".github", "aw"),
-		"create-campaign.md",
-		campaignCreationInstructionsTemplate,
-		"campaign creation instructions",
-		verbose,
-		skipInstructions,
-	)
-}
-
 // ensureCampaignOrchestratorInstructions ensures that .github/aw/orchestrate-campaign.md exists
 func ensureCampaignOrchestratorInstructions(verbose bool, skipInstructions bool) error {
 	return ensureFileMatchesTemplate(

@@ -571,7 +571,6 @@ sync-templates:
 	@cp .github/aw/upgrade-agentic-workflows.md pkg/cli/templates/
 	@cp .github/agents/agentic-workflows.agent.md pkg/cli/templates/
 	@cp .github/agents/agentic-campaigns.agent.md pkg/cli/templates/
-	@cp .github/aw/create-campaign.md pkg/cli/templates/
 	@cp .github/aw/orchestrate-campaign.md pkg/cli/templates/
 	@cp .github/aw/update-campaign-project.md pkg/cli/templates/
 	@cp .github/aw/execute-campaign-workflow.md pkg/cli/templates/

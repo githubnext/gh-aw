@@ -403,6 +403,11 @@ async function main() {
       throw new Error("campaign-id is required");
     }
 
+    // RUNTIME GUARD: Campaigns MUST be scoped
+    if (!config.repos || config.repos.length === 0) {
+      throw new Error("campaigns MUST be scoped: GH_AW_DISCOVERY_REPOS is required and must contain at least one repository. Configure allowed-repos in the campaign spec.");
+    }
+
     if (!config.workflows || config.workflows.length === 0) {
       if (!config.trackerLabel) {
         throw new Error("Either workflows or tracker-label must be provided");

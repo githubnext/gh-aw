@@ -82,6 +82,29 @@ func buildDiscoverySteps(spec *CampaignSpec) []map[string]any {
 
 	orchestratorLog.Printf("Building discovery steps for campaign: %s", spec.ID)
 
+	// Build environment variables for discovery
+	envVars := map[string]any{
+		"GH_AW_CAMPAIGN_ID":         spec.ID,
+		"GH_AW_WORKFLOWS":           strings.Join(spec.Workflows, ","),
+		"GH_AW_TRACKER_LABEL":       spec.TrackerLabel,
+		"GH_AW_PROJECT_URL":         spec.ProjectURL,
+		"GH_AW_MAX_DISCOVERY_ITEMS": fmt.Sprintf("%d", getMaxDiscoveryItems(spec)),
+		"GH_AW_MAX_DISCOVERY_PAGES": fmt.Sprintf("%d", getMaxDiscoveryPages(spec)),
+		"GH_AW_CURSOR_PATH":         getCursorPath(spec),
+	}
+
+	// Add GH_AW_DISCOVERY_REPOS from spec.AllowedRepos (required field)
+	if len(spec.AllowedRepos) > 0 {
+		envVars["GH_AW_DISCOVERY_REPOS"] = strings.Join(spec.AllowedRepos, ",")
+		orchestratorLog.Printf("Setting GH_AW_DISCOVERY_REPOS from allowed-repos: %v", spec.AllowedRepos)
+	}
+
+	// Add GH_AW_DISCOVERY_ORGS from spec.AllowedOrgs if provided
+	if len(spec.AllowedOrgs) > 0 {
+		envVars["GH_AW_DISCOVERY_ORGS"] = strings.Join(spec.AllowedOrgs, ",")
+		orchestratorLog.Printf("Setting GH_AW_DISCOVERY_ORGS from allowed-orgs: %v", spec.AllowedOrgs)
+	}
+
 	steps := []map[string]any{
 		{
 			"name": "Create workspace directory",
@@ -91,15 +114,7 @@ func buildDiscoverySteps(spec *CampaignSpec) []map[string]any {
 			"name": "Run campaign discovery precomputation",
 			"id":   "discovery",
 			"uses": "actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd", // v8.0.0
-			"env": map[string]any{
-				"GH_AW_CAMPAIGN_ID":         spec.ID,
-				"GH_AW_WORKFLOWS":           strings.Join(spec.Workflows, ","),
-				"GH_AW_TRACKER_LABEL":       spec.TrackerLabel,
-				"GH_AW_PROJECT_URL":         spec.ProjectURL,
-				"GH_AW_MAX_DISCOVERY_ITEMS": fmt.Sprintf("%d", getMaxDiscoveryItems(spec)),
-				"GH_AW_MAX_DISCOVERY_PAGES": fmt.Sprintf("%d", getMaxDiscoveryPages(spec)),
-				"GH_AW_CURSOR_PATH":         getCursorPath(spec),
-			},
+			"env":  envVars,
 			"with": map[string]any{
 				"github-token": "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 				"script": `
