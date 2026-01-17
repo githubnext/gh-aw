@@ -288,3 +288,53 @@ Just markdown content.
 		})
 	}
 }
+
+func TestExpandIncludesForEnginesWithCommand(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	// Create include file with engine command specification
+	includeContent := `---
+engine:
+  id: copilot
+  command: /custom/path/to/copilot
+  version: "1.0.0"
+tools:
+  github:
+    allowed: ["list_issues"]
+---
+
+# Include with Custom Command
+`
+	includeFile := filepath.Join(tmpDir, "include-command.md")
+	if err := os.WriteFile(includeFile, []byte(includeContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create main markdown content with include directive
+	mainContent := `# Main Workflow
+
+@include include-command.md
+
+Some content here.
+`
+
+	// Test engine expansion
+	engines, err := ExpandIncludesForEngines(mainContent, tmpDir)
+	if err != nil {
+		t.Fatalf("Expected successful engine expansion, got error: %v", err)
+	}
+
+	// Should find one engine
+	if len(engines) != 1 {
+		t.Fatalf("Expected 1 engine, got %d", len(engines))
+	}
+
+	// Should extract engine object as JSON with command field
+	expectedFields := []string{`"id":"copilot"`, `"command":"/custom/path/to/copilot"`, `"version":"1.0.0"`}
+	for _, field := range expectedFields {
+		if !contains(engines[0], field) {
+			t.Errorf("Expected engine JSON to contain %s, got %s", field, engines[0])
+		}
+	}
+}
