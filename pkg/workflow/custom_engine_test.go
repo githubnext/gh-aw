@@ -549,12 +549,12 @@ func TestCustomEngineGitHubMCPDockerConfig(t *testing.T) {
 
 			output := yaml.String()
 
-			// Verify shared helper is used (should contain standard Docker config)
-			if !strings.Contains(output, `"command": "docker"`) {
-				t.Errorf("Expected Docker command in output")
+			// Verify MCP Gateway schema-compatible structure (container + env)
+			if !strings.Contains(output, `"container": "ghcr.io/github/github-mcp-server:`) {
+				t.Errorf("Expected GitHub MCP container in output, got: %s", output)
 			}
-			if !strings.Contains(output, `"args": [`) {
-				t.Errorf("Expected args array in output")
+			if !strings.Contains(output, `"env": {`) {
+				t.Errorf("Expected env object in output, got: %s", output)
 			}
 			if !strings.Contains(output, `"GITHUB_PERSONAL_ACCESS_TOKEN"`) {
 				t.Errorf("Expected GITHUB_PERSONAL_ACCESS_TOKEN env var")
@@ -562,30 +562,37 @@ func TestCustomEngineGitHubMCPDockerConfig(t *testing.T) {
 
 			// Verify toolsets support
 			if tt.wantToolset {
-				if !strings.Contains(output, "GITHUB_TOOLSETS=repos,issues") {
+				if !strings.Contains(output, `"GITHUB_TOOLSETS": "repos,issues"`) {
 					t.Errorf("Expected custom toolsets in output, got: %s", output)
 				}
 			} else {
-				if !strings.Contains(output, "GITHUB_TOOLSETS=context,repos,issues,pull_requests") {
+				if !strings.Contains(output, `"GITHUB_TOOLSETS": "context,repos,issues,pull_requests"`) {
 					t.Errorf("Expected action-friendly toolsets in output, got: %s", output)
 				}
 			}
 
 			// Verify read-only mode
 			if tt.wantReadOnly {
-				if !strings.Contains(output, "GITHUB_READ_ONLY=1") {
+				if !strings.Contains(output, `"GITHUB_READ_ONLY": "1"`) {
 					t.Errorf("Expected GITHUB_READ_ONLY=1 in output, got: %s", output)
 				}
 			} else {
-				if strings.Contains(output, "GITHUB_READ_ONLY=1") {
+				if strings.Contains(output, `"GITHUB_READ_ONLY": "1"`) {
 					t.Errorf("Did not expect GITHUB_READ_ONLY=1 in output, got: %s", output)
 				}
 			}
 
 			// Verify custom args
 			if tt.wantCustomArgs {
+				if !strings.Contains(output, `"args": [`) {
+					t.Errorf("Expected args array in output, got: %s", output)
+				}
 				if !strings.Contains(output, "--verbose") {
 					t.Errorf("Expected custom args in output")
+				}
+			} else {
+				if strings.Contains(output, `"args": [`) {
+					t.Errorf("Did not expect args array in output, got: %s", output)
 				}
 			}
 
@@ -594,9 +601,9 @@ func TestCustomEngineGitHubMCPDockerConfig(t *testing.T) {
 				t.Errorf("Expected shell variable syntax for custom engine (not escaped)")
 			}
 
-			// Verify no "type" field (custom engine should be like Claude)
-			if strings.Contains(output, `"type": "local"`) {
-				t.Errorf("Custom engine should not include type field")
+			// Verify no "type" field (Copilot-only)
+			if strings.Contains(output, `"type":`) {
+				t.Errorf("Custom engine should not include type field, got: %s", output)
 			}
 		})
 	}

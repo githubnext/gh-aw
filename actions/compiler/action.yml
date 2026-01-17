@@ -1,0 +1,57 @@
+name: "Agentic Workflow Compiler"
+description: "Compile .github/workflows/*.md into deterministic .lock.yml and fail on drift"
+author: "GitHub Next"
+
+inputs:
+  gh_aw_ref:
+    description: "Ref for installing gh-aw via go install (tag like v1.2.3 or full commit SHA). Pin this value."
+    required: true
+  workflows_dir:
+    description: "Relative path to the workflows directory"
+    required: false
+    default: ".github/workflows"
+  extra_args:
+    description: "Additional arguments to pass to gh-aw compile"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Go
+      uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+      with:
+        go-version-file: "go.mod"
+        cache: true
+
+    - name: Install gh-aw
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Installing gh-aw from ref: ${INPUT_GH_AW_REF}"
+        go install "github.com/githubnext/gh-aw/cmd/gh-aw@${INPUT_GH_AW_REF}"
+        gh-aw version
+      env:
+        INPUT_GH_AW_REF: ${{ inputs.gh_aw_ref }}
+
+    - name: Compile workflows (check mode)
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Compiling workflows in ${INPUT_WORKFLOWS_DIR}"
+        extra_args=()
+        if [[ -n "${INPUT_EXTRA_ARGS}" ]]; then
+          while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            extra_args+=("$line")
+          done <<<"${INPUT_EXTRA_ARGS}"
+        fi
+
+        gh-aw compile --dir "${INPUT_WORKFLOWS_DIR}" --check "${extra_args[@]}"
+      env:
+        INPUT_WORKFLOWS_DIR: ${{ inputs.workflows_dir }}
+        INPUT_EXTRA_ARGS: ${{ inputs.extra_args }}
+
+branding:
+  icon: "shield"
+  color: "blue"

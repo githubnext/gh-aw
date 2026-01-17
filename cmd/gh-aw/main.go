@@ -218,6 +218,7 @@ Examples:
 		zizmor, _ := cmd.Flags().GetBool("zizmor")
 		poutine, _ := cmd.Flags().GetBool("poutine")
 		actionlint, _ := cmd.Flags().GetBool("actionlint")
+		check, _ := cmd.Flags().GetBool("check")
 		jsonOutput, _ := cmd.Flags().GetBool("json")
 		fix, _ := cmd.Flags().GetBool("fix")
 		stats, _ := cmd.Flags().GetBool("stats")
@@ -259,6 +260,7 @@ Examples:
 			WorkflowDir:            workflowDir,
 			SkipInstructions:       false, // Deprecated field, kept for backward compatibility
 			NoEmit:                 noEmit,
+			Check:                  check,
 			Purge:                  purge,
 			TrialMode:              trial,
 			TrialLogicalRepoSlug:   logicalRepo,
@@ -488,6 +490,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().String("workflows-dir", "", "Deprecated: use --dir instead")
 	_ = compileCmd.Flags().MarkDeprecated("workflows-dir", "use --dir instead")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
+	compileCmd.Flags().Bool("check", false, "Fail if compilation would change any .lock.yml files (CI/PR check mode)")
 	compileCmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are specified)")
 	compileCmd.Flags().Bool("strict", false, "Override frontmatter to enforce strict mode validation for all workflows (enforces action pinning, network config, safe-outputs, refuses write permissions and deprecated fields). Note: Workflows default to strict mode unless frontmatter sets strict: false")
 	compileCmd.Flags().Bool("trial", false, "Enable trial mode compilation (modifies workflows for trial execution)")

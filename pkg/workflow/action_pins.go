@@ -147,8 +147,107 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 	// Check if version is already a full 40-character SHA
 	isAlreadySHA := isValidFullSHA(version)
 
+	// Prefer embedded pins (pkg/workflow/data/action_pins.json) for deterministic output and
+	// to keep compilation hermetic by default (tests compile in temp dirs without a cache).
+	actionPinsLog.Printf("Checking hardcoded pins for %s@%s", actionRepo, version)
+	actionPins := getActionPins()
+
+	// Find all pins matching the repo
+	var matchingPins []ActionPin
+	for _, pin := range actionPins {
+		if pin.Repo == actionRepo {
+			matchingPins = append(matchingPins, pin)
+		}
+	}
+
+	if len(matchingPins) == 0 {
+		// No pins found for this repo, will handle below (may try dynamic resolution)
+		actionPinsLog.Printf("No hardcoded pins found for %s", actionRepo)
+	} else {
+		actionPinsLog.Printf("Found %d hardcoded pin(s) for %s", len(matchingPins), actionRepo)
+
+		// Sort matching pins by version (descending - highest first)
+		sortPinsByVersion(matchingPins)
+
+		// First, try to find an exact version match (for version tags)
+		for _, pin := range matchingPins {
+			if pin.Version == version {
+				actionPinsLog.Printf("Exact version match: requested=%s, found=%s", version, pin.Version)
+				return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
+			}
+		}
+
+		// If version is a SHA, check if it matches any hardcoded pin's SHA
+		if isAlreadySHA {
+			for _, pin := range matchingPins {
+				if pin.SHA == version {
+					actionPinsLog.Printf("Exact SHA match: requested=%s, found version=%s", version, pin.Version)
+					return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
+				}
+			}
+			// SHA provided but doesn't match any hardcoded pin - return it as-is without warnings
+			actionPinsLog.Printf("SHA %s not found in hardcoded pins, returning as-is", version)
+			return actionRepo + "@" + version + " # " + version, nil
+		}
+
+		// No exact match found
+		// In non-strict mode, find the highest semver-compatible version
+		// Semver compatibility means respecting major version boundaries
+		// (e.g., v5 -> highest v5.x.x, not v6.x.x)
+		if !data.StrictMode {
+			// Filter for semver-compatible pins (matching major version)
+			var compatiblePins []ActionPin
+			for _, pin := range matchingPins {
+				if isSemverCompatible(pin.Version, version) {
+					compatiblePins = append(compatiblePins, pin)
+				}
+			}
+
+			// If we found compatible pins, use the highest one (first after sorting)
+			// Otherwise fall back to the highest overall pin
+			var selectedPin ActionPin
+			if len(compatiblePins) > 0 {
+				selectedPin = compatiblePins[0]
+				actionPinsLog.Printf("No exact match for version %s, using highest semver-compatible version: %s", version, selectedPin.Version)
+			} else {
+				// No semver-compatible pins found (e.g., requested v1 but only v2 exists).
+				// Prefer a *precise* pin for the highest available major (e.g., v2.0.4 over v2)
+				// to keep lockfiles stable and tests hermetic.
+				selectedPin = matchingPins[0]
+				selectedMajor := extractMajorVersion(selectedPin.Version)
+				bestPin := selectedPin
+				bestDots := strings.Count(bestPin.Version, ".")
+				for _, pin := range matchingPins {
+					if extractMajorVersion(pin.Version) != selectedMajor {
+						continue
+					}
+					dots := strings.Count(pin.Version, ".")
+					if dots > bestDots {
+						bestPin = pin
+						bestDots = dots
+						continue
+					}
+					if dots == bestDots && compareVersions(pin.Version, bestPin.Version) > 0 {
+						bestPin = pin
+					}
+				}
+				selectedPin = bestPin
+				actionPinsLog.Printf("No exact match for version %s, no semver-compatible versions found, using highest available major %d pin: %s", version, selectedMajor, selectedPin.Version)
+			}
+
+			// Only emit warning if the version is not a SHA (SHAs shouldn't generate warnings)
+			warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
+				actionRepo, version, actionRepo, selectedPin.Version)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+			actionPinsLog.Printf("Using version in non-strict mode: %s@%s (requested) → %s@%s (used)",
+				actionRepo, version, actionRepo, selectedPin.Version)
+			return actionRepo + "@" + selectedPin.SHA + " # " + selectedPin.Version, nil
+		}
+	}
+
 	// First try dynamic resolution if resolver is available (but not for SHAs, as they can't be resolved)
-	if data.ActionResolver != nil && !isAlreadySHA {
+	// Only do this when strict mode demands it (exact pin required) or when we have no hardcoded pins for the repo.
+	if data.ActionResolver != nil && !isAlreadySHA && (data.StrictMode || len(matchingPins) == 0) {
 		actionPinsLog.Printf("Attempting dynamic resolution for %s@%s", actionRepo, version)
 		sha, err := data.ActionResolver.ResolveSHA(actionRepo, version)
 		if err == nil && sha != "" {
@@ -185,85 +284,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		if isAlreadySHA {
 			actionPinsLog.Printf("Version is already a SHA, skipping dynamic resolution")
 		} else {
-			actionPinsLog.Printf("No action resolver available, skipping dynamic resolution")
-		}
-	}
-
-	// Dynamic resolution failed, try hardcoded pins
-	actionPinsLog.Printf("Falling back to hardcoded pins for %s@%s", actionRepo, version)
-	actionPins := getActionPins()
-
-	// Find all pins matching the repo
-	var matchingPins []ActionPin
-	for _, pin := range actionPins {
-		if pin.Repo == actionRepo {
-			matchingPins = append(matchingPins, pin)
-		}
-	}
-
-	if len(matchingPins) == 0 {
-		// No pins found for this repo, will handle below
-		actionPinsLog.Printf("No hardcoded pins found for %s", actionRepo)
-	} else {
-		actionPinsLog.Printf("Found %d hardcoded pin(s) for %s", len(matchingPins), actionRepo)
-
-		// Sort matching pins by version (descending - highest first)
-		sortPinsByVersion(matchingPins)
-
-		// First, try to find an exact version match (for version tags)
-		for _, pin := range matchingPins {
-			if pin.Version == version {
-				actionPinsLog.Printf("Exact version match: requested=%s, found=%s", version, pin.Version)
-				return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
-			}
-		}
-
-		// If version is a SHA, check if it matches any hardcoded pin's SHA
-		if isAlreadySHA {
-			for _, pin := range matchingPins {
-				if pin.SHA == version {
-					actionPinsLog.Printf("Exact SHA match: requested=%s, found version=%s", version, pin.Version)
-					return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
-				}
-			}
-			// SHA provided but doesn't match any hardcoded pin - return it as-is without warnings
-			actionPinsLog.Printf("SHA %s not found in hardcoded pins, returning as-is", version)
-			return actionRepo + "@" + version + " # " + version, nil
-		}
-
-		// No exact match found
-		// In non-strict mode, find the highest semver-compatible version
-		// Semver compatibility means respecting major version boundaries
-		// (e.g., v5 -> highest v5.x.x, not v6.x.x)
-		if !data.StrictMode && len(matchingPins) > 0 {
-			// Filter for semver-compatible pins (matching major version)
-			var compatiblePins []ActionPin
-			for _, pin := range matchingPins {
-				if isSemverCompatible(pin.Version, version) {
-					compatiblePins = append(compatiblePins, pin)
-				}
-			}
-
-			// If we found compatible pins, use the highest one (first after sorting)
-			// Otherwise fall back to the highest overall pin
-			var selectedPin ActionPin
-			if len(compatiblePins) > 0 {
-				selectedPin = compatiblePins[0]
-				actionPinsLog.Printf("No exact match for version %s, using highest semver-compatible version: %s", version, selectedPin.Version)
-			} else {
-				selectedPin = matchingPins[0]
-				actionPinsLog.Printf("No exact match for version %s, no semver-compatible versions found, using highest available: %s", version, selectedPin.Version)
-			}
-
-			// Only emit warning if the version is not a SHA (SHAs shouldn't generate warnings)
-			if !isAlreadySHA {
-				warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
-					actionRepo, version, actionRepo, selectedPin.Version)
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
-			}
-			actionPinsLog.Printf("Using version in non-strict mode: %s@%s (requested) → %s@%s (used)",
-				actionRepo, version, actionRepo, selectedPin.Version)
-			return actionRepo + "@" + selectedPin.SHA + " # " + selectedPin.Version, nil
+			actionPinsLog.Printf("Skipping dynamic resolution")
 		}
 	}
 

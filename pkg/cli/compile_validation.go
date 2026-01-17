@@ -193,6 +193,12 @@ func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData
 func validateCompileConfig(config CompileConfig) error {
 	compileValidationLog.Printf("Validating compile config: files=%d, dependabot=%v, purge=%v, workflowDir=%s", len(config.MarkdownFiles), config.Dependabot, config.Purge, config.WorkflowDir)
 
+	// Validate --check usage
+	if config.Check && config.NoEmit {
+		compileValidationLog.Print("Config validation failed: check flag with no-emit")
+		return fmt.Errorf("--check cannot be used with --no-emit")
+	}
+
 	// Validate dependabot flag usage
 	if config.Dependabot {
 		if len(config.MarkdownFiles) > 0 {

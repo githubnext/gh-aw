@@ -296,12 +296,28 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 		return nil, watchAndCompileWorkflows(markdownFile, compiler, config.Verbose)
 	}
 
+	var workflowDataList []*workflow.WorkflowData
+	var err error
+
 	// Compile specific files or all files in directory
 	if len(config.MarkdownFiles) > 0 {
-		// Compile specific workflow files
-		return compileSpecificFiles(compiler, config, stats, &validationResults)
+		workflowDataList, err = compileSpecificFiles(compiler, config, stats, &validationResults)
+	} else {
+		workflowDataList, err = compileAllFilesInDirectory(compiler, config, workflowDir, stats, &validationResults)
+	}
+	if err != nil {
+		return workflowDataList, err
 	}
 
-	// Compile all workflow files in directory
-	return compileAllFilesInDirectory(compiler, config, workflowDir, stats, &validationResults)
+	// Optional post-compile drift check (CI/PR check mode)
+	if config.Check {
+		if config.NoEmit {
+			return workflowDataList, fmt.Errorf("--check cannot be used with --no-emit")
+		}
+		if err := checkLockfileDrift(workflowDir); err != nil {
+			return workflowDataList, err
+		}
+	}
+
+	return workflowDataList, nil
 }

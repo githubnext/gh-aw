@@ -9,18 +9,42 @@ import (
 
 var semverLog = logger.New("workflow:semver")
 
+// normalizeSemverLike coerces common GitHub Action tag formats into valid semver strings
+// understood by golang.org/x/mod/semver.
+//
+// Examples:
+//   - "v2" -> "v2.0.0"
+//   - "2" -> "v2.0.0"
+//   - "v2.1" -> "v2.1.0"
+//   - "v2.1.3" -> "v2.1.3"
+func normalizeSemverLike(v string) string {
+	if v == "" {
+		return v
+	}
+	if !strings.HasPrefix(v, "v") {
+		v = "v" + v
+	}
+	// Count dot components after the optional leading "v".
+	parts := strings.Split(strings.TrimPrefix(v, "v"), ".")
+	switch len(parts) {
+	case 1:
+		// v2
+		return v + ".0.0"
+	case 2:
+		// v2.1
+		return v + ".0"
+	default:
+		return v
+	}
+}
+
 // compareVersions compares two semantic versions, returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal
 // Uses golang.org/x/mod/semver for proper semantic version comparison
 func compareVersions(v1, v2 string) int {
 	semverLog.Printf("Comparing versions: v1=%s, v2=%s", v1, v2)
 
-	// Ensure versions have 'v' prefix for semver package
-	if !strings.HasPrefix(v1, "v") {
-		v1 = "v" + v1
-	}
-	if !strings.HasPrefix(v2, "v") {
-		v2 = "v" + v2
-	}
+	v1 = normalizeSemverLike(v1)
+	v2 = normalizeSemverLike(v2)
 
 	result := semver.Compare(v1, v2)
 
@@ -39,10 +63,7 @@ func compareVersions(v1, v2 string) int {
 // Examples: "v5.0.0" -> 5, "v6" -> 6, "5.1.0" -> 5
 // Uses golang.org/x/mod/semver.Major for proper semantic version parsing
 func extractMajorVersion(version string) int {
-	// Ensure version has 'v' prefix for semver package
-	if !strings.HasPrefix(version, "v") {
-		version = "v" + version
-	}
+	version = normalizeSemverLike(version)
 
 	// Get major version string (e.g., "v5")
 	majorStr := semver.Major(version)
@@ -76,13 +97,8 @@ func extractMajorVersion(version string) int {
 //   - isSemverCompatible("v5.1.0", "v5.0.0") -> true
 //   - isSemverCompatible("v6.0.0", "v5") -> false
 func isSemverCompatible(pinVersion, requestedVersion string) bool {
-	// Ensure versions have 'v' prefix for semver package
-	if !strings.HasPrefix(pinVersion, "v") {
-		pinVersion = "v" + pinVersion
-	}
-	if !strings.HasPrefix(requestedVersion, "v") {
-		requestedVersion = "v" + requestedVersion
-	}
+	pinVersion = normalizeSemverLike(pinVersion)
+	requestedVersion = normalizeSemverLike(requestedVersion)
 
 	// Use semver.Major to get major version strings
 	pinMajor := semver.Major(pinVersion)

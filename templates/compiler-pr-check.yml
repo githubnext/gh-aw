@@ -1,0 +1,48 @@
+name: Agentic workflows lockfile check
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/*.md"
+      - ".github/workflows/*.lock.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  compile-check:
+    name: Compile and verify lockfiles
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Compile (fails on drift)
+        uses: githubnext/gh-aw/actions/compiler@v1
+        with:
+          # Pin to a release tag (recommended) or full commit SHA.
+          gh_aw_ref: v1.0.0
+          workflows_dir: .github/workflows
+
+      - name: Optional: reject lockfile-only edits
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.sha }}"
+
+          changed=$(git diff --name-only "$base...$head" -- ".github/workflows" || true)
+
+          md_changed=false
+          lock_changed=false
+          while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            [[ "$f" == *.md ]] && md_changed=true
+            [[ "$f" == *.lock.yml ]] && lock_changed=true
+          done <<< "$changed"
+
+          if [[ "$md_changed" == false && "$lock_changed" == true ]]; then
+            echo "Lockfile-only edits are not allowed. Edit .md and recompile."
+            exit 1
+          fi

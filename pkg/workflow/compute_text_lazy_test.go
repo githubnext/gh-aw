@@ -33,8 +33,6 @@ permissions:
 strict: false
 features:
   dangerous-permissions-write: true
-features:
-  dangerous-permissions-write: true
 tools:
   github:
     toolsets: [issues]

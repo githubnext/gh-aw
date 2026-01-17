@@ -6,12 +6,17 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/stringutil"
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 func TestDockerImagePredownload(t *testing.T) {
+	defaultGitHubMCPImage := "ghcr.io/github/github-mcp-server:" + constants.DefaultGitHubMCPServerVersion.String()
+	defaultGatewayImage := constants.DefaultMCPGatewayContainer + ":" + constants.DefaultMCPGatewayVersion.String()
+	defaultNodeImage := constants.DefaultNodeAlpineLTSImage
+
 	tests := []struct {
 		name           string
 		frontmatter    string
@@ -30,7 +35,7 @@ tools:
 # Test
 Test workflow.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.28.1",
+				defaultGitHubMCPImage,
 			},
 			expectStep: true,
 		},
@@ -63,7 +68,7 @@ tools:
 # Test
 Test workflow.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.28.1",
+				defaultGitHubMCPImage,
 			},
 			expectStep: true,
 		},
@@ -80,7 +85,7 @@ tools:
 # Test
 Test workflow.`,
 			expectedImages: []string{
-				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.47",
+				defaultGatewayImage,
 			},
 			expectStep: true,
 		},
@@ -99,8 +104,8 @@ mcp-servers:
 # Test
 Test workflow with custom MCP container.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.28.1",
-				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.47",
+				defaultGitHubMCPImage,
+				defaultGatewayImage,
 				"myorg/custom-mcp:v1.0.0",
 			},
 			expectStep: true,
@@ -117,8 +122,8 @@ tools:
 # Test
 Test workflow - sandbox.mcp gateway should be predownloaded.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.28.1",
-				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.47",
+				defaultGitHubMCPImage,
+				defaultGatewayImage,
 			},
 			expectStep: true,
 		},
@@ -138,7 +143,7 @@ tools:
 # Test
 Test workflow with custom sandbox.mcp version.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.28.1",
+				defaultGitHubMCPImage,
 				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.5",
 			},
 			expectStep: true,
@@ -157,9 +162,9 @@ safe-outputs:
 # Test
 Test workflow - safe outputs MCP server should use node:lts-alpine.`,
 			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.28.1",
-				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.47",
-				"node:lts-alpine",
+				defaultGitHubMCPImage,
+				defaultGatewayImage,
+				defaultNodeImage,
 			},
 			expectStep: true,
 		},
@@ -177,8 +182,8 @@ network:
 # Test
 Test workflow - safe outputs MCP server without GitHub tool.`,
 			expectedImages: []string{
-				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.47",
-				"node:lts-alpine",
+				defaultGatewayImage,
+				defaultNodeImage,
 			},
 			expectStep: true,
 		},

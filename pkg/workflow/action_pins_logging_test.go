@@ -12,7 +12,7 @@ import (
 func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 	// This test demonstrates the problem: when requesting actions/ai-inference@v1,
 	// if dynamic resolution fails, it falls back to the hardcoded pin which has
-	// version v2.0.4, causing the wrong SHA to be returned
+	// version v2, causing a version mismatch (and potentially the wrong SHA)
 
 	tests := []struct {
 		name           string
@@ -22,10 +22,10 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 		expectMismatch bool
 	}{
 		{
-			name:           "ai-inference v1 resolves to v2.0.4 pin",
+			name:           "ai-inference v1 resolves to v2 pin",
 			repo:           "actions/ai-inference",
 			requestedVer:   "v1",
-			expectedPinVer: "v2.0.4",
+			expectedPinVer: "v2",
 			expectMismatch: true,
 		},
 		{
@@ -36,10 +36,10 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 			expectMismatch: true,
 		},
 		{
-			name:           "github-script v7 resolves to v8.0.0 pin (latest version)",
+			name:           "github-script v7 resolves to v7.1.0 pin",
 			repo:           "actions/github-script",
 			requestedVer:   "v7",
-			expectedPinVer: "v8.0.0", // Returns latest version for this repo
+			expectedPinVer: "v7.1.0",
 			expectMismatch: true,
 		},
 		{

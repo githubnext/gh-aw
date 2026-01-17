@@ -17,6 +17,7 @@ type CompileConfig struct {
 	WorkflowDir            string   // Custom workflow directory
 	SkipInstructions       bool     // Deprecated: Instructions are no longer written during compilation
 	NoEmit                 bool     // Validate without generating lock files
+	Check                  bool     // Fail if compilation would change any .lock.yml files in the workflow directory
 	Purge                  bool     // Remove orphaned lock files
 	TrialMode              bool     // Enable trial mode (suppress safe outputs)
 	TrialLogicalRepoSlug   string   // Target repository for trial mode

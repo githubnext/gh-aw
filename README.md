@@ -18,7 +18,7 @@ Write agentic workflows in natural language markdown, and run them in GitHub Act
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [Share Feedback](#share-feedback)
-- [Agent Factory](#agent-factory)
+- [Peli's Agent Factory](#pelis-agent-factory)
 - [Related Projects](#related-projects)
 
 ## Quick Start
@@ -63,6 +63,12 @@ Security is foundational to GitHub Agentic Workflows. Workflows run with read-on
 
 > [!WARNING]
 > Using agentic workflows in your repository requires careful attention to security considerations and careful human supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
+
+## Deterministic compilation (CI)
+
+To enforce deterministic `.lock.yml` generation (and fail PRs that would change lockfiles), use the compiler Action:
+
+- [actions/compiler/README.md](actions/compiler/README.md)
 
 ## Documentation
 

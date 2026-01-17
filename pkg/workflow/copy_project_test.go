@@ -96,7 +96,7 @@ func TestCopyProjectConfiguration(t *testing.T) {
 }
 
 // TestCopyProjectGitHubTokenEnvVar verifies that the github-token
-// is passed correctly to the copy_project step
+// is passed correctly to the project handler manager step when copy-project is enabled.
 func TestCopyProjectGitHubTokenEnvVar(t *testing.T) {
 	tests := []struct {
 		name               string
@@ -181,19 +181,20 @@ func TestCopyProjectGitHubTokenEnvVar(t *testing.T) {
 
 			// Check that the github-token is passed correctly
 			if !strings.Contains(yamlStr, tt.expectedTokenValue) {
-				t.Errorf("Expected github-token %q to be set in copy_project step, but it was not found.\nGenerated YAML:\n%s",
+				t.Errorf("Expected github-token %q to be set in project handler manager step, but it was not found.\nGenerated YAML:\n%s",
 					tt.expectedTokenValue, yamlStr)
 			}
 
-			// Verify that the copy_project step is present
-			if !strings.Contains(yamlStr, "Copy Project") {
-				t.Errorf("Expected 'Copy Project' step to be present in generated YAML, but it was not found")
+			// Verify that the project handler manager step is present
+			if !strings.Contains(yamlStr, "id: process_project_safe_outputs") {
+				t.Errorf("Expected project handler manager step (process_project_safe_outputs) to be present in generated YAML, but it was not found")
 			}
 		})
 	}
 }
 
-// TestCopyProjectStepCondition verifies that the copy_project step has the correct condition
+// TestCopyProjectStepCondition verifies that copy_project configuration is wired into the
+// project handler manager step.
 func TestCopyProjectStepCondition(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
@@ -222,12 +223,12 @@ func TestCopyProjectStepCondition(t *testing.T) {
 	// Convert job to YAML to check for step condition
 	yamlStr := strings.Join(job.Steps, "")
 
-	// The copy_project step should have a condition that checks for the copy_project type
-	// The condition references needs.agent.outputs.output_types (not safe_output_types)
-	expectedCondition := "contains(needs.agent.outputs.output_types, 'copy_project')"
-	if !strings.Contains(yamlStr, expectedCondition) {
-		t.Errorf("Expected condition %q to be present in copy_project step, but it was not found.\nGenerated YAML:\n%s",
-			expectedCondition, yamlStr)
+	// copy_project should be included in the project handler manager configuration.
+	if !strings.Contains(yamlStr, "GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG") {
+		t.Errorf("Expected project handler manager config env var to be present, but it was not found.\nGenerated YAML:\n%s", yamlStr)
+	}
+	if !strings.Contains(yamlStr, "copy_project") {
+		t.Errorf("Expected copy_project configuration to be present in project handler manager config, but it was not found.\nGenerated YAML:\n%s", yamlStr)
 	}
 }
 
@@ -349,24 +350,36 @@ func TestCopyProjectSourceAndTargetConfiguration(t *testing.T) {
 				t.Fatalf("Expected consolidated safe outputs job to be created, but it was nil")
 			}
 
-			// Convert job to YAML to check for environment variables
+			// Convert job to YAML to check for configuration in the project handler manager JSON
 			yamlStr := strings.Join(job.Steps, "")
 
-			// Check for source-project environment variable
+			if !strings.Contains(yamlStr, "GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG") {
+				t.Fatalf("Expected project handler manager config env var to be present, but it was not found.\nGenerated YAML:\n%s", yamlStr)
+			}
+
+			// Check for source-project configuration in JSON
 			if tt.shouldHaveSource {
-				expectedEnvVar := `GH_AW_COPY_PROJECT_SOURCE: "` + tt.expectedSourceProject + `"`
-				if !strings.Contains(yamlStr, expectedEnvVar) {
-					t.Errorf("Expected environment variable %q to be set, but it was not found.\nGenerated YAML:\n%s",
-						expectedEnvVar, yamlStr)
+				expectedFragment := `\"source_project\":\"` + tt.expectedSourceProject + `\"`
+				if !strings.Contains(yamlStr, expectedFragment) {
+					// Fallback: tolerate unescaped JSON if output format changes
+					fallbackFragment := `"source_project":"` + tt.expectedSourceProject + `"`
+					if !strings.Contains(yamlStr, fallbackFragment) {
+						t.Errorf("Expected source_project (%q or %q) to be present in project handler manager config, but it was not found.\nGenerated YAML:\n%s",
+							expectedFragment, fallbackFragment, yamlStr)
+					}
 				}
 			}
 
-			// Check for target-owner environment variable
+			// Check for target-owner configuration in JSON
 			if tt.shouldHaveTarget {
-				expectedEnvVar := `GH_AW_COPY_PROJECT_TARGET_OWNER: "` + tt.expectedTargetOwner + `"`
-				if !strings.Contains(yamlStr, expectedEnvVar) {
-					t.Errorf("Expected environment variable %q to be set, but it was not found.\nGenerated YAML:\n%s",
-						expectedEnvVar, yamlStr)
+				expectedFragment := `\"target_owner\":\"` + tt.expectedTargetOwner + `\"`
+				if !strings.Contains(yamlStr, expectedFragment) {
+					// Fallback: tolerate unescaped JSON if output format changes
+					fallbackFragment := `"target_owner":"` + tt.expectedTargetOwner + `"`
+					if !strings.Contains(yamlStr, fallbackFragment) {
+						t.Errorf("Expected target_owner (%q or %q) to be present in project handler manager config, but it was not found.\nGenerated YAML:\n%s",
+							expectedFragment, fallbackFragment, yamlStr)
+					}
 				}
 			}
 		})

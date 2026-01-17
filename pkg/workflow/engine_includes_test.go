@@ -249,8 +249,9 @@ This should use the default engine.
 	lockStr := string(lockContent)
 
 	// Should contain references to copilot CLI (default engine) using official install.sh script
+	// Installer runs via "sudo VERSION=... bash /tmp/copilot-install.sh" (not "export VERSION=").
 	if !strings.Contains(lockStr, "https://raw.githubusercontent.com/github/copilot-cli/main/install.sh") ||
-		!strings.Contains(lockStr, "export VERSION=") {
+		!strings.Contains(lockStr, "sudo VERSION=") {
 		t.Error("Expected lock file to contain copilot CLI installation using official install.sh script")
 	}
 

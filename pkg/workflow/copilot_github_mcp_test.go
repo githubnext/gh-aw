@@ -21,14 +21,13 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			isLast: true,
 			expectedContent: []string{
 				`"github": {`,
-				`"type": "local"`,
-				`"tools": [`,
-				`"list_workflows"`,
-				`"list_workflow_runs"`,
-				`"list_workflow_run_artifacts"`,
+				`"type": "stdio",`,
+				`"container": "ghcr.io/github/github-mcp-server:`,
+				`"env": {`,
+				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
 			},
 			unexpectedContent: []string{
-				`"tools": ["*"]`,
+				`"tools": [`,
 			},
 		},
 		{
@@ -37,8 +36,8 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			isLast:     true,
 			expectedContent: []string{
 				`"github": {`,
-				`"type": "local"`,
-				`"tools": ["*"]`,
+				`"type": "stdio",`,
+				`"container": "ghcr.io/github/github-mcp-server:`,
 			},
 			unexpectedContent: []string{},
 		},
@@ -50,8 +49,8 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			isLast: true,
 			expectedContent: []string{
 				`"github": {`,
-				`"type": "local"`,
-				`"tools": ["*"]`,
+				`"type": "stdio",`,
+				`"container": "ghcr.io/github/github-mcp-server:`,
 			},
 			unexpectedContent: []string{},
 		},
@@ -65,12 +64,10 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			expectedContent: []string{
 				`"github": {`,
 				`"type": "http"`,
-				`"tools": [`,
-				`"get_repository"`,
-				`"list_commits"`,
+				`"headers": {`,
 			},
 			unexpectedContent: []string{
-				`"tools": ["*"]`,
+				`"tools": [`,
 			},
 		},
 		{
@@ -82,7 +79,7 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			expectedContent: []string{
 				`"github": {`,
 				`"type": "http"`,
-				`"tools": ["*"]`,
+				`"headers": {`,
 			},
 			unexpectedContent: []string{},
 		},

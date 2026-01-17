@@ -1,8 +1,10 @@
 package workflow
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -62,9 +64,15 @@ func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error)
 	apiPath := fmt.Sprintf("/repos/%s/git/ref/tags/%s", baseRepo, version)
 	resolverLog.Printf("Querying GitHub API: %s", apiPath)
 
-	cmd := ExecGH("api", apiPath, "--jq", ".object.sha")
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	cmd := ExecGHContext(ctx, "api", apiPath, "--jq", ".object.sha")
 	output, err := cmd.Output()
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return "", fmt.Errorf("timed out resolving %s@%s via GitHub API", repo, version)
+		}
 		// Try without "refs/tags/" prefix in case version is already a ref
 		return "", fmt.Errorf("failed to resolve %s@%s: %w", repo, version, err)
 	}
