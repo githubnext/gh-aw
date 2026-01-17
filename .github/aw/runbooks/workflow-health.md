@@ -42,11 +42,24 @@ Use this runbook when:
 - Safe-inputs action fails
 - Environment variable not available
 - Template expression evaluation errors
+- MCP server fails to start (status: "failed")
 
 **Common Causes**:
 - Safe-inputs action not configured
 - Missing required secrets
 - Incorrect secret references
+- Missing API keys or authentication tokens for MCP servers
+
+**Automatic Detection**:
+Starting with recent versions, the handle agent failure feature automatically detects and reports missing secret errors when:
+- MCP servers fail to start due to authentication issues
+- Workflow logs contain authentication failure patterns
+- Required API keys are not configured
+
+When detected, failure issues will include a "Missing Secrets Detected" section with:
+- Specific MCP server failures
+- Resolution steps
+- Links to troubleshooting documentation
 
 ## Investigation Steps
 

@@ -173,11 +173,7 @@ gh aw audit <run-id>
 async function detectMissingSecrets() {
   try {
     // Try to read agent artifacts that might contain log information
-    const artifactPaths = [
-      "/tmp/gh-aw/mcp-logs/",
-      "/tmp/gh-aw/safe-inputs/logs/",
-      "/tmp/gh-aw/sandbox/firewall/logs/",
-    ];
+    const artifactPaths = ["/tmp/gh-aw/mcp-logs/", "/tmp/gh-aw/safe-inputs/logs/", "/tmp/gh-aw/sandbox/firewall/logs/"];
 
     const secretErrors = [];
     let hasMissingSecrets = false;
@@ -199,13 +195,13 @@ async function detectMissingSecrets() {
         for (const file of files) {
           const filePath = path.join(artifactPath, file);
           const fileStats = fs.statSync(filePath);
-          
+
           if (!fileStats.isFile()) {
             continue;
           }
 
           const content = fs.readFileSync(filePath, "utf8");
-          
+
           // Check for MCP server failures with authentication/secret issues
           // Look for JSON log entries or plain text patterns
           if (content.includes('"status":"failed"') || content.includes('"status": "failed"')) {
@@ -217,7 +213,7 @@ async function detectMissingSecrets() {
                 if (!line.trim() || !line.includes('"status"')) {
                   continue;
                 }
-                
+
                 try {
                   const entry = JSON.parse(line);
                   if (entry.mcp_servers) {
@@ -241,15 +237,7 @@ async function detectMissingSecrets() {
           }
 
           // Check for common authentication error patterns
-          const authPatterns = [
-            /secret.*not.*found/i,
-            /authentication.*fail/i,
-            /missing.*credential/i,
-            /invalid.*token/i,
-            /unauthorized.*401/i,
-            /forbidden.*403/i,
-            /missing.*api.*key/i,
-          ];
+          const authPatterns = [/secret.*not.*found/i, /authentication.*fail/i, /missing.*credential/i, /invalid.*token/i, /unauthorized.*401/i, /forbidden.*403/i, /missing.*api.*key/i];
 
           for (const pattern of authPatterns) {
             if (pattern.test(content)) {
@@ -346,7 +334,7 @@ async function main() {
 
     // Detect missing secrets or authentication failures
     const { hasMissingSecrets, secretErrors } = await detectMissingSecrets();
-    
+
     if (hasMissingSecrets && secretErrors.length > 0) {
       core.warning(`Detected ${secretErrors.length} secret/authentication error(s):`);
       for (const error of secretErrors) {
