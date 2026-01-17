@@ -59,53 +59,62 @@ jobs:
       
       - name: Compute release configuration
         id: compute_config
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            # For workflow_dispatch, compute next version based on release type
-            RELEASE_TYPE="${{ inputs.release_type }}"
-            DRAFT_MODE="${{ inputs.draft }}"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isWorkflowDispatch = context.eventName === 'workflow_dispatch';
             
-            echo "Computing next version for release type: $RELEASE_TYPE"
+            let releaseTag, draftMode;
             
-            # Get the latest release tag
-            LATEST_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName // "v0.0.0"')
-            echo "Latest release tag: $LATEST_TAG"
+            if (isWorkflowDispatch) {
+              const releaseType = context.payload.inputs.release_type;
+              draftMode = context.payload.inputs.draft;
+              
+              console.log(`Computing next version for release type: ${releaseType}`);
+              
+              // Get the latest release tag
+              const { data: releases } = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 1
+              });
+              
+              const latestTag = releases[0]?.tag_name || 'v0.0.0';
+              console.log(`Latest release tag: ${latestTag}`);
+              
+              // Parse version components (strip 'v' prefix)
+              const version = latestTag.replace(/^v/, '');
+              let [major, minor, patch] = version.split('.').map(Number);
+              
+              // Increment based on release type
+              switch (releaseType) {
+                case 'major':
+                  major += 1;
+                  minor = 0;
+                  patch = 0;
+                  break;
+                case 'minor':
+                  minor += 1;
+                  patch = 0;
+                  break;
+                case 'patch':
+                  patch += 1;
+                  break;
+              }
+              
+              releaseTag = `v${major}.${minor}.${patch}`;
+              console.log(`Computed release tag: ${releaseTag}`);
+            } else {
+              // For tag push events, use the tag from GITHUB_REF
+              releaseTag = context.ref.replace('refs/tags/', '');
+              draftMode = 'false';
+              console.log(`Using tag from push event: ${releaseTag}`);
+            }
             
-            # Parse version components (strip 'v' prefix)
-            VERSION="${LATEST_TAG#v}"
-            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-            
-            # Increment based on release type
-            case "$RELEASE_TYPE" in
-              major)
-                MAJOR=$((MAJOR + 1))
-                MINOR=0
-                PATCH=0
-                ;;
-              minor)
-                MINOR=$((MINOR + 1))
-                PATCH=0
-                ;;
-              patch)
-                PATCH=$((PATCH + 1))
-                ;;
-            esac
-            
-            RELEASE_TAG="v${MAJOR}.${MINOR}.${PATCH}"
-            echo "Computed release tag: $RELEASE_TAG"
-          else
-            # For tag push events, use the tag from GITHUB_REF
-            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
-            DRAFT_MODE="false"
-            echo "Using tag from push event: $RELEASE_TAG"
-          fi
-          
-          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-          echo "draft_mode=$DRAFT_MODE" >> "$GITHUB_OUTPUT"
-          echo "✓ Release tag: $RELEASE_TAG"
-          echo "✓ Draft mode: $DRAFT_MODE"
+            core.setOutput('release_tag', releaseTag);
+            core.setOutput('draft_mode', draftMode);
+            console.log(`✓ Release tag: ${releaseTag}`);
+            console.log(`✓ Draft mode: ${draftMode}`);
   release:
     needs: ["activation", "config"]
     runs-on: ubuntu-latest
