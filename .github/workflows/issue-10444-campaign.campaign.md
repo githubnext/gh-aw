@@ -7,6 +7,10 @@ state: active
 project-url: https://github.com/orgs/githubnext/projects/102
 tracker-label: campaign:security-alert-burndown
 
+# Campaign scope (required)
+allowed-repos:
+  - githubnext/gh-aw
+
 # Worker workflows that will discover and address security issues
 workflows:
   - security-review

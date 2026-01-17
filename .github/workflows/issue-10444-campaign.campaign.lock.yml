@@ -113,6 +113,7 @@ jobs:
       - env:
           GH_AW_CAMPAIGN_ID: issue-10444-campaign
           GH_AW_CURSOR_PATH: /tmp/gh-aw/repo-memory/campaigns/issue-10444-campaign/cursor.json
+          GH_AW_DISCOVERY_REPOS: githubnext/gh-aw
           GH_AW_MAX_DISCOVERY_ITEMS: "50"
           GH_AW_MAX_DISCOVERY_PAGES: "3"
           GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/102
