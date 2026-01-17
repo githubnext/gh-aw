@@ -215,6 +215,12 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add combined interpolation and template rendering step
 	c.generateInterpolationAndTemplateStep(yaml, expressionMappings, data)
 
+	// Validate that all placeholders have been substituted
+	yaml.WriteString("      - name: Validate prompt placeholders\n")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	yaml.WriteString("        run: bash /opt/gh-aw/actions/validate_prompt_placeholders.sh\n")
+
 	// Print prompt (merged into prompt generation)
 	yaml.WriteString("      - name: Print prompt\n")
 	yaml.WriteString("        env:\n")
