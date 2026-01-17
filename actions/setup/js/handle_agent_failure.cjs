@@ -233,7 +233,7 @@ async function checkForTransientError() {
         reason: "Copilot API rate limit exceeded. This is a temporary condition that will resolve automatically.",
       },
       {
-        pattern: /Error: API request failed with status 50[0-9]/i,
+        pattern: /Error: API request failed with status 5[0-9][0-9]/i,
         reason: "Copilot API server error (5xx). This is a temporary service issue that typically resolves quickly.",
       },
       {

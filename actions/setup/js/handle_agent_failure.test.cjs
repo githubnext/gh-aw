@@ -16,6 +16,7 @@ describe("handle_agent_failure.cjs", () => {
     originalEnv = { ...process.env };
 
     // Ensure agent log directory exists
+    // NOTE: Using /tmp/gh-aw matches production workflow paths for accurate testing
     const logDir = "/tmp/gh-aw";
     if (!fs.existsSync(logDir)) {
       fs.mkdirSync(logDir, { recursive: true });
