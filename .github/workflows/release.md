@@ -116,6 +116,30 @@ jobs:
             const releaseTag = `v${major}.${minor}.${patch}`;
             console.log(`Computed release tag: ${releaseTag}`);
             
+            // Sanity check: Verify the computed tag doesn't already exist
+            const existingRelease = releases.find(r => r.tag_name === releaseTag);
+            if (existingRelease) {
+              core.setFailed(`Release tag ${releaseTag} already exists (created ${existingRelease.created_at}). Cannot create duplicate release. Please check existing releases.`);
+              return;
+            }
+            
+            // Also check if tag exists in git (in case release was deleted but tag remains)
+            try {
+              await github.rest.git.getRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `tags/${releaseTag}`
+              });
+              // If we get here, the tag exists
+              core.setFailed(`Git tag ${releaseTag} already exists in the repository. Cannot create duplicate tag. Please delete the existing tag or use a different version.`);
+              return;
+            } catch (error) {
+              // 404 means tag doesn't exist, which is what we want
+              if (error.status !== 404) {
+                throw error; // Re-throw unexpected errors
+              }
+            }
+            
             core.setOutput('release_tag', releaseTag);
             console.log(`✓ Release tag: ${releaseTag}`);
   release:
