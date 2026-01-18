@@ -46,7 +46,7 @@ Burn down all open code security alerts, prioritizing file-write alerts first
 and batching up to 3 related alerts/PR with a brief fix rationale comment.
 ```
 
-The Copilot Coding Agent automatically converts this into a **[campaign spec](/gh-aw/guides/campaigns/specs/)** in a pull request where you can review and iterate on the details. Here's what the essential parts look like:
+The campaign generator automatically converts this into a **[campaign spec](/gh-aw/guides/campaigns/specs/)** in a pull request where you can review and iterate on the details. Here's what the essential parts look like:
 
 ```yaml
 ---
@@ -81,7 +81,7 @@ governance:
 The spec is validated and compiled to create the campaign's orchestrator workflow (`.campaign.lock.yml`) that GitHub Actions can execute.
 Think of it like compiling code: you write a human-friendly campaign definition, and the compiler produces a hardened, machine-executable workflow.
 
-**What happens next**: Once merged, the orchestrator runs on schedule (daily by default) to [dispatch worker workflows, discover items, update the Project board, and report status](/gh-aw/guides/campaigns/flow/). The campaign coordinates all work toward your objective while respecting governance limits.
+**What happens next**: Once merged, the campaign orchestrator runs on schedule (daily by default) to [dispatch worker workflows, discover items, update the Project board, and report status](/gh-aw/guides/campaigns/flow/). The campaign coordinates all work toward your objective while respecting governance limits.
 
 ## Next steps
 
