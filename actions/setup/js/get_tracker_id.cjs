@@ -10,7 +10,7 @@ function getTrackerID(format) {
   const trackerID = process.env.GH_AW_TRACKER_ID || "";
   if (trackerID) {
     core.info(`Tracker ID: ${trackerID}`);
-    return format === "markdown" ? `\n\n<!-- tracker-id: ${trackerID} -->` : trackerID;
+    return format === "markdown" ? `\n\n<!-- gh-aw-tracker-id: ${trackerID} -->` : trackerID;
   }
   return "";
 }

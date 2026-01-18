@@ -163,7 +163,7 @@ describe("generate_footer.cjs", () => {
     it("should include XML comment marker for traceability", () => {
       const result = generateFooter("Test Workflow", "https://github.com/test/repo/actions/runs/123", "", "", undefined, undefined, undefined);
 
-      expect(result).toContain("<!-- agentic-workflow: Test Workflow");
+      expect(result).toContain("<!-- gh-aw-agentic-workflow: Test Workflow");
       expect(result).toContain("run: https://github.com/test/repo/actions/runs/123 -->");
     });
 
@@ -179,7 +179,7 @@ describe("generate_footer.cjs", () => {
 
       const result = freshModule.generateFooter("Test Workflow", "https://github.com/test/repo/actions/runs/123", "", "", undefined, undefined, undefined);
 
-      expect(result).toContain("<!-- agentic-workflow: Test Workflow");
+      expect(result).toContain("<!-- gh-aw-agentic-workflow: Test Workflow");
       expect(result).toContain("engine: copilot");
       expect(result).toContain("version: 1.0.0");
       expect(result).toContain("model: gpt-5");
@@ -191,7 +191,7 @@ describe("generate_footer.cjs", () => {
     it("should generate basic XML marker with workflow name and run URL", () => {
       const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
-      expect(result).toBe("<!-- agentic-workflow: Test Workflow, run: https://github.com/test/repo/actions/runs/123 -->");
+      expect(result).toBe("<!-- gh-aw-agentic-workflow: Test Workflow, run: https://github.com/test/repo/actions/runs/123 -->");
     });
 
     it("should include engine ID when env var is set", async () => {
@@ -202,7 +202,7 @@ describe("generate_footer.cjs", () => {
 
       const result = freshModule.generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
-      expect(result).toBe("<!-- agentic-workflow: Test Workflow, engine: copilot, run: https://github.com/test/repo/actions/runs/123 -->");
+      expect(result).toBe("<!-- gh-aw-agentic-workflow: Test Workflow, engine: copilot, run: https://github.com/test/repo/actions/runs/123 -->");
     });
 
     it("should include engine version when env var is set", async () => {
@@ -214,7 +214,7 @@ describe("generate_footer.cjs", () => {
 
       const result = freshModule.generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
-      expect(result).toBe("<!-- agentic-workflow: Test Workflow, engine: copilot, version: 2.0.0, run: https://github.com/test/repo/actions/runs/123 -->");
+      expect(result).toBe("<!-- gh-aw-agentic-workflow: Test Workflow, engine: copilot, version: 2.0.0, run: https://github.com/test/repo/actions/runs/123 -->");
     });
 
     it("should include all engine metadata when all env vars are set", async () => {
@@ -227,13 +227,13 @@ describe("generate_footer.cjs", () => {
 
       const result = freshModule.generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
-      expect(result).toBe("<!-- agentic-workflow: Test Workflow, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->");
+      expect(result).toBe("<!-- gh-aw-agentic-workflow: Test Workflow, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->");
     });
 
     it("should handle special characters in workflow name", async () => {
       const result = generateXMLMarker("Test Workflow (v2) [beta]", "https://github.com/test/repo/actions/runs/123");
 
-      expect(result).toContain("agentic-workflow: Test Workflow (v2) [beta]");
+      expect(result).toContain("gh-aw-agentic-workflow: Test Workflow (v2) [beta]");
     });
 
     it("should include tracker-id when env var is set", async () => {
@@ -244,7 +244,7 @@ describe("generate_footer.cjs", () => {
 
       const result = freshModule.generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
-      expect(result).toBe("<!-- agentic-workflow: Test Workflow, tracker-id: my-tracker-12345, run: https://github.com/test/repo/actions/runs/123 -->");
+      expect(result).toBe("<!-- gh-aw-agentic-workflow: Test Workflow, gh-aw-tracker-id: my-tracker-12345, run: https://github.com/test/repo/actions/runs/123 -->");
     });
 
     it("should include tracker-id with engine metadata when all env vars are set", async () => {
@@ -258,7 +258,7 @@ describe("generate_footer.cjs", () => {
 
       const result = freshModule.generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
-      expect(result).toBe("<!-- agentic-workflow: Test Workflow, tracker-id: workflow-2024-q1, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->");
+      expect(result).toBe("<!-- gh-aw-agentic-workflow: Test Workflow, gh-aw-tracker-id: workflow-2024-q1, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->");
     });
   });
 });

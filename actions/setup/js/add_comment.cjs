@@ -66,7 +66,7 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workf
     }
 
     // Filter comments that contain the workflow-id and are NOT reaction comments
-    const filteredComments = data.filter(comment => comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- comment-type: reaction -->`)).map(({ id, node_id, body }) => ({ id, node_id, body }));
+    const filteredComments = data.filter(comment => comment.body?.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- gh-aw-comment-type: reaction -->`)).map(({ id, node_id, body }) => ({ id, node_id, body }));
 
     comments.push(...filteredComments);
 
@@ -120,7 +120,7 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
     }
 
     const filteredComments = result.repository.discussion.comments.nodes
-      .filter(comment => comment.body?.includes(`<!-- workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- comment-type: reaction -->`))
+      .filter(comment => comment.body?.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- gh-aw-comment-type: reaction -->`))
       .map(({ id, body }) => ({ id, body }));
 
     comments.push(...filteredComments);
