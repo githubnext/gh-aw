@@ -8,7 +8,7 @@ Write agentic workflows in natural language markdown, and run them in GitHub Act
 >
 > **Repository Configuration**: To configure a repository for GitHub Agentic Workflows, follow the interactive setup wizard at: [install.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/install.md)
 >
-> **Custom Agent**: Use the custom agent at `.github/agents/create-agentic-workflow.md` to interactively create agentic workflows. The custom agent is available at: [.github/agents/create-agentic-workflow.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/agents/create-agentic-workflow.md)
+> **Custom Agent**: Use the custom agent at `.github/agents/agentic-workflows.agent.md` to interactively create agentic workflows. The custom agent is available at: [.github/agents/agentic-workflows.agent.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/agents/agentic-workflows.agent.md)
 -->
 
 ## Contents
