@@ -47,7 +47,7 @@ describe("getTrackerID", () => {
 
     const result = getTrackerID("markdown");
 
-    expect(result).toBe("\n\n<!-- tracker-id: project-alpha-2024 -->");
+    expect(result).toBe("\n\n<!-- gh-aw-tracker-id: project-alpha-2024 -->");
     expect(mockCore.info).toHaveBeenCalledWith("Tracker ID: project-alpha-2024");
   });
 
@@ -96,7 +96,7 @@ describe("getTrackerID", () => {
 
     const result = getTrackerID("markdown");
 
-    expect(result).toBe("\n\n<!-- tracker-id: Test123_Project-v2 -->");
+    expect(result).toBe("\n\n<!-- gh-aw-tracker-id: Test123_Project-v2 -->");
     expect(mockCore.info).toHaveBeenCalledWith("Tracker ID: Test123_Project-v2");
   });
 });
