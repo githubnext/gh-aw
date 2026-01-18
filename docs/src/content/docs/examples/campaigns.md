@@ -71,7 +71,7 @@ docs/src/content/docs/examples/campaigns/
 ## Learn More
 
 - [Campaign Guides](/gh-aw/guides/campaigns/) - Complete campaign documentation
-- [Technical Overview](/gh-aw/guides/campaigns/technical-overview/) - How campaigns work
+- [Flow & lifecycle](/gh-aw/guides/campaigns/flow/) - How the orchestrator runs
 - [Dispatch Workflow](/gh-aw/guides/dispatchops/) - Using workflow_dispatch
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - dispatch_workflow configuration
 

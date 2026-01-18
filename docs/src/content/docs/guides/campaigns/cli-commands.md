@@ -1,10 +1,9 @@
 ---
 title: CLI commands
 description: Command reference for managing agentic campaigns with gh aw
+banner:
+  content: '<strong>Do not use.</strong> Campaigns are still in active development and may have unexpected consequences.'
 ---
-
-> [!WARNING]
-> **Please do not use at this time.** Campaigns are currently in build phase and not ready for production. This feature is under active development and may have breaking changes.
 
 The GitHub Agentic Workflows CLI provides commands for inspecting, validating, and managing agentic campaigns.
 
@@ -28,6 +27,12 @@ gh aw campaign new my-campaign-id      # Scaffold a new agentic campaign spec
 gh aw campaign validate                # Validate agentic campaign specs (fails on problems)
 gh aw campaign validate --no-strict    # Report problems without failing
 ```
+
+## Most common tasks
+
+- See what campaigns exist: `gh aw campaign`
+- Check which ones look unhealthy: `gh aw campaign status`
+- Validate specs (locally or in CI): `gh aw campaign validate`
 
 ## List campaigns
 
@@ -96,14 +101,10 @@ By default, validation fails if problems are found. For non-failing validation (
 gh aw campaign validate --no-strict
 ```
 
-## Compilation and orchestrators (advanced)
+<details>
+<summary>Compilation details (advanced)</summary>
 
-> [!NOTE]
-> Compilation is handled automatically by the [automated creation flow](/gh-aw/guides/campaigns/getting-started/). These details are for understanding how campaigns work internally.
+The automated campaign creation flow handles compilation for you.
 
-**Agentic campaign specs and orchestrators:** When agentic campaign spec files exist under `.github/workflows/*.campaign.md`, `gh aw compile` validates those specs (including referenced `workflows`) and fails if problems are found. By default, `compile` also synthesizes an orchestrator workflow for each valid spec that has meaningful details and compiles it to a corresponding `.campaign.lock.yml` file. Orchestrators are only generated when the agentic campaign spec includes tracker labels, workflows, memory paths, or a metrics glob.
-
-> [!NOTE]
-> During compilation, a `.campaign.g.md` file is generated locally as a debug artifact to help developers review the orchestrator structure, but this file is not committed to git—only the compiled `.campaign.lock.yml` is tracked.
-
-See the [compile command documentation](/gh-aw/setup/cli/#compile) for details.
+If you’re working on a campaign spec manually, see the [compile command documentation](/gh-aw/setup/cli/#compile).
+</details>
