@@ -36,6 +36,10 @@ An AI-powered workflow that can reason, make decisions, and take autonomous acti
 
 **Example:** Instead of "if issue has label X, do Y", you write "analyze this issue and provide helpful context", and the AI decides what's helpful based on the specific issue content.
 
+### Agentic Campaign
+
+A coordinated, multi-workflow effort that orchestrates one or more agentic workflows to achieve a shared goal, often across many repositories.
+
 ### Agentic Engine or Coding Agent
 
 The AI system (typically GitHub Copilot CLI) that executes natural language instructions in an agentic workflow. The coding agent interprets tasks, uses available tools, and generates outputs based on context.
