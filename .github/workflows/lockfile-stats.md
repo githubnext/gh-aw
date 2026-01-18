@@ -33,8 +33,9 @@ Analyze all .lock.yml files in the `.github/workflows/` directory to identify us
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
-- **Analysis Date**: $(date +%Y-%m-%d)
 - **Lockfiles Location**: `.github/workflows/*.lock.yml`
+
+Note: Use the `date` command to get the current date when running your analysis.
 
 ## Analysis Process
 
