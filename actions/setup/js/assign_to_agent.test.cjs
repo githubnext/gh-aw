@@ -24,6 +24,11 @@ const mockContext = {
 
 const mockGithub = {
   graphql: vi.fn(),
+  rest: {
+    issues: {
+      createComment: vi.fn().mockResolvedValue({ data: { id: 1 } }),
+    },
+  },
 };
 
 global.core = mockCore;
@@ -43,9 +48,13 @@ describe("assign_to_agent", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset the mock for createComment
+    mockGithub.rest.issues.createComment.mockClear();
+    mockGithub.rest.issues.createComment.mockResolvedValue({ data: { id: 1 } });
     delete process.env.GH_AW_AGENT_OUTPUT;
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
     delete process.env.GH_AW_AGENT_DEFAULT;
+    delete process.env.GH_AW_AGENT_DEFAULT_BRANCH;
     delete process.env.GH_AW_AGENT_MAX_COUNT;
     delete process.env.GH_AW_AGENT_TARGET;
     delete process.env.GH_AW_AGENT_ALLOWED;
@@ -803,6 +812,67 @@ describe("assign_to_agent", () => {
 
     // Should not log allowed agents when list is not configured
     expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Allowed agents:"));
+    expect(mockCore.error).not.toHaveBeenCalled();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("should handle branch parameter in agent output", async () => {
+    process.env.GH_AW_AGENT_DEFAULT = "copilot";
+    process.env.GH_AW_AGENT_MAX_COUNT = "1";
+    process.env.GH_AW_AGENT_TARGET = "*";
+
+    setAgentOutput({
+      success: true,
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 123,
+          agent: "copilot",
+          branch: "develop",
+        },
+      ],
+    });
+
+    // Mock find agent
+    mockGithub.graphql
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ id: "AGENT_456", login: "copilot-swe-agent", __typename: "Bot" }],
+          },
+        },
+      })
+      // Mock get issue details
+      .mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "ISSUE_123",
+            assignees: { nodes: [] },
+          },
+        },
+      })
+      // Mock assign agent mutation
+      .mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          assignable: { assignees: { nodes: [{ login: "copilot-swe-agent" }] } },
+        },
+      });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // Verify branch comment was created
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalled();
+    const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
+    expect(commentCall.owner).toBe("test-owner");
+    expect(commentCall.repo).toBe("test-repo");
+    expect(commentCall.issue_number).toBe(123);
+    expect(commentCall.body).toContain("**Base Branch:** `develop`");
+
+    // Verify summary includes branch information
+    const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summaryCall).toContain("(branch: `develop`)");
+
+    expect(mockCore.info).toHaveBeenCalledWith("Successfully assigned copilot coding agent to issue #123");
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
