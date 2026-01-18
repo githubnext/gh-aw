@@ -599,6 +599,13 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		}
 	}
 
+	// Sync campaign-generator to .github/workflows/ if it's in .github/aw/
+	// This allows GitHub Actions to discover and trigger the workflow
+	if err := syncCampaignGeneratorToWorkflows(lockFile, markdownPath); err != nil {
+		log.Printf("Warning: failed to sync campaign-generator: %v", err)
+		// Don't fail compilation, just log the warning
+	}
+
 	// Display success message with file size if we generated a lock file
 	if c.noEmit {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
@@ -645,3 +652,53 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 // generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata
 
 // generateOutputCollectionStep generates a step that reads the output file and sets it as a GitHub Actions output
+
+// syncCampaignGeneratorToWorkflows syncs campaign-generator from .github/aw/ to .github/workflows/
+// This enables GitHub Actions to discover and trigger the workflow while keeping the source in .github/aw/
+func syncCampaignGeneratorToWorkflows(lockFile, markdownPath string) error {
+	// Check if this is the campaign-generator workflow in .github/aw/
+	if !strings.Contains(lockFile, ".github/aw/campaign-generator.lock.yml") &&
+		!strings.Contains(lockFile, ".github\\aw\\campaign-generator.lock.yml") {
+		return nil // Not campaign-generator, skip
+	}
+
+	log := logger.New("workflow:sync_campaign_generator")
+	log.Print("Detected campaign-generator in .github/aw/, syncing to .github/workflows/")
+
+	// Get repo root from the lock file path
+	// Go up from .github/aw/campaign-generator.lock.yml to repo root
+	awDir := filepath.Dir(lockFile)              // .github/aw
+	githubDir := filepath.Dir(awDir)             // .github
+	gitRoot := filepath.Dir(githubDir)           // repo root
+
+	// Construct target paths in .github/workflows/
+	workflowsDir := filepath.Join(gitRoot, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .github/workflows/ directory: %w", err)
+	}
+
+	targetLockFile := filepath.Join(workflowsDir, "campaign-generator.lock.yml")
+	targetMarkdownFile := filepath.Join(workflowsDir, "campaign-generator.md")
+
+	// Copy lock file
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		return fmt.Errorf("failed to read source lock file: %w", err)
+	}
+	if err := os.WriteFile(targetLockFile, lockContent, 0644); err != nil {
+		return fmt.Errorf("failed to write target lock file: %w", err)
+	}
+	log.Printf("Copied lock file to %s", targetLockFile)
+
+	// Copy markdown file
+	mdContent, err := os.ReadFile(markdownPath)
+	if err != nil {
+		return fmt.Errorf("failed to read source markdown file: %w", err)
+	}
+	if err := os.WriteFile(targetMarkdownFile, mdContent, 0644); err != nil {
+		return fmt.Errorf("failed to write target markdown file: %w", err)
+	}
+	log.Printf("Copied markdown file to %s", targetMarkdownFile)
+
+	return nil
+}
