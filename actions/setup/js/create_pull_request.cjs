@@ -7,12 +7,12 @@ const fs = require("fs");
 const crypto = require("crypto");
 const { updateActivationComment } = require("./update_activation_comment.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
-const { addExpirationComment, generateFooterWithExpiration } = require("./expiration_helpers.cjs");
+const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
-const { createExpirationLine } = require("./ephemerals.cjs");
+const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction

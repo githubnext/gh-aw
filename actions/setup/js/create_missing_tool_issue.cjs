@@ -3,8 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
-const { createExpirationLine } = require("./ephemerals.cjs");
-const { generateFooterWithExpiration } = require("./expiration_helpers.cjs");
+const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const fs = require("fs");
 
 /**

@@ -13,8 +13,7 @@ const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { createExpirationLine } = require("./ephemerals.cjs");
-const { generateFooterWithExpiration } = require("./expiration_helpers.cjs");
+const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 
 /**
  * Fetch repository ID and discussion categories for a repository

@@ -9,8 +9,7 @@ const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } =
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
-const { createExpirationLine } = require("./ephemerals.cjs");
-const { addExpirationToFooter } = require("./expiration_helpers.cjs");
+const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
 const fs = require("fs");
 
 /**

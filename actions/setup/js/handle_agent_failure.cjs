@@ -6,8 +6,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateXMLMarker } = require("./messages.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
-const { createExpirationLine } = require("./ephemerals.cjs");
-const { generateFooterWithExpiration } = require("./expiration_helpers.cjs");
+const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const fs = require("fs");
 
 /**
