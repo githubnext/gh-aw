@@ -351,7 +351,7 @@ async function main() {
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 7);
         const expirationLine = createExpirationLine(expirationDate);
-        
+
         // Combine footer with expiration line in the same quoted section
         const footerWithExpires = `${footer}\n>\n> ${expirationLine}`;
 

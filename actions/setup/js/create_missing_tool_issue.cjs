@@ -132,10 +132,11 @@ async function main(config = {}) {
         // Render the issue template
         const issueBodyContent = renderTemplate(issueTemplate, templateContext);
 
-        // Add expiration marker (1 week from now)
+        // Add expiration marker (1 week from now) in a quoted section
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 7);
-        const issueBody = `${issueBodyContent}\n\n${createExpirationLine(expirationDate)}`;
+        const expirationLine = createExpirationLine(expirationDate);
+        const issueBody = `${issueBodyContent}\n\n> Workflow: [${workflowName}](${workflowSourceURL})\n>\n> ${expirationLine}`;
 
         const newIssue = await github.rest.issues.create({
           owner,

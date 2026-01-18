@@ -408,15 +408,30 @@ async function main(config = {}) {
       bodyLines.push(trackerIDComment);
     }
 
-    // Add expiration comment if expires is set in config
+    // Generate footer
+    let footer = generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd();
+
+    // Add expiration comment inside the quoted footer section if expires is set in config
     if (expiresHours > 0) {
       const expirationDate = new Date();
       expirationDate.setHours(expirationDate.getHours() + expiresHours);
-      bodyLines.push(createExpirationLine(expirationDate));
+      const expirationLine = createExpirationLine(expirationDate);
+      // Insert expiration line before the XML marker (which is at the end of the footer)
+      // The footer ends with XML marker like: "\n\n<!-- gh-aw-agentic-workflow: ... -->\n"
+      // We need to insert "> \n> expirationLine" before the XML marker
+      const xmlMarkerMatch = footer.match(/\n\n<!--.*?-->\n?$/s);
+      if (xmlMarkerMatch) {
+        const xmlMarker = xmlMarkerMatch[0];
+        const footerWithoutXml = footer.substring(0, footer.length - xmlMarker.length);
+        footer = `${footerWithoutXml}\n>\n> ${expirationLine}${xmlMarker}`;
+      } else {
+        // Fallback: just append to footer if no XML marker found
+        footer = `${footer}\n>\n> ${expirationLine}`;
+      }
       core.info(`Issue will expire on ${expirationDate.toISOString()} (${expiresHours} hours)`);
     }
 
-    bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), "");
+    bodyLines.push(``, ``, footer, "");
     const body = bodyLines.join("\n").trim();
 
     core.info(`Creating issue in ${qualifiedItemRepo} with title: ${title}`);
