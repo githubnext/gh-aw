@@ -61,7 +61,7 @@ async function getSubIssueCount(owner, repo, issueNumber) {
       query($owner: String!, $repo: String!, $issueNumber: Int!) {
         repository(owner: $owner, name: $repo) {
           issue(number: $issueNumber) {
-            subIssues(first: 65) {
+            subIssues(first: ${MAX_SUB_ISSUES + 1}) {
               totalCount
             }
           }
@@ -114,7 +114,7 @@ async function closeParentIssue(owner, repo, issueNumber, subIssueCount) {
     core.info(`Closed parent issue #${issueNumber} (reached ${subIssueCount} sub-issues)`);
   } catch (error) {
     core.warning(`Failed to close parent issue #${issueNumber}: ${getErrorMessage(error)}`);
-    throw error;
+    // Don't throw - let caller handle gracefully
   }
 }
 

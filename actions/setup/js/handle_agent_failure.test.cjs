@@ -19,7 +19,7 @@ describe("handle_agent_failure.cjs", () => {
     // Mock fs.readFileSync to return template content
     originalReadFileSync = fs.readFileSync;
     fs.readFileSync = vi.fn((filePath, encoding) => {
-      if (filePath.includes('agent_failure_issue.md')) {
+      if (filePath.includes("agent_failure_issue.md")) {
         return `### Workflow Failure
 
 **Workflow:** [{workflow_name}]({workflow_source_url})  
@@ -37,7 +37,7 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
 \`\`\`
 
 When prompted, instruct the agent to debug this workflow failure.`;
-      } else if (filePath.includes('agent_failure_comment.md')) {
+      } else if (filePath.includes("agent_failure_comment.md")) {
         return `Agent job [{run_id}]({run_url}) failed.
 
 {secret_verification_context}`;
