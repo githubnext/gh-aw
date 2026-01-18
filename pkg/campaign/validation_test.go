@@ -374,13 +374,13 @@ func TestValidateSpec_KPIsMultipleWithMultiplePrimary(t *testing.T) {
 
 	found := false
 	for _, p := range problems {
-		if strings.Contains(p, "multiple primary KPIs found") {
+		if strings.Contains(p, "exactly one primary KPI") && strings.Contains(p, "found 2") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("Expected multiple primary KPI validation problem, got: %v", problems)
+		t.Errorf("Expected multiple primary KPI validation problem with count, got: %v", problems)
 	}
 }
 
@@ -437,8 +437,8 @@ func TestValidateSpec_KPIFieldConstraints(t *testing.T) {
 
 	expectSubstrings := []string{
 		"time-window-days must be >= 1",
-		"direction must be one of: increase, decrease",
-		"source must be one of: ci, pull_requests, code_security, custom",
+		"'increase' or 'decrease'",
+		"'ci', 'pull_requests', 'code_security', or 'custom'",
 	}
 	for _, needle := range expectSubstrings {
 		found := false
@@ -572,5 +572,138 @@ func TestValidateSpec_InvalidAllowedOrgsFormat(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("Expected org format validation problem, got: %v", problems)
+	}
+}
+
+func TestSuggestValidID(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "uppercase to lowercase",
+			input:    "Security-Q1-2025",
+			expected: "security-q1-2025",
+		},
+		{
+			name:     "underscores to hyphens",
+			input:    "test_campaign_id",
+			expected: "test-campaign-id",
+		},
+		{
+			name:     "spaces to hyphens",
+			input:    "my campaign id",
+			expected: "my-campaign-id",
+		},
+		{
+			name:     "mixed invalid characters",
+			input:    "Test Campaign! @2025",
+			expected: "test-campaign-2025",
+		},
+		{
+			name:     "multiple hyphens collapsed",
+			input:    "test--campaign---id",
+			expected: "test-campaign-id",
+		},
+		{
+			name:     "leading and trailing hyphens removed",
+			input:    "-test-campaign-",
+			expected: "test-campaign",
+		},
+		{
+			name:     "already valid id",
+			input:    "valid-campaign-123",
+			expected: "valid-campaign-123",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := suggestValidID(tt.input)
+			if result != tt.expected {
+				t.Errorf("suggestValidID(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestValidateSpec_InvalidIDWithSuggestion(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:           "Test Campaign 2025",
+		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
+		AllowedRepos: []string{"org/repo1"},
+		Workflows:    []string{"workflow1"},
+	}
+
+	problems := ValidateSpec(spec)
+	if len(problems) == 0 {
+		t.Fatal("Expected validation problems for invalid ID")
+	}
+
+	// Check that the error message includes a suggestion
+	found := false
+	for _, p := range problems {
+		if strings.Contains(p, "test-campaign-2025") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected ID validation problem with suggestion, got: %v", problems)
+	}
+}
+
+func TestValidateSpec_AllowedReposWildcard(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:           "test-campaign",
+		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
+		AllowedRepos: []string{"org/*"}, // Invalid - wildcard not allowed
+		Workflows:    []string{"workflow1"},
+	}
+
+	problems := ValidateSpec(spec)
+	if len(problems) == 0 {
+		t.Fatal("Expected validation problems for wildcard in allowed-repos")
+	}
+
+	found := false
+	for _, p := range problems {
+		if strings.Contains(p, "cannot contain wildcards") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected wildcard validation problem, got: %v", problems)
+	}
+}
+
+func TestValidateSpec_AllowedOrgsWildcard(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:           "test-campaign",
+		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
+		AllowedRepos: []string{"org/repo1"},
+		AllowedOrgs:  []string{"github*"}, // Invalid - wildcard not allowed
+		Workflows:    []string{"workflow1"},
+	}
+
+	problems := ValidateSpec(spec)
+	if len(problems) == 0 {
+		t.Fatal("Expected validation problems for wildcard in allowed-orgs")
+	}
+
+	found := false
+	for _, p := range problems {
+		if strings.Contains(p, "cannot contain wildcards") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected wildcard validation problem for orgs, got: %v", problems)
 	}
 }

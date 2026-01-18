@@ -149,11 +149,16 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	}
 
 	spec := CampaignSpec{
-		ID:          id,
-		Name:        name,
-		ProjectURL:  "https://github.com/orgs/ORG/projects/1",
-		Version:     "v1",
-		State:       "planned",
+		ID:         id,
+		Name:       name,
+		ProjectURL: "https://github.com/orgs/ORG/projects/1",
+		Version:    "v1",
+		State:      "planned",
+		// Define the repositories this campaign can operate on (REQUIRED)
+		// Examples: ["myorg/backend", "myorg/frontend", "myorg/api"]
+		AllowedRepos: []string{"ORG/REPO"},
+		// Optionally define organizations for org-wide scope
+		// AllowedOrgs: []string{"myorg"},
 		MemoryPaths: []string{"memory/campaigns/" + id + "/**"},
 		MetricsGlob: "memory/campaigns/" + id + "/metrics/*.json",
 		CursorGlob:  "memory/campaigns/" + id + "/cursor.json",
@@ -182,7 +187,32 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	} else {
 		buf.WriteString("# " + id + "\n\n")
 	}
-	buf.WriteString("Describe this campaign's goals, guardrails, stakeholders, and playbook.\n")
+	buf.WriteString("Describe this campaign's goals, guardrails, stakeholders, and playbook.\n\n")
+	buf.WriteString("## Quick Start\n\n")
+	buf.WriteString("1. **Update allowed-repos**: Add repositories this campaign should operate on\n")
+	buf.WriteString("2. **Define workflows**: List workflows to execute (e.g., `vulnerability-scanner`)\n")
+	buf.WriteString("3. **Add objective & KPIs**: Define measurable success criteria\n")
+	buf.WriteString("4. **Set owners**: Specify who is responsible for this campaign\n")
+	buf.WriteString("5. **Compile**: Run `gh aw compile` to generate the orchestrator\n\n")
+	buf.WriteString("## Example Configuration\n\n")
+	buf.WriteString("```yaml\n")
+	buf.WriteString("# Add to the frontmatter above:\n")
+	buf.WriteString("objective: \"Reduce security vulnerabilities across all repositories\"\n")
+	buf.WriteString("workflows:\n")
+	buf.WriteString("  - vulnerability-scanner\n")
+	buf.WriteString("  - dependency-updater\n")
+	buf.WriteString("owners:\n")
+	buf.WriteString("  - @security-team\n")
+	buf.WriteString("kpis:\n")
+	buf.WriteString("  - name: \"Critical vulnerabilities resolved\"\n")
+	buf.WriteString("    priority: primary\n")
+	buf.WriteString("    unit: count\n")
+	buf.WriteString("    baseline: 0\n")
+	buf.WriteString("    target: 50\n")
+	buf.WriteString("    time-window-days: 30\n")
+	buf.WriteString("    direction: increase\n")
+	buf.WriteString("    source: code_security\n")
+	buf.WriteString("```\n")
 
 	// Use restrictive permissions (0600) to follow security best practices
 	if err := os.WriteFile(fullPath, []byte(buf.String()), 0o600); err != nil {
