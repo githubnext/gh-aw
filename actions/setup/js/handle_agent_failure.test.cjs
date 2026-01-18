@@ -835,7 +835,7 @@ When prompted, instruct the agent to debug this workflow failure.`;
   });
 
   describe("parent issue sub-issue limit", () => {
-    it("should close parent issue and create new one when sub-issue count reaches 64", async () => {
+    it("should create new parent issue when existing parent reaches 64 sub-issues", async () => {
       // Mock searches: PR search, parent issue search, failure issue search
       mockGithub.rest.search.issuesAndPullRequests
         .mockResolvedValueOnce({
@@ -881,9 +881,7 @@ When prompted, instruct the agent to debug this workflow failure.`;
           },
         });
 
-      // Mock issue creation (close comment, new parent, failure issue)
-      mockGithub.rest.issues.createComment = vi.fn().mockResolvedValue({});
-      mockGithub.rest.issues.update = vi.fn().mockResolvedValue({});
+      // Mock issue creation (new parent, failure issue)
       mockGithub.rest.issues.create
         .mockResolvedValueOnce({
           // New parent issue
@@ -914,28 +912,13 @@ When prompted, instruct the agent to debug this workflow failure.`;
         })
       );
 
-      // Verify old parent was closed with a comment
-      expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith({
-        owner: "test-owner",
-        repo: "test-repo",
-        issue_number: 1,
-        body: expect.stringContaining("reached the maximum of 64 sub-issues"),
-      });
-
-      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({
-        owner: "test-owner",
-        repo: "test-repo",
-        issue_number: 1,
-        state: "closed",
-      });
-
-      // Verify new parent issue was created
-      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "[agentics] Agentic Workflow Issues",
-          labels: ["agentic-workflows"],
-        })
-      );
+      // Verify new parent issue was created with reference to old parent
+      const newParentCall = mockGithub.rest.issues.create.mock.calls[0][0];
+      expect(newParentCall.title).toBe("[agentics] Agentic Workflow Issues");
+      expect(newParentCall.labels).toEqual(["agentic-workflows"]);
+      expect(newParentCall.body).toContain("continuation parent issue");
+      expect(newParentCall.body).toContain("previous parent issue #1");
+      expect(newParentCall.body).toContain("reached the maximum of 64 sub-issues");
 
       // Verify failure issue was created
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
@@ -952,7 +935,7 @@ When prompted, instruct the agent to debug this workflow failure.`;
       });
 
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("has 64 sub-issues"));
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Closing parent issue #1"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Creating a new parent issue"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Created parent issue #2"));
     });
 
@@ -1085,87 +1068,6 @@ When prompted, instruct the agent to debug this workflow failure.`;
       // Verify parent issue was still used (graceful degradation)
       expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Found existing parent issue #5"));
-    });
-
-    it("should handle parent closure failure gracefully and still create new parent", async () => {
-      // Mock searches
-      mockGithub.rest.search.issuesAndPullRequests
-        .mockResolvedValueOnce({
-          // First search: PR search (no PR found)
-          data: { total_count: 0, items: [] },
-        })
-        .mockResolvedValueOnce({
-          // Second search: existing parent issue with 64 sub-issues
-          data: {
-            total_count: 1,
-            items: [
-              {
-                number: 1,
-                html_url: "https://github.com/test-owner/test-repo/issues/1",
-                node_id: "I_parent_1",
-              },
-            ],
-          },
-        })
-        .mockResolvedValueOnce({
-          // Third search: no failure issue
-          data: { total_count: 0, items: [] },
-        });
-
-      // Mock GraphQL query for sub-issue count (returns 64)
-      mockGithub.graphql = vi
-        .fn()
-        .mockResolvedValueOnce({
-          repository: {
-            issue: {
-              subIssues: {
-                totalCount: 64,
-              },
-            },
-          },
-        })
-        .mockResolvedValueOnce({
-          addSubIssue: {
-            issue: { id: "I_parent_2", number: 2 },
-            subIssue: { id: "I_sub_42", number: 42 },
-          },
-        });
-
-      // Mock closure comment to succeed but update to fail
-      mockGithub.rest.issues.createComment = vi.fn().mockResolvedValue({});
-      mockGithub.rest.issues.update = vi.fn().mockRejectedValue(new Error("API Error"));
-
-      // Mock issue creation
-      mockGithub.rest.issues.create
-        .mockResolvedValueOnce({
-          data: {
-            number: 2,
-            html_url: "https://github.com/test-owner/test-repo/issues/2",
-            node_id: "I_parent_2",
-          },
-        })
-        .mockResolvedValueOnce({
-          data: {
-            number: 42,
-            html_url: "https://github.com/test-owner/test-repo/issues/42",
-            node_id: "I_sub_42",
-          },
-        });
-
-      await main();
-
-      // Verify warning about closure failure
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to close parent issue"));
-
-      // Verify new parent was still created
-      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "[agentics] Agentic Workflow Issues",
-        })
-      );
-
-      // Verify failure issue was created and linked
-      expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("addSubIssue"), expect.any(Object));
     });
   });
 });

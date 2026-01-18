@@ -47,46 +47,11 @@ async function findPullRequestForCurrentBranch() {
 }
 
 /**
- * Close a parent issue with a comment explaining it reached the sub-issue limit
- * @param {string} owner - Repository owner
- * @param {string} repo - Repository name
- * @param {number} issueNumber - Issue number to close
- * @param {number} subIssueCount - Number of sub-issues
- */
-async function closeParentIssue(owner, repo, issueNumber, subIssueCount) {
-  try {
-    // Add a comment explaining why the issue is being closed
-    const closureComment = `This parent issue has reached the maximum of ${MAX_SUB_ISSUES} sub-issues (currently has ${subIssueCount}). A new parent issue will be created to continue tracking workflow failures.`;
-
-    await github.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: issueNumber,
-      body: closureComment,
-    });
-
-    core.info(`Added closure comment to issue #${issueNumber}`);
-
-    // Close the issue
-    await github.rest.issues.update({
-      owner,
-      repo,
-      issue_number: issueNumber,
-      state: "closed",
-    });
-
-    core.info(`Closed parent issue #${issueNumber} (reached ${subIssueCount} sub-issues)`);
-  } catch (error) {
-    core.warning(`Failed to close parent issue #${issueNumber}: ${getErrorMessage(error)}`);
-    // Don't throw - let caller handle gracefully
-  }
-}
-
-/**
  * Search for or create the parent issue for all agentic workflow failures
+ * @param {number|null} previousParentNumber - Previous parent issue number if creating due to limit
  * @returns {Promise<{number: number, node_id: string}>} Parent issue number and node ID
  */
-async function ensureParentIssue() {
+async function ensureParentIssue(previousParentNumber = null) {
   const { owner, repo } = context.repo;
   const parentTitle = "[agentics] Agentic Workflow Issues";
   const parentLabel = "agentic-workflows";
@@ -111,15 +76,10 @@ async function ensureParentIssue() {
 
       if (subIssueCount !== null && subIssueCount >= MAX_SUB_ISSUES) {
         core.warning(`Parent issue #${existingIssue.number} has ${subIssueCount} sub-issues (max: ${MAX_SUB_ISSUES})`);
-        core.info(`Closing parent issue #${existingIssue.number} and creating a new one`);
+        core.info(`Creating a new parent issue (previous parent #${existingIssue.number} is full)`);
 
-        try {
-          await closeParentIssue(owner, repo, existingIssue.number, subIssueCount);
-        } catch (error) {
-          core.warning(`Failed to close parent issue, but will continue to create new one: ${getErrorMessage(error)}`);
-        }
-
-        // Fall through to create a new parent issue
+        // Fall through to create a new parent issue, passing the previous parent number
+        previousParentNumber = existingIssue.number;
       } else {
         // Parent issue is within limits, return it
         if (subIssueCount !== null) {
@@ -135,12 +95,22 @@ async function ensureParentIssue() {
     core.warning(`Error searching for parent issue: ${getErrorMessage(error)}`);
   }
 
-  // Create parent issue if it doesn't exist
-  core.info("No parent issue found, creating one");
+  // Create parent issue if it doesn't exist or if previous one is full
+  const creationReason = previousParentNumber ? `creating new parent (previous #${previousParentNumber} reached limit)` : "creating first parent";
+  core.info(`No suitable parent issue found, ${creationReason}`);
 
-  const parentBodyContent = `# Agentic Workflow Failures
+  let parentBodyContent = `# Agentic Workflow Failures
 
-This issue tracks all failures from agentic workflows in this repository. Each failed workflow run creates a sub-issue linked here for organization and easy filtering.
+This issue tracks all failures from agentic workflows in this repository. Each failed workflow run creates a sub-issue linked here for organization and easy filtering.`;
+
+  // Add reference to previous parent if this is a continuation
+  if (previousParentNumber) {
+    parentBodyContent += `
+
+> **Note:** This is a continuation parent issue. The previous parent issue #${previousParentNumber} reached the maximum of ${MAX_SUB_ISSUES} sub-issues.`;
+  }
+
+  parentBodyContent += `
 
 ### Purpose
 
