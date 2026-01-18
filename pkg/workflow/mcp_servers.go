@@ -634,38 +634,38 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			containerCmd += " -e GH_AW_SAFE_INPUTS_PORT"
 			containerCmd += " -e GH_AW_SAFE_INPUTS_API_KEY"
 		}
-		
+
 		// Track hardcoded environment variables to avoid duplicates
 		hardcodedEnvVars := map[string]bool{
-			"MCP_GATEWAY_PORT":              true,
-			"MCP_GATEWAY_DOMAIN":            true,
-			"MCP_GATEWAY_API_KEY":           true,
-			"MCP_GATEWAY_LOG_DIR":           true,
-			"GH_AW_MCP_LOG_DIR":             true,
-			"GH_AW_SAFE_OUTPUTS":            true,
+			"MCP_GATEWAY_PORT":               true,
+			"MCP_GATEWAY_DOMAIN":             true,
+			"MCP_GATEWAY_API_KEY":            true,
+			"MCP_GATEWAY_LOG_DIR":            true,
+			"GH_AW_MCP_LOG_DIR":              true,
+			"GH_AW_SAFE_OUTPUTS":             true,
 			"GH_AW_SAFE_OUTPUTS_CONFIG_PATH": true,
-			"GH_AW_SAFE_OUTPUTS_TOOLS_PATH": true,
-			"GH_AW_ASSETS_BRANCH":           true,
-			"GH_AW_ASSETS_MAX_SIZE_KB":      true,
-			"GH_AW_ASSETS_ALLOWED_EXTS":     true,
-			"DEFAULT_BRANCH":                true,
-			"GITHUB_MCP_SERVER_TOKEN":       true,
-			"GITHUB_MCP_LOCKDOWN":           true,
-			"GITHUB_REPOSITORY":             true,
-			"GITHUB_SERVER_URL":             true,
-			"GITHUB_SHA":                    true,
-			"GITHUB_WORKSPACE":              true,
-			"GITHUB_TOKEN":                  true,
+			"GH_AW_SAFE_OUTPUTS_TOOLS_PATH":  true,
+			"GH_AW_ASSETS_BRANCH":            true,
+			"GH_AW_ASSETS_MAX_SIZE_KB":       true,
+			"GH_AW_ASSETS_ALLOWED_EXTS":      true,
+			"DEFAULT_BRANCH":                 true,
+			"GITHUB_MCP_SERVER_TOKEN":        true,
+			"GITHUB_MCP_LOCKDOWN":            true,
+			"GITHUB_REPOSITORY":              true,
+			"GITHUB_SERVER_URL":              true,
+			"GITHUB_SHA":                     true,
+			"GITHUB_WORKSPACE":               true,
+			"GITHUB_TOKEN":                   true,
 		}
 		if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
 			hardcodedEnvVars["GH_AW_SAFE_INPUTS_PORT"] = true
 			hardcodedEnvVars["GH_AW_SAFE_INPUTS_API_KEY"] = true
 		}
-		
+
 		// Collect all additional environment variables from gateway config and MCP servers
 		// Use a map to deduplicate environment variables and exclude hardcoded ones
 		additionalEnvVars := make(map[string]bool)
-		
+
 		// Add gateway-configured env vars
 		if len(gatewayConfig.Env) > 0 {
 			for envVarName := range gatewayConfig.Env {
@@ -674,7 +674,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				}
 			}
 		}
-		
+
 		// Add MCP-collected env vars (these may include secrets from HTTP headers)
 		if len(mcpEnvVars) > 0 {
 			for envVarName := range mcpEnvVars {
@@ -683,7 +683,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				}
 			}
 		}
-		
+
 		// Add deduplicated env vars to docker command in sorted order
 		if len(additionalEnvVars) > 0 {
 			envVarNames := make([]string, 0, len(additionalEnvVars))
