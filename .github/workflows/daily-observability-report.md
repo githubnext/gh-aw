@@ -16,6 +16,9 @@ tools:
   github:
     toolsets: [default, discussions, actions]
   agentic-workflows: true
+env:
+  # Required for GitHub CLI commands (gh aw logs, gh aw status) used in the workflow
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 safe-outputs:
   create-discussion:
     expires: 7d

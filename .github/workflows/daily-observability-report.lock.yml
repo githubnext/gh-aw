@@ -39,6 +39,9 @@ concurrency:
 
 run-name: "Daily Observability Report for AWF Firewall and MCP Gateway"
 
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   activation:
     needs: pre_activation
