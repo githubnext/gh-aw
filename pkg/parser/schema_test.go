@@ -1278,7 +1278,7 @@ func TestValidateIncludedFileFrontmatterWithSchema(t *testing.T) {
 				"tools": map[string]any{"github": "test"},
 			},
 			wantErr:     true,
-			errContains: "additional properties 'on' not allowed",
+			errContains: "cannot be used in shared workflows",
 		},
 		{
 			name: "invalid frontmatter with multiple unexpected keys",
@@ -1288,7 +1288,7 @@ func TestValidateIncludedFileFrontmatterWithSchema(t *testing.T) {
 				"tools":       map[string]any{"github": "test"},
 			},
 			wantErr:     true,
-			errContains: "additional properties",
+			errContains: "cannot be used in shared workflows",
 		},
 		{
 			name: "invalid frontmatter with only unexpected keys",
@@ -1297,7 +1297,7 @@ func TestValidateIncludedFileFrontmatterWithSchema(t *testing.T) {
 				"permissions": "read",
 			},
 			wantErr:     true,
-			errContains: "additional properties",
+			errContains: "cannot be used in shared workflows",
 		},
 		{
 			name: "valid frontmatter with complex tools object",

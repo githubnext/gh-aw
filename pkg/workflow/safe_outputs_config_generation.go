@@ -25,11 +25,16 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 	// Handle safe-outputs configuration if present
 	if data.SafeOutputs != nil {
 		if data.SafeOutputs.CreateIssues != nil {
-			safeOutputsConfig["create_issue"] = generateMaxWithAllowedLabelsConfig(
+			config := generateMaxWithAllowedLabelsConfig(
 				data.SafeOutputs.CreateIssues.Max,
 				1, // default max
 				data.SafeOutputs.CreateIssues.AllowedLabels,
 			)
+			// Add group flag if enabled
+			if data.SafeOutputs.CreateIssues.Group {
+				config["group"] = true
+			}
+			safeOutputsConfig["create_issue"] = config
 		}
 		if data.SafeOutputs.CreateAgentSessions != nil {
 			safeOutputsConfig["create_agent_task"] = generateMaxConfig(

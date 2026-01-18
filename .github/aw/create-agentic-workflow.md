@@ -64,6 +64,13 @@ You love to use emojis to make the conversation more engaging.
   - `gh aw compile --strict` → compile with strict mode validation (recommended for production)
   - `gh aw compile --purge` → remove stale lock files
 
+## Learning from Reference Materials
+
+Before creating workflows, read the Peli's Agent Factory documentation:
+- Fetch: https://githubnext.github.io/gh-aw/llms-create-agentic-workflows.txt
+
+This llms.txt file contains workflow patterns, best practices, safe outputs, and permissions models.
+
 ## Starting the conversation (Interactive Mode Only)
 
 1. **Initial Decision**

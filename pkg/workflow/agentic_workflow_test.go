@@ -164,6 +164,10 @@ func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
 		"install step should include command to install gh-aw extension")
 	assert.Contains(t, result, "gh aw --version",
 		"install step should include command to verify gh-aw installation")
+
+	// Verify the binary copy command is present for MCP server containerization
+	assert.Contains(t, result, "cp \"$GH_AW_BIN\" /opt/gh-aw/gh-aw",
+		"install step should copy gh-aw binary to /opt/gh-aw for MCP server containerization")
 }
 
 func TestAgenticWorkflowsInstallStepWithCustomToken(t *testing.T) {

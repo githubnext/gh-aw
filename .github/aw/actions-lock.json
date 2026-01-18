@@ -45,6 +45,11 @@
       "version": "v6.0.0",
       "sha": "018cc2cf5baa6db3ef3c5f8a56943fffe632ef53"
     },
+    "actions/github-script@v7": {
+      "repo": "actions/github-script",
+      "version": "v7",
+      "sha": "f28e40c7f34bde8b3046d885e986cb6290c5673b"
+    },
     "actions/github-script@v7.0.1": {
       "repo": "actions/github-script",
       "version": "v7.0.1",

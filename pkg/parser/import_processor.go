@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -25,6 +26,10 @@ type ImportsResult struct {
 	MergedNetwork       string   // Merged network configuration from all imports
 	MergedPermissions   string   // Merged permissions configuration from all imports
 	MergedSecretMasking string   // Merged secret-masking steps from all imports
+	MergedBots          []string // Merged bots list from all imports (union of bot names)
+	MergedPostSteps     string   // Merged post-steps configuration from all imports (appended in order)
+	MergedLabels        []string // Merged labels from all imports (union of label names)
+	MergedCaches        []string // Merged cache configurations from all imports (appended in order)
 	ImportedFiles       []string // List of imported file paths (for manifest)
 	AgentFile           string   // Path to custom agent file (if imported)
 	// ImportInputs uses map[string]any because input values can be different types (string, number, boolean).
@@ -163,9 +168,15 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	var networkBuilder strings.Builder
 	var permissionsBuilder strings.Builder
 	var secretMaskingBuilder strings.Builder
+	var postStepsBuilder strings.Builder
 	var engines []string
 	var safeOutputs []string
 	var safeInputs []string
+	var bots []string                    // Track unique bot names
+	botsSet := make(map[string]bool)     // Set for deduplicating bots
+	var labels []string                  // Track unique labels
+	labelsSet := make(map[string]bool)   // Set for deduplicating labels
+	var caches []string                  // Track cache configurations (appended in order)
 	var agentFile string                 // Track custom agent file
 	importInputs := make(map[string]any) // Aggregated input values from all imports
 
@@ -432,6 +443,48 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		if err == nil && secretMaskingContent != "" && secretMaskingContent != "{}" {
 			secretMaskingBuilder.WriteString(secretMaskingContent + "\n")
 		}
+
+		// Extract bots from imported file (merge into set to avoid duplicates)
+		botsContent, err := extractBotsFromContent(string(content))
+		if err == nil && botsContent != "" && botsContent != "[]" {
+			// Parse bots JSON array
+			var importedBots []string
+			if jsonErr := json.Unmarshal([]byte(botsContent), &importedBots); jsonErr == nil {
+				for _, bot := range importedBots {
+					if !botsSet[bot] {
+						botsSet[bot] = true
+						bots = append(bots, bot)
+					}
+				}
+			}
+		}
+
+		// Extract post-steps from imported file (append in order)
+		postStepsContent, err := extractPostStepsFromContent(string(content))
+		if err == nil && postStepsContent != "" {
+			postStepsBuilder.WriteString(postStepsContent + "\n")
+		}
+
+		// Extract labels from imported file (merge into set to avoid duplicates)
+		labelsContent, err := extractLabelsFromContent(string(content))
+		if err == nil && labelsContent != "" && labelsContent != "[]" {
+			// Parse labels JSON array
+			var importedLabels []string
+			if jsonErr := json.Unmarshal([]byte(labelsContent), &importedLabels); jsonErr == nil {
+				for _, label := range importedLabels {
+					if !labelsSet[label] {
+						labelsSet[label] = true
+						labels = append(labels, label)
+					}
+				}
+			}
+		}
+
+		// Extract cache from imported file (append to list of caches)
+		cacheContent, err := extractCacheFromContent(string(content))
+		if err == nil && cacheContent != "" && cacheContent != "{}" {
+			caches = append(caches, cacheContent)
+		}
 	}
 
 	log.Printf("Completed BFS traversal. Processed %d imports in total", len(processedOrder))
@@ -453,6 +506,10 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		MergedNetwork:       networkBuilder.String(),
 		MergedPermissions:   permissionsBuilder.String(),
 		MergedSecretMasking: secretMaskingBuilder.String(),
+		MergedBots:          bots,
+		MergedPostSteps:     postStepsBuilder.String(),
+		MergedLabels:        labels,
+		MergedCaches:        caches,
 		ImportedFiles:       topologicalOrder,
 		AgentFile:           agentFile,
 		ImportInputs:        importInputs,

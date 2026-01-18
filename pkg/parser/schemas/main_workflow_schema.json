@@ -3685,6 +3685,11 @@
                     }
                   ],
                   "description": "Time until the issue expires and should be automatically closed. Supports integer (days) or relative time format. Minimum duration: 2 hours. When set, a maintenance workflow will be generated."
+                },
+                "group": {
+                  "type": "boolean",
+                  "description": "If true, group issues as sub-issues under a parent issue. The workflow ID is used as the group identifier. Parent issues are automatically created and managed, with a maximum of 64 sub-issues per parent.",
+                  "default": false
                 }
               },
               "additionalProperties": false,

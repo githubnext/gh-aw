@@ -248,6 +248,17 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("            gh extension install githubnext/gh-aw\n")
 		yaml.WriteString("          fi\n")
 		yaml.WriteString("          gh aw --version\n")
+		yaml.WriteString("          # Copy the gh-aw binary to /opt/gh-aw for MCP server containerization\n")
+		yaml.WriteString("          mkdir -p /opt/gh-aw\n")
+		yaml.WriteString("          GH_AW_BIN=$(which gh-aw 2>/dev/null || find ~/.local/share/gh/extensions/gh-aw -name 'gh-aw' -type f 2>/dev/null | head -1)\n")
+		yaml.WriteString("          if [ -n \"$GH_AW_BIN\" ] && [ -f \"$GH_AW_BIN\" ]; then\n")
+		yaml.WriteString("            cp \"$GH_AW_BIN\" /opt/gh-aw/gh-aw\n")
+		yaml.WriteString("            chmod +x /opt/gh-aw/gh-aw\n")
+		yaml.WriteString("            echo \"Copied gh-aw binary to /opt/gh-aw/gh-aw\"\n")
+		yaml.WriteString("          else\n")
+		yaml.WriteString("            echo \"::error::Failed to find gh-aw binary for MCP server\"\n")
+		yaml.WriteString("            exit 1\n")
+		yaml.WriteString("          fi\n")
 	}
 
 	// Write safe-outputs MCP server if enabled

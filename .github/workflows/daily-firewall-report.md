@@ -173,13 +173,12 @@ Simply call the MCP tools directly as described in the steps below. If you want 
 2. If a report exists from the last 24 hours:
    - Read the cached run IDs that were analyzed
    - Determine if any new workflow runs have occurred since then
-   - If no new runs, update the existing report with current timestamp and exit early
+   - If no new runs, skip to Step 5 (Generate Report) using the same cached run IDs, but **always re-fetch fresh data from the audit tool** for accurate counts
 3. Store the following in repo memory for the next run:
    - Last analysis timestamp
    - List of run IDs analyzed
-   - Aggregated blocked domains data
 
-This prevents unnecessary re-analysis of the same data and significantly reduces token usage.
+**IMPORTANT**: Never cache or reuse aggregated statistics (blocked counts, allowed counts, domain lists). Always compute these fresh from the audit tool to ensure accurate reporting. Only cache run IDs to avoid re-discovering the same workflow runs.
 
 ### Step 1: Collect Recent Firewall-Enabled Workflow Runs
 

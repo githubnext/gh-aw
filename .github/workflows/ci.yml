@@ -300,6 +300,13 @@ jobs:
       - name: Build code
         run: make build
 
+      - name: Upload Linux binary
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: gh-aw-linux-amd64
+          path: gh-aw
+          retention-days: 14
+
       - name: Rebuild lock files
         run: make recompile
         env:
