@@ -33,6 +33,7 @@ describe("handle_agent_failure.cjs", () => {
         issues: {
           create: vi.fn(),
           createComment: vi.fn(),
+          update: vi.fn(),
         },
       },
     };
@@ -140,7 +141,7 @@ describe("handle_agent_failure.cjs", () => {
       expect(parentCreateCall.body).toMatch(/- \[x\] expires <!-- gh-aw-expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z --> on .+ UTC/);
 
       // Verify failure issue was created (second call, after parent issue)
-      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+      expect(mockGithub.rest.issues.create).toHaveBeenNthCalledWith(2,
         expect.objectContaining({
           owner: "test-owner",
           repo: "test-repo",
@@ -195,13 +196,25 @@ describe("handle_agent_failure.cjs", () => {
         },
       });
 
-      // Mock GraphQL sub-issue linking
-      mockGithub.graphql = vi.fn().mockResolvedValue({
-        addSubIssue: {
-          issue: { id: "I_parent_5", number: 5 },
-          subIssue: { id: "I_sub_42", number: 42 },
-        },
-      });
+      // Mock GraphQL - first check sub-issue count (30), then link sub-issue
+      mockGithub.graphql = vi.fn()
+        .mockResolvedValueOnce({
+          // Sub-issue count check
+          repository: {
+            issue: {
+              subIssues: {
+                totalCount: 30,
+              },
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          // Link sub-issue
+          addSubIssue: {
+            issue: { id: "I_parent_5", number: 5 },
+            subIssue: { id: "I_sub_42", number: 42 },
+          },
+        });
 
       await main();
 
@@ -712,6 +725,346 @@ describe("handle_agent_failure.cjs", () => {
       expect(failureIssueCreateCall.body).toContain("**Branch:**");
       // The actual branch will be determined by getCurrentBranch() which may get it from git or env
       // Just verify the branch field exists
+    });
+  });
+
+  describe("parent issue sub-issue limit", () => {
+    it("should close parent issue and create new one when sub-issue count reaches 64", async () => {
+      // Mock searches: PR search, parent issue search, failure issue search
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          // First search: PR search (no PR found)
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Second search: existing parent issue
+          data: {
+            total_count: 1,
+            items: [
+              {
+                number: 1,
+                html_url: "https://github.com/test-owner/test-repo/issues/1",
+                node_id: "I_parent_1",
+              },
+            ],
+          },
+        })
+        .mockResolvedValueOnce({
+          // Third search: no failure issue exists
+          data: { total_count: 0, items: [] },
+        });
+
+      // Mock GraphQL query for sub-issue count (returns 64)
+      mockGithub.graphql = vi.fn()
+        .mockResolvedValueOnce({
+          // First call: check sub-issue count
+          repository: {
+            issue: {
+              subIssues: {
+                totalCount: 64,
+              },
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          // Second call: link sub-issue to new parent
+          addSubIssue: {
+            issue: { id: "I_parent_2", number: 2 },
+            subIssue: { id: "I_sub_42", number: 42 },
+          },
+        });
+
+      // Mock issue creation (close comment, new parent, failure issue)
+      mockGithub.rest.issues.createComment = vi.fn().mockResolvedValue({});
+      mockGithub.rest.issues.update = vi.fn().mockResolvedValue({});
+      mockGithub.rest.issues.create
+        .mockResolvedValueOnce({
+          // New parent issue
+          data: {
+            number: 2,
+            html_url: "https://github.com/test-owner/test-repo/issues/2",
+            node_id: "I_parent_2",
+          },
+        })
+        .mockResolvedValueOnce({
+          // Failure issue
+          data: {
+            number: 42,
+            html_url: "https://github.com/test-owner/test-repo/issues/42",
+            node_id: "I_sub_42",
+          },
+        });
+
+      await main();
+
+      // Verify sub-issue count was checked
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
+        expect.stringContaining("subIssues"),
+        expect.objectContaining({
+          owner: "test-owner",
+          repo: "test-repo",
+          issueNumber: 1,
+        })
+      );
+
+      // Verify old parent was closed with a comment
+      expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith({
+        owner: "test-owner",
+        repo: "test-repo",
+        issue_number: 1,
+        body: expect.stringContaining("reached the maximum of 64 sub-issues"),
+      });
+
+      expect(mockGithub.rest.issues.update).toHaveBeenCalledWith({
+        owner: "test-owner",
+        repo: "test-repo",
+        issue_number: 1,
+        state: "closed",
+      });
+
+      // Verify new parent issue was created
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "[agentics] Agentic Workflow Issues",
+          labels: ["agentic-workflows"],
+        })
+      );
+
+      // Verify failure issue was created
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "[agentics] Test Workflow failed",
+          labels: ["agentic-workflows"],
+        })
+      );
+
+      // Verify sub-issue was linked to new parent (not old one)
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
+        expect.stringContaining("addSubIssue"),
+        {
+          parentId: "I_parent_2",
+          subIssueId: "I_sub_42",
+        }
+      );
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("has 64 sub-issues"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Closing parent issue #1"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Created parent issue #2"));
+    });
+
+    it("should reuse parent issue when sub-issue count is below 64", async () => {
+      // Mock searches
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          // First search: PR search (no PR found)
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Second search: existing parent issue
+          data: {
+            total_count: 1,
+            items: [
+              {
+                number: 5,
+                html_url: "https://github.com/test-owner/test-repo/issues/5",
+                node_id: "I_parent_5",
+              },
+            ],
+          },
+        })
+        .mockResolvedValueOnce({
+          // Third search: no failure issue
+          data: { total_count: 0, items: [] },
+        });
+
+      // Mock GraphQL query for sub-issue count (returns 30)
+      mockGithub.graphql = vi.fn()
+        .mockResolvedValueOnce({
+          // First call: check sub-issue count
+          repository: {
+            issue: {
+              subIssues: {
+                totalCount: 30,
+              },
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          // Second call: link sub-issue
+          addSubIssue: {
+            issue: { id: "I_parent_5", number: 5 },
+            subIssue: { id: "I_sub_42", number: 42 },
+          },
+        });
+
+      // Mock failure issue creation only (parent already exists)
+      mockGithub.rest.issues.create.mockResolvedValueOnce({
+        data: {
+          number: 42,
+          html_url: "https://github.com/test-owner/test-repo/issues/42",
+          node_id: "I_sub_42",
+        },
+      });
+
+      mockGithub.rest.issues.update = vi.fn();
+      mockGithub.rest.issues.createComment = vi.fn();
+
+      await main();
+
+      // Verify parent issue was NOT closed
+      expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
+
+      // Verify only one issue was created (failure issue, not parent)
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
+
+      // Verify sub-issue was linked to existing parent
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
+        expect.stringContaining("addSubIssue"),
+        {
+          parentId: "I_parent_5",
+          subIssueId: "I_sub_42",
+        }
+      );
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("has 30 sub-issues (within limit of 64)"));
+    });
+
+    it("should continue if sub-issue count check fails", async () => {
+      // Mock searches
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          // First search: PR search (no PR found)
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Second search: existing parent issue
+          data: {
+            total_count: 1,
+            items: [
+              {
+                number: 5,
+                html_url: "https://github.com/test-owner/test-repo/issues/5",
+                node_id: "I_parent_5",
+              },
+            ],
+          },
+        })
+        .mockResolvedValueOnce({
+          // Third search: no failure issue
+          data: { total_count: 0, items: [] },
+        });
+
+      // Mock GraphQL query failure for sub-issue count
+      mockGithub.graphql = vi.fn()
+        .mockRejectedValueOnce(new Error("GraphQL API Error"))
+        .mockResolvedValueOnce({
+          // Second call: link sub-issue
+          addSubIssue: {
+            issue: { id: "I_parent_5", number: 5 },
+            subIssue: { id: "I_sub_42", number: 42 },
+          },
+        });
+
+      // Mock failure issue creation
+      mockGithub.rest.issues.create.mockResolvedValueOnce({
+        data: {
+          number: 42,
+          html_url: "https://github.com/test-owner/test-repo/issues/42",
+          node_id: "I_sub_42",
+        },
+      });
+
+      await main();
+
+      // Verify warning was logged about count check failure
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not check sub-issue count"));
+
+      // Verify parent issue was still used (graceful degradation)
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Found existing parent issue #5"));
+    });
+
+    it("should handle parent closure failure gracefully and still create new parent", async () => {
+      // Mock searches
+      mockGithub.rest.search.issuesAndPullRequests
+        .mockResolvedValueOnce({
+          // First search: PR search (no PR found)
+          data: { total_count: 0, items: [] },
+        })
+        .mockResolvedValueOnce({
+          // Second search: existing parent issue with 64 sub-issues
+          data: {
+            total_count: 1,
+            items: [
+              {
+                number: 1,
+                html_url: "https://github.com/test-owner/test-repo/issues/1",
+                node_id: "I_parent_1",
+              },
+            ],
+          },
+        })
+        .mockResolvedValueOnce({
+          // Third search: no failure issue
+          data: { total_count: 0, items: [] },
+        });
+
+      // Mock GraphQL query for sub-issue count (returns 64)
+      mockGithub.graphql = vi.fn()
+        .mockResolvedValueOnce({
+          repository: {
+            issue: {
+              subIssues: {
+                totalCount: 64,
+              },
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          addSubIssue: {
+            issue: { id: "I_parent_2", number: 2 },
+            subIssue: { id: "I_sub_42", number: 42 },
+          },
+        });
+
+      // Mock closure comment to succeed but update to fail
+      mockGithub.rest.issues.createComment = vi.fn().mockResolvedValue({});
+      mockGithub.rest.issues.update = vi.fn().mockRejectedValue(new Error("API Error"));
+
+      // Mock issue creation
+      mockGithub.rest.issues.create
+        .mockResolvedValueOnce({
+          data: {
+            number: 2,
+            html_url: "https://github.com/test-owner/test-repo/issues/2",
+            node_id: "I_parent_2",
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            number: 42,
+            html_url: "https://github.com/test-owner/test-repo/issues/42",
+            node_id: "I_sub_42",
+          },
+        });
+
+      await main();
+
+      // Verify warning about closure failure
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to close parent issue"));
+
+      // Verify new parent was still created
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "[agentics] Agentic Workflow Issues",
+        })
+      );
+
+      // Verify failure issue was created and linked
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
+        expect.stringContaining("addSubIssue"),
+        expect.any(Object)
+      );
     });
   });
 });

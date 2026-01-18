@@ -9,6 +9,9 @@ const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const fs = require("fs");
 
+// Maximum number of sub-issues per parent issue
+const MAX_SUB_ISSUES = 64;
+
 /**
  * Attempt to find a pull request for the current branch
  * @returns {Promise<{number: number, html_url: string} | null>} PR info or null if not found
@@ -46,6 +49,76 @@ async function findPullRequestForCurrentBranch() {
 }
 
 /**
+ * Gets the sub-issue count for a parent issue using GraphQL
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} issueNumber - Issue number
+ * @returns {Promise<number|null>} - Sub-issue count or null if query failed
+ */
+async function getSubIssueCount(owner, repo, issueNumber) {
+  try {
+    const subIssueQuery = `
+      query($owner: String!, $repo: String!, $issueNumber: Int!) {
+        repository(owner: $owner, name: $repo) {
+          issue(number: $issueNumber) {
+            subIssues(first: 65) {
+              totalCount
+            }
+          }
+        }
+      }
+    `;
+
+    const result = await github.graphql(subIssueQuery, {
+      owner,
+      repo,
+      issueNumber,
+    });
+
+    return result?.repository?.issue?.subIssues?.totalCount || 0;
+  } catch (error) {
+    core.warning(`Could not check sub-issue count for #${issueNumber}: ${getErrorMessage(error)}`);
+    return null;
+  }
+}
+
+/**
+ * Close a parent issue with a comment explaining it reached the sub-issue limit
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} issueNumber - Issue number to close
+ * @param {number} subIssueCount - Number of sub-issues
+ */
+async function closeParentIssue(owner, repo, issueNumber, subIssueCount) {
+  try {
+    // Add a comment explaining why the issue is being closed
+    const closureComment = `This parent issue has reached the maximum of ${MAX_SUB_ISSUES} sub-issues (currently has ${subIssueCount}). A new parent issue will be created to continue tracking workflow failures.`;
+    
+    await github.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      body: closureComment,
+    });
+
+    core.info(`Added closure comment to issue #${issueNumber}`);
+
+    // Close the issue
+    await github.rest.issues.update({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      state: "closed",
+    });
+
+    core.info(`Closed parent issue #${issueNumber} (reached ${subIssueCount} sub-issues)`);
+  } catch (error) {
+    core.warning(`Failed to close parent issue #${issueNumber}: ${getErrorMessage(error)}`);
+    throw error;
+  }
+}
+
+/**
  * Search for or create the parent issue for all agentic workflow failures
  * @returns {Promise<{number: number, node_id: string}>} Parent issue number and node ID
  */
@@ -68,10 +141,31 @@ async function ensureParentIssue() {
     if (searchResult.data.total_count > 0) {
       const existingIssue = searchResult.data.items[0];
       core.info(`Found existing parent issue #${existingIssue.number}: ${existingIssue.html_url}`);
-      return {
-        number: existingIssue.number,
-        node_id: existingIssue.node_id,
-      };
+      
+      // Check the sub-issue count
+      const subIssueCount = await getSubIssueCount(owner, repo, existingIssue.number);
+      
+      if (subIssueCount !== null && subIssueCount >= MAX_SUB_ISSUES) {
+        core.warning(`Parent issue #${existingIssue.number} has ${subIssueCount} sub-issues (max: ${MAX_SUB_ISSUES})`);
+        core.info(`Closing parent issue #${existingIssue.number} and creating a new one`);
+        
+        try {
+          await closeParentIssue(owner, repo, existingIssue.number, subIssueCount);
+        } catch (error) {
+          core.warning(`Failed to close parent issue, but will continue to create new one: ${getErrorMessage(error)}`);
+        }
+        
+        // Fall through to create a new parent issue
+      } else {
+        // Parent issue is within limits, return it
+        if (subIssueCount !== null) {
+          core.info(`Parent issue has ${subIssueCount} sub-issues (within limit of ${MAX_SUB_ISSUES})`);
+        }
+        return {
+          number: existingIssue.number,
+          node_id: existingIssue.node_id,
+        };
+      }
     }
   } catch (error) {
     core.warning(`Error searching for parent issue: ${getErrorMessage(error)}`);
