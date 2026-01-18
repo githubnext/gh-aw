@@ -1,18 +1,15 @@
 package campaign
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
-	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
@@ -22,11 +19,6 @@ var campaignLog = logger.New("campaign:command")
 // This is a helper to avoid circular dependencies with cli package.
 func getWorkflowsDir() string {
 	return ".github/workflows"
-}
-
-var runGH = func(ctx context.Context, args ...string) ([]byte, error) {
-	cmd := workflow.ExecGHContext(ctx, args...)
-	return cmd.CombinedOutput()
 }
 
 // NewCommand creates the `gh aw campaign` command that surfaces
@@ -191,87 +183,7 @@ Examples:
 	validateCmd.Flags().Bool("strict", true, "Exit with non-zero status if any problems are found")
 	cmd.AddCommand(validateCmd)
 
-	// Subcommand: campaign trigger
-	triggerCmd := &cobra.Command{
-		Use:   "trigger <issue-number>",
-		Short: "Trigger the campaign-generator workflow by labeling an issue",
-		Long: `Trigger the campaign-generator workflow by applying the trigger label to an issue.
-
-This uses the GitHub CLI to add the label (default: "create-agentic-campaign"):
-	gh issue edit <issue-number> --add-label <label>
-
-This matches the campaign-generator's primary trigger (issue labeled).
-
-Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` campaign trigger 123
-  ` + string(constants.CLIExtensionPrefix) + ` campaign trigger 123 --repo owner/repo
-  ` + string(constants.CLIExtensionPrefix) + ` campaign trigger 123 --label create-agentic-campaign
-`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			repo, _ := cmd.Flags().GetString("repo")
-			label, _ := cmd.Flags().GetString("label")
-			return triggerCampaignGenerator(cmd.Context(), args[0], repo, label)
-		},
-	}
-
-	triggerCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
-	triggerCmd.Flags().String("label", "create-agentic-campaign", "Issue label that triggers the campaign generator")
-	cmd.AddCommand(triggerCmd)
-
 	return cmd
-}
-
-func triggerCampaignGenerator(ctx context.Context, issueNumber string, repo string, label string) error {
-	issueNumber = strings.TrimSpace(issueNumber)
-	if issueNumber == "" {
-		return errors.New("missing issue number")
-	}
-
-	if _, err := strconv.Atoi(issueNumber); err != nil {
-		return errors.New(console.FormatErrorWithSuggestions(
-			fmt.Sprintf("invalid issue number '%s'", issueNumber),
-			[]string{
-				"Provide a numeric issue number (e.g., '123')",
-				"Example: '" + string(constants.CLIExtensionPrefix) + " campaign trigger 123'",
-			},
-		))
-	}
-
-	// Fast check that gh is installed.
-	if _, err := runGH(ctx, "--version"); err != nil {
-		return errors.New(console.FormatErrorWithSuggestions(
-			"GitHub CLI ('gh') is required to trigger campaigns from the command line",
-			[]string{
-				"Install GitHub CLI: https://cli.github.com/",
-				"Authenticate: 'gh auth login'",
-				"Alternatively, add the label in the GitHub UI: 'create-agentic-campaign'",
-			},
-		))
-	}
-
-	args := []string{"issue", "edit", issueNumber, "--add-label", label}
-	if repo != "" {
-		args = append(args, "--repo", repo)
-	}
-
-	if output, err := runGH(ctx, args...); err != nil {
-		// Include gh output in the error for quick diagnosis.
-		msg := strings.TrimSpace(string(output))
-		if msg == "" {
-			return fmt.Errorf("failed to label issue #%s: %w", issueNumber, err)
-		}
-		return fmt.Errorf("failed to label issue #%s: %s", issueNumber, msg)
-	}
-
-	msg := fmt.Sprintf("Labeled issue #%s with '%s'", issueNumber, label)
-	if repo != "" {
-		msg += " in " + repo
-	}
-	msg += ". This should trigger the campaign-generator workflow (if installed)."
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(msg))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("If nothing happens, ensure the workflow exists under .github/workflows/campaign-generator.md (run 'gh aw init --campaign')."))
-	return nil
 }
 
 // runStatus is the implementation for the `gh aw campaign` command.
