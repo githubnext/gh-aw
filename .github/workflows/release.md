@@ -15,11 +15,6 @@ on:
           - patch
           - minor
           - major
-      draft:
-        description: 'Create as draft release'
-        required: false
-        type: boolean
-        default: true
 permissions:
   contents: read
   pull-requests: read
@@ -49,7 +44,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.compute_config.outputs.release_tag }}
-      draft_mode: ${{ steps.compute_config.outputs.draft_mode }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -64,11 +58,10 @@ jobs:
           script: |
             const isWorkflowDispatch = context.eventName === 'workflow_dispatch';
             
-            let releaseTag, draftMode;
+            let releaseTag;
             
             if (isWorkflowDispatch) {
               const releaseType = context.payload.inputs.release_type;
-              draftMode = context.payload.inputs.draft;
               
               console.log(`Computing next version for release type: ${releaseType}`);
               
@@ -107,14 +100,11 @@ jobs:
             } else {
               // For tag push events, use the tag from GITHUB_REF
               releaseTag = context.ref.replace('refs/tags/', '');
-              draftMode = 'false';
               console.log(`Using tag from push event: ${releaseTag}`);
             }
             
             core.setOutput('release_tag', releaseTag);
-            core.setOutput('draft_mode', draftMode);
             console.log(`✓ Release tag: ${releaseTag}`);
-            console.log(`✓ Draft mode: ${draftMode}`);
   release:
     needs: ["activation", "config"]
     runs-on: ubuntu-latest
@@ -214,30 +204,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-          DRAFT_MODE: ${{ needs.config.outputs.draft_mode }}
         run: |
           echo "Creating GitHub release: $RELEASE_TAG"
           
           # Create release with binaries (SBOM files will be added later)
-          RELEASE_ARGS=()
-          if [ "$DRAFT_MODE" = "true" ]; then
-            RELEASE_ARGS+=(--draft)
-            echo "Creating draft release"
-          fi
-          
-          # Create the release and upload binaries
           gh release create "$RELEASE_TAG" \
             dist/* \
             --title "$RELEASE_TAG" \
-            --generate-notes \
-            "${RELEASE_ARGS[@]}"
+            --generate-notes
           
           # Get release ID
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
           echo "✓ Release created: $RELEASE_TAG"
           echo "✓ Release ID: $RELEASE_ID"
-          echo "✓ Draft mode: $DRAFT_MODE"
 
       - name: Download Go modules
         run: go mod download
@@ -303,7 +283,7 @@ steps:
       echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
       
       # Get the current release information
-      # Use release ID to fetch release data (works for draft releases)
+      # Use release ID to fetch release data
       gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" > /tmp/gh-aw/release-data/current_release.json
       echo "✓ Fetched current release information"
       
