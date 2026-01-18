@@ -6,7 +6,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateXMLMarker } = require("./messages.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
-const { createExpirationLine } = require("./ephemerals.cjs");
+const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const fs = require("fs");
 
 /**
@@ -141,10 +141,12 @@ gh aw audit <run-id>
 
 > This issue is automatically managed by GitHub Agentic Workflows. Do not close this issue manually.`;
 
-  // Add expiration marker (7 days from now)
-  const expirationDate = new Date();
-  expirationDate.setDate(expirationDate.getDate() + 7);
-  const parentBody = `${parentBodyContent}\n\n${createExpirationLine(expirationDate)}`;
+  // Add expiration marker (7 days from now) inside the quoted section using helper
+  const footer = generateFooterWithExpiration({
+    footerText: parentBodyContent,
+    expiresHours: 24 * 7, // 7 days
+  });
+  const parentBody = footer;
 
   try {
     const newIssue = await github.rest.issues.create({
@@ -347,19 +349,15 @@ async function main() {
         };
         const footer = getFooterAgentFailureIssueMessage(ctx);
 
-        // Combine issue body with footer, expiration marker, and XML marker
-        const bodyLines = [issueBodyContent, "", footer];
+        // Add expiration marker (7 days from now) inside the quoted footer section using helper
+        const footerWithExpires = generateFooterWithExpiration({
+          footerText: footer,
+          expiresHours: 24 * 7, // 7 days
+          suffix: `\n\n${generateXMLMarker(workflowName, runUrl)}`,
+        });
 
-        // Add expiration marker (7 days from now)
-        const expirationDate = new Date();
-        expirationDate.setDate(expirationDate.getDate() + 7);
-        bodyLines.push(``);
-        bodyLines.push(createExpirationLine(expirationDate));
-
-        // Add XML marker for traceability
-        bodyLines.push(``);
-        bodyLines.push(generateXMLMarker(workflowName, runUrl));
-
+        // Combine issue body with footer
+        const bodyLines = [issueBodyContent, "", footerWithExpires];
         const issueBody = bodyLines.join("\n");
 
         const newIssue = await github.rest.issues.create({
