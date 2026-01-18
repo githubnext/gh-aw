@@ -1305,7 +1305,7 @@ jobs:
           
           ## Mission
           
-          Generate a daily report analyzing up to 1000 issues from the repository:
+          Generate a daily report analyzing up to 1000 issues from the repository (see `issues_analyzed` in specs/metrics-glossary.md):
           1. Cluster issues by topic/theme using natural language analysis
           2. Calculate various metrics (open/closed rates, response times, label distribution)
           3. Generate trend charts showing issue activity over time
@@ -1343,15 +1343,15 @@ jobs:
           - Identify 5-10 major issue clusters/themes
           - Label each cluster based on common keywords
           
-          **Metrics to Calculate**:
-          - Total issues (open vs closed)
-          - Issues opened in last 7, 14, 30 days
+          **Metrics to Calculate** (see specs/metrics-glossary.md for definitions):
+          - Total issues (open vs closed) - `total_issues`, `open_issues`, `closed_issues`
+          - Issues opened in last 7, 30 days - `issues_opened_7d`, `issues_opened_30d`
           - Average time to close (for closed issues)
           - Most active labels (by issue count)
           - Most active authors
-          - Issues without labels (need triage)
-          - Issues without assignees
-          - Stale issues (no activity in 30+ days)
+          - Issues without labels (need triage) - `issues_without_labels`
+          - Issues without assignees - `issues_without_assignees`
+          - Stale issues (no activity in 30+ days) - `stale_issues`
           
           ### Python Script Structure
           
@@ -1381,17 +1381,28 @@ jobs:
           df['updatedAt'] = pd.to_datetime(df['updatedAt'])
           df['closedAt'] = pd.to_datetime(df['closedAt'])
           
-          # Calculate basic metrics
+          # Calculate basic metrics (see specs/metrics-glossary.md for definitions)
+          
+          # Scope: All issues in repository, no filters
           total_issues = len(df)
+          
+          # Scope: Issues where state = "open" at report time
           open_issues = len(df[df['state'] == 'OPEN'])
+          
+          # Scope: Issues where state = "closed" at report time
           closed_issues = len(df[df['state'] == 'CLOSED'])
           
           # Time-based metrics
           now = datetime.now(df['createdAt'].iloc[0].tzinfo if len(df) > 0 else None)
-          issues_7d = len(df[df['createdAt'] > now - timedelta(days=7)])
-          issues_30d = len(df[df['createdAt'] > now - timedelta(days=30)])
+          
+          # Scope: Issues created in last 7 days
+          issues_opened_7d = len(df[df['createdAt'] > now - timedelta(days=7)])
+          
+          # Scope: Issues created in last 30 days
+          issues_opened_30d = len(df[df['createdAt'] > now - timedelta(days=30)])
           
           # Average time to close
+          # Scope: Closed issues with valid timestamps
           closed_df = df[df['closedAt'].notna()]
           if len(closed_df) > 0:
               closed_df['time_to_close'] = closed_df['closedAt'] - closed_df['createdAt']
@@ -1428,12 +1439,13 @@ jobs:
           df['cluster'] = df['title'].apply(cluster_by_keywords)
           
           # Save metrics to JSON for report
+          # Note: Using standardized metric names from specs/metrics-glossary.md
           metrics = {
               'total_issues': total_issues,
               'open_issues': open_issues,
               'closed_issues': closed_issues,
-              'issues_7d': issues_7d,
-              'issues_30d': issues_30d,
+              'issues_opened_7d': issues_opened_7d,  # Standardized name
+              'issues_opened_30d': issues_opened_30d,  # Standardized name
               'cluster_counts': df['cluster'].value_counts().to_dict()
           }
           with open('/tmp/gh-aw/python/data/metrics.json', 'w') as f:
@@ -1531,19 +1543,19 @@ jobs:
           ## 📊 Key Metrics
           
           ### Volume Metrics
-          - **Total Issues Analyzed**: [NUMBER]
-          - **Open Issues**: [NUMBER] ([PERCENT]%)
-          - **Closed Issues**: [NUMBER] ([PERCENT]%)
+          - **Total Issues Analyzed** (`issues_analyzed`): [NUMBER] (Scope: Last 1000 issues)
+          - **Open Issues** (`open_issues`): [NUMBER] ([PERCENT]%)
+          - **Closed Issues** (`closed_issues`): [NUMBER] ([PERCENT]%)
           
           ### Time-Based Metrics
-          - **Issues Opened (Last 7 Days)**: [NUMBER]
-          - **Issues Opened (Last 30 Days)**: [NUMBER]
+          - **Issues Opened (Last 7 Days)** (`issues_opened_7d`): [NUMBER]
+          - **Issues Opened (Last 30 Days)** (`issues_opened_30d`): [NUMBER]
           - **Average Time to Close**: [DURATION]
           
           ### Triage Metrics
-          - **Issues Without Labels**: [NUMBER]
-          - **Issues Without Assignees**: [NUMBER]
-          - **Stale Issues (30+ days)**: [NUMBER]
+          - **Issues Without Labels** (`issues_without_labels`): [NUMBER]
+          - **Issues Without Assignees** (`issues_without_assignees`): [NUMBER]
+          - **Stale Issues (30+ days)** (`stale_issues`): [NUMBER]
           
           ## 🏆 Top Labels
           

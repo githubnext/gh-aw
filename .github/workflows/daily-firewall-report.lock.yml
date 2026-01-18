@@ -871,7 +871,7 @@ jobs:
           
           ### Step 1: Collect Recent Firewall-Enabled Workflow Runs
           
-          Use the `logs` tool from the agentic-workflows MCP server to efficiently collect workflow runs that have firewall enabled:
+          Use the `logs` tool from the agentic-workflows MCP server to efficiently collect workflow runs that have firewall enabled (see `workflow_runs_analyzed` in specs/metrics-glossary.md - Scope: Last 7 days):
           
           **Using the logs tool:**
           Call the `logs` tool with the following parameters:
@@ -950,26 +950,26 @@ jobs:
           '
           ```
           
-          For each workflow run with firewall data:
+          For each workflow run with firewall data (see standardized metric names in specs/metrics-glossary.md):
           1. Extract the firewall analysis from the audit JSON output
           2. Track the following metrics per workflow:
-             - Total requests (from `total_requests`)
-             - Allowed requests count (from `allowed_requests`)
-             - Blocked requests count (from `blocked_requests`)
-             - List of unique blocked domains (from `blocked_domains`)
+             - Total requests (`firewall_requests_total`)
+             - Allowed requests count (`firewall_requests_allowed`)
+             - Blocked requests count (`firewall_requests_blocked`)
+             - List of unique blocked domains (`firewall_domains_blocked`)
              - Domain-level statistics (from `requests_by_domain`)
           
           ### Step 4: Aggregate Results
           
-          Combine data from all workflows:
+          Combine data from all workflows (using standardized metric names):
           1. Create a master list of all blocked domains across all workflows
           2. Track how many times each domain was blocked
           3. Track which workflows blocked which domains
           4. Calculate overall statistics:
-             - Total workflows analyzed
+             - Total workflows analyzed (`workflow_runs_analyzed` - Scope: Last 7 days)
              - Total runs analyzed
-             - Total blocked domains (unique)
-             - Total blocked requests
+             - Total blocked domains (`firewall_domains_blocked`) - unique count
+             - Total blocked requests (`firewall_requests_blocked`)
           
           ### Step 5: Generate Report
           
@@ -977,13 +977,13 @@ jobs:
           
           #### 1. Executive Summary
           - Date of report (today's date)
-          - Total workflows analyzed
+          - Total workflows analyzed (`workflow_runs_analyzed`)
           - Total runs analyzed  
-          - Total network requests monitored
-            - ✅ **Allowed**: Count of successful requests
-            - 🚫 **Blocked**: Count of blocked requests
+          - Total network requests monitored (`firewall_requests_total`)
+            - ✅ **Allowed** (`firewall_requests_allowed`): Count of successful requests
+            - 🚫 **Blocked** (`firewall_requests_blocked`): Count of blocked requests
           - **Block rate**: Percentage of blocked requests (blocked / total * 100)
-          - Total unique blocked domains
+          - Total unique blocked domains (`firewall_domains_blocked`)
           
           > **Terminology Note**: 
           > - **Allowed requests** = Requests that successfully reached their destination
