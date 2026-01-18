@@ -1010,9 +1010,11 @@ jobs:
           
           Review all daily report discussions from the last 24 hours and:
           1. Extract key metrics and statistics from each daily report
-          2. Cross-check numbers across different reports for consistency
+          2. Cross-check numbers across different reports for consistency (using specs/metrics-glossary.md for definitions)
           3. Identify potential issues, anomalies, or concerning trends
           4. Generate a regulatory report summarizing findings and flagging issues
+          
+          **Important**: Use the metrics glossary at specs/metrics-glossary.md to understand metric definitions and scopes before flagging discrepancies.
           
           ## Current Context
           
@@ -1067,25 +1069,32 @@ jobs:
           
           ### 2.1 Common Metrics to Extract
           
+          See specs/metrics-glossary.md for standardized metric definitions and scopes.
+          
           **Issues-related metrics:**
-          - Total issues analyzed
-          - Open issues count
-          - Closed issues count
-          - Issues opened in last 7/14/30 days
-          - Stale issues count
-          - Issues without labels
-          - Issues without assignees
+          - Total issues analyzed (`total_issues` - may differ by report scope)
+          - Open issues count (`open_issues`)
+          - Closed issues count (`closed_issues`)
+          - Issues opened in last 7/30 days (`issues_opened_7d`, `issues_opened_30d`)
+          - Stale issues count (`stale_issues`)
+          - Issues without labels (`issues_without_labels`)
+          - Issues without assignees (`issues_without_assignees`)
           
           **PR-related metrics:**
-          - Total PRs
-          - Merged PRs
-          - Open PRs
+          - Total PRs (`total_prs`)
+          - Merged PRs (`merged_prs`)
+          - Open PRs (`open_prs`)
           - Average merge time
           
           **Activity metrics:**
           - Total commits
           - Active contributors
           - Discussion count
+          
+          **Workflow metrics:**
+          - Workflow runs analyzed (`workflow_runs_analyzed` - document time range)
+          - Firewall-enabled workflows (`firewall_enabled_workflows`)
+          - MCP-enabled workflows (`mcp_enabled_workflows`)
           
           **Token/Cost metrics (if available):**
           - Total tokens consumed
@@ -1095,7 +1104,7 @@ jobs:
           **Error/Health metrics (if available):**
           - Job success rates
           - Error counts
-          - Blocked domains count
+          - Blocked domains count (`firewall_domains_blocked`)
           
           ### 2.2 Parsing Strategy
           
@@ -1124,20 +1133,52 @@ jobs:
           
           ### 3.2 Cross-Report Consistency Checks
           
-          Compare metrics across different reports:
-          - **Issue counts**: Do different reports agree on issue counts?
-          - **PR counts**: Are PR statistics consistent across reports?
+          Compare metrics across different reports using standardized names from specs/metrics-glossary.md:
+          
+          **Before flagging discrepancies:**
+          1. **Check metric scopes** - Review the glossary to understand if metrics have different scopes
+          2. **Document scope differences** - Note when metrics intentionally differ (e.g., `issues_analyzed` varies by report)
+          3. **Only flag true discrepancies** - Compare metrics with identical scopes and definitions
+          
+          **Examples of expected differences:**
+          - `issues_analyzed` in Daily Issues Report (1000 issues) vs Issue Arborist (100 open issues) - DIFFERENT SCOPES, not a discrepancy
+          - `open_issues` across all reports - SAME SCOPE, should match within 5-10%
+          
+          **What to compare:**
+          - **Issue counts**: Do different reports agree on `open_issues` and `closed_issues`?
+          - **PR counts**: Are `total_prs`, `merged_prs`, `open_prs` consistent across reports?
           - **Activity levels**: Do activity metrics align across reports?
           - **Time periods**: Are reports analyzing the same time windows?
           
           ### 3.3 Anomaly Detection
           
-          Flag potential issues:
-          - **Large discrepancies**: Numbers differ by more than 10% across reports
+          Flag potential issues (referencing specs/metrics-glossary.md for expected scopes):
+          - **Large discrepancies**: Numbers differ by more than 10% across reports **for metrics with identical scopes**
+          - **Scope mismatches**: Document when metrics have intentionally different scopes (e.g., `issues_analyzed`)
           - **Unexpected zeros**: Zero counts where there should be activity
           - **Unusual spikes**: Sudden large increases that seem unreasonable
           - **Missing data**: Reports that should have data but are empty
           - **Stale data**: Reports using outdated data
+          
+          **Example validation logic:**
+          ```bash
+          # When comparing open_issues across reports, check if they're within tolerance
+          # This metric has the same scope across all reports (see specs/metrics-glossary.md)
+          issues_report_open=150
+          arborist_report_open=148
+          tolerance=10  # 10% tolerance
+          
+          # Calculate percentage difference
+          diff=$((100 * (issues_report_open - arborist_report_open) / issues_report_open))
+          if [ $diff -gt $tolerance ]; then
+            echo "⚠️ Discrepancy in open_issues: Daily Issues ($issues_report_open) vs Issue Arborist ($arborist_report_open)"
+          fi
+          
+          # However, issues_analyzed should NOT be compared as they have different scopes:
+          # - Daily Issues Report: 1000 issues (see specs/metrics-glossary.md)
+          # - Issue Arborist: 100 open issues without parent (see specs/metrics-glossary.md)
+          # These are intentionally different and should be documented, not flagged as errors
+          ```
           
           ## Phase 4: Generate Regulatory Report
           
@@ -1170,12 +1211,19 @@ jobs:
           
           ### Cross-Report Metrics Comparison
           
-          | Metric | Issues Report | Performance Report | Chronicle | Status |
-          |--------|---------------|-------------------|-----------|--------|
-          | Open Issues | [N] | [N] | [N] | ✅/⚠️/❌ |
-          | Closed Issues | [N] | [N] | [N] | ✅/⚠️/❌ |
-          | Total PRs | [N] | [N] | [N] | ✅/⚠️/❌ |
-          | Merged PRs | [N] | [N] | [N] | ✅/⚠️/❌ |
+          Reference specs/metrics-glossary.md for metric definitions and scopes.
+          
+          | Metric | Issues Report | Performance Report | Chronicle | Scope Match | Status |
+          |--------|---------------|-------------------|-----------|-------------|--------|
+          | Open Issues (`open_issues`) | [N] | [N] | [N] | ✅ Same | ✅/⚠️/❌ |
+          | Closed Issues (`closed_issues`) | [N] | [N] | [N] | ✅ Same | ✅/⚠️/❌ |
+          | Total PRs (`total_prs`) | [N] | [N] | [N] | ✅ Same | ✅/⚠️/❌ |
+          | Merged PRs (`merged_prs`) | [N] | [N] | [N] | ✅ Same | ✅/⚠️/❌ |
+          | Issues Analyzed (`issues_analyzed`) | 1000 | - | - | ⚠️ Different Scopes | ℹ️ See Note |
+          
+          **Scope Notes:**
+          - `issues_analyzed`: Daily Issues (1000 total) vs Issue Arborist (100 open without parent) - Different scopes by design
+          - `workflow_runs_analyzed`: Firewall Report (7d) vs Observability (7d) - Same scope, should match
           
           ### Consistency Score
           
@@ -1189,9 +1237,11 @@ jobs:
           
           1. **[Issue Title]**
              - **Affected Reports**: [List of reports]
+             - **Metric**: [Metric name from specs/metrics-glossary.md]
              - **Description**: [What was found]
              - **Expected**: [What was expected]
              - **Actual**: [What was found]
+             - **Scope Analysis**: [Are the scopes identical? Reference glossary]
              - **Severity**: Critical / High / Medium / Low
              - **Recommended Action**: [Suggestion]
           
@@ -1272,6 +1322,7 @@ jobs:
           ---
           *Report generated automatically by the Daily Regulatory workflow*
           *Data sources: Daily report discussions from __GH_AW_GITHUB_REPOSITORY__*
+          *Metric definitions: specs/metrics-glossary.md*
           ```
           
           ## Phase 5: Close Previous Reports
