@@ -117,12 +117,10 @@ async function getSubIssueCount(owner, repo, issueNumber) {
  * @param {string} params.titlePrefix - Title prefix to use
  * @param {string[]} params.labels - Labels to apply to parent issue
  * @param {string} params.workflowName - Workflow name
- * @param {string} params.runUrl - Run URL
- * @param {string} params.workflowSource - Source path of the workflow
  * @param {string} params.workflowSourceURL - URL to the workflow source
  * @returns {Promise<number|null>} - Parent issue number or null if creation failed
  */
-async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labels, workflowName, runUrl, workflowSource, workflowSourceURL }) {
+async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labels, workflowName, workflowSourceURL }) {
   const markerComment = `<!-- gh-aw-group: ${groupId} -->`;
 
   // Search for existing parent issue with the group marker
@@ -135,7 +133,7 @@ async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labe
   // No suitable parent issue found, create a new one
   core.info(`Creating new parent issue for group: ${groupId}`);
   try {
-    const template = createParentIssueTemplate(groupId, titlePrefix, workflowName, runUrl, workflowSource, workflowSourceURL);
+    const template = createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowSourceURL);
     const { data: parentIssue } = await github.rest.issues.create({
       owner,
       repo,
@@ -157,12 +155,10 @@ async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labe
  * @param {string} groupId - The group identifier (workflow ID)
  * @param {string} titlePrefix - Title prefix to use
  * @param {string} workflowName - Name of the workflow
- * @param {string} runUrl - URL of the workflow run
- * @param {string} workflowSource - Source path of the workflow
  * @param {string} workflowSourceURL - URL to the workflow source
  * @returns {object} - Template with title and body
  */
-function createParentIssueTemplate(groupId, titlePrefix, workflowName, runUrl, workflowSource, workflowSourceURL) {
+function createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowSourceURL) {
   const title = `${titlePrefix}${groupId} - Issue Group`;
 
   // Load issue template
@@ -174,8 +170,6 @@ function createParentIssueTemplate(groupId, titlePrefix, workflowName, runUrl, w
     group_id: groupId,
     workflow_name: workflowName,
     workflow_source_url: workflowSourceURL || "#",
-    run_url: runUrl,
-    workflow_source: workflowSource,
   };
 
   // Render the issue template
@@ -467,8 +461,6 @@ async function main(config = {}) {
             titlePrefix,
             labels,
             workflowName,
-            runUrl,
-            workflowSource,
             workflowSourceURL,
           });
 
