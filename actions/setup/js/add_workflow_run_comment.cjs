@@ -153,17 +153,17 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
 
   // Add workflow-id marker if available
   if (workflowId) {
-    commentBody += `\n\n<!-- workflow-id: ${workflowId} -->`;
+    commentBody += `\n\n<!-- gh-aw-workflow-id: ${workflowId} -->`;
   }
 
   // Add tracker-id marker if available (for backwards compatibility)
   if (trackerId) {
-    commentBody += `\n\n<!-- tracker-id: ${trackerId} -->`;
+    commentBody += `\n\n<!-- gh-aw-tracker-id: ${trackerId} -->`;
   }
 
   // Add comment type marker to identify this as a reaction comment
   // This prevents it from being hidden by hide-older-comments
-  commentBody += `\n\n<!-- comment-type: reaction -->`;
+  commentBody += `\n\n<!-- gh-aw-comment-type: reaction -->`;
 
   // Handle discussion events specially
   if (eventName === "discussion") {

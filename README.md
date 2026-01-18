@@ -2,13 +2,6 @@
 
 Write agentic workflows in natural language markdown, and run them in GitHub Actions.
 
-<!--
-> [!NOTE]
-> **For AI Agents**: To learn about GitHub Agentic Workflows syntax, file formats, tools, and best practices, please read the comprehensive instructions at: [.github/aw/github-agentic-workflows.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/aw/github-agentic-workflows.md)
->
-> **Custom Agent**: Use the custom agent at `.github/agents/create-agentic-workflow.md` to interactively create agentic workflows. The custom agent is available at: [.github/agents/create-agentic-workflow.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/agents/create-agentic-workflow.md)
--->
-
 ## Contents
 
 - [Quick Start](#quick-start)
@@ -96,3 +89,12 @@ GitHub Agentic Workflows is supported by companion projects that provide additio
 - **[Agent Workflow Firewall (AWF)](https://github.com/githubnext/gh-aw-firewall)** - Network egress control for AI agents, providing domain-based access controls and activity logging for secure workflow execution
 - **[MCP Gateway](https://github.com/githubnext/gh-aw-mcpg)** - Routes Model Context Protocol (MCP) server calls through a unified HTTP gateway for centralized access management
 - **[The Agentics](https://github.com/githubnext/agentics)** - A collection of reusable agentic workflow components, tools, and templates to accelerate workflow development
+
+---
+
+> [!TIP]
+> **For AI Agents**: To learn about GitHub Agentic Workflows syntax, file formats, tools, and best practices, please read the comprehensive instructions at [.github/aw/github-agentic-workflows.md](.github/aw/github-agentic-workflows.md)
+>
+> **Repository Configuration**: To configure a repository for GitHub Agentic Workflows, follow the interactive setup wizard at [install.md](install.md)
+>
+> **Custom Agent**: Use the custom agent at [.github/agents/agentic-workflows.agent.md](.github/agents/agentic-workflows.agent.md) to interactively create agentic workflows.

@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - '**.md'
+      - '**.mdx'
       - '.github/workflows/link-check.yml'
       - '.github/.markdown-link-check.json'
   pull_request:
     paths:
       - '**.md'
+      - '**.mdx'
       - '.github/workflows/link-check.yml'
       - '.github/.markdown-link-check.json'
   workflow_dispatch:
@@ -29,10 +31,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
-      - name: Check Markdown links
+      - name: Check Markdown links in reports
         uses: gaurav-nelson/github-action-markdown-link-check@5c5dfc0ac2e225883c0e5f03a85311ec2830d368 # v1
         with:
           use-quiet-mode: 'no'
           config-file: '.github/.markdown-link-check.json'
           folder-path: 'reports/'
           file-extension: '.md'
+      
+      - name: Check Markdown links in docs
+        uses: gaurav-nelson/github-action-markdown-link-check@5c5dfc0ac2e225883c0e5f03a85311ec2830d368 # v1
+        with:
+          use-quiet-mode: 'no'
+          config-file: '.github/.markdown-link-check.json'
+          folder-path: 'docs/'
+          file-extension: '.md,.mdx'

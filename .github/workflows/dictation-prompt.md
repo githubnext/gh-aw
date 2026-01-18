@@ -55,6 +55,7 @@ Scan documentation files in `docs/src/content/docs/` to extract approximately 25
 **Focus areas:**
 - Configuration: safe-outputs, permissions, tools, cache-memory, toolset, frontmatter
 - Engines: copilot, claude, codex, custom
+- Bot mentions: @copilot (for GitHub issue assignment)
 - Commands: compile, audit, logs, mcp, recompile
 - GitHub concepts: workflow_dispatch, pull_request, issues, discussions
 - Repository-specific: agentic workflows, gh-aw, activation, MCP servers

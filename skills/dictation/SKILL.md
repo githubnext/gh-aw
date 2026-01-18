@@ -12,6 +12,7 @@ GitHub Agentic Workflows (gh-aw) is a CLI tool for writing agentic workflows in 
 
 ## Project Glossary
 
+@copilot
 actions
 activation
 add-comment
@@ -311,9 +312,12 @@ Common speech-to-text misrecognitions and their corrections:
 - "create issue" → create-issue
 - "pull request review" → pull-request-review
 
-### AI Engines
-- "co-pilot" → copilot
+### AI Engines & Bots
+- "co-pilot" → copilot (when referring to the engine)
 - "Co-Pilot" → Copilot
+- "at copilot" → @copilot (when assigning/mentioning the bot)
+- "@ copilot" → @copilot
+- "copilot" → @copilot (when context indicates assignment or mention)
 - "code X" → codex
 - "Code X" → Codex
 

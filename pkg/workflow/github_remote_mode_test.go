@@ -383,3 +383,133 @@ func TestGitHubRemoteModeHelperFunctions(t *testing.T) {
 		}
 	})
 }
+
+// TestCopilotGitHubRemotePersonalAccessTokenExport tests that when using Copilot engine
+// with GitHub remote MCP, the workflow correctly exports GITHUB_PERSONAL_ACCESS_TOKEN
+// and passes it to the Docker container. This fixes the authentication issue where the
+// MCP gateway validates ${VAR} references in headers at config load time.
+func TestCopilotGitHubRemotePersonalAccessTokenExport(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "copilot-github-remote-pat-test")
+	compiler := NewCompiler(false, "", "test")
+
+	frontmatter := `---
+on: issues
+permissions:
+  issues: read
+engine: copilot
+strict: false
+tools:
+  github:
+    mode: remote
+    toolsets: [issues]
+---`
+
+	testContent := frontmatter + `
+
+# Test Copilot GitHub Remote PAT Export
+
+This tests that GITHUB_PERSONAL_ACCESS_TOKEN is exported and passed to Docker.
+`
+
+	testFile := filepath.Join(tmpDir, "copilot-github-remote-pat-workflow.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Compile the workflow
+	err := compiler.CompileWorkflow(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error compiling workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContent := string(content)
+
+	// Check that GITHUB_PERSONAL_ACCESS_TOKEN is exported in the shell
+	if !strings.Contains(lockContent, `export GITHUB_PERSONAL_ACCESS_TOKEN="$GITHUB_MCP_SERVER_TOKEN"`) {
+		t.Errorf("Expected 'export GITHUB_PERSONAL_ACCESS_TOKEN=\"$GITHUB_MCP_SERVER_TOKEN\"' but didn't find it in lock file")
+	}
+
+	// Check that GITHUB_PERSONAL_ACCESS_TOKEN is passed to Docker with -e flag
+	if !strings.Contains(lockContent, "-e GITHUB_PERSONAL_ACCESS_TOKEN") {
+		t.Errorf("Expected '-e GITHUB_PERSONAL_ACCESS_TOKEN' in Docker command but didn't find it in lock file")
+	}
+
+	// Check that the MCP config still uses the ${} syntax
+	if !strings.Contains(lockContent, `"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`) {
+		t.Errorf("Expected Authorization header with ${GITHUB_PERSONAL_ACCESS_TOKEN} syntax but didn't find it in lock file")
+	}
+
+	// Check that the env section still defines the variable
+	if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`) {
+		t.Errorf("Expected env section with GITHUB_PERSONAL_ACCESS_TOKEN but didn't find it in lock file")
+	}
+}
+
+// TestClaudeGitHubRemoteNoPersonalAccessToken tests that when using Claude engine
+// with GitHub remote MCP, the workflow does NOT export GITHUB_PERSONAL_ACCESS_TOKEN
+// since Claude uses a different auth pattern (direct $GITHUB_MCP_SERVER_TOKEN).
+func TestClaudeGitHubRemoteNoPersonalAccessToken(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "claude-github-remote-no-pat-test")
+	compiler := NewCompiler(false, "", "test")
+
+	frontmatter := `---
+on: issues
+permissions:
+  issues: read
+engine: claude
+strict: false
+tools:
+  github:
+    mode: remote
+    toolsets: [issues]
+---`
+
+	testContent := frontmatter + `
+
+# Test Claude GitHub Remote No PAT Export
+
+This tests that GITHUB_PERSONAL_ACCESS_TOKEN is NOT exported for Claude.
+`
+
+	testFile := filepath.Join(tmpDir, "claude-github-remote-no-pat-workflow.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Compile the workflow
+	err := compiler.CompileWorkflow(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error compiling workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContent := string(content)
+
+	// Check that GITHUB_PERSONAL_ACCESS_TOKEN is NOT exported for Claude
+	if strings.Contains(lockContent, `export GITHUB_PERSONAL_ACCESS_TOKEN`) {
+		t.Errorf("Did not expect 'export GITHUB_PERSONAL_ACCESS_TOKEN' in Claude workflow but found it")
+	}
+
+	// Check that GITHUB_PERSONAL_ACCESS_TOKEN is NOT passed to Docker
+	if strings.Contains(lockContent, "-e GITHUB_PERSONAL_ACCESS_TOKEN") {
+		t.Errorf("Did not expect '-e GITHUB_PERSONAL_ACCESS_TOKEN' in Claude workflow Docker command but found it")
+	}
+
+	// Claude should use direct $GITHUB_MCP_SERVER_TOKEN in Authorization header
+	if !strings.Contains(lockContent, `"Authorization": "Bearer $GITHUB_MCP_SERVER_TOKEN"`) {
+		t.Errorf("Expected Authorization header with $GITHUB_MCP_SERVER_TOKEN for Claude but didn't find it")
+	}
+}

@@ -1,8 +1,10 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createExpirationLine } = require("./ephemerals.cjs");
+
 /**
- * Add expiration XML comment to body lines if expires is set
+ * Add expiration checkbox with XML comment to body lines if expires is set
  * @param {string[]} bodyLines - Array of body lines to append to
  * @param {string} envVarName - Name of the environment variable containing expires hours (e.g., "GH_AW_DISCUSSION_EXPIRES")
  * @param {string} entityType - Type of entity for logging (e.g., "Discussion", "Issue", "Pull Request")
@@ -15,9 +17,8 @@ function addExpirationComment(bodyLines, envVarName, entityType) {
     if (!isNaN(expiresHours) && expiresHours > 0) {
       const expirationDate = new Date();
       expirationDate.setHours(expirationDate.getHours() + expiresHours);
-      const expirationISO = expirationDate.toISOString();
-      bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
-      core.info(`${entityType} will expire on ${expirationISO} (${expiresHours} hours)`);
+      bodyLines.push(createExpirationLine(expirationDate));
+      core.info(`${entityType} will expire on ${expirationDate.toISOString()} (${expiresHours} hours)`);
     }
   }
 }

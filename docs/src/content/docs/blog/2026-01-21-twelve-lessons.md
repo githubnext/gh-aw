@@ -81,12 +81,6 @@ As workflows start using multiple MCP servers, having agents that can validate a
 
 Early on, we'd see agents fail with vague errors like "connection refused." The MCP Inspector proactively checks all MCP server configurations, validates network access, and generates status reports. This visibility transformed debugging from hours of detective work into reading a dashboard.
 
-### Dispatcher Patterns Scale Command Complexity
-
-Instead of one monolithic agent handling all requests, dispatcher agents could route to specialized sub-agents or commands. This made the system more maintainable and allowed for progressive feature addition.
-
-The [Workflow Generator](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-generator.md) and [Campaign Generator](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/campaign-generator.md) demonstrated this pattern well. Rather than cramming all generation logic into one massive prompt, they identified user intent and dispatched to specialized generation workflows. This kept individual agents focused and made the system easier to extend.
-
 ### Task Queuing Is Everywhere
 
 The task queue pattern provided a simple way to queue and distribute work across multiple workflow runs. Breaking large projects into discrete tasks allowed incremental progress with clear state tracking, recording tasks as issues, discussions, or project cards.

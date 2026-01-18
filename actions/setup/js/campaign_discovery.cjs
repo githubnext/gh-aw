@@ -122,8 +122,8 @@ async function searchByTrackerId(octokit, trackerId, repos, maxItems, maxPages, 
   core.info(`Searching for tracker-id: ${trackerId}`);
 
   // Search in issues and PRs
-  // Format: "tracker-id: workflow-name" appears in issue/PR body or comments
-  const searchQuery = `"tracker-id: ${trackerId}" type:issue`;
+  // Format: "gh-aw-tracker-id: workflow-name" appears in issue/PR body or comments
+  const searchQuery = `"gh-aw-tracker-id: ${trackerId}" type:issue`;
 
   try {
     let page = cursor?.page || 1;
