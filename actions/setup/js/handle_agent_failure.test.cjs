@@ -141,7 +141,8 @@ describe("handle_agent_failure.cjs", () => {
       expect(parentCreateCall.body).toMatch(/- \[x\] expires <!-- gh-aw-expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z --> on .+ UTC/);
 
       // Verify failure issue was created (second call, after parent issue)
-      expect(mockGithub.rest.issues.create).toHaveBeenNthCalledWith(2,
+      expect(mockGithub.rest.issues.create).toHaveBeenNthCalledWith(
+        2,
         expect.objectContaining({
           owner: "test-owner",
           repo: "test-repo",
@@ -197,7 +198,8 @@ describe("handle_agent_failure.cjs", () => {
       });
 
       // Mock GraphQL - first check sub-issue count (30), then link sub-issue
-      mockGithub.graphql = vi.fn()
+      mockGithub.graphql = vi
+        .fn()
         .mockResolvedValueOnce({
           // Sub-issue count check
           repository: {
@@ -352,7 +354,8 @@ describe("handle_agent_failure.cjs", () => {
       });
 
       // Verify failure issue was created (second call, after parent issue)
-      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+      expect(mockGithub.rest.issues.create).toHaveBeenNthCalledWith(
+        2,
         expect.objectContaining({
           owner: "test-owner",
           repo: "test-repo",
@@ -410,6 +413,17 @@ describe("handle_agent_failure.cjs", () => {
             ],
           },
         });
+
+      // Mock GraphQL sub-issue count check (parent exists with < 64 sub-issues)
+      mockGithub.graphql = vi.fn().mockResolvedValue({
+        repository: {
+          issue: {
+            subIssues: {
+              totalCount: 20,
+            },
+          },
+        },
+      });
 
       mockGithub.rest.issues.createComment.mockResolvedValue({});
 
@@ -755,7 +769,8 @@ describe("handle_agent_failure.cjs", () => {
         });
 
       // Mock GraphQL query for sub-issue count (returns 64)
-      mockGithub.graphql = vi.fn()
+      mockGithub.graphql = vi
+        .fn()
         .mockResolvedValueOnce({
           // First call: check sub-issue count
           repository: {
@@ -839,13 +854,10 @@ describe("handle_agent_failure.cjs", () => {
       );
 
       // Verify sub-issue was linked to new parent (not old one)
-      expect(mockGithub.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("addSubIssue"),
-        {
-          parentId: "I_parent_2",
-          subIssueId: "I_sub_42",
-        }
-      );
+      expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("addSubIssue"), {
+        parentId: "I_parent_2",
+        subIssueId: "I_sub_42",
+      });
 
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("has 64 sub-issues"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Closing parent issue #1"));
@@ -878,7 +890,8 @@ describe("handle_agent_failure.cjs", () => {
         });
 
       // Mock GraphQL query for sub-issue count (returns 30)
-      mockGithub.graphql = vi.fn()
+      mockGithub.graphql = vi
+        .fn()
         .mockResolvedValueOnce({
           // First call: check sub-issue count
           repository: {
@@ -918,13 +931,10 @@ describe("handle_agent_failure.cjs", () => {
       expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(1);
 
       // Verify sub-issue was linked to existing parent
-      expect(mockGithub.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("addSubIssue"),
-        {
-          parentId: "I_parent_5",
-          subIssueId: "I_sub_42",
-        }
-      );
+      expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("addSubIssue"), {
+        parentId: "I_parent_5",
+        subIssueId: "I_sub_42",
+      });
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("has 30 sub-issues (within limit of 64)"));
     });
@@ -955,7 +965,8 @@ describe("handle_agent_failure.cjs", () => {
         });
 
       // Mock GraphQL query failure for sub-issue count
-      mockGithub.graphql = vi.fn()
+      mockGithub.graphql = vi
+        .fn()
         .mockRejectedValueOnce(new Error("GraphQL API Error"))
         .mockResolvedValueOnce({
           // Second call: link sub-issue
@@ -1010,7 +1021,8 @@ describe("handle_agent_failure.cjs", () => {
         });
 
       // Mock GraphQL query for sub-issue count (returns 64)
-      mockGithub.graphql = vi.fn()
+      mockGithub.graphql = vi
+        .fn()
         .mockResolvedValueOnce({
           repository: {
             issue: {
@@ -1061,10 +1073,7 @@ describe("handle_agent_failure.cjs", () => {
       );
 
       // Verify failure issue was created and linked
-      expect(mockGithub.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("addSubIssue"),
-        expect.any(Object)
-      );
+      expect(mockGithub.graphql).toHaveBeenCalledWith(expect.stringContaining("addSubIssue"), expect.any(Object));
     });
   });
 });

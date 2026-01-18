@@ -93,7 +93,7 @@ async function closeParentIssue(owner, repo, issueNumber, subIssueCount) {
   try {
     // Add a comment explaining why the issue is being closed
     const closureComment = `This parent issue has reached the maximum of ${MAX_SUB_ISSUES} sub-issues (currently has ${subIssueCount}). A new parent issue will be created to continue tracking workflow failures.`;
-    
+
     await github.rest.issues.createComment({
       owner,
       repo,
@@ -141,20 +141,20 @@ async function ensureParentIssue() {
     if (searchResult.data.total_count > 0) {
       const existingIssue = searchResult.data.items[0];
       core.info(`Found existing parent issue #${existingIssue.number}: ${existingIssue.html_url}`);
-      
+
       // Check the sub-issue count
       const subIssueCount = await getSubIssueCount(owner, repo, existingIssue.number);
-      
+
       if (subIssueCount !== null && subIssueCount >= MAX_SUB_ISSUES) {
         core.warning(`Parent issue #${existingIssue.number} has ${subIssueCount} sub-issues (max: ${MAX_SUB_ISSUES})`);
         core.info(`Closing parent issue #${existingIssue.number} and creating a new one`);
-        
+
         try {
           await closeParentIssue(owner, repo, existingIssue.number, subIssueCount);
         } catch (error) {
           core.warning(`Failed to close parent issue, but will continue to create new one: ${getErrorMessage(error)}`);
         }
-        
+
         // Fall through to create a new parent issue
       } else {
         // Parent issue is within limits, return it
