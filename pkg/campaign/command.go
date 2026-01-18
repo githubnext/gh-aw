@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
+	"path/filepath"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -49,6 +49,7 @@ Available subcommands:
 	• status   - Show live status for campaigns (compiled workflows, repo-memory)
   • new      - Create a new campaign spec file
   • validate - Validate campaign spec files for common issues
+  • init     - Install the campaign-generator workflow
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` campaign                      # List all campaigns
@@ -56,6 +57,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` campaign --json               # Output campaign definitions as JSON
   ` + string(constants.CLIExtensionPrefix) + ` campaign status               # Show live campaign status with issue/PR counts
   ` + string(constants.CLIExtensionPrefix) + ` campaign new security-q1-2025 # Create new campaign spec
+  ` + string(constants.CLIExtensionPrefix) + ` campaign init                 # Install campaign-generator workflow
 `,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -191,86 +193,103 @@ Examples:
 	validateCmd.Flags().Bool("strict", true, "Exit with non-zero status if any problems are found")
 	cmd.AddCommand(validateCmd)
 
-	// Subcommand: campaign trigger
-	triggerCmd := &cobra.Command{
-		Use:   "trigger <issue-number>",
-		Short: "Trigger the campaign-generator workflow by labeling an issue",
-		Long: `Trigger the campaign-generator workflow by applying the trigger label to an issue.
+	// Subcommand: campaign init
+	initCmd := &cobra.Command{
+		Use:   "init",
+		Short: "Install the campaign-generator workflow to .github/workflows/",
+		Long: `Install the campaign-generator workflow to .github/workflows/.
 
-This uses the GitHub CLI to add the label (default: "create-agentic-campaign"):
-	gh issue edit <issue-number> --add-label <label>
+This copies the campaign-generator.md workflow file from .github/aw/ to
+.github/workflows/, allowing the workflow to be triggered when issues
+are labeled with "create-agentic-campaign".
 
-This matches the campaign-generator's primary trigger (issue labeled).
+After installation, compile the workflow with:
+  ` + string(constants.CLIExtensionPrefix) + ` compile campaign-generator
 
 Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` campaign trigger 123
-  ` + string(constants.CLIExtensionPrefix) + ` campaign trigger 123 --repo owner/repo
-  ` + string(constants.CLIExtensionPrefix) + ` campaign trigger 123 --label create-agentic-campaign
+  ` + string(constants.CLIExtensionPrefix) + ` campaign init
+  ` + string(constants.CLIExtensionPrefix) + ` campaign init --force  # Overwrite if exists
 `,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			repo, _ := cmd.Flags().GetString("repo")
-			label, _ := cmd.Flags().GetString("label")
-			return triggerCampaignGenerator(cmd.Context(), args[0], repo, label)
+			force, _ := cmd.Flags().GetBool("force")
+			return initCampaignGenerator(force)
 		},
 	}
 
-	triggerCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
-	triggerCmd.Flags().String("label", "create-agentic-campaign", "Issue label that triggers the campaign generator")
-	cmd.AddCommand(triggerCmd)
+	initCmd.Flags().Bool("force", false, "Overwrite existing workflow file if it already exists")
+	cmd.AddCommand(initCmd)
 
 	return cmd
 }
 
-func triggerCampaignGenerator(ctx context.Context, issueNumber string, repo string, label string) error {
-	issueNumber = strings.TrimSpace(issueNumber)
-	if issueNumber == "" {
-		return errors.New("missing issue number")
+func initCampaignGenerator(force bool) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
-	if _, err := strconv.Atoi(issueNumber); err != nil {
-		return errors.New(console.FormatErrorWithSuggestions(
-			fmt.Sprintf("invalid issue number '%s'", issueNumber),
-			[]string{
-				"Provide a numeric issue number (e.g., '123')",
-				"Example: '" + string(constants.CLIExtensionPrefix) + " campaign trigger 123'",
-			},
-		))
-	}
+	// Source file in .github/aw/
+	sourcePath := filepath.Join(cwd, ".github", "aw", "campaign-generator.md")
 
-	// Fast check that gh is installed.
-	if _, err := runGH(ctx, "--version"); err != nil {
-		return errors.New(console.FormatErrorWithSuggestions(
-			"GitHub CLI ('gh') is required to trigger campaigns from the command line",
-			[]string{
-				"Install GitHub CLI: https://cli.github.com/",
-				"Authenticate: 'gh auth login'",
-				"Alternatively, add the label in the GitHub UI: 'create-agentic-campaign'",
-			},
-		))
-	}
+	// Destination file in .github/workflows/
+	destPath := filepath.Join(cwd, ".github", "workflows", "campaign-generator.md")
 
-	args := []string{"issue", "edit", issueNumber, "--add-label", label}
-	if repo != "" {
-		args = append(args, "--repo", repo)
-	}
-
-	if output, err := runGH(ctx, args...); err != nil {
-		// Include gh output in the error for quick diagnosis.
-		msg := strings.TrimSpace(string(output))
-		if msg == "" {
-			return fmt.Errorf("failed to label issue #%s: %w", issueNumber, err)
+	// Check if source file exists
+	if _, err := os.Stat(sourcePath); err != nil {
+		if os.IsNotExist(err) {
+			return errors.New(console.FormatErrorWithSuggestions(
+				fmt.Sprintf("campaign-generator workflow not found at %s", sourcePath),
+				[]string{
+					"Ensure you're in the root directory of the gh-aw repository",
+					"The campaign-generator.md file should exist in .github/aw/",
+					"If this repository doesn't have the campaign-generator workflow, it may not support campaigns",
+				},
+			))
 		}
-		return fmt.Errorf("failed to label issue #%s: %s", issueNumber, msg)
+		return fmt.Errorf("failed to access source file: %w", err)
 	}
 
-	msg := fmt.Sprintf("Labeled issue #%s with '%s'", issueNumber, label)
-	if repo != "" {
-		msg += " in " + repo
+	// Check if destination file exists (unless force flag is set)
+	if !force {
+		if _, err := os.Stat(destPath); err == nil {
+			return errors.New(console.FormatErrorWithSuggestions(
+				fmt.Sprintf("campaign-generator workflow already exists at %s", destPath),
+				[]string{
+					"Use --force flag to overwrite the existing workflow",
+					"Example: '" + string(constants.CLIExtensionPrefix) + " campaign init --force'",
+					"Remove the existing file manually if you want to replace it",
+				},
+			))
+		}
 	}
-	msg += ". This should trigger the campaign-generator workflow (if installed)."
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(msg))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("If nothing happens, ensure the workflow exists under .github/workflows/campaign-generator.md (run 'gh aw init --campaign')."))
+
+	// Read source file
+	content, err := os.ReadFile(sourcePath)
+	if err != nil {
+		return fmt.Errorf("failed to read source file: %w", err)
+	}
+
+	// Ensure destination directory exists
+	destDir := filepath.Dir(destPath)
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	// Write destination file
+	if err := os.WriteFile(destPath, content, 0644); err != nil {
+		return fmt.Errorf("failed to write destination file: %w", err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(
+		fmt.Sprintf("Campaign-generator workflow installed at %s", destPath),
+	))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+		"Next steps:\n"+
+			"  1. Compile the workflow: 'gh aw compile campaign-generator'\n"+
+			"  2. Commit and push the workflow files\n"+
+			"  3. Label an issue with 'create-agentic-campaign' to trigger the workflow",
+	))
 	return nil
 }
 
