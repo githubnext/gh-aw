@@ -113,11 +113,6 @@ examples/*.lock.yml
 # Only the source (.campaign.md) and compiled (.campaign.g.lock.yml) files are committed
 *.campaign.g.md
 
-# Campaign generator synced from .github/aw/ to .github/workflows/ at compile time
-# Source of truth is in .github/aw/campaign-generator.md
-.github/workflows/campaign-generator.md
-.github/workflows/campaign-generator.lock.yml
-
 # Large test data files
 pkg/workflow/js/test-data/*.log
 pkg/workflow/js/test-*/

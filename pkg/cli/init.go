@@ -291,16 +291,17 @@ func addCampaignGeneratorWorkflow(verbose bool) error {
 		return fmt.Errorf("failed to find git root: %w", err)
 	}
 
-	// Determine the aw directory (for core workflows)
-	awDir := filepath.Join(gitRoot, ".github", "aw")
-	if err := os.MkdirAll(awDir, 0755); err != nil {
-		initLog.Printf("Failed to create aw directory: %v", err)
-		return fmt.Errorf("failed to create aw directory: %w", err)
+	// Create campaign-generator directly in .github/workflows/ (like campaign orchestrators)
+	// This allows GitHub Actions to discover and trigger the workflow
+	workflowsDir := filepath.Join(gitRoot, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		initLog.Printf("Failed to create workflows directory: %v", err)
+		return fmt.Errorf("failed to create workflows directory: %w", err)
 	}
 
 	// Build the campaign-generator workflow
 	data := campaign.BuildCampaignGenerator()
-	workflowPath := filepath.Join(awDir, "campaign-generator.md")
+	workflowPath := filepath.Join(workflowsDir, "campaign-generator.md")
 
 	// Render the workflow to markdown
 	content := renderCampaignGeneratorMarkdown(data)
