@@ -3,6 +3,9 @@ title: CLI commands
 description: Command reference for managing agentic campaigns with gh aw
 ---
 
+> [!WARNING]
+> **Please do not use at this time.** Campaigns are currently in build phase and not ready for production. This feature is under active development and may have breaking changes.
+
 The GitHub Agentic Workflows CLI provides commands for inspecting, validating, and managing agentic campaigns.
 
 > [!IMPORTANT]

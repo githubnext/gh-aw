@@ -3,6 +3,10 @@ title: Comparison with GitHub Security Campaigns
 description: How GitHub's agentic campaigns and security campaigns compare
 ---
 
+
+> [!WARNING]
+> **Please do not use at this time.** Campaigns are currently in build phase and not ready for production. This feature is under active development and may have breaking changes.
+
 **GitHub Security Campaigns** (Enterprise Cloud only) focus on remediating security alerts through alert assignment and Copilot Autofix.
 
 **Agentic campaigns** are flexible automation initiatives for any repeatable work, coordinated by AI agents via GitHub Actions workflows.

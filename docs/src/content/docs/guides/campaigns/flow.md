@@ -3,6 +3,10 @@ title: Campaign Flow & Lifecycle
 description: Complete guide to campaign execution flow, from startup to completion, including incident handling and governance.
 ---
 
+
+> [!WARNING]
+> **Please do not use at this time.** Campaigns are currently in build phase and not ready for production. This feature is under active development and may have breaking changes.
+
 This guide provides a comprehensive overview of how campaigns execute from start to finish, covering the complete lifecycle including startup, ongoing execution, incident handling, governance limits, and campaign termination.
 
 ## Campaign Lifecycle Overview

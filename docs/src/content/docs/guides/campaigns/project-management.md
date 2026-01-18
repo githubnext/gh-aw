@@ -3,6 +3,10 @@ title: Project management
 description: Use GitHub Projects with roadmap views and custom date fields for campaign tracking
 ---
 
+
+> [!WARNING]
+> **Please do not use at this time.** Campaigns are currently in build phase and not ready for production. This feature is under active development and may have breaking changes.
+
 GitHub Projects offers powerful visualization and tracking capabilities for agentic campaigns. The campaign generator automatically creates everything you need out of the box.
 
 ## What's Created Automatically
