@@ -400,7 +400,7 @@ jobs:
             const awInfo = {
               engine_id: "custom",
               engine_name: "Custom Steps",
-              model: process.env. || "",
+              model: process.env.GH_AW_MODEL_AGENT_CUSTOM || "",
               version: "",
               agent_version: "",
               workflow_name: "Issue Classifier",
