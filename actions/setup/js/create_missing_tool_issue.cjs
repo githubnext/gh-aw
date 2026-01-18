@@ -3,6 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
+const { createExpirationLine } = require("./ephemerals.cjs");
 const fs = require("fs");
 
 /**
@@ -134,13 +135,7 @@ async function main(config = {}) {
         // Add expiration marker (1 week from now)
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 7);
-        const expirationISO = expirationDate.toISOString();
-        const humanReadableDate = expirationDate.toLocaleString("en-US", {
-          dateStyle: "medium",
-          timeStyle: "short",
-          timeZone: "UTC",
-        });
-        const issueBody = `${issueBodyContent}\n\n- [x] expires <!-- gh-aw-expires: ${expirationISO} --> on ${humanReadableDate} UTC`;
+        const issueBody = `${issueBodyContent}\n\n${createExpirationLine(expirationDate)}`;
 
         const newIssue = await github.rest.issues.create({
           owner,

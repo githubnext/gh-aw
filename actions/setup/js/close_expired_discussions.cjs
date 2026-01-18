@@ -2,6 +2,7 @@
 // <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { EXPIRATION_PATTERN, extractExpirationDate } = require("./ephemerals.cjs");
 
 /**
  * Maximum number of discussions to update per run
@@ -12,13 +13,6 @@ const MAX_UPDATES_PER_RUN = 100;
  * Delay between GraphQL API calls in milliseconds to avoid rate limiting
  */
 const GRAPHQL_DELAY_MS = 500;
-
-/**
- * Regex pattern to match expiration marker with checked checkbox
- * Allows flexible whitespace: - [x] expires <!-- gh-aw-expires: DATE --> on ...
- * Pattern is more resilient to spacing variations
- */
-const EXPIRATION_PATTERN = /^-\s*\[x\]\s+expires\s*<!--\s*gh-aw-expires:\s*([^>]+)\s*-->/m;
 
 /**
  * Delay execution for a specified number of milliseconds
@@ -126,29 +120,6 @@ async function searchDiscussionsWithExpiration(github, owner, repo) {
       totalScanned,
     },
   };
-}
-
-/**
- * Extract expiration date from discussion body
- * @param {string} body - Discussion body
- * @returns {Date|null} Expiration date or null if not found/invalid
- */
-function extractExpirationDate(body) {
-  const match = body.match(EXPIRATION_PATTERN);
-
-  if (!match) {
-    return null;
-  }
-
-  const expirationISO = match[1].trim();
-  const expirationDate = new Date(expirationISO);
-
-  // Validate the date
-  if (isNaN(expirationDate.getTime())) {
-    return null;
-  }
-
-  return expirationDate;
 }
 
 /**

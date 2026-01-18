@@ -9,6 +9,7 @@ const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } =
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
+const { createExpirationLine } = require("./ephemerals.cjs");
 const fs = require("fs");
 
 /**
@@ -411,14 +412,8 @@ async function main(config = {}) {
     if (expiresHours > 0) {
       const expirationDate = new Date();
       expirationDate.setHours(expirationDate.getHours() + expiresHours);
-      const expirationISO = expirationDate.toISOString();
-      const humanReadableDate = expirationDate.toLocaleString("en-US", {
-        dateStyle: "medium",
-        timeStyle: "short",
-        timeZone: "UTC",
-      });
-      bodyLines.push(`- [x] expires <!-- gh-aw-expires: ${expirationISO} --> on ${humanReadableDate} UTC`);
-      core.info(`Issue will expire on ${expirationISO} (${expiresHours} hours)`);
+      bodyLines.push(createExpirationLine(expirationDate));
+      core.info(`Issue will expire on ${expirationDate.toISOString()} (${expiresHours} hours)`);
     }
 
     bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), "");
