@@ -277,7 +277,6 @@
     "description": "Add labels to an existing GitHub issue or pull request for categorization and filtering. Labels must already exist in the repository. For creating new issues with labels, use create_issue with the labels property instead.",
     "inputSchema": {
       "type": "object",
-      "required": ["labels"],
       "properties": {
         "labels": {
           "type": "array",

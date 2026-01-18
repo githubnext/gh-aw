@@ -195,9 +195,6 @@ jobs:
                     "type": "array"
                   }
                 },
-                "required": [
-                  "labels"
-                ],
                 "type": "object"
               },
               "name": "add_labels"

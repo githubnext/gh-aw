@@ -342,9 +342,38 @@ jobs:
               "name": "noop"
             },
             {
-              "description": "Unified GitHub Projects v2 operations. Default behavior updates project items (add issue/PR/draft_issue and/or update custom fields). Also supports creating project views (table/board/roadmap) when operation=create_view.",
+              "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
               "inputSchema": {
                 "additionalProperties": false,
+                "oneOf": [
+                  {
+                    "properties": {
+                      "content_type": {
+                        "enum": [
+                          "issue",
+                          "pull_request"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "project",
+                      "content_type",
+                      "content_number"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "content_type": {
+                        "const": "draft_issue"
+                      }
+                    },
+                    "required": [
+                      "project",
+                      "content_type",
+                      "draft_title"
+                    ]
+                  }
+                ],
                 "properties": {
                   "campaign_id": {
                     "description": "Campaign identifier to group related project items. Used to track items created by the same campaign or workflow run.",
@@ -379,97 +408,15 @@ jobs:
                     "description": "Custom field values to set on the project item (e.g., {'Status': 'In Progress', 'Priority': 'High'}). Field names must match custom fields defined in the project.",
                     "type": "object"
                   },
-                  "operation": {
-                    "description": "Optional operation selector. Default: update_item. Use create_view to create a project view (table/board/roadmap).",
-                    "enum": [
-                      "update_item",
-                      "create_view"
-                    ],
-                    "type": "string"
-                  },
                   "project": {
                     "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted.",
                     "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
                     "type": "string"
-                  },
-                  "view": {
-                    "additionalProperties": false,
-                    "description": "View configuration. Required when operation is create_view.",
-                    "properties": {
-                      "description": {
-                        "description": "Optional human description for the view. Not supported by the GitHub Views API and may be ignored.",
-                        "type": "string"
-                      },
-                      "filter": {
-                        "description": "Optional filter query for the view (e.g., 'is:issue is:open').",
-                        "type": "string"
-                      },
-                      "layout": {
-                        "description": "The layout of the view.",
-                        "enum": [
-                          "table",
-                          "board",
-                          "roadmap"
-                        ],
-                        "type": "string"
-                      },
-                      "name": {
-                        "description": "The name of the view (e.g., 'Sprint Board').",
-                        "type": "string"
-                      },
-                      "visible_fields": {
-                        "description": "Optional field IDs that should be visible in the view (table/board only). Not applicable to roadmap.",
-                        "items": {
-                          "type": "number"
-                        },
-                        "type": "array"
-                      }
-                    },
-                    "required": [
-                      "name",
-                      "layout"
-                    ],
-                    "type": "object"
                   }
                 },
-                "required": [
-                  "project"
-                ],
                 "type": "object"
               },
               "name": "update_project"
-            },
-            {
-              "description": "Create a new empty GitHub Projects v2 board. Use this to create a project board for organizing work. The project is created empty and can be populated with issues and custom fields after creation.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "item_url": {
-                    "description": "Optional GitHub issue URL to add as the first item to the project (e.g., 'https://github.com/owner/repo/issues/123').",
-                    "pattern": "^https://github\\.com/[^/]+/[^/]+/issues/\\d+$",
-                    "type": "string"
-                  },
-                  "owner": {
-                    "description": "Login name of the organization or user that will own the new project (e.g., 'myorg' or 'username'). The token must have access to this owner. Optional if target-owner is configured in the workflow frontmatter.",
-                    "type": "string"
-                  },
-                  "owner_type": {
-                    "description": "Type of owner: 'org' for organization or 'user' for user account. Default: 'org'.",
-                    "enum": [
-                      "org",
-                      "user"
-                    ],
-                    "type": "string"
-                  },
-                  "title": {
-                    "description": "Title for the new project. Should be descriptive and unique within the owner's projects. If not provided, will be auto-generated using the title-prefix configuration (default: 'Campaign') as '\u003ctitle-prefix\u003e: \u003cissue-title\u003e' or '\u003ctitle-prefix\u003e #\u003cissue-number\u003e' based on the issue context.",
-                    "type": "string"
-                  }
-                },
-                "required": [],
-                "type": "object"
-              },
-              "name": "create_project"
             },
             {
               "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
@@ -497,6 +444,38 @@ jobs:
                 "type": "object"
               },
               "name": "missing_data"
+            },
+            {
+              "description": "Create a new empty GitHub Projects v2 board. Use this to create a project board for organizing work. The project is created empty and can be populated with issues and custom fields after creation.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "item_url": {
+                    "description": "Optional GitHub issue URL to add as the first item to the project (e.g., 'https://github.com/owner/repo/issues/123').",
+                    "pattern": "^https://github\\\\.com/[^/]+/[^/]+/issues/\\\\d+$",
+                    "type": "string"
+                  },
+                  "owner": {
+                    "description": "Login name of the organization or user that will own the new project (e.g., 'myorg' or 'username'). The token must have access to this owner. Optional if target-owner is configured in the workflow frontmatter.",
+                    "type": "string"
+                  },
+                  "owner_type": {
+                    "description": "Type of owner: 'org' for organization or 'user' for user account. Default: 'org'.",
+                    "enum": [
+                      "org",
+                      "user"
+                    ],
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Title for the new project. Should be descriptive and unique within the owner's projects. If not provided, will be auto-generated using the title-prefix configuration (default: 'Campaign') as '\u003ctitle-prefix\u003e: \u003cissue-title\u003e' or '\u003ctitle-prefix\u003e #\u003cissue-number\u003e' based on the issue context.",
+                    "type": "string"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              },
+              "name": "create_project"
             }
           ]
           EOF
