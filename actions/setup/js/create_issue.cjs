@@ -10,6 +10,7 @@ const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_titl
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
 const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
+const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const fs = require("fs");
 
 /**
@@ -20,7 +21,7 @@ const fs = require("fs");
 const HANDLER_TYPE = "create_issue";
 
 /** @type {number} Maximum number of sub-issues allowed per parent issue */
-const MAX_SUB_ISSUES_PER_PARENT = 64;
+const MAX_SUB_ISSUES_PER_PARENT = MAX_SUB_ISSUES;
 
 /** @type {number} Maximum number of parent issues to check when searching */
 const MAX_PARENT_ISSUES_TO_CHECK = 10;
@@ -71,40 +72,6 @@ async function searchForExistingParent(owner, repo, markerComment) {
     return null;
   } catch (error) {
     core.warning(`Could not search for existing parent issues: ${getErrorMessage(error)}`);
-    return null;
-  }
-}
-
-/**
- * Gets the sub-issue count for a parent issue using GraphQL
- * @param {string} owner - Repository owner
- * @param {string} repo - Repository name
- * @param {number} issueNumber - Issue number
- * @returns {Promise<number|null>} - Sub-issue count or null if query failed
- */
-async function getSubIssueCount(owner, repo, issueNumber) {
-  try {
-    const subIssueQuery = `
-      query($owner: String!, $repo: String!, $issueNumber: Int!) {
-        repository(owner: $owner, name: $repo) {
-          issue(number: $issueNumber) {
-            subIssues(first: 65) {
-              totalCount
-            }
-          }
-        }
-      }
-    `;
-
-    const result = await github.graphql(subIssueQuery, {
-      owner,
-      repo,
-      issueNumber,
-    });
-
-    return result?.repository?.issue?.subIssues?.totalCount || 0;
-  } catch (error) {
-    core.warning(`Could not check sub-issue count for #${issueNumber}: ${getErrorMessage(error)}`);
     return null;
   }
 }
