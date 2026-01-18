@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import fs from "fs";
 
 describe("handle_agent_failure.cjs", () => {
   let main;
@@ -9,10 +10,40 @@ describe("handle_agent_failure.cjs", () => {
   let mockGithub;
   let mockContext;
   let originalEnv;
+  let originalReadFileSync;
 
   beforeEach(async () => {
     // Save original environment
     originalEnv = { ...process.env };
+
+    // Mock fs.readFileSync to return template content
+    originalReadFileSync = fs.readFileSync;
+    fs.readFileSync = vi.fn((filePath, encoding) => {
+      if (filePath.includes('agent_failure_issue.md')) {
+        return `### Workflow Failure
+
+**Workflow:** [{workflow_name}]({workflow_source_url})  
+**Branch:** {branch}  
+**Run URL:** {run_url}{pull_request_info}
+
+{secret_verification_context}
+
+### Action Required
+
+Debug this workflow failure using the \`agentic-workflows\` agent:
+
+\`\`\`
+/agent agentic-workflows
+\`\`\`
+
+When prompted, instruct the agent to debug this workflow failure.`;
+      } else if (filePath.includes('agent_failure_comment.md')) {
+        return `Agent job [{run_id}]({run_url}) failed.
+
+{secret_verification_context}`;
+      }
+      return originalReadFileSync.call(fs, filePath, encoding);
+    });
 
     // Mock core
     mockCore = {
@@ -62,6 +93,9 @@ describe("handle_agent_failure.cjs", () => {
   });
 
   afterEach(() => {
+    // Restore fs
+    fs.readFileSync = originalReadFileSync;
+
     // Restore environment
     process.env = originalEnv;
 
@@ -266,6 +300,7 @@ describe("handle_agent_failure.cjs", () => {
         });
 
       // Mock GraphQL failure (sub-issue API not available)
+      // Note: The sub-issue API is attempted after issue creation, so we reject it
       mockGithub.graphql = vi.fn().mockRejectedValue(new Error("Field 'addSubIssue' doesn't exist on type 'Mutation'"));
 
       await main();
@@ -296,6 +331,14 @@ describe("handle_agent_failure.cjs", () => {
       // Mock parent issue creation failure, but failure issue creation succeeds
       mockGithub.rest.issues.create.mockRejectedValueOnce(new Error("API Error creating parent")).mockResolvedValueOnce({
         data: { number: 42, html_url: "https://example.com/42", node_id: "I_42" },
+      });
+
+      // Mock GraphQL - won't be called since parent creation failed
+      mockGithub.graphql = vi.fn().mockResolvedValue({
+        addSubIssue: {
+          issue: { id: "I_parent_1", number: 1 },
+          subIssue: { id: "I_42", number: 42 },
+        },
       });
 
       await main();
@@ -343,7 +386,13 @@ describe("handle_agent_failure.cjs", () => {
           },
         });
 
-      mockGithub.graphql = vi.fn().mockResolvedValue({});
+      // Mock GraphQL - new parent created, so just addSubIssue
+      mockGithub.graphql = vi.fn().mockResolvedValue({
+        addSubIssue: {
+          issue: { id: "I_1", number: 1 },
+          subIssue: { id: "I_42", number: 42 },
+        },
+      });
 
       await main();
 
@@ -415,6 +464,7 @@ describe("handle_agent_failure.cjs", () => {
         });
 
       // Mock GraphQL sub-issue count check (parent exists with < 64 sub-issues)
+      // When an existing failure issue is found, only the count check happens (no new issue created/linked)
       mockGithub.graphql = vi.fn().mockResolvedValue({
         repository: {
           issue: {
@@ -472,7 +522,13 @@ describe("handle_agent_failure.cjs", () => {
           data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
         });
 
-      mockGithub.graphql = vi.fn().mockResolvedValue({});
+      // Mock GraphQL - new parent created, so just addSubIssue
+      mockGithub.graphql = vi.fn().mockResolvedValue({
+        addSubIssue: {
+          issue: { id: "I_1", number: 1 },
+          subIssue: { id: "I_2", number: 2 },
+        },
+      });
 
       await main();
 
@@ -550,7 +606,13 @@ describe("handle_agent_failure.cjs", () => {
           data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
         });
 
-      mockGithub.graphql = vi.fn().mockResolvedValue({});
+      // Mock GraphQL - new parent created, so just addSubIssue
+      mockGithub.graphql = vi.fn().mockResolvedValue({
+        addSubIssue: {
+          issue: { id: "I_1", number: 1 },
+          subIssue: { id: "I_2", number: 2 },
+        },
+      });
 
       await main();
 
@@ -585,7 +647,13 @@ describe("handle_agent_failure.cjs", () => {
           data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
         });
 
-      mockGithub.graphql = vi.fn().mockResolvedValue({});
+      // Mock GraphQL - new parent created, so just addSubIssue
+      mockGithub.graphql = vi.fn().mockResolvedValue({
+        addSubIssue: {
+          issue: { id: "I_1", number: 1 },
+          subIssue: { id: "I_2", number: 2 },
+        },
+      });
 
       await main();
 
@@ -623,7 +691,13 @@ describe("handle_agent_failure.cjs", () => {
           data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
         });
 
-      mockGithub.graphql = vi.fn().mockResolvedValue({});
+      // Mock GraphQL - new parent created, so just addSubIssue
+      mockGithub.graphql = vi.fn().mockResolvedValue({
+        addSubIssue: {
+          issue: { id: "I_1", number: 1 },
+          subIssue: { id: "I_2", number: 2 },
+        },
+      });
 
       await main();
 
@@ -664,7 +738,13 @@ describe("handle_agent_failure.cjs", () => {
           data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
         });
 
-      mockGithub.graphql = vi.fn().mockResolvedValue({});
+      // Mock GraphQL - new parent created, so just addSubIssue
+      mockGithub.graphql = vi.fn().mockResolvedValue({
+        addSubIssue: {
+          issue: { id: "I_1", number: 1 },
+          subIssue: { id: "I_2", number: 2 },
+        },
+      });
 
       await main();
 
@@ -698,7 +778,13 @@ describe("handle_agent_failure.cjs", () => {
           data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
         });
 
-      mockGithub.graphql = vi.fn().mockResolvedValue({});
+      // Mock GraphQL - new parent created, so just addSubIssue
+      mockGithub.graphql = vi.fn().mockResolvedValue({
+        addSubIssue: {
+          issue: { id: "I_1", number: 1 },
+          subIssue: { id: "I_2", number: 2 },
+        },
+      });
 
       await main();
 
@@ -730,7 +816,13 @@ describe("handle_agent_failure.cjs", () => {
           data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
         });
 
-      mockGithub.graphql = vi.fn().mockResolvedValue({});
+      // Mock GraphQL - new parent created, so just addSubIssue
+      mockGithub.graphql = vi.fn().mockResolvedValue({
+        addSubIssue: {
+          issue: { id: "I_1", number: 1 },
+          subIssue: { id: "I_2", number: 2 },
+        },
+      });
 
       await main();
 
