@@ -134,3 +134,42 @@
 - [x] Technique 31: Race Condition via Concurrent Requests (result: failure - all blocked)
 
 **Summary**: 31 novel techniques tested, all failed. Docker-in-Docker escape vector patched in v0.9.1. Cumulative: 108 techniques (5 runs), 1 escape found (now patched). Sandbox currently secure.
+
+## Run 21103756063 - 2026-01-18
+
+- [x] Technique 1: OpenSSL SNI Manipulation (result: failure)
+- [x] Technique 2: Perl LWP Custom Protocol (result: failure - not installed)
+- [x] Technique 3: Node.js HTTPS Custom Agent (result: failure)
+- [x] Technique 4: HTTP/0.9 Protocol Downgrade (result: failure)
+- [x] Technique 5: Squid PURGE Method (result: failure)
+- [x] Technique 6: DNS DNSKEY Query (result: failure)
+- [x] Technique 7: Python urllib3 No Proxy (result: failure)
+- [x] Technique 8: /proc/net/tcp Socket Hijack (result: failure)
+- [x] Technique 9: Squid cache_object Protocol (result: failure)
+- [x] Technique 10: CGroup Memory Pressure Notification (result: failure)
+- [x] Technique 11: Container Runtime Socket Discovery (result: failure)
+- [x] Technique 12: /proc/self/mem Memory Manipulation (result: failure)
+- [x] Technique 13: LD_PRELOAD Library Injection (result: failure - gcc not available)
+- [x] Technique 14: Netfilter NFQUEUE Bypass (result: failure)
+- [x] Technique 15: BPF Socket Filter (result: failure)
+- [x] Technique 16: VXLAN/Overlay Network Discovery (result: failure)
+- [x] Technique 17: Timing Side-Channel Measurement (result: failure)
+- [x] Technique 18: Node.js net.Socket RAW (result: failure)
+- [x] Technique 19: Perl IO::Socket Direct (result: failure)
+- [x] Technique 20: OpenSSL Explicit Proxy (result: failure)
+- [x] Technique 21: Multicast UDP Packet (result: failure)
+- [x] Technique 22: ICMP Raw Socket (result: failure - no NET_RAW)
+- [x] Technique 23: Docker API Socket (result: failure)
+- [x] Technique 24: Systemd D-Bus Interface (result: failure)
+- [x] Technique 25: DNS CNAME Exfiltration (result: failure)
+- [x] Technique 26: HTTP Absolute URI Form (result: failure)
+- [x] Technique 27: Squid ICP Protocol (result: failure)
+- [x] Technique 28: NULL Byte Injection (result: failure)
+- [x] Technique 29: /proc/1/root Container Escape (result: failure)
+- [x] Technique 30: Squid HTCP Protocol (result: failure)
+- [x] Technique 31: PID Namespace Check (result: failure)
+- [x] Technique 32: Direct IP Address Bypass (result: failure)
+- [x] Technique 33: Transfer-Encoding Smuggling (result: failure)
+- [x] Technique 34: Alternate Port 8080 (result: failure)
+
+**Summary**: 34 novel techniques tested, all failed. Cumulative: 142 techniques (6 runs), 1 escape found (now patched in v0.9.1). Sandbox currently secure.
