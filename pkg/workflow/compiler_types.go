@@ -27,6 +27,7 @@ type Compiler struct {
 	trialLogicalRepoSlug   string              // If set in trial mode, the logical repository to checkout
 	refreshStopTime        bool                // If true, regenerate stop-after times instead of preserving existing ones
 	forceRefreshActionPins bool                // If true, clear action cache and resolve all actions from GitHub API
+	actionCacheCleared     bool                // Tracks if action cache has already been cleared (for forceRefreshActionPins)
 	markdownPath           string              // Path to the markdown file being compiled (for context in dynamic tool generation)
 	actionMode             ActionMode          // Mode for generating JavaScript steps (inline vs custom actions)
 	actionTag              string              // Override action SHA or tag for actions/setup (when set, overrides actionMode to release)
@@ -201,14 +202,17 @@ func (c *Compiler) getSharedActionResolver() (*ActionCache, *ActionResolver) {
 			_ = c.actionCache.Load() // Ignore errors if cache doesn't exist
 		} else {
 			logTypes.Print("Force refresh action pins enabled: skipping cache load and will resolve all actions dynamically")
+			// Mark as cleared since we skipped loading
+			c.actionCacheCleared = true
 		}
 
 		c.actionResolver = NewActionResolver(c.actionCache)
 		logTypes.Print("Initialized shared action cache and resolver for compiler")
-	} else if c.forceRefreshActionPins && c.actionCache != nil {
-		// If cache already exists but force refresh is set, clear it
-		logTypes.Print("Force refresh action pins: clearing existing cache")
+	} else if c.forceRefreshActionPins && !c.actionCacheCleared {
+		// If cache already exists but force refresh is set and we haven't cleared it yet, clear it once
+		logTypes.Print("Force refresh action pins: clearing existing cache once for this run")
 		c.actionCache.Entries = make(map[string]ActionCacheEntry)
+		c.actionCacheCleared = true
 	}
 	return c.actionCache, c.actionResolver
 }

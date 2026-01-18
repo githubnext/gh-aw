@@ -125,3 +125,77 @@ Test content
 		t.Errorf("Expected SHA 'shared-sha-123', got '%s'", sha)
 	}
 }
+
+func TestCompilerForceRefreshClearsOnlyOnce(t *testing.T) {
+	// Create a temporary directory for test
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	// Change to the temp directory
+	t.Chdir(tmpDir)
+
+	// Create a compiler with forceRefreshActionPins enabled
+	compiler := NewCompiler(false, "", "test")
+	compiler.SetForceRefreshActionPins(true)
+
+	// Get the shared action resolver (first time - should initialize empty)
+	cache1, _ := compiler.getSharedActionResolver()
+	if cache1 == nil {
+		t.Fatal("Expected cache to be initialized")
+	}
+
+	// Verify cache is empty (not loaded from disk)
+	if len(cache1.Entries) != 0 {
+		t.Error("Expected cache to be empty on initialization with forceRefreshActionPins")
+	}
+
+	// Add some entries to the cache (simulating resolution during compilation)
+	cache1.Set("actions/checkout", "v5", "sha-abc-123")
+	cache1.Set("actions/setup-node", "v4", "sha-def-456")
+
+	// Verify entries were added
+	if len(cache1.Entries) != 2 {
+		t.Errorf("Expected 2 entries in cache, got %d", len(cache1.Entries))
+	}
+
+	// Get the shared action resolver again (second workflow in same run)
+	cache2, _ := compiler.getSharedActionResolver()
+
+	// Verify it's the same instance
+	if cache1 != cache2 {
+		t.Error("Expected same cache instance to be returned")
+	}
+
+	// Verify the cache still has the entries (NOT cleared again)
+	if len(cache2.Entries) != 2 {
+		t.Errorf("Expected cache to still have 2 entries, got %d", len(cache2.Entries))
+	}
+
+	// Verify specific entries are still there
+	sha, found := cache2.Get("actions/checkout", "v5")
+	if !found {
+		t.Error("Expected to find cached entry for actions/checkout")
+	}
+	if sha != "sha-abc-123" {
+		t.Errorf("Expected SHA 'sha-abc-123', got '%s'", sha)
+	}
+
+	sha, found = cache2.Get("actions/setup-node", "v4")
+	if !found {
+		t.Error("Expected to find cached entry for actions/setup-node")
+	}
+	if sha != "sha-def-456" {
+		t.Errorf("Expected SHA 'sha-def-456', got '%s'", sha)
+	}
+
+	// Get the resolver a third time (third workflow in same run)
+	cache3, _ := compiler.getSharedActionResolver()
+
+	// Verify it's still the same instance with entries intact
+	if cache1 != cache3 {
+		t.Error("Expected same cache instance on third call")
+	}
+	if len(cache3.Entries) != 2 {
+		t.Errorf("Expected cache to still have 2 entries on third call, got %d", len(cache3.Entries))
+	}
+}
+
