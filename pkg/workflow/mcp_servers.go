@@ -140,6 +140,49 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		}
 	}
 
+	// Collect environment variables from custom MCP servers
+	// Custom MCP servers can define environment variables in their configuration (env field)
+	// or reference secrets in HTTP headers that need passthrough
+	if workflowData != nil && workflowData.ParsedTools != nil && len(workflowData.ParsedTools.Custom) > 0 {
+		for serverName, serverConfig := range workflowData.ParsedTools.Custom {
+			// Extract secrets from HTTP headers (e.g., "Bearer ${{ secrets.TAVILY_API_KEY }}")
+			// These secrets need to be available as environment variables at gateway startup
+			if serverConfig.Type == "http" && len(serverConfig.Headers) > 0 {
+				headerSecrets := ExtractSecretsFromMap(serverConfig.Headers)
+				for varName, secretExpr := range headerSecrets {
+					envVars[varName] = secretExpr
+				}
+			}
+
+			// Also collect explicit env vars from MCP server configuration
+			if len(serverConfig.Env) > 0 {
+				for envVarName, envVarValue := range serverConfig.Env {
+					// Skip if we already collected this from headers
+					if _, exists := envVars[envVarName]; exists {
+						continue
+					}
+					// The environment variable value in the config references a secret/env var
+					// We need to preserve the original expression (e.g., "${{ secrets.TAVILY_API_KEY }}")
+					// Check if this env var is already in tools (from the original map)
+					if toolValue, ok := tools[serverName]; ok {
+						if mcpConfig, ok := toolValue.(map[string]any); ok {
+							if envMap, ok := mcpConfig["env"].(map[string]any); ok {
+								if originalExpr, ok := envMap[envVarName].(string); ok {
+									envVars[envVarName] = originalExpr
+								}
+							}
+						}
+					}
+					// Fallback: if we can't find the original expression, use the parsed value
+					// This shouldn't normally happen, but provides a safety net
+					if _, exists := envVars[envVarName]; !exists && envVarValue != "" {
+						envVars[envVarName] = envVarValue
+					}
+				}
+			}
+		}
+	}
+
 	return envVars
 }
 
@@ -591,9 +634,60 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			containerCmd += " -e GH_AW_SAFE_INPUTS_PORT"
 			containerCmd += " -e GH_AW_SAFE_INPUTS_API_KEY"
 		}
+		
+		// Track hardcoded environment variables to avoid duplicates
+		hardcodedEnvVars := map[string]bool{
+			"MCP_GATEWAY_PORT":              true,
+			"MCP_GATEWAY_DOMAIN":            true,
+			"MCP_GATEWAY_API_KEY":           true,
+			"MCP_GATEWAY_LOG_DIR":           true,
+			"GH_AW_MCP_LOG_DIR":             true,
+			"GH_AW_SAFE_OUTPUTS":            true,
+			"GH_AW_SAFE_OUTPUTS_CONFIG_PATH": true,
+			"GH_AW_SAFE_OUTPUTS_TOOLS_PATH": true,
+			"GH_AW_ASSETS_BRANCH":           true,
+			"GH_AW_ASSETS_MAX_SIZE_KB":      true,
+			"GH_AW_ASSETS_ALLOWED_EXTS":     true,
+			"DEFAULT_BRANCH":                true,
+			"GITHUB_MCP_SERVER_TOKEN":       true,
+			"GITHUB_MCP_LOCKDOWN":           true,
+			"GITHUB_REPOSITORY":             true,
+			"GITHUB_SERVER_URL":             true,
+			"GITHUB_SHA":                    true,
+			"GITHUB_WORKSPACE":              true,
+			"GITHUB_TOKEN":                  true,
+		}
+		if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
+			hardcodedEnvVars["GH_AW_SAFE_INPUTS_PORT"] = true
+			hardcodedEnvVars["GH_AW_SAFE_INPUTS_API_KEY"] = true
+		}
+		
+		// Collect all additional environment variables from gateway config and MCP servers
+		// Use a map to deduplicate environment variables and exclude hardcoded ones
+		additionalEnvVars := make(map[string]bool)
+		
+		// Add gateway-configured env vars
 		if len(gatewayConfig.Env) > 0 {
-			envVarNames := make([]string, 0, len(gatewayConfig.Env))
 			for envVarName := range gatewayConfig.Env {
+				if !hardcodedEnvVars[envVarName] {
+					additionalEnvVars[envVarName] = true
+				}
+			}
+		}
+		
+		// Add MCP-collected env vars (these may include secrets from HTTP headers)
+		if len(mcpEnvVars) > 0 {
+			for envVarName := range mcpEnvVars {
+				if !hardcodedEnvVars[envVarName] {
+					additionalEnvVars[envVarName] = true
+				}
+			}
+		}
+		
+		// Add deduplicated env vars to docker command in sorted order
+		if len(additionalEnvVars) > 0 {
+			envVarNames := make([]string, 0, len(additionalEnvVars))
+			for envVarName := range additionalEnvVars {
 				envVarNames = append(envVarNames, envVarName)
 			}
 			sort.Strings(envVarNames)
