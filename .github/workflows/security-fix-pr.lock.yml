@@ -239,36 +239,6 @@ jobs:
               "name": "noop"
             },
             {
-              "description": "Create an autofix for a code scanning alert. Use this to provide automated fixes for security vulnerabilities detected by code scanning tools. The fix should contain the corrected code that resolves the security issue.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "alert_number": {
-                    "description": "The security alert number to create an autofix for. This is the numeric ID from the code scanning alert (e.g., 42 in github.com/owner/repo/security/code-scanning/42).",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  },
-                  "fix_code": {
-                    "description": "The code changes to apply as the autofix. This should be the corrected code that resolves the security vulnerability.",
-                    "type": "string"
-                  },
-                  "fix_description": {
-                    "description": "Clear description of the fix being applied. Explain what security issue is being resolved and how the fix addresses it.",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "alert_number",
-                  "fix_description",
-                  "fix_code"
-                ],
-                "type": "object"
-              },
-              "name": "autofix_code_scanning_alert"
-            },
-            {
               "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
               "inputSchema": {
                 "additionalProperties": false,
@@ -294,6 +264,36 @@ jobs:
                 "type": "object"
               },
               "name": "missing_data"
+            },
+            {
+              "description": "Create an autofix for a code scanning alert. Use this to provide automated fixes for security vulnerabilities detected by code scanning tools. The fix should contain the corrected code that resolves the security issue.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "alert_number": {
+                    "description": "The security alert number to create an autofix for. This is the numeric ID from the code scanning alert (e.g., 42 in github.com/owner/repo/security/code-scanning/42).",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "fix_code": {
+                    "description": "The code changes to apply as the autofix. This should be the corrected code that resolves the security vulnerability. Example for SQL injection fix: 'query = db.prepare(\"SELECT * FROM users WHERE id = ?\").bind(userId)'",
+                    "type": "string"
+                  },
+                  "fix_description": {
+                    "description": "Clear description of the fix being applied. Explain what security issue is being resolved and how the fix addresses it. Example: 'Sanitize user input to prevent SQL injection by using parameterized queries instead of string concatenation.'",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "alert_number",
+                  "fix_description",
+                  "fix_code"
+                ],
+                "type": "object"
+              },
+              "name": "autofix_code_scanning_alert"
             }
           ]
           EOF

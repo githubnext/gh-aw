@@ -63,6 +63,21 @@ async function main(config = {}) {
     const requestedLabels = message.labels ?? [];
     core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
 
+    // If no labels provided, return a helpful message with allowed labels if configured
+    if (!requestedLabels || requestedLabels.length === 0) {
+      let errorMessage = "No labels provided. Please provide at least one label from";
+      if (allowedLabels.length > 0) {
+        errorMessage += ` the allowed list: ${JSON.stringify(allowedLabels)}`;
+      } else {
+        errorMessage += " the repository's available labels";
+      }
+      core.info(errorMessage);
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+
     // Use validation helper to sanitize and validate labels
     const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount);
     if (!labelsResult.valid) {
