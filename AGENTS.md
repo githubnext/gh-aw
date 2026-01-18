@@ -235,6 +235,8 @@ pkg/
 .github/workflows/   # Sample workflows (*.md + *.lock.yml)
 ```
 
+For detailed code organization patterns, see **[specs/code-organization-patterns.md](specs/code-organization-patterns.md)**.
+
 ## Validation Complexity Guidelines
 
 **Target size**: 100-200 lines per validator  
