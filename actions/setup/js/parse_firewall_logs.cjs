@@ -167,9 +167,9 @@ function isRequestAllowed(decision, status) {
 function generateFirewallSummary(analysis) {
   const { totalRequests, requestsByDomain } = analysis;
 
-  // Filter out invalid domains (placeholder "-" values)
+  // Filter out invalid domains (placeholder "-" values and Envoy error codes)
   const validDomains = Array.from(requestsByDomain.keys())
-    .filter(domain => domain !== "-")
+    .filter(domain => domain !== "-" && !domain.startsWith("error:"))
     .sort();
   const uniqueDomainCount = validDomains.length;
 
