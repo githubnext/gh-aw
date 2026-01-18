@@ -188,7 +188,7 @@ export default defineConfig({
 					],
 				},
 				{
-						label: 'At scale',
+						label: 'Campaigns',
 					items: [
 						{ label: 'About campaigns', link: '/guides/campaigns/' },
 						{ label: 'Getting Started', link: '/guides/campaigns/getting-started/' },

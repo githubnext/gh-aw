@@ -2,7 +2,7 @@
 title: Campaign Flow & Lifecycle
 description: What happens when the campaign orchestrator runs, and how to pause or finish a campaign.
 banner:
-  content: '<strong>Do not use.</strong> Campaigns are still in active development and may have unexpected consequences.'
+  content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
 ---
 
 This page explains what the orchestrator does when it runs, and what you do to pause or end a campaign.
