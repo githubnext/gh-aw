@@ -195,7 +195,7 @@ Use these when:
 
 - Large refactoring projects
 - Test coverage improvements
-- Performance optimization campaigns
+- Performance optimization
 - Backlog reduction initiatives
 - Quality improvement programs
 
@@ -314,11 +314,11 @@ Some key characteristics are:
 
 **Orchestrate multi-step workflows via state machines**
 
-These agentic workflows coordinate complex workflows through campaigns or task queue patterns. Track state across runs (open/in-progress/completed).
+These agentic workflows coordinate complex workflows through task queue patterns. Track state across runs (open/in-progress/completed).
 
 Use these when:
 
-- Campaign management
+- Task management
 - Multi-step coordination
 - Workflow generation
 - Development monitoring
@@ -326,7 +326,6 @@ Use these when:
 
 Here are some examples:
 
-- [`campaign-generator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/aw/campaign-generator.md) - Creates and coordinates campaigns
 - [`workflow-generator`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-generator.md) - Generates new workflows
 - [`dev-hawk`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/dev-hawk.md) - Development monitoring
 
