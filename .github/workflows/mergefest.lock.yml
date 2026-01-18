@@ -125,7 +125,7 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      - name: Setup git configuration
+      - name: Setup Git configuration
         run: "git config user.name \"github-actions[bot]\"\ngit config user.email \"github-actions[bot]@users.noreply.github.com\"\n\n# Create .gitignore to exclude workflow YAML files\ncat > /tmp/merge-gitignore << 'EOF'\n# Exclude all .yml files in .github/workflows/\n.github/workflows/*.yml\nEOF"
 
       - name: Configure Git credentials

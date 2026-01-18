@@ -1077,15 +1077,17 @@ jobs:
           
           ## Metrics to Collect
           
-          **Size**: LOC by language (Go, JS/CJS, YAML, MD), by directory (cmd, pkg, docs, workflows), file counts/distribution
+          All metrics use standardized names from specs/metrics-glossary.md:
+          
+          **Size**: LOC by language (`lines_of_code_total`), by directory (cmd, pkg, docs, workflows), file counts/distribution
           
           **Quality**: Large files (>500 LOC), avg file size, function count, comment lines, comment ratio
           
-          **Tests**: Test files/LOC, test-to-source ratio
+          **Tests**: Test files/LOC (`test_lines_of_code`), test-to-source ratio (`test_to_source_ratio`)
           
           **Churn (7d)**: Files modified, commits, lines added/deleted, most active files (requires `git fetch --unshallow`)
           
-          **Workflows**: Total `.md` files, `.lock.yml` files, avg workflow size in `.github/workflows`
+          **Workflows**: Total `.md` files (`total_workflows`), `.lock.yml` files, avg workflow size in `.github/workflows`
           
           **Docs**: Files in `docs/`, total doc LOC, code-to-docs ratio
           
@@ -1134,11 +1136,11 @@ jobs:
           
           #### 4. Test Coverage (`test_coverage.png`)
           **Type**: Grouped bar chart or side-by-side comparison
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           **Content**: Test vs source code comparison
           - Test LOC vs Source LOC by language
           - Test-to-source ratio visualization
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           - Include trend indicator if historical data available
           - Highlight recommended ratio (e.g., 0.5-1.0)
           - Save to: `/tmp/gh-aw/python/charts/test_coverage.png`
@@ -1341,9 +1343,9 @@ jobs:
           ## Test Coverage
           
           - **Test Files**: XX files
-          - **Test LOC**: X,XXX lines
+          - **Test LOC** (`test_lines_of_code`): X,XXX lines
           - **Source LOC**: X,XXX lines  
-          - **Test-to-Source Ratio**: X.XX
+          - **Test-to-Source Ratio** (`test_to_source_ratio`): X.XX
           - **Trend (7d)**: ⬆️ +X%
           - **Trend (30d)**: ⬆️ +X%
           
@@ -1362,7 +1364,7 @@ jobs:
           
           ## Workflow Metrics
           
-          - **Total Workflow Files (.md)**: XXX files
+          - **Total Workflow Files (.md)** (`total_workflows`): XXX files
           - **Compiled Workflows (.lock.yml)**: XXX files
           - **Average Workflow Size**: XXX lines
           - **Growth (7d)**: ⬆️ +X%

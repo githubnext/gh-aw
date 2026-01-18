@@ -3,7 +3,6 @@ package workflow
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
@@ -205,8 +204,8 @@ Test grouping with title prefix.
 	compiledStr := string(compiledContent)
 
 	// Verify both group and title_prefix are in the handler config
-	assert.True(t, strings.Contains(compiledStr, `"group":true`), "Expected group:true in compiled workflow")
-	assert.True(t, strings.Contains(compiledStr, `title_prefix`), "Expected title_prefix in compiled workflow")
+	assert.Contains(t, compiledStr, `"group":true`, "Expected group:true in compiled workflow")
+	assert.Contains(t, compiledStr, `title_prefix`, "Expected title_prefix in compiled workflow")
 }
 
 // TestCreateIssueGroupInMCPConfig verifies group flag is passed to MCP config

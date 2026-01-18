@@ -49,7 +49,7 @@ The goal is to ensure all workflow runs have the necessary logs and telemetry to
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
 - **Date**: Generated daily
-- **Analysis Window**: Last 7 days of workflow runs
+- **Analysis Window**: Last 7 days of workflow runs (see `workflow_runs_analyzed` in specs/metrics-glossary.md)
 
 ## Phase 1: Fetch Workflow Runs
 
@@ -82,12 +82,12 @@ gh aw logs <workflow-name> --start-date -7d -o /tmp/gh-aw/observability-logs/<wo
 
 ### Step 1.3: Collect Run Information
 
-For each downloaded run, note:
+For each downloaded run, note (see standardized metric names in specs/metrics-glossary.md):
 - Workflow name
 - Run ID
 - Conclusion (success, failure, cancelled)
-- Whether firewall was enabled
-- Whether MCP gateway was used
+- Whether firewall was enabled (`firewall_enabled_workflows`)
+- Whether MCP gateway was used (`mcp_enabled_workflows`)
 
 ## Phase 2: Analyze AWF Firewall Logs
 
@@ -187,14 +187,18 @@ Calculate aggregated metrics across all analyzed runs:
 ### Coverage Metrics
 
 ```python
-# Calculate coverage percentages
-firewall_enabled_runs = count_runs_with_firewall()
+# Calculate coverage percentages (see specs/metrics-glossary.md for definitions)
+firewall_enabled_workflows = count_runs_with_firewall()
 firewall_logs_present = count_runs_with_access_log()
-firewall_coverage = (firewall_logs_present / firewall_enabled_runs) * 100 if firewall_enabled_runs > 0 else "N/A"
+firewall_coverage = (firewall_logs_present / firewall_enabled_workflows) * 100 if firewall_enabled_workflows > 0 else "N/A"
 
-mcp_enabled_runs = count_runs_with_mcp()
+mcp_enabled_workflows = count_runs_with_mcp()
 gateway_logs_present = count_runs_with_gateway_jsonl()
-gateway_coverage = (gateway_logs_present / mcp_enabled_runs) * 100 if mcp_enabled_runs > 0 else "N/A"
+gateway_coverage = (gateway_logs_present / mcp_enabled_workflows) * 100 if mcp_enabled_workflows > 0 else "N/A"
+
+# Calculate observability_coverage_percentage for overall health
+runs_with_complete_logs = firewall_logs_present + gateway_logs_present
+runs_with_missing_logs = (firewall_enabled_workflows - firewall_logs_present) + (mcp_enabled_workflows - gateway_logs_present)
 ```
 
 ### Health Summary
@@ -229,8 +233,8 @@ Create a new discussion with the comprehensive observability report.
 
 | Component | Runs Analyzed | Logs Present | Coverage | Status |
 |-----------|--------------|--------------|----------|--------|
-| AWF Firewall (access.log) | X | Y | Z% | ✅/⚠️/🔴 |
-| MCP Gateway (gateway.jsonl) | X | Y | Z% | ✅/⚠️/🔴 |
+| AWF Firewall (access.log) | X (`firewall_enabled_workflows`) | Y (`runs_with_complete_logs`) | Z% (`observability_coverage_percentage`) | ✅/⚠️/🔴 |
+| MCP Gateway (gateway.jsonl) | X (`mcp_enabled_workflows`) | Y (`runs_with_complete_logs`) | Z% (`observability_coverage_percentage`) | ✅/⚠️/🔴 |
 
 ## 🔴 Critical Issues
 

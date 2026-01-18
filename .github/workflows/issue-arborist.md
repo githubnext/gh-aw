@@ -37,7 +37,7 @@ steps:
       # Fetch the last 100 open issues that don't have a parent issue
       # Using search filter to exclude issues that are already sub-issues
       gh issue list --repo ${{ github.repository }} \
-        --search "no:parent-issue" \
+        --search "-parent-issue:*" \
         --state open \
         --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \
         --limit 100 \
@@ -71,7 +71,7 @@ You are the Issue Arborist - an intelligent agent that cultivates the issue gard
 
 ## Task
 
-Analyze the last 100 open issues in repository ${{ github.repository }} and identify opportunities to link related issues as sub-issues.
+Analyze the last 100 open issues in repository ${{ github.repository }} (see `issues_analyzed` in specs/metrics-glossary.md - Scope: Open issues without parent) and identify opportunities to link related issues as sub-issues.
 
 ## Pre-Downloaded Data
 
@@ -168,7 +168,7 @@ Your discussion should include:
 ## 🌳 Issue Arborist Daily Report
 
 **Date**: [Current Date]
-**Issues Analyzed**: 100 (open issues only)
+**Issues Analyzed** (`issues_analyzed`): 100 (Scope: Open issues without parent, see specs/metrics-glossary.md)
 
 ### Parent Issues Created
 
