@@ -81,6 +81,13 @@ async function main() {
   const baseBranch = process.env.GITHUB_AW_AGENT_SESSION_BASE || process.env.GITHUB_REF_NAME || "main";
   const targetRepo = process.env.GITHUB_AW_TARGET_REPO;
 
+  // Get GH_TOKEN for gh CLI authentication
+  const ghToken = process.env.GH_TOKEN;
+  if (!ghToken) {
+    core.setFailed("GH_TOKEN environment variable is required for gh CLI authentication");
+    return;
+  }
+
   // Process all agent session items
   const createdTasks = [];
   let summaryContent = "## ✅ Agent Sessions Created\n\n";
@@ -119,6 +126,7 @@ async function main() {
         taskOutput = await exec.getExecOutput("gh", ghArgs, {
           silent: false,
           ignoreReturnCode: false,
+          env: { ...process.env, GH_TOKEN: ghToken },
         });
       } catch (execError) {
         const errorMessage = execError instanceof Error ? execError.message : String(execError);

@@ -59,6 +59,23 @@ func (c *Compiler) buildCreateAgentSessionStepConfig(data *WorkflowData, mainJob
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
 
+	// Add GH_TOKEN environment variable for gh CLI authentication
+	// Get the safe-outputs token (if configured) or use top-level token
+	var safeOutputsToken string
+	if data.SafeOutputs != nil {
+		safeOutputsToken = data.SafeOutputs.GitHubToken
+	}
+	// Use Copilot token chain: customToken > safeOutputsToken > data.GitHubToken > COPILOT_GITHUB_TOKEN || GH_AW_GITHUB_TOKEN
+	effectiveToken := getEffectiveCopilotGitHubToken(cfg.GitHubToken, getEffectiveCopilotGitHubToken(safeOutputsToken, data.GitHubToken))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
+
+	// Add GITHUB_AW_AGENT_SESSION_BASE environment variable
+	if cfg.Base != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_AGENT_SESSION_BASE: %q\n", cfg.Base))
+	} else {
+		customEnvVars = append(customEnvVars, "          GITHUB_AW_AGENT_SESSION_BASE: ${{ github.ref_name }}\n")
+	}
+
 	condition := BuildSafeOutputType("create_agent_session")
 
 	return SafeOutputStepConfig{
