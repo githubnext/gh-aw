@@ -13,6 +13,7 @@ const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { createExpirationLine } = require("./ephemerals.cjs");
 
 /**
  * Fetch repository ID and discussion categories for a repository
@@ -257,8 +258,7 @@ async function main(config = {}) {
     if (expiresHours > 0) {
       const expirationDate = new Date();
       expirationDate.setHours(expirationDate.getHours() + expiresHours);
-      const expirationISO = expirationDate.toISOString();
-      bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
+      bodyLines.push(createExpirationLine(expirationDate));
     }
 
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";

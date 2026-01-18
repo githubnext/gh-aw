@@ -6,6 +6,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateXMLMarker } = require("./messages.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
+const { createExpirationLine } = require("./ephemerals.cjs");
 const fs = require("fs");
 
 /**
@@ -143,7 +144,7 @@ gh aw audit <run-id>
   // Add expiration marker (7 days from now)
   const expirationDate = new Date();
   expirationDate.setDate(expirationDate.getDate() + 7);
-  const parentBody = `${parentBodyContent}\n\n<!-- gh-aw-expires: ${expirationDate.toISOString()} -->`;
+  const parentBody = `${parentBodyContent}\n\n${createExpirationLine(expirationDate)}`;
 
   try {
     const newIssue = await github.rest.issues.create({
@@ -353,7 +354,7 @@ async function main() {
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 7);
         bodyLines.push(``);
-        bodyLines.push(`<!-- gh-aw-expires: ${expirationDate.toISOString()} -->`);
+        bodyLines.push(createExpirationLine(expirationDate));
 
         // Add XML marker for traceability
         bodyLines.push(``);

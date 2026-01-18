@@ -94,12 +94,12 @@ Hours less than 24 are treated as 1 day minimum for expiration calculation.
 | 3-4 days | Every 12 hours |
 | 5+ days | Daily |
 
-**Expiration markers**: The system adds an XML comment to the body of created items:
-```html
-<!-- gh-aw-expires: 2026-01-14T15:30:00.000Z -->
+**Expiration markers**: The system adds a visible checkbox line with an XML comment to the body of created items:
+```markdown
+- [x] expires <!-- gh-aw-expires: 2026-01-14T15:30:00.000Z --> on Jan 14, 2026, 3:30 PM UTC
 ```
 
-The maintenance workflow searches for items with expired timestamps and automatically closes them with appropriate comments and resolution reasons.
+The maintenance workflow searches for items with this expiration format (checked checkbox with the XML comment) and automatically closes them with appropriate comments and resolution reasons. Users can uncheck the checkbox to prevent automatic expiration.
 
 See [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for complete documentation.
 
