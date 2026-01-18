@@ -566,8 +566,9 @@ jobs:
           ## Current Context
           
           - **Repository**: __GH_AW_GITHUB_REPOSITORY__
-          - **Analysis Date**: $(date +%Y-%m-%d)
           - **Lockfiles Location**: `.github/workflows/*.lock.yml`
+          
+          Note: Use the `date` command to get the current date when running your analysis.
           
           ## Analysis Process
           

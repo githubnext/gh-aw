@@ -9,7 +9,7 @@ const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } =
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
-const { createExpirationLine } = require("./ephemerals.cjs");
+const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
 const fs = require("fs");
 
 /**
@@ -408,15 +408,10 @@ async function main(config = {}) {
       bodyLines.push(trackerIDComment);
     }
 
-    // Add expiration comment if expires is set in config
-    if (expiresHours > 0) {
-      const expirationDate = new Date();
-      expirationDate.setHours(expirationDate.getHours() + expiresHours);
-      bodyLines.push(createExpirationLine(expirationDate));
-      core.info(`Issue will expire on ${expirationDate.toISOString()} (${expiresHours} hours)`);
-    }
+    // Generate footer and add expiration using helper
+    const footer = addExpirationToFooter(generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), expiresHours, "Issue");
 
-    bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), "");
+    bodyLines.push(``, ``, footer, "");
     const body = bodyLines.join("\n").trim();
 
     core.info(`Creating issue in ${qualifiedItemRepo} with title: ${title}`);

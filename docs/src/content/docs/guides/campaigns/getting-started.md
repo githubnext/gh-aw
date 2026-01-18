@@ -2,13 +2,23 @@
 title: Getting started
 description: Quick start guide for creating and launching agentic campaigns
 banner:
-  content: '<strong>Do not use.</strong> Campaigns are still in active development and may have unexpected consequences.'
+  content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
 ---
 
 This guide shows you how to create your first campaign using the automated creation flow.
 
 > [!IMPORTANT]
 > **Automated creation is the only supported way to create campaigns.** It creates the Project, spec, and orchestrator for you.
+
+## Quick start
+
+1. Create an issue describing the goal
+2. Apply the `create-agentic-campaign` label
+3. Review the generated pull request
+4. Merge and run the orchestrator from the Actions tab
+
+> [!IMPORTANT]
+> Use the automated campaign creation flow—it's the only supported way to create campaigns.
 
 ## Create a campaign (supported flow)
 

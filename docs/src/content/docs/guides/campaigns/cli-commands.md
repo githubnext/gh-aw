@@ -2,7 +2,7 @@
 title: CLI commands
 description: Command reference for managing agentic campaigns with gh aw
 banner:
-  content: '<strong>Do not use.</strong> Campaigns are still in active development and may have unexpected consequences.'
+  content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
 ---
 
 The GitHub Agentic Workflows CLI provides commands for inspecting, validating, and managing agentic campaigns.

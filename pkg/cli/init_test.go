@@ -280,13 +280,13 @@ func TestInitRepository_Campaign(t *testing.T) {
 	}
 
 	// Verify campaign-generator workflow was generated (not added from repo)
-	campaignWorkflowPath := filepath.Join(tempDir, ".github", "aw", "campaign-generator.md")
+	campaignWorkflowPath := filepath.Join(tempDir, ".github", "workflows", "campaign-generator.md")
 	if _, err := os.Stat(campaignWorkflowPath); os.IsNotExist(err) {
 		t.Errorf("Expected campaign-generator workflow to exist at %s", campaignWorkflowPath)
 	}
 
 	// Verify campaign-generator lock file was created
-	campaignLockPath := filepath.Join(tempDir, ".github", "aw", "campaign-generator.lock.yml")
+	campaignLockPath := filepath.Join(tempDir, ".github", "workflows", "campaign-generator.lock.yml")
 	if _, err := os.Stat(campaignLockPath); os.IsNotExist(err) {
 		t.Errorf("Expected campaign-generator lock file to exist at %s", campaignLockPath)
 	}
