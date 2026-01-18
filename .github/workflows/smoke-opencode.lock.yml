@@ -19,7 +19,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Smoke test workflow that validates OpenCode custom engine functionality by reviewing recent PRs twice daily
+# Smoke test workflow that validates OpenCode custom engine functionality daily
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -33,7 +33,7 @@ name: "Smoke OpenCode"
     types:
     - labeled
   schedule:
-  - cron: "10 */12 * * *"
+  - cron: "10 11 * * *"
   workflow_dispatch: null
 
 permissions: {}
@@ -1028,7 +1028,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           WORKFLOW_NAME: "Smoke OpenCode"
-          WORKFLOW_DESCRIPTION: "Smoke test workflow that validates OpenCode custom engine functionality by reviewing recent PRs twice daily"
+          WORKFLOW_DESCRIPTION: "Smoke test workflow that validates OpenCode custom engine functionality daily"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |

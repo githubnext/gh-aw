@@ -1,7 +1,7 @@
 ---
-description: Smoke test workflow that validates OpenCode custom engine functionality by reviewing recent PRs twice daily
+description: Smoke test workflow that validates OpenCode custom engine functionality daily
 on: 
-  schedule: every 12h
+  schedule: daily
   workflow_dispatch:
   pull_request:
     types: [labeled]
