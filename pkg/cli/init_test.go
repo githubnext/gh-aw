@@ -279,8 +279,8 @@ func TestInitRepository_Campaign(t *testing.T) {
 		t.Errorf("Expected campaign dispatcher agent to exist at %s", campaignAgentPath)
 	}
 
-	// Verify campaign-generator workflow was generated (not added from repo)
-	campaignWorkflowPath := filepath.Join(tempDir, ".github", "workflows", "campaign-generator.md")
+	// Verify campaign-generator source markdown was generated
+	campaignWorkflowPath := filepath.Join(tempDir, ".github", "aw", "campaign-generator.md")
 	if _, err := os.Stat(campaignWorkflowPath); os.IsNotExist(err) {
 		t.Errorf("Expected campaign-generator workflow to exist at %s", campaignWorkflowPath)
 	}

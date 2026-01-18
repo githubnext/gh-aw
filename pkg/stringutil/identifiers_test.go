@@ -203,6 +203,11 @@ func TestMarkdownToLockFile(t *testing.T) {
 			input:    "test.campaign.md",
 			expected: "test.campaign.lock.yml",
 		},
+		{
+			name:     "campaign-generator special-case mapping",
+			input:    ".github/aw/campaign-generator.md",
+			expected: ".github/workflows/campaign-generator.lock.yml",
+		},
 	}
 
 	for _, tt := range tests {
@@ -250,6 +255,11 @@ func TestLockFileToMarkdown(t *testing.T) {
 			name:     "campaign lock file",
 			input:    "test.campaign.lock.yml",
 			expected: "test.campaign.md",
+		},
+		{
+			name:     "campaign-generator special-case mapping",
+			input:    ".github/workflows/campaign-generator.lock.yml",
+			expected: ".github/aw/campaign-generator.md",
 		},
 	}
 
