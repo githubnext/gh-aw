@@ -45,15 +45,17 @@ Analyze codebase daily: compute size, quality, health metrics. Track 7/30-day tr
 
 ## Metrics to Collect
 
-**Size**: LOC by language (Go, JS/CJS, YAML, MD), by directory (cmd, pkg, docs, workflows), file counts/distribution
+All metrics use standardized names from specs/metrics-glossary.md:
+
+**Size**: LOC by language (`lines_of_code_total`), by directory (cmd, pkg, docs, workflows), file counts/distribution
 
 **Quality**: Large files (>500 LOC), avg file size, function count, comment lines, comment ratio
 
-**Tests**: Test files/LOC, test-to-source ratio
+**Tests**: Test files/LOC (`test_lines_of_code`), test-to-source ratio (`test_to_source_ratio`)
 
 **Churn (7d)**: Files modified, commits, lines added/deleted, most active files (requires `git fetch --unshallow`)
 
-**Workflows**: Total `.md` files, `.lock.yml` files, avg workflow size in `.github/workflows`
+**Workflows**: Total `.md` files (`total_workflows`), `.lock.yml` files, avg workflow size in `.github/workflows`
 
 **Docs**: Files in `docs/`, total doc LOC, code-to-docs ratio
 
@@ -307,9 +309,9 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 ## Test Coverage
 
 - **Test Files**: XX files
-- **Test LOC**: X,XXX lines
+- **Test LOC** (`test_lines_of_code`): X,XXX lines
 - **Source LOC**: X,XXX lines  
-- **Test-to-Source Ratio**: X.XX
+- **Test-to-Source Ratio** (`test_to_source_ratio`): X.XX
 - **Trend (7d)**: ⬆️ +X%
 - **Trend (30d)**: ⬆️ +X%
 
@@ -328,7 +330,7 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 
 ## Workflow Metrics
 
-- **Total Workflow Files (.md)**: XXX files
+- **Total Workflow Files (.md)** (`total_workflows`): XXX files
 - **Compiled Workflows (.lock.yml)**: XXX files
 - **Average Workflow Size**: XXX lines
 - **Growth (7d)**: ⬆️ +X%
