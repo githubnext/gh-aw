@@ -102,6 +102,98 @@ network:
 
 See [GitHub MCP Server Documentation](skills/github-mcp-server/SKILL.md) for complete configuration details.
 
+## Best Practices for PR Success
+
+To improve PR success rates and reduce failures, follow these guidelines:
+
+### 1. Validate Issue is Actionable Before Opening PR
+
+**Before creating a PR:**
+- Read the issue description and any recent comments thoroughly
+- Check if the issue has already been fixed or addressed in another PR
+- Verify the issue requires code changes (not just analysis or documentation)
+- Look for blocking dependencies or prerequisites
+
+**If the issue is not actionable:**
+- Comment on the issue explaining why (e.g., "Already fixed in PR #XXXX", "No code changes needed")
+- Do NOT open a PR - just close the issue or comment with your findings
+
+**Examples of non-actionable issues:**
+- Transient infrastructure failures (retry will likely succeed)
+- Issues that have been superseded by other work
+- Analysis-only tasks that don't require code changes
+
+### 2. Move PRs Out of Draft Status Promptly
+
+**Draft PRs should be temporary (< 1 hour):**
+- Use draft status only for initial exploration and validation
+- Once you've verified the approach works, mark the PR as "Ready for review"
+- If blocked or uncertain, add a comment explaining the blocker and close the PR
+
+**Never leave a draft PR open indefinitely:**
+- Draft PRs signal incomplete work and reduce confidence in the changes
+- If you need feedback, mark it ready and explicitly ask for feedback in a comment
+- If you can't complete the work, close the PR and document what you learned
+
+### 3. Keep PRs Fresh and Avoid Staleness
+
+**Regularly sync with main branch:**
+- If your PR is open for more than 6 hours, merge main to avoid conflicts
+- Run `make agent-finish` after every merge to ensure everything still works
+- Large PRs (> 100 files changed) are more prone to conflicts - keep them small
+
+**Warning signs of staleness:**
+- Many commits on main since your branch was created
+- Failed CI checks due to changes in main
+- Comments about conflicts or outdated code
+
+### 4. Understand When to Close vs. Iterate
+
+**Close the PR if:**
+- You discover the issue is already fixed
+- The approach is fundamentally flawed and needs a complete rewrite
+- There's a simpler solution implemented in another PR
+- The issue is no longer relevant or was a false positive
+
+**Keep iterating if:**
+- CI failures can be fixed with small changes
+- Reviewer feedback requires adjustments
+- You're making progress toward a working solution
+- The approach is sound but needs refinement
+
+### 5. Run Validation Early and Often
+
+**Before pushing any commit:**
+```bash
+make agent-finish  # Comprehensive validation
+```
+
+**If agent-finish takes too long, run incrementally:**
+```bash
+make fmt        # Format code
+make test-unit  # Fast tests (~25s)
+make lint       # Style checks (~5.5s)
+```
+
+**After making changes:**
+- Test your changes manually when possible
+- Check that CI workflows pass before requesting review
+- Don't rely on CI to catch formatting issues - run `make fmt` locally
+
+### 6. Write Clear, Actionable PR Descriptions
+
+**Your PR description should include:**
+- **What**: Clear summary of changes made
+- **Why**: Link to the issue and explain the problem being solved
+- **How**: Brief explanation of the approach taken
+- **Testing**: What testing was done to verify the fix
+
+**Mark PR as "Ready for Review" only when:**
+- All CI checks are passing
+- You've run `make agent-finish` successfully
+- The PR description is complete and accurate
+- You're confident the changes are correct
+
 ## Merging Main Branch
 
 **When instructed to "merge main", follow these steps WITHOUT asking for confirmation:**

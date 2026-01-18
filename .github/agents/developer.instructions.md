@@ -671,6 +671,76 @@ For manual feature testing in pull requests:
 
 ---
 
+## PR Success Best Practices
+
+To maximize PR success rates and reduce unnecessary failures:
+
+### Before Opening a PR
+
+1. **Validate the issue is actionable**:
+   - Read the issue description and comments thoroughly
+   - Verify the issue hasn't been fixed already
+   - Confirm code changes are actually needed (not just analysis)
+   - Check for blocking dependencies
+
+2. **If the issue is not actionable**:
+   - Comment on the issue with your findings
+   - Do NOT open a PR
+   - Examples: "Already fixed in PR #XXXX", "Transient error - retry succeeded", "No code changes needed"
+
+### During PR Development
+
+3. **Move out of draft status quickly (< 1 hour)**:
+   - Use draft only for initial exploration
+   - Mark "Ready for review" once approach is validated
+   - If blocked, comment and close the PR rather than leaving it as draft
+
+4. **Keep PRs fresh**:
+   - If open > 6 hours, merge main to avoid staleness
+   - Run `make agent-finish` after merging main
+   - Keep changes focused (< 100 files when possible)
+
+5. **Run validation before every commit**:
+   ```bash
+   make agent-finish  # Comprehensive validation
+   # Or at minimum:
+   make fmt && make test-unit && make lint
+   ```
+
+### Deciding to Close vs. Continue
+
+6. **Close the PR if**:
+   - Issue is already fixed elsewhere
+   - Approach is fundamentally flawed
+   - Simpler solution exists in another PR
+   - Issue was a false positive
+
+7. **Keep iterating if**:
+   - CI failures can be fixed with small changes
+   - Reviewer feedback is actionable
+   - You're making progress toward a solution
+   - The approach is sound but needs refinement
+
+### PR Quality Checklist
+
+Before marking "Ready for review":
+- [ ] All CI checks passing
+- [ ] `make agent-finish` runs successfully
+- [ ] PR description explains what, why, and how
+- [ ] Changes are focused and minimal
+- [ ] No unrelated changes or formatting fixes
+- [ ] Tests added/updated as needed
+
+### Common Failure Patterns to Avoid
+
+- **Quick abandonment**: Opening a PR and closing it within 1 hour without substantial work
+- **Draft limbo**: Leaving PRs in draft status indefinitely
+- **Stale branches**: Not merging main regularly, leading to conflicts
+- **Analysis PRs**: Opening PRs for issues that don't require code changes
+- **Superseded work**: Not checking if similar work is already in progress
+
+---
+
 ## Additional Documentation
 
 For detailed specifications, see individual files in `specs/`:
@@ -726,4 +796,4 @@ For detailed specifications, see individual files in `specs/`:
 
 ---
 
-**Last Updated**: 2026-01-04
+**Last Updated**: 2026-01-18
