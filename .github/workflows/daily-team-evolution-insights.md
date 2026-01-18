@@ -18,7 +18,7 @@ network:
     - "*"
 tools:
   github:
-    mode: local
+    mode: remote
     toolsets: [repos, issues, pull_requests, discussions]
 safe-outputs:
   create-discussion:
