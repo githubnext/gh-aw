@@ -121,7 +121,7 @@ Each safe output operates in a separate job with minimal, scoped permissions. Se
 - Cross-repository project coordination
 - Worker/workflow field population for multi-agent campaigns
 
-See the [Project Management Guide](/gh-aw/guides/campaigns/project-management/) for detailed configuration patterns and best practices.
+See the [Safe Outputs reference](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) for project field and view configuration.
 
 ## When to Use ProjectOps
 
@@ -171,7 +171,7 @@ ProjectOps complements [GitHub's built-in Projects automation](https://docs.gith
 ## Additional Resources
 
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration and API details
-- [Project Management Guide](/gh-aw/guides/campaigns/project-management/) - Campaign project setup and tracking strategies
+- [Campaign Guides](/gh-aw/guides/campaigns/) - Campaign setup and lifecycle
 - [Trigger Events](/gh-aw/reference/triggers/) - Event trigger configuration options
 - [IssueOps Guide](/gh-aw/examples/issue-pr-events/issueops/) - Related issue automation patterns
 - [Token Reference](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2) - GitHub Projects token setup

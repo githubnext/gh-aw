@@ -343,7 +343,7 @@ Optionally include `item_url` (GitHub issue URL) to add the issue as the first p
 > - **Fine-grained PAT**: Organization permissions → Projects: Read & Write
 
 > [!NOTE]
-> You can configure views directly during project creation using the `views` field (see above), or later using `update-project` to add custom fields and additional views. See [Project Management Guide](/gh-aw/guides/campaigns/project-management/) for field and view configuration patterns.
+> You can configure views directly during project creation using the `views` field (see above), or later using `update-project` to add custom fields and additional views. For end-to-end campaign usage, see [Campaign Guides](/gh-aw/guides/campaigns/).
 
 ### Project Board Updates (`update-project:`)
 
@@ -430,7 +430,7 @@ safe-outputs:
 - `label:bug` — Items with bug label
 - `assignee:@me` — Items assigned to viewer
 
-Views are created automatically during workflow execution. The workflow must include at least one `update_project` operation to provide the target project URL. See [Project Management Guide](/gh-aw/guides/campaigns/project-management/) for view customization strategies.
+Views are created automatically during workflow execution. The workflow must include at least one `update_project` operation to provide the target project URL. For campaign workflows, see [Campaign Guides](/gh-aw/guides/campaigns/).
 
 
 

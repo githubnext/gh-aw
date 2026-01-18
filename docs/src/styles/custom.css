@@ -198,6 +198,8 @@
 }
 
 /* Light Theme Sidebar */
+
+
 :root[data-theme='light'] .sidebar {
   border-right: 1px solid #d0d7de;
 }
