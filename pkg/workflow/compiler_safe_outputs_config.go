@@ -44,6 +44,10 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.TargetRepoSlug != "" {
 			handlerConfig["target-repo"] = cfg.TargetRepoSlug
 		}
+		// Add group flag to config
+		if cfg.Group {
+			handlerConfig["group"] = true
+		}
 		config["create_issue"] = handlerConfig
 	}
 

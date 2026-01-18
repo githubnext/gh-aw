@@ -42,6 +42,7 @@ safe-outputs:
       hide-older-comments: true
     create-issue:
       expires: 2h
+      group: true
     add-labels:
       allowed: [smoke-copilot]
     messages:
@@ -67,10 +68,19 @@ strict: true
 
 ## Output
 
-Add a **very brief** comment (max 5-10 lines) to the current pull request with:
-- PR titles only (no descriptions)
-- ✅ or ❌ for each test result
-- Overall status: PASS or FAIL
-- Mention the pull request author and any assignees
+1. **Create an issue** with a summary of the smoke test run:
+   - Title: "Smoke Test: Copilot - ${{ github.run_id }}"
+   - Body should include:
+     - Test results (✅ or ❌ for each test)
+     - Overall status: PASS or FAIL
+     - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+     - Timestamp
+     - Pull request author and assignees
+
+2. Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+   - PR titles only (no descriptions)
+   - ✅ or ❌ for each test result
+   - Overall status: PASS or FAIL
+   - Mention the pull request author and any assignees
 
 If all tests pass, add the label `smoke-copilot` to the pull request.

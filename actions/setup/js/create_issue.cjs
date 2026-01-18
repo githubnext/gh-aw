@@ -8,6 +8,8 @@ const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTempora
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { renderTemplate } = require("./messages_core.cjs");
+const fs = require("fs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -15,6 +17,166 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_issue";
+
+/** @type {number} Maximum number of sub-issues allowed per parent issue */
+const MAX_SUB_ISSUES_PER_PARENT = 64;
+
+/** @type {number} Maximum number of parent issues to check when searching */
+const MAX_PARENT_ISSUES_TO_CHECK = 10;
+
+/**
+ * Searches for an existing parent issue that can accept more sub-issues
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {string} markerComment - The HTML comment marker to search for
+ * @returns {Promise<number|null>} - Parent issue number or null if none found
+ */
+async function searchForExistingParent(owner, repo, markerComment) {
+  try {
+    const searchQuery = `repo:${owner}/${repo} is:issue "${markerComment}" in:body`;
+    const searchResults = await github.rest.search.issuesAndPullRequests({
+      q: searchQuery,
+      per_page: MAX_PARENT_ISSUES_TO_CHECK,
+      sort: "created",
+      order: "desc",
+    });
+
+    if (searchResults.data.total_count === 0) {
+      return null;
+    }
+
+    // Check each found issue to see if it can accept more sub-issues
+    for (const issue of searchResults.data.items) {
+      core.info(`Found potential parent issue #${issue.number}: ${issue.title}`);
+
+      if (issue.state !== "open") {
+        core.info(`Parent issue #${issue.number} is ${issue.state}, skipping`);
+        continue;
+      }
+
+      const subIssueCount = await getSubIssueCount(owner, repo, issue.number);
+      if (subIssueCount === null) {
+        continue; // Skip if we couldn't get the count
+      }
+
+      if (subIssueCount < MAX_SUB_ISSUES_PER_PARENT) {
+        core.info(`Using existing parent issue #${issue.number} (has ${subIssueCount}/${MAX_SUB_ISSUES_PER_PARENT} sub-issues)`);
+        return issue.number;
+      }
+
+      core.info(`Parent issue #${issue.number} is full (${subIssueCount}/${MAX_SUB_ISSUES_PER_PARENT} sub-issues), skipping`);
+    }
+
+    return null;
+  } catch (error) {
+    core.warning(`Could not search for existing parent issues: ${getErrorMessage(error)}`);
+    return null;
+  }
+}
+
+/**
+ * Gets the sub-issue count for a parent issue using GraphQL
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} issueNumber - Issue number
+ * @returns {Promise<number|null>} - Sub-issue count or null if query failed
+ */
+async function getSubIssueCount(owner, repo, issueNumber) {
+  try {
+    const subIssueQuery = `
+      query($owner: String!, $repo: String!, $issueNumber: Int!) {
+        repository(owner: $owner, name: $repo) {
+          issue(number: $issueNumber) {
+            subIssues(first: 65) {
+              totalCount
+            }
+          }
+        }
+      }
+    `;
+
+    const result = await github.graphql(subIssueQuery, {
+      owner,
+      repo,
+      issueNumber,
+    });
+
+    return result?.repository?.issue?.subIssues?.totalCount || 0;
+  } catch (error) {
+    core.warning(`Could not check sub-issue count for #${issueNumber}: ${getErrorMessage(error)}`);
+    return null;
+  }
+}
+
+/**
+ * Finds an existing parent issue for a group, or creates a new one if needed
+ * @param {object} params - Parameters for finding/creating parent issue
+ * @param {string} params.groupId - The group identifier
+ * @param {string} params.owner - Repository owner
+ * @param {string} params.repo - Repository name
+ * @param {string} params.titlePrefix - Title prefix to use
+ * @param {string[]} params.labels - Labels to apply to parent issue
+ * @param {string} params.workflowName - Workflow name
+ * @param {string} params.workflowSourceURL - URL to the workflow source
+ * @returns {Promise<number|null>} - Parent issue number or null if creation failed
+ */
+async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labels, workflowName, workflowSourceURL }) {
+  const markerComment = `<!-- gh-aw-group: ${groupId} -->`;
+
+  // Search for existing parent issue with the group marker
+  core.info(`Searching for existing parent issue for group: ${groupId}`);
+  const existingParent = await searchForExistingParent(owner, repo, markerComment);
+  if (existingParent) {
+    return existingParent;
+  }
+
+  // No suitable parent issue found, create a new one
+  core.info(`Creating new parent issue for group: ${groupId}`);
+  try {
+    const template = createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowSourceURL);
+    const { data: parentIssue } = await github.rest.issues.create({
+      owner,
+      repo,
+      title: template.title,
+      body: template.body,
+      labels: labels,
+    });
+
+    core.info(`Created new parent issue #${parentIssue.number}: ${parentIssue.html_url}`);
+    return parentIssue.number;
+  } catch (error) {
+    core.error(`Failed to create parent issue: ${getErrorMessage(error)}`);
+    return null;
+  }
+}
+
+/**
+ * Creates a parent issue template for grouping sub-issues
+ * @param {string} groupId - The group identifier (workflow ID)
+ * @param {string} titlePrefix - Title prefix to use
+ * @param {string} workflowName - Name of the workflow
+ * @param {string} workflowSourceURL - URL to the workflow source
+ * @returns {object} - Template with title and body
+ */
+function createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowSourceURL) {
+  const title = `${titlePrefix}${groupId} - Issue Group`;
+
+  // Load issue template
+  const issueTemplatePath = "/opt/gh-aw/prompts/issue_group_parent.md";
+  const issueTemplate = fs.readFileSync(issueTemplatePath, "utf8");
+
+  // Create template context
+  const templateContext = {
+    group_id: groupId,
+    workflow_name: workflowName,
+    workflow_source_url: workflowSourceURL || "#",
+  };
+
+  // Render the issue template
+  const body = renderTemplate(issueTemplate, templateContext);
+
+  return { title, body };
+}
 
 /**
  * Main handler factory for create_issue
@@ -30,6 +192,7 @@ async function main(config = {}) {
   const maxCount = config.max || 10;
   const allowedRepos = parseAllowedRepos(config.allowed_repos);
   const defaultTargetRepo = getDefaultTargetRepo(config);
+  const groupEnabled = config.group === true || config.group === "true";
 
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {
@@ -48,6 +211,9 @@ async function main(config = {}) {
     core.info(`Issues expire after: ${expiresHours} hours`);
   }
   core.info(`Max count: ${maxCount}`);
+  if (groupEnabled) {
+    core.info(`Issue grouping enabled: issues will be grouped as sub-issues`);
+  }
 
   // Track how many items we've processed for max limit
   let processedCount = 0;
@@ -57,6 +223,9 @@ async function main(config = {}) {
 
   // Map to track temporary_id -> {repo, number} relationships across messages
   const temporaryIdMap = new Map();
+
+  // Cache for parent issue per group ID
+  const parentIssueCache = new Map();
 
   // Extract triggering context for footer generation
   const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
@@ -274,6 +443,42 @@ async function main(config = {}) {
       temporaryIdMap.set(normalizeTemporaryId(temporaryId), { repo: qualifiedItemRepo, number: issue.number });
       core.info(`Stored temporary ID mapping: ${temporaryId} -> ${qualifiedItemRepo}#${issue.number}`);
 
+      // Handle grouping - find or create parent issue and link sub-issue
+      if (groupEnabled && !effectiveParentIssueNumber) {
+        // Use workflow name as the group ID
+        const groupId = workflowName;
+        core.info(`Grouping enabled - finding or creating parent issue for group: ${groupId}`);
+
+        // Check cache first
+        let groupParentNumber = parentIssueCache.get(groupId);
+
+        if (!groupParentNumber) {
+          // Not in cache, find or create parent
+          groupParentNumber = await findOrCreateParentIssue({
+            groupId,
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            titlePrefix,
+            labels,
+            workflowName,
+            workflowSourceURL,
+          });
+
+          if (groupParentNumber) {
+            // Cache the parent issue number for this group
+            parentIssueCache.set(groupId, groupParentNumber);
+          }
+        }
+
+        if (groupParentNumber) {
+          effectiveParentIssueNumber = groupParentNumber;
+          effectiveParentRepo = qualifiedItemRepo;
+          core.info(`Using parent issue #${effectiveParentIssueNumber} for group: ${groupId}`);
+        } else {
+          core.warning(`Failed to find or create parent issue for group: ${groupId}`);
+        }
+      }
+
       // Sub-issue linking only works within the same repository
       if (effectiveParentIssueNumber && effectiveParentRepo === qualifiedItemRepo) {
         core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
@@ -380,4 +585,4 @@ async function main(config = {}) {
   };
 }
 
-module.exports = { main };
+module.exports = { main, createParentIssueTemplate, searchForExistingParent, getSubIssueCount };

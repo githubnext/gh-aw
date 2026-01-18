@@ -18,6 +18,7 @@ type CreateIssuesConfig struct {
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`    // Target repository in format "owner/repo" for cross-repository issues
 	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`  // List of additional repositories that issues can be created in
 	Expires              int      `yaml:"expires,omitempty"`        // Hours until the issue expires and should be automatically closed
+	Group                bool     `yaml:"group,omitempty"`          // If true, group issues as sub-issues under a parent issue (workflow ID is used as group identifier)
 }
 
 // parseIssuesConfig handles create-issue configuration
@@ -146,6 +147,12 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	// Add expires value if set
 	if data.SafeOutputs.CreateIssues.Expires > 0 {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ISSUE_EXPIRES: \"%d\"\n", data.SafeOutputs.CreateIssues.Expires))
+	}
+
+	// Add group flag if set
+	if data.SafeOutputs.CreateIssues.Group {
+		customEnvVars = append(customEnvVars, "          GH_AW_ISSUE_GROUP: \"true\"\n")
+		createIssueLog.Print("Issue grouping enabled - issues will be grouped as sub-issues under parent")
 	}
 
 	// Add standard environment variables (metadata + staged/target repo)
