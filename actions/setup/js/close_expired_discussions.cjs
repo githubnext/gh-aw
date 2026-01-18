@@ -95,8 +95,9 @@ async function searchDiscussionsWithExpiration(github, owner, repo) {
         continue;
       }
 
-      // Check if has expiration marker
-      const expirationPattern = /<!-- gh-aw-expires: ([^>]+) -->/;
+      // Check if has expiration marker with checked checkbox
+      // Pattern matches: - [x] expires <!-- gh-aw-expires: DATE --> on ...
+      const expirationPattern = /^- \[x\] expires <!-- gh-aw-expires: ([^>]+) -->/m;
       const match = discussion.body ? discussion.body.match(expirationPattern) : null;
 
       if (match) {
@@ -128,7 +129,8 @@ async function searchDiscussionsWithExpiration(github, owner, repo) {
  * @returns {Date|null} Expiration date or null if not found/invalid
  */
 function extractExpirationDate(body) {
-  const expirationPattern = /<!-- gh-aw-expires: ([^>]+) -->/;
+  // Pattern matches: - [x] expires <!-- gh-aw-expires: DATE --> on ...
+  const expirationPattern = /^- \[x\] expires <!-- gh-aw-expires: ([^>]+) -->/m;
   const match = body.match(expirationPattern);
 
   if (!match) {

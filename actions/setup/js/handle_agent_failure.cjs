@@ -143,7 +143,13 @@ gh aw audit <run-id>
   // Add expiration marker (7 days from now)
   const expirationDate = new Date();
   expirationDate.setDate(expirationDate.getDate() + 7);
-  const parentBody = `${parentBodyContent}\n\n<!-- gh-aw-expires: ${expirationDate.toISOString()} -->`;
+  const expirationISO = expirationDate.toISOString();
+  const humanReadableDate = expirationDate.toLocaleString('en-US', { 
+    dateStyle: 'medium', 
+    timeStyle: 'short',
+    timeZone: 'UTC'
+  });
+  const parentBody = `${parentBodyContent}\n\n- [x] expires <!-- gh-aw-expires: ${expirationISO} --> on ${humanReadableDate} UTC`;
 
   try {
     const newIssue = await github.rest.issues.create({
@@ -352,8 +358,14 @@ async function main() {
         // Add expiration marker (7 days from now)
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 7);
+        const expirationISO = expirationDate.toISOString();
+        const humanReadableDate = expirationDate.toLocaleString('en-US', { 
+          dateStyle: 'medium', 
+          timeStyle: 'short',
+          timeZone: 'UTC'
+        });
         bodyLines.push(``);
-        bodyLines.push(`<!-- gh-aw-expires: ${expirationDate.toISOString()} -->`);
+        bodyLines.push(`- [x] expires <!-- gh-aw-expires: ${expirationISO} --> on ${humanReadableDate} UTC`);
 
         // Add XML marker for traceability
         bodyLines.push(``);

@@ -412,7 +412,12 @@ async function main(config = {}) {
       const expirationDate = new Date();
       expirationDate.setHours(expirationDate.getHours() + expiresHours);
       const expirationISO = expirationDate.toISOString();
-      bodyLines.push(`<!-- gh-aw-expires: ${expirationISO} -->`);
+      const humanReadableDate = expirationDate.toLocaleString('en-US', { 
+        dateStyle: 'medium', 
+        timeStyle: 'short',
+        timeZone: 'UTC'
+      });
+      bodyLines.push(`- [x] expires <!-- gh-aw-expires: ${expirationISO} --> on ${humanReadableDate} UTC`);
       core.info(`Issue will expire on ${expirationISO} (${expiresHours} hours)`);
     }
 
