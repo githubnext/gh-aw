@@ -66,10 +66,8 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		problems = append(problems, "workflows should list at least one workflow implementing this campaign - example: ['vulnerability-scanner', 'dependency-updater']")
 	}
 
-	// Validate allowed-repos (required and non-empty)
-	if len(spec.AllowedRepos) == 0 {
-		problems = append(problems, "allowed-repos is required and must contain at least one repository (campaigns MUST be scoped) - example: ['myorg/repo1', 'myorg/repo2']")
-	} else {
+	// Validate allowed-repos format if provided (now optional - defaults to current repo)
+	if len(spec.AllowedRepos) > 0 {
 		// Validate each repository format
 		for _, repo := range spec.AllowedRepos {
 			trimmed := strings.TrimSpace(repo)

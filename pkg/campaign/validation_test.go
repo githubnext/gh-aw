@@ -454,29 +454,19 @@ func TestValidateSpec_KPIFieldConstraints(t *testing.T) {
 	}
 }
 
-func TestValidateSpec_MissingAllowedRepos(t *testing.T) {
+func TestValidateSpec_MissingAllowedReposIsValid(t *testing.T) {
 	spec := &CampaignSpec{
 		ID:         "test-campaign",
 		Name:       "Test Campaign",
 		ProjectURL: "https://github.com/orgs/org/projects/1",
 		Workflows:  []string{"workflow1"},
-		// AllowedRepos intentionally omitted
+		// AllowedRepos intentionally omitted - should default to current repo
 	}
 
 	problems := ValidateSpec(spec)
-	if len(problems) == 0 {
-		t.Fatal("Expected validation problems for missing allowed-repos")
-	}
-
-	found := false
-	for _, p := range problems {
-		if strings.Contains(p, "allowed-repos is required") && strings.Contains(p, "campaigns MUST be scoped") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("Expected allowed-repos validation problem, got: %v", problems)
+	// Should not have validation problems - allowed-repos is now optional
+	if len(problems) != 0 {
+		t.Errorf("Expected no validation problems for missing allowed-repos (should default to current repo), got: %v", problems)
 	}
 }
 
@@ -506,29 +496,19 @@ func TestValidateSpec_InvalidAllowedReposFormat(t *testing.T) {
 	}
 }
 
-func TestValidateSpec_EmptyAllowedRepos(t *testing.T) {
+func TestValidateSpec_EmptyAllowedReposIsValid(t *testing.T) {
 	spec := &CampaignSpec{
 		ID:           "test-campaign",
 		Name:         "Test Campaign",
 		ProjectURL:   "https://github.com/orgs/org/projects/1",
 		Workflows:    []string{"workflow1"},
-		AllowedRepos: []string{},
+		AllowedRepos: []string{}, // Empty list - should default to current repo
 	}
 
 	problems := ValidateSpec(spec)
-	if len(problems) == 0 {
-		t.Fatal("Expected validation problems for empty allowed-repos")
-	}
-
-	found := false
-	for _, p := range problems {
-		if strings.Contains(p, "allowed-repos is required") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("Expected allowed-repos validation problem, got: %v", problems)
+	// Should not have validation problems - empty list defaults to current repo
+	if len(problems) != 0 {
+		t.Errorf("Expected no validation problems for empty allowed-repos (should default to current repo), got: %v", problems)
 	}
 }
 

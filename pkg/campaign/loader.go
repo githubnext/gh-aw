@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/cli/go-gh/v2/pkg/repository"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
@@ -81,6 +82,17 @@ func LoadSpecs(rootDir string) ([]CampaignSpec, error) {
 			spec.Name = spec.ID
 		}
 
+		// Default allowed-repos to current repository if not specified
+		if len(spec.AllowedRepos) == 0 {
+			currentRepo, err := getCurrentRepository()
+			if err != nil {
+				log.Printf("Warning: Could not determine current repository for campaign '%s': %v. Campaign will require explicit allowed-repos.", spec.ID, err)
+			} else {
+				spec.AllowedRepos = []string{currentRepo}
+				log.Printf("Defaulted allowed-repos to current repository for campaign '%s': %s", spec.ID, currentRepo)
+			}
+		}
+
 		spec.ConfigPath = filepath.ToSlash(filepath.Join(".github", "workflows", name))
 		specs = append(specs, spec)
 	}
@@ -149,16 +161,11 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	}
 
 	spec := CampaignSpec{
-		ID:         id,
-		Name:       name,
-		ProjectURL: "https://github.com/orgs/ORG/projects/1",
-		Version:    "v1",
-		State:      "planned",
-		// Define the repositories this campaign can operate on (REQUIRED)
-		// Examples: ["myorg/backend", "myorg/frontend", "myorg/api"]
-		AllowedRepos: []string{"ORG/REPO"},
-		// Optionally define organizations for org-wide scope
-		// AllowedOrgs: []string{"myorg"},
+		ID:          id,
+		Name:        name,
+		ProjectURL:  "https://github.com/orgs/ORG/projects/1",
+		Version:     "v1",
+		State:       "planned",
 		MemoryPaths: []string{"memory/campaigns/" + id + "/**"},
 		MetricsGlob: "memory/campaigns/" + id + "/metrics/*.json",
 		CursorGlob:  "memory/campaigns/" + id + "/cursor.json",
@@ -189,7 +196,8 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	}
 	buf.WriteString("Describe this campaign's goals, guardrails, stakeholders, and playbook.\n\n")
 	buf.WriteString("## Quick Start\n\n")
-	buf.WriteString("1. **Update allowed-repos**: Add repositories this campaign should operate on\n")
+	buf.WriteString("By default, this campaign will target the current repository. To target additional repositories:\n\n")
+	buf.WriteString("1. **Add allowed-repos** (optional): Specify repositories to target\n")
 	buf.WriteString("2. **Define workflows**: List workflows to execute (e.g., `vulnerability-scanner`)\n")
 	buf.WriteString("3. **Add objective & KPIs**: Define measurable success criteria\n")
 	buf.WriteString("4. **Set owners**: Specify who is responsible for this campaign\n")
@@ -197,6 +205,15 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	buf.WriteString("## Example Configuration\n\n")
 	buf.WriteString("```yaml\n")
 	buf.WriteString("# Add to the frontmatter above:\n")
+	buf.WriteString("\n")
+	buf.WriteString("# Optional: Target specific repositories (defaults to current repo)\n")
+	buf.WriteString("# allowed-repos:\n")
+	buf.WriteString("#   - myorg/backend\n")
+	buf.WriteString("#   - myorg/frontend\n")
+	buf.WriteString("# Or use allowed-orgs for organization-wide scope:\n")
+	buf.WriteString("# allowed-orgs:\n")
+	buf.WriteString("#   - myorg\n")
+	buf.WriteString("\n")
 	buf.WriteString("objective: \"Reduce security vulnerabilities across all repositories\"\n")
 	buf.WriteString("workflows:\n")
 	buf.WriteString("  - vulnerability-scanner\n")
@@ -224,4 +241,22 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 
 func boolPtr(v bool) *bool {
 	return &v
+}
+
+// getCurrentRepository gets the current repository from git context
+// This function mirrors the logic from pkg/workflow/repository_features_validation.go
+func getCurrentRepository() (string, error) {
+	// Use native repository.Current() to get the current repository
+	// This works when in a git repository with GitHub remote and respects GH_REPO
+	repo, err := repository.Current()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current repository: %w", err)
+	}
+
+	// Validate that owner and name are not empty
+	if repo.Owner == "" || repo.Name == "" {
+		return "", fmt.Errorf("repository owner or name is empty (owner: %q, name: %q)", repo.Owner, repo.Name)
+	}
+
+	return fmt.Sprintf("%s/%s", repo.Owner, repo.Name), nil
 }
