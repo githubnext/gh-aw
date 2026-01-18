@@ -406,6 +406,9 @@ func renderCampaignGeneratorMarkdown(data *workflow.WorkflowData) string {
 			if data.SafeOutputs.CreateProjects.GitHubToken != "" {
 				fmt.Fprintf(&b, "    github-token: \"%s\"\n", data.SafeOutputs.CreateProjects.GitHubToken)
 			}
+			if data.SafeOutputs.CreateProjects.TargetOwner != "" {
+				fmt.Fprintf(&b, "    target-owner: %s\n", data.SafeOutputs.CreateProjects.TargetOwner)
+			}
 		}
 
 		if data.SafeOutputs.UpdateProjects != nil {
