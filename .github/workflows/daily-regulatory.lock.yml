@@ -167,7 +167,7 @@ jobs:
         env:
           TOKEN_CHECK: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
         if: env.TOKEN_CHECK != ''
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
@@ -1022,6 +1022,50 @@ jobs:
           - **Run ID**: __GH_AW_GITHUB_RUN_ID__
           - **Date**: Generated daily
           
+          ## Phase 0: Prerequisites Check
+          
+          **CRITICAL**: Before proceeding with the investigation, verify that you have access to the necessary tools and permissions. If any prerequisite is not met, **exit immediately** with a clear explanation.
+          
+          ### Step 0.1: Verify GitHub Discussions Access
+          
+          1. Test the `github-discussion-query` safe-input tool by running a simple query:
+             ```
+             github-discussion-query with limit: 1, jq: "."
+             ```
+          
+          2. **If this fails or returns an error**:
+             - Discussions may not be enabled for this repository
+             - The tool may not be available
+             - **EXIT IMMEDIATELY** with a message explaining that discussions access is required for this workflow
+          
+          ### Step 0.2: Verify Safe Output Tools
+          
+          1. Confirm you have access to the `create-discussion` safe-output tool (check your available tools)
+          2. Confirm you have access to the `close-discussion` safe-output tool
+          
+          3. **If either tool is missing**:
+             - **EXIT IMMEDIATELY** with a message explaining which safe-output tools are missing
+             - The regulatory report cannot be created without the ability to create discussions
+          
+          ### Step 0.3: Exit Conditions
+          
+          **EXIT without proceeding if any of these conditions are true:**
+          
+          - ❌ The `github-discussion-query` tool is not available or fails
+          - ❌ GitHub Discussions are not enabled for the repository
+          - ❌ The `create-discussion` safe-output is not available
+          - ❌ The `close-discussion` safe-output is not available
+          
+          **If you must exit early:**
+          1. Write a clear explanation to the workflow output (use bash echo or similar)
+          2. Explain which prerequisite failed
+          3. Suggest remediation steps (e.g., "Enable GitHub Discussions for this repository")
+          4. Do not attempt to create discussions or proceed with analysis
+          
+          **If all prerequisites pass, proceed to Phase 1.**
+          
+          ---
+          
           ## Phase 1: Collect Daily Report Discussions
           
           ### Step 1.1: Query Recent Discussions
@@ -1366,6 +1410,8 @@ jobs:
           ## Success Criteria
           
           A successful regulatory run will:
+          - ✅ Verify all prerequisites (discussions access, safe-output tools) before proceeding
+          - ✅ Exit early with a clear explanation if prerequisites are not met
           - ✅ Find and analyze all available daily report discussions
           - ✅ Extract and compare key metrics across reports
           - ✅ Identify any discrepancies or anomalies
@@ -1373,7 +1419,7 @@ jobs:
           - ✅ Create a new discussion with comprehensive findings
           - ✅ Provide actionable recommendations for data quality improvement
           
-          Begin your regulatory analysis now. Find the daily reports, extract metrics, cross-check for consistency, and create the regulatory report.
+          Begin your regulatory analysis now. First verify prerequisites, then find the daily reports, extract metrics, cross-check for consistency, and create the regulatory report.
           
           PROMPT_EOF
       - name: Substitute placeholders
