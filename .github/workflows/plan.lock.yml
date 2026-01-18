@@ -627,6 +627,18 @@ jobs:
           {{/if}}
           </github-context>
           
+          <markdown-guidelines>
+          Use GitHub-flavored markdown (GFM) for all output.
+          
+          **Headers**: Start at h3 (###) to maintain proper document hierarchy.
+          
+          **Checkboxes**: Use `- [ ]` for unchecked and `- [x]` for checked task items.
+          
+          **Progressive Disclosure**: Use `<details><summary><b>Bold Summary Text</b></summary>` to collapse long content.
+          
+          **Workflow Run Links**: Format as `[§12345](https://github.com/owner/repo/actions/runs/12345)`. Include up to 3 most relevant runs under `**References:**` at the end. Do NOT add footer attribution (system adds automatically).
+          </markdown-guidelines>
+          
           PROMPT_EOF
           if [ "$GITHUB_EVENT_NAME" = "issue_comment" -a -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
             cat "/opt/gh-aw/prompts/pr_context_prompt.md" >> "$GH_AW_PROMPT"
