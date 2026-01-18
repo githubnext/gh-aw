@@ -31,9 +31,18 @@ const mockGithub = {
   },
 };
 
+const mockExec = {
+  getExecOutput: vi.fn().mockResolvedValue({
+    exitCode: 0,
+    stdout: "https://github.com/test-owner/test-repo/issues/123",
+    stderr: "",
+  }),
+};
+
 global.core = mockCore;
 global.context = mockContext;
 global.github = mockGithub;
+global.exec = mockExec;
 
 describe("assign_to_agent", () => {
   let assignToAgentScript;
@@ -51,6 +60,13 @@ describe("assign_to_agent", () => {
     // Reset the mock for createComment
     mockGithub.rest.issues.createComment.mockClear();
     mockGithub.rest.issues.createComment.mockResolvedValue({ data: { id: 1 } });
+    // Reset the mock for exec
+    mockExec.getExecOutput.mockClear();
+    mockExec.getExecOutput.mockResolvedValue({
+      exitCode: 0,
+      stdout: "https://github.com/test-owner/test-repo/issues/123",
+      stderr: "",
+    });
     delete process.env.GH_AW_AGENT_OUTPUT;
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
     delete process.env.GH_AW_AGENT_DEFAULT;
@@ -850,29 +866,21 @@ describe("assign_to_agent", () => {
             assignees: { nodes: [] },
           },
         },
-      })
-      // Mock assign agent mutation
-      .mockResolvedValueOnce({
-        replaceActorsForAssignable: {
-          assignable: { assignees: { nodes: [{ login: "copilot-swe-agent" }] } },
-        },
       });
 
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
-    // Verify branch comment was created
-    expect(mockGithub.rest.issues.createComment).toHaveBeenCalled();
-    const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
-    expect(commentCall.owner).toBe("test-owner");
-    expect(commentCall.repo).toBe("test-repo");
-    expect(commentCall.issue_number).toBe(123);
-    expect(commentCall.body).toContain("**Base Branch:** `develop`");
+    // Verify gh agent-task create was called with the branch
+    expect(mockExec.getExecOutput).toHaveBeenCalled();
+    const execCall = mockExec.getExecOutput.mock.calls[0];
+    expect(execCall[0]).toBe("gh");
+    expect(execCall[1]).toEqual(["agent-task", "create", "#123", "--base", "develop"]);
 
     // Verify summary includes branch information
     const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
     expect(summaryCall).toContain("(branch: `develop`)");
 
-    expect(mockCore.info).toHaveBeenCalledWith("Successfully assigned copilot coding agent to issue #123");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Successfully created agent task"));
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });

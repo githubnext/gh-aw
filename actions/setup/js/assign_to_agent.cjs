@@ -255,37 +255,57 @@ async function main() {
         continue;
       }
 
-      // Assign agent using GraphQL mutation - uses built-in github object authenticated via github-token
-      // Pass the allowed list so existing assignees are filtered before calling replaceActorsForAssignable
-      core.info(`Assigning ${agentName} coding agent to ${type} #${number}...`);
-      const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents);
-
-      if (!success) {
-        throw new Error(`Failed to assign ${agentName} via GraphQL`);
-      }
-
-      core.info(`Successfully assigned ${agentName} coding agent to ${type} #${number}`);
-
-      // If a branch was specified, add a comment to the issue/PR with branch information
+      // Get branch information before assignment
       const branch = item.branch ?? defaultBranch;
-      if (branch && issueNumber) {
-        try {
-          core.info(`Adding comment with base branch information: ${branch}`);
-          const branchComment = `🤖 **Agent Assignment**\n\nThe ${agentName} agent has been assigned to work on this issue.\n\n**Base Branch:** \`${branch}\`\n\nThe agent will create changes based on the \`${branch}\` branch.`;
 
-          await github.rest.issues.createComment({
-            owner: targetOwner,
-            repo: targetRepo,
-            issue_number: issueNumber,
-            body: branchComment,
+      // If a branch is specified for an issue, create an agent task with the base branch
+      // instead of just assigning via GraphQL (which doesn't support branch specification)
+      if (branch && issueNumber) {
+        core.info(`Creating agent task for ${agentName} on issue #${issueNumber} with base branch: ${branch}`);
+
+        try {
+          // Build gh agent-task create command with issue number and base branch
+          const ghArgs = ["agent-task", "create", `#${issueNumber}`, "--base", branch];
+
+          if (targetRepo !== context.repo.repo || targetOwner !== context.repo.owner) {
+            ghArgs.push("--repo", `${targetOwner}/${targetRepo}`);
+          }
+
+          core.info(`Executing: gh ${ghArgs.join(" ")}`);
+
+          const taskOutput = await exec.getExecOutput("gh", ghArgs, {
+            silent: false,
+            ignoreReturnCode: false,
           });
 
-          core.info(`Added comment with base branch information to issue #${issueNumber}`);
-        } catch (commentError) {
-          const commentErrorMsg = getErrorMessage(commentError);
-          core.warning(`Failed to add branch comment to issue #${issueNumber}: ${commentErrorMsg}`);
-          // Don't fail the entire operation if comment fails
+          const output = taskOutput.stdout.trim();
+          core.info(`Agent task created: ${output}`);
+          core.info(`Successfully created agent task for ${agentName} on issue #${issueNumber} with base branch ${branch}`);
+        } catch (execError) {
+          const errorMessage = execError instanceof Error ? execError.message : String(execError);
+          core.warning(`Failed to create agent task with base branch: ${errorMessage}`);
+          core.info(`Falling back to standard agent assignment without branch specification`);
+
+          // Fall back to regular assignment if gh agent-task create fails
+          core.info(`Assigning ${agentName} coding agent to ${type} #${number}...`);
+          const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents);
+
+          if (!success) {
+            throw new Error(`Failed to assign ${agentName} via GraphQL`);
+          }
+
+          core.info(`Successfully assigned ${agentName} coding agent to ${type} #${number} (without branch specification)`);
         }
+      } else {
+        // No branch specified or not an issue - use standard GraphQL assignment
+        core.info(`Assigning ${agentName} coding agent to ${type} #${number}...`);
+        const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents);
+
+        if (!success) {
+          throw new Error(`Failed to assign ${agentName} via GraphQL`);
+        }
+
+        core.info(`Successfully assigned ${agentName} coding agent to ${type} #${number}`);
       }
 
       results.push({
