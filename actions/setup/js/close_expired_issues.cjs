@@ -14,6 +14,13 @@ const MAX_UPDATES_PER_RUN = 100;
 const GRAPHQL_DELAY_MS = 500;
 
 /**
+ * Regex pattern to match expiration marker with checked checkbox
+ * Allows flexible whitespace: - [x] expires <!-- gh-aw-expires: DATE --> on ...
+ * Pattern is more resilient to spacing variations
+ */
+const EXPIRATION_PATTERN = /^-\s*\[x\]\s+expires\s*<!--\s*gh-aw-expires:\s*([^>]+)\s*-->/m;
+
+/**
  * Delay execution for a specified number of milliseconds
  * @param {number} ms - Milliseconds to delay
  * @returns {Promise<void>}
@@ -96,9 +103,7 @@ async function searchIssuesWithExpiration(github, owner, repo) {
       }
 
       // Check if has expiration marker with checked checkbox
-      // Pattern matches: - [x] expires <!-- gh-aw-expires: DATE --> on ...
-      const expirationPattern = /^- \[x\] expires <!-- gh-aw-expires: ([^>]+) -->/m;
-      const match = issue.body ? issue.body.match(expirationPattern) : null;
+      const match = issue.body ? issue.body.match(EXPIRATION_PATTERN) : null;
 
       if (match) {
         withExpirationCount++;
@@ -129,9 +134,7 @@ async function searchIssuesWithExpiration(github, owner, repo) {
  * @returns {Date|null} Expiration date or null if not found/invalid
  */
 function extractExpirationDate(body) {
-  // Pattern matches: - [x] expires <!-- gh-aw-expires: DATE --> on ...
-  const expirationPattern = /^- \[x\] expires <!-- gh-aw-expires: ([^>]+) -->/m;
-  const match = body.match(expirationPattern);
+  const match = body.match(EXPIRATION_PATTERN);
 
   if (!match) {
     return null;
