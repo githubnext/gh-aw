@@ -32,12 +32,10 @@ steps:
       # Create output directory
       mkdir -p /tmp/gh-aw/issues-data
       
-      echo "⬇ Downloading the last 100 open issues (excluding sub-issues)..."
+      echo "⬇ Downloading the last 100 open issues..."
       
-      # Fetch the last 100 open issues that don't have a parent issue
-      # Using search filter to exclude issues that are already sub-issues
+      # Fetch the last 100 open issues
       gh issue list --repo ${{ github.repository }} \
-        --search "no:parent-issue" \
         --state open \
         --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \
         --limit 100 \
@@ -76,7 +74,7 @@ Analyze the last 100 open issues in repository ${{ github.repository }} and iden
 ## Pre-Downloaded Data
 
 The issue data has been pre-downloaded and is available at:
-- **Issues data**: `/tmp/gh-aw/issues-data/issues.json` - Contains the last 100 open issues (excluding those that are already sub-issues)
+- **Issues data**: `/tmp/gh-aw/issues-data/issues.json` - Contains the last 100 open issues
 - **Schema**: `/tmp/gh-aw/issues-data/issues-schema.json` - JSON schema showing the structure of the data
 
 Use `cat /tmp/gh-aw/issues-data/issues.json | jq ...` to query and analyze the issues.
