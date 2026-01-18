@@ -198,4 +198,3 @@ func TestCompilerForceRefreshClearsOnlyOnce(t *testing.T) {
 		t.Errorf("Expected cache to still have 2 entries on third call, got %d", len(cache3.Entries))
 	}
 }
-
