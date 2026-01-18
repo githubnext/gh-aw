@@ -46,41 +46,43 @@ func ValidateSpec(spec *CampaignSpec) []string {
 	// Additional semantic validation beyond schema
 	trimmedID := strings.TrimSpace(spec.ID)
 	if trimmedID == "" {
-		problems = append(problems, "id is required and must be non-empty")
+		problems = append(problems, "id is required and must be non-empty - example: 'security-q1-2025'")
 	} else {
 		// Enforce a simple, URL-safe pattern for IDs
 		for _, ch := range trimmedID {
 			if (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-' {
 				continue
 			}
-			problems = append(problems, "id must use only lowercase letters, digits, and hyphens ("+trimmedID+")")
+			problems = append(problems, fmt.Sprintf("id must use only lowercase letters, digits, and hyphens - got '%s', try '%s'", trimmedID, suggestValidID(trimmedID)))
 			break
 		}
 	}
 
 	if strings.TrimSpace(spec.Name) == "" {
-		problems = append(problems, "name should be provided (falls back to id, but explicit names are recommended)")
+		problems = append(problems, "name should be provided (falls back to id, but explicit names are recommended) - example: 'Security Q1 2025'")
 	}
 
 	if len(spec.Workflows) == 0 {
-		problems = append(problems, "workflows should list at least one workflow implementing this campaign")
+		problems = append(problems, "workflows should list at least one workflow implementing this campaign - example: ['vulnerability-scanner', 'dependency-updater']")
 	}
 
-	// Validate allowed-repos (required and non-empty)
-	if len(spec.AllowedRepos) == 0 {
-		problems = append(problems, "allowed-repos is required and must contain at least one repository (campaigns MUST be scoped)")
-	} else {
+	// Validate allowed-repos format if provided (now optional - defaults to current repo)
+	if len(spec.AllowedRepos) > 0 {
 		// Validate each repository format
 		for _, repo := range spec.AllowedRepos {
 			trimmed := strings.TrimSpace(repo)
 			if trimmed == "" {
-				problems = append(problems, "allowed-repos must not contain empty entries")
+				problems = append(problems, "allowed-repos must not contain empty entries - remove empty strings from the list")
 				continue
 			}
 			// Validate owner/repo format
 			parts := strings.Split(trimmed, "/")
 			if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-				problems = append(problems, fmt.Sprintf("allowed-repos entry '%s' must be in 'owner/repo' format", trimmed))
+				problems = append(problems, fmt.Sprintf("allowed-repos entry '%s' must be in 'owner/repo' format - example: 'github/docs' or 'myorg/myrepo'", trimmed))
+			}
+			// Warn about common mistakes
+			if strings.Contains(trimmed, "*") {
+				problems = append(problems, fmt.Sprintf("allowed-repos entry '%s' cannot contain wildcards - list each repository explicitly or use allowed-orgs for organization-wide scope", trimmed))
 			}
 		}
 	}
@@ -90,24 +92,27 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		for _, org := range spec.AllowedOrgs {
 			trimmed := strings.TrimSpace(org)
 			if trimmed == "" {
-				problems = append(problems, "allowed-orgs must not contain empty entries")
+				problems = append(problems, "allowed-orgs must not contain empty entries - remove empty strings from the list")
 				continue
 			}
 			// Validate organization name format (no slashes, valid GitHub org name)
 			if strings.Contains(trimmed, "/") {
-				problems = append(problems, fmt.Sprintf("allowed-orgs entry '%s' must be an organization name (not owner/repo format)", trimmed))
+				problems = append(problems, fmt.Sprintf("allowed-orgs entry '%s' must be an organization name only (not owner/repo format) - example: 'github' not 'github/docs'", trimmed))
+			}
+			if strings.Contains(trimmed, "*") {
+				problems = append(problems, fmt.Sprintf("allowed-orgs entry '%s' cannot contain wildcards - use the organization name directly (e.g., 'myorg')", trimmed))
 			}
 		}
 	}
 
 	if strings.TrimSpace(spec.ProjectURL) == "" {
-		problems = append(problems, "project-url is required (GitHub Project URL used as the campaign dashboard)")
+		problems = append(problems, "project-url is required (GitHub Project URL used as the campaign dashboard) - example: 'https://github.com/orgs/myorg/projects/1'")
 	} else {
 		parsed, err := url.Parse(strings.TrimSpace(spec.ProjectURL))
 		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-			problems = append(problems, "project-url must be a valid absolute URL (for example: https://github.com/orgs/<org>/projects/<number>)")
+			problems = append(problems, "project-url must be a valid absolute URL - example: 'https://github.com/orgs/myorg/projects/1' or 'https://github.com/users/username/projects/1'")
 		} else if !strings.Contains(parsed.Path, "/projects/") {
-			problems = append(problems, "project-url must point to a GitHub Project (URL path should include '/projects/')")
+			problems = append(problems, "project-url must point to a GitHub Project (URL path should include '/projects/') - you may have provided a repository URL instead")
 		}
 	}
 
@@ -161,10 +166,10 @@ func validateObjectiveAndKPIs(spec *CampaignSpec) []string {
 
 	objective := strings.TrimSpace(spec.Objective)
 	if objective == "" && len(spec.KPIs) > 0 {
-		problems = append(problems, "objective should be set when kpis are provided")
+		problems = append(problems, "objective should be set when kpis are provided - describe what success looks like for this campaign")
 	}
 	if objective != "" && len(spec.KPIs) == 0 {
-		problems = append(problems, "kpis should include at least one KPI when objective is provided")
+		problems = append(problems, "kpis should include at least one KPI when objective is provided - add measurable metrics (e.g., 'Pull requests merged: 0 → 100 over 30 days')")
 	}
 	if len(spec.KPIs) == 0 {
 		return problems
@@ -180,14 +185,14 @@ func validateObjectiveAndKPIs(spec *CampaignSpec) []string {
 			primaryCount++
 		}
 		if kpi.TimeWindowDays < 1 {
-			problems = append(problems, fmt.Sprintf("kpi '%s': time-window-days must be >= 1", name))
+			problems = append(problems, fmt.Sprintf("kpi '%s': time-window-days must be >= 1 - specify the rolling time window in days (e.g., 30 for monthly)", name))
 		}
 		if dir := strings.TrimSpace(kpi.Direction); dir != "" {
 			switch dir {
 			case "increase", "decrease":
 				// ok
 			default:
-				problems = append(problems, fmt.Sprintf("kpi '%s': direction must be one of: increase, decrease", name))
+				problems = append(problems, fmt.Sprintf("kpi '%s': direction must be one of: 'increase' or 'decrease' - got '%s'", name, dir))
 			}
 		}
 		if src := strings.TrimSpace(kpi.Source); src != "" {
@@ -195,7 +200,7 @@ func validateObjectiveAndKPIs(spec *CampaignSpec) []string {
 			case "ci", "pull_requests", "code_security", "custom":
 				// ok
 			default:
-				problems = append(problems, fmt.Sprintf("kpi '%s': source must be one of: ci, pull_requests, code_security, custom", name))
+				problems = append(problems, fmt.Sprintf("kpi '%s': source must be one of: 'ci', 'pull_requests', 'code_security', or 'custom' - got '%s'", name, src))
 			}
 		}
 	}
@@ -208,13 +213,44 @@ func validateObjectiveAndKPIs(spec *CampaignSpec) []string {
 		}
 	}
 	if primaryCount == 0 {
-		problems = append(problems, "kpis must include exactly one primary KPI (priority: primary)")
+		problems = append(problems, "kpis must include exactly one primary KPI (priority: primary) - mark your main success metric as primary")
 	}
 	if primaryCount > 1 {
-		problems = append(problems, "kpis must include exactly one primary KPI (multiple primary KPIs found)")
+		problems = append(problems, fmt.Sprintf("kpis must include exactly one primary KPI (found %d primary KPIs) - choose one main success metric and mark others as 'supporting'", primaryCount))
 	}
 
 	return problems
+}
+
+// suggestValidID converts an invalid campaign ID into a valid one by:
+// - Converting to lowercase
+// - Replacing invalid characters with hyphens
+// - Collapsing multiple hyphens
+// - Trimming leading/trailing hyphens
+func suggestValidID(id string) string {
+	// Convert to lowercase
+	result := strings.ToLower(id)
+
+	// Replace invalid characters with hyphens
+	var builder strings.Builder
+	for _, ch := range result {
+		if (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') {
+			builder.WriteRune(ch)
+		} else {
+			builder.WriteRune('-')
+		}
+	}
+	result = builder.String()
+
+	// Collapse multiple hyphens into single hyphen
+	for strings.Contains(result, "--") {
+		result = strings.ReplaceAll(result, "--", "-")
+	}
+
+	// Trim leading/trailing hyphens
+	result = strings.Trim(result, "-")
+
+	return result
 }
 
 // getCompiledSchema returns the compiled campaign spec schema, compiling it once and caching

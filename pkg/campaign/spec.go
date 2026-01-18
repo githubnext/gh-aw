@@ -40,9 +40,9 @@ type CampaignSpec struct {
 	TrackerLabel string `yaml:"tracker-label,omitempty" json:"tracker_label,omitempty" console:"header:Tracker Label,omitempty,maxlen:40"`
 
 	// AllowedRepos defines the explicit list of repositories (in owner/repo format)
-	// that this campaign is allowed to discover and operate on. This is a required
-	// field that makes the campaign scope a reviewable contract.
-	AllowedRepos []string `yaml:"allowed-repos" json:"allowed_repos" console:"header:Allowed Repos,maxlen:60"`
+	// that this campaign is allowed to discover and operate on. When omitted, defaults
+	// to the current repository where the campaign is defined.
+	AllowedRepos []string `yaml:"allowed-repos,omitempty" json:"allowed_repos,omitempty" console:"header:Allowed Repos,omitempty,maxlen:60"`
 
 	// AllowedOrgs optionally defines the list of GitHub organizations that this
 	// campaign is allowed to discover and operate on. When specified, any repository
