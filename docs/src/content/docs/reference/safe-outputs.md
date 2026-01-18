@@ -91,6 +91,7 @@ safe-outputs:
     assignees: [user1, copilot]      # assignees (use 'copilot' for bot)
     max: 5                           # max issues (default: 1)
     expires: 7                       # auto-close after 7 days
+    group: true                      # group as sub-issues under parent
     target-repo: "owner/repo"        # cross-repository
 ```
 
@@ -104,6 +105,29 @@ The `expires` field auto-closes issues after a time period. Supports integers (d
 - 5+ days → daily
 
 Hours less than 24 are treated as 1 day minimum for expiration calculation.
+
+#### Issue Grouping
+
+The `group` field (default: `false`) automatically organizes multiple issues as sub-issues under a parent issue. When enabled:
+
+- Parent issues are automatically created and managed using the workflow ID as the group identifier
+- Child issues are linked to the parent using GitHub's sub-issue relationships
+- Maximum of 64 sub-issues per parent issue
+- Parent issues include metadata tracking all sub-issues
+
+This is useful for workflows that create multiple related issues, such as planning workflows that break down epics into tasks, or batch processing workflows that create issues for individual items.
+
+**Example:**
+```yaml wrap
+safe-outputs:
+  create-issue:
+    title-prefix: "[plan] "
+    labels: [plan, ai-generated]
+    max: 5
+    group: true
+```
+
+In this example, if the workflow creates 5 issues, all will be automatically grouped under a parent issue, making it easy to track related work items together.
 
 #### Temporary IDs for Issue References
 
