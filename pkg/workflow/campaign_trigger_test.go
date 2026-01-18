@@ -111,7 +111,7 @@ func TestCampaignGeneratorWorkflow(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
 	// Test compilation of the actual campaign-generator workflow
-	workflowPath := "../../.github/workflows/campaign-generator.md"
+	workflowPath := "../../.github/aw/campaign-generator.md"
 
 	// Check if file exists
 	if _, err := os.Stat(workflowPath); os.IsNotExist(err) {

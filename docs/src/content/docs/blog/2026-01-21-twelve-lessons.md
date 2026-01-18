@@ -85,7 +85,7 @@ Early on, we'd see agents fail with vague errors like "connection refused." The 
 
 Instead of one monolithic agent handling all requests, dispatcher agents could route to specialized sub-agents or commands. This made the system more maintainable and allowed for progressive feature addition.
 
-The [Workflow Generator](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-generator.md) and [Campaign Generator](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/campaign-generator.md) demonstrated this pattern well. Rather than cramming all generation logic into one massive prompt, they identified user intent and dispatched to specialized generation workflows. This kept individual agents focused and made the system easier to extend.
+The [Workflow Generator](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/workflow-generator.md) and [Campaign Generator](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/aw/campaign-generator.md) demonstrated this pattern well. Rather than cramming all generation logic into one massive prompt, they identified user intent and dispatched to specialized generation workflows. This kept individual agents focused and made the system easier to extend.
 
 ### Task Queuing Is Everywhere
 
