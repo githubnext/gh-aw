@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
 // TestActionPinsExist verifies that all action pinning entries exist
@@ -278,7 +280,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0",
+			expectedUses: "actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6",
 		},
 		{
 			name: "step with unpinned action",
@@ -347,9 +349,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
-	// Verify we got all the pins (should be 30 as of this test after deduplication)
-	if len(pins) != 30 {
-		t.Errorf("getActionPins() returned %d pins, expected 30", len(pins))
+	// Verify we got all the pins (should be 41 as of this test)
+	if len(pins) != 41 {
+		t.Errorf("getActionPins() returned %d pins, expected 41", len(pins))
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)
@@ -457,7 +459,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0",
+			expectedUses: "actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6",
 		},
 		{
 			name: "step with unpinned action",
@@ -638,8 +640,9 @@ func TestGetActionPinSemverPreference(t *testing.T) {
 	}
 }
 
-// TestGetActionPinWithData_SemverPreference tests that GetActionPinWithData prefers
-// the highest semver version when multiple versions exist for the same repo
+// TestGetActionPinWithData_SemverPreference tests that GetActionPinWithData
+// resolves actions using the exact version tag specified, and only falls back
+// to compatible versions when the exact tag doesn't exist in hardcoded pins
 func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -658,12 +661,12 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 			shouldFallback: false,
 		},
 		{
-			name:           "fallback to highest version for setup-go when requesting v6",
+			name:           "exact match for setup-go v6 from hardcoded pins",
 			repo:           "actions/setup-go",
 			requestedVer:   "v6",
-			expectedVer:    "v6.1.0", // Should use highest version (v6.1.0) not v6
+			expectedVer:    "v6", // Should match exactly v6, not v6.1.0
 			strictMode:     false,
-			shouldFallback: true,
+			shouldFallback: false,
 		},
 		{
 			name:           "fallback to highest semver-compatible version for upload-artifact when requesting v4",
@@ -672,9 +675,9 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 			expectedVer:    "v4.6.2", // Falls back to highest v4.x.x (semver-compatible)
 			strictMode:     false,
 			shouldFallback: true,
-			// Note: When requesting v4, the system returns v4.6.2 (the highest v4.x.x version),
-			// respecting semver compatibility and not crossing major version boundaries.
-			// This ensures that users get compatible upgrades within the same major version.
+			// Note: When requesting v4 without dynamic resolution, the system returns v4.6.2
+			// (the highest v4.x.x version from hardcoded pins), respecting semver compatibility
+			// and not crossing major version boundaries.
 		},
 		{
 			name:           "fallback to highest semver-compatible version for upload-artifact when requesting v5",
@@ -1109,5 +1112,87 @@ func TestGetActionPinWithData_V5ExactMatch(t *testing.T) {
 	expectedSHA := "330a01c490aca151604b8cf639adc76d48f6c5d4"
 	if !strings.Contains(result, expectedSHA) {
 		t.Errorf("Expected SHA %s in result, got: %s", expectedSHA, result)
+	}
+}
+
+// TestGetActionPinWithData_ExactVersionResolution verifies that when resolving
+// a version tag like "v4", the system returns exactly "v4" in the comment,
+// not a more precise version like "v4.6.2". This ensures we respect the
+// user's specified version tag precisely.
+func TestGetActionPinWithData_ExactVersionResolution(t *testing.T) {
+	tests := []struct {
+		name            string
+		repo            string
+		requestedVer    string
+		expectedComment string
+	}{
+		{
+			name:            "v4 resolves to exactly v4, not v4.6.2",
+			repo:            "actions/upload-artifact",
+			requestedVer:    "v4",
+			expectedComment: "# v4",
+		},
+		{
+			name:            "v5 resolves to exactly v5, not v5.0.0",
+			repo:            "actions/upload-artifact",
+			requestedVer:    "v5",
+			expectedComment: "# v5",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a temporary directory for cache
+			tmpDir := testutil.TempDir(t, "test-*")
+			cache := NewActionCache(tmpDir)
+			resolver := NewActionResolver(cache)
+
+			// Simulate that we have a cached resolution for the precise version
+			// This mimics what would happen if another workflow referenced "v4.6.2"
+			// but we request "v4" - we should get back "v4" not "v4.6.2"
+			if tt.repo == "actions/upload-artifact" && tt.requestedVer == "v4" {
+				// Pre-populate cache with a more precise version to test that
+				// we don't inappropriately use it
+				cache.Set(tt.repo, "v4.6.2", "c5eb11a343de00d7472c5a5c6598bc1f1fd51144")
+				// Now add the exact version we're requesting
+				cache.Set(tt.repo, "v4", "c5eb11a343de00d7472c5a5c6598bc1f1fd51144")
+			} else if tt.repo == "actions/upload-artifact" && tt.requestedVer == "v5" {
+				// Pre-populate cache with a more precise version
+				cache.Set(tt.repo, "v5.0.0", "330a01c490aca151604b8cf639adc76d48f6c5d4")
+				// Now add the exact version we're requesting
+				cache.Set(tt.repo, "v5", "330a01c490aca151604b8cf639adc76d48f6c5d4")
+			}
+
+			data := &WorkflowData{
+				StrictMode:     false,
+				ActionResolver: resolver,
+				ActionCache:    cache,
+			}
+
+			result, err := GetActionPinWithData(tt.repo, tt.requestedVer, data)
+
+			if err != nil {
+				t.Fatalf("GetActionPinWithData returned error: %v", err)
+			}
+
+			if result == "" {
+				t.Fatalf("GetActionPinWithData returned empty string")
+			}
+
+			t.Logf("Result: %s", result)
+
+			// Verify we get exactly the version we requested in the comment
+			if !strings.Contains(result, tt.expectedComment) {
+				t.Errorf("Expected %q in result, got: %s", tt.expectedComment, result)
+			}
+
+			// Ensure we DON'T get a more precise version in the comment
+			if tt.requestedVer == "v4" && strings.Contains(result, "# v4.6.2") {
+				t.Errorf("Should not have replaced v4 with v4.6.2, got: %s", result)
+			}
+			if tt.requestedVer == "v5" && strings.Contains(result, "# v5.0.0") {
+				t.Errorf("Should not have replaced v5 with v5.0.0, got: %s", result)
+			}
+		})
 	}
 }

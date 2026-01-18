@@ -135,8 +135,9 @@ describe("handle_agent_failure.cjs", () => {
       expect(parentCreateCall.body).toContain("gh aw logs");
       expect(parentCreateCall.body).toContain("gh aw audit");
       expect(parentCreateCall.body).toContain("no:parent-issue");
+      expect(parentCreateCall.body).toContain("- [x] expires");
       expect(parentCreateCall.body).toContain("<!-- gh-aw-expires:");
-      expect(parentCreateCall.body).toMatch(/<!-- gh-aw-expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z -->/);
+      expect(parentCreateCall.body).toMatch(/- \[x\] expires <!-- gh-aw-expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z --> on .+ UTC/);
 
       // Verify failure issue was created (second call, after parent issue)
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
@@ -355,6 +356,7 @@ describe("handle_agent_failure.cjs", () => {
       expect(failureIssueCreateCall.body).toContain("agentic-workflows");
       expect(failureIssueCreateCall.body).toContain("https://github.com/test-owner/test-repo/actions/runs/123");
       expect(failureIssueCreateCall.body).toContain("**Branch:**");
+      expect(failureIssueCreateCall.body).toContain("- [x] expires");
       expect(failureIssueCreateCall.body).toContain("<!-- gh-aw-expires:");
       expect(failureIssueCreateCall.body).not.toContain("## Root Cause");
       expect(failureIssueCreateCall.body).not.toContain("## Expected Outcome");
@@ -599,8 +601,9 @@ describe("handle_agent_failure.cjs", () => {
       await main();
 
       const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
+      expect(failureIssueCreateCall.body).toContain("- [x] expires");
       expect(failureIssueCreateCall.body).toContain("<!-- gh-aw-expires:");
-      expect(failureIssueCreateCall.body).toMatch(/<!-- gh-aw-expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z -->/);
+      expect(failureIssueCreateCall.body).toMatch(/- \[x\] expires <!-- gh-aw-expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z --> on .+ UTC/);
     });
 
     it("should include pull request information when PR is found", async () => {

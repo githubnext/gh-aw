@@ -19,7 +19,7 @@ This is an example workflow that demonstrates the tracker-id feature.
 When this workflow creates an issue, it will include a hidden HTML comment:
 
 ```html
-<!-- tracker-id: example-fingerprint-2024 -->
+<!-- gh-aw-tracker-id: example-fingerprint-2024 -->
 ```
 
 This tracker-id can be used to:

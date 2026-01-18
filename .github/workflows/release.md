@@ -2,9 +2,6 @@
 name: Release
 description: Build, test, and release gh-aw extension, then generate and prepend release highlights
 on:
-  push:
-    tags:
-      - 'v*.*.*'
   workflow_dispatch:
     inputs:
       release_type:
@@ -15,11 +12,6 @@ on:
           - patch
           - minor
           - major
-      draft:
-        description: 'Create as draft release'
-        required: false
-        type: boolean
-        default: true
 permissions:
   contents: read
   pull-requests: read
@@ -49,7 +41,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.compute_config.outputs.release_tag }}
-      draft_mode: ${{ steps.compute_config.outputs.draft_mode }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -62,59 +53,95 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const isWorkflowDispatch = context.eventName === 'workflow_dispatch';
+            const releaseType = context.payload.inputs.release_type;
             
-            let releaseTag, draftMode;
+            console.log(`Computing next version for release type: ${releaseType}`);
             
-            if (isWorkflowDispatch) {
-              const releaseType = context.payload.inputs.release_type;
-              draftMode = context.payload.inputs.draft;
-              
-              console.log(`Computing next version for release type: ${releaseType}`);
-              
-              // Get the latest release tag
-              const { data: releases } = await github.rest.repos.listReleases({
+            // Get all releases and sort by semver to find the actual latest version
+            const { data: releases } = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            
+            // Parse semver and sort releases by version (newest first)
+            const parseSemver = (tag) => {
+              const match = tag.match(/^v?(\d+)\.(\d+)\.(\d+)/);
+              if (!match) return null;
+              return {
+                tag,
+                major: parseInt(match[1], 10),
+                minor: parseInt(match[2], 10),
+                patch: parseInt(match[3], 10)
+              };
+            };
+            
+            const sortedReleases = releases
+              .map(r => parseSemver(r.tag_name))
+              .filter(v => v !== null)
+              .sort((a, b) => {
+                if (a.major !== b.major) return b.major - a.major;
+                if (a.minor !== b.minor) return b.minor - a.minor;
+                return b.patch - a.patch;
+              });
+            
+            if (sortedReleases.length === 0) {
+              core.setFailed('No existing releases found. Cannot determine base version for incrementing. Please create an initial release manually (e.g., v0.1.0).');
+              return;
+            }
+            
+            const latestTag = sortedReleases[0].tag;
+            console.log(`Latest release tag (semver-sorted): ${latestTag}`);
+            
+            // Parse version components (strip 'v' prefix)
+            const version = latestTag.replace(/^v/, '');
+            let [major, minor, patch] = version.split('.').map(Number);
+            
+            // Increment based on release type
+            switch (releaseType) {
+              case 'major':
+                major += 1;
+                minor = 0;
+                patch = 0;
+                break;
+              case 'minor':
+                minor += 1;
+                patch = 0;
+                break;
+              case 'patch':
+                patch += 1;
+                break;
+            }
+            
+            const releaseTag = `v${major}.${minor}.${patch}`;
+            console.log(`Computed release tag: ${releaseTag}`);
+            
+            // Sanity check: Verify the computed tag doesn't already exist
+            const existingRelease = releases.find(r => r.tag_name === releaseTag);
+            if (existingRelease) {
+              core.setFailed(`Release tag ${releaseTag} already exists (created ${existingRelease.created_at}). Cannot create duplicate release. Please check existing releases.`);
+              return;
+            }
+            
+            // Also check if tag exists in git (in case release was deleted but tag remains)
+            try {
+              await github.rest.git.getRef({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                per_page: 1
+                ref: `tags/${releaseTag}`
               });
-              
-              const latestTag = releases[0]?.tag_name || 'v0.0.0';
-              console.log(`Latest release tag: ${latestTag}`);
-              
-              // Parse version components (strip 'v' prefix)
-              const version = latestTag.replace(/^v/, '');
-              let [major, minor, patch] = version.split('.').map(Number);
-              
-              // Increment based on release type
-              switch (releaseType) {
-                case 'major':
-                  major += 1;
-                  minor = 0;
-                  patch = 0;
-                  break;
-                case 'minor':
-                  minor += 1;
-                  patch = 0;
-                  break;
-                case 'patch':
-                  patch += 1;
-                  break;
+              // If we get here, the tag exists
+              core.setFailed(`Git tag ${releaseTag} already exists in the repository. Cannot create duplicate tag. Please delete the existing tag or use a different version.`);
+              return;
+            } catch (error) {
+              // 404 means tag doesn't exist, which is what we want
+              if (error.status !== 404) {
+                throw error; // Re-throw unexpected errors
               }
-              
-              releaseTag = `v${major}.${minor}.${patch}`;
-              console.log(`Computed release tag: ${releaseTag}`);
-            } else {
-              // For tag push events, use the tag from GITHUB_REF
-              releaseTag = context.ref.replace('refs/tags/', '');
-              draftMode = 'false';
-              console.log(`Using tag from push event: ${releaseTag}`);
             }
             
             core.setOutput('release_tag', releaseTag);
-            core.setOutput('draft_mode', draftMode);
             console.log(`✓ Release tag: ${releaseTag}`);
-            console.log(`✓ Draft mode: ${draftMode}`);
   release:
     needs: ["activation", "config"]
     runs-on: ubuntu-latest
@@ -132,8 +159,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
           
-      - name: Create or update tag for workflow_dispatch
-        if: github.event_name == 'workflow_dispatch'
+      - name: Create or update tag
         env:
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
         run: |
@@ -214,30 +240,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-          DRAFT_MODE: ${{ needs.config.outputs.draft_mode }}
         run: |
           echo "Creating GitHub release: $RELEASE_TAG"
           
           # Create release with binaries (SBOM files will be added later)
-          RELEASE_ARGS=()
-          if [ "$DRAFT_MODE" = "true" ]; then
-            RELEASE_ARGS+=(--draft)
-            echo "Creating draft release"
-          fi
-          
-          # Create the release and upload binaries
           gh release create "$RELEASE_TAG" \
             dist/* \
             --title "$RELEASE_TAG" \
-            --generate-notes \
-            "${RELEASE_ARGS[@]}"
+            --generate-notes
           
           # Get release ID
           RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
           echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
           echo "✓ Release created: $RELEASE_TAG"
           echo "✓ Release ID: $RELEASE_ID"
-          echo "✓ Draft mode: $DRAFT_MODE"
 
       - name: Download Go modules
         run: go mod download
@@ -303,7 +319,7 @@ steps:
       echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
       
       # Get the current release information
-      # Use release ID to fetch release data (works for draft releases)
+      # Use release ID to fetch release data
       gh api "/repos/${{ github.repository }}/releases/$RELEASE_ID" > /tmp/gh-aw/release-data/current_release.json
       echo "✓ Fetched current release information"
       

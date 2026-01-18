@@ -2,6 +2,7 @@
 // <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { EXPIRATION_PATTERN, extractExpirationDate } = require("./ephemerals.cjs");
 
 /**
  * Maximum number of issues to update per run
@@ -95,9 +96,8 @@ async function searchIssuesWithExpiration(github, owner, repo) {
         continue;
       }
 
-      // Check if has expiration marker
-      const expirationPattern = /<!-- gh-aw-expires: ([^>]+) -->/;
-      const match = issue.body ? issue.body.match(expirationPattern) : null;
+      // Check if has expiration marker with checked checkbox
+      const match = issue.body ? issue.body.match(EXPIRATION_PATTERN) : null;
 
       if (match) {
         withExpirationCount++;
@@ -120,30 +120,6 @@ async function searchIssuesWithExpiration(github, owner, repo) {
       totalScanned,
     },
   };
-}
-
-/**
- * Extract expiration date from issue body
- * @param {string} body - Issue body
- * @returns {Date|null} Expiration date or null if not found/invalid
- */
-function extractExpirationDate(body) {
-  const expirationPattern = /<!-- gh-aw-expires: ([^>]+) -->/;
-  const match = body.match(expirationPattern);
-
-  if (!match) {
-    return null;
-  }
-
-  const expirationISO = match[1].trim();
-  const expirationDate = new Date(expirationISO);
-
-  // Validate the date
-  if (isNaN(expirationDate.getTime())) {
-    return null;
-  }
-
-  return expirationDate;
 }
 
 /**

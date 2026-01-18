@@ -154,29 +154,9 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		if err == nil && sha != "" {
 			actionPinsLog.Printf("Dynamic resolution succeeded: %s@%s → %s", actionRepo, version, sha)
 
-			// Check if there are other cache entries with the same SHA
-			// If found, use the existing version to maintain consistency
-			canonicalVersion := version
-			if data.ActionCache != nil {
-				actionPinsLog.Printf("Checking cache for other versions with same SHA %s", sha[:8])
-				for key, entry := range data.ActionCache.Entries {
-					if entry.Repo == actionRepo && entry.SHA == sha && entry.Version != version {
-						actionPinsLog.Printf("Found cache entry with same SHA: %s (version=%s) vs requested version=%s",
-							key, entry.Version, version)
-						// Use the existing version to prevent version comment switching
-						// This ensures all workflows use the same canonical version for a given SHA
-						if isMorePreciseVersion(entry.Version, version) {
-							canonicalVersion = entry.Version
-							actionPinsLog.Printf("Using existing more precise version %s instead of requested %s",
-								entry.Version, version)
-						}
-					}
-				}
-			}
-
 			// Successfully resolved - cache will be saved at end of compilation
 			actionPinsLog.Printf("Successfully resolved action pin (cache marked dirty, will save at end)")
-			result := actionRepo + "@" + sha + " # " + canonicalVersion
+			result := actionRepo + "@" + sha + " # " + version
 			actionPinsLog.Printf("Returning pinned reference: %s", result)
 			return result, nil
 		}

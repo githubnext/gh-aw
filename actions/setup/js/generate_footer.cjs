@@ -28,11 +28,11 @@ function generateXMLMarker(workflowName, runUrl) {
   const parts = [];
 
   // Always include agentic-workflow name
-  parts.push(`agentic-workflow: ${workflowName}`);
+  parts.push(`gh-aw-agentic-workflow: ${workflowName}`);
 
   // Add tracker-id if available (for searchability and tracing)
   if (trackerId) {
-    parts.push(`tracker-id: ${trackerId}`);
+    parts.push(`gh-aw-tracker-id: ${trackerId}`);
   }
 
   // Add engine ID if available
