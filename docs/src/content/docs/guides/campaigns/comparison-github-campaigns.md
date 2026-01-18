@@ -5,7 +5,7 @@ description: How GitHub's agentic campaigns and security campaigns compare
 
 
 > [!WARNING]
-> **Campaigns are currently in build phase - do not use in production!** This feature is under active development and may have breaking changes. Use at your own risk.
+> **Please do not use at this time.** Campaigns are currently in build phase and not ready for production. This feature is under active development and may have breaking changes.
 
 **GitHub Security Campaigns** (Enterprise Cloud only) focus on remediating security alerts through alert assignment and Copilot Autofix.
 

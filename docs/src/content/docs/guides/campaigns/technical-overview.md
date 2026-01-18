@@ -5,7 +5,7 @@ description: Run structured, goal-driven initiatives with GitHub Agentic Workflo
 
 
 > [!WARNING]
-> **Campaigns are currently in build phase - do not use in production!** This feature is under active development and may have breaking changes. Use at your own risk.
+> **Please do not use at this time.** Campaigns are currently in build phase and not ready for production. This feature is under active development and may have breaking changes.
 
 Agentic campaigns are goal-driven initiatives that coordinate AI agents to achieve specific objectives.
 

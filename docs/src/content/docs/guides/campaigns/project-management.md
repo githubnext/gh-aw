@@ -5,7 +5,7 @@ description: Use GitHub Projects with roadmap views and custom date fields for c
 
 
 > [!WARNING]
-> **Campaigns are currently in build phase - do not use in production!** This feature is under active development and may have breaking changes. Use at your own risk.
+> **Please do not use at this time.** Campaigns are currently in build phase and not ready for production. This feature is under active development and may have breaking changes.
 
 GitHub Projects offers powerful visualization and tracking capabilities for agentic campaigns. The campaign generator automatically creates everything you need out of the box.
 

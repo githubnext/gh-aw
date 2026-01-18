@@ -7,7 +7,7 @@ sidebar:
 
 
 > [!WARNING]
-> **Campaigns are currently in build phase - do not use in production!** This feature is under active development and may have breaking changes. Use at your own risk.
+> **Please do not use at this time.** Campaigns are currently in build phase and not ready for production. This feature is under active development and may have breaking changes.
 
 This section contains example campaign workflows that demonstrate how to use campaign worker orchestration, workflow discovery, and the dispatch_workflow safe output.
 
