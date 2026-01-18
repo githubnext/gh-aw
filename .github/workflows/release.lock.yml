@@ -997,15 +997,36 @@ jobs:
 
             console.log(`Computing next version for release type: ${releaseType}`);
 
-            // Get the latest release tag
+            // Get all releases and sort by semver to find the actual latest version
             const { data: releases } = await github.rest.repos.listReleases({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              per_page: 1
+              per_page: 100
             });
 
-            const latestTag = releases[0]?.tag_name || 'v0.0.0';
-            console.log(`Latest release tag: ${latestTag}`);
+            // Parse semver and sort releases by version (newest first)
+            const parseSemver = (tag) => {
+              const match = tag.match(/^v?(\d+)\.(\d+)\.(\d+)/);
+              if (!match) return null;
+              return {
+                tag,
+                major: parseInt(match[1], 10),
+                minor: parseInt(match[2], 10),
+                patch: parseInt(match[3], 10)
+              };
+            };
+
+            const sortedReleases = releases
+              .map(r => parseSemver(r.tag_name))
+              .filter(v => v !== null)
+              .sort((a, b) => {
+                if (a.major !== b.major) return b.major - a.major;
+                if (a.minor !== b.minor) return b.minor - a.minor;
+                return b.patch - a.patch;
+              });
+
+            const latestTag = sortedReleases[0]?.tag || 'v0.0.0';
+            console.log(`Latest release tag (semver-sorted): ${latestTag}`);
 
             // Parse version components (strip 'v' prefix)
             const version = latestTag.replace(/^v/, '');
