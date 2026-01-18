@@ -25,6 +25,11 @@ const (
 //go:embed prompts/github_context_prompt.md
 var githubContextPromptText string
 
+// Markdown guidelines prompt provides formatting standards for reports and documentation
+//
+//go:embed prompts/markdown.md
+var markdownGuidelinesPromptText string
+
 // WritePromptFileToYAML writes a shell command to cat a prompt file from /opt/gh-aw/prompts/
 // This replaces the previous approach of embedding prompt text in the binary.
 func WritePromptFileToYAML(yaml *strings.Builder, filename string, indent string) {
