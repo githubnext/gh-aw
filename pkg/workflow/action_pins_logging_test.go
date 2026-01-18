@@ -39,7 +39,7 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 			name:           "github-script v7 resolves to v7 pin (exact match)",
 			repo:           "actions/github-script",
 			requestedVer:   "v7",
-			expectedPinVer: "v7", // Exact match exists in hardcoded pins
+			expectedPinVer: "v7",  // Exact match exists in hardcoded pins
 			expectMismatch: false, // No mismatch since exact match found
 		},
 		{
