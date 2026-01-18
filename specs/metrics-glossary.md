@@ -259,14 +259,16 @@ When implementing or updating daily report workflows:
 
 ### total_workflows
 
-**Definition**: Total count of workflow files in `.github/workflows/`
+**Definition**: Total count of agentic workflow source files in `.github/workflows/`
 
-**Scope**: All `.md` workflow source files
+**Scope**: All `.md` workflow source files (agentic workflows, not standard GitHub Actions YAML)
 
 **Used By**:
 - Daily Code Metrics Report
 
 **Python Variable**: `total_workflows`
+
+**Notes**: This counts `.md` files which are agentic workflow sources that compile to `.lock.yml` files. Standard GitHub Actions workflows (`.yml`) are not included in this count.
 
 ---
 
