@@ -667,9 +667,9 @@ func syncCampaignGeneratorToWorkflows(lockFile, markdownPath string) error {
 
 	// Get repo root from the lock file path
 	// Go up from .github/aw/campaign-generator.lock.yml to repo root
-	awDir := filepath.Dir(lockFile)              // .github/aw
-	githubDir := filepath.Dir(awDir)             // .github
-	gitRoot := filepath.Dir(githubDir)           // repo root
+	awDir := filepath.Dir(lockFile)    // .github/aw
+	githubDir := filepath.Dir(awDir)   // .github
+	gitRoot := filepath.Dir(githubDir) // repo root
 
 	// Construct target paths in .github/workflows/
 	workflowsDir := filepath.Join(gitRoot, ".github", "workflows")
