@@ -645,6 +645,7 @@ jobs:
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
@@ -734,11 +735,20 @@ jobs:
           
           ## Output
           
-          Add a **very brief** comment (max 5-10 lines) to the current pull request with:
-          - PR titles only (no descriptions)
-          - ✅ or ❌ for each test result
-          - Overall status: PASS or FAIL
-          - Mention the pull request author and any assignees
+          1. **Create an issue** with a summary of the smoke test run:
+             - Title: "Smoke Test: Copilot - __GH_AW_GITHUB_RUN_ID__"
+             - Body should include:
+               - Test results (✅ or ❌ for each test)
+               - Overall status: PASS or FAIL
+               - Run URL: __GH_AW_GITHUB_SERVER_URL__/__GH_AW_GITHUB_REPOSITORY__/actions/runs/__GH_AW_GITHUB_RUN_ID__
+               - Timestamp
+               - Pull request author and assignees
+          
+          2. Add a **very brief** comment (max 5-10 lines) to the current pull request with:
+             - PR titles only (no descriptions)
+             - ✅ or ❌ for each test result
+             - Overall status: PASS or FAIL
+             - Mention the pull request author and any assignees
           
           If all tests pass, add the label `smoke-copilot` to the pull request.
           
@@ -754,6 +764,7 @@ jobs:
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
         with:
           script: |
@@ -770,6 +781,7 @@ jobs:
                 GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
+                GH_AW_GITHUB_SERVER_URL: process.env.GH_AW_GITHUB_SERVER_URL,
                 GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE
               }
             });
@@ -779,6 +791,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
+          GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
