@@ -141,10 +141,10 @@ gh aw audit <run-id>
 
 > This issue is automatically managed by GitHub Agentic Workflows. Do not close this issue manually.`;
 
-  // Add expiration marker (7 days from now)
+  // Add expiration marker (7 days from now) inside the quoted section
   const expirationDate = new Date();
   expirationDate.setDate(expirationDate.getDate() + 7);
-  const parentBody = `${parentBodyContent}\n\n${createExpirationLine(expirationDate)}`;
+  const parentBody = `${parentBodyContent}\n>\n> ${createExpirationLine(expirationDate)}`;
 
   try {
     const newIssue = await github.rest.issues.create({
@@ -347,16 +347,18 @@ async function main() {
         };
         const footer = getFooterAgentFailureIssueMessage(ctx);
 
-        // Combine issue body with footer, expiration marker, and XML marker
-        const bodyLines = [issueBodyContent, "", footer];
-
-        // Add expiration marker (7 days from now)
+        // Add expiration marker (7 days from now) inside the quoted footer section
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 7);
-        bodyLines.push(``);
-        bodyLines.push(createExpirationLine(expirationDate));
+        const expirationLine = createExpirationLine(expirationDate);
+        
+        // Combine footer with expiration line in the same quoted section
+        const footerWithExpires = `${footer}\n>\n> ${expirationLine}`;
 
-        // Add XML marker for traceability
+        // Combine issue body with footer and XML marker
+        const bodyLines = [issueBodyContent, "", footerWithExpires];
+
+        // Add XML marker for traceability (outside the quoted section)
         bodyLines.push(``);
         bodyLines.push(generateXMLMarker(workflowName, runUrl));
 
