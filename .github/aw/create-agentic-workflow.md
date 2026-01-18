@@ -339,6 +339,20 @@ Include in the PR description:
   - The workflow has been created and compiled successfully.
   - Commit and push the changes to activate it.
 
+## Markdown Formatting Guidelines
+
+When creating workflow prompts that generate reports or documentation output, include these markdown formatting guidelines:
+
+Use GitHub-flavored markdown (GFM) for all output.
+
+**Headers**: Start at h3 (###) to maintain proper document hierarchy.
+
+**Checkboxes**: Use `- [ ]` for unchecked and `- [x]` for checked task items.
+
+**Progressive Disclosure**: Use `<details><summary><b>Bold Summary Text</b></summary>` to collapse long content.
+
+**Workflow Run Links**: Format as `[§12345](https://github.com/owner/repo/actions/runs/12345)`. Do NOT add footer attribution (system adds automatically).
+
 ## Guidelines
 
 - This agent is for **creating NEW workflows** only

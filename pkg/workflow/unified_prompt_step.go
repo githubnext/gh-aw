@@ -309,14 +309,7 @@ To create or modify GitHub resources (issues, discussions, pull requests, etc.),
 		}
 	}
 
-	// 8. Markdown guidelines (always included for consistent formatting)
-	unifiedPromptLog.Print("Adding markdown guidelines section")
-	sections = append(sections, PromptSection{
-		Content: markdownGuidelinesPromptText,
-		IsFile:  false,
-	})
-
-	// 9. PR context (if comment-related triggers and checkout is needed)
+	// 8. PR context (if comment-related triggers and checkout is needed)
 	hasCommentTriggers := c.hasCommentRelatedTriggers(data)
 	needsCheckout := c.shouldAddCheckoutStep(data)
 	permParser := NewPermissionsParser(data.Permissions)
