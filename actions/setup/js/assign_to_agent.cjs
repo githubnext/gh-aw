@@ -258,35 +258,43 @@ async function main() {
       // Get branch information before assignment
       const branch = item.branch ?? defaultBranch;
 
-      // If a branch is specified for an issue, create an agent task with the base branch
-      // instead of just assigning via GraphQL (which doesn't support branch specification)
+      // If a branch is specified for an issue, create an agent task using the Copilot API
+      // The gh CLI uses the CAPI (Copilot API) REST endpoint, not GraphQL
       if (branch && issueNumber) {
         core.info(`Creating agent task for ${agentName} on issue #${issueNumber} with base branch: ${branch}`);
 
         try {
-          // Build gh agent-task create command with issue number and base branch
-          const ghArgs = ["agent-task", "create", `#${issueNumber}`, "--base", branch];
+          // Use Copilot API to create a job with base branch specification
+          // Based on gh CLI source: pkg/cmd/agent-task/capi/job.go CreateJob()
+          const capiUrl = `https://api.github.com/agents/swe/v1/jobs/${targetOwner}/${targetRepo}`;
 
-          if (targetRepo !== context.repo.repo || targetOwner !== context.repo.owner) {
-            ghArgs.push("--repo", `${targetOwner}/${targetRepo}`);
+          const jobPayload = {
+            problem_statement: `Work on issue #${issueNumber}`,
+            custom_agent: agentName === "copilot" ? "" : agentName,
+            event_type: "gh_cli",
+            pull_request: {
+              base_ref: `refs/heads/${branch}`,
+            },
+          };
+
+          core.info(`Calling Copilot API: POST ${capiUrl}`);
+          core.debug(`Job payload: ${JSON.stringify(jobPayload, null, 2)}`);
+
+          const response = await github.request(`POST ${capiUrl}`, jobPayload);
+
+          if (response.status === 200 || response.status === 201) {
+            const job = response.data;
+            core.info(`Agent task created: job_id=${job.job_id}, session_id=${job.session_id}`);
+            core.info(`Successfully created agent task for ${agentName} on issue #${issueNumber} with base branch ${branch}`);
+          } else {
+            throw new Error(`Unexpected response status: ${response.status}`);
           }
-
-          core.info(`Executing: gh ${ghArgs.join(" ")}`);
-
-          const taskOutput = await exec.getExecOutput("gh", ghArgs, {
-            silent: false,
-            ignoreReturnCode: false,
-          });
-
-          const output = taskOutput.stdout.trim();
-          core.info(`Agent task created: ${output}`);
-          core.info(`Successfully created agent task for ${agentName} on issue #${issueNumber} with base branch ${branch}`);
-        } catch (execError) {
-          const errorMessage = execError instanceof Error ? execError.message : String(execError);
-          core.warning(`Failed to create agent task with base branch: ${errorMessage}`);
+        } catch (apiError) {
+          const errorMessage = apiError instanceof Error ? apiError.message : String(apiError);
+          core.warning(`Failed to create agent task via Copilot API: ${errorMessage}`);
           core.info(`Falling back to standard agent assignment without branch specification`);
 
-          // Fall back to regular assignment if gh agent-task create fails
+          // Fall back to regular assignment if Copilot API fails
           core.info(`Assigning ${agentName} coding agent to ${type} #${number}...`);
           const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents);
 

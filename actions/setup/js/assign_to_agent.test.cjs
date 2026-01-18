@@ -24,6 +24,13 @@ const mockContext = {
 
 const mockGithub = {
   graphql: vi.fn(),
+  request: vi.fn().mockResolvedValue({
+    status: 201,
+    data: {
+      job_id: "test-job-123",
+      session_id: "test-session-456",
+    },
+  }),
   rest: {
     issues: {
       createComment: vi.fn().mockResolvedValue({ data: { id: 1 } }),
@@ -60,6 +67,15 @@ describe("assign_to_agent", () => {
     // Reset the mock for createComment
     mockGithub.rest.issues.createComment.mockClear();
     mockGithub.rest.issues.createComment.mockResolvedValue({ data: { id: 1 } });
+    // Reset the mock for request
+    mockGithub.request.mockClear();
+    mockGithub.request.mockResolvedValue({
+      status: 201,
+      data: {
+        job_id: "test-job-123",
+        session_id: "test-session-456",
+      },
+    });
     // Reset the mock for exec
     mockExec.getExecOutput.mockClear();
     mockExec.getExecOutput.mockResolvedValue({
@@ -870,11 +886,12 @@ describe("assign_to_agent", () => {
 
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
-    // Verify gh agent-task create was called with the branch
-    expect(mockExec.getExecOutput).toHaveBeenCalled();
-    const execCall = mockExec.getExecOutput.mock.calls[0];
-    expect(execCall[0]).toBe("gh");
-    expect(execCall[1]).toEqual(["agent-task", "create", "#123", "--base", "develop"]);
+    // Verify Copilot API was called with branch
+    expect(mockGithub.request).toHaveBeenCalled();
+    const requestCall = mockGithub.request.mock.calls[0];
+    expect(requestCall[0]).toBe("POST https://api.github.com/agents/swe/v1/jobs/test-owner/test-repo");
+    const payload = requestCall[1];
+    expect(payload.pull_request.base_ref).toBe("refs/heads/develop");
 
     // Verify summary includes branch information
     const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
