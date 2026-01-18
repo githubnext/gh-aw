@@ -39,25 +39,26 @@ Creating campaigns without agentic workflows would be tedious and error-prone.
 Just like agentic workflows turn natural language into GitHub Actions,
 campaigns turn brief natural language goal definitions into coordinated work tracked in GitHub Projects.
 
+**Example input**: Describe your goal in plain language, such as:
+
 ```md
 Burn down all open code security alerts, prioritizing file-write alerts first
 and batching up to 3 related alerts/PR with a brief fix rationale comment.
 ```
 
-The above text gets automatically converted into the following campaign spec in a pull request
-and a pull request is raised by the Copilot Coding Agent where you can now iterate on the details:
+The campaign generator automatically converts this into a **[campaign spec](/gh-aw/guides/campaigns/specs/)** in a pull request where you can review and iterate on the details. Here's what the essential parts look like:
 
 ```yaml
 ---
 id: security-alert-burndown
-version: "v1"
 name: "Security Alert Burndown"
 description: "Drive the code security alerts backlog to zero"
-engine: copilot
 
+# GitHub Project for tracking
 project-url: "https://github.com/orgs/ORG/projects/1"
 tracker-label: "campaign:security-alert-burndown"
 
+# Strategic goals
 objective: "Reduce open code security alerts to zero without breaking CI."
 kpis:
   - id: open_alerts
@@ -66,17 +67,21 @@ kpis:
     direction: "decrease"
     target: 0
 
+# Worker workflows to dispatch
 workflows:
   - security-alert-fix
 
+# Governance and pacing
 governance:
   max-project-updates-per-run: 10
   max-comments-per-run: 10
 ---
 ```
 
-The file has already been validated and comppiled to create the campaign's orchestrator workflow (`.campaign.lock.yml`) that GitHub Actions can execute.
+The spec is validated and compiled to create the campaign's orchestrator workflow (`.campaign.lock.yml`) that GitHub Actions can execute.
 Think of it like compiling code: you write a human-friendly campaign definition, and the compiler produces a hardened, machine-executable workflow.
+
+**What happens next**: Once merged, the campaign orchestrator runs on schedule (daily by default) to [dispatch worker workflows, discover items, update the Project board, and report status](/gh-aw/guides/campaigns/flow/). The campaign coordinates all work toward your objective while respecting governance limits.
 
 ## Next steps
 
