@@ -28,7 +28,6 @@ safe-outputs:
     max: 10
 timeout-minutes: 30
 imports:
-  - shared/github-queries-safe-input.md
   - shared/reporting.md
 ---
 
@@ -58,13 +57,22 @@ Review all daily report discussions from the last 24 hours and:
 
 ### Step 1.1: Query Recent Discussions
 
-Use the `github-discussion-query` safe-input tool to find all daily report discussions created in the last 24-48 hours. Call the tool with appropriate parameters:
+Use the `list_discussions` tool from the GitHub MCP server to find all daily report discussions. **You must provide the required parameters**:
 
+- **owner**: `githubnext` (repository owner)
+- **repo**: `gh-aw` (repository name)
+- **perPage**: `100` (to get more results)
+- **orderBy**: `UPDATED_AT` (to get recently updated discussions)
+- **direction**: `DESC` (newest first)
+
+Example tool call:
 ```
-github-discussion-query with limit: 100, jq: "."
+list_discussions with owner: "githubnext", repo: "gh-aw", perPage: 100, orderBy: "UPDATED_AT", direction: "DESC"
 ```
 
-This will return all discussions which you can then filter locally.
+**IMPORTANT**: The `owner` parameter is REQUIRED. Without it, the tool will fail with "missing required parameter: owner".
+
+This will return discussions which you can then filter locally for daily reports from the last 24-48 hours.
 
 ### Step 1.2: Filter Daily Report Discussions
 
@@ -77,7 +85,7 @@ From the discussions, identify those that are daily report outputs. Look for com
 After saving the discussion query output to a file, use jq to filter:
 ```bash
 # Save discussion output to a file first
-# The github-discussion-query tool will provide JSON output that you should save
+# The list_discussions tool will provide JSON output that you should save
 
 # Then filter discussions with daily-related titles
 jq '[.[] | select(.title | test("daily|Daily|\\[daily|team-status|Chronicle|Report"; "i"))]' discussions_output.json
