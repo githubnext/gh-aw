@@ -3,6 +3,9 @@ title: Getting started
 description: Quick start guide for creating and launching agentic campaigns
 ---
 
+> [!WARNING]
+> **Campaigns are currently in build phase - do not use in production!** This feature is under active development and may have breaking changes. Use at your own risk.
+
 This guide shows you how to create your first campaign using the automated creation flow.
 
 > [!IMPORTANT]

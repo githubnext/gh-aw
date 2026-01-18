@@ -5,6 +5,10 @@ sidebar:
   badge: { text: 'Examples', variant: 'note' }
 ---
 
+
+> [!WARNING]
+> **Campaigns are currently in build phase - do not use in production!** This feature is under active development and may have breaking changes. Use at your own risk.
+
 This section contains example campaign workflows that demonstrate how to use campaign worker orchestration, workflow discovery, and the dispatch_workflow safe output.
 
 ## Security Audit Campaign
