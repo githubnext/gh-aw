@@ -4,6 +4,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
 const { createExpirationLine } = require("./ephemerals.cjs");
+const { generateFooterWithExpiration } = require("./expiration_helpers.cjs");
 const fs = require("fs");
 
 /**
@@ -138,11 +139,12 @@ async function main(config = {}) {
         // Render the issue template
         const issueBodyContent = renderTemplate(issueTemplate, templateContext);
 
-        // Add expiration marker (1 week from now) in a quoted section
-        const expirationDate = new Date();
-        expirationDate.setDate(expirationDate.getDate() + 7);
-        const expirationLine = createExpirationLine(expirationDate);
-        const issueBody = `${issueBodyContent}\n\n> Workflow: [${workflowName}](${workflowSourceURL})\n>\n> ${expirationLine}`;
+        // Add expiration marker (1 week from now) in a quoted section using helper
+        const footer = generateFooterWithExpiration({
+          footerText: `> Workflow: [${workflowName}](${workflowSourceURL})`,
+          expiresHours: 24 * 7, // 7 days
+        });
+        const issueBody = `${issueBodyContent}\n\n${footer}`;
 
         const newIssue = await github.rest.issues.create({
           owner,

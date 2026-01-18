@@ -10,6 +10,7 @@ const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_titl
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
 const { createExpirationLine } = require("./ephemerals.cjs");
+const { addExpirationToFooter } = require("./expiration_helpers.cjs");
 const fs = require("fs");
 
 /**
@@ -408,28 +409,8 @@ async function main(config = {}) {
       bodyLines.push(trackerIDComment);
     }
 
-    // Generate footer
-    let footer = generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd();
-
-    // Add expiration comment inside the quoted footer section if expires is set in config
-    if (expiresHours > 0) {
-      const expirationDate = new Date();
-      expirationDate.setHours(expirationDate.getHours() + expiresHours);
-      const expirationLine = createExpirationLine(expirationDate);
-      // Insert expiration line before the XML marker (which is at the end of the footer)
-      // The footer ends with XML marker like: "\n\n<!-- gh-aw-agentic-workflow: ... -->\n"
-      // We need to insert "> \n> expirationLine" before the XML marker
-      const xmlMarkerMatch = footer.match(/\n\n<!--.*?-->\n?$/s);
-      if (xmlMarkerMatch) {
-        const xmlMarker = xmlMarkerMatch[0];
-        const footerWithoutXml = footer.substring(0, footer.length - xmlMarker.length);
-        footer = `${footerWithoutXml}\n>\n> ${expirationLine}${xmlMarker}`;
-      } else {
-        // Fallback: just append to footer if no XML marker found
-        footer = `${footer}\n>\n> ${expirationLine}`;
-      }
-      core.info(`Issue will expire on ${expirationDate.toISOString()} (${expiresHours} hours)`);
-    }
+    // Generate footer and add expiration using helper
+    const footer = addExpirationToFooter(generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), expiresHours, "Issue");
 
     bodyLines.push(``, ``, footer, "");
     const body = bodyLines.join("\n").trim();
