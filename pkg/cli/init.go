@@ -291,16 +291,22 @@ func addCampaignGeneratorWorkflow(verbose bool) error {
 		return fmt.Errorf("failed to find git root: %w", err)
 	}
 
-	// Campaign generator must live under .github/workflows to run in GitHub Actions.
+	// The runnable artifact is the compiled lock file, which must be in .github/workflows.
+	// Keep the markdown source in .github/aw to match other gh-aw prompts.
 	workflowsDir := filepath.Join(gitRoot, ".github", "workflows")
+	awDir := filepath.Join(gitRoot, ".github", "aw")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		initLog.Printf("Failed to create workflows directory: %v", err)
 		return fmt.Errorf("failed to create workflows directory: %w", err)
 	}
+	if err := os.MkdirAll(awDir, 0755); err != nil {
+		initLog.Printf("Failed to create .github/aw directory: %v", err)
+		return fmt.Errorf("failed to create .github/aw directory: %w", err)
+	}
 
 	// Build the campaign-generator workflow
 	data := campaign.BuildCampaignGenerator()
-	workflowPath := filepath.Join(workflowsDir, "campaign-generator.md")
+	workflowPath := filepath.Join(awDir, "campaign-generator.md")
 
 	// Render the workflow to markdown
 	content := renderCampaignGeneratorMarkdown(data)
@@ -315,7 +321,9 @@ func addCampaignGeneratorWorkflow(verbose bool) error {
 		fmt.Fprintf(os.Stderr, "Created campaign-generator workflow: %s\n", workflowPath)
 	}
 
-	// Compile to lock file using the standard compiler
+	// Compile to lock file using the standard compiler.
+	// campaign-generator.md lives in .github/aw, but MarkdownToLockFile is
+	// intentionally mapped to emit the runnable lock file into .github/workflows.
 	compiler := workflow.NewCompiler(verbose, "", GetVersion())
 	if err := CompileWorkflowWithValidation(compiler, workflowPath, verbose, false, false, false, false, false); err != nil {
 		initLog.Printf("Failed to compile campaign-generator: %v", err)
