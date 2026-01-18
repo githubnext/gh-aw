@@ -27,7 +27,7 @@ jobs:
       # To report GitHub Actions status checks
       statuses: write
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v5
         with:
           # super-linter needs the full git history to get the

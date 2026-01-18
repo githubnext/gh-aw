@@ -152,6 +152,48 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
               expect(summary).toContain("0 blocked"),
               expect(summary).toContain("0 unique domains"),
               expect(summary).toContain("No firewall activity detected."));
+          }),
+          test("should filter out Envoy error codes", () => {
+            const analysis = {
+                totalRequests: 10,
+                allowedRequests: 5,
+                blockedRequests: 5,
+                allowedDomains: ["api.github.com:443"],
+                blockedDomains: ["error:transaction-end-before-headers", "blocked.example.com:443"],
+                requestsByDomain: new Map([
+                  ["error:transaction-end-before-headers", { allowed: 0, blocked: 5 }],
+                  ["api.github.com:443", { allowed: 5, blocked: 0 }],
+                  ["blocked.example.com:443", { allowed: 0, blocked: 1 }],
+                ]),
+              },
+              summary = generateFirewallSummary(analysis);
+            (expect(summary).toContain("2 unique domains"),
+              expect(summary).toContain("5 allowed"),
+              expect(summary).toContain("1 blocked"),
+              expect(summary).toContain("| api.github.com:443 | 5 | 0 |"),
+              expect(summary).toContain("| blocked.example.com:443 | 0 | 1 |"),
+              expect(summary).not.toContain("error:transaction-end-before-headers"));
+          }),
+          test("should filter out all error codes starting with error:", () => {
+            const analysis = {
+                totalRequests: 15,
+                allowedRequests: 10,
+                blockedRequests: 5,
+                allowedDomains: ["api.github.com:443"],
+                blockedDomains: ["error:transaction-end-before-headers", "error:timeout", "error:connection-refused"],
+                requestsByDomain: new Map([
+                  ["error:transaction-end-before-headers", { allowed: 0, blocked: 2 }],
+                  ["error:timeout", { allowed: 0, blocked: 2 }],
+                  ["error:connection-refused", { allowed: 0, blocked: 1 }],
+                  ["api.github.com:443", { allowed: 10, blocked: 0 }],
+                ]),
+              },
+              summary = generateFirewallSummary(analysis);
+            (expect(summary).toContain("1 unique domain"),
+              expect(summary).toContain("10 allowed"),
+              expect(summary).toContain("0 blocked"),
+              expect(summary).toContain("| api.github.com:443 | 10 | 0 |"),
+              expect(summary).not.toContain("error:"));
           }));
       }));
   }));

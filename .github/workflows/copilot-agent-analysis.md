@@ -261,13 +261,13 @@ If the history file doesn't exist or has gaps in the data, rebuild it by queryin
 
 #### 4.2 Store Today's Metrics
 
-Calculate today's metrics:
-- Total PRs created today
-- Number merged/closed/open
+Store today's metrics (see standardized metric names in specs/metrics-glossary.md):
+- Total PRs created today (`agent_prs_total`)
+- Number merged/closed/open (`agent_prs_merged`)
 - Average comments per PR
 - Average agent duration
 - Average total duration
-- Success rate (merged / total completed)
+- Success rate (`agent_success_rate` = merged / total completed)
 
 Save to repo memory:
 ```bash
@@ -295,7 +295,7 @@ Store the data in JSON format with proper structure.
 repo:${{ github.repository }} is:pr "START COPILOT CODING AGENT" created:YYYY-MM-DD..YYYY-MM-DD
 ```
 
-Or use `list_pull_requests` with date filtering and filter results by `user.login == "copilot"` and `user.id == 198982749`.
+Or use `list_pull_requests` with date filtering and filter results by agent criteria (see `agent_prs_total` in specs/metrics-glossary.md for scope).
 
 **Process:**
 - Start with the oldest missing date in your target range (maximum 3 days ago)
@@ -315,13 +315,13 @@ Or use `list_pull_requests` with date filtering and filter results by `user.logi
 
 #### 4.3 Store Today's Metrics
 
-After ensuring historical data is available (either from existing repo memory or rebuilt), add today's metrics:
-- Total PRs created today
-- Number merged/closed/open
+After ensuring historical data is available (either from existing repo memory or rebuilt), add today's metrics (see specs/metrics-glossary.md):
+- Total PRs created today (`agent_prs_total`)
+- Number merged/closed/open (`agent_prs_merged`, `closed_prs`, `open_prs`)
 - Average comments per PR
 - Average agent duration
 - Average total duration
-- Success rate (merged / total completed)
+- Success rate (`agent_success_rate`)
 
 Append to history.json in the repo memory.
 
@@ -357,7 +357,7 @@ Create a **concise** discussion with your findings using the safe-outputs create
 ## Summary
 
 **Analysis Period**: Last 24 hours
-**Total PRs**: [count] | **Merged**: [count] ([percentage]%) | **Avg Duration**: [time]
+**Total PRs** (`agent_prs_total`): [count] | **Merged** (`agent_prs_merged`): [count] ([percentage]%) | **Avg Duration**: [time]
 
 ## Performance Metrics
 
