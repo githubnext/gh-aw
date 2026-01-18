@@ -48,7 +48,9 @@ for p in "${platforms[@]}"; do
   fi
   
   echo "Building gh-aw for $p..."
-  GOOS="$goos" GOARCH="$goarch" go build \
+  # CGO_ENABLED=0 creates a statically-linked binary that works in Alpine containers
+  # (Alpine uses musl libc, not glibc, so dynamically-linked binaries fail)
+  CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" go build \
     -trimpath \
     -ldflags="-s -w -X main.version=${VERSION} -X main.isRelease=true" \
     -o "dist/${p}${ext}" \

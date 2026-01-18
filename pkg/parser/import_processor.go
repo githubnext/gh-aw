@@ -172,12 +172,12 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	var engines []string
 	var safeOutputs []string
 	var safeInputs []string
-	var bots []string                  // Track unique bot names
-	botsSet := make(map[string]bool)   // Set for deduplicating bots
-	var labels []string                // Track unique labels
-	labelsSet := make(map[string]bool) // Set for deduplicating labels
-	var caches []string                // Track cache configurations (appended in order)
-	var agentFile string               // Track custom agent file
+	var bots []string                    // Track unique bot names
+	botsSet := make(map[string]bool)     // Set for deduplicating bots
+	var labels []string                  // Track unique labels
+	labelsSet := make(map[string]bool)   // Set for deduplicating labels
+	var caches []string                  // Track cache configurations (appended in order)
+	var agentFile string                 // Track custom agent file
 	importInputs := make(map[string]any) // Aggregated input values from all imports
 
 	// Seed the queue with initial imports
