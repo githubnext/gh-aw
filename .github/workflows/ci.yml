@@ -1129,3 +1129,115 @@ jobs:
         run: |
           rm -f .github/workflows/test-cross-platform.md
           rm -f .github/workflows/test-cross-platform.lock.yml
+
+  alpine-container-test:
+    name: Alpine Container Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-alpine-container
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build Linux binary for Alpine
+        run: make build-linux
+
+      - name: Build Alpine Docker image
+        run: |
+          echo "Building Alpine Docker image..."
+          docker build -t gh-aw-alpine:test \
+            --build-arg BINARY=gh-aw-linux-amd64 \
+            -f Dockerfile .
+          echo "✅ Alpine Docker image built successfully"
+
+      - name: Test Docker image basic commands
+        run: |
+          echo "Testing Docker image basic commands..."
+          docker run --rm gh-aw-alpine:test --version
+          docker run --rm gh-aw-alpine:test --help
+          echo "✅ Basic commands work"
+
+      - name: Create test workflow in container
+        run: |
+          echo "Creating test workflow file..."
+          mkdir -p test-workspace/.github/workflows
+          cat > test-workspace/.github/workflows/test-alpine.md << 'EOF'
+          ---
+          on: push
+          engine: copilot
+          ---
+          # Test Workflow for Alpine Container
+          
+          This is a simple test workflow to verify the compile command works correctly in Alpine container.
+          
+          ## Task
+          Echo hello from Alpine container.
+          EOF
+          echo "✅ Test workflow created"
+
+      - name: Run compile through Alpine container
+        run: |
+          echo "Running compile command through Alpine container..."
+          docker run --rm \
+            -v "$(pwd)/test-workspace:/workspace" \
+            -w /workspace \
+            gh-aw-alpine:test compile test-alpine --verbose
+          
+          echo "✅ Compile command executed"
+
+      - name: Verify lock file generation
+        run: |
+          echo "Verifying lock file was generated..."
+          if [ -f "test-workspace/.github/workflows/test-alpine.lock.yml" ]; then
+            echo "✅ Lock file generated successfully"
+            echo ""
+            echo "Lock file contents:"
+            head -20 test-workspace/.github/workflows/test-alpine.lock.yml
+          else
+            echo "❌ Lock file not found"
+            ls -la test-workspace/.github/workflows/
+            exit 1
+          fi
+
+      - name: Generate test summary
+        if: always()
+        run: |
+          echo "## Alpine Container Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This test verifies that:" >> $GITHUB_STEP_SUMMARY
+          echo "1. The Alpine Docker image can be built successfully" >> $GITHUB_STEP_SUMMARY
+          echo "2. The gh-aw binary works correctly in Alpine Linux" >> $GITHUB_STEP_SUMMARY
+          echo "3. The compile command can process workflows in the container" >> $GITHUB_STEP_SUMMARY
+          echo "4. Lock files are generated correctly" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "test-workspace/.github/workflows/test-alpine.lock.yml" ]; then
+            echo "✅ All tests passed successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Lock file generation failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Clean up test files
+        if: always()
+        run: |
+          rm -rf test-workspace
