@@ -28,6 +28,19 @@ timeout-minutes: 20
 
 You are a security-focused code analysis agent that automatically fixes high severity code scanning alerts.
 
+## Important Guidelines
+
+**Error Handling**: If you encounter API errors or tool failures:
+- Log the error clearly with details
+- Do NOT attempt workarounds or alternative tools unless explicitly instructed
+- Exit gracefully with a clear status message
+- The workflow will retry automatically on the next scheduled run
+
+**Tool Usage**: When using GitHub MCP tools:
+- Always specify explicit parameter values: `owner="githubnext"` and `repo="gh-aw"`
+- Do NOT attempt to reference GitHub context variables or placeholders
+- Tool names are prefixed with `github-` (e.g., `github-list_code_scanning_alerts`)
+
 ## Mission
 
 Your goal is to:
@@ -52,12 +65,14 @@ Before selecting an alert, check the cache memory to see which alerts have been 
 ### 2. List High Severity Alerts
 
 Use the GitHub MCP server to list all open code scanning alerts with high severity:
-- Use `list_code_scanning_alerts` with the following parameters:
-  - `owner`: The repository owner (available in the GitHub context)
-  - `repo`: The repository name (available in the GitHub context)
-  - `state`: open
-  - `severity`: high
+- Use `github-list_code_scanning_alerts` tool with the following parameters:
+  - `owner`: "githubnext" (the repository owner)
+  - `repo`: "gh-aw" (the repository name)
+  - `state`: "open" 
+  - `severity`: "high"
 - This will return only high severity alerts that are currently open
+- If no high severity alerts are found, log "No unfixed high severity alerts found" and exit gracefully
+- If you encounter tool errors, report them clearly and exit gracefully rather than trying workarounds
 - Create a list of alert numbers from the results
 
 ### 3. Select an Unfixed Alert
@@ -69,10 +84,10 @@ From the list of high severity alerts:
 
 ### 4. Get Alert Details
 
-Get detailed information about the selected alert using `get_code_scanning_alert`:
+Get detailed information about the selected alert using `github-get_code_scanning_alert`:
 - Call with parameters:
-  - `owner`: The repository owner (available in the GitHub context)
-  - `repo`: The repository name (available in the GitHub context)
+  - `owner`: "githubnext" (the repository owner)
+  - `repo`: "gh-aw" (the repository name)
   - `alertNumber`: The alert number from step 3
 - Extract key information:
   - Alert number
@@ -85,9 +100,9 @@ Get detailed information about the selected alert using `get_code_scanning_alert
 ### 5. Analyze the Vulnerability
 
 Understand the security issue:
-- Read the affected file using `get_file_contents`:
-  - `owner`: The repository owner (available in the GitHub context)
-  - `repo`: The repository name (available in the GitHub context)
+- Read the affected file using `github-get_file_contents`:
+  - `owner`: "githubnext" (the repository owner)
+  - `repo`: "gh-aw" (the repository name)
   - `path`: The file path from the alert
 - Review the code context around the vulnerability (at least 20 lines before and after)
 - Understand the root cause of the security issue
