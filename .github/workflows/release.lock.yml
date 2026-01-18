@@ -1025,7 +1025,12 @@ jobs:
                 return b.patch - a.patch;
               });
 
-            const latestTag = sortedReleases[0]?.tag || 'v0.0.0';
+            if (sortedReleases.length === 0) {
+              core.setFailed('No existing releases found. Cannot determine base version for incrementing. Please create an initial release manually (e.g., v0.1.0).');
+              return;
+            }
+
+            const latestTag = sortedReleases[0].tag;
             console.log(`Latest release tag (semver-sorted): ${latestTag}`);
 
             // Parse version components (strip 'v' prefix)
