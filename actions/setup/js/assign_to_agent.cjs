@@ -35,6 +35,9 @@ async function main() {
           content += `**Pull Request:** #${item.pull_number}\n`;
         }
         content += `**Agent:** ${item.agent || "copilot"}\n`;
+        if (item.branch) {
+          content += `**Base Branch:** ${item.branch}\n`;
+        }
         content += "\n";
         return content;
       },
@@ -45,6 +48,12 @@ async function main() {
   // Get default agent from configuration
   const defaultAgent = process.env.GH_AW_AGENT_DEFAULT?.trim() ?? "copilot";
   core.info(`Default agent: ${defaultAgent}`);
+
+  // Get default branch from configuration
+  const defaultBranch = process.env.GH_AW_AGENT_DEFAULT_BRANCH?.trim() || null;
+  if (defaultBranch) {
+    core.info(`Default branch: ${defaultBranch}`);
+  }
 
   // Get target configuration (defaults to "triggering")
   const targetConfig = process.env.GH_AW_AGENT_TARGET?.trim() || "triggering";
@@ -256,10 +265,34 @@ async function main() {
       }
 
       core.info(`Successfully assigned ${agentName} coding agent to ${type} #${number}`);
+
+      // If a branch was specified, add a comment to the issue/PR with branch information
+      const branch = item.branch ?? defaultBranch;
+      if (branch && issueNumber) {
+        try {
+          core.info(`Adding comment with base branch information: ${branch}`);
+          const branchComment = `🤖 **Agent Assignment**\n\nThe ${agentName} agent has been assigned to work on this issue.\n\n**Base Branch:** \`${branch}\`\n\nThe agent will create changes based on the \`${branch}\` branch.`;
+
+          await github.rest.issues.createComment({
+            owner: targetOwner,
+            repo: targetRepo,
+            issue_number: issueNumber,
+            body: branchComment,
+          });
+
+          core.info(`Added comment with base branch information to issue #${issueNumber}`);
+        } catch (commentError) {
+          const commentErrorMsg = getErrorMessage(commentError);
+          core.warning(`Failed to add branch comment to issue #${issueNumber}: ${commentErrorMsg}`);
+          // Don't fail the entire operation if comment fails
+        }
+      }
+
       results.push({
         issue_number: issueNumber,
         pull_number: pullNumber,
         agent: agentName,
+        branch: branch || null,
         success: true,
       });
     } catch (error) {
@@ -280,6 +313,7 @@ async function main() {
         issue_number: issueNumber,
         pull_number: pullNumber,
         agent: agentName,
+        branch: (item.branch ?? defaultBranch) || null,
         success: false,
         error: errorMessage,
       });
@@ -298,7 +332,8 @@ async function main() {
       .filter(r => r.success)
       .map(r => {
         const itemType = r.issue_number ? `Issue #${r.issue_number}` : `Pull Request #${r.pull_number}`;
-        return `- ${itemType} → Agent: ${r.agent}`;
+        const branchInfo = r.branch ? ` (branch: \`${r.branch}\`)` : "";
+        return `- ${itemType} → Agent: ${r.agent}${branchInfo}`;
       })
       .join("\n");
     summaryContent += "\n\n";

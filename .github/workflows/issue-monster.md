@@ -365,6 +365,10 @@ For each selected issue:
 - Read the full issue body and any comments
 - Understand what fix is needed
 - Identify the files that need to be modified
+- **Extract base branch information**: Look for branch specifications in the issue body, such as:
+  - Explicit branch mentions: "base branch: develop", "target branch: main", "branch: feature/xyz"
+  - Common patterns: `branch: <branch-name>`, `base: <branch-name>`, `target: <branch-name>`
+  - If no branch is specified, use the repository's default branch (usually "main")
 - Verify it doesn't overlap with the other selected issues
 
 ### 5. Assign Issues to Copilot Agent
@@ -372,8 +376,10 @@ For each selected issue:
 For each selected issue, use the `assign_to_agent` tool from the `safeoutputs` MCP server to assign the Copilot agent:
 
 ```
-safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
+safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot", branch="<branch_name>")
 ```
+
+Where `<branch_name>` is the base branch extracted from the issue description (step 4), or omitted if no specific branch was mentioned.
 
 Do not use GitHub tools for this assignment. The `assign_to_agent` tool will handle the actual assignment.
 

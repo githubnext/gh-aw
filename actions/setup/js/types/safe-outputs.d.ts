@@ -265,6 +265,8 @@ interface AssignToAgentItem extends BaseSafeOutputItem {
   issue_number: number | string;
   /** Agent name or slug (defaults to 'copilot' if not provided) */
   agent?: string;
+  /** Base branch for the agent to work from (optional) */
+  branch?: string;
 }
 
 /**
