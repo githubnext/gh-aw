@@ -1,27 +1,28 @@
 {
-  "timestamp": "2026-01-08T12:43:00Z",
-  "report_date": "2026-01-08",
+  "timestamp": "2026-01-18T12:42:35Z",
+  "report_date": "2026-01-18",
   "summary": {
-    "last_data_date": "2025-12-22",
-    "period_analyzed": "30 days (2025-12-09 to 2025-12-22)",
-    "total_requests": 477,
-    "allowed_requests": 351,
-    "blocked_requests": 126,
-    "block_rate": 26.42,
+    "last_data_date": "2025-12-20",
+    "period_analyzed": "31 days (2025-11-20 to 2025-12-20)",
+    "total_requests": 3410,
+    "allowed_requests": 2828,
+    "blocked_requests": 582,
+    "block_rate": 17.07,
     "unique_blocked_domains": 10,
-    "data_points": 4
+    "data_points": 31,
+    "workflows_analyzed": 21
   },
   "top_blocked_domains": [
-    {"domain": "github.com", "count": 14},
-    {"domain": "analytics.google.com", "count": 9},
-    {"domain": "api.github.com", "count": 8},
-    {"domain": "registry.npmjs.org", "count": 8},
-    {"domain": "facebook.com", "count": 6},
-    {"domain": "cdn.example.com", "count": 6},
-    {"domain": "pypi.org", "count": 6},
-    {"domain": "linkedin.com", "count": 6},
-    {"domain": "doubleclick.net", "count": 4},
-    {"domain": "twitter.com", "count": 3}
+    {"domain": "linkedin.com", "count": 90},
+    {"domain": "api.github.com", "count": 80},
+    {"domain": "pypi.org", "count": 71},
+    {"domain": "facebook.com", "count": 71},
+    {"domain": "registry.npmjs.org", "count": 67},
+    {"domain": "analytics.google.com", "count": 63},
+    {"domain": "doubleclick.net", "count": 62},
+    {"domain": "github.com", "count": 54},
+    {"domain": "twitter.com", "count": 53},
+    {"domain": "cdn.example.com", "count": 49}
   ],
   "note": "Analysis based on historical trending data from cache memory. Chart generation unavailable due to missing Python packages (pandas, matplotlib, seaborn)."
 }
