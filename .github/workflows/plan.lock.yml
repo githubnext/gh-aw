@@ -207,12 +207,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"close_discussion":{"max":1,"required_category":"Ideas"},"create_issue":{"max":6},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"close_discussion":{"max":1,"required_category":"Ideas"},"create_issue":{"group":true,"max":5},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 6 issue(s) can be created. Title will be prefixed with \"[plan] \". Labels [plan ai-generated] will be automatically added.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 5 issue(s) can be created. Title will be prefixed with \"[plan] \". Labels [plan ai-generated] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -652,49 +652,25 @@ jobs:
           
           ## Your Mission
           
-          Analyze the issue or discussion along with the comment content (which may contain additional guidance from the user), then:
+          Analyze the issue or discussion along with the comment content (which may contain additional guidance from the user), then create actionable sub-issues (at most 5) that can be assigned to GitHub Copilot agents.
+          
+          **Important**: With issue grouping enabled, all issues you create will be automatically grouped under a parent tracking issue. You don't need to create a parent issue manually or use temporary IDs - just create the sub-issues directly.
           
           {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
-          **When triggered from an issue comment** (current context):
-          - Use the **current issue** (#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__) as the parent issue
-          - Create actionable **sub-issues** (at most 5) as children of this issue
-          - Do NOT create a new parent tracking issue
+          **Triggered from an issue comment** (current context): The current issue (#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__) serves as the triggering context, but you should still create new sub-issues for the work items.
           {{/if}}
           
           {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
-          **When triggered from a discussion** (current context):
-          1. **First**: Create a **parent tracking issue** that links to the triggering discussion and summarizes the overall plan
-          2. **Then**: Create actionable **sub-issues** (at most 5) as children of that parent issue
+          **Triggered from a discussion** (current context): Reference the discussion (#__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__) in your issue descriptions as the source of the work.
           {{/if}}
           
-          The comment text above may contain additional guidance or specific requirements from the user - integrate these when deciding which issues to create.
+          ## Creating Sub-Issues
           
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
-          ## Step 1: Create Sub-Issues (Using Current Issue as Parent)
-          
-          Since this was triggered from an issue comment, use the **current issue** (#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__) as the parent:
-          - Use the **parent** field set to `#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__` to link each sub-issue to the current issue
+          Create actionable sub-issues (at most 5) with the following format:
           - Each sub-issue should be a clear, actionable task for a SWE agent
-          - Do NOT create a new parent tracking issue
-          {{/if}}
-          
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
-          ## Step 1: Create the Parent Tracking Issue
-          
-          Create a parent issue first with:
-          - **Title**: A brief summary of the overall work (e.g., "Implement user authentication system")
-          - **Body**: 
-            - Overview of the work to be done
-            - Link back to the triggering discussion (#__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__)
-            - High-level breakdown of the planned sub-issues
-          - **temporary_id**: Generate a unique temporary ID (format: `aw_` followed by 12 hex characters, e.g., `aw_abc123def456`) to reference this parent issue when creating sub-issues
-          
-          ## Step 2: Create Sub-Issues
-          
-          After creating the parent issue, create sub-issues that are linked to it:
-          - Use the **parent** field with the temporary_id from Step 1 to link each sub-issue to the parent
-          - Each sub-issue should be a clear, actionable task for a SWE agent
-          {{/if}}
+          - Use the `create_issue` type with `title` and `body` fields
+          - Do NOT use the `parent` field - grouping is automatic
+          - Do NOT create a separate parent tracking issue - grouping handles this automatically
           
           ## Guidelines for Sub-Issues
           
@@ -726,70 +702,29 @@ jobs:
           - Include relevant technical details
           - Specify expected outcomes
           
-          ## Example: Creating Parent and Sub-Issues
+          ## Example: Creating Sub-Issues
           
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
-          ### When Triggered from a Discussion
+          Since grouping is enabled, simply create sub-issues without parent references:
           
-          #### Parent Issue (create first)
           ```json
           {
             "type": "create_issue",
-            "temporary_id": "aw_abc123def456",
-            "title": "Implement user authentication system",
-            "body": "## Overview\n\nThis tracking issue covers the implementation of a complete user authentication system.\n\n**Source**: Discussion #__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__\n\n## Planned Tasks\n\n1. Add authentication middleware\n2. Implement login/logout endpoints\n3. Add session management\n4. Write tests"
-          }
-          ```
-          
-          #### Sub-Issue (create after, referencing parent)
-          ```json
-          {
-            "type": "create_issue",
-            "parent": "aw_abc123def456",
             "title": "Add user authentication middleware",
             "body": "## Objective\n\nImplement JWT-based authentication middleware for API routes.\n\n## Context\n\nThis is needed to secure API endpoints before implementing user-specific features.\n\n## Approach\n\n1. Create middleware function in `src/middleware/auth.js`\n2. Add JWT verification using the existing auth library\n3. Attach user info to request object\n4. Handle token expiration and invalid tokens\n\n## Files to Modify\n\n- Create: `src/middleware/auth.js`\n- Update: `src/routes/api.js` (to use the middleware)\n- Update: `tests/middleware/auth.test.js` (add tests)\n\n## Acceptance Criteria\n\n- [ ] Middleware validates JWT tokens\n- [ ] Invalid tokens return 401 status\n- [ ] User info is accessible in route handlers\n- [ ] Tests cover success and error cases"
           }
           ```
-          {{/if}}
           
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
-          ### When Triggered from an Issue Comment
-          
-          Since this was triggered from issue #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__, use it as the parent for all sub-issues:
-          
-          #### Sub-Issue (referencing current issue as parent)
-          ```json
-          {
-            "type": "create_issue",
-            "parent": "#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__",
-            "title": "Add user authentication middleware",
-            "body": "## Objective\n\nImplement JWT-based authentication middleware for API routes.\n\n## Context\n\nThis is needed to secure API endpoints before implementing user-specific features.\n\n## Approach\n\n1. Create middleware function in `src/middleware/auth.js`\n2. Add JWT verification using the existing auth library\n3. Attach user info to request object\n4. Handle token expiration and invalid tokens\n\n## Files to Modify\n\n- Create: `src/middleware/auth.js`\n- Update: `src/routes/api.js` (to use the middleware)\n- Update: `tests/middleware/auth.test.js` (add tests)\n\n## Acceptance Criteria\n\n- [ ] Middleware validates JWT tokens\n- [ ] Invalid tokens return 401 status\n- [ ] User info is accessible in route handlers\n- [ ] Tests cover success and error cases"
-          }
-          ```
-          {{/if}}
+          All created issues will be automatically grouped under a parent tracking issue.
           
           ## Important Notes
           
-          {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
           - **Maximum 5 sub-issues**: Don't create more than 5 sub-issues
-          - **Use Current Issue as Parent**: All sub-issues should use `"parent": "#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__"` to link to the current issue
-          - **No Parent Issue Creation**: Do NOT create a new parent tracking issue - use the existing issue #__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__
+          - **No Parent Field**: Don't use the `parent` field - grouping is automatic
+          - **No Temporary IDs**: Don't use temporary IDs - grouping handles parent creation automatically
           - **User Guidance**: Pay attention to the comment content above - the user may have provided specific instructions or priorities
           - **Clear Steps**: Each sub-issue should have clear, actionable steps
           - **No Duplication**: Don't create sub-issues for work that's already done
           - **Prioritize Clarity**: SWE agents need unambiguous instructions
-          {{/if}}
-          
-          {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
-          - **Maximum 5 sub-issues**: Don't create more than 5 sub-issues (plus 1 parent issue = 6 total)
-          - **Parent Issue First**: Always create the parent tracking issue first with a temporary_id
-          - **Link Sub-Issues**: Use the parent's temporary_id in each sub-issue's `parent` field
-          - **Reference Source**: The parent issue body should link back to the triggering discussion
-          - **User Guidance**: Pay attention to the comment content above - the user may have provided specific instructions or priorities
-          - **Clear Steps**: Each sub-issue should have clear, actionable steps
-          - **No Duplication**: Don't create sub-issues for work that's already done
-          - **Prioritize Clarity**: SWE agents need unambiguous instructions
-          {{/if}}
           
           ## Instructions
           
@@ -799,15 +734,13 @@ jobs:
           
           {{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}
           1. First, analyze the current issue (#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__) and the user's comment for context and any additional guidance
-          2. Create sub-issues as children of the current issue using `"parent": "#__GH_AW_GITHUB_EVENT_ISSUE_NUMBER__"` (do NOT create a new parent issue)
-          3. If this was triggered from a discussion in the "Ideas" category (it wasn't in this case), close the discussion with a comment
+          2. Create sub-issues (at most 5) - they will be automatically grouped
           {{/if}}
           
           {{#if __GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__ }}
-          1. First, analyze the discussion and the user's comment for context and any additional guidance
-          2. Create the parent tracking issue with a temporary_id that links to the source discussion
-          3. Create sub-issues as children of the parent issue using the temporary_id
-          4. After creating all issues successfully, if this was triggered from a discussion in the "Ideas" category, close the discussion with a comment summarizing the plan and resolution reason "RESOLVED"
+          1. First, analyze the discussion (#__GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER__) and the user's comment for context and any additional guidance
+          2. Create sub-issues (at most 5) - they will be automatically grouped
+          3. After creating all issues successfully, if this was triggered from a discussion in the "Ideas" category, close the discussion with a comment summarizing the plan and resolution reason "RESOLVED"
           {{/if}}
           
           PROMPT_EOF
@@ -1386,7 +1319,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"close_discussion\":{\"max\":1},\"create_issue\":{\"labels\":[\"plan\",\"ai-generated\"],\"max\":6,\"title_prefix\":\"[plan] \"},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"close_discussion\":{\"max\":1},\"create_issue\":{\"group\":true,\"labels\":[\"plan\",\"ai-generated\"],\"max\":5,\"title_prefix\":\"[plan] \"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
