@@ -261,6 +261,8 @@ const (
 	EnvVarModelAgentClaude = "GH_AW_MODEL_AGENT_CLAUDE"
 	// EnvVarModelAgentCodex configures the default Codex model for agent execution
 	EnvVarModelAgentCodex = "GH_AW_MODEL_AGENT_CODEX"
+	// EnvVarModelAgentCustom configures the default Custom model for agent execution
+	EnvVarModelAgentCustom = "GH_AW_MODEL_AGENT_CUSTOM"
 	// EnvVarModelDetectionCopilot configures the default Copilot model for detection
 	EnvVarModelDetectionCopilot = "GH_AW_MODEL_DETECTION_COPILOT"
 	// EnvVarModelDetectionClaude configures the default Claude model for detection
