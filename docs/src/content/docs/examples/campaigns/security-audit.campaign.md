@@ -7,10 +7,6 @@ state: planned
 project-url: https://github.com/orgs/example/projects/42
 tracker-label: campaign:security-audit-2026
 
-
-> [!WARNING]
-> **Please do not use at this time.** Campaigns are currently in build phase and not ready for production. This feature is under active development and may have breaking changes.
-
 # Worker workflows that will be discovered and dispatched
 workflows:
   - security-scanner
@@ -57,6 +53,9 @@ executive-sponsors:
   - "@cto"
 risk-level: high
 ---
+
+> [!WARNING]
+> **Please do not use at this time.** Campaigns are currently in build phase and not ready for production. This feature is under active development and may have breaking changes.
 
 # Security Audit 2026 Campaign
 
