@@ -135,10 +135,10 @@ async function main(config = {}) {
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 7);
         const expirationISO = expirationDate.toISOString();
-        const humanReadableDate = expirationDate.toLocaleString('en-US', { 
-          dateStyle: 'medium', 
-          timeStyle: 'short',
-          timeZone: 'UTC'
+        const humanReadableDate = expirationDate.toLocaleString("en-US", {
+          dateStyle: "medium",
+          timeStyle: "short",
+          timeZone: "UTC",
         });
         const issueBody = `${issueBodyContent}\n\n- [x] expires <!-- gh-aw-expires: ${expirationISO} --> on ${humanReadableDate} UTC`;
 

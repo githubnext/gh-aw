@@ -354,10 +354,10 @@ async function main(config = {}) {
       const expiresDate = new Date();
       expiresDate.setHours(expiresDate.getHours() + expiresHours);
       const expiresString = expiresDate.toISOString();
-      const humanReadableDate = expiresDate.toLocaleString('en-US', { 
-        dateStyle: 'medium', 
-        timeStyle: 'short',
-        timeZone: 'UTC'
+      const humanReadableDate = expiresDate.toLocaleString("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: "UTC",
       });
       bodyLines.push(``, `- [x] expires <!-- gh-aw-expires: ${expiresString} --> on ${humanReadableDate} UTC`, `<!-- gh-aw-expires-type: Pull Request -->`);
     }

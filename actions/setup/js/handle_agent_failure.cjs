@@ -144,10 +144,10 @@ gh aw audit <run-id>
   const expirationDate = new Date();
   expirationDate.setDate(expirationDate.getDate() + 7);
   const expirationISO = expirationDate.toISOString();
-  const humanReadableDate = expirationDate.toLocaleString('en-US', { 
-    dateStyle: 'medium', 
-    timeStyle: 'short',
-    timeZone: 'UTC'
+  const humanReadableDate = expirationDate.toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
   });
   const parentBody = `${parentBodyContent}\n\n- [x] expires <!-- gh-aw-expires: ${expirationISO} --> on ${humanReadableDate} UTC`;
 
@@ -359,10 +359,10 @@ async function main() {
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 7);
         const expirationISO = expirationDate.toISOString();
-        const humanReadableDate = expirationDate.toLocaleString('en-US', { 
-          dateStyle: 'medium', 
-          timeStyle: 'short',
-          timeZone: 'UTC'
+        const humanReadableDate = expirationDate.toLocaleString("en-US", {
+          dateStyle: "medium",
+          timeStyle: "short",
+          timeZone: "UTC",
         });
         bodyLines.push(``);
         bodyLines.push(`- [x] expires <!-- gh-aw-expires: ${expirationISO} --> on ${humanReadableDate} UTC`);
