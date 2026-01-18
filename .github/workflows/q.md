@@ -15,7 +15,6 @@ roles: [admin, maintainer, write]
 engine: copilot
 imports:
   - shared/mcp/gh-aw.md
-  - shared/mcp/tavily.md
 tools:
   serena: ["go"]
   github:
@@ -161,12 +160,12 @@ Use Serena's code analysis capabilities to:
 
 ### Phase 3: Research Solutions
 
-Use Tavily to research:
+Use internal resources to research solutions:
 
-1. **Best Practices**: Search for "GitHub Actions agentic workflow best practices"
-2. **Tool Documentation**: Look up documentation for missing or misconfigured tools
-3. **Performance Optimization**: Find strategies for reducing token usage and improving efficiency
-4. **Error Resolutions**: Research solutions for identified error patterns
+1. **Repository Documentation**: Read documentation files in `docs/` to understand best practices
+2. **Workflow Examples**: Examine successful workflows in `.github/workflows/` as reference
+3. **Cache Memory**: Check cache-memory for patterns and solutions from previous analyses
+4. **GitHub Issues**: Search closed issues for similar problems and their resolutions
 
 ### Phase 4: Workflow Improvements
 
