@@ -2,9 +2,6 @@
 name: Release
 description: Build, test, and release gh-aw extension, then generate and prepend release highlights
 on:
-  push:
-    tags:
-      - 'v*.*.*'
   workflow_dispatch:
     inputs:
       release_type:
@@ -56,52 +53,42 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const isWorkflowDispatch = context.eventName === 'workflow_dispatch';
+            const releaseType = context.payload.inputs.release_type;
             
-            let releaseTag;
+            console.log(`Computing next version for release type: ${releaseType}`);
             
-            if (isWorkflowDispatch) {
-              const releaseType = context.payload.inputs.release_type;
-              
-              console.log(`Computing next version for release type: ${releaseType}`);
-              
-              // Get the latest release tag
-              const { data: releases } = await github.rest.repos.listReleases({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                per_page: 1
-              });
-              
-              const latestTag = releases[0]?.tag_name || 'v0.0.0';
-              console.log(`Latest release tag: ${latestTag}`);
-              
-              // Parse version components (strip 'v' prefix)
-              const version = latestTag.replace(/^v/, '');
-              let [major, minor, patch] = version.split('.').map(Number);
-              
-              // Increment based on release type
-              switch (releaseType) {
-                case 'major':
-                  major += 1;
-                  minor = 0;
-                  patch = 0;
-                  break;
-                case 'minor':
-                  minor += 1;
-                  patch = 0;
-                  break;
-                case 'patch':
-                  patch += 1;
-                  break;
-              }
-              
-              releaseTag = `v${major}.${minor}.${patch}`;
-              console.log(`Computed release tag: ${releaseTag}`);
-            } else {
-              // For tag push events, use the tag from GITHUB_REF
-              releaseTag = context.ref.replace('refs/tags/', '');
-              console.log(`Using tag from push event: ${releaseTag}`);
+            // Get the latest release tag
+            const { data: releases } = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 1
+            });
+            
+            const latestTag = releases[0]?.tag_name || 'v0.0.0';
+            console.log(`Latest release tag: ${latestTag}`);
+            
+            // Parse version components (strip 'v' prefix)
+            const version = latestTag.replace(/^v/, '');
+            let [major, minor, patch] = version.split('.').map(Number);
+            
+            // Increment based on release type
+            switch (releaseType) {
+              case 'major':
+                major += 1;
+                minor = 0;
+                patch = 0;
+                break;
+              case 'minor':
+                minor += 1;
+                patch = 0;
+                break;
+              case 'patch':
+                patch += 1;
+                break;
             }
+            
+            const releaseTag = `v${major}.${minor}.${patch}`;
+            console.log(`Computed release tag: ${releaseTag}`);
             
             core.setOutput('release_tag', releaseTag);
             console.log(`✓ Release tag: ${releaseTag}`);
@@ -122,8 +109,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
           
-      - name: Create or update tag for workflow_dispatch
-        if: github.event_name == 'workflow_dispatch'
+      - name: Create or update tag
         env:
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
         run: |
