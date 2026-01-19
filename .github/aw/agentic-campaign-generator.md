@@ -2,11 +2,12 @@
 name: "Agentic Campaign Generator"
 description: "Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation"
 on:
-  issues:
-    types: [labeled]
-    names: ["create-agentic-campaign"]
-    lock-for-agent: true
   workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number for the campaign request'
+        required: true
+        type: string
   reaction: "eyes"
 permissions:
   contents: read
