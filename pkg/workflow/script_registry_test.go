@@ -11,7 +11,8 @@ import (
 func TestScriptRegistry_Register(t *testing.T) {
 	registry := NewScriptRegistry()
 
-	registry.Register("test_script", "console.log('hello');")
+	err := registry.Register("test_script", "console.log('hello');")
+	require.NoError(t, err)
 
 	assert.True(t, registry.Has("test_script"), "registry should have test_script after registration")
 	assert.False(t, registry.Has("nonexistent"), "registry should not have nonexistent script")
@@ -30,7 +31,8 @@ func TestScriptRegistry_Get_BundlesOnce(t *testing.T) {
 
 	// Register a simple script that doesn't require bundling
 	source := "console.log('hello');"
-	registry.Register("simple", source)
+	err := registry.Register("simple", source)
+	require.NoError(t, err)
 
 	// Get should bundle and return result
 	result1 := registry.Get("simple")
@@ -45,7 +47,8 @@ func TestScriptRegistry_GetSource(t *testing.T) {
 	registry := NewScriptRegistry()
 
 	source := "const x = 1;"
-	registry.Register("test", source)
+	err := registry.Register("test", source)
+	require.NoError(t, err)
 
 	// GetSource should return original source
 	assert.Equal(t, source, registry.GetSource("test"))
@@ -62,9 +65,9 @@ func TestScriptRegistry_GetSource_NotFound(t *testing.T) {
 func TestScriptRegistry_Names(t *testing.T) {
 	registry := NewScriptRegistry()
 
-	registry.Register("script_a", "a")
-	registry.Register("script_b", "b")
-	registry.Register("script_c", "c")
+	require.NoError(t, registry.Register("script_a", "a"))
+	require.NoError(t, registry.Register("script_b", "b"))
+	require.NoError(t, registry.Register("script_c", "c"))
 
 	names := registry.Names()
 
@@ -77,7 +80,8 @@ func TestScriptRegistry_Names(t *testing.T) {
 func TestScriptRegistry_ConcurrentAccess(t *testing.T) {
 	registry := NewScriptRegistry()
 	source := "console.log('concurrent test');"
-	registry.Register("concurrent", source)
+	err := registry.Register("concurrent", source)
+	require.NoError(t, err)
 
 	// Test concurrent Get calls
 	var wg sync.WaitGroup
@@ -102,10 +106,12 @@ func TestScriptRegistry_ConcurrentAccess(t *testing.T) {
 func TestScriptRegistry_Overwrite(t *testing.T) {
 	registry := NewScriptRegistry()
 
-	registry.Register("test", "original")
+	err := registry.Register("test", "original")
+	require.NoError(t, err)
 	assert.Equal(t, "original", registry.GetSource("test"))
 
-	registry.Register("test", "updated")
+	err = registry.Register("test", "updated")
+	require.NoError(t, err)
 	assert.Equal(t, "updated", registry.GetSource("test"))
 }
 
@@ -113,7 +119,8 @@ func TestScriptRegistry_Overwrite_AfterGet(t *testing.T) {
 	registry := NewScriptRegistry()
 
 	// Register initial script
-	registry.Register("test", "console.log('original');")
+	err := registry.Register("test", "console.log('original');")
+	require.NoError(t, err)
 
 	// Trigger bundling by calling Get()
 	firstResult := registry.Get("test")
@@ -121,7 +128,8 @@ func TestScriptRegistry_Overwrite_AfterGet(t *testing.T) {
 	assert.Contains(t, firstResult, "original")
 
 	// Overwrite with new source
-	registry.Register("test", "console.log('updated');")
+	err = registry.Register("test", "console.log('updated');")
+	require.NoError(t, err)
 
 	// Verify GetSource returns new source
 	assert.Equal(t, "console.log('updated');", registry.GetSource("test"))
@@ -140,7 +148,8 @@ func TestDefaultScriptRegistry_GetScript(t *testing.T) {
 	defer func() { DefaultScriptRegistry = oldRegistry }()
 
 	// Register a test script
-	DefaultScriptRegistry.Register("test_global", "global test")
+	err := DefaultScriptRegistry.Register("test_global", "global test")
+	require.NoError(t, err)
 
 	// GetScript should use DefaultScriptRegistry
 	result := GetScript("test_global")
@@ -152,7 +161,8 @@ func TestScriptRegistry_Has(t *testing.T) {
 
 	assert.False(t, registry.Has("missing"), "registry should not have missing script")
 
-	registry.Register("present", "code")
+	err := registry.Register("present", "code")
+	require.NoError(t, err)
 
 	assert.True(t, registry.Has("present"), "registry should have present script after registration")
 	assert.False(t, registry.Has("still_missing"), "registry should not have still_missing script")
@@ -174,7 +184,8 @@ module.exports = { test };
 `
 
 	// Register with GitHub Script mode (default)
-	registry.Register("github_mode", scriptWithExports)
+	err := registry.Register("github_mode", scriptWithExports)
+	require.NoError(t, err)
 	githubResult := registry.Get("github_mode")
 
 	// Should not contain module.exports in GitHub Script mode
@@ -184,7 +195,8 @@ module.exports = { test };
 		"Should still contain the function")
 
 	// Register with Node.js mode
-	registry.RegisterWithMode("nodejs_mode", scriptWithExports, RuntimeModeNodeJS)
+	err = registry.RegisterWithMode("nodejs_mode", scriptWithExports, RuntimeModeNodeJS)
+	require.NoError(t, err)
 	nodejsResult := registry.Get("nodejs_mode")
 
 	// Should contain module.exports in Node.js mode
@@ -204,8 +216,10 @@ func TestScriptRegistry_RegisterWithMode_PreservesDifference(t *testing.T) {
 module.exports = { helper };`
 
 	// Register same source with different modes
-	registry.RegisterWithMode("github_mode", source, RuntimeModeGitHubScript)
-	registry.RegisterWithMode("nodejs_mode", source, RuntimeModeNodeJS)
+	err := registry.RegisterWithMode("github_mode", source, RuntimeModeGitHubScript)
+	require.NoError(t, err)
+	err = registry.RegisterWithMode("nodejs_mode", source, RuntimeModeNodeJS)
+	require.NoError(t, err)
 
 	githubResult := registry.Get("github_mode")
 	nodejsResult := registry.Get("nodejs_mode")
@@ -233,7 +247,8 @@ func TestScriptRegistry_GetWithMode(t *testing.T) {
 module.exports = { helper };`
 
 	// Register with GitHub Script mode
-	registry.RegisterWithMode("test_script", source, RuntimeModeGitHubScript)
+	err := registry.RegisterWithMode("test_script", source, RuntimeModeGitHubScript)
+	require.NoError(t, err)
 
 	// Test GetWithMode with matching mode - should work without warning
 	result := registry.GetWithMode("test_script", RuntimeModeGitHubScript)
@@ -254,7 +269,8 @@ func TestScriptRegistry_GetWithMode_ModeMismatch(t *testing.T) {
 module.exports = { test };`
 
 	// Register with Node.js mode
-	registry.RegisterWithMode("nodejs_script", source, RuntimeModeNodeJS)
+	err := registry.RegisterWithMode("nodejs_script", source, RuntimeModeNodeJS)
+	require.NoError(t, err)
 
 	// Request with GitHub Script mode - should log warning
 	result := registry.GetWithMode("nodejs_script", RuntimeModeGitHubScript)
@@ -270,7 +286,8 @@ func TestGetScriptWithMode(t *testing.T) {
 	defer func() { DefaultScriptRegistry = oldRegistry }()
 
 	// Register a test script
-	DefaultScriptRegistry.RegisterWithMode("test_helper", "function test() { return 1; }", RuntimeModeGitHubScript)
+	err := DefaultScriptRegistry.RegisterWithMode("test_helper", "function test() { return 1; }", RuntimeModeGitHubScript)
+	require.NoError(t, err)
 
 	// Test GetScriptWithMode
 	result := GetScriptWithMode("test_helper", RuntimeModeGitHubScript)

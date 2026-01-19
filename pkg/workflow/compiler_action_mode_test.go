@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/stringutil"
+	"github.com/stretchr/testify/require"
 )
 
 // TestActionModeDetection tests the DetectActionMode function
@@ -321,19 +322,20 @@ Test workflow with release mode.
 
 	// Register test script with action path
 	testScript := `const { core } = require('@actions/core'); core.info('test');`
-	DefaultScriptRegistry.RegisterWithAction(
+	err := DefaultScriptRegistry.RegisterWithAction(
 		"create_issue",
 		testScript,
 		RuntimeModeGitHubScript,
 		"./actions/create-issue",
 	)
+	require.NoError(t, err)
 
 	// Restore after test
 	defer func() {
 		if origActionPath != "" {
-			DefaultScriptRegistry.RegisterWithAction("create_issue", origScript, RuntimeModeGitHubScript, origActionPath)
+			_ = DefaultScriptRegistry.RegisterWithAction("create_issue", origScript, RuntimeModeGitHubScript, origActionPath)
 		} else {
-			DefaultScriptRegistry.RegisterWithMode("create_issue", origScript, RuntimeModeGitHubScript)
+			_ = DefaultScriptRegistry.RegisterWithMode("create_issue", origScript, RuntimeModeGitHubScript)
 		}
 	}()
 
@@ -408,13 +410,14 @@ Test
 	origActionPath := DefaultScriptRegistry.GetActionPath("create_issue")
 
 	testScript := `const { core } = require('@actions/core'); core.info('test');`
-	DefaultScriptRegistry.RegisterWithAction("create_issue", testScript, RuntimeModeGitHubScript, "./actions/create-issue")
+	err := DefaultScriptRegistry.RegisterWithAction("create_issue", testScript, RuntimeModeGitHubScript, "./actions/create-issue")
+	require.NoError(t, err)
 
 	defer func() {
 		if origActionPath != "" {
-			DefaultScriptRegistry.RegisterWithAction("create_issue", origScript, RuntimeModeGitHubScript, origActionPath)
+			_ = DefaultScriptRegistry.RegisterWithAction("create_issue", origScript, RuntimeModeGitHubScript, origActionPath)
 		} else {
-			DefaultScriptRegistry.RegisterWithMode("create_issue", origScript, RuntimeModeGitHubScript)
+			_ = DefaultScriptRegistry.RegisterWithMode("create_issue", origScript, RuntimeModeGitHubScript)
 		}
 	}()
 
