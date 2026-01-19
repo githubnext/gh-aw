@@ -173,7 +173,7 @@ jobs:
         env:
           TOKEN_CHECK: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
         if: env.TOKEN_CHECK != ''
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
@@ -505,6 +505,7 @@ jobs:
           <system>
           PROMPT_EOF
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
