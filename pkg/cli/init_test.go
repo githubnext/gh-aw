@@ -273,12 +273,6 @@ func TestInitRepository_Campaign(t *testing.T) {
 		t.Fatalf("InitRepository with campaign flag returned error: %v", err)
 	}
 
-	// Verify campaign dispatcher agent was created
-	campaignAgentPath := filepath.Join(tempDir, ".github", "agents", "agentic-campaigns.agent.md")
-	if _, err := os.Stat(campaignAgentPath); os.IsNotExist(err) {
-		t.Errorf("Expected campaign dispatcher agent to exist at %s", campaignAgentPath)
-	}
-
 	// Verify agentic-campaign-generator source markdown was generated
 	campaignWorkflowPath := filepath.Join(tempDir, ".github", "aw", "agentic-campaign-generator.md")
 	if _, err := os.Stat(campaignWorkflowPath); os.IsNotExist(err) {

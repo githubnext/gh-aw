@@ -125,15 +125,6 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 
 	// Write campaign dispatcher agent if requested
 	if campaign {
-		initLog.Print("Writing campaign dispatcher agent")
-		if err := ensureAgenticCampaignsDispatcher(verbose, false); err != nil {
-			initLog.Printf("Failed to write campaign dispatcher agent: %v", err)
-			return fmt.Errorf("failed to write campaign dispatcher agent: %w", err)
-		}
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created campaign dispatcher agent"))
-		}
-
 		// Write campaign instruction files
 		initLog.Print("Writing campaign instruction files")
 		campaignEnsureFuncs := []struct {

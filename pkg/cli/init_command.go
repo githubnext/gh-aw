@@ -50,7 +50,6 @@ With --codespaces flag:
 - Use without value (--codespaces) for current repo only, or with comma-separated repos (--codespaces repo1,repo2)
 
 With --campaign flag:
-- Creates .github/agents/agentic-campaigns.agent.md with the Campaigns dispatcher agent
 - Adds (or reuses) .github/aw/agentic-campaign-generator.md source and compiles .github/workflows/agentic-campaign-generator.lock.yml for creating campaigns from issues
 - Creates a 'create-agentic-campaign' label in your repository for triggering campaign workflows
 - Enables campaign-related prompts and functionality for multi-workflow coordination
