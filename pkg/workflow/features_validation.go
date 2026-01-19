@@ -84,7 +84,7 @@ func validateActionTag(value any) error {
 			"features.action-tag",
 			strVal,
 			fmt.Sprintf("action-tag must be a full 40-character commit SHA (length: %d). Short SHAs are not allowed", len(strVal)),
-			fmt.Sprintf("Use 'git rev-parse <ref>' to get the full SHA. Example:\n\n$ git rev-parse HEAD\na1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0\n\nThen use in workflow:\nfeatures:\n  action-tag: \"a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0\""),
+			"Use 'git rev-parse <ref>' to get the full SHA. Example:\n\n$ git rev-parse HEAD\na1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0\n\nThen use in workflow:\nfeatures:\n  action-tag: \"a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0\"",
 		)
 	}
 

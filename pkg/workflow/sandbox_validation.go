@@ -32,7 +32,7 @@ func validateMountsSyntax(mounts []string) error {
 				fmt.Sprintf("sandbox.mounts[%d]", i),
 				mount,
 				"mount syntax must follow 'source:destination:mode' format with exactly 3 colon-separated parts",
-				fmt.Sprintf("Use the format 'source:destination:mode'. Example:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\""),
+				"Use the format 'source:destination:mode'. Example:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"",
 			)
 		}
 
@@ -46,7 +46,7 @@ func validateMountsSyntax(mounts []string) error {
 				fmt.Sprintf("sandbox.mounts[%d].source", i),
 				mount,
 				"source path cannot be empty",
-				fmt.Sprintf("Provide a valid source path. Example:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\""),
+				"Provide a valid source path. Example:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"",
 			)
 		}
 		if dest == "" {
@@ -54,7 +54,7 @@ func validateMountsSyntax(mounts []string) error {
 				fmt.Sprintf("sandbox.mounts[%d].destination", i),
 				mount,
 				"destination path cannot be empty",
-				fmt.Sprintf("Provide a valid destination path. Example:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\""),
+				"Provide a valid destination path. Example:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"",
 			)
 		}
 
@@ -64,7 +64,7 @@ func validateMountsSyntax(mounts []string) error {
 				fmt.Sprintf("sandbox.mounts[%d].mode", i),
 				mode,
 				"mount mode must be 'ro' (read-only) or 'rw' (read-write)",
-				fmt.Sprintf("Change the mount mode to either 'ro' or 'rw'. Example:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"  # read-only\n    - \"/host/path:/container/path:rw\"  # read-write"),
+				"Change the mount mode to either 'ro' or 'rw'. Example:\nsandbox:\n  mounts:\n    - \"/host/path:/container/path:ro\"  # read-only\n    - \"/host/path:/container/path:rw\"  # read-write",
 			)
 		}
 
