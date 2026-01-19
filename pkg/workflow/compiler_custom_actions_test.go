@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/stringutil"
+	"github.com/stretchr/testify/require"
 )
 
 // TestActionModeValidation tests the ActionMode type validation
@@ -105,7 +106,8 @@ func TestScriptRegistryWithAction(t *testing.T) {
 	testScript := `console.log('test');`
 	actionPath := "./actions/test-action"
 
-	registry.RegisterWithAction("test_script", testScript, RuntimeModeGitHubScript, actionPath)
+	err := registry.RegisterWithAction("test_script", testScript, RuntimeModeGitHubScript, actionPath)
+	require.NoError(t, err)
 
 	if !registry.Has("test_script") {
 		t.Error("Script should be registered")
@@ -163,20 +165,21 @@ Test workflow with safe-outputs.
 const { core } = require('@actions/core');
 core.info('Creating issue');
 `
-	DefaultScriptRegistry.RegisterWithAction(
+	err := DefaultScriptRegistry.RegisterWithAction(
 		"create_issue",
 		testScript,
 		RuntimeModeGitHubScript,
 		"./actions/create-issue",
 	)
+	require.NoError(t, err)
 
 	// Restore after test
 	defer func() {
 		if origSource != "" {
 			if origActionPath != "" {
-				DefaultScriptRegistry.RegisterWithAction("create_issue", origSource, RuntimeModeGitHubScript, origActionPath)
+				_ = DefaultScriptRegistry.RegisterWithAction("create_issue", origSource, RuntimeModeGitHubScript, origActionPath)
 			} else {
-				DefaultScriptRegistry.RegisterWithMode("create_issue", origSource, RuntimeModeGitHubScript)
+				_ = DefaultScriptRegistry.RegisterWithMode("create_issue", origSource, RuntimeModeGitHubScript)
 			}
 		}
 	}()
@@ -305,15 +308,16 @@ Test fallback to inline mode.
 	origActionPath := DefaultScriptRegistry.GetActionPath("create_issue")
 
 	testScript := `console.log('test');`
-	DefaultScriptRegistry.RegisterWithMode("create_issue", testScript, RuntimeModeGitHubScript)
+	err := DefaultScriptRegistry.RegisterWithMode("create_issue", testScript, RuntimeModeGitHubScript)
+	require.NoError(t, err)
 
 	// Restore after test
 	defer func() {
 		if origSource != "" {
 			if origActionPath != "" {
-				DefaultScriptRegistry.RegisterWithAction("create_issue", origSource, RuntimeModeGitHubScript, origActionPath)
+				_ = DefaultScriptRegistry.RegisterWithAction("create_issue", origSource, RuntimeModeGitHubScript, origActionPath)
 			} else {
-				DefaultScriptRegistry.RegisterWithMode("create_issue", origSource, RuntimeModeGitHubScript)
+				_ = DefaultScriptRegistry.RegisterWithMode("create_issue", origSource, RuntimeModeGitHubScript)
 			}
 		}
 	}()

@@ -105,8 +105,10 @@ func NewScriptRegistry() *ScriptRegistry {
 //
 // If a script with the same name already exists, it will be overwritten.
 // This is useful for testing but should be avoided in production.
-func (r *ScriptRegistry) Register(name string, source string) {
-	r.RegisterWithMode(name, source, RuntimeModeGitHubScript)
+//
+// Returns an error if validation fails.
+func (r *ScriptRegistry) Register(name string, source string) error {
+	return r.RegisterWithMode(name, source, RuntimeModeGitHubScript)
 }
 
 // RegisterWithMode adds a script source to the registry with a specific runtime mode.
@@ -125,9 +127,9 @@ func (r *ScriptRegistry) Register(name string, source string) {
 //   - GitHub Script mode: validates no execSync usage (should use exec instead)
 //   - Node.js mode: validates no GitHub Actions globals (core.*, exec.*, github.*)
 //
-// Panics if validation fails, as this indicates a programming error that should be
-// caught during development and testing.
-func (r *ScriptRegistry) RegisterWithMode(name string, source string, mode RuntimeMode) {
+// Returns an error if validation fails, allowing the caller to handle gracefully
+// instead of crashing the process.
+func (r *ScriptRegistry) RegisterWithMode(name string, source string, mode RuntimeMode) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -137,13 +139,11 @@ func (r *ScriptRegistry) RegisterWithMode(name string, source string, mode Runti
 
 	// Perform compile-time validation based on runtime mode
 	if err := validateNoExecSync(name, source, mode); err != nil {
-		// This is a programming error that should be caught during development
-		panic(fmt.Sprintf("Script registration validation failed: %v", err))
+		return fmt.Errorf("script registration validation failed for %q: %w", name, err)
 	}
 
 	if err := validateNoGitHubScriptGlobals(name, source, mode); err != nil {
-		// This is a programming error that should be caught during development
-		panic(fmt.Sprintf("Script registration validation failed: %v", err))
+		return fmt.Errorf("script registration validation failed for %q: %w", name, err)
 	}
 
 	r.scripts[name] = &scriptEntry{
@@ -151,6 +151,8 @@ func (r *ScriptRegistry) RegisterWithMode(name string, source string, mode Runti
 		mode:       mode,
 		actionPath: "", // No custom action by default
 	}
+
+	return nil
 }
 
 // RegisterWithAction registers a script with both inline code and a custom action path.
@@ -166,7 +168,10 @@ func (r *ScriptRegistry) RegisterWithMode(name string, source string, mode Runti
 // The actionPath should be a relative path from the repository root for development mode.
 // In the future, this can be extended to support versioned references like
 // "githubnext/gh-aw/.github/actions/create-issue@SHA" for release mode.
-func (r *ScriptRegistry) RegisterWithAction(name string, source string, mode RuntimeMode, actionPath string) {
+//
+// Returns an error if validation fails, allowing the caller to handle gracefully
+// instead of crashing the process.
+func (r *ScriptRegistry) RegisterWithAction(name string, source string, mode RuntimeMode, actionPath string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -177,11 +182,11 @@ func (r *ScriptRegistry) RegisterWithAction(name string, source string, mode Run
 
 	// Perform compile-time validation based on runtime mode
 	if err := validateNoExecSync(name, source, mode); err != nil {
-		panic(fmt.Sprintf("Script registration validation failed: %v", err))
+		return fmt.Errorf("script registration validation failed for %q: %w", name, err)
 	}
 
 	if err := validateNoGitHubScriptGlobals(name, source, mode); err != nil {
-		panic(fmt.Sprintf("Script registration validation failed: %v", err))
+		return fmt.Errorf("script registration validation failed for %q: %w", name, err)
 	}
 
 	r.scripts[name] = &scriptEntry{
@@ -189,6 +194,8 @@ func (r *ScriptRegistry) RegisterWithAction(name string, source string, mode Run
 		mode:       mode,
 		actionPath: actionPath,
 	}
+
+	return nil
 }
 
 // GetActionPath retrieves the custom action path for a script, if registered.

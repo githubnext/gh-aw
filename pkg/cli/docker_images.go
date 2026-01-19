@@ -34,18 +34,18 @@ var pullState = &dockerPullState{
 	mockAvailable: make(map[string]bool),
 }
 
-// IsDockerImageAvailable checks if a Docker image is available locally
-func IsDockerImageAvailable(image string) bool {
+// isDockerImageAvailableUnlocked checks if a Docker image is available locally
+// This function must be called with pullState.mu held (either RLock or Lock)
+func isDockerImageAvailableUnlocked(image string) bool {
 	// Check if we're in mock mode (for testing)
-	pullState.mu.RLock()
 	if pullState.mockAvailableInUse {
 		available := pullState.mockAvailable[image]
-		pullState.mu.RUnlock()
 		dockerImagesLog.Printf("Mock: Checking if image %s is available: %v", image, available)
 		return available
 	}
-	pullState.mu.RUnlock()
 
+	// For non-mock mode, we need to execute docker command
+	// This is safe to do under lock since it's just a subprocess call
 	cmd := exec.Command("docker", "image", "inspect", image)
 	// Suppress output - we only care about exit code
 	cmd.Stdout = nil
@@ -54,6 +54,13 @@ func IsDockerImageAvailable(image string) bool {
 	available := err == nil
 	dockerImagesLog.Printf("Checking if image %s is available: %v", image, available)
 	return available
+}
+
+// IsDockerImageAvailable checks if a Docker image is available locally
+func IsDockerImageAvailable(image string) bool {
+	pullState.mu.RLock()
+	defer pullState.mu.RUnlock()
+	return isDockerImageAvailableUnlocked(image)
 }
 
 // IsDockerImageDownloading checks if a Docker image is currently being downloaded
@@ -66,21 +73,23 @@ func IsDockerImageDownloading(image string) bool {
 // StartDockerImageDownload starts downloading a Docker image in the background
 // Returns true if download was started, false if already downloading or available
 func StartDockerImageDownload(image string) bool {
-	// First check if already available
-	if IsDockerImageAvailable(image) {
+	// Check availability and downloading status atomically under lock
+	pullState.mu.Lock()
+	defer pullState.mu.Unlock()
+
+	// Check if already available (inside lock for atomicity)
+	if isDockerImageAvailableUnlocked(image) {
 		dockerImagesLog.Printf("Image %s is already available", image)
 		return false
 	}
 
 	// Check if already downloading
-	pullState.mu.Lock()
 	if pullState.downloading[image] {
-		pullState.mu.Unlock()
 		dockerImagesLog.Printf("Image %s is already downloading", image)
 		return false
 	}
+
 	pullState.downloading[image] = true
-	pullState.mu.Unlock()
 
 	// Start the download in a goroutine with retry logic
 	go func() {
