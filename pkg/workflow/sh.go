@@ -16,6 +16,7 @@ const (
 	prContextPromptFile  = "pr_context_prompt.md"
 	tempFolderPromptFile = "temp_folder_prompt.md"
 	playwrightPromptFile = "playwright_prompt.md"
+	markdownPromptFile   = "markdown.md"
 )
 
 // GitHub context prompt is kept embedded because it contains GitHub Actions expressions

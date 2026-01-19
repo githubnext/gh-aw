@@ -218,7 +218,14 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		IsFile:  true,
 	})
 
-	// 2. Playwright instructions (if playwright tool is enabled)
+	// 2. Markdown generation instructions (always included)
+	unifiedPromptLog.Print("Adding markdown section")
+	sections = append(sections, PromptSection{
+		Content: markdownPromptFile,
+		IsFile:  true,
+	})
+
+	// 3. Playwright instructions (if playwright tool is enabled)
 	if hasPlaywrightTool(data.ParsedTools) {
 		unifiedPromptLog.Print("Adding playwright section")
 		sections = append(sections, PromptSection{
@@ -227,7 +234,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		})
 	}
 
-	// 3. Trial mode note (if in trial mode)
+	// 4. Trial mode note (if in trial mode)
 	if c.trialMode {
 		unifiedPromptLog.Print("Adding trial mode section")
 		trialContent := fmt.Sprintf("## Note\nThis workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.", c.trialLogicalRepoSlug)
@@ -237,7 +244,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		})
 	}
 
-	// 4. Cache memory instructions (if enabled)
+	// 5. Cache memory instructions (if enabled)
 	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
 		unifiedPromptLog.Printf("Adding cache memory section: caches=%d", len(data.CacheMemoryConfig.Caches))
 		var cacheContent strings.Builder
@@ -248,7 +255,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		})
 	}
 
-	// 5. Repo memory instructions (if enabled)
+	// 6. Repo memory instructions (if enabled)
 	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
 		unifiedPromptLog.Printf("Adding repo memory section: memories=%d", len(data.RepoMemoryConfig.Memories))
 		var repoMemContent strings.Builder
@@ -259,7 +266,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		})
 	}
 
-	// 6. Safe outputs instructions (if enabled)
+	// 7. Safe outputs instructions (if enabled)
 	if HasSafeOutputsEnabled(data.SafeOutputs) {
 		enabledTools := GetEnabledSafeOutputToolNames(data.SafeOutputs)
 		if len(enabledTools) > 0 {
@@ -285,7 +292,7 @@ To create or modify GitHub resources (issues, discussions, pull requests, etc.),
 		}
 	}
 
-	// 7. GitHub context (if GitHub tool is enabled)
+	// 8. GitHub context (if GitHub tool is enabled)
 	if hasGitHubTool(data.ParsedTools) {
 		unifiedPromptLog.Print("Adding GitHub context section")
 		// Extract expressions from GitHub context prompt
@@ -309,7 +316,7 @@ To create or modify GitHub resources (issues, discussions, pull requests, etc.),
 		}
 	}
 
-	// 8. PR context (if comment-related triggers and checkout is needed)
+	// 9. PR context (if comment-related triggers and checkout is needed)
 	hasCommentTriggers := c.hasCommentRelatedTriggers(data)
 	needsCheckout := c.shouldAddCheckoutStep(data)
 	permParser := NewPermissionsParser(data.Permissions)
