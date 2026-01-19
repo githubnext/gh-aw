@@ -132,11 +132,6 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
-      - name: Setup Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        with:
-          node-version: '24'
-          package-manager-cache: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
       - name: Configure Git credentials
@@ -702,85 +697,62 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: bash /opt/gh-aw/actions/print_prompt_summary.sh
-      - name: Install OpenCode and jq
+      - name: Install GitHub CLI and Copilot CLI extension
         run: |
-          npm install -g "opencode-ai@${GH_AW_AGENT_VERSION}"
+          # GitHub CLI is already installed in ubuntu-latest runners
+          # Install/upgrade Copilot CLI extension
+          gh extension install github/copilot-cli --force || gh extension upgrade github/copilot-cli
+
+          # Verify installation
+          gh copilot --version
+
+          # Install jq for JSON processing
           sudo apt-get update && sudo apt-get install -y jq
         env:
-          GH_AW_AGENT_MODEL: anthropic/claude-sonnet-3.5
-          GH_AW_AGENT_VERSION: 0.15.13
+          GH_AW_AGENT_MODEL: gpt-5-mini
+          GH_AW_AGENT_VERSION: 0.0.384
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-      - name: Configure OpenCode MCP servers
+      - name: Configure Copilot CLI MCP servers
         run: |
           set -e
 
-          # Create OpenCode config directory
-          mkdir -p ~/.config/opencode
+          # Create Copilot CLI config directory
+          mkdir -p ~/.config/github-copilot
 
           # Check if MCP config exists
           if [ -n "$GH_AW_MCP_CONFIG" ] && [ -f "$GH_AW_MCP_CONFIG" ]; then
             echo "Found MCP configuration at: $GH_AW_MCP_CONFIG"
 
-            # Create base OpenCode config with proper schema
-            echo "{\"\\$schema\": \"https://opencode.sh/schema.json\", \"mcp\": {}}" > ~/.config/opencode/opencode.json
+            # Copilot CLI uses the same MCP config format, so we can copy it directly
+            # The config should already be in the correct format at $GH_AW_MCP_CONFIG
+            cp "$GH_AW_MCP_CONFIG" ~/.config/github-copilot/mcp-config.json
 
-            # Transform Copilot-style MCP config to OpenCode format
-            jq -r '.mcpServers | to_entries[] | 
-              if .value.type == "local" or (.value.command and .value.args) then
-                {
-                  key: .key,
-                  value: {
-                    type: "local",
-                    command: (
-                      if .value.command then
-                        [.value.command] + (.value.args // [])
-                      else
-                        []
-                      end
-                    ),
-                    enabled: true,
-                    environment: (.value.env // {})
-                  }
-                }
-              elif .value.type == "http" then
-                {
-                  key: .key,
-                  value: {
-                    type: "remote",
-                    url: .value.url,
-                    enabled: true,
-                    headers: (.value.headers // {})
-                  }
-                }
-              else empty end' "$GH_AW_MCP_CONFIG" | \
-              jq -s 'reduce .[] as $item ({}; .[$item.key] = $item.value)' > /tmp/mcp-servers.json
-
-            # Merge MCP servers into config
-            jq --slurpfile servers /tmp/mcp-servers.json '.mcp = $servers[0]' \
-              ~/.config/opencode/opencode.json > /tmp/opencode-final.json
-            mv /tmp/opencode-final.json ~/.config/opencode/opencode.json
-
-            echo "✅ OpenCode MCP configuration created successfully"
+            echo "✅ Copilot CLI MCP configuration created successfully"
             echo "Configuration contents:"
-            cat ~/.config/opencode/opencode.json | jq .
+            cat ~/.config/github-copilot/mcp-config.json | jq .
           else
-            echo "⚠️  No MCP config found - OpenCode will run without MCP tools"
+            echo "⚠️  No MCP config found - Copilot CLI will run without MCP tools"
           fi
         env:
-          GH_AW_AGENT_MODEL: anthropic/claude-sonnet-3.5
-          GH_AW_AGENT_VERSION: 0.15.13
+          GH_AW_AGENT_MODEL: gpt-5-mini
+          GH_AW_AGENT_VERSION: 0.0.384
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-      - name: Run OpenCode
+      - name: Run Copilot CLI
         id: opencode
         run: |
-          opencode run "$(cat "$GH_AW_PROMPT")" --model "${GH_AW_AGENT_MODEL}" --print-logs
+          # Read the prompt from file
+          PROMPT="$(cat "$GH_AW_PROMPT")"
+
+          # Run copilot CLI with the specified model
+          # Use gh copilot suggest for code generation tasks
+          echo "$PROMPT" | gh copilot suggest --model "${GH_AW_AGENT_MODEL}"
         env:
-          GH_AW_AGENT_MODEL: anthropic/claude-sonnet-3.5
-          GH_AW_AGENT_VERSION: 0.15.13
+          GH_AW_AGENT_MODEL: gpt-5-mini
+          GH_AW_AGENT_VERSION: 0.0.384
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -1080,83 +1052,60 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Install OpenCode and jq
+      - name: Install GitHub CLI and Copilot CLI extension
         run: |
-          npm install -g "opencode-ai@${GH_AW_AGENT_VERSION}"
+          # GitHub CLI is already installed in ubuntu-latest runners
+          # Install/upgrade Copilot CLI extension
+          gh extension install github/copilot-cli --force || gh extension upgrade github/copilot-cli
+
+          # Verify installation
+          gh copilot --version
+
+          # Install jq for JSON processing
           sudo apt-get update && sudo apt-get install -y jq
         env:
-          GH_AW_AGENT_MODEL: anthropic/claude-sonnet-3.5
-          GH_AW_AGENT_VERSION: 0.15.13
+          GH_AW_AGENT_MODEL: gpt-5-mini
+          GH_AW_AGENT_VERSION: 0.0.384
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-      - name: Configure OpenCode MCP servers
+      - name: Configure Copilot CLI MCP servers
         run: |
           set -e
 
-          # Create OpenCode config directory
-          mkdir -p ~/.config/opencode
+          # Create Copilot CLI config directory
+          mkdir -p ~/.config/github-copilot
 
           # Check if MCP config exists
           if [ -n "$GH_AW_MCP_CONFIG" ] && [ -f "$GH_AW_MCP_CONFIG" ]; then
             echo "Found MCP configuration at: $GH_AW_MCP_CONFIG"
 
-            # Create base OpenCode config with proper schema
-            echo "{\"\\$schema\": \"https://opencode.sh/schema.json\", \"mcp\": {}}" > ~/.config/opencode/opencode.json
+            # Copilot CLI uses the same MCP config format, so we can copy it directly
+            # The config should already be in the correct format at $GH_AW_MCP_CONFIG
+            cp "$GH_AW_MCP_CONFIG" ~/.config/github-copilot/mcp-config.json
 
-            # Transform Copilot-style MCP config to OpenCode format
-            jq -r '.mcpServers | to_entries[] | 
-              if .value.type == "local" or (.value.command and .value.args) then
-                {
-                  key: .key,
-                  value: {
-                    type: "local",
-                    command: (
-                      if .value.command then
-                        [.value.command] + (.value.args // [])
-                      else
-                        []
-                      end
-                    ),
-                    enabled: true,
-                    environment: (.value.env // {})
-                  }
-                }
-              elif .value.type == "http" then
-                {
-                  key: .key,
-                  value: {
-                    type: "remote",
-                    url: .value.url,
-                    enabled: true,
-                    headers: (.value.headers // {})
-                  }
-                }
-              else empty end' "$GH_AW_MCP_CONFIG" | \
-              jq -s 'reduce .[] as $item ({}; .[$item.key] = $item.value)' > /tmp/mcp-servers.json
-
-            # Merge MCP servers into config
-            jq --slurpfile servers /tmp/mcp-servers.json '.mcp = $servers[0]' \
-              ~/.config/opencode/opencode.json > /tmp/opencode-final.json
-            mv /tmp/opencode-final.json ~/.config/opencode/opencode.json
-
-            echo "✅ OpenCode MCP configuration created successfully"
+            echo "✅ Copilot CLI MCP configuration created successfully"
             echo "Configuration contents:"
-            cat ~/.config/opencode/opencode.json | jq .
+            cat ~/.config/github-copilot/mcp-config.json | jq .
           else
-            echo "⚠️  No MCP config found - OpenCode will run without MCP tools"
+            echo "⚠️  No MCP config found - Copilot CLI will run without MCP tools"
           fi
         env:
-          GH_AW_AGENT_MODEL: anthropic/claude-sonnet-3.5
-          GH_AW_AGENT_VERSION: 0.15.13
+          GH_AW_AGENT_MODEL: gpt-5-mini
+          GH_AW_AGENT_VERSION: 0.0.384
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-      - name: Run OpenCode
+      - name: Run Copilot CLI
         id: opencode
         run: |
-          opencode run "$(cat "$GH_AW_PROMPT")" --model "${GH_AW_AGENT_MODEL}" --print-logs
+          # Read the prompt from file
+          PROMPT="$(cat "$GH_AW_PROMPT")"
+
+          # Run copilot CLI with the specified model
+          # Use gh copilot suggest for code generation tasks
+          echo "$PROMPT" | gh copilot suggest --model "${GH_AW_AGENT_MODEL}"
         env:
-          GH_AW_AGENT_MODEL: anthropic/claude-sonnet-3.5
-          GH_AW_AGENT_VERSION: 0.15.13
+          GH_AW_AGENT_MODEL: gpt-5-mini
+          GH_AW_AGENT_VERSION: 0.0.384
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
       - name: Ensure log file exists
