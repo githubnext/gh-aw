@@ -274,7 +274,7 @@ func TestInitRepository_Campaign(t *testing.T) {
 	}
 
 	// Verify agentic-campaign-generator source markdown was generated
-	campaignWorkflowPath := filepath.Join(tempDir, ".github", "aw", "agentic-campaign-generator.md")
+	campaignWorkflowPath := filepath.Join(tempDir, ".github", "workflows", "agentic-campaign-generator.md")
 	if _, err := os.Stat(campaignWorkflowPath); os.IsNotExist(err) {
 		t.Errorf("Expected agentic-campaign-generator workflow to exist at %s", campaignWorkflowPath)
 	}
