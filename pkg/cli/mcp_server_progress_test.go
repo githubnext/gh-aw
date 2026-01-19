@@ -74,5 +74,3 @@ func TestSendProgressDoesNotPanic(t *testing.T) {
 		})
 	}
 }
-
-
