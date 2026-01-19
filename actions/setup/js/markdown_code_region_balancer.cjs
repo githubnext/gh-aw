@@ -218,10 +218,7 @@ function isBalanced(markdown) {
           length: fenceLength,
         };
       } else {
-        const canClose =
-          openingFence !== null &&
-          fenceChar === openingFence.char &&
-          fenceLength >= openingFence.length;
+        const canClose = openingFence !== null && fenceChar === openingFence.char && fenceLength >= openingFence.length;
 
         if (canClose) {
           inCodeBlock = false;
@@ -271,10 +268,7 @@ function countCodeRegions(markdown) {
           length: fenceLength,
         };
       } else {
-        const canClose =
-          openingFence !== null &&
-          fenceChar === openingFence.char &&
-          fenceLength >= openingFence.length;
+        const canClose = openingFence !== null && fenceChar === openingFence.char && fenceLength >= openingFence.length;
 
         if (canClose) {
           inCodeBlock = false;
