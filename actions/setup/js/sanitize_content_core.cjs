@@ -503,6 +503,11 @@ function sanitizeContentCore(content, maxLength) {
   // Neutralize common bot trigger phrases
   sanitized = neutralizeBotTriggers(sanitized);
 
+  // Balance markdown code regions to fix improperly nested fences
+  // This repairs markdown where AI models generate nested code blocks at the same indentation
+  const { balanceCodeRegions } = require("./markdown_code_region_balancer.cjs");
+  sanitized = balanceCodeRegions(sanitized);
+
   // Trim excessive whitespace
   return sanitized.trim();
 }

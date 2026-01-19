@@ -19,7 +19,11 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
+<<<<<<< HEAD
 # Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation
+=======
+# Agentic Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation
+>>>>>>> origin/main
 
 name: "Agentic Campaign Generator"
 "on":
@@ -188,7 +192,11 @@ jobs:
         env:
           TOKEN_CHECK: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
         if: env.TOKEN_CHECK != ''
+<<<<<<< HEAD
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+=======
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+>>>>>>> origin/main
         with:
           script: |
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
@@ -782,7 +790,11 @@ jobs:
           PROMPT_EOF
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import? .github/shared-instructions.md}}
+<<<<<<< HEAD
           {{#runtime-import? .github/aw/generate-campaign.md}}
+=======
+          {{#runtime-import? .github/aw/generate-agentic-campaign.md}}
+>>>>>>> origin/main
           
           PROMPT_EOF
       - name: Substitute placeholders
@@ -1185,7 +1197,11 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           WORKFLOW_NAME: "Agentic Campaign Generator"
+<<<<<<< HEAD
           WORKFLOW_DESCRIPTION: "Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation"
+=======
+          WORKFLOW_DESCRIPTION: "Agentic Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation"
+>>>>>>> origin/main
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
