@@ -433,7 +433,7 @@ jobs:
                 "container": "ghcr.io/githubnext/serena-mcp-server:latest",
                 "args": ["--network", "host"],
                 "entrypoint": "serena",
-                "entrypointArgs": ["start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"],
+                "entrypointArgs": ["start-mcp-server", "--context", "copilot", "--project", "${{ github.workspace }}"],
                 "mounts": ["${{ github.workspace }}:${{ github.workspace }}:rw"]
               }
             },
