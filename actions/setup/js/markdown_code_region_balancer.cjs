@@ -71,53 +71,93 @@ function balanceCodeRegions(markdown) {
 
   // Second pass: Detect and fix improperly nested fences
   // Strategy:
-  // 1. For each fence, find ALL subsequent fences that could close it
-  // 2. If there are 2+ such fences, it suggests nesting - escape all but the last
+  // 1. Match fences into pairs (opening + closing)
+  // 2. Track the "span" of each matched pair
+  // 3. Escape any fences that fall inside another fence's span
   
   const escapeLines = new Set();
   const unclosedFences = [];
   const processed = new Set();
+  const pairedBlocks = []; // Array of {start: lineIndex, end: lineIndex}
   
+  // First, find all properly paired blocks
   for (let i = 0; i < fences.length; i++) {
     if (processed.has(i)) continue;
     
     const openFence = fences[i];
-    processed.add(i);
     
-    // Find all potential closers (same char, >= length, NO language)
-    // Continue searching until we find a fence that CANNOT match (different char or has language that starts a new block)
-    const potentialClosers = [];
+    // Find the first valid closing fence
+    // Stop when we hit a fence with a language (starts a new block)
+    let closerIndex = -1;
+    const candidates = [];
+    
     for (let j = i + 1; j < fences.length; j++) {
       if (processed.has(j)) continue;
       
       const fence = fences[j];
+      
+      // If this fence has a language, it opens a NEW block
+      if (fence.language !== "") {
+        break;
+      }
+      
+      // Check if this fence can close our opening fence
       const canClose =
         fence.char === openFence.char &&
-        fence.length >= openFence.length &&
-        fence.language === "";
+        fence.length >= openFence.length;
       
       if (canClose) {
-        potentialClosers.push(j);
+        candidates.push(j);
       }
-      // Don't break - keep looking for all potential closers
     }
     
-    if (potentialClosers.length === 0) {
-      // No closer found
-      unclosedFences.push(openFence);
-    } else if (potentialClosers.length === 1) {
-      // Exactly one closer - clean pair
-      processed.add(potentialClosers[0]);
-    } else {
-      // Multiple potential closers - nested fences detected
-      // Keep the last one as the closer, escape the rest
-      const closerIndex = potentialClosers[potentialClosers.length - 1];
+    if (candidates.length > 0) {
+      // Use the LAST valid closer
+      closerIndex = candidates[candidates.length - 1];
+      
+      // Mark opening and closing as processed
+      processed.add(i);
       processed.add(closerIndex);
       
-      for (let j = 0; j < potentialClosers.length - 1; j++) {
-        escapeLines.add(fences[potentialClosers[j]].lineIndex);
-        processed.add(potentialClosers[j]);
+      // Record this block's span
+      pairedBlocks.push({
+        start: fences[i].lineIndex,
+        end: fences[closerIndex].lineIndex,
+        openIndex: i,
+        closeIndex: closerIndex,
+      });
+      
+      // Escape all candidates except the last one
+      for (let k = 0; k < candidates.length - 1; k++) {
+        escapeLines.add(fences[candidates[k]].lineIndex);
+        processed.add(candidates[k]);
       }
+    }
+    // Note: Don't add to unclosedFences yet - check if it's inside a block first
+  }
+  
+  // Now, escape any fences that weren't processed and fall inside a block
+  for (let i = 0; i < fences.length; i++) {
+    if (processed.has(i)) continue;
+    
+    const fenceLine = fences[i].lineIndex;
+    
+    // Check if this fence is inside any paired block
+    let isInsideBlock = false;
+    for (const block of pairedBlocks) {
+      if (fenceLine > block.start && fenceLine < block.end) {
+        // This fence is inside a block, escape it
+        escapeLines.add(fenceLine);
+        processed.add(i);
+        isInsideBlock = true;
+        break;
+      }
+    }
+    
+    // If not inside a block and still unprocessed, it's an unclosed fence
+    if (!isInsideBlock) {
+      unclosedFences.push(fences[i]);
+      processed.add(i);
     }
   }
 
