@@ -292,7 +292,7 @@ func TestInitRepository_Campaign(t *testing.T) {
 	}
 
 	// Verify workflow content contains expected frontmatter
-			workflowContent, err := os.ReadFile(campaignWorkflowPath)
+	workflowContent, err := os.ReadFile(campaignWorkflowPath)
 	if err != nil {
 		t.Fatalf("Failed to read agentic-campaign-generator workflow: %v", err)
 	}
