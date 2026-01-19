@@ -81,6 +81,30 @@ allowed-safe-outputs: [create-issue, add-comment]
 3. `update-issue` (updates metadata, optional)
 4. `assign-to-agent` (assigns agents, optional)
 
+**Example Safe Outputs Configuration for Project-Based Campaigns:**
+```yaml
+safe-outputs:
+  create-project:
+    max: 1
+    github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
+    target-owner: "${{ github.repository_owner }}"
+    views:  # Views are created automatically when project is created
+      - name: "Campaign Roadmap"
+        layout: "roadmap"
+        filter: "is:issue is:pr"
+      - name: "Task Tracker"
+        layout: "table"
+        filter: "is:issue is:pr"
+      - name: "Progress Board"
+        layout: "board"
+        filter: "is:issue is:pr"
+  update-project:
+    max: 10
+    github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
+  update-issue:
+  assign-to-agent:
+```
+
 **Risk Levels:**
 - High: Sensitive/multi-repo/breaking → 2 approvals + sponsor
 - Medium: Cross-repo/automated → 1 approval
