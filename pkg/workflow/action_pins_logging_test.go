@@ -16,44 +16,44 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 	// version v2, but the comment still shows v1 (the requested version)
 
 	tests := []struct {
-		name              string
-		repo              string
-		requestedVer      string
+		name               string
+		repo               string
+		requestedVer       string
 		expectedCommentVer string // The version that should appear in the comment
-		fallbackPinVer    string // The actual pin version used (for warning message)
-		expectMismatch    bool
+		fallbackPinVer     string // The actual pin version used (for warning message)
+		expectMismatch     bool
 	}{
 		{
-			name:              "ai-inference v1 resolves to v2 pin but comment shows v1",
-			repo:              "actions/ai-inference",
-			requestedVer:      "v1",
+			name:               "ai-inference v1 resolves to v2 pin but comment shows v1",
+			repo:               "actions/ai-inference",
+			requestedVer:       "v1",
 			expectedCommentVer: "v1", // Comment shows requested version
-			fallbackPinVer:    "v2",  // Falls back to semver-compatible v2
-			expectMismatch:    true,
+			fallbackPinVer:     "v2", // Falls back to semver-compatible v2
+			expectMismatch:     true,
 		},
 		{
-			name:              "setup-dotnet v4 resolves to v4.3.1 pin but comment shows v4",
-			repo:              "actions/setup-dotnet",
-			requestedVer:      "v4",
+			name:               "setup-dotnet v4 resolves to v4.3.1 pin but comment shows v4",
+			repo:               "actions/setup-dotnet",
+			requestedVer:       "v4",
 			expectedCommentVer: "v4", // Comment shows requested version
-			fallbackPinVer:    "v4.3.1",
-			expectMismatch:    true,
+			fallbackPinVer:     "v4.3.1",
+			expectMismatch:     true,
 		},
 		{
-			name:              "github-script v7 resolves to v7 pin (exact match)",
-			repo:              "actions/github-script",
-			requestedVer:      "v7",
-			expectedCommentVer: "v7",  // Exact match exists in hardcoded pins
-			fallbackPinVer:    "v7",
-			expectMismatch:    false, // No mismatch since exact match found
+			name:               "github-script v7 resolves to v7 pin (exact match)",
+			repo:               "actions/github-script",
+			requestedVer:       "v7",
+			expectedCommentVer: "v7", // Exact match exists in hardcoded pins
+			fallbackPinVer:     "v7",
+			expectMismatch:     false, // No mismatch since exact match found
 		},
 		{
-			name:              "checkout v5.0.1 exact match",
-			repo:              "actions/checkout",
-			requestedVer:      "v5.0.1",
+			name:               "checkout v5.0.1 exact match",
+			repo:               "actions/checkout",
+			requestedVer:       "v5.0.1",
 			expectedCommentVer: "v5.0.1",
-			fallbackPinVer:    "v5.0.1",
-			expectMismatch:    false,
+			fallbackPinVer:     "v5.0.1",
+			expectMismatch:     false,
 		},
 	}
 
