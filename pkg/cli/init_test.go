@@ -438,3 +438,84 @@ This is a test workflow.
 		})
 	}
 }
+
+func TestGetCurrentRepositoryForInit(t *testing.T) {
+	t.Parallel()
+
+	// This test verifies the function can handle both success and failure cases
+	// Note: We can't test the actual GitHub API call without mocking
+	t.Run("handles error when not in repository context", func(t *testing.T) {
+		// Create a temp directory that's not a git repo
+		tmpDir := testutil.TempDir(t, "test-*")
+
+		originalDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get current directory: %v", err)
+		}
+		defer func() {
+			_ = os.Chdir(originalDir)
+		}()
+
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("Failed to change to temp directory: %v", err)
+		}
+
+		// This should fail because we're not in a git repository with GitHub remote
+		_, err = getCurrentRepositoryForInit()
+		if err == nil {
+			t.Log("Expected error when not in repository context, but got none (might be in a GitHub repo)")
+		}
+	})
+}
+
+func TestCreateCampaignLabel(t *testing.T) {
+	t.Parallel()
+
+	// This test verifies the function can handle both success and failure cases gracefully
+	t.Run("handles error gracefully when not in repository context", func(t *testing.T) {
+		// Create a temp directory that's not a git repo
+		tmpDir := testutil.TempDir(t, "test-*")
+
+		originalDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get current directory: %v", err)
+		}
+		defer func() {
+			_ = os.Chdir(originalDir)
+		}()
+
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("Failed to change to temp directory: %v", err)
+		}
+
+		// This should not fail even when we're not in a repository
+		// The function should handle errors gracefully
+		err = createCampaignLabel(false)
+		if err != nil {
+			t.Errorf("createCampaignLabel should handle errors gracefully, got: %v", err)
+		}
+	})
+
+	t.Run("handles error gracefully in verbose mode", func(t *testing.T) {
+		// Create a temp directory that's not a git repo
+		tmpDir := testutil.TempDir(t, "test-*")
+
+		originalDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get current directory: %v", err)
+		}
+		defer func() {
+			_ = os.Chdir(originalDir)
+		}()
+
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("Failed to change to temp directory: %v", err)
+		}
+
+		// This should not fail even in verbose mode
+		err = createCampaignLabel(true)
+		if err != nil {
+			t.Errorf("createCampaignLabel should handle errors gracefully in verbose mode, got: %v", err)
+		}
+	})
+}
