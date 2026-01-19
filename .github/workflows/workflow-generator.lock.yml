@@ -188,7 +188,7 @@ jobs:
         env:
           TOKEN_CHECK: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
         if: env.TOKEN_CHECK != ''
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
@@ -209,18 +209,6 @@ jobs:
               "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") or assign_to_agent(pull_number=456, agent=\"copilot\")",
               "inputSchema": {
                 "additionalProperties": false,
-                "oneOf": [
-                  {
-                    "required": [
-                      "issue_number"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "pull_number"
-                    ]
-                  }
-                ],
                 "properties": {
                   "agent": {
                     "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified.",
