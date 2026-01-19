@@ -261,3 +261,153 @@ func TestMockImageAvailability(t *testing.T) {
 	// Clean up
 	ResetDockerPullState()
 }
+
+func TestStartDockerImageDownload_ConcurrentCalls(t *testing.T) {
+	// Reset state before test
+	ResetDockerPullState()
+
+	testImage := "test/concurrent-image:v1.0.0"
+
+	// Mock the image as not available
+	SetMockImageAvailable(testImage, false)
+
+	// Track how many times StartDockerImageDownload returns true (indicating it started a download)
+	const numGoroutines = 10
+	started := make([]bool, numGoroutines)
+
+	// Use a channel to synchronize all goroutines to start at roughly the same time
+	startChan := make(chan struct{})
+	doneChan := make(chan int, numGoroutines)
+
+	// Launch multiple goroutines that all try to start downloading the same image
+	for i := 0; i < numGoroutines; i++ {
+		go func(index int) {
+			<-startChan // Wait for the signal to start
+			started[index] = StartDockerImageDownload(testImage)
+			doneChan <- index
+		}(i)
+	}
+
+	// Signal all goroutines to start simultaneously
+	close(startChan)
+
+	// Wait for all goroutines to finish
+	for i := 0; i < numGoroutines; i++ {
+		<-doneChan
+	}
+
+	// Count how many goroutines successfully started a download
+	downloadCount := 0
+	for _, didStart := range started {
+		if didStart {
+			downloadCount++
+		}
+	}
+
+	// Only ONE goroutine should have successfully started the download
+	if downloadCount != 1 {
+		t.Errorf("Expected exactly 1 goroutine to start download, but %d did", downloadCount)
+	}
+
+	// Verify the image is marked as downloading
+	if !IsDockerImageDownloading(testImage) {
+		t.Error("Expected image to be marked as downloading")
+	}
+
+	// Clean up
+	ResetDockerPullState()
+}
+
+func TestStartDockerImageDownload_ConcurrentCallsWithAvailableImage(t *testing.T) {
+	// Reset state before test
+	ResetDockerPullState()
+
+	testImage := "test/concurrent-available-image:v1.0.0"
+
+	// Mock the image as available
+	SetMockImageAvailable(testImage, true)
+
+	// Track how many times StartDockerImageDownload returns true
+	const numGoroutines = 10
+	started := make([]bool, numGoroutines)
+
+	// Use a channel to synchronize all goroutines
+	startChan := make(chan struct{})
+	doneChan := make(chan int, numGoroutines)
+
+	// Launch multiple goroutines
+	for i := 0; i < numGoroutines; i++ {
+		go func(index int) {
+			<-startChan
+			started[index] = StartDockerImageDownload(testImage)
+			doneChan <- index
+		}(i)
+	}
+
+	// Signal all goroutines to start
+	close(startChan)
+
+	// Wait for all to finish
+	for i := 0; i < numGoroutines; i++ {
+		<-doneChan
+	}
+
+	// Count successful starts
+	downloadCount := 0
+	for _, didStart := range started {
+		if didStart {
+			downloadCount++
+		}
+	}
+
+	// NO goroutine should have started a download since image is available
+	if downloadCount != 0 {
+		t.Errorf("Expected 0 goroutines to start download for available image, but %d did", downloadCount)
+	}
+
+	// Verify the image is NOT marked as downloading
+	if IsDockerImageDownloading(testImage) {
+		t.Error("Expected image to not be marked as downloading since it's available")
+	}
+
+	// Clean up
+	ResetDockerPullState()
+}
+
+func TestStartDockerImageDownload_RaceWithExternalDownload(t *testing.T) {
+	// This test simulates the scenario where an image becomes available
+	// (e.g., externally downloaded) between when we check availability
+	// and when we mark it as downloading
+	ResetDockerPullState()
+
+	testImage := "test/race-image:v1.0.0"
+
+	// Initially not available
+	SetMockImageAvailable(testImage, false)
+
+	// Start multiple goroutines attempting to download
+	const numGoroutines = 5
+	results := make(chan bool, numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			results <- StartDockerImageDownload(testImage)
+		}()
+	}
+
+	// Collect results
+	downloadStarts := 0
+	for i := 0; i < numGoroutines; i++ {
+		if <-results {
+			downloadStarts++
+		}
+	}
+
+	// Should only have one successful start
+	if downloadStarts != 1 {
+		t.Errorf("Expected exactly 1 download to start, got %d", downloadStarts)
+	}
+
+	// Clean up
+	ResetDockerPullState()
+}
