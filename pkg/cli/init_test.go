@@ -310,9 +310,9 @@ func TestInitRepository_Campaign(t *testing.T) {
 		t.Errorf("Generated workflow should not contain 'source' field - it should be built internally")
 	}
 
-	// Verify it imports generate-campaign from .github/aw (consolidated instructions)
-	if !strings.Contains(workflowStr, "{{#runtime-import? .github/aw/generate-campaign.md}}") {
-		t.Errorf("Expected campaign-generator to import generate-campaign.md from .github/aw/")
+	// Verify it imports generator instructions from .github/aw (consolidated instructions)
+	if !strings.Contains(workflowStr, "{{#runtime-import? .github/aw/generate-agentic-campaign.md}}") {
+		t.Errorf("Expected campaign-generator to import generate-agentic-campaign.md from .github/aw/")
 	}
 }
 
