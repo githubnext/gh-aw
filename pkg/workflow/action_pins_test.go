@@ -268,7 +268,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@v5",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1",
+			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -447,7 +447,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				Uses: "actions/checkout@v5",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1",
+			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -499,7 +499,7 @@ func TestApplyActionPinToTypedStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1",
+			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
 		},
 	}
 
@@ -672,18 +672,18 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 			name:           "fallback to highest semver-compatible version for upload-artifact when requesting v4",
 			repo:           "actions/upload-artifact",
 			requestedVer:   "v4",
-			expectedVer:    "v4.6.2", // Falls back to highest v4.x.x (semver-compatible)
+			expectedVer:    "v4", // Comment shows requested version, not the pin's v4.6.2
 			strictMode:     false,
 			shouldFallback: true,
-			// Note: When requesting v4 without dynamic resolution, the system returns v4.6.2
-			// (the highest v4.x.x version from hardcoded pins), respecting semver compatibility
-			// and not crossing major version boundaries.
+			// Note: When requesting v4 without dynamic resolution, the system uses v4.6.2's SHA
+			// (the highest v4.x.x version from hardcoded pins), but shows v4 in the comment
+			// to preserve the user's intent.
 		},
 		{
 			name:           "fallback to highest semver-compatible version for upload-artifact when requesting v5",
 			repo:           "actions/upload-artifact",
 			requestedVer:   "v5",
-			expectedVer:    "v5.0.0", // Falls back to highest v5.x.x (semver-compatible), not v6.0.0
+			expectedVer:    "v5", // Comment shows requested version, not the pin's v5.0.0
 			strictMode:     false,
 			shouldFallback: true,
 		},
@@ -1195,4 +1195,57 @@ func TestGetActionPinWithData_ExactVersionResolution(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestFallbackVersionUsesRequestedVersionInComment tests that when falling back to
+// a semver-compatible version, the comment uses the requested version, not the pin's version.
+// For example, if user requests v8 and we fall back to v8.0.0, the comment should say v8.
+func TestFallbackVersionUsesRequestedVersionInComment(t *testing.T) {
+tests := []struct {
+name            string
+repo            string
+requestedVer    string
+expectedComment string
+}{
+{
+name:            "v8 falls back to v8.0.0 but comment shows v8",
+repo:            "actions/github-script",
+requestedVer:    "v8",
+expectedComment: "# v8",
+},
+{
+name:            "v7 falls back to v7.0.1 but comment shows v7",
+repo:            "actions/github-script",
+requestedVer:    "v7",
+expectedComment: "# v7",
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+data := &WorkflowData{
+StrictMode: false,
+}
+
+result, err := GetActionPinWithData(tt.repo, tt.requestedVer, data)
+if err != nil {
+t.Fatalf("GetActionPinWithData(%s, %s) returned error: %v", tt.repo, tt.requestedVer, err)
+}
+
+if !strings.Contains(result, tt.expectedComment) {
+t.Errorf("GetActionPinWithData(%s, %s) = %s, expected comment to contain %s",
+tt.repo, tt.requestedVer, result, tt.expectedComment)
+}
+
+// Also verify it doesn't contain the pin's version
+if tt.requestedVer == "v8" && strings.Contains(result, "# v8.0.0") {
+t.Errorf("GetActionPinWithData(%s, %s) = %s, should use requested version v8 in comment, not v8.0.0",
+tt.repo, tt.requestedVer, result)
+}
+if tt.requestedVer == "v7" && strings.Contains(result, "# v7.0.1") {
+t.Errorf("GetActionPinWithData(%s, %s) = %s, should use requested version v7 in comment, not v7.0.1",
+tt.repo, tt.requestedVer, result)
+}
+})
+}
 }
