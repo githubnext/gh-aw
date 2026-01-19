@@ -45,10 +45,10 @@ var upgradeAgenticWorkflowsPromptTemplate string
 //go:embed templates/agentic-campaigns.agent.md
 var agenticCampaignsDispatcherTemplate string
 
-//go:embed templates/create-agentic-campaign.md
+//go:embed templates/create-agentic-campaign.prompt.md
 var campaignCreationInstructionsTemplate string
 
-//go:embed templates/generate-agentic-campaign.md
+//go:embed templates/generate-agentic-campaign.prompt.md
 var campaignGeneratorInstructionsTemplate string
 
 //go:embed templates/orchestrate-agentic-campaign.md
