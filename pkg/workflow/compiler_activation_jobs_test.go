@@ -27,7 +27,7 @@ func TestBuildPreActivationJob_WithPermissionCheck(t *testing.T) {
 
 	assert.Equal(t, string(constants.PreActivationJobName), job.Name)
 	assert.NotNil(t, job.Outputs, "Job should have outputs")
-	
+
 	// Check for activated output
 	_, hasActivated := job.Outputs["activated"]
 	assert.True(t, hasActivated, "Job should have 'activated' output")
@@ -86,28 +86,28 @@ func TestBuildPreActivationJob_WithReaction(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
 	tests := []struct {
-		name     string
-		reaction string
+		name               string
+		reaction           string
 		shouldHaveReaction bool
 	}{
 		{
-			name:     "with eyes reaction",
-			reaction: "eyes",
+			name:               "with eyes reaction",
+			reaction:           "eyes",
 			shouldHaveReaction: true,
 		},
 		{
-			name:     "with rocket reaction",
-			reaction: "rocket",
+			name:               "with rocket reaction",
+			reaction:           "rocket",
 			shouldHaveReaction: true,
 		},
 		{
-			name:     "with none reaction",
-			reaction: "none",
+			name:               "with none reaction",
+			reaction:           "none",
 			shouldHaveReaction: false,
 		},
 		{
-			name:     "empty reaction",
-			reaction: "",
+			name:               "empty reaction",
+			reaction:           "",
 			shouldHaveReaction: false,
 		},
 	}
@@ -131,7 +131,7 @@ func TestBuildPreActivationJob_WithReaction(t *testing.T) {
 					"Steps should include reaction step for %s", tt.reaction)
 				assert.Contains(t, stepsStr, "GH_AW_REACTION",
 					"Steps should include reaction environment variable")
-				
+
 				// Check permissions include reaction permissions
 				assert.Contains(t, job.Permissions, "issues: write",
 					"Permissions should include issues: write for reactions")
@@ -339,11 +339,11 @@ func TestExtractPreActivationCustomFields_WithCustomFields(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, steps, "Should have custom steps")
 	assert.NotEmpty(t, outputs, "Should have custom outputs")
-	
+
 	// Check step content
 	stepsStr := strings.Join(steps, "\n")
 	assert.Contains(t, stepsStr, "Custom step")
-	
+
 	// Check output content
 	result, hasResult := outputs["result"]
 	assert.True(t, hasResult, "Should have result output")
@@ -371,9 +371,9 @@ func TestBuildPreActivationJob_Integration(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
 	workflowData := &WorkflowData{
-		Name:     "Integration Test Workflow",
-		Command:  []string{"test"},
-		StopTime: "2024-12-31T23:59:59Z",
+		Name:       "Integration Test Workflow",
+		Command:    []string{"test"},
+		StopTime:   "2024-12-31T23:59:59Z",
 		AIReaction: "eyes",
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{},

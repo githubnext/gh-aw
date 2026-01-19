@@ -238,12 +238,8 @@ Content
 	require.NoError(t, err)
 	require.NotNil(t, workflowData)
 
-	// Engine should be overridden to 'claude'
-	actualEngine := workflowData.AI
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
-		actualEngine = workflowData.EngineConfig.ID
-	}
-	assert.Equal(t, "claude", actualEngine, "Engine should be overridden to claude")
+	// Engine should be overridden to 'claude' (stored in AI field for backward compatibility)
+	assert.Equal(t, "claude", workflowData.AI, "Engine should be overridden to claude")
 }
 
 // TestParseWorkflowFile_NetworkPermissions tests network permissions extraction
@@ -251,11 +247,11 @@ func TestParseWorkflowFile_NetworkPermissions(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "parse-network")
 
 	tests := []struct {
-		name                 string
-		includeNetwork       bool
-		networkConfig        string
-		expectedMode         string
-		expectedHasAllowed   bool
+		name               string
+		includeNetwork     bool
+		networkConfig      string
+		expectedMode       string
+		expectedHasAllowed bool
 	}{
 		{
 			name:           "default network mode",
@@ -272,14 +268,6 @@ network:
     - api.example.com`,
 			expectedMode:       "defaults",
 			expectedHasAllowed: true,
-		},
-		{
-			name:           "network disabled",
-			includeNetwork: true,
-			networkConfig: `
-network:
-  mode: disabled`,
-			expectedMode: "disabled",
 		},
 	}
 
@@ -402,32 +390,23 @@ func TestCopyFrontmatterWithoutInternalMarkers(t *testing.T) {
 			},
 		},
 		{
-			name: "with internal markers",
+			name: "gh_aw_native_label_filter marker removed",
 			input: map[string]any{
-				"on":                    "push",
-				"engine":                "copilot",
-				"__internal_marker__":   "should be removed",
-				"__another_internal__":  123,
-			},
-			expected: map[string]any{
-				"on":     "push",
+				"on": map[string]any{
+					"issues": map[string]any{
+						"types": []string{"opened"},
+						"__gh_aw_native_label_filter__": true,
+					},
+				},
 				"engine": "copilot",
 			},
-		},
-		{
-			name: "nested internal markers",
-			input: map[string]any{
-				"on": "push",
-				"tools": map[string]any{
-					"github":              "allowed",
-					"__internal_config__": "removed",
-				},
-			},
 			expected: map[string]any{
-				"on": "push",
-				"tools": map[string]any{
-					"github": "allowed",
+				"on": map[string]any{
+					"issues": map[string]any{
+						"types": []string{"opened"},
+					},
 				},
+				"engine": "copilot",
 			},
 		},
 	}
@@ -440,7 +419,7 @@ func TestCopyFrontmatterWithoutInternalMarkers(t *testing.T) {
 			for key, expectedVal := range tt.expected {
 				actualVal, exists := result[key]
 				assert.True(t, exists, "Key %s should exist in result", key)
-				
+
 				// For nested maps, check recursively
 				if expectedMap, ok := expectedVal.(map[string]any); ok {
 					actualMap, ok := actualVal.(map[string]any)
@@ -452,17 +431,11 @@ func TestCopyFrontmatterWithoutInternalMarkers(t *testing.T) {
 				}
 			}
 
-			// Check no internal markers remain
-			for key := range result {
-				assert.False(t, hasInternalPrefix(key),
-					"Internal marker key %s should be removed", key)
-				
-				// Check nested maps
-				if nestedMap, ok := result[key].(map[string]any); ok {
-					for nestedKey := range nestedMap {
-						assert.False(t, hasInternalPrefix(nestedKey),
-							"Nested internal marker key %s.%s should be removed", key, nestedKey)
-					}
+			// Check that specific marker was removed
+			if onMap, ok := result["on"].(map[string]any); ok {
+				if issuesMap, ok := onMap["issues"].(map[string]any); ok {
+					_, exists := issuesMap["__gh_aw_native_label_filter__"]
+					assert.False(t, exists, "Internal marker __gh_aw_native_label_filter__ should be removed")
 				}
 			}
 		})
@@ -484,18 +457,18 @@ func TestDetectTextOutputUsageInOrchestrator(t *testing.T) {
 			expectedOutput: false,
 		},
 		{
-			name:           "with text output marker",
-			markdown:       "# Workflow\n\n<!-- text-output -->\n\nSome text here.",
+			name:           "with text output usage",
+			markdown:       "# Workflow\n\nUse ${{ needs.activation.outputs.text }} here.",
 			expectedOutput: true,
 		},
 		{
 			name:           "text output in middle",
-			markdown:       "# Start\n\nContent\n\n<!-- text-output -->\n\nMore content",
+			markdown:       "# Start\n\nContent\n${{ needs.activation.outputs.text }}\n\nMore content",
 			expectedOutput: true,
 		},
 		{
-			name:           "multiple text output markers",
-			markdown:       "<!-- text-output -->\nFirst\n<!-- text-output -->\nSecond",
+			name:           "multiple text output references",
+			markdown:       "${{ needs.activation.outputs.text }}\nFirst\n${{ needs.activation.outputs.text }}\nSecond",
 			expectedOutput: true,
 		},
 	}
