@@ -279,22 +279,22 @@ func TestInitRepository_Campaign(t *testing.T) {
 		t.Errorf("Expected campaign dispatcher agent to exist at %s", campaignAgentPath)
 	}
 
-	// Verify campaign-generator source markdown was generated
-	campaignWorkflowPath := filepath.Join(tempDir, ".github", "aw", "campaign-generator.md")
+	// Verify agentic-campaign-generator source markdown was generated
+	campaignWorkflowPath := filepath.Join(tempDir, ".github", "aw", "agentic-campaign-generator.md")
 	if _, err := os.Stat(campaignWorkflowPath); os.IsNotExist(err) {
-		t.Errorf("Expected campaign-generator workflow to exist at %s", campaignWorkflowPath)
+		t.Errorf("Expected agentic-campaign-generator workflow to exist at %s", campaignWorkflowPath)
 	}
 
-	// Verify campaign-generator lock file was created
-	campaignLockPath := filepath.Join(tempDir, ".github", "workflows", "campaign-generator.lock.yml")
+	// Verify agentic-campaign-generator lock file was created
+	campaignLockPath := filepath.Join(tempDir, ".github", "workflows", "agentic-campaign-generator.lock.yml")
 	if _, err := os.Stat(campaignLockPath); os.IsNotExist(err) {
-		t.Errorf("Expected campaign-generator lock file to exist at %s", campaignLockPath)
+		t.Errorf("Expected agentic-campaign-generator lock file to exist at %s", campaignLockPath)
 	}
 
 	// Verify workflow content contains expected frontmatter
-	workflowContent, err := os.ReadFile(campaignWorkflowPath)
+			workflowContent, err := os.ReadFile(campaignWorkflowPath)
 	if err != nil {
-		t.Fatalf("Failed to read campaign-generator workflow: %v", err)
+		t.Fatalf("Failed to read agentic-campaign-generator workflow: %v", err)
 	}
 	workflowStr := string(workflowContent)
 	if !strings.Contains(workflowStr, "description: \"Campaign generator") {
