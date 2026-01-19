@@ -153,8 +153,6 @@ func parseSquidLogLine(line string) (*AccessLogEntry, error) {
 	}, nil
 }
 
-
-
 // analyzeAccessLogs analyzes access logs in a run directory
 func analyzeAccessLogs(runDir string, verbose bool) (*DomainAnalysis, error) {
 	accessLogLog.Printf("Analyzing access logs in: %s", runDir)

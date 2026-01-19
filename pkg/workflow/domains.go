@@ -273,8 +273,6 @@ func extractHTTPMCPDomains(tools map[string]any) []string {
 	return domains
 }
 
-
-
 // mergeDomainsWithNetwork combines default domains with NetworkPermissions allowed domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func mergeDomainsWithNetwork(defaultDomains []string, network *NetworkPermissions) string {
