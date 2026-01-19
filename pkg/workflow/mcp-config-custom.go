@@ -11,12 +11,12 @@ import (
 	"github.com/githubnext/gh-aw/pkg/types"
 )
 
-var mcpLog = logger.New("workflow:mcp-config")
+var mcpCustomLog = logger.New("workflow:mcp-config-custom")
 
 // renderCustomMCPConfigWrapper generates custom MCP server configuration wrapper
 // This is a shared function used by both Claude and Custom engines
 func renderCustomMCPConfigWrapper(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
-	mcpLog.Printf("Rendering custom MCP config wrapper for tool: %s", toolName)
+	mcpCustomLog.Printf("Rendering custom MCP config wrapper for tool: %s", toolName)
 	fmt.Fprintf(yaml, "              \"%s\": {\n", toolName)
 
 	// Use the shared MCP config renderer with JSON format
@@ -42,7 +42,7 @@ func renderCustomMCPConfigWrapper(yaml *strings.Builder, toolName string, toolCo
 // renderCustomMCPConfigWrapperWithContext generates custom MCP server configuration wrapper with workflow context
 // This version includes workflowData to determine if localhost URLs should be rewritten
 func renderCustomMCPConfigWrapperWithContext(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool, workflowData *WorkflowData) error {
-	mcpLog.Printf("Rendering custom MCP config wrapper with context for tool: %s", toolName)
+	mcpCustomLog.Printf("Rendering custom MCP config wrapper with context for tool: %s", toolName)
 	fmt.Fprintf(yaml, "              \"%s\": {\n", toolName)
 
 	// Determine if localhost URLs should be rewritten to host.docker.internal
@@ -75,12 +75,12 @@ func renderCustomMCPConfigWrapperWithContext(yaml *strings.Builder, toolName str
 // renderSharedMCPConfig generates MCP server configuration for a single tool using shared logic
 // This function handles the common logic for rendering MCP configurations across different engines
 func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, renderer MCPConfigRenderer) error {
-	mcpLog.Printf("Rendering MCP config for tool: %s, format: %s", toolName, renderer.Format)
+	mcpCustomLog.Printf("Rendering MCP config for tool: %s, format: %s", toolName, renderer.Format)
 
 	// Get MCP configuration in the new format
 	mcpConfig, err := getMCPConfig(toolConfig, toolName)
 	if err != nil {
-		mcpLog.Printf("Failed to parse MCP config for tool %s: %v", toolName, err)
+		mcpCustomLog.Printf("Failed to parse MCP config for tool %s: %v", toolName, err)
 		return fmt.Errorf("failed to parse MCP config for tool '%s': %w", toolName, err)
 	}
 
@@ -491,7 +491,7 @@ func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
 
 // getMCPConfig extracts MCP configuration from a tool config and returns a structured MCPServerConfig
 func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServerConfig, error) {
-	mcpLog.Printf("Extracting MCP config for tool: %s", toolName)
+	mcpCustomLog.Printf("Extracting MCP config for tool: %s", toolName)
 
 	config := MapToolConfig(toolConfig)
 	result := &parser.MCPServerConfig{
@@ -524,7 +524,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 
 	for key := range toolConfig {
 		if !knownProperties[key] {
-			mcpLog.Printf("Unknown property '%s' in MCP config for tool '%s'", key, toolName)
+			mcpCustomLog.Printf("Unknown property '%s' in MCP config for tool '%s'", key, toolName)
 			// Build list of valid properties
 			validProps := []string{}
 			for prop := range knownProperties {
@@ -544,7 +544,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 
 	// Infer type from fields if not explicitly provided
 	if typeStr, hasType := config.GetString("type"); hasType {
-		mcpLog.Printf("MCP type explicitly set to: %s", typeStr)
+		mcpCustomLog.Printf("MCP type explicitly set to: %s", typeStr)
 		// Normalize "local" to "stdio"
 		if typeStr == "local" {
 			result.Type = "stdio"
@@ -552,19 +552,19 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 			result.Type = typeStr
 		}
 	} else {
-		mcpLog.Print("No explicit MCP type, inferring from fields")
+		mcpCustomLog.Print("No explicit MCP type, inferring from fields")
 		// Infer type from presence of fields
 		if _, hasURL := config.GetString("url"); hasURL {
 			result.Type = "http"
-			mcpLog.Printf("Inferred MCP type as http (has url field)")
+			mcpCustomLog.Printf("Inferred MCP type as http (has url field)")
 		} else if _, hasCommand := config.GetString("command"); hasCommand {
 			result.Type = "stdio"
-			mcpLog.Printf("Inferred MCP type as stdio (has command field)")
+			mcpCustomLog.Printf("Inferred MCP type as stdio (has command field)")
 		} else if _, hasContainer := config.GetString("container"); hasContainer {
 			result.Type = "stdio"
-			mcpLog.Printf("Inferred MCP type as stdio (has container field)")
+			mcpCustomLog.Printf("Inferred MCP type as stdio (has container field)")
 		} else {
-			mcpLog.Printf("Unable to determine MCP type for tool '%s': missing type, url, command, or container", toolName)
+			mcpCustomLog.Printf("Unable to determine MCP type for tool '%s': missing type, url, command, or container", toolName)
 			return nil, fmt.Errorf(
 				"unable to determine MCP type for tool '%s': missing type, url, command, or container. "+
 					"Must specify one of: 'type' (stdio/http), 'url' (for HTTP MCP), 'command' (for command-based), or 'container' (for Docker-based). "+
@@ -584,7 +584,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 	}
 
 	// Extract fields based on type
-	mcpLog.Printf("Extracting fields for MCP type: %s", result.Type)
+	mcpCustomLog.Printf("Extracting fields for MCP type: %s", result.Type)
 	switch result.Type {
 	case "stdio":
 		if command, hasCommand := config.GetString("command"); hasCommand {
@@ -618,7 +618,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		if url, hasURL := config.GetString("url"); hasURL {
 			result.URL = url
 		} else {
-			mcpLog.Printf("HTTP MCP tool '%s' missing required 'url' field", toolName)
+			mcpCustomLog.Printf("HTTP MCP tool '%s' missing required 'url' field", toolName)
 			return nil, fmt.Errorf(
 				"http MCP tool '%s' missing required 'url' field. HTTP MCP servers must specify a URL endpoint. "+
 					"Example:\n"+
@@ -635,7 +635,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 			result.Headers = headers
 		}
 	default:
-		mcpLog.Printf("Unsupported MCP type '%s' for tool '%s'", result.Type, toolName)
+		mcpCustomLog.Printf("Unsupported MCP type '%s' for tool '%s'", result.Type, toolName)
 		return nil, fmt.Errorf(
 			"unsupported MCP type '%s' for tool '%s'. Valid types are: stdio, http. "+
 				"Example:\n"+
@@ -657,7 +657,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 	if result.Type == "stdio" && result.Container == "" && result.Command != "" {
 		containerConfig := getWellKnownContainer(result.Command)
 		if containerConfig != nil {
-			mcpLog.Printf("Auto-assigning container for command '%s': %s", result.Command, containerConfig.Image)
+			mcpCustomLog.Printf("Auto-assigning container for command '%s': %s", result.Command, containerConfig.Image)
 			result.Container = containerConfig.Image
 			result.Entrypoint = containerConfig.Entrypoint
 			// Move command to entrypointArgs and preserve existing args after it
