@@ -143,6 +143,7 @@ Download and analyze workflow logs with timeout handling and size guardrails.
 - `jq` (optional): Apply jq filter to JSON output
 
 **Features:**
+- **Progress Notifications**: Emits progress updates when client provides a progress token (5 stages: start → fetch → process → filter → complete)
 - **Timeout and Continuation**: Uses 50-second timeout. Returns `continuation` field with `before_run_id` to resume fetching
 - **Output Size Guardrail**: When output exceeds token limit, returns schema description and suggested jq filters
 - **Large Output Handling**: Outputs exceeding 16,000 tokens written to `/tmp/gh-aw/safe-outputs/`
@@ -165,6 +166,10 @@ Investigate a workflow run, job, or specific step and generate a detailed report
 - With step number: Extracts that specific step's output
 - Without step: Finds and extracts first failing step's output
 - Saves job logs and step-specific logs to output directory
+
+**Progress Notifications:**
+- Emits progress updates when client provides a progress token
+- 4 stages: start → fetch run info → analyze logs → apply filter (optional) → complete
 
 **Returns:** JSON with comprehensive audit data:
 - `overview`: Basic run information (run_id, workflow_name, status, conclusion, duration, url, logs_path)
