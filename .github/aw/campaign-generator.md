@@ -24,6 +24,7 @@ safe-outputs:
   create-project:
     max: 1
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
+    target-owner: "${{ github.repository_owner }}"
   update-project:
     max: 10
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
