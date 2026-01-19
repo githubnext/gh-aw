@@ -8,6 +8,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 var domainsLog = logger.New("workflow:domains")
@@ -261,7 +262,7 @@ func extractHTTPMCPDomains(tools map[string]any) []string {
 
 		if isHTTPMCP && hasURL {
 			// Extract domain from URL (e.g., "https://mcp.tavily.com/mcp/" -> "mcp.tavily.com")
-			domain := extractDomainFromURL(url)
+			domain := stringutil.ExtractDomainFromURL(url)
 			if domain != "" {
 				domainsLog.Printf("Extracted HTTP MCP domain '%s' from tool '%s'", domain, toolName)
 				domains = append(domains, domain)
@@ -270,27 +271,6 @@ func extractHTTPMCPDomains(tools map[string]any) []string {
 	}
 
 	return domains
-}
-
-// extractDomainFromURL extracts the domain name from a URL string
-// Examples:
-//   - "https://mcp.tavily.com/mcp/" -> "mcp.tavily.com"
-//   - "http://api.example.com:8080/path" -> "api.example.com"
-//   - "mcp.example.com" -> "mcp.example.com"
-func extractDomainFromURL(urlStr string) string {
-	// Remove protocol if present
-	urlStr = strings.TrimPrefix(urlStr, "https://")
-	urlStr = strings.TrimPrefix(urlStr, "http://")
-
-	// Remove port and path
-	if idx := strings.Index(urlStr, ":"); idx != -1 {
-		urlStr = urlStr[:idx]
-	}
-	if idx := strings.Index(urlStr, "/"); idx != -1 {
-		urlStr = urlStr[:idx]
-	}
-
-	return strings.TrimSpace(urlStr)
 }
 
 // mergeDomainsWithNetwork combines default domains with NetworkPermissions allowed domains
