@@ -20,6 +20,10 @@
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
 # Tests documentation site functionality and responsive design across multiple device form factors
+#
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/docs-server-lifecycle.md
 
 name: "Multi-Device Docs Tester"
 "on":
@@ -159,7 +163,7 @@ jobs:
         env:
           TOKEN_CHECK: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
         if: env.TOKEN_CHECK != ''
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
@@ -584,6 +588,68 @@ jobs:
           </system>
           PROMPT_EOF
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          ## Starting the Documentation Preview Server
+          
+          **Context**: The documentation has been pre-built using `npm run build`. Use the preview server to serve the static build.
+          
+          Navigate to the docs directory and start the preview server in the background:
+          
+          ```bash
+          cd docs
+          npm run preview > /tmp/preview.log 2>&1 &
+          echo $! > /tmp/server.pid
+          ```
+          
+          This will:
+          - Start the preview server on port 4321
+          - Redirect output to `/tmp/preview.log`
+          - Save the process ID to `/tmp/server.pid` for later cleanup
+          
+          ## Waiting for Server Readiness
+          
+          Poll the server with curl to ensure it's ready before use:
+          
+          ```bash
+          for i in {1..30}; do
+            curl -s http://localhost:4321 > /dev/null && echo "Server ready!" && break
+            echo "Waiting for server... ($i/30)" && sleep 2
+          done
+          ```
+          
+          This will:
+          - Attempt to connect up to 30 times (60 seconds total)
+          - Wait 2 seconds between attempts
+          - Exit successfully when server responds
+          
+          ## Verifying Server Accessibility (Optional)
+          
+          Optionally verify the server is serving content:
+          
+          ```bash
+          curl -s http://localhost:4321/gh-aw/ | head -20
+          ```
+          
+          ## Stopping the Documentation Server
+          
+          After you're done using the server, clean up the process:
+          
+          ```bash
+          kill $(cat /tmp/server.pid) 2>/dev/null || true
+          rm -f /tmp/server.pid /tmp/preview.log
+          ```
+          
+          This will:
+          - Kill the server process using the saved PID
+          - Remove temporary files
+          - Ignore errors if the process already stopped
+          
+          ## Usage Notes
+          
+          - The server runs on `http://localhost:4321`
+          - Documentation is accessible at `http://localhost:4321/gh-aw/`
+          - Always clean up the server when done to avoid orphan processes
+          - If the server fails to start, check `/tmp/preview.log` for errors
+          
           {{#runtime-import? .github/shared-instructions.md}}
           
           # Multi-Device Documentation Testing
@@ -617,21 +683,9 @@ jobs:
           npm run build
           ```
           
-          Start the preview server in the background and save PID to file for reliable cleanup:
-          
-          ```bash
-          npm run preview > /tmp/preview.log 2>&1 &
-          echo $! > /tmp/server.pid
-          ```
-          
-          Wait for server to be ready (port 4321):
-          
-          ```bash
-          for i in {1..30}; do
-            curl -s http://localhost:4321 > /dev/null && echo "Server ready!" && break
-            echo "Waiting... ($i/30)" && sleep 2
-          done
-          ```
+          Follow the shared **Documentation Server Lifecycle Management** instructions:
+          1. Start the preview server (section "Starting the Documentation Preview Server")
+          2. Wait for server readiness (section "Waiting for Server Readiness")
           
           ## Step 2: Device Configuration
           
@@ -669,12 +723,7 @@ jobs:
           
           ## Step 6: Cleanup
           
-          Stop the preview server using the saved PID:
-          
-          ```bash
-          kill $(cat /tmp/server.pid) 2>/dev/null || true
-          rm -f /tmp/server.pid
-          ```
+          Follow the shared **Documentation Server Lifecycle Management** instructions for cleanup (section "Stopping the Documentation Server").
           
           ## Summary
           

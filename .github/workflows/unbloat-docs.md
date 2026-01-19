@@ -29,6 +29,7 @@ engine:
 # Shared instructions
 imports:
   - shared/reporting.md
+  - shared/docs-server-lifecycle.md
 
 # Network access for documentation best practices research
 network:
@@ -57,10 +58,12 @@ tools:
     - "tail *"
     - "cd *"
     - "node *"
+    - "npm *"
     - "curl *"
     - "ps *"
     - "kill *"
     - "sleep *"
+    - "echo *"
     - "mkdir *"
     - "cp *"
     - "mv *"
@@ -248,10 +251,10 @@ After making changes to a documentation file, take screenshots of the rendered p
 
 #### Build and Start Documentation Server
 
-1. Go to the `docs` directory (this was already done in the build steps)
-2. Start the documentation development server using `npm run dev`
-3. Wait for the server to fully start (it should be accessible on `http://localhost:4321/gh-aw/`)
-4. Verify the server is running by making a curl request to test accessibility
+Follow the shared **Documentation Server Lifecycle Management** instructions:
+1. Start the preview server (section "Starting the Documentation Preview Server")
+2. Wait for readiness (section "Waiting for Server Readiness")
+3. Optionally verify accessibility (section "Verifying Server Accessibility")
 
 #### Take Screenshots with Playwright
 
@@ -294,6 +297,10 @@ If you encounter any blocked domains:
 1. Note the domain names and resource types (CSS, fonts, images, etc.)
 2. Include this information in the PR description under a "Blocked Domains" section
 3. Example format: "Blocked: fonts.googleapis.com (fonts), cdn.example.com (CSS)"
+
+#### Cleanup Server
+
+After taking screenshots, follow the shared **Documentation Server Lifecycle Management** instructions for cleanup (section "Stopping the Documentation Server").
 
 ### 10. Create Pull Request
 
