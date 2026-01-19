@@ -37,6 +37,36 @@ func mcpErrorData(v any) json.RawMessage {
 	return data
 }
 
+// sendProgress sends a progress notification to the MCP client if a progress token is present.
+// This is a helper function that safely handles the case where progress notifications are not supported.
+// Parameters:
+//   - ctx: Context for the operation
+//   - req: The CallToolRequest containing the session and progress token
+//   - message: A description of the current progress
+//   - progress: Current progress value (should increase monotonically)
+//   - total: Total progress value (0 if unknown)
+func sendProgress(ctx context.Context, req *mcp.CallToolRequest, message string, progress, total float64) {
+	// Check if client supports progress notifications
+	progressToken := req.Params.GetProgressToken()
+	if progressToken == nil {
+		// Progress notifications not requested by client
+		return
+	}
+
+	// Create progress notification parameters
+	params := &mcp.ProgressNotificationParams{
+		ProgressToken: progressToken,
+		Message:       message,
+		Progress:      progress,
+		Total:         total,
+	}
+
+	// Send notification (errors are logged but not returned)
+	if err := req.Session.NotifyProgress(ctx, params); err != nil {
+		mcpLog.Printf("Failed to send progress notification: %v", err)
+	}
+}
+
 // NewMCPServerCommand creates the mcp-server command
 func NewMCPServerCommand() *cobra.Command {
 	var port int
@@ -438,6 +468,9 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 		default:
 		}
 
+		// Send initial progress notification
+		sendProgress(ctx, req, "Starting workflow logs download", 0, 5)
+
 		// Validate firewall parameters
 		if args.Firewall && args.NoFirewall {
 			return nil, nil, &jsonrpc.Error{
@@ -491,6 +524,9 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 		// Always use --json mode in MCP server
 		cmdArgs = append(cmdArgs, "--json")
 
+		// Send progress notification before executing command
+		sendProgress(ctx, req, "Fetching workflow runs from GitHub", 1, 5)
+
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)
 		output, err := cmd.CombinedOutput()
@@ -503,9 +539,13 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 			}
 		}
 
+		// Send progress notification after command execution
+		sendProgress(ctx, req, "Processing workflow logs", 3, 5)
+
 		// Apply jq filter if provided
 		outputStr := string(output)
 		if args.JqFilter != "" {
+			sendProgress(ctx, req, "Applying jq filter", 4, 5)
 			filteredOutput, err := ApplyJqFilter(outputStr, args.JqFilter)
 			if err != nil {
 				return nil, nil, &jsonrpc.Error{
@@ -519,6 +559,9 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 
 		// Check output size and apply guardrail if needed
 		finalOutput, _ := checkLogsOutputSize(outputStr, args.MaxTokens)
+
+		// Send final progress notification
+		sendProgress(ctx, req, "Workflow logs download complete", 5, 5)
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
@@ -576,11 +619,17 @@ Note: Output can be filtered using the jq parameter.`,
 		default:
 		}
 
+		// Send initial progress notification
+		sendProgress(ctx, req, "Starting workflow run audit", 0, 4)
+
 		// Build command arguments
 		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server (same as logs)
 		// Use --json flag to output structured JSON for MCP consumption
 		// Pass the run ID or URL directly - the audit command will parse it
 		cmdArgs := []string{"audit", args.RunIDOrURL, "-o", "/tmp/gh-aw/aw-mcp/logs", "--json"}
+
+		// Send progress notification before executing command
+		sendProgress(ctx, req, "Fetching workflow run information", 1, 4)
 
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)
@@ -594,9 +643,13 @@ Note: Output can be filtered using the jq parameter.`,
 			}
 		}
 
+		// Send progress notification after command execution
+		sendProgress(ctx, req, "Analyzing workflow logs and artifacts", 2, 4)
+
 		// Apply jq filter if provided
 		outputStr := string(output)
 		if args.JqFilter != "" {
+			sendProgress(ctx, req, "Applying jq filter", 3, 4)
 			filteredOutput, jqErr := ApplyJqFilter(outputStr, args.JqFilter)
 			if jqErr != nil {
 				return nil, nil, &jsonrpc.Error{
@@ -607,6 +660,9 @@ Note: Output can be filtered using the jq parameter.`,
 			}
 			outputStr = filteredOutput
 		}
+
+		// Send final progress notification
+		sendProgress(ctx, req, "Workflow audit complete", 4, 4)
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
