@@ -1,5 +1,5 @@
 ---
-name: "Campaign Generator"
+name: "Agentic Campaign Generator"
 description: "Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation"
 on:
   issues:

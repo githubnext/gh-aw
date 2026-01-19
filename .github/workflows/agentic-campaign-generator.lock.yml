@@ -21,7 +21,7 @@
 #
 # Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation
 
-name: "Campaign Generator"
+name: "Agentic Campaign Generator"
 "on":
   issues:
     # lock-for-agent: true # Lock-for-agent processed as issue locking in activation job
@@ -36,7 +36,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
 
-run-name: "Campaign Generator"
+run-name: "Agentic Campaign Generator"
 
 jobs:
   activation:
@@ -81,7 +81,7 @@ jobs:
         if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_NAME: "Campaign Generator"
+          GH_AW_WORKFLOW_NAME: "Agentic Campaign Generator"
           GH_AW_LOCK_FOR_AGENT: "true"
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready!\",\"runFailure\":\"Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
         with:
@@ -677,7 +677,7 @@ jobs:
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
               agent_version: "2.1.12",
-              workflow_name: "Campaign Generator",
+              workflow_name: "Agentic Campaign Generator",
               experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -733,6 +733,7 @@ jobs:
           <system>
           PROMPT_EOF
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
@@ -1076,7 +1077,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Campaign Generator"
+          GH_AW_WORKFLOW_NAME: "Agentic Campaign Generator"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1089,7 +1090,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Campaign Generator"
+          GH_AW_WORKFLOW_NAME: "Agentic Campaign Generator"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1102,7 +1103,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Campaign Generator"
+          GH_AW_WORKFLOW_NAME: "Agentic Campaign Generator"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
@@ -1122,7 +1123,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Campaign Generator"
+          GH_AW_WORKFLOW_NAME: "Agentic Campaign Generator"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready!\",\"runFailure\":\"Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
@@ -1183,7 +1184,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Campaign Generator"
+          WORKFLOW_NAME: "Agentic Campaign Generator"
           WORKFLOW_DESCRIPTION: "Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
@@ -1370,7 +1371,7 @@ jobs:
       GH_AW_ENGINE_ID: "claude"
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready!\",\"runFailure\":\"Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
       GH_AW_WORKFLOW_ID: "agentic-campaign-generator"
-      GH_AW_WORKFLOW_NAME: "Campaign Generator"
+      GH_AW_WORKFLOW_NAME: "Agentic Campaign Generator"
     outputs:
       assign_to_agent_assigned: ${{ steps.assign_to_agent.outputs.assigned }}
       process_project_safe_outputs_processed_count: ${{ steps.process_project_safe_outputs.outputs.processed_count }}
