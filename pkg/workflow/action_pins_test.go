@@ -1201,51 +1201,51 @@ func TestGetActionPinWithData_ExactVersionResolution(t *testing.T) {
 // a semver-compatible version, the comment uses the requested version, not the pin's version.
 // For example, if user requests v8 and we fall back to v8.0.0, the comment should say v8.
 func TestFallbackVersionUsesRequestedVersionInComment(t *testing.T) {
-tests := []struct {
-name            string
-repo            string
-requestedVer    string
-expectedComment string
-}{
-{
-name:            "v8 falls back to v8.0.0 but comment shows v8",
-repo:            "actions/github-script",
-requestedVer:    "v8",
-expectedComment: "# v8",
-},
-{
-name:            "v7 falls back to v7.0.1 but comment shows v7",
-repo:            "actions/github-script",
-requestedVer:    "v7",
-expectedComment: "# v7",
-},
-}
+	tests := []struct {
+		name            string
+		repo            string
+		requestedVer    string
+		expectedComment string
+	}{
+		{
+			name:            "v8 falls back to v8.0.0 but comment shows v8",
+			repo:            "actions/github-script",
+			requestedVer:    "v8",
+			expectedComment: "# v8",
+		},
+		{
+			name:            "v7 falls back to v7.0.1 but comment shows v7",
+			repo:            "actions/github-script",
+			requestedVer:    "v7",
+			expectedComment: "# v7",
+		},
+	}
 
-for _, tt := range tests {
-t.Run(tt.name, func(t *testing.T) {
-data := &WorkflowData{
-StrictMode: false,
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &WorkflowData{
+				StrictMode: false,
+			}
 
-result, err := GetActionPinWithData(tt.repo, tt.requestedVer, data)
-if err != nil {
-t.Fatalf("GetActionPinWithData(%s, %s) returned error: %v", tt.repo, tt.requestedVer, err)
-}
+			result, err := GetActionPinWithData(tt.repo, tt.requestedVer, data)
+			if err != nil {
+				t.Fatalf("GetActionPinWithData(%s, %s) returned error: %v", tt.repo, tt.requestedVer, err)
+			}
 
-if !strings.Contains(result, tt.expectedComment) {
-t.Errorf("GetActionPinWithData(%s, %s) = %s, expected comment to contain %s",
-tt.repo, tt.requestedVer, result, tt.expectedComment)
-}
+			if !strings.Contains(result, tt.expectedComment) {
+				t.Errorf("GetActionPinWithData(%s, %s) = %s, expected comment to contain %s",
+					tt.repo, tt.requestedVer, result, tt.expectedComment)
+			}
 
-// Also verify it doesn't contain the pin's version
-if tt.requestedVer == "v8" && strings.Contains(result, "# v8.0.0") {
-t.Errorf("GetActionPinWithData(%s, %s) = %s, should use requested version v8 in comment, not v8.0.0",
-tt.repo, tt.requestedVer, result)
-}
-if tt.requestedVer == "v7" && strings.Contains(result, "# v7.0.1") {
-t.Errorf("GetActionPinWithData(%s, %s) = %s, should use requested version v7 in comment, not v7.0.1",
-tt.repo, tt.requestedVer, result)
-}
-})
-}
+			// Also verify it doesn't contain the pin's version
+			if tt.requestedVer == "v8" && strings.Contains(result, "# v8.0.0") {
+				t.Errorf("GetActionPinWithData(%s, %s) = %s, should use requested version v8 in comment, not v8.0.0",
+					tt.repo, tt.requestedVer, result)
+			}
+			if tt.requestedVer == "v7" && strings.Contains(result, "# v7.0.1") {
+				t.Errorf("GetActionPinWithData(%s, %s) = %s, should use requested version v7 in comment, not v7.0.1",
+					tt.repo, tt.requestedVer, result)
+			}
+		})
+	}
 }
