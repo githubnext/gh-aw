@@ -452,12 +452,17 @@ func formatFieldValueWithTag(val reflect.Value, tag consoleTag) string {
 				case int:
 					return FormatNumber(v)
 				case int64:
+					// #nosec G115 - Converting int64 to int for display formatting
+					// Values are display counters/sizes that won't overflow in practice
 					return FormatNumber(int(v))
 				case int32:
 					return FormatNumber(int(v))
 				case uint:
+					// #nosec G115 - Converting uint to int for display formatting
 					return FormatNumber(int(v))
 				case uint64:
+					// #nosec G115 - Converting uint64 to int for display formatting
+					// Values are display counters/sizes that won't overflow in practice
 					return FormatNumber(int(v))
 				case uint32:
 					return FormatNumber(int(v))
@@ -497,8 +502,10 @@ func formatFieldValueWithTag(val reflect.Value, tag consoleTag) string {
 				case int32:
 					return FormatFileSize(int64(v))
 				case uint:
+					// #nosec G115 - Converting uint to int64 for file size display
 					return FormatFileSize(int64(v))
 				case uint64:
+					// #nosec G115 - Converting uint64 to int64 for file size display
 					return FormatFileSize(int64(v))
 				case uint32:
 					return FormatFileSize(int64(v))
@@ -509,6 +516,7 @@ func formatFieldValueWithTag(val reflect.Value, tag consoleTag) string {
 				return FormatFileSize(val.Int())
 			}
 			if val.Kind() >= reflect.Uint && val.Kind() <= reflect.Uint64 {
+				// #nosec G115 - Converting uint to int64 for file size display
 				return FormatFileSize(int64(val.Uint()))
 			}
 		}

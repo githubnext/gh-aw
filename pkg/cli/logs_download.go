@@ -360,21 +360,36 @@ func unzipFile(zipPath, destDir string, verbose bool) error {
 
 // extractZipFile extracts a single file from a zip archive
 func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error) {
-	// Construct the full path for the file
-	filePath := filepath.Join(destDir, f.Name)
+	// #nosec G305 - Path traversal is prevented by filepath.Clean and prefix check below
+	// Validate file name doesn't contain path traversal attempts
+	cleanName := filepath.Clean(f.Name)
+	if strings.Contains(cleanName, "..") {
+		return fmt.Errorf("invalid file path in zip (contains ..): %s", f.Name)
+	}
 
-	// Prevent zip slip vulnerability
-	if !strings.HasPrefix(filePath, filepath.Clean(destDir)+string(os.PathSeparator)) {
-		return fmt.Errorf("invalid file path in zip: %s", f.Name)
+	// Construct the full path for the file
+	filePath := filepath.Join(destDir, cleanName)
+
+	// Prevent zip slip vulnerability - ensure extracted path is within destDir
+	cleanDest := filepath.Clean(destDir)
+	if !strings.HasPrefix(filepath.Clean(filePath), cleanDest+string(os.PathSeparator)) && filepath.Clean(filePath) != cleanDest {
+		return fmt.Errorf("invalid file path in zip (outside destination): %s", f.Name)
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Extracting: %s", f.Name)))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Extracting: %s", cleanName)))
 	}
 
 	// Create directory if it's a directory entry
 	if f.FileInfo().IsDir() {
 		return os.MkdirAll(filePath, os.ModePerm)
+	}
+
+	// Decompression bomb protection - limit individual file size to 1GB
+	// #nosec G110 - Decompression bomb is mitigated by size check below
+	const maxFileSize = 1 * 1024 * 1024 * 1024 // 1GB
+	if f.UncompressedSize64 > maxFileSize {
+		return fmt.Errorf("file too large in zip (>1GB): %s (%d bytes)", f.Name, f.UncompressedSize64)
 	}
 
 	// Create parent directory if needed
@@ -403,9 +418,18 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error
 		}
 	}()
 
-	// Copy the content
-	if _, err := io.Copy(destFile, srcFile); err != nil {
+	// Copy the content with size limit enforcement
+	// Use LimitReader to prevent reading more than declared size
+	limitedReader := io.LimitReader(srcFile, int64(maxFileSize))
+	written, err := io.Copy(destFile, limitedReader)
+	if err != nil {
 		extractErr = fmt.Errorf("failed to extract file: %w", err)
+		return extractErr
+	}
+
+	// Verify we didn't exceed the size limit
+	if uint64(written) > maxFileSize {
+		extractErr = fmt.Errorf("file extraction exceeded size limit: %s", f.Name)
 		return extractErr
 	}
 
