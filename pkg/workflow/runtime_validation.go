@@ -136,7 +136,12 @@ func (c *Compiler) validateContainerImages(workflowData *WorkflowData) error {
 	}
 
 	if len(errors) > 0 {
-		return fmt.Errorf("container image validation failed:\n  - %s", strings.Join(errors, "\n  - "))
+		return NewValidationError(
+			"container.images",
+			fmt.Sprintf("%d images failed validation", len(errors)),
+			"container image validation failed",
+			fmt.Sprintf("Fix the following container image issues:\n\n%s\n\nEnsure:\n1. Container images exist and are accessible\n2. Registry URLs are correct\n3. Image tags are specified\n4. You have pull permissions for private images", strings.Join(errors, "\n")),
+		)
 	}
 
 	return nil
@@ -170,7 +175,12 @@ func (c *Compiler) validateRuntimePackages(workflowData *WorkflowData) error {
 	}
 
 	if len(errors) > 0 {
-		return fmt.Errorf("runtime package validation failed:\n  - %s", strings.Join(errors, "\n  - "))
+		return NewValidationError(
+			"runtime.packages",
+			fmt.Sprintf("%d package validation errors", len(errors)),
+			"runtime package validation failed",
+			fmt.Sprintf("Fix the following package issues:\n\n%s\n\nEnsure:\n1. Package names are spelled correctly\n2. Packages exist in their respective registries (npm, PyPI)\n3. Package managers (npm, pip, uv) are installed\n4. Network access is available for registry checks", strings.Join(errors, "\n")),
+		)
 	}
 
 	return nil
@@ -261,7 +271,12 @@ func validateNoDuplicateCacheIDs(caches []CacheMemoryEntry) error {
 	seen := make(map[string]bool)
 	for _, cache := range caches {
 		if seen[cache.ID] {
-			return fmt.Errorf("duplicate cache-memory ID '%s' found. Each cache must have a unique ID", cache.ID)
+			return NewValidationError(
+				"sandbox.cache-memory",
+				cache.ID,
+				"duplicate cache-memory ID found - each cache must have a unique ID",
+				"Change the cache ID to a unique value. Example:\n\nsandbox:\n  cache-memory:\n    - id: cache-1\n      size: 100MB\n    - id: cache-2  # Use unique IDs\n      size: 50MB",
+			)
 		}
 		seen[cache.ID] = true
 	}
@@ -275,7 +290,12 @@ func validateSecretReferences(secrets []string) error {
 
 	for _, secret := range secrets {
 		if !secretNamePattern.MatchString(secret) {
-			return fmt.Errorf("invalid secret name: %s. Secret names must start with an uppercase letter and contain only uppercase letters, numbers, and underscores. Example: MY_SECRET_KEY", secret)
+			return NewValidationError(
+				"secrets",
+				secret,
+				"invalid secret name format - must follow environment variable naming conventions",
+				"Secret names must:\n- Start with an uppercase letter\n- Contain only uppercase letters, numbers, and underscores\n\nExamples:\n  MY_SECRET_KEY      ✓\n  API_TOKEN_123      ✓\n  mySecretKey        ✗ (lowercase)\n  123_SECRET         ✗ (starts with number)\n  MY-SECRET          ✗ (hyphens not allowed)",
+			)
 		}
 	}
 
