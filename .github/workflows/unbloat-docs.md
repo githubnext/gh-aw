@@ -29,6 +29,7 @@ engine:
 # Shared instructions
 imports:
   - shared/reporting.md
+  - shared/docs-server-lifecycle.md
 
 # Network access for documentation best practices research
 network:
@@ -250,30 +251,10 @@ After making changes to a documentation file, take screenshots of the rendered p
 
 #### Build and Start Documentation Server
 
-**IMPORTANT**: The documentation was already built in the "Build documentation" step. Use the preview server, not the dev server.
-
-Navigate to the docs directory and start the preview server in the background:
-
-```bash
-cd docs
-npm run preview > /tmp/preview.log 2>&1 &
-echo $! > /tmp/server.pid
-```
-
-Wait for the server to be ready on port 4321:
-
-```bash
-for i in {1..30}; do
-  curl -s http://localhost:4321 > /dev/null && echo "Server ready!" && break
-  echo "Waiting for server... ($i/30)" && sleep 2
-done
-```
-
-Verify the server is accessible:
-
-```bash
-curl -s http://localhost:4321/gh-aw/ | head -20
-```
+Follow the shared **Documentation Server Lifecycle Management** instructions:
+1. Start the preview server (section "Starting the Documentation Preview Server")
+2. Wait for readiness (section "Waiting for Server Readiness")
+3. Optionally verify accessibility (section "Verifying Server Accessibility")
 
 #### Take Screenshots with Playwright
 
@@ -319,12 +300,7 @@ If you encounter any blocked domains:
 
 #### Cleanup Server
 
-After taking screenshots, stop the preview server:
-
-```bash
-kill $(cat /tmp/server.pid) 2>/dev/null || true
-rm -f /tmp/server.pid /tmp/preview.log
-```
+After taking screenshots, follow the shared **Documentation Server Lifecycle Management** instructions for cleanup (section "Stopping the Documentation Server").
 
 ### 10. Create Pull Request
 

@@ -40,6 +40,9 @@ safe-outputs:
 network:
   allowed:
     - node
+
+imports:
+  - shared/docs-server-lifecycle.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
@@ -75,21 +78,9 @@ npm install
 npm run build
 ```
 
-Start the preview server in the background and save PID to file for reliable cleanup:
-
-```bash
-npm run preview > /tmp/preview.log 2>&1 &
-echo $! > /tmp/server.pid
-```
-
-Wait for server to be ready (port 4321):
-
-```bash
-for i in {1..30}; do
-  curl -s http://localhost:4321 > /dev/null && echo "Server ready!" && break
-  echo "Waiting... ($i/30)" && sleep 2
-done
-```
+Follow the shared **Documentation Server Lifecycle Management** instructions:
+1. Start the preview server (section "Starting the Documentation Preview Server")
+2. Wait for server readiness (section "Waiting for Server Readiness")
 
 ## Step 2: Device Configuration
 
@@ -127,12 +118,7 @@ Label with: `documentation`, `testing`, `automated`
 
 ## Step 6: Cleanup
 
-Stop the preview server using the saved PID:
-
-```bash
-kill $(cat /tmp/server.pid) 2>/dev/null || true
-rm -f /tmp/server.pid
-```
+Follow the shared **Documentation Server Lifecycle Management** instructions for cleanup (section "Stopping the Documentation Server").
 
 ## Summary
 
