@@ -74,7 +74,7 @@ Test HTTPS-only wildcard domains.
 on: push
 permissions:
   contents: read
-  issues: write
+  issues: read
 engine: copilot
 strict: false
 network:
