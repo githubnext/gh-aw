@@ -27,9 +27,6 @@ var copilotInstructionsTemplate string
 //go:embed templates/agentic-workflows.agent.md
 var agenticWorkflowsDispatcherTemplate string
 
-//go:embed templates/agentic-campaigns.agent.md
-var agenticCampaignsDispatcherTemplate string
-
 //go:embed templates/create-agentic-workflow.md
 var createWorkflowPromptTemplate string
 
@@ -45,6 +42,9 @@ var debugWorkflowPromptTemplate string
 //go:embed templates/upgrade-agentic-workflows.md
 var upgradeAgenticWorkflowsPromptTemplate string
 
+//go:embed templates/generate-agentic-campaign.md
+var campaignGeneratorInstructionsTemplate string
+
 //go:embed templates/orchestrate-agentic-campaign.md
 var campaignOrchestratorInstructionsTemplate string
 
@@ -56,12 +56,6 @@ var campaignWorkflowExecutionTemplate string
 
 //go:embed templates/close-agentic-campaign.md
 var campaignClosingInstructionsTemplate string
-
-//go:embed templates/generate-agentic-campaign.md
-var campaignGeneratorInstructionsTemplate string
-
-//go:embed templates/create-agentic-campaign.md
-var campaignCreationInstructionsTemplate string
 
 // SetVersionInfo sets the version information for the CLI
 func SetVersionInfo(v string) {
