@@ -533,11 +533,13 @@ const (
 	CodexEngine EngineName = "codex"
 	// CustomEngine is the custom engine identifier
 	CustomEngine EngineName = "custom"
+	// RalphEngine is the Ralph autonomous agent loop engine identifier
+	RalphEngine EngineName = "ralph"
 )
 
 // AgenticEngines lists all supported agentic engine names
 // Note: This remains a string slice for backward compatibility with existing code
-var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine)}
+var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(RalphEngine)}
 
 // DefaultReadOnlyGitHubTools defines the default read-only GitHub MCP tools.
 // This list is shared by both local (Docker) and remote (hosted) modes.
