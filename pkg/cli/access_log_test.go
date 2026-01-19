@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
@@ -173,9 +174,9 @@ func TestExtractDomainFromURL(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		result := extractDomainFromURL(test.url)
+		result := stringutil.ExtractDomainFromURL(test.url)
 		if result != test.expected {
-			t.Errorf("extractDomainFromURL(%q) = %q, expected %q", test.url, result, test.expected)
+			t.Errorf("stringutil.ExtractDomainFromURL(%q) = %q, expected %q", test.url, result, test.expected)
 		}
 	}
 }

@@ -31,7 +31,9 @@ tools:
   edit:
   bash:
     - "*"
-  serena: ["go"]
+  serena:
+    languages:
+      go: {}
 sandbox:
   mcp:
     container: "ghcr.io/githubnext/gh-aw-mcpg"

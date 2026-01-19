@@ -1,6 +1,6 @@
 ---
 name: "Agentic Campaign Generator"
-description: "Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation"
+description: "Agentic Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation"
 on:
   issues:
     types: [labeled]
@@ -47,4 +47,4 @@ timeout-minutes: 10
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
-{{#runtime-import? .github/aw/generate-campaign.md}}
+{{#runtime-import? .github/aw/generate-agentic-campaign.md}}
