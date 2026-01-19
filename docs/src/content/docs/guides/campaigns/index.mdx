@@ -1,120 +1,91 @@
 ---
-title: About campaigns
+title: About Campaigns
 description: Coordinate agentic workflows toward one goal, tracked in GitHub Projects.
+sidebar:
+  label: About Campaigns
 banner:
-  content: '<strong>Do not use.</strong> Campaigns are still in active development and may have unexpected consequences.'
+  content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
 ---
 
 import FeatureCard from '../../../../components/FeatureCard.astro';
 import FeatureGrid from '../../../../components/FeatureGrid.astro';
 
-## What is a campaign?
+## What are Agentic Campaigns?
 
-Campaigns are a lightweight wrapper around your existing [agentic workflows](/gh-aw/introduction/overview/): you define a goal, and a generated orchestrator keeps a GitHub Project up to date over time.
+**[Agentic campaigns](/gh-aw/reference/glossary/#agentic-campaign)** are a way to bundle agentic workflows around a shared goal.
 
-You get:
+This can be as lightweight tracking or grow over time to coordinate work across repositories and teams. Campaigns keep agentic work visible and easier to manage as it scales.
 
-- A **campaign spec** (reviewable config)
-- An **orchestrator workflow** (runs on a schedule)
-- A **Project board** (dashboard + status updates)
-
-## Why use campaigns
+## Why use campaigns?
 
 <FeatureGrid columns={2}>
-  <FeatureCard icon="goal" title="Strategic Goals" href="/gh-aw/guides/campaigns/specs/#core-fields-what-they-do">
-    Define outcomes and track progress over time
+  <FeatureCard icon="goal" title="Strategic Goals" href="/gh-aw/guides/campaigns/specs/#strategic-goals-objective--kpis">
+    Define what “done” means with an objective and KPIs (and optional narrative context).
   </FeatureCard>
-  <FeatureCard icon="project" title="Unified Tracking" href="/gh-aw/reference/safe-outputs/#project-board-updates-update-project">
-    One Project board for visibility and coordination
+  <FeatureCard icon="workflow" title="Reuse Worker Workflows" href="/gh-aw/guides/campaigns/specs/#worker-workflows">
+    Coordinate existing dispatchable workflows instead of rewriting automation.
+  </FeatureCard>
+  <FeatureCard icon="project" title="Unified Tracking" href="/gh-aw/guides/campaigns/specs/#unified-tracking-github-project">
+    Track work and status updates in one GitHub Project board.
   </FeatureCard>
   <FeatureCard icon="shield" title="Built-in Governance" href="/gh-aw/guides/campaigns/specs/#governance-pacing--safety">
-    Pacing controls keep updates predictable
-  </FeatureCard>
-  <FeatureCard icon="workflow" title="Reuse Workflows" href="/gh-aw/guides/campaigns/specs/#workflows">
-    Reuse workflows you already have
+    Cap updates per run, opt out items, and keep changes predictable.
   </FeatureCard>
 </FeatureGrid>
 
-## Quick start
+## Natural language to Campaign
 
-1. Create an issue describing the goal
-2. Apply the `create-agentic-campaign` label
-3. Review the generated pull request
-4. Merge and run the orchestrator from the Actions tab
+Creating campaigns without agentic workflows would be tedious and error-prone.
+Just like agentic workflows turn natural language into GitHub Actions,
+campaigns turn brief natural language goal definitions into coordinated work tracked in GitHub Projects.
 
-> [!IMPORTANT]
-> Use the automated campaign creation flow—it's the only supported way to create campaigns.
+**Example input**: Describe your goal in plain language, such as:
 
-## What happens when it runs
+```md
+Burn down all open code security alerts, prioritizing file-write alerts first
+and batching up to 3 related alerts/PR with a brief fix rationale comment.
+```
 
-On each orchestrator run:
-
-1. (Optional) **Dispatches worker workflows** via `workflow_dispatch`.
-2. **Discovers work items** and syncs them into the Project.
-3. **Updates fields** (status, dates, etc.) within configured limits.
-4. **Posts a Project status update** (summary + next steps).
-
-> [!NOTE]
-> Dispatch is fire-and-forget: the orchestrator does not wait for workflows to finish.
-
-## When campaigns are a good fit
-
-- A time-bound initiative (migration, security push, cleanup sprint)
-- You want a single place to track progress (Project + status updates)
-- You already have (or can author) dispatchable worker workflows
-
-If you want ProjectOps-style tracking without dispatching workflows, use the [ProjectOps example](/gh-aw/examples/issue-pr-events/projectops/) directly.
-
-## Example (spec)
-
-A campaign is defined by a `.campaign.md` spec file:
+The campaign generator automatically converts this into a **[campaign spec](/gh-aw/guides/campaigns/specs/)** in a pull request where you can review and iterate on the details. Here's what the essential parts look like:
 
 ```yaml
 ---
-id: framework-upgrade
-name: "Framework Upgrade"
-project-url: "https://github.com/orgs/myorg/projects/42"
-tracker-label: "campaign:framework-upgrade"
+id: security-alert-burndown
+name: "Security Alert Burndown"
+description: "Drive the code security alerts backlog to zero"
 
-objective: "Upgrade all services to Framework vNext"
+# GitHub Project for tracking
+project-url: "https://github.com/orgs/ORG/projects/1"
+tracker-label: "campaign:security-alert-burndown"
+
+# Strategic goals
+objective: "Reduce open code security alerts to zero without breaking CI."
 kpis:
-  - id: services_upgraded
-    name: "Services upgraded"
+  - id: open_alerts
+    name: "Open alerts"
     priority: primary
-    target: 50
+    direction: "decrease"
+    target: 0
 
+# Worker workflows to dispatch
 workflows:
-  - framework-scanner
-  - framework-upgrader
+  - security-alert-fix
 
-# Enable active workflow execution
-
-
+# Governance and pacing
 governance:
-  max-project-updates-per-run: 20
+  max-project-updates-per-run: 10
+  max-comments-per-run: 10
 ---
 ```
 
-## Common use cases
+The spec is validated and compiled to create the campaign's orchestrator workflow (`.campaign.lock.yml`) that GitHub Actions can execute.
+Think of it like compiling code: you write a human-friendly campaign definition, and the compiler produces a hardened, machine-executable workflow.
 
-<FeatureGrid columns={2}>
-  <FeatureCard icon="package" title="Migration Projects" badge="systematic">
-    Coordinate changes across repositories with automated tracking
-  </FeatureCard>
-  <FeatureCard icon="shield-check" title="Security Fixes" badge="time-bound">
-    Resolve vulnerabilities systematically with clear progress metrics
-  </FeatureCard>
-  <FeatureCard icon="beaker" title="Quality Improvements" badge="ongoing">
-    Enhance test coverage and documentation incrementally
-  </FeatureCard>
-  <FeatureCard icon="tools" title="Large Refactorings" badge="phased">
-    Execute architectural changes with milestone tracking
-  </FeatureCard>
-</FeatureGrid>
+**What happens next**: Once merged, the campaign orchestrator runs on schedule (daily by default) to [dispatch worker workflows, discover items, update the Project board, and report status](/gh-aw/guides/campaigns/flow/). The campaign coordinates all work toward your objective while respecting governance limits.
 
 ## Next steps
 
 - [Getting started](/gh-aw/guides/campaigns/getting-started/) – create your first campaign
-- [Flow & lifecycle](/gh-aw/guides/campaigns/flow/) – what the orchestrator does each run
 - [Campaign specs](/gh-aw/guides/campaigns/specs/) – fields you can configure
+- [Flow & Lifecycle](/gh-aw/guides/campaigns/flow/) – what the orchestrator does each run
 - [CLI commands](/gh-aw/guides/campaigns/cli-commands/) – inspect and validate campaigns

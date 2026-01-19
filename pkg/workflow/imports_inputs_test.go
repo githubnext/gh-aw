@@ -82,39 +82,23 @@ This workflow tests import with inputs.
 
 	lockContent := string(lockFileContent)
 
-	// Extract the first prompt heredoc section
-	// The prompt is written as: cat << 'PROMPT_EOF' > "$GH_AW_PROMPT"
-	// and ends with: PROMPT_EOF
-	promptSection := ""
-	startMarker := "cat << 'PROMPT_EOF'"
-	endMarker := "\n          PROMPT_EOF" // Note the indentation
-	if idx := strings.Index(lockContent, startMarker); idx != -1 {
-		contentStart := idx + len(startMarker)
-		// Find the end marker after the start
-		if endIdx := strings.Index(lockContent[contentStart:], endMarker); endIdx > 0 {
-			promptSection = lockContent[contentStart : contentStart+endIdx]
-		}
+	// The prompt is assembled from multiple heredocs:
+	// - the first heredoc is often just the <system> wrapper and built-in context
+	// - user/imported content is appended in later heredocs
+	// So validate substitutions against the lock content as a whole.
+	if !strings.Contains(lockContent, "Fetch 50 items") {
+		t.Errorf("Expected generated workflow to include substituted count value '50' in prompt content")
+	}
+	if !strings.Contains(lockContent, "technology") {
+		t.Errorf("Expected generated workflow to include substituted category value 'technology' in prompt content")
 	}
 
-	// The prompt should contain the substituted values
-	if promptSection != "" {
-		// Check substituted values are present
-		if !strings.Contains(promptSection, "50") {
-			t.Errorf("Expected prompt section to contain substituted count value '50', got: %s", promptSection)
-		}
-		if !strings.Contains(promptSection, "technology") {
-			t.Errorf("Expected prompt section to contain substituted category value 'technology', got: %s", promptSection)
-		}
-
-		// Check that the agentics.inputs expressions are NOT in the prompt (they should be substituted)
-		if strings.Contains(promptSection, "github.aw.inputs.count") {
-			t.Error("Prompt section should not contain unsubstituted github.aw.inputs.count expression")
-		}
-		if strings.Contains(promptSection, "github.aw.inputs.category") {
-			t.Error("Prompt section should not contain unsubstituted github.aw.inputs.category expression")
-		}
-	} else {
-		t.Error("Could not find prompt heredoc section in lock file")
+	// Ensure github.aw.inputs.* expressions were substituted during compilation.
+	if strings.Contains(lockContent, "github.aw.inputs.count") {
+		t.Error("Generated workflow should not contain unsubstituted github.aw.inputs.count expression")
+	}
+	if strings.Contains(lockContent, "github.aw.inputs.category") {
+		t.Error("Generated workflow should not contain unsubstituted github.aw.inputs.category expression")
 	}
 }
 

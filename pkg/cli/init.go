@@ -140,11 +140,11 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 			fn   func(bool, bool) error
 			name string
 		}{
+			{ensureCampaignCreationInstructions, "campaign creation instructions"},
 			{ensureCampaignOrchestratorInstructions, "campaign orchestrator instructions"},
 			{ensureCampaignProjectUpdateInstructions, "campaign project update instructions"},
 			{ensureCampaignWorkflowExecution, "campaign workflow execution"},
 			{ensureCampaignClosingInstructions, "campaign closing instructions"},
-			{ensureCampaignProjectUpdateContractChecklist, "campaign project update contract checklist"},
 			{ensureCampaignGeneratorInstructions, "campaign generator instructions"},
 		}
 
@@ -166,6 +166,13 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		}
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added campaign-generator workflow"))
+		}
+
+		// Create the 'create-agentic-campaign' label
+		initLog.Print("Creating 'create-agentic-campaign' label")
+		if err := createCampaignLabel(verbose); err != nil {
+			// Label creation is non-fatal, just log the error
+			initLog.Printf("Label creation encountered an issue: %v", err)
 		}
 	}
 
@@ -280,9 +287,9 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	return nil
 }
 
-// addCampaignGeneratorWorkflow generates and compiles the campaign-generator workflow
+// addCampaignGeneratorWorkflow generates and compiles the agentic-campaign-generator workflow
 func addCampaignGeneratorWorkflow(verbose bool) error {
-	initLog.Print("Generating campaign-generator workflow")
+	initLog.Print("Generating agentic-campaign-generator workflow")
 
 	// Get the git root directory
 	gitRoot, err := findGitRoot()
@@ -291,43 +298,136 @@ func addCampaignGeneratorWorkflow(verbose bool) error {
 		return fmt.Errorf("failed to find git root: %w", err)
 	}
 
-	// Determine the workflows directory
+	// The runnable artifact is the compiled lock file, which must be in .github/workflows.
+	// Keep the markdown source in .github/aw to match other gh-aw prompts.
 	workflowsDir := filepath.Join(gitRoot, ".github", "workflows")
+	awDir := filepath.Join(gitRoot, ".github", "aw")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		initLog.Printf("Failed to create workflows directory: %v", err)
 		return fmt.Errorf("failed to create workflows directory: %w", err)
 	}
+	if err := os.MkdirAll(awDir, 0755); err != nil {
+		initLog.Printf("Failed to create .github/aw directory: %v", err)
+		return fmt.Errorf("failed to create .github/aw directory: %w", err)
+	}
 
-	// Build the campaign-generator workflow
+	// Build the agentic-campaign-generator workflow
 	data := campaign.BuildCampaignGenerator()
-	workflowPath := filepath.Join(workflowsDir, "campaign-generator.md")
+	workflowPath := filepath.Join(awDir, "agentic-campaign-generator.md")
 
 	// Render the workflow to markdown
 	content := renderCampaignGeneratorMarkdown(data)
 
 	// Write markdown file with restrictive permissions
 	if err := os.WriteFile(workflowPath, []byte(content), 0600); err != nil {
-		initLog.Printf("Failed to write campaign-generator.md: %v", err)
-		return fmt.Errorf("failed to write campaign-generator.md: %w", err)
+		initLog.Printf("Failed to write agentic-campaign-generator.md: %v", err)
+		return fmt.Errorf("failed to write agentic-campaign-generator.md: %w", err)
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Created campaign-generator workflow: %s\n", workflowPath)
+		fmt.Fprintf(os.Stderr, "Created agentic-campaign-generator workflow: %s\n", workflowPath)
 	}
 
-	// Compile to lock file using the standard compiler
+	// Compile to lock file using the standard compiler.
+	// agentic-campaign-generator.md lives in .github/aw, but MarkdownToLockFile is
+	// intentionally mapped to emit the runnable lock file into .github/workflows.
 	compiler := workflow.NewCompiler(verbose, "", GetVersion())
 	if err := CompileWorkflowWithValidation(compiler, workflowPath, verbose, false, false, false, false, false); err != nil {
-		initLog.Printf("Failed to compile campaign-generator: %v", err)
-		return fmt.Errorf("failed to compile campaign-generator: %w", err)
+		initLog.Printf("Failed to compile agentic-campaign-generator: %v", err)
+		return fmt.Errorf("failed to compile agentic-campaign-generator: %w", err)
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Compiled campaign-generator workflow\n")
+		fmt.Fprintf(os.Stderr, "Compiled agentic-campaign-generator workflow\n")
 	}
 
-	initLog.Print("Campaign-generator workflow generated successfully")
+	initLog.Print("Agentic-campaign-generator workflow generated successfully")
 	return nil
+}
+
+// createCampaignLabel creates the 'create-agentic-campaign' label in the repository
+func createCampaignLabel(verbose bool) error {
+	initLog.Print("Creating 'create-agentic-campaign' label")
+
+	// Get the current repository
+	repo, err := getCurrentRepositoryForInit()
+	if err != nil {
+		initLog.Printf("Could not determine repository: %v", err)
+		// Don't fail if we can't determine the repository
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not determine repository for label creation: %v", err)))
+		}
+		return nil
+	}
+
+	initLog.Printf("Creating label for repository: %s", repo)
+
+	// Split repo into owner and name
+	parts := strings.Split(repo, "/")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		initLog.Printf("Invalid repository format: %s", repo)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Invalid repository format: %s", repo)))
+		}
+		return nil
+	}
+
+	// Create the label using gh api
+	// See https://docs.github.com/en/rest/issues/labels?apiVersion=2022-11-28#create-a-label
+	cmd := workflow.ExecGH("api",
+		fmt.Sprintf("repos/%s/labels", repo),
+		"-X", "POST",
+		"-f", "name=create-agentic-campaign",
+		"-f", "color=0E8A16",
+		"-f", "description=Create a new agentic campaign")
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		outputStr := string(output)
+		// Check if the error is because the label already exists
+		if strings.Contains(outputStr, "already_exists") {
+			initLog.Print("Label 'create-agentic-campaign' already exists")
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Label 'create-agentic-campaign' already exists"))
+			}
+			return nil
+		}
+
+		// For other errors, log but don't fail the init
+		initLog.Printf("Failed to create label (non-fatal): %v (output: %s)", err, outputStr)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to create label 'create-agentic-campaign': %v", err)))
+		}
+		return nil
+	}
+
+	initLog.Print("Successfully created label 'create-agentic-campaign'")
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created label 'create-agentic-campaign'"))
+	}
+
+	return nil
+}
+
+// getCurrentRepositoryForInit gets the current repository for init command
+func getCurrentRepositoryForInit() (string, error) {
+	initLog.Print("Getting current repository for init")
+
+	// Use the same approach as repository_features_validation.go
+	// Try to get the repository using gh CLI
+	cmd := workflow.ExecGH("repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current repository: %w", err)
+	}
+
+	repo := strings.TrimSpace(string(output))
+	if repo == "" {
+		return "", fmt.Errorf("repository name is empty")
+	}
+
+	initLog.Printf("Current repository: %s", repo)
+	return repo, nil
 }
 
 // renderCampaignGeneratorMarkdown converts WorkflowData to markdown format for campaign-generator
@@ -397,6 +497,9 @@ func renderCampaignGeneratorMarkdown(data *workflow.WorkflowData) string {
 			b.WriteString("    max: 1\n")
 			if data.SafeOutputs.CreateProjects.GitHubToken != "" {
 				fmt.Fprintf(&b, "    github-token: \"%s\"\n", data.SafeOutputs.CreateProjects.GitHubToken)
+			}
+			if data.SafeOutputs.CreateProjects.TargetOwner != "" {
+				fmt.Fprintf(&b, "    target-owner: \"%s\"\n", data.SafeOutputs.CreateProjects.TargetOwner)
 			}
 		}
 

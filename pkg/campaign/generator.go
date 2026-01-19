@@ -69,6 +69,7 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 		AssignToAgent: &workflow.AssignToAgentConfig{},
 		CreateProjects: &workflow.CreateProjectsConfig{
 			GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+			TargetOwner: "${{ github.repository_owner }}",
 		},
 		UpdateProjects: &workflow.UpdateProjectConfig{
 			GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
@@ -104,7 +105,7 @@ func buildGeneratorPrompt() string {
 	var prompt strings.Builder
 
 	prompt.WriteString("{{#runtime-import? .github/shared-instructions.md}}\n")
-	prompt.WriteString("{{#runtime-import? .github/aw/generate-campaign.md}}\n")
+	prompt.WriteString("{{#runtime-import? .github/aw/generate-agentic-campaign.md}}\n")
 
 	return prompt.String()
 }

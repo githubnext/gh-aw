@@ -51,7 +51,8 @@ With --codespaces flag:
 
 With --campaign flag:
 - Creates .github/agents/agentic-campaigns.agent.md with the Campaigns dispatcher agent
-- Adds campaign-generator.md workflow to .github/workflows/ for creating campaigns from issues
+- Adds (or reuses) .github/aw/agentic-campaign-generator.md source and compiles .github/workflows/agentic-campaign-generator.lock.yml for creating campaigns from issues
+- Creates a 'create-agentic-campaign' label in your repository for triggering campaign workflows
 - Enables campaign-related prompts and functionality for multi-workflow coordination
 
 With --completions flag:

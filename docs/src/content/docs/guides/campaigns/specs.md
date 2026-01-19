@@ -2,7 +2,7 @@
 title: Campaign specs
 description: Define and configure agentic campaigns with spec files, tracker labels, and recommended wiring
 banner:
-  content: '<strong>Do not use.</strong> Campaigns are still in active development and may have unexpected consequences.'
+  content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
 ---
 
 Campaigns are defined as Markdown files under `.github/workflows/` with a `.campaign.md` suffix. The YAML frontmatter is the campaign “contract”; the body can contain optional narrative context.
@@ -85,6 +85,13 @@ owners:
 > [!IMPORTANT]
 > Use `priority: primary` (not `primary: true`) to mark your primary KPI.
 
+## Strategic goals (objective + KPIs)
+
+Use `objective` and `kpis` to define what “done” means and how progress should be reported.
+
+- `objective`: a one-sentence definition of success.
+- `kpis`: a small set of measures shown in status updates.
+
 ## KPIs (recommended shape)
 
 Keep KPIs small and crisp:
@@ -94,6 +101,21 @@ Keep KPIs small and crisp:
 - Use `target` when there is a clear threshold.
 
 If you define `kpis`, also define `objective` (and vice versa). It keeps the spec reviewable and makes reports consistent.
+
+## Unified tracking (GitHub Project)
+
+Use `project-url` to point the campaign at a GitHub Project board for tracking.
+
+- `project-url`: the Project URL (for example: `https://github.com/orgs/ORG/projects/1`).
+- `project-github-token` (optional): a token to use for Projects operations when `GITHUB_TOKEN` isn’t enough.
+
+Project updates are applied by the orchestrator using safe outputs; see [Update Project](/gh-aw/reference/safe-outputs/#project-board-updates-update-project).
+
+## Worker workflows
+
+Use `workflows` to list the dispatchable workflows (“workers”) the orchestrator can trigger via `workflow_dispatch`.
+
+For worker requirements and dispatch behavior, see [Dispatching worker workflows](/gh-aw/guides/campaigns/flow/#dispatching-worker-workflows).
 
 ## Governance (pacing)
 

@@ -534,6 +534,14 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Export engine type
 		yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
 
+		// For Copilot engine with GitHub remote MCP, export GITHUB_PERSONAL_ACCESS_TOKEN
+		// This is needed because the MCP gateway validates ${VAR} references in headers at config load time
+		// and the Copilot MCP config uses ${GITHUB_PERSONAL_ACCESS_TOKEN} in the Authorization header
+		githubTool, hasGitHub := tools["github"]
+		if hasGitHub && getGitHubType(githubTool) == "remote" && engine.GetID() == "copilot" {
+			yaml.WriteString("          export GITHUB_PERSONAL_ACCESS_TOKEN=\"$GITHUB_MCP_SERVER_TOKEN\"\n")
+		}
+
 		// Add user-configured environment variables
 		if len(gatewayConfig.Env) > 0 {
 			envVarNames := make([]string, 0, len(gatewayConfig.Env))
@@ -578,6 +586,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		containerCmd += " -e DEFAULT_BRANCH"
 		// Environment variables used by GitHub MCP server
 		containerCmd += " -e GITHUB_MCP_SERVER_TOKEN"
+		// For Copilot engine with GitHub remote MCP, also pass GITHUB_PERSONAL_ACCESS_TOKEN
+		// This allows the gateway to expand ${GITHUB_PERSONAL_ACCESS_TOKEN} references in headers
+		if hasGitHub && getGitHubType(githubTool) == "remote" && engine.GetID() == "copilot" {
+			containerCmd += " -e GITHUB_PERSONAL_ACCESS_TOKEN"
+		}
 		containerCmd += " -e GITHUB_MCP_LOCKDOWN"
 		// Standard GitHub Actions environment variables
 		containerCmd += " -e GITHUB_REPOSITORY"

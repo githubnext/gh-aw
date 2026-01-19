@@ -31,7 +31,9 @@ tools:
   edit:
   bash:
     - "*"
-  serena: ["go"]
+  serena:
+    languages:
+      go: {}
 sandbox:
   mcp:
     container: "ghcr.io/githubnext/gh-aw-mcpg"
@@ -58,7 +60,7 @@ timeout-minutes: 10
 ## Test Requirements
 
 1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
-2. **Serena Go Testing**: Use the `serena-go` tool to run a basic go command like "go version" to verify the tool is available
+2. **Serena Go Testing**: Use the `serena` tool to run a basic go command like "go version" to verify the tool is available
 3. **Playwright Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
 4. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item
 5. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-codex-${{ github.run_id }}.txt` with content "Smoke test passed for Codex at $(date)" (create the directory if it doesn't exist)

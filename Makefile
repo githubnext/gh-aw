@@ -571,12 +571,13 @@ sync-templates:
 	@cp .github/aw/upgrade-agentic-workflows.md pkg/cli/templates/
 	@cp .github/agents/agentic-workflows.agent.md pkg/cli/templates/
 	@cp .github/agents/agentic-campaigns.agent.md pkg/cli/templates/
-	@cp .github/aw/orchestrate-campaign.md pkg/cli/templates/
-	@cp .github/aw/update-campaign-project.md pkg/cli/templates/
-	@cp .github/aw/execute-campaign-workflow.md pkg/cli/templates/
-	@cp .github/aw/close-campaign.md pkg/cli/templates/
-	@cp .github/aw/update-campaign-project-contract.md pkg/cli/templates/
-	@cp .github/aw/generate-campaign.md pkg/cli/templates/
+	@cp .github/aw/orchestrate-agentic-campaign.md pkg/cli/templates/
+	@cp .github/aw/update-agentic-campaign-project.md pkg/cli/templates/
+	@cp .github/aw/execute-agentic-campaign-workflow.md pkg/cli/templates/
+	@cp .github/aw/close-agentic-campaign.md pkg/cli/templates/
+	@cp .github/aw/update-agentic-campaign-project-contract.md pkg/cli/templates/
+	@cp .github/aw/generate-agentic-campaign.md pkg/cli/templates/
+	@cp .github/aw/create-agentic-campaign.md pkg/cli/templates/
 	@echo "✓ Templates synced successfully"
 
 
@@ -638,10 +639,6 @@ pull-main:
 	@git diff --quiet || (echo "Error: Working directory is not clean. Please commit or stash changes before pulling." && exit 1)
 	@echo "Pulling latest changes..."
 	@git pull
-
-.PHONY: release
-release: pull-main build
-	@node scripts/changeset.js release
 
 # Generate Software Bill of Materials (SBOM)
 .PHONY: sbom
@@ -736,6 +733,5 @@ help:
 
 	@echo "  agent-finish     - Complete validation sequence (build, test, fix, recompile, fmt, lint, security-scan)"
 	@echo "  version   - Preview next version from changesets"
-	@echo "  release   - Create release using changesets (depends on test)"
 	@echo "  sbom             - Generate SBOM in SPDX and CycloneDX formats (requires syft)"
 	@echo "  help             - Show this help message"

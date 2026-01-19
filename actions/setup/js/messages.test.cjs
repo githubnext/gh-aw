@@ -300,7 +300,7 @@ describe("messages.cjs", () => {
 
       const result = generateFooterWithMessages("Test Workflow", "https://github.com/test/repo/actions/runs/123", "", "", undefined, undefined, undefined);
 
-      expect(result).toContain("<!-- agentic-workflow: Test Workflow");
+      expect(result).toContain("<!-- gh-aw-agentic-workflow: Test Workflow");
       expect(result).toContain("run: https://github.com/test/repo/actions/runs/123 -->");
     });
 
@@ -313,7 +313,7 @@ describe("messages.cjs", () => {
 
       const result = generateFooterWithMessages("Test Workflow", "https://github.com/test/repo/actions/runs/123", "", "", undefined, undefined, undefined);
 
-      expect(result).toContain("<!-- agentic-workflow: Test Workflow");
+      expect(result).toContain("<!-- gh-aw-agentic-workflow: Test Workflow");
       expect(result).toContain("engine: copilot");
       expect(result).toContain("version: 1.0.0");
       expect(result).toContain("model: gpt-5");
@@ -332,7 +332,7 @@ describe("messages.cjs", () => {
 
       const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
-      expect(result).toBe("<!-- agentic-workflow: Test Workflow, run: https://github.com/test/repo/actions/runs/123 -->");
+      expect(result).toBe("<!-- gh-aw-agentic-workflow: Test Workflow, run: https://github.com/test/repo/actions/runs/123 -->");
     });
 
     it("should include engine ID when env var is set", async () => {
@@ -343,7 +343,7 @@ describe("messages.cjs", () => {
 
       const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
-      expect(result).toBe("<!-- agentic-workflow: Test Workflow, engine: copilot, run: https://github.com/test/repo/actions/runs/123 -->");
+      expect(result).toBe("<!-- gh-aw-agentic-workflow: Test Workflow, engine: copilot, run: https://github.com/test/repo/actions/runs/123 -->");
 
       delete process.env.GH_AW_ENGINE_ID;
     });
@@ -358,7 +358,7 @@ describe("messages.cjs", () => {
 
       const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
-      expect(result).toBe("<!-- agentic-workflow: Test Workflow, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->");
+      expect(result).toBe("<!-- gh-aw-agentic-workflow: Test Workflow, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->");
 
       delete process.env.GH_AW_ENGINE_ID;
       delete process.env.GH_AW_ENGINE_VERSION;
@@ -373,7 +373,7 @@ describe("messages.cjs", () => {
 
       const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
-      expect(result).toBe("<!-- agentic-workflow: Test Workflow, tracker-id: my-tracker-12345, run: https://github.com/test/repo/actions/runs/123 -->");
+      expect(result).toBe("<!-- gh-aw-agentic-workflow: Test Workflow, gh-aw-tracker-id: my-tracker-12345, run: https://github.com/test/repo/actions/runs/123 -->");
 
       delete process.env.GH_AW_TRACKER_ID;
     });
@@ -389,7 +389,7 @@ describe("messages.cjs", () => {
 
       const result = generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
-      expect(result).toBe("<!-- agentic-workflow: Test Workflow, tracker-id: workflow-2024-q1, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->");
+      expect(result).toBe("<!-- gh-aw-agentic-workflow: Test Workflow, gh-aw-tracker-id: workflow-2024-q1, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->");
 
       delete process.env.GH_AW_ENGINE_ID;
       delete process.env.GH_AW_ENGINE_VERSION;

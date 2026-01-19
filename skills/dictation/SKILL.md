@@ -1,6 +1,6 @@
 ---
 name: Dictation Instructions
-description: Fix speech-to-text errors in dictated content related to GitHub Agentic Workflows
+description: Fix speech-to-text errors and improve text clarity in dictated content related to GitHub Agentic Workflows
 applyTo: "**/*"
 ---
 
@@ -8,10 +8,11 @@ applyTo: "**/*"
 
 ## Technical Context
 
-GitHub Agentic Workflows (gh-aw) is a CLI tool for writing agentic workflows in natural language using markdown files and running them as GitHub Actions. When fixing dictated text, use these project-specific terms and conventions.
+GitHub Agentic Workflows (gh-aw) is a CLI tool for writing agentic workflows in natural language using markdown files and running them as GitHub Actions. When fixing dictated text, use these project-specific terms and conventions, and improve text clarity by removing filler words and making it more professional.
 
 ## Project Glossary
 
+@copilot
 actions
 activation
 add-comment
@@ -311,9 +312,12 @@ Common speech-to-text misrecognitions and their corrections:
 - "create issue" → create-issue
 - "pull request review" → pull-request-review
 
-### AI Engines
-- "co-pilot" → copilot
+### AI Engines & Bots
+- "co-pilot" → copilot (when referring to the engine)
 - "Co-Pilot" → Copilot
+- "at copilot" → @copilot (when assigning/mentioning the bot)
+- "@ copilot" → @copilot
+- "copilot" → @copilot (when context indicates assignment or mention)
 - "code X" → codex
 - "Code X" → Codex
 
@@ -323,11 +327,51 @@ When context suggests a GitHub Actions key or CLI flag:
 - In YAML: prefer hyphenated form
 - In prose: either form acceptable, prefer hyphenated for consistency
 
+## Clean Up and Improve Text
+
+Make dictated text clearer and more professional by:
+
+### Remove Filler Words
+Common filler words and verbal tics to remove:
+- "humm", "hmm", "hm"
+- "um", "uh", "uhh", "er", "err"
+- "you know"
+- "like" (when used as filler, not for comparisons)
+- "basically", "actually", "essentially" (when redundant)
+- "sort of", "kind of" (when used to hedge unnecessarily)
+- "I mean", "I think", "I guess"
+- "right?", "yeah", "okay" (at start/end of sentences)
+- Repeated words: "the the", "and and", etc.
+
+### Improve Clarity
+- Make sentences more direct and concise
+- Use active voice instead of passive voice where appropriate
+- Remove redundant phrases
+- Fix run-on sentences by splitting them appropriately
+- Ensure proper sentence structure and punctuation
+- Replace vague terms with specific technical terms from the glossary
+
+### Maintain Professional Tone
+- Keep technical accuracy
+- Preserve the user's intended meaning
+- Use neutral, technical language
+- Avoid overly casual or conversational tone in technical contexts
+- Maintain appropriate formality for documentation and technical discussions
+
+### Examples
+- "Um, so like, you need to basically compile the workflow, you know?" → "Compile the workflow."
+- "I think we should, hmm, use safe-outputs for this" → "Use safe-outputs for this."
+- "The workflow is kind of slow, actually" → "The workflow is slow."
+- "You know, the MCP server needs to be configured" → "The MCP server needs to be configured."
+
 ## Guidelines
 
 You do not have enough background information to plan or provide code examples.
 - Do NOT generate code examples
 - Do NOT plan steps or provide implementation guidance
-- Focus ONLY on fixing speech-to-text errors (misrecognized words, spacing, hyphenation)
+- Focus on fixing speech-to-text errors (misrecognized words, spacing, hyphenation)
+- Remove filler words and verbal tics (humm, you know, um, uh, like, etc.)
+- Improve clarity and professionalism of the text
+- Make text more direct and concise
 - When unsure, prefer the hyphenated form for technical terms
-- Preserve the user's intended meaning while correcting transcription errors
+- Preserve the user's intended meaning while correcting transcription errors and improving clarity

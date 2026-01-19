@@ -256,9 +256,46 @@ describe("add_labels", () => {
         {}
       );
 
-      expect(result.success).toBe(true);
-      expect(result.labelsAdded).toEqual([]);
-      expect(result.message).toBe("No valid labels found");
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("No labels provided");
+      expect(result.error).toContain("repository's available labels");
+    });
+
+    it("should handle missing labels field", async () => {
+      const handler = await main({ max: 10 });
+
+      const result = await handler(
+        {
+          item_number: 100,
+        },
+        {}
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("No labels provided");
+      expect(result.error).toContain("repository's available labels");
+    });
+
+    it("should return allowed labels list when labels missing and allowed list configured", async () => {
+      const handler = await main({
+        allowed: ["bug", "enhancement", "documentation"],
+        max: 10,
+      });
+
+      const result = await handler(
+        {
+          item_number: 100,
+          labels: [],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("No labels provided");
+      expect(result.error).toContain("allowed list");
+      expect(result.error).toContain("bug");
+      expect(result.error).toContain("enhancement");
+      expect(result.error).toContain("documentation");
     });
 
     it("should handle API errors gracefully", async () => {

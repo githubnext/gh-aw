@@ -144,7 +144,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.9
+        run: npm install -g --silent @anthropic-ai/claude-code@2.1.12
       - name: Determine automatic lockdown mode for GitHub MCP server
         id: determine-automatic-lockdown
         env:
@@ -339,7 +339,7 @@ jobs:
               engine_name: "Claude Code",
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "2.1.9",
+              agent_version: "2.1.12",
               workflow_name: "Daily Team Evolution Insights",
               experimental: true,
               supports_tools_allowlist: true,
@@ -357,7 +357,7 @@ jobs:
               allowed_domains: ["*"],
               firewall_enabled: false,
               awf_version: "",
-              awmg_version: "v0.0.62",
+              awmg_version: "v0.0.69",
               steps: {
                 firewall: ""
               },
@@ -396,6 +396,7 @@ jobs:
           <system>
           PROMPT_EOF
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
@@ -1069,7 +1070,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.9
+        run: npm install -g --silent @anthropic-ai/claude-code@2.1.12
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

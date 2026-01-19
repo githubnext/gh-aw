@@ -345,7 +345,7 @@ jobs:
               allowed_domains: ["*"],
               firewall_enabled: false,
               awf_version: "",
-              awmg_version: "v0.0.62",
+              awmg_version: "v0.0.69",
               steps: {
                 firewall: ""
               },
@@ -384,6 +384,7 @@ jobs:
           <system>
           PROMPT_EOF
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>

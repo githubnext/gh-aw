@@ -28,11 +28,11 @@ But here's the thing: work doesn't have to be all business. While we've built se
 
 These agents facilitate team communication and remind us that work can be fun:
 
-- **[Daily Team Status](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-team-status.md?plain=1)** - Shares team mood and status updates  
-- **[Daily News](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-news.md?plain=1)** - Curates relevant news for the team
-- **[Poem Bot](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/poem-bot.md?plain=1)** - Responds to `/poem-bot` commands with creative verses (yes, really)  
-- **[Weekly Issue Summary](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/weekly-issue-summary.md?plain=1)** - Creates digestible summaries complete with charts and trends
-- **[Daily Repo Chronicle](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-repo-chronicle.md?plain=1)** - Narrates the day's activity like a storyteller - seriously, it's kind of delightful.
+- **[Daily Team Status](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-team-status.md?plain=1)** - Shares team mood and status updates  
+- **[Daily News](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-news.md?plain=1)** - Curates relevant news for the team
+- **[Poem Bot](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/poem-bot.md?plain=1)** - Responds to `/poem-bot` commands with creative verses (yes, really)  
+- **[Weekly Issue Summary](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/weekly-issue-summary.md?plain=1)** - Creates digestible summaries complete with charts and trends
+- **[Daily Repo Chronicle](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-repo-chronicle.md?plain=1)** - Narrates the day's activity like a storyteller - seriously, it's kind of delightful.
 
 The Poem Bot started as a whimsy in our Copilot for PRs project in 2022. Someone said "wouldn't it be funny if we had an agent that writes poems about our code?" and then we built it. We learned that AI agents don't have to be all business - they can build culture and create moments of joy. We brought this forward to this project.
 

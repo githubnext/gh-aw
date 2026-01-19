@@ -540,21 +540,21 @@ Browse the factory for inspiration:
 
 **Simple Examples:**
 
-- [`poem-bot`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/poem-bot.md) - ChatOps personality
-- [`daily-repo-chronicle`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-repo-chronicle.md) - Daily summary
-- [`issue-triage-agent`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/issue-triage-agent.md) - Event-driven
+- [`poem-bot`](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/poem-bot.md) - ChatOps personality
+- [`daily-repo-chronicle`](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-repo-chronicle.md) - Daily summary
+- [`issue-triage-agent`](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/issue-triage-agent.md) - Event-driven
 
 **Intermediate Examples:**
 
-- [`ci-doctor`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/ci-doctor.md) - Diagnostic analysis
-- [`glossary-maintainer`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/glossary-maintainer.md) - Content sync
-- [`terminal-stylist`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/terminal-stylist.md) - Code analysis
+- [`ci-doctor`](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/ci-doctor.md) - Diagnostic analysis
+- [`glossary-maintainer`](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/glossary-maintainer.md) - Content sync
+- [`terminal-stylist`](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/terminal-stylist.md) - Code analysis
 
 **Advanced Examples:**
 
 - [`daily-test-improver`](https://github.com/githubnext/agentics/blob/main/workflows/daily-test-improver.md) - Multi-phase
-- [`agent-performance-analyzer`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/agent-performance-analyzer.md) - Meta-agent
-- [`workflow-health-manager`](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/workflow-health-manager.md) - Orchestration
+- [`agent-performance-analyzer`](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/agent-performance-analyzer.md) - Meta-agent
+- [`workflow-health-manager`](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/workflow-health-manager.md) - Orchestration
 
 ### Documentation
 

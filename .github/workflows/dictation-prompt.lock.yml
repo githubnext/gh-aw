@@ -169,7 +169,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.62 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.69 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -370,7 +370,7 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.62'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.69'
           
           mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
@@ -445,7 +445,7 @@ jobs:
               allowed_domains: [],
               firewall_enabled: true,
               awf_version: "v0.10.0",
-              awmg_version: "v0.0.62",
+              awmg_version: "v0.0.69",
               steps: {
                 firewall: "squid"
               },
@@ -484,6 +484,7 @@ jobs:
           <system>
           PROMPT_EOF
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
@@ -544,15 +545,16 @@ jobs:
           
           # Dictation Prompt Generator
           
-          Extract technical vocabulary from documentation files and create a concise dictation instruction file for fixing speech-to-text errors.
+          Extract technical vocabulary from documentation files and create a concise dictation instruction file for fixing speech-to-text errors and improving text clarity.
           
           ## Your Mission
           
           Create a concise dictation instruction file at `skills/dictation/SKILL.md` that:
           1. Contains a glossary of approximately 250 project-specific terms extracted from documentation
           2. Provides instructions for fixing speech-to-text errors (ambiguous terms, spacing, hyphenation)
-          3. Does NOT include planning guidelines or examples (keep it short and focused on error correction)
-          4. Includes guidelines to NOT plan or provide examples, just focus on fixing speech-to-text errors.
+          3. Provides instructions for "agentifying" text: removing filler words (humm, you know, um, uh, like, etc.), improving clarity, and making text more professional
+          4. Does NOT include planning guidelines or examples (keep it short and focused on error correction and text cleanup)
+          5. Includes guidelines to NOT plan or provide examples, just focus on fixing speech-to-text errors and improving text quality.
           
           ## Task Steps
           
@@ -563,6 +565,7 @@ jobs:
           **Focus areas:**
           - Configuration: safe-outputs, permissions, tools, cache-memory, toolset, frontmatter
           - Engines: copilot, claude, codex, custom
+          - Bot mentions: @copilot (for GitHub issue assignment)
           - Commands: compile, audit, logs, mcp, recompile
           - GitHub concepts: workflow_dispatch, pull_request, issues, discussions
           - Repository-specific: agentic workflows, gh-aw, activation, MCP servers
@@ -580,13 +583,17 @@ jobs:
           - Technical Context: Brief description of gh-aw
           - Project Glossary: ~250 terms, alphabetically sorted, one per line
           - Fix Speech-to-Text Errors: Common misrecognitions → correct terms
+          - Clean Up and Improve Text: Instructions for removing filler words and improving clarity
           - Guidelines: General instructions as follows
           
           ```markdown
           You do not have enough background information to plan or provide code examples.
           - do NOT generate code examples
           - do NOT plan steps
-          - focus on fixing speech-to-text errors only
+          - focus on fixing speech-to-text errors and improving text quality
+          - remove filler words (humm, you know, um, uh, like, basically, actually, etc.)
+          - improve clarity and make text more professional
+          - maintain the user's intended meaning
           ```
           
           ### 3. Create Pull Request
@@ -612,6 +619,7 @@ jobs:
           - ✅ Contains ~250 project-specific terms (240-260 acceptable)
           - ✅ Terms extracted from documentation only
           - ✅ Focuses on fixing speech-to-text errors
+          - ✅ Includes instructions for removing filler words and improving text clarity
           - ✅ Pull request created with changes
           
           PROMPT_EOF

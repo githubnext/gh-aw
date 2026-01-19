@@ -54,9 +54,6 @@ executive-sponsors:
 risk-level: high
 ---
 
-> [!WARNING]
-> **Please do not use at this time.** Campaigns are currently in build phase and not ready for production. This feature is under active development and may have breaking changes.
-
 # Security Audit 2026 Campaign
 
 This campaign orchestrates a comprehensive security audit across all repositories, focusing on:

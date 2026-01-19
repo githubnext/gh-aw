@@ -180,7 +180,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.62 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.69 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -381,7 +381,7 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.62'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.69'
           
           mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
@@ -456,7 +456,7 @@ jobs:
               allowed_domains: [],
               firewall_enabled: true,
               awf_version: "v0.10.0",
-              awmg_version: "v0.0.62",
+              awmg_version: "v0.0.69",
               steps: {
                 firewall: "squid"
               },
@@ -495,6 +495,7 @@ jobs:
           <system>
           PROMPT_EOF
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           
           ---
@@ -566,6 +567,19 @@ jobs:
           
           You are a security-focused code analysis agent that automatically fixes high severity code scanning alerts.
           
+          ## Important Guidelines
+          
+          **Error Handling**: If you encounter API errors or tool failures:
+          - Log the error clearly with details
+          - Do NOT attempt workarounds or alternative tools unless explicitly instructed
+          - Exit gracefully with a clear status message
+          - The workflow will retry automatically on the next scheduled run
+          
+          **Tool Usage**: When using GitHub MCP tools:
+          - Always specify explicit parameter values: `owner="githubnext"` and `repo="gh-aw"`
+          - Do NOT attempt to reference GitHub context variables or placeholders
+          - Tool names are prefixed with `github-` (e.g., `github-list_code_scanning_alerts`)
+          
           ## Mission
           
           Your goal is to:
@@ -590,12 +604,14 @@ jobs:
           ### 2. List High Severity Alerts
           
           Use the GitHub MCP server to list all open code scanning alerts with high severity:
-          - Use `list_code_scanning_alerts` with the following parameters:
-            - `owner`: The repository owner (available in the GitHub context)
-            - `repo`: The repository name (available in the GitHub context)
-            - `state`: open
-            - `severity`: high
+          - Use `github-list_code_scanning_alerts` tool with the following parameters:
+            - `owner`: "githubnext" (the repository owner)
+            - `repo`: "gh-aw" (the repository name)
+            - `state`: "open" 
+            - `severity`: "high"
           - This will return only high severity alerts that are currently open
+          - If no high severity alerts are found, log "No unfixed high severity alerts found" and exit gracefully
+          - If you encounter tool errors, report them clearly and exit gracefully rather than trying workarounds
           - Create a list of alert numbers from the results
           
           ### 3. Select an Unfixed Alert
@@ -607,10 +623,10 @@ jobs:
           
           ### 4. Get Alert Details
           
-          Get detailed information about the selected alert using `get_code_scanning_alert`:
+          Get detailed information about the selected alert using `github-get_code_scanning_alert`:
           - Call with parameters:
-            - `owner`: The repository owner (available in the GitHub context)
-            - `repo`: The repository name (available in the GitHub context)
+            - `owner`: "githubnext" (the repository owner)
+            - `repo`: "gh-aw" (the repository name)
             - `alertNumber`: The alert number from step 3
           - Extract key information:
             - Alert number
@@ -623,9 +639,9 @@ jobs:
           ### 5. Analyze the Vulnerability
           
           Understand the security issue:
-          - Read the affected file using `get_file_contents`:
-            - `owner`: The repository owner (available in the GitHub context)
-            - `repo`: The repository name (available in the GitHub context)
+          - Read the affected file using `github-get_file_contents`:
+            - `owner`: "githubnext" (the repository owner)
+            - `repo`: "gh-aw" (the repository name)
             - `path`: The file path from the alert
           - Review the code context around the vulnerability (at least 20 lines before and after)
           - Understand the root cause of the security issue

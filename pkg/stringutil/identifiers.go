@@ -1,6 +1,9 @@
 package stringutil
 
-import "strings"
+import (
+	"path/filepath"
+	"strings"
+)
 
 // NormalizeWorkflowName removes .md and .lock.yml extensions from workflow names.
 // This is used to standardize workflow identifiers regardless of the file format.
@@ -70,6 +73,25 @@ func MarkdownToLockFile(mdPath string) string {
 	if strings.HasSuffix(mdPath, ".lock.yml") {
 		return mdPath
 	}
+
+	cleaned := filepath.Clean(mdPath)
+
+	// Special case: agentic-campaign-generator lives in .github/aw as markdown source,
+	// but its runnable compiled lock file must be in .github/workflows.
+	//
+	// This keeps the repo convention (markdown prompts in .github/aw) while
+	// satisfying GitHub Actions' requirement that runnable workflows live in
+	// .github/workflows.
+	if filepath.Base(cleaned) == "agentic-campaign-generator.md" {
+		dir := filepath.Dir(cleaned)
+		if filepath.Base(dir) == "aw" {
+			githubDir := filepath.Dir(dir)
+			if filepath.Base(githubDir) == ".github" {
+				return filepath.Join(githubDir, "workflows", "agentic-campaign-generator.lock.yml")
+			}
+		}
+	}
+
 	return strings.TrimSuffix(mdPath, ".md") + ".lock.yml"
 }
 
@@ -90,6 +112,21 @@ func LockFileToMarkdown(lockPath string) string {
 	if strings.HasSuffix(lockPath, ".md") {
 		return lockPath
 	}
+
+	cleaned := filepath.Clean(lockPath)
+
+	// Special case: agentic-campaign-generator lock file lives in .github/workflows,
+	// but its markdown source lives in .github/aw.
+	if filepath.Base(cleaned) == "agentic-campaign-generator.lock.yml" {
+		dir := filepath.Dir(cleaned)
+		if filepath.Base(dir) == "workflows" {
+			githubDir := filepath.Dir(dir)
+			if filepath.Base(githubDir) == ".github" {
+				return filepath.Join(githubDir, "aw", "agentic-campaign-generator.md")
+			}
+		}
+	}
+
 	return strings.TrimSuffix(lockPath, ".lock.yml") + ".md"
 }
 

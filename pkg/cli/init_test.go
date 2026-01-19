@@ -279,22 +279,22 @@ func TestInitRepository_Campaign(t *testing.T) {
 		t.Errorf("Expected campaign dispatcher agent to exist at %s", campaignAgentPath)
 	}
 
-	// Verify campaign-generator workflow was generated (not added from repo)
-	campaignWorkflowPath := filepath.Join(tempDir, ".github", "workflows", "campaign-generator.md")
+	// Verify agentic-campaign-generator source markdown was generated
+	campaignWorkflowPath := filepath.Join(tempDir, ".github", "aw", "agentic-campaign-generator.md")
 	if _, err := os.Stat(campaignWorkflowPath); os.IsNotExist(err) {
-		t.Errorf("Expected campaign-generator workflow to exist at %s", campaignWorkflowPath)
+		t.Errorf("Expected agentic-campaign-generator workflow to exist at %s", campaignWorkflowPath)
 	}
 
-	// Verify campaign-generator lock file was created
-	campaignLockPath := filepath.Join(tempDir, ".github", "workflows", "campaign-generator.lock.yml")
+	// Verify agentic-campaign-generator lock file was created
+	campaignLockPath := filepath.Join(tempDir, ".github", "workflows", "agentic-campaign-generator.lock.yml")
 	if _, err := os.Stat(campaignLockPath); os.IsNotExist(err) {
-		t.Errorf("Expected campaign-generator lock file to exist at %s", campaignLockPath)
+		t.Errorf("Expected agentic-campaign-generator lock file to exist at %s", campaignLockPath)
 	}
 
 	// Verify workflow content contains expected frontmatter
 	workflowContent, err := os.ReadFile(campaignWorkflowPath)
 	if err != nil {
-		t.Fatalf("Failed to read campaign-generator workflow: %v", err)
+		t.Fatalf("Failed to read agentic-campaign-generator workflow: %v", err)
 	}
 	workflowStr := string(workflowContent)
 	if !strings.Contains(workflowStr, "description: \"Campaign generator") {
@@ -310,9 +310,9 @@ func TestInitRepository_Campaign(t *testing.T) {
 		t.Errorf("Generated workflow should not contain 'source' field - it should be built internally")
 	}
 
-	// Verify it imports generate-campaign from .github/aw (consolidated instructions)
-	if !strings.Contains(workflowStr, "{{#runtime-import? .github/aw/generate-campaign.md}}") {
-		t.Errorf("Expected campaign-generator to import generate-campaign.md from .github/aw/")
+	// Verify it imports generator instructions from .github/aw (consolidated instructions)
+	if !strings.Contains(workflowStr, "{{#runtime-import? .github/aw/generate-agentic-campaign.md}}") {
+		t.Errorf("Expected campaign-generator to import generate-agentic-campaign.md from .github/aw/")
 	}
 }
 
@@ -437,4 +437,85 @@ This is a test workflow.
 			}
 		})
 	}
+}
+
+func TestGetCurrentRepositoryForInit(t *testing.T) {
+	t.Parallel()
+
+	// This test verifies the function can handle both success and failure cases
+	// Note: We can't test the actual GitHub API call without mocking
+	t.Run("handles error when not in repository context", func(t *testing.T) {
+		// Create a temp directory that's not a git repo
+		tmpDir := testutil.TempDir(t, "test-*")
+
+		originalDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get current directory: %v", err)
+		}
+		defer func() {
+			_ = os.Chdir(originalDir)
+		}()
+
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("Failed to change to temp directory: %v", err)
+		}
+
+		// This should fail because we're not in a git repository with GitHub remote
+		_, err = getCurrentRepositoryForInit()
+		if err == nil {
+			t.Log("Expected error when not in repository context, but got none (might be in a GitHub repo)")
+		}
+	})
+}
+
+func TestCreateCampaignLabel(t *testing.T) {
+	t.Parallel()
+
+	// This test verifies the function can handle both success and failure cases gracefully
+	t.Run("handles error gracefully when not in repository context", func(t *testing.T) {
+		// Create a temp directory that's not a git repo
+		tmpDir := testutil.TempDir(t, "test-*")
+
+		originalDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get current directory: %v", err)
+		}
+		defer func() {
+			_ = os.Chdir(originalDir)
+		}()
+
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("Failed to change to temp directory: %v", err)
+		}
+
+		// This should not fail even when we're not in a repository
+		// The function should handle errors gracefully
+		err = createCampaignLabel(false)
+		if err != nil {
+			t.Errorf("createCampaignLabel should handle errors gracefully, got: %v", err)
+		}
+	})
+
+	t.Run("handles error gracefully in verbose mode", func(t *testing.T) {
+		// Create a temp directory that's not a git repo
+		tmpDir := testutil.TempDir(t, "test-*")
+
+		originalDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get current directory: %v", err)
+		}
+		defer func() {
+			_ = os.Chdir(originalDir)
+		}()
+
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("Failed to change to temp directory: %v", err)
+		}
+
+		// This should not fail even in verbose mode
+		err = createCampaignLabel(true)
+		if err != nil {
+			t.Errorf("createCampaignLabel should handle errors gracefully in verbose mode, got: %v", err)
+		}
+	})
 }
