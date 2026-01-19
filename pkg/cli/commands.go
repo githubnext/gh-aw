@@ -27,9 +27,6 @@ var copilotInstructionsTemplate string
 //go:embed templates/agentic-workflows.agent.md
 var agenticWorkflowsDispatcherTemplate string
 
-//go:embed templates/agentic-campaigns.agent.md
-var agenticCampaignsDispatcherTemplate string
-
 //go:embed templates/create-agentic-workflow.md
 var createWorkflowPromptTemplate string
 
@@ -45,23 +42,26 @@ var debugWorkflowPromptTemplate string
 //go:embed templates/upgrade-agentic-workflows.md
 var upgradeAgenticWorkflowsPromptTemplate string
 
-//go:embed templates/orchestrate-campaign.md
+//go:embed templates/agentic-campaigns.agent.md
+var agenticCampaignsDispatcherTemplate string
+
+//go:embed templates/create-agentic-campaign.md
+var campaignCreationInstructionsTemplate string
+
+//go:embed templates/generate-agentic-campaign.md
+var campaignGeneratorInstructionsTemplate string
+
+//go:embed templates/orchestrate-agentic-campaign.md
 var campaignOrchestratorInstructionsTemplate string
 
-//go:embed templates/update-campaign-project.md
+//go:embed templates/update-agentic-campaign-project.md
 var campaignProjectUpdateInstructionsTemplate string
 
-//go:embed templates/execute-campaign-workflow.md
+//go:embed templates/execute-agentic-campaign-workflow.md
 var campaignWorkflowExecutionTemplate string
 
-//go:embed templates/close-campaign.md
+//go:embed templates/close-agentic-campaign.md
 var campaignClosingInstructionsTemplate string
-
-//go:embed templates/update-campaign-project-contract.md
-var campaignProjectUpdateContractChecklistTemplate string
-
-//go:embed templates/generate-campaign.md
-var campaignGeneratorInstructionsTemplate string
 
 // SetVersionInfo sets the version information for the CLI
 func SetVersionInfo(v string) {

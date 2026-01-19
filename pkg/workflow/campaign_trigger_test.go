@@ -103,25 +103,25 @@ tools:
 	}
 }
 
-// TestCampaignGeneratorWorkflow specifically tests the campaign-generator workflow
+// TestCampaignGeneratorWorkflow specifically tests the agentic-campaign-generator workflow
 // to ensure it compiles correctly with the labeled event type.
 // The workflow uses 'labeled' event with the 'create-agentic-campaign' label filter
 // to trigger campaign creation.
 func TestCampaignGeneratorWorkflow(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
-	// Test compilation of the actual campaign-generator workflow
-	workflowPath := "../../.github/aw/campaign-generator.md"
+	// Test compilation of the actual agentic-campaign-generator workflow
+	workflowPath := "../../.github/aw/agentic-campaign-generator.md"
 
 	// Check if file exists
 	if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
-		t.Skip("campaign-generator.md not found, skipping test")
+		t.Skip("agentic-campaign-generator.md not found, skipping test")
 	}
 
 	// Compile the workflow
 	err := compiler.CompileWorkflow(workflowPath)
 	if err != nil {
-		t.Fatalf("Failed to compile campaign-generator workflow: %v", err)
+		t.Fatalf("Failed to compile agentic-campaign-generator workflow: %v", err)
 	}
 
 	// Read the generated lock file
@@ -134,12 +134,12 @@ func TestCampaignGeneratorWorkflow(t *testing.T) {
 
 	// Verify the labeled event type is present
 	if !strings.Contains(lockContent, "- labeled") {
-		t.Error("Expected 'labeled' event type in campaign-generator lock file")
+		t.Error("Expected 'labeled' event type in agentic-campaign-generator lock file")
 	}
 
 	// Verify opened is not present (we switched from opened to labeled)
 	if strings.Contains(lockContent, "- opened") {
-		t.Error("Unexpected 'opened' event type in campaign-generator lock file - workflow should use 'labeled' event")
+		t.Error("Unexpected 'opened' event type in agentic-campaign-generator lock file - workflow should use 'labeled' event")
 	}
 
 	// Verify the label name filter is present

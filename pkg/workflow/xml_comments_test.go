@@ -361,6 +361,13 @@ This is a normal-sized workflow that should compile successfully.`
 		t.Errorf("Long workflow should now compile successfully with chunking, got error: %v", err)
 	}
 
+	// Read the lock file for the normal workflow as a baseline.
+	normalLockFile := filepath.Join(tmpDir, "normal-workflow.lock.yml")
+	normalLockContent, err := os.ReadFile(normalLockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated normal lock file: %v", err)
+	}
+
 	// Verify that the generated lock file contains multiple prompt steps
 	lockFile := filepath.Join(tmpDir, "long-workflow.lock.yml")
 	lockContent, err := os.ReadFile(lockFile)
@@ -369,12 +376,19 @@ This is a normal-sized workflow that should compile successfully.`
 	}
 
 	lockString := string(lockContent)
-	if !strings.Contains(lockString, "Create prompt") {
-		t.Error("Expected 'Create prompt' step in generated workflow")
+	normalLockString := string(normalLockContent)
+
+	// Unified prompt generation should always include the consolidated prompt creation step.
+	if !strings.Contains(lockString, "Create prompt with built-in context") {
+		t.Error("Expected 'Create prompt with built-in context' step in generated workflow")
 	}
 
-	if !strings.Contains(lockString, "Append prompt (part 2)") {
-		t.Error("Expected 'Append prompt (part 2)' step in generated workflow for large content")
+	// Chunking is implemented by emitting more heredoc blocks for large content,
+	// not by generating old "Append prompt (part N)" steps.
+	normalHeredocCount := strings.Count(normalLockString, "cat << 'PROMPT_EOF'")
+	longHeredocCount := strings.Count(lockString, "cat << 'PROMPT_EOF'")
+	if longHeredocCount <= normalHeredocCount {
+		t.Errorf("Expected long workflow to have more heredoc blocks than normal (normal=%d, long=%d)", normalHeredocCount, longHeredocCount)
 	}
 }
 

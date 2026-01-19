@@ -204,9 +204,9 @@ func TestMarkdownToLockFile(t *testing.T) {
 			expected: "test.campaign.lock.yml",
 		},
 		{
-			name:     "campaign-generator special-case mapping",
-			input:    ".github/aw/campaign-generator.md",
-			expected: ".github/workflows/campaign-generator.lock.yml",
+			name:     "agentic-campaign-generator special-case mapping",
+			input:    ".github/aw/agentic-campaign-generator.md",
+			expected: ".github/workflows/agentic-campaign-generator.lock.yml",
 		},
 	}
 
@@ -257,9 +257,9 @@ func TestLockFileToMarkdown(t *testing.T) {
 			expected: "test.campaign.md",
 		},
 		{
-			name:     "campaign-generator special-case mapping",
-			input:    ".github/workflows/campaign-generator.lock.yml",
-			expected: ".github/aw/campaign-generator.md",
+			name:     "agentic-campaign-generator special-case mapping",
+			input:    ".github/workflows/agentic-campaign-generator.lock.yml",
+			expected: ".github/aw/agentic-campaign-generator.md",
 		},
 	}
 

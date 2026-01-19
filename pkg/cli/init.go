@@ -140,11 +140,11 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 			fn   func(bool, bool) error
 			name string
 		}{
+			{ensureCampaignCreationInstructions, "campaign creation instructions"},
 			{ensureCampaignOrchestratorInstructions, "campaign orchestrator instructions"},
 			{ensureCampaignProjectUpdateInstructions, "campaign project update instructions"},
 			{ensureCampaignWorkflowExecution, "campaign workflow execution"},
 			{ensureCampaignClosingInstructions, "campaign closing instructions"},
-			{ensureCampaignProjectUpdateContractChecklist, "campaign project update contract checklist"},
 			{ensureCampaignGeneratorInstructions, "campaign generator instructions"},
 		}
 
@@ -280,9 +280,9 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	return nil
 }
 
-// addCampaignGeneratorWorkflow generates and compiles the campaign-generator workflow
+// addCampaignGeneratorWorkflow generates and compiles the agentic-campaign-generator workflow
 func addCampaignGeneratorWorkflow(verbose bool) error {
-	initLog.Print("Generating campaign-generator workflow")
+	initLog.Print("Generating agentic-campaign-generator workflow")
 
 	// Get the git root directory
 	gitRoot, err := findGitRoot()
@@ -304,37 +304,37 @@ func addCampaignGeneratorWorkflow(verbose bool) error {
 		return fmt.Errorf("failed to create .github/aw directory: %w", err)
 	}
 
-	// Build the campaign-generator workflow
+	// Build the agentic-campaign-generator workflow
 	data := campaign.BuildCampaignGenerator()
-	workflowPath := filepath.Join(awDir, "campaign-generator.md")
+	workflowPath := filepath.Join(awDir, "agentic-campaign-generator.md")
 
 	// Render the workflow to markdown
 	content := renderCampaignGeneratorMarkdown(data)
 
 	// Write markdown file with restrictive permissions
 	if err := os.WriteFile(workflowPath, []byte(content), 0600); err != nil {
-		initLog.Printf("Failed to write campaign-generator.md: %v", err)
-		return fmt.Errorf("failed to write campaign-generator.md: %w", err)
+		initLog.Printf("Failed to write agentic-campaign-generator.md: %v", err)
+		return fmt.Errorf("failed to write agentic-campaign-generator.md: %w", err)
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Created campaign-generator workflow: %s\n", workflowPath)
+		fmt.Fprintf(os.Stderr, "Created agentic-campaign-generator workflow: %s\n", workflowPath)
 	}
 
 	// Compile to lock file using the standard compiler.
-	// campaign-generator.md lives in .github/aw, but MarkdownToLockFile is
+	// agentic-campaign-generator.md lives in .github/aw, but MarkdownToLockFile is
 	// intentionally mapped to emit the runnable lock file into .github/workflows.
 	compiler := workflow.NewCompiler(verbose, "", GetVersion())
 	if err := CompileWorkflowWithValidation(compiler, workflowPath, verbose, false, false, false, false, false); err != nil {
-		initLog.Printf("Failed to compile campaign-generator: %v", err)
-		return fmt.Errorf("failed to compile campaign-generator: %w", err)
+		initLog.Printf("Failed to compile agentic-campaign-generator: %v", err)
+		return fmt.Errorf("failed to compile agentic-campaign-generator: %w", err)
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Compiled campaign-generator workflow\n")
+		fmt.Fprintf(os.Stderr, "Compiled agentic-campaign-generator workflow\n")
 	}
 
-	initLog.Print("Campaign-generator workflow generated successfully")
+	initLog.Print("Agentic-campaign-generator workflow generated successfully")
 	return nil
 }
 
