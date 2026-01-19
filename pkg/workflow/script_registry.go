@@ -151,7 +151,7 @@ func (r *ScriptRegistry) RegisterWithMode(name string, source string, mode Runti
 		mode:       mode,
 		actionPath: "", // No custom action by default
 	}
-	
+
 	return nil
 }
 
@@ -194,7 +194,7 @@ func (r *ScriptRegistry) RegisterWithAction(name string, source string, mode Run
 		mode:       mode,
 		actionPath: actionPath,
 	}
-	
+
 	return nil
 }
 
