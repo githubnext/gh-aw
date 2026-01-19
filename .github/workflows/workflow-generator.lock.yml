@@ -209,18 +209,6 @@ jobs:
               "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") or assign_to_agent(pull_number=456, agent=\"copilot\")",
               "inputSchema": {
                 "additionalProperties": false,
-                "oneOf": [
-                  {
-                    "required": [
-                      "issue_number"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "pull_number"
-                    ]
-                  }
-                ],
                 "properties": {
                   "agent": {
                     "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified.",
