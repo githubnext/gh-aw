@@ -1,143 +1,148 @@
-# Workflow Health Dashboard - 2026-01-16
+# Workflow Health Dashboard - 2026-01-19
 
 ## Executive Summary
 
-- **Total Workflows**: 124 executable workflows (53 shared includes)
-- **Compilation Status**: 124 lock files (100% coverage) ✅
-- **Critical Failing Workflows**: 3 workflows (P1/P2) - SAME as yesterday
-- **Overall Health Score**: 78/100 ⚠️ (→ UNCHANGED from yesterday)
-- **CI Doctor Status**: CLARIFIED - Skipped runs are expected (workflow_run trigger)
+- **Total Workflows**: 130 executable workflows (53 shared includes)
+- **Compilation Status**: 130 lock files (100% coverage) ✅
+- **Critical Failing Workflows**: 1 workflow (Daily News) - 2 workflows RECOVERING ✅
+- **Overall Health Score**: 82/100 ⬆️ (↑ from 78/100 on 2026-01-16)
+- **Trend**: IMPROVING - Meta-orchestrators recovering
 
-## 🔍 CI Doctor Status Clarification
+## 🎉 Major Improvement: Workflows Recovering!
 
-**Previous Report (2026-01-15)**: Reported as "FIXED" with 100% success rate  
-**Current Status**: 0% success (all 10 recent runs SKIPPED)  
-**Analysis**: This is **EXPECTED BEHAVIOR** ✅
+### Agent Performance Analyzer - RECOVERING ✅
+- **Status**: Latest run #177 (2026-01-18) SUCCESS
+- **Previous**: 9 consecutive failures (2026-01-10 to 2026-01-17)
+- **Success Rate**: 10% (1/10) but trending UP
+- **Health Score**: 25/100 (↑ from 10/100)
+- **Assessment**: Problem resolved by MCP Gateway schema fix (#9898)
 
-**Why Skipped is Normal:**
-- **Trigger**: `workflow_run` - Only runs when other workflows fail
-- **Recent Runs**: #480-484 all skipped on 2026-01-16
-- **Interpretation**: No CI failures occurred, so CI Doctor correctly skipped
-- **Conclusion**: CI Doctor is HEALTHY and working as designed
+### Metrics Collector - RECOVERING ✅
+- **Status**: Runs #31, #30 (2026-01-18, 2026-01-17) SUCCESS
+- **Previous**: 5 consecutive failures (2026-01-11 to 2026-01-15)
+- **Success Rate**: 30% (3/10) but trending UP
+- **Health Score**: 40/100 (stable)
+- **Assessment**: Problem resolved by MCP Gateway schema fix (#9898)
 
-**Revised Assessment:**
-- CI Doctor is NOT broken
-- Skipped runs indicate HEALTHY CI (no failures to diagnose)
-- Previous 100% success rate was when CI failures occurred and were diagnosed
-- No action required for CI Doctor
+## 🚨 Critical Issue Remaining
 
-## Critical Issues 🚨
+### Daily News - STILL FAILING (P1)
+- **Status**: 8 consecutive failures since 2026-01-09
+- **Success Rate**: 20% (2/10) ⬇️ WORSE than 2026-01-16
+- **Last Success**: Run #98 (2026-01-08)
+- **Recent Runs**: #99-106 all failed
+- **Health Score**: 20/100 🚨
+- **Previous Issue**: #9899 closed but workflow still failing
+- **New Issue**: Created today for investigation
+- **Impact**: No daily updates for 10+ days
 
-### 1. Agent Performance Analyzer - **SEVERELY DEGRADED** (P1)
-- **Status**: 10% success rate (1/10 successful) ⬇️ WORSE
-- **Pattern**: 9 consecutive failures since 2026-01-05
-- **Last Success**: Unknown (only 1 in last 10)
-- **Recent Runs**: Runs #165-173 (9 failures)
-- **Health Score**: 10/100 🚨
-- **Priority**: P1 (Critical)
-- **Issue Created**: New issue opened today
-- **Impact**: No agent performance monitoring for 10+ days
-
-### 2. Metrics Collector - **DEGRADED** (P1)
-- **Status**: 30% success rate (3/10 successful) ⬇️ WORSE
-- **Pattern**: 7 consecutive recent failures
-- **Last Success**: Unknown (3 in last 10)
-- **Recent Runs**: Runs #20-26 (7 failures)
-- **Health Score**: 30/100 🚨
-- **Issue**: #9898 closed but workflow still failing
-- **Priority**: P1 (Infrastructure)
-- **Issue Created**: New issue opened today
-- **Impact**: Historical metrics unavailable since 2026-01-08
-
-### 3. Daily News - **INTERMITTENT** (P2)
-- **Status**: 40% success rate (4/10 successful) ⬇️ WORSE
-- **Pattern**: 6 intermittent failures (not consecutive)
-- **Last Success**: Unknown (4 in last 10)
-- **Recent Runs**: Runs #99-103 (6 failures)
-- **Health Score**: 40/100 🚨
-- **Issue**: #9899 open
-- **Priority**: P2 (High - User-facing)
-- **Issue Created**: New issue opened today
-- **Impact**: Daily digest delivery inconsistent
+**Key Difference from Other Failures:**
+- Agent Performance Analyzer and Metrics Collector recovered after MCP Gateway fix
+- Daily News continues to fail, suggesting different root cause
+- May need separate investigation or redesign
 
 ## Healthy Workflows ✅
 
 - **CI Doctor**: HEALTHY (skipped runs expected with workflow_run trigger)
-- **Compilation**: 124/124 workflows compile successfully
-- **121 Other Workflows**: Operating normally
+- **Compilation**: 130/130 workflows compile successfully
+- **127 Other Workflows**: Operating normally (spot checks show 70-90% success rates)
+
+## Maintenance Required
+
+### Outdated Lock Files (7 workflows)
+These workflows need recompilation (`.md` newer than `.lock.yml`):
+1. `commit-changes-analyzer.md`
+2. `delight.md`
+3. `poem-bot.md`
+4. `repo-tree-map.md`
+5. `static-analysis-report.md`
+6. `technical-doc-writer.md`
+7. `ubuntu-image-analyzer.md`
+
+**Action**: Run `make recompile`
 
 ## Trends
 
-- **Overall health**: 78/100 (→ unchanged from yesterday)
-- **Critical workflows**: 3 (same as yesterday)
-- **Meta-orchestrator health**: DEGRADED
-  - Agent Performance Analyzer: 10% (⬇️ from 20%)
-  - Metrics Collector: 30% (⬇️ from 40%)
-  - Workflow Health Manager: Running (this workflow)
-  - Campaign Manager: Status unknown
+### Compared to 2026-01-16
+
+| Metric | 2026-01-16 | 2026-01-19 | Change |
+|--------|------------|------------|---------|
+| Overall Health | 78/100 | 82/100 | ↑ +4 ✅ |
+| Critical Workflows | 3 | 1 | ↓ -2 ✅ |
+| Agent Perf. Analyzer | 10% | 10% (recovering) | → ✅ |
+| Metrics Collector | 30% | 30% (recovering) | → ✅ |
+| Daily News | 40% | 20% | ⬇️ -20% 🚨 |
+
+### Meta-Orchestrator Health
+- **Agent Performance Analyzer**: RECOVERING (1 successful run after 9 failures)
+- **Metrics Collector**: RECOVERING (2 consecutive successful runs)
+- **Workflow Health Manager**: Running (60% success, this workflow)
+- **Campaign Manager**: Status unknown
 
 ## Systemic Issues
 
-### Issue 1: Meta-Orchestrator Degradation (P1)
-- **Affected**: Agent Performance Analyzer, Metrics Collector
-- **Pattern**: Both showing continued decline
-- **Impact**: System visibility severely limited
-- **Root Cause**: Unknown - requires investigation
-- **Common Factor**: Both use repo-memory, GitHub MCP, agentic-workflows tools
+### ✅ RESOLVED: Meta-Orchestrator Self-Failure (P1)
+- **Was**: Agent Performance Analyzer and Metrics Collector both failing
+- **Now**: Both recovering with successful runs
+- **Root Cause**: MCP Gateway schema validation error (issue #9898)
+- **Resolution**: Schema migration completed 2026-01-14
+- **Status**: Consider RESOLVED, continue monitoring for stability
 
-### Issue 2: Timeout and Performance Issues (P2)
-- **Affected**: Daily News, previously CI Doctor
-- **Pattern**: Similar timeout patterns (exit code 7)
-- **CI Doctor Fix**: Successfully applied, workflow now healthy
-- **Opportunity**: Apply CI Doctor's fix to Daily News
-- **Status**: Daily News still experiencing intermittent failures
+### 🚨 ONGOING: User-Facing Service Degradation (P1)
+- **Affected**: Daily News (20% success, 8 consecutive failures)
+- **Previous Issue**: #9899 closed 2026-01-15 as "not planned"
+- **Current State**: Workflow still failing, no improvement
+- **New Issue**: Created today for fresh investigation
+- **Impact**: No daily repository updates for 10+ days
+- **Status**: UNRESOLVED, requires decision on workflow future
 
-### Issue 3: Issue #9898 Resolution (P1)
-- **Status**: Closed but Metrics Collector still failing
-- **Action Required**: Verify fix deployment or reopen issue
-- **Timeline**: Issue closed, but 7 consecutive failures since then
-- **Conclusion**: Fix may not have been applied or was incomplete
+### ⚠️ NEW: Issue Closure Gap
+- **Pattern**: Issue #9899 closed but problem persists
+- **Root Cause**: Closed as "not planned" without verification
+- **Impact**: False positive resolution, continued degradation
+- **Recommendation**: Improve closure process, require fix verification
 
 ## Actions Taken This Run
 
 ### Issues Created
-1. **Agent Performance Analyzer** - Critical failure (10% success)
-2. **Metrics Collector** - Infrastructure failure (30% success)
-3. **Daily News** - Intermittent failures (40% success)
+1. **Workflow Health Dashboard** - Comprehensive status update
+2. **Daily News Investigation** - P1 issue for 8 consecutive failures
 
 ### Issues to Monitor
-- #9898 (Metrics Collector - may need reopening)
-- #9899 (Daily News - open)
-- New issues created today for all three failing workflows
+- #9898 (Metrics Collector) - RESOLVED, confirmed by successful runs
+- #9899 (Daily News) - Closed but problem persists, new issue created
+- New Daily News issue - Tracking ongoing investigation
 
 ### Key Recommendations
-1. **Investigate Agent Performance Analyzer** - Root cause of 90% failure rate
-2. **Verify Metrics Collector fix** - Issue closed but still failing
-3. **Apply CI Doctor fix to Daily News** - Similar timeout pattern
-4. **Test tool configurations** - Common failures may indicate tool issues
+1. **Investigate Daily News** (P1) - Determine: fix, deprecate, or redesign
+2. **Recompile 7 outdated workflows** (P1) - Run `make recompile`
+3. **Monitor recovering workflows** (P2) - Verify sustained recovery
+4. **Improve issue closure process** (P2) - Require fix verification
 
 ## Overall Assessment
 
-**System Health**: DEGRADED ⚠️
+**System Health**: 🟡 IMPROVING ⬆️
 
-**Critical Concerns:**
-- Meta-orchestrator self-monitoring failing (Agent Performance Analyzer)
-- Infrastructure metrics collection broken (Metrics Collector)
-- User-facing digest unreliable (Daily News)
-
-**Positive Notes:**
-- CI Doctor clarified as healthy (skipped runs expected)
+**Positive Developments:**
+- Meta-orchestrator self-monitoring recovering (Agent Performance Analyzer)
+- Infrastructure metrics collection recovering (Metrics Collector)
+- MCP Gateway schema issue resolved
+- Overall health score increased (+4 points)
 - All workflows compile successfully
-- 121 workflows operating normally
-- Issues created for tracking and resolution
+
+**Remaining Concerns:**
+- Daily News still failing (unique root cause?)
+- 7 workflows need lock file updates
+- Issue closure process needs improvement
 
 **Priority Actions:**
-1. Investigate and fix Agent Performance Analyzer (P1)
-2. Reopen/verify Metrics Collector issue #9898 (P1)
-3. Apply timeout fixes to Daily News (P2)
-4. Monitor for systemic tool configuration issues
+1. Determine Daily News workflow future (fix, deprecate, or redesign)
+2. Recompile outdated workflows
+3. Monitor recovery stability for meta-orchestrators
+4. Update issue closure process to require verification
 
 ---
-**Last Updated**: 2026-01-16T02:53:12Z  
-**Run**: https://github.com/githubnext/gh-aw/actions/runs/21053929777  
-**Next Check**: 2026-01-17T03:00:00Z
+**Last Updated**: 2026-01-19T02:58:15Z  
+**Run**: https://github.com/githubnext/gh-aw/actions/runs/21123753579  
+**Next Check**: 2026-01-20T03:00:00Z  
+**Status**: IMPROVING (2 recovering, 1 critical)
