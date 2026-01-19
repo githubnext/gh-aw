@@ -26,8 +26,8 @@ In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simp
 
 Our next two agents continuously analyze code structure, suggesting systematic improvements:
 
-- **[Semantic Function Refactor](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/semantic-function-refactor.md?plain=1)** - Spots refactoring opportunities we might have missed  
-- **[Go Pattern Detector](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/go-pattern-detector.md?plain=1)** - Detects common Go patterns and anti-patterns for consistency  
+- **[Semantic Function Refactor](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/semantic-function-refactor.md?plain=1)** - Spots refactoring opportunities we might have missed  
+- **[Go Pattern Detector](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/go-pattern-detector.md?plain=1)** - Detects common Go patterns and anti-patterns for consistency  
 
 The **Semantic Function Refactor** workflow combines agentic AI with code analysis tools to analyze and address the structure of entire codebase. It analyzes all Go source files in the `pkg/` directory to identify functions that might be in the wrong place.
 

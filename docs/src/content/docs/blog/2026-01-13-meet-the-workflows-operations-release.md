@@ -26,9 +26,9 @@ In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analyti
 
 The agents that help us actually ship software:
 
-- **[Release](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/release.md?plain=1)** - Orchestrates builds, tests, and release note generation
-- **[Changeset](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/changeset.md?plain=1)** - Manages version bumps and changelog entries for releases
-- **[Daily Workflow Updater](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-workflow-updater.md?plain=1)** - Keeps actions and dependencies current (because dependency updates never stop)  
+- **[Release](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/release.md?plain=1)** - Orchestrates builds, tests, and release note generation
+- **[Changeset](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/changeset.md?plain=1)** - Manages version bumps and changelog entries for releases
+- **[Daily Workflow Updater](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-workflow-updater.md?plain=1)** - Keeps actions and dependencies current (because dependency updates never stop)  
 
 Shipping software is stressful enough without worrying about whether you formatted your release notes correctly.
 

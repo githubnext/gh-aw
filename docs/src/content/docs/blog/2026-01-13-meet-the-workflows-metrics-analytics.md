@@ -28,9 +28,9 @@ But here's a question: when you're running dozens of AI agents, how do you know 
 
 Data scientists, rejoice! These agents turn raw repository activity into actual insights:
 
-- **[Metrics Collector](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/metrics-collector.md?plain=1)** - Tracks daily performance across the entire agent ecosystem
-- **[Portfolio Analyst](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/portfolio-analyst.md?plain=1)** - Identifies cost reduction opportunities (because AI isn't free!)  
-- **[Audit Workflows](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/audit-workflows.md?plain=1)** - A meta-agent that audits all the other agents' runs - very Inception
+- **[Metrics Collector](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/metrics-collector.md?plain=1)** - Tracks daily performance across the entire agent ecosystem
+- **[Portfolio Analyst](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/portfolio-analyst.md?plain=1)** - Identifies cost reduction opportunities (because AI isn't free!)  
+- **[Audit Workflows](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/audit-workflows.md?plain=1)** - A meta-agent that audits all the other agents' runs - very Inception
 
 Here's where things got meta: we built agents to monitor agents. The Metrics Collector became our central nervous system, gathering performance data that feeds into higher-level orchestrators. What we learned: **you can't optimize what you don't measure**. The Portfolio Analyst was eye-opening - it identified workflows that were costing us money unnecessarily (turns out some agents were way too chatty with their LLM calls).
 

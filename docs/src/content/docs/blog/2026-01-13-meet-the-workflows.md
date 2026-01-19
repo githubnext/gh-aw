@@ -32,7 +32,7 @@ Issue triage represents a "hello world" of automated agentic workflows: practica
 
 When a new issue is opened, the triage agent analyzes its content, does research in the codebase and other issues, responds with a comment, and applies appropriate labels based on predefined categories. This helps maintainers quickly understand the nature of incoming issues without manual review.
 
-Let's take a look at the full **[Issue Triage Agent](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/issue-triage-agent.md?plain=1)**:
+Let's take a look at the full **[Issue Triage Agent](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/issue-triage-agent.md?plain=1)**:
 
 ```markdown
 ---
