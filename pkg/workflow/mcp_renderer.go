@@ -23,6 +23,8 @@ type MCPRendererOptions struct {
 	Format string
 	// IsLast indicates if this is the last server in the configuration (affects trailing comma)
 	IsLast bool
+	// EngineID specifies the engine identifier (e.g., "copilot", "claude", "codex") for engine-specific configuration
+	EngineID string
 }
 
 // MCPConfigRendererUnified provides unified rendering methods for MCP configurations
@@ -177,7 +179,7 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 
 // RenderSerenaMCP generates Serena MCP server configuration
 func (r *MCPConfigRendererUnified) RenderSerenaMCP(yaml *strings.Builder, serenaTool any) {
-	mcpRendererLog.Printf("Rendering Serena MCP: format=%s, inline_args=%t", r.options.Format, r.options.InlineArgs)
+	mcpRendererLog.Printf("Rendering Serena MCP: format=%s, inline_args=%t, engine=%s", r.options.Format, r.options.InlineArgs, r.options.EngineID)
 
 	if r.options.Format == "toml" {
 		r.renderSerenaTOML(yaml, serenaTool)
@@ -185,7 +187,7 @@ func (r *MCPConfigRendererUnified) RenderSerenaMCP(yaml *strings.Builder, serena
 	}
 
 	// JSON format
-	renderSerenaMCPConfigWithOptions(yaml, serenaTool, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs)
+	renderSerenaMCPConfigWithOptions(yaml, serenaTool, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs, r.options.EngineID)
 }
 
 // renderSerenaTOML generates Serena MCP configuration in TOML format
@@ -226,10 +228,16 @@ func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, seren
 		yaml.WriteString("          entrypoint = \"serena\"\n")
 
 		// Entrypoint args for Serena MCP server
+		// Use engine-specific context (copilot, claude, codex, etc.)
+		context := r.options.EngineID
+		if context == "" {
+			context = "codex" // fallback to codex for backwards compatibility
+		}
+
 		yaml.WriteString("          entrypointArgs = [\n")
 		yaml.WriteString("            \"start-mcp-server\",\n")
 		yaml.WriteString("            \"--context\",\n")
-		yaml.WriteString("            \"codex\",\n")
+		yaml.WriteString("            \"" + context + "\",\n")
 		yaml.WriteString("            \"--project\",\n")
 		yaml.WriteString("            \"${{ github.workspace }}\"")
 

@@ -99,7 +99,8 @@ func selectSerenaContainer(serenaTool any) string {
 // Supports two modes:
 // - "docker" (default): Uses Docker container with stdio transport (ghcr.io/githubnext/serena-mcp-server:latest)
 // - "local": Uses local uvx with HTTP transport on fixed port
-func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
+// The engineID parameter specifies which engine context to use (e.g., "copilot", "claude", "codex")
+func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isLast bool, includeCopilotFields bool, inlineArgs bool, engineID string) {
 	customArgs := getSerenaCustomArgs(serenaTool)
 
 	// Determine the mode - check if serenaTool is a map with mode field
@@ -145,8 +146,14 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 		yaml.WriteString("                \"entrypoint\": \"serena\",\n")
 
 		// Entrypoint args for Serena MCP server
+		// Use engine-specific context (copilot, claude, codex, etc.)
+		context := engineID
+		if context == "" {
+			context = "codex" // fallback to codex for backwards compatibility
+		}
+
 		if inlineArgs {
-			yaml.WriteString("                \"entrypointArgs\": [\"start-mcp-server\", \"--context\", \"codex\", \"--project\", \"${{ github.workspace }}\"")
+			yaml.WriteString("                \"entrypointArgs\": [\"start-mcp-server\", \"--context\", \"" + context + "\", \"--project\", \"${{ github.workspace }}\"")
 			// Append custom args if present
 			writeArgsToYAMLInline(yaml, customArgs)
 			yaml.WriteString("],\n")
@@ -154,7 +161,7 @@ func renderSerenaMCPConfigWithOptions(yaml *strings.Builder, serenaTool any, isL
 			yaml.WriteString("                \"entrypointArgs\": [\n")
 			yaml.WriteString("                  \"start-mcp-server\",\n")
 			yaml.WriteString("                  \"--context\",\n")
-			yaml.WriteString("                  \"codex\",\n")
+			yaml.WriteString("                  \"" + context + "\",\n")
 			yaml.WriteString("                  \"--project\",\n")
 			yaml.WriteString("                  \"${{ github.workspace }}\"")
 			// Append custom args if present

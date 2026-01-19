@@ -23,6 +23,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			InlineArgs:           false, // Codex uses multi-line args format
 			Format:               "toml",
 			IsLast:               isLast,
+			EngineID:             e.id, // Pass engine ID for engine-specific configuration
 		})
 	}
 
@@ -109,6 +110,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			InlineArgs:           false, // Use standard multi-line format
 			Format:               "json",
 			IsLast:               isLast,
+			EngineID:             e.id, // Pass engine ID for engine-specific configuration
 		})
 	}
 

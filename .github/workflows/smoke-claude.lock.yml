@@ -652,7 +652,7 @@ jobs:
                 "entrypointArgs": [
                   "start-mcp-server",
                   "--context",
-                  "codex",
+                  "claude",
                   "--project",
                   "${{ github.workspace }}"
                 ],

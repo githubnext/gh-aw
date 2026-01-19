@@ -20,6 +20,7 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 			InlineArgs:           false, // Claude uses multi-line args format
 			Format:               "json",
 			IsLast:               isLast,
+			EngineID:             e.id, // Pass engine ID for engine-specific configuration
 		})
 	}
 
