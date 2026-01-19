@@ -11,7 +11,7 @@ Write agentic workflows in natural language markdown, and run them in GitHub Act
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [Share Feedback](#share-feedback)
-- [Agent Factory](#agent-factory)
+- [Peli's Agent Factory](#pelis-agent-factory)
 - [Related Projects](#related-projects)
 
 ## Quick Start
