@@ -74,51 +74,49 @@ function balanceCodeRegions(markdown) {
   // 1. Match fences into pairs (opening + closing)
   // 2. Track the "span" of each matched pair
   // 3. Escape any fences that fall inside another fence's span
-  
+
   const escapeLines = new Set();
   const unclosedFences = [];
   const processed = new Set();
   const pairedBlocks = []; // Array of {start: lineIndex, end: lineIndex}
-  
+
   // First, find all properly paired blocks
   for (let i = 0; i < fences.length; i++) {
     if (processed.has(i)) continue;
-    
+
     const openFence = fences[i];
-    
+
     // Find the first valid closing fence
     // Stop when we hit a fence with a language (starts a new block)
     let closerIndex = -1;
     const candidates = [];
-    
+
     for (let j = i + 1; j < fences.length; j++) {
       if (processed.has(j)) continue;
-      
+
       const fence = fences[j];
-      
+
       // If this fence has a language, it opens a NEW block
       if (fence.language !== "") {
         break;
       }
-      
+
       // Check if this fence can close our opening fence
-      const canClose =
-        fence.char === openFence.char &&
-        fence.length >= openFence.length;
-      
+      const canClose = fence.char === openFence.char && fence.length >= openFence.length;
+
       if (canClose) {
         candidates.push(j);
       }
     }
-    
+
     if (candidates.length > 0) {
       // Use the LAST valid closer
       closerIndex = candidates[candidates.length - 1];
-      
+
       // Mark opening and closing as processed
       processed.add(i);
       processed.add(closerIndex);
-      
+
       // Record this block's span
       pairedBlocks.push({
         start: fences[i].lineIndex,
@@ -126,7 +124,7 @@ function balanceCodeRegions(markdown) {
         openIndex: i,
         closeIndex: closerIndex,
       });
-      
+
       // Escape all candidates except the last one
       for (let k = 0; k < candidates.length - 1; k++) {
         escapeLines.add(fences[candidates[k]].lineIndex);
@@ -135,13 +133,13 @@ function balanceCodeRegions(markdown) {
     }
     // Note: Don't add to unclosedFences yet - check if it's inside a block first
   }
-  
+
   // Now, escape any fences that weren't processed and fall inside a block
   for (let i = 0; i < fences.length; i++) {
     if (processed.has(i)) continue;
-    
+
     const fenceLine = fences[i].lineIndex;
-    
+
     // Check if this fence is inside any paired block
     let isInsideBlock = false;
     for (const block of pairedBlocks) {
@@ -153,7 +151,7 @@ function balanceCodeRegions(markdown) {
         break;
       }
     }
-    
+
     // If not inside a block and still unprocessed, it's an unclosed fence
     if (!isInsideBlock) {
       unclosedFences.push(fences[i]);
@@ -221,7 +219,9 @@ function isBalanced(markdown) {
         };
       } else {
         const canClose =
-          fenceChar === openingFence.char && fenceLength >= openingFence.length;
+          openingFence !== null &&
+          fenceChar === openingFence.char &&
+          fenceLength >= openingFence.length;
 
         if (canClose) {
           inCodeBlock = false;
@@ -272,7 +272,9 @@ function countCodeRegions(markdown) {
         };
       } else {
         const canClose =
-          fenceChar === openingFence.char && fenceLength >= openingFence.length;
+          openingFence !== null &&
+          fenceChar === openingFence.char &&
+          fenceLength >= openingFence.length;
 
         if (canClose) {
           inCodeBlock = false;

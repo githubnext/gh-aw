@@ -614,18 +614,9 @@ content
   describe("fuzz testing", () => {
     it("should handle random combinations of fences", () => {
       // Generate various random but structured inputs
-      const testCases = [
-        "```\n```\n```\n```",
-        "~~~\n~~~\n~~~",
-        "```js\n~~~\n```\n~~~",
-        "````\n```\n````",
-        "```\n````\n```",
-        "  ```\n```\n  ```",
-        "```\n  ```\n```",
-        "```\n\n```\n\n```\n\n```",
-      ];
+      const testCases = ["```\n```\n```\n```", "~~~\n~~~\n~~~", "```js\n~~~\n```\n~~~", "````\n```\n````", "```\n````\n```", "  ```\n```\n  ```", "```\n  ```\n```", "```\n\n```\n\n```\n\n```"];
 
-      testCases.forEach((input) => {
+      testCases.forEach(input => {
         // Should not throw an error
         expect(() => balancer.balanceCodeRegions(input)).not.toThrow();
         // Result should be a string

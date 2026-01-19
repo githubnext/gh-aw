@@ -4,11 +4,7 @@
  * This file is used by Go fuzz tests to test the balanceCodeRegions function with various inputs.
  */
 
-const {
-  balanceCodeRegions,
-  isBalanced,
-  countCodeRegions,
-} = require("./markdown_code_region_balancer.cjs");
+const { balanceCodeRegions, isBalanced, countCodeRegions } = require("./markdown_code_region_balancer.cjs");
 
 /**
  * Test the balanceCodeRegions function with given input
@@ -40,7 +36,7 @@ function testBalanceCodeRegions(markdown) {
 if (require.main === module) {
   let input = "";
 
-  process.stdin.on("data", (chunk) => {
+  process.stdin.on("data", chunk => {
     input += chunk;
   });
 
@@ -59,7 +55,7 @@ if (require.main === module) {
           isBalanced: false,
           counts: { total: 0, balanced: 0, unbalanced: 0 },
           error: errorMsg,
-        }),
+        })
       );
       process.exit(1);
     }
