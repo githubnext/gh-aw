@@ -394,7 +394,7 @@ func TestCopyFrontmatterWithoutInternalMarkers(t *testing.T) {
 			input: map[string]any{
 				"on": map[string]any{
 					"issues": map[string]any{
-						"types": []string{"opened"},
+						"types":                         []string{"opened"},
 						"__gh_aw_native_label_filter__": true,
 					},
 				},
