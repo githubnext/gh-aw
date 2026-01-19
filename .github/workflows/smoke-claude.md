@@ -39,7 +39,9 @@ tools:
   edit:
   bash:
     - "*"
-  serena: ["go"]
+  serena:
+    languages:
+      go: {}
 safe-outputs:
     add-comment:
       hide-older-comments: true
