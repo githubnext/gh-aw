@@ -151,3 +151,99 @@ func TestExtractBaseRepo(t *testing.T) {
 		})
 	}
 }
+
+func TestMajorVersionPreference(t *testing.T) {
+	// Test that the version selection logic prefers major-only versions (v8)
+	// over full semantic versions (v8.0.0) when they are semantically equal.
+	// This follows GitHub Actions best practice of using major version tags.
+
+	tests := []struct {
+		name              string
+		releases          []string
+		currentVersion    string
+		allowMajor        bool
+		expectedVersion   string
+		expectedPreferred string // The version that should be preferred (v8 over v8.0.0.0)
+	}{
+		{
+			name:              "prefer v8 over v8.0.0",
+			releases:          []string{"v8.0.0", "v8", "v7.0.0"},
+			currentVersion:    "v8",
+			allowMajor:        false,
+			expectedVersion:   "v8",
+			expectedPreferred: "v8",
+		},
+		{
+			name:              "prefer v6 over v6.0.0",
+			releases:          []string{"v6.0.0", "v6", "v5.0.0"},
+			currentVersion:    "v6",
+			allowMajor:        false,
+			expectedVersion:   "v6",
+			expectedPreferred: "v6",
+		},
+		{
+			name:              "prefer v8 over v8.0.0.0 (four-part version)",
+			releases:          []string{"v8.0.0.0", "v8"},
+			currentVersion:    "v8",
+			allowMajor:        false,
+			expectedVersion:   "v8",
+			expectedPreferred: "v8",
+		},
+		{
+			name:              "prefer newest when versions differ",
+			releases:          []string{"v8.1.0", "v8.0.0", "v8"},
+			currentVersion:    "v8",
+			allowMajor:        false,
+			expectedVersion:   "v8.1.0",
+			expectedPreferred: "v8.1.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			currentVer := parseVersion(tt.currentVersion)
+			if currentVer == nil {
+				t.Fatalf("Failed to parse current version: %s", tt.currentVersion)
+			}
+
+			var latestCompatible string
+			var latestCompatibleVersion *semanticVersion
+
+			for _, release := range tt.releases {
+				releaseVer := parseVersion(release)
+				if releaseVer == nil {
+					continue
+				}
+
+				// Check if compatible based on major version
+				if !tt.allowMajor && releaseVer.major != currentVer.major {
+					continue
+				}
+
+				// Check if this is newer than what we have
+				if latestCompatibleVersion == nil || releaseVer.isNewer(latestCompatibleVersion) {
+					latestCompatible = release
+					latestCompatibleVersion = releaseVer
+				} else if !releaseVer.isNewer(latestCompatibleVersion) &&
+					releaseVer.major == latestCompatibleVersion.major &&
+					releaseVer.minor == latestCompatibleVersion.minor &&
+					releaseVer.patch == latestCompatibleVersion.patch {
+					// If versions are equal, prefer the less precise one (e.g., "v8" over "v8.0.0")
+					if !releaseVer.isPreciseVersion() && latestCompatibleVersion.isPreciseVersion() {
+						latestCompatible = release
+						latestCompatibleVersion = releaseVer
+					}
+				}
+			}
+
+			if latestCompatible != tt.expectedVersion {
+				t.Errorf("Selected version = %q, want %q", latestCompatible, tt.expectedVersion)
+			}
+
+			// Verify that the selected version is the preferred one (less precise when equal)
+			if latestCompatible != tt.expectedPreferred {
+				t.Errorf("Preferred version = %q, want %q (should prefer less precise version)", latestCompatible, tt.expectedPreferred)
+			}
+		})
+	}
+}

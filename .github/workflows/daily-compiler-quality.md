@@ -16,6 +16,7 @@ tools:
     toolsets:
       - default
   cache-memory: true
+  edit:
   bash:
     - "find pkg/workflow -name 'compiler*.go' ! -name '*_test.go' -type f"
     - "wc -l pkg/workflow/compiler*.go"
