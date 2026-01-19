@@ -243,7 +243,9 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 			}
 			actionPinsLog.Printf("Using version in non-strict mode: %s@%s (requested) → %s@%s (used)",
 				actionRepo, version, actionRepo, selectedPin.Version)
-			return actionRepo + "@" + selectedPin.SHA + " # " + selectedPin.Version, nil
+			// Use the requested version in the comment, not the pin's version
+			// This preserves the user's intent (e.g., v8 instead of v8.0.0)
+			return actionRepo + "@" + selectedPin.SHA + " # " + version, nil
 		}
 	}
 

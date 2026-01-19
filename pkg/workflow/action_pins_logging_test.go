@@ -8,46 +8,52 @@ import (
 )
 
 // TestActionPinResolutionWithMismatchedVersions demonstrates the issue where
-// action_pins.json has mismatches between keys and version fields
+// TestActionPinResolutionWithMismatchedVersions verifies that when falling back
+// to a semver-compatible pin, the comment uses the requested version, not the pin's version
 func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
-	// This test demonstrates the problem: when requesting actions/ai-inference@v1,
+	// This test demonstrates that when requesting actions/ai-inference@v1,
 	// if dynamic resolution fails, it falls back to the hardcoded pin which has
-	// version v2.0.4, causing the wrong SHA to be returned
+	// version v2, but the comment still shows v1 (the requested version)
 
 	tests := []struct {
-		name           string
-		repo           string
-		requestedVer   string
-		expectedPinVer string // The version in the hardcoded pin
-		expectMismatch bool
+		name              string
+		repo              string
+		requestedVer      string
+		expectedCommentVer string // The version that should appear in the comment
+		fallbackPinVer    string // The actual pin version used (for warning message)
+		expectMismatch    bool
 	}{
 		{
-			name:           "ai-inference v1 resolves to v2 pin",
-			repo:           "actions/ai-inference",
-			requestedVer:   "v1",
-			expectedPinVer: "v2", // Falls back to semver-compatible v2
-			expectMismatch: true,
+			name:              "ai-inference v1 resolves to v2 pin but comment shows v1",
+			repo:              "actions/ai-inference",
+			requestedVer:      "v1",
+			expectedCommentVer: "v1", // Comment shows requested version
+			fallbackPinVer:    "v2",  // Falls back to semver-compatible v2
+			expectMismatch:    true,
 		},
 		{
-			name:           "setup-dotnet v4 resolves to v4.3.1 pin",
-			repo:           "actions/setup-dotnet",
-			requestedVer:   "v4",
-			expectedPinVer: "v4.3.1",
-			expectMismatch: true,
+			name:              "setup-dotnet v4 resolves to v4.3.1 pin but comment shows v4",
+			repo:              "actions/setup-dotnet",
+			requestedVer:      "v4",
+			expectedCommentVer: "v4", // Comment shows requested version
+			fallbackPinVer:    "v4.3.1",
+			expectMismatch:    true,
 		},
 		{
-			name:           "github-script v7 resolves to v7 pin (exact match)",
-			repo:           "actions/github-script",
-			requestedVer:   "v7",
-			expectedPinVer: "v7",  // Exact match exists in hardcoded pins
-			expectMismatch: false, // No mismatch since exact match found
+			name:              "github-script v7 resolves to v7 pin (exact match)",
+			repo:              "actions/github-script",
+			requestedVer:      "v7",
+			expectedCommentVer: "v7",  // Exact match exists in hardcoded pins
+			fallbackPinVer:    "v7",
+			expectMismatch:    false, // No mismatch since exact match found
 		},
 		{
-			name:           "checkout v5.0.1 exact match",
-			repo:           "actions/checkout",
-			requestedVer:   "v5.0.1",
-			expectedPinVer: "v5.0.1",
-			expectMismatch: false,
+			name:              "checkout v5.0.1 exact match",
+			repo:              "actions/checkout",
+			requestedVer:      "v5.0.1",
+			expectedCommentVer: "v5.0.1",
+			fallbackPinVer:    "v5.0.1",
+			expectMismatch:    false,
 		},
 	}
 
@@ -83,9 +89,9 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 				return
 			}
 
-			// Check if the result contains the expected version
-			if !strings.Contains(result, "# "+tt.expectedPinVer) {
-				t.Errorf("GetActionPinWithData() = %s, expected to contain '# %s'", result, tt.expectedPinVer)
+			// Check if the result contains the expected version in the comment
+			if !strings.Contains(result, "# "+tt.expectedCommentVer) {
+				t.Errorf("GetActionPinWithData() = %s, expected to contain '# %s'", result, tt.expectedCommentVer)
 			}
 
 			// For mismatched versions, we should see a warning
@@ -94,9 +100,9 @@ func TestActionPinResolutionWithMismatchedVersions(t *testing.T) {
 					t.Errorf("Expected warning message in stderr for version mismatch, got: %s", stderr)
 				}
 				// Verify the warning mentions both versions
-				if !strings.Contains(stderr, tt.requestedVer) || !strings.Contains(stderr, tt.expectedPinVer) {
+				if !strings.Contains(stderr, tt.requestedVer) || !strings.Contains(stderr, tt.fallbackPinVer) {
 					t.Errorf("Warning should mention both requested version (%s) and hardcoded version (%s), got: %s",
-						tt.requestedVer, tt.expectedPinVer, stderr)
+						tt.requestedVer, tt.fallbackPinVer, stderr)
 				}
 			}
 

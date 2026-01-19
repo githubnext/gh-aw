@@ -219,8 +219,9 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 			releaseVer.major == latestCompatibleVersion.major &&
 			releaseVer.minor == latestCompatibleVersion.minor &&
 			releaseVer.patch == latestCompatibleVersion.patch {
-			// If versions are equal, prefer the more precise one (e.g., "v6.0.0" over "v6")
-			if releaseVer.isPreciseVersion() && !latestCompatibleVersion.isPreciseVersion() {
+			// If versions are equal, prefer the less precise one (e.g., "v8" over "v8.0.0")
+			// This follows GitHub Actions convention of using major version tags
+			if !releaseVer.isPreciseVersion() && latestCompatibleVersion.isPreciseVersion() {
 				latestCompatible = release
 				latestCompatibleVersion = releaseVer
 			}
@@ -318,8 +319,9 @@ func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbo
 			releaseVer.major == latestCompatibleVersion.major &&
 			releaseVer.minor == latestCompatibleVersion.minor &&
 			releaseVer.patch == latestCompatibleVersion.patch {
-			// If versions are equal, prefer the more precise one (e.g., "v6.0.0" over "v6")
-			if releaseVer.isPreciseVersion() && !latestCompatibleVersion.isPreciseVersion() {
+			// If versions are equal, prefer the less precise one (e.g., "v8" over "v8.0.0")
+			// This follows GitHub Actions convention of using major version tags
+			if !releaseVer.isPreciseVersion() && latestCompatibleVersion.isPreciseVersion() {
 				latestCompatible = release
 				latestCompatibleVersion = releaseVer
 			}
