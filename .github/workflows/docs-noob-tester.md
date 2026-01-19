@@ -25,6 +25,9 @@ network:
   allowed:
     - defaults
     - node
+
+imports:
+  - shared/docs-server-lifecycle.md
 ---
 
 # Documentation Noob Testing
@@ -51,21 +54,9 @@ npm install
 npm run build
 ```
 
-Start the preview server in the background:
-
-```bash
-npm run preview > /tmp/preview.log 2>&1 &
-echo $! > /tmp/server.pid
-```
-
-Wait for the server to be ready (port 4321):
-
-```bash
-for i in {1..30}; do
-  curl -s http://localhost:4321 > /dev/null && echo "Server ready!" && break
-  echo "Waiting for server... ($i/30)" && sleep 2
-done
-```
+Follow the shared **Documentation Server Lifecycle Management** instructions:
+1. Start the preview server (section "Starting the Documentation Preview Server")
+2. Wait for server readiness (section "Waiting for Server Readiness")
 
 ## Step 2: Navigate Documentation as a Noob
 
@@ -164,12 +155,7 @@ Label the discussion with: `documentation`, `user-experience`, `automated-testin
 
 ## Step 6: Cleanup
 
-Stop the preview server:
-
-```bash
-kill $(cat /tmp/server.pid) 2>/dev/null || true
-rm -f /tmp/server.pid /tmp/preview.log
-```
+Follow the shared **Documentation Server Lifecycle Management** instructions for cleanup (section "Stopping the Documentation Server").
 
 ## Guidelines
 
