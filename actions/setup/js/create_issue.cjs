@@ -9,7 +9,7 @@ const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } =
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
-const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
+const { createExpirationLine, addExpirationToFooter, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const fs = require("fs");
 
@@ -86,9 +86,10 @@ async function searchForExistingParent(owner, repo, markerComment) {
  * @param {string[]} params.labels - Labels to apply to parent issue
  * @param {string} params.workflowName - Workflow name
  * @param {string} params.workflowSourceURL - URL to the workflow source
+ * @param {number} [params.expiresHours=0] - Hours until expiration (0 means no expiration)
  * @returns {Promise<number|null>} - Parent issue number or null if creation failed
  */
-async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labels, workflowName, workflowSourceURL }) {
+async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labels, workflowName, workflowSourceURL, expiresHours = 0 }) {
   const markerComment = `<!-- gh-aw-group: ${groupId} -->`;
 
   // Search for existing parent issue with the group marker
@@ -101,7 +102,7 @@ async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labe
   // No suitable parent issue found, create a new one
   core.info(`Creating new parent issue for group: ${groupId}`);
   try {
-    const template = createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowSourceURL);
+    const template = createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowSourceURL, expiresHours);
     const { data: parentIssue } = await github.rest.issues.create({
       owner,
       repo,
@@ -124,9 +125,10 @@ async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labe
  * @param {string} titlePrefix - Title prefix to use
  * @param {string} workflowName - Name of the workflow
  * @param {string} workflowSourceURL - URL to the workflow source
+ * @param {number} [expiresHours=0] - Hours until expiration (0 means no expiration)
  * @returns {object} - Template with title and body
  */
-function createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowSourceURL) {
+function createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowSourceURL, expiresHours = 0) {
   const title = `${titlePrefix}${groupId} - Issue Group`;
 
   // Load issue template
@@ -141,7 +143,17 @@ function createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowS
   };
 
   // Render the issue template
-  const body = renderTemplate(issueTemplate, templateContext);
+  let body = renderTemplate(issueTemplate, templateContext);
+
+  // Add expiration to footer if configured
+  if (expiresHours > 0) {
+    const footer = `> Workflow: [${workflowName}](${workflowSourceURL})`;
+    body = `${body}\n\n${generateFooterWithExpiration({
+      footerText: footer,
+      expiresHours: expiresHours,
+      entityType: "Parent Issue",
+    })}`;
+  }
 
   return { title, body };
 }
@@ -416,6 +428,8 @@ async function main(config = {}) {
 
         if (!groupParentNumber) {
           // Not in cache, find or create parent
+          // Parent issue expires 1 day (24 hours) after sub-issues
+          const parentExpiresHours = expiresHours > 0 ? expiresHours + 24 : 0;
           groupParentNumber = await findOrCreateParentIssue({
             groupId,
             owner: repoParts.owner,
@@ -424,6 +438,7 @@ async function main(config = {}) {
             labels,
             workflowName,
             workflowSourceURL,
+            expiresHours: parentExpiresHours,
           });
 
           if (groupParentNumber) {
