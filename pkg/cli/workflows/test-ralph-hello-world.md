@@ -2,7 +2,11 @@
 engine: ralph
 on:
   workflow_dispatch:
-permissions: {}
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+---
 
 Write a simple "Hello World" function in Python and create a test for it. Follow these user stories:
 

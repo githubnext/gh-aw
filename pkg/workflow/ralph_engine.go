@@ -74,14 +74,16 @@ func (e *RalphEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		"          cp /opt/gh-aw/actions/ralph-prompt.md /tmp/gh-aw/ralph/",
 		"          chmod +x /tmp/gh-aw/ralph/ralph-loop.sh",
 		"          ",
-		"          # Initialize prd.json if it doesn't exist",
-		"          if [ ! -f prd.json ]; then",
-		"            echo '{\"userStories\":[]}' > prd.json",
+		"          # Initialize prd.json from workspace if it exists, otherwise create empty",
+		"          if [ -f prd.json ]; then",
+		"            cp prd.json /tmp/gh-aw/ralph/prd.json",
+		"          else",
+		"            echo '{\"userStories\":[]}' > /tmp/gh-aw/ralph/prd.json",
 		"          fi",
 		"          ",
 		"          # Initialize progress.txt if it doesn't exist",
-		"          if [ ! -f progress.txt ]; then",
-		"            touch progress.txt",
+		"          if [ ! -f /tmp/gh-aw/ralph/progress.txt ]; then",
+		"            touch /tmp/gh-aw/ralph/progress.txt",
 		"          fi",
 		"          ",
 		"          echo \"Ralph loop scripts installed successfully\"",
@@ -234,7 +236,7 @@ func (e *RalphEngine) GetDefaultDetectionModel() string {
 // Delegates to Copilot engine and adds Ralph-specific files
 func (e *RalphEngine) GetDeclaredOutputFiles() []string {
 	files := e.copilotEngine.GetDeclaredOutputFiles()
-	// Add Ralph-specific output files
-	files = append(files, "/tmp/gh-aw/ralph/progress.txt", "prd.json")
+	// Add Ralph-specific output files (in tmp directory to avoid secret redaction issues)
+	files = append(files, "/tmp/gh-aw/ralph/progress.txt", "/tmp/gh-aw/ralph/prd.json")
 	return files
 }

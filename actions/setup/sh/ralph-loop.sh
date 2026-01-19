@@ -26,8 +26,8 @@ NC='\033[0m' # No Color
 # Default values
 MAX_ITERATIONS=${RALPH_MAX_ITERATIONS:-${1:-10}}
 ITERATION=0
-PRD_FILE="prd.json"
-PROGRESS_FILE="progress.txt"
+PRD_FILE="/tmp/gh-aw/ralph/prd.json"
+PROGRESS_FILE="/tmp/gh-aw/ralph/progress.txt"
 
 echo -e "${BLUE}=== Ralph Loop Starting ===${NC}"
 echo "Max iterations: $MAX_ITERATIONS"
