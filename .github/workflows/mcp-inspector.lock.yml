@@ -220,7 +220,7 @@ jobs:
         env:
           TOKEN_CHECK: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
         if: env.TOKEN_CHECK != ''
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
@@ -1612,7 +1612,7 @@ jobs:
           find "/opt/gh-aw/safe-jobs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/opt/gh-aw/safe-jobs/agent-output" >> "$GITHUB_ENV"
       - name: Add comment to Notion page
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
           NOTION_PAGE_ID: ${{ vars.NOTION_PAGE_ID }}
@@ -1742,7 +1742,7 @@ jobs:
           find "/opt/gh-aw/safe-jobs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/opt/gh-aw/safe-jobs/agent-output" >> "$GITHUB_ENV"
       - name: Post message to Slack
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ env.GH_AW_SLACK_CHANNEL_ID }}
