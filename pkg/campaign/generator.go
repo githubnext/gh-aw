@@ -16,8 +16,8 @@ func BuildCampaignGenerator() *workflow.WorkflowData {
 	generatorLog.Print("Building campaign-generator workflow")
 
 	data := &workflow.WorkflowData{
-		Name:            "Campaign Generator",
-		Description:     "Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation",
+		Name:            "Agentic Campaign Generator",
+		Description:     "Agentic Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation",
 		On:              buildGeneratorTrigger(),
 		Permissions:     buildGeneratorPermissions(),
 		Concurrency:     "", // No concurrency control for this workflow

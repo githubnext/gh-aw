@@ -23,6 +23,8 @@ const {
   applyTruncation,
 } = require("./sanitize_content_core.cjs");
 
+const { balanceCodeRegions } = require("./markdown_code_region_balancer.cjs");
+
 /**
  * @typedef {Object} SanitizeOptions
  * @property {number} [maxLength] - Maximum length of content (default: 524288)
@@ -98,6 +100,10 @@ function sanitizeContent(content, maxLengthOrOptions) {
 
   // Neutralize bot triggers
   sanitized = neutralizeBotTriggers(sanitized);
+
+  // Balance markdown code regions to fix improperly nested fences
+  // This repairs markdown where AI models generate nested code blocks at the same indentation
+  sanitized = balanceCodeRegions(sanitized);
 
   return sanitized.trim();
 

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -162,7 +163,7 @@ func TestExtractDomainFromURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractDomainFromURL(tt.url)
+			result := stringutil.ExtractDomainFromURL(tt.url)
 			assert.Equal(t, tt.expected, result, "Extracted domain should match expected")
 		})
 	}
