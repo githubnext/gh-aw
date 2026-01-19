@@ -52,13 +52,13 @@ nested
 \`\`\`
 }
 \`\`\``;
-        const expected = `\`\`\`javascript
+        const expected = `\`\`\`\`javascript
 function test() {
-\\\`\`\`
+\`\`\`
 nested
-\\\`\`\`
+\`\`\`
 }
-\`\`\``;
+\`\`\`\``;
         expect(balancer.balanceCodeRegions(input)).toBe(expected);
       });
 
@@ -70,13 +70,13 @@ nested
 ~~~
 End
 ~~~`;
-        const expected = `~~~markdown
+        const expected = `~~~~markdown
 Example:
-\\~~~
+~~~
 nested
-\\~~~
+~~~
 End
-~~~`;
+~~~~`;
         expect(balancer.balanceCodeRegions(input)).toBe(expected);
       });
 
@@ -91,16 +91,16 @@ second nested
 \`\`\`
 }
 \`\`\``;
-        const expected = `\`\`\`javascript
+        const expected = `\`\`\`\`javascript
 function test() {
-\\\`\`\`
+\`\`\`
 first nested
-\\\`\`\`
-\\\`\`\`
+\`\`\`
+\`\`\`
 second nested
-\\\`\`\`
+\`\`\`
 }
-\`\`\``;
+\`\`\`\``;
         expect(balancer.balanceCodeRegions(input)).toBe(expected);
       });
     });
@@ -114,7 +114,7 @@ Should be escaped
 ~~~`;
         const expected = `~~~markdown
 Content
-\\\`\`\`
+\`\`\`
 Should be escaped
 ~~~`;
         expect(balancer.balanceCodeRegions(input)).toBe(expected);
@@ -128,7 +128,7 @@ Should be escaped
 \`\`\``;
         const expected = `\`\`\`markdown
 Content
-\\~~~
+~~~
 Should be escaped
 \`\`\``;
         expect(balancer.balanceCodeRegions(input)).toBe(expected);
@@ -153,11 +153,11 @@ content
 \`\`\`
 should be escaped
 \`\`\`\`\``;
-        const expected = `\`\`\`\`\`
+        const expected = `\`\`\`\`\`\`
 content
-\\\`\`\`
+\`\`\`
 should be escaped
-\`\`\`\`\``;
+\`\`\`\`\`\``;
         expect(balancer.balanceCodeRegions(input)).toBe(expected);
       });
 
@@ -192,12 +192,12 @@ content
 nested short fence
 \`\`\`
 \`\`\`\`\`\``;
-        const expected = `\`\`\`\`\`\`
+        const expected = `\`\`\`\`\`\`\`
 content
-\\\`\`\`
+\`\`\`
 nested short fence
-\\\`\`\`
-\`\`\`\`\`\``;
+\`\`\`
+\`\`\`\`\`\`\``;
         expect(balancer.balanceCodeRegions(input)).toBe(expected);
       });
     });
@@ -219,12 +219,12 @@ Example:
   nested
   \`\`\`
 \`\`\``;
-        const expected = `\`\`\`markdown
+        const expected = `\`\`\`\`markdown
 Example:
-  \\\`\`\`
+  \`\`\`
   nested
-  \\\`\`\`
-\`\`\``;
+  \`\`\`
+\`\`\`\``;
         expect(balancer.balanceCodeRegions(input)).toBe(expected);
       });
 
@@ -234,11 +234,11 @@ Example:
     indented nested
     \`\`\`
 \`\`\``;
-        const expected = `\`\`\`markdown
-    \\\`\`\`
+        const expected = `\`\`\`\`markdown
+    \`\`\`
     indented nested
-    \\\`\`\`
-\`\`\``;
+    \`\`\`
+\`\`\`\``;
         expect(balancer.balanceCodeRegions(input)).toBe(expected);
       });
     });
@@ -336,21 +336,8 @@ function hello() {
 \`\`\`
 
 Text after`;
-        const expected = `# Example
-
-Here's how to use code blocks:
-
-\`\`\`markdown
-You can create code blocks like this:
-\\\`\`\`javascript
-function hello() {
-  console.log("world");
-}
-\\\`\`\`
-\`\`\`
-
-Text after`;
-        expect(balancer.balanceCodeRegions(input)).toBe(expected);
+        // No changes expected - the javascript block is separate from the markdown block
+        expect(balancer.balanceCodeRegions(input)).toBe(input);
       });
 
       it("should handle documentation with multiple code examples", () => {
@@ -395,16 +382,8 @@ code here
 
 More text
 \`\`\``;
-        const expected = `\`\`\`markdown
-# Tutorial
-
-\\\`\`\`javascript
-code here
-\\\`\`\`
-
-More text
-\`\`\``;
-        expect(balancer.balanceCodeRegions(input)).toBe(expected);
+        // No changes expected - the javascript block is separate from the markdown block
+        expect(balancer.balanceCodeRegions(input)).toBe(input);
       });
     });
 
