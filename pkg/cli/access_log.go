@@ -3,7 +3,6 @@ package cli
 import (
 	"bufio"
 	"fmt"
-	neturl "net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 var accessLogLog = logger.New("cli:access_log")
@@ -85,7 +85,7 @@ func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) 
 		analysis.TotalRequests++
 
 		// Extract domain from URL
-		domain := extractDomainFromURL(entry.URL)
+		domain := stringutil.ExtractDomainFromURL(entry.URL)
 		if domain == "" {
 			continue
 		}
@@ -153,29 +153,7 @@ func parseSquidLogLine(line string) (*AccessLogEntry, error) {
 	}, nil
 }
 
-// extractDomainFromURL extracts the domain from a URL
-func extractDomainFromURL(url string) string {
-	// Handle different URL formats
-	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-		// Parse full URL
-		parsedURL, err := neturl.Parse(url)
-		if err != nil {
-			return ""
-		}
-		return parsedURL.Hostname()
-	}
 
-	// Handle CONNECT requests (domain:port format)
-	if strings.Contains(url, ":") {
-		parts := strings.Split(url, ":")
-		if len(parts) >= 2 {
-			return parts[0]
-		}
-	}
-
-	// Handle direct domain
-	return url
-}
 
 // analyzeAccessLogs analyzes access logs in a run directory
 func analyzeAccessLogs(runDir string, verbose bool) (*DomainAnalysis, error) {
