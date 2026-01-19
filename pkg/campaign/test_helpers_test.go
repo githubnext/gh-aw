@@ -24,12 +24,12 @@ func withTempGitRepoWithInstalledCampaignPrompts(t *testing.T, run func(repoRoot
 
 	srcTemplatesDir := filepath.Clean(filepath.Join(originalDir, "..", "cli", "templates"))
 	installed := map[string]string{
-		"orchestrate-agentic-campaign.md":             "orchestrate-agentic-campaign.md",
-		"update-agentic-campaign-project.md":          "update-agentic-campaign-project.md",
-		"execute-agentic-campaign-workflow.md":        "execute-agentic-campaign-workflow.md",
-		"close-agentic-campaign.md":                   "close-agentic-campaign.md",
-		"create-agentic-campaign.md":                  "create-agentic-campaign.md",
-		"generate-agentic-campaign.md":                "generate-agentic-campaign.md",
+		"orchestrate-campaign.md":             "orchestrate-campaign.md",
+		"update-campaign-project-contract.md": "update-campaign-project-contract.md",
+		"execute-campaign-workflow.md":        "execute-campaign-workflow.md",
+		"close-agentic-campaign.md":           "close-agentic-campaign.md",
+		"create-agentic-campaign.md":          "create-agentic-campaign.md",
+		"generate-campaign.md":                "generate-campaign.md",
 	}
 
 	for srcName, dstName := range installed {

@@ -45,19 +45,19 @@ var debugWorkflowPromptTemplate string
 //go:embed templates/upgrade-agentic-workflows.md
 var upgradeAgenticWorkflowsPromptTemplate string
 
-//go:embed templates/orchestrate-agentic-campaign.md
+//go:embed templates/orchestrate-campaign.md
 var campaignOrchestratorInstructionsTemplate string
 
-//go:embed templates/update-agentic-campaign-project.md
+//go:embed templates/update-campaign-project-contract.md
 var campaignProjectUpdateInstructionsTemplate string
 
-//go:embed templates/execute-agentic-campaign-workflow.md
+//go:embed templates/execute-campaign-workflow.md
 var campaignWorkflowExecutionTemplate string
 
 //go:embed templates/close-agentic-campaign.md
 var campaignClosingInstructionsTemplate string
 
-//go:embed templates/generate-agentic-campaign.md
+//go:embed templates/generate-campaign.md
 var campaignGeneratorInstructionsTemplate string
 
 //go:embed templates/create-agentic-campaign.md

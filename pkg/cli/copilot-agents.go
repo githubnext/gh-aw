@@ -220,7 +220,7 @@ func ensureAgenticCampaignsDispatcher(verbose bool, skipInstructions bool) error
 func ensureCampaignOrchestratorInstructions(verbose bool, skipInstructions bool) error {
 	return ensureFileMatchesTemplate(
 		filepath.Join(".github", "aw"),
-		"orchestrate-agentic-campaign.md",
+		"orchestrate-campaign.md",
 		campaignOrchestratorInstructionsTemplate,
 		"campaign orchestrator instructions",
 		verbose,
@@ -228,11 +228,11 @@ func ensureCampaignOrchestratorInstructions(verbose bool, skipInstructions bool)
 	)
 }
 
-// ensureCampaignProjectUpdateInstructions ensures that .github/aw/update-agentic-campaign-project.md exists
+// ensureCampaignProjectUpdateInstructions ensures that .github/aw/update-campaign-project-contract.md exists
 func ensureCampaignProjectUpdateInstructions(verbose bool, skipInstructions bool) error {
 	return ensureFileMatchesTemplate(
 		filepath.Join(".github", "aw"),
-		"update-agentic-campaign-project.md",
+		"update-campaign-project-contract.md",
 		campaignProjectUpdateInstructionsTemplate,
 		"campaign project update instructions",
 		verbose,
@@ -240,11 +240,11 @@ func ensureCampaignProjectUpdateInstructions(verbose bool, skipInstructions bool
 	)
 }
 
-// ensureCampaignWorkflowExecution ensures that .github/aw/execute-agentic-campaign-workflow.md exists
+// ensureCampaignWorkflowExecution ensures that .github/aw/execute-campaign-workflow.md exists
 func ensureCampaignWorkflowExecution(verbose bool, skipInstructions bool) error {
 	return ensureFileMatchesTemplate(
 		filepath.Join(".github", "aw"),
-		"execute-agentic-campaign-workflow.md",
+		"execute-campaign-workflow.md",
 		campaignWorkflowExecutionTemplate,
 		"campaign workflow execution",
 		verbose,
@@ -264,11 +264,11 @@ func ensureCampaignClosingInstructions(verbose bool, skipInstructions bool) erro
 	)
 }
 
-// ensureCampaignGeneratorInstructions ensures that .github/aw/generate-agentic-campaign.md exists
+// ensureCampaignGeneratorInstructions ensures that .github/aw/generate-campaign.md exists
 func ensureCampaignGeneratorInstructions(verbose bool, skipInstructions bool) error {
 	return ensureFileMatchesTemplate(
 		filepath.Join(".github", "aw"),
-		"generate-agentic-campaign.md",
+		"generate-campaign.md",
 		campaignGeneratorInstructionsTemplate,
 		"campaign generator instructions",
 		verbose,
