@@ -82,28 +82,16 @@ allowed-safe-outputs: [create-issue, add-comment]
 4. `assign-to-agent` (assigns agents, optional)
 
 **Example Safe Outputs Configuration for Project-Based Campaigns:**
-```yaml
-safe-outputs:
-  create-project:
-    max: 1
-    github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
-    target-owner: "${{ github.repository_owner }}"
-    views:  # Views are created automatically when project is created
-      - name: "Campaign Roadmap"
-        layout: "roadmap"
-        filter: "is:issue is:pr"
-      - name: "Task Tracker"
-        layout: "table"
-        filter: "is:issue is:pr"
-      - name: "Progress Board"
-        layout: "board"
-        filter: "is:issue is:pr"
-  update-project:
-    max: 10
-    github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
-  update-issue:
-  assign-to-agent:
-```
+
+When configuring safe outputs, place the `views` array under `create-project` (not `update-project`):
+- `create-project.views` - Views are created automatically when project is created
+- `create-project.github-token` - Use the GH_AW_PROJECT_GITHUB_TOKEN secret
+- `create-project.target-owner` - Use github.repository_owner expression
+
+The three standard views for campaigns are:
+1. Campaign Roadmap (layout: roadmap)
+2. Task Tracker (layout: table)
+3. Progress Board (layout: board)
 
 **Risk Levels:**
 - High: Sensitive/multi-repo/breaking → 2 approvals + sponsor

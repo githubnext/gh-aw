@@ -483,6 +483,14 @@ func renderCampaignGeneratorMarkdown(data *workflow.WorkflowData) string {
 			if data.SafeOutputs.CreateProjects.TargetOwner != "" {
 				fmt.Fprintf(&b, "    target-owner: \"%s\"\n", data.SafeOutputs.CreateProjects.TargetOwner)
 			}
+			if len(data.SafeOutputs.CreateProjects.Views) > 0 {
+				b.WriteString("    views:\n")
+				for _, view := range data.SafeOutputs.CreateProjects.Views {
+					fmt.Fprintf(&b, "      - name: \"%s\"\n", view.Name)
+					fmt.Fprintf(&b, "        layout: \"%s\"\n", view.Layout)
+					fmt.Fprintf(&b, "        filter: \"%s\"\n", view.Filter)
+				}
+			}
 		}
 
 		if data.SafeOutputs.UpdateProjects != nil {
@@ -490,14 +498,6 @@ func renderCampaignGeneratorMarkdown(data *workflow.WorkflowData) string {
 			b.WriteString("    max: 10\n")
 			if data.SafeOutputs.UpdateProjects.GitHubToken != "" {
 				fmt.Fprintf(&b, "    github-token: \"%s\"\n", data.SafeOutputs.UpdateProjects.GitHubToken)
-			}
-			if len(data.SafeOutputs.UpdateProjects.Views) > 0 {
-				b.WriteString("    views:\n")
-				for _, view := range data.SafeOutputs.UpdateProjects.Views {
-					fmt.Fprintf(&b, "      - name: \"%s\"\n", view.Name)
-					fmt.Fprintf(&b, "        layout: \"%s\"\n", view.Layout)
-					fmt.Fprintf(&b, "        filter: \"%s\"\n", view.Filter)
-				}
 			}
 		}
 
