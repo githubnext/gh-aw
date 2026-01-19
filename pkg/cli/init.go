@@ -131,7 +131,6 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 			fn   func(bool, bool) error
 			name string
 		}{
-			{ensureCampaignCreationInstructions, "campaign creation instructions"},
 			{ensureCampaignOrchestratorInstructions, "campaign orchestrator instructions"},
 			{ensureCampaignProjectUpdateInstructions, "campaign project update instructions"},
 			{ensureCampaignWorkflowExecution, "campaign workflow execution"},
