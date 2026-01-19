@@ -179,3 +179,47 @@ func TestToolsJSONStructureMatchesMCPSpecification(t *testing.T) {
 		})
 	}
 }
+
+// TestNoTopLevelOneOfAllOfAnyOf validates that no tools have oneOf/allOf/anyOf at the top level
+// of their inputSchema, as these are not supported by Claude's API and other AI engines.
+// This is a regression test for https://github.com/githubnext/gh-aw/actions/runs/21142123455
+func TestNoTopLevelOneOfAllOfAnyOf(t *testing.T) {
+	// Get the safe outputs tools JSON
+	toolsJSON := GetSafeOutputsToolsJSON()
+	require.NotEmpty(t, toolsJSON, "Tools JSON should not be empty")
+
+	// Parse the tools JSON
+	var tools []map[string]any
+	err := json.Unmarshal([]byte(toolsJSON), &tools)
+	require.NoError(t, err, "Tools JSON should be valid JSON")
+
+	// Check each tool for forbidden top-level schema constraints
+	for _, tool := range tools {
+		name := tool["name"].(string)
+		t.Run(name, func(t *testing.T) {
+			// Get the inputSchema
+			inputSchema, ok := tool["inputSchema"].(map[string]any)
+			require.True(t, ok, "Tool '%s' should have inputSchema as an object", name)
+
+			// Check for forbidden top-level constraints
+			// These constraints are not supported by Claude's API and should be avoided
+			assert.NotContains(t, inputSchema, "oneOf",
+				"Tool '%s' has 'oneOf' at top level of inputSchema. "+
+					"Claude API does not support oneOf/allOf/anyOf at the top level. "+
+					"Use optional fields with validation documented in descriptions instead. "+
+					"See: https://github.com/githubnext/gh-aw/actions/runs/21142123455", name)
+
+			assert.NotContains(t, inputSchema, "allOf",
+				"Tool '%s' has 'allOf' at top level of inputSchema. "+
+					"Claude API does not support oneOf/allOf/anyOf at the top level. "+
+					"Use optional fields with validation documented in descriptions instead. "+
+					"See: https://github.com/githubnext/gh-aw/actions/runs/21142123455", name)
+
+			assert.NotContains(t, inputSchema, "anyOf",
+				"Tool '%s' has 'anyOf' at top level of inputSchema. "+
+					"Claude API does not support oneOf/allOf/anyOf at the top level. "+
+					"Use optional fields with validation documented in descriptions instead. "+
+					"See: https://github.com/githubnext/gh-aw/actions/runs/21142123455", name)
+		})
+	}
+}
