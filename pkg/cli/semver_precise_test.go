@@ -68,7 +68,8 @@ func TestIsPreciseVersion(t *testing.T) {
 }
 
 func TestPreciseVersionPreference(t *testing.T) {
-	// Test that when comparing equal versions, precise versions are preferred
+	// Test that when comparing equal versions, major-only versions are preferred
+	// This follows GitHub Actions convention of using major version tags (e.g., v8 instead of v8.0.0)
 	v6 := parseVersion("v6")
 	v600 := parseVersion("v6.0.0")
 
