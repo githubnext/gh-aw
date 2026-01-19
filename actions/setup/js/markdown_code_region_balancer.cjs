@@ -103,91 +103,106 @@ function balanceCodeRegions(markdown) {
     }
   }
 
-  // Third pass: Detect nested fences and calculate required fence length increases
-  // Process fences sequentially, respecting nested blocks
+  // Third pass: Match fences, detecting and fixing nested patterns
+  // Key insight: Find ALL valid closers for each opener. If there are multiple,
+  // use the LAST one and increase fence length so middle ones become invalid.
   const fenceLengthAdjustments = new Map(); // lineIndex -> new length
   const processed = new Set();
   const unclosedFences = [];
+  const pairedBlocks = []; // Track paired blocks
 
-  function processFences(startIndex, endIndex) {
-    for (let i = startIndex; i < endIndex; i++) {
-      if (processed.has(i)) continue;
+  let i = 0;
+  while (i < fences.length) {
+    if (processed.has(i)) {
+      i++;
+      continue;
+    }
 
-      const openFence = fences[i];
-      processed.add(i);
+    const openFence = fences[i];
+    processed.add(i);
 
-      // Find all potential closers (same char, >= length, NO language)
-      const bareClosers = []; // Fences that could close this block
-      let maxInnerFenceLength = openFence.length;
+    // Look for ALL valid closers
+    const allMatchingClosers = []; // Track all potential closers
 
-      for (let j = i + 1; j < endIndex; j++) {
-        if (processed.has(j)) continue;
+    for (let j = i + 1; j < fences.length; j++) {
+      if (processed.has(j)) continue;
 
-        const fence = fences[j];
+      const fence = fences[j];
 
-        // If this fence has a language specifier, it starts a NEW nested block
-        // Process it recursively first
-        if (fence.language !== "") {
-          // This opens a nested block - process it
-          const nestedStart = j;
-          processed.add(j);
+      // If this fence has a language specifier and matches our char, it's a nested block
+      if (fence.language !== "" && fence.char === openFence.char) {
+        // Process this nested block with language
+        processed.add(j);
 
-          // Find its closer
-          let nestedClose = -1;
-          for (let k = j + 1; k < endIndex; k++) {
-            if (processed.has(k)) continue;
-            const closerCandidate = fences[k];
-            if (closerCandidate.char === fence.char && closerCandidate.length >= fence.length && closerCandidate.language === "") {
-              nestedClose = k;
-              processed.add(k);
-              break;
-            }
+        // Find its closer
+        for (let k = j + 1; k < fences.length; k++) {
+          if (processed.has(k)) continue;
+          const nestedCloser = fences[k];
+          if (nestedCloser.char === fence.char && nestedCloser.length >= fence.length && nestedCloser.language === "") {
+            processed.add(k);
+            break;
           }
-
-          // Continue looking after the nested block
-          if (nestedClose !== -1) {
-            j = nestedClose;
-          }
-          continue;
         }
+        continue;
+      }
 
-        // Check if this bare fence can close our opening fence
-        const canClose = fence.char === openFence.char && fence.length >= openFence.length;
+      // Check if this bare fence can close our opening fence
+      const canClose = fence.char === openFence.char && fence.length >= openFence.length && fence.language === "";
 
-        if (canClose) {
-          bareClosers.push(j);
-          if (fence.length > maxInnerFenceLength) {
-            maxInnerFenceLength = fence.length;
-          }
+      if (canClose) {
+        allMatchingClosers.push({ index: j, length: fence.length });
+      }
+    }
+
+    if (allMatchingClosers.length > 0) {
+      // Use the LAST valid closer
+      const closerIndex = allMatchingClosers[allMatchingClosers.length - 1].index;
+      processed.add(closerIndex);
+
+      pairedBlocks.push({
+        start: fences[i].lineIndex,
+        end: fences[closerIndex].lineIndex,
+        openIndex: i,
+        closeIndex: closerIndex,
+      });
+
+      // If there are multiple closers, we have nested fences
+      if (allMatchingClosers.length > 1) {
+        // Increase fence length so middle closers can no longer close
+        const maxLength = Math.max(...allMatchingClosers.map(c => c.length), openFence.length);
+        const newLength = maxLength + 1;
+        fenceLengthAdjustments.set(fences[i].lineIndex, newLength);
+        fenceLengthAdjustments.set(fences[closerIndex].lineIndex, newLength);
+
+        // Mark middle closers as processed
+        for (let k = 0; k < allMatchingClosers.length - 1; k++) {
+          processed.add(allMatchingClosers[k].index);
         }
       }
 
-      if (bareClosers.length > 0) {
-        // Use the LAST valid closer
-        const closerIndex = bareClosers[bareClosers.length - 1];
-        processed.add(closerIndex);
+      // Continue from after the closer
+      i = closerIndex + 1;
+    } else {
+      // No closer found - check if this fence is inside a paired block
+      const fenceLine = fences[i].lineIndex;
+      let isInsideBlock = false;
 
-        // If there are multiple bare closers (nested same-length fences), increase outer fence length
-        if (bareClosers.length > 1) {
-          const newLength = maxInnerFenceLength + 1;
-          fenceLengthAdjustments.set(fences[i].lineIndex, newLength);
-          fenceLengthAdjustments.set(fences[closerIndex].lineIndex, newLength);
+      for (const block of pairedBlocks) {
+        if (fenceLine > block.start && fenceLine < block.end) {
+          isInsideBlock = true;
+          break;
         }
+      }
 
-        // Mark all middle candidates as processed
-        for (let k = 0; k < bareClosers.length - 1; k++) {
-          processed.add(bareClosers[k]);
-        }
-      } else {
-        // No closer found
+      if (!isInsideBlock) {
         unclosedFences.push(openFence);
       }
+
+      i++;
     }
   }
 
-  processFences(0, fences.length);
-
-  // Fourth pass: build result with adjusted fence lengths
+  // Fifth pass: build result with adjusted fence lengths
   for (let i = 0; i < lines.length; i++) {
     if (fenceLengthAdjustments.has(i)) {
       const newLength = fenceLengthAdjustments.get(i);
