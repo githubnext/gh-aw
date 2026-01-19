@@ -9,7 +9,7 @@ const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } =
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
-const { createExpirationLine, addExpirationToFooter, generateFooterWithExpiration } = require("./ephemerals.cjs");
+const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const fs = require("fs");
 
@@ -145,15 +145,13 @@ function createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowS
   // Render the issue template
   let body = renderTemplate(issueTemplate, templateContext);
 
-  // Add expiration to footer if configured
-  if (expiresHours > 0) {
-    const footer = `> Workflow: [${workflowName}](${workflowSourceURL})`;
-    body = `${body}\n\n${generateFooterWithExpiration({
-      footerText: footer,
-      expiresHours: expiresHours,
-      entityType: "Parent Issue",
-    })}`;
-  }
+  // Add footer with workflow information
+  const footer = `\n\n> Workflow: [${workflowName}](${workflowSourceURL})`;
+
+  // Add expiration to footer if configured using ephemerals helper
+  const footerWithExpiration = addExpirationToFooter(footer, expiresHours, "Parent Issue");
+
+  body = `${body}${footerWithExpiration}`;
 
   return { title, body };
 }
