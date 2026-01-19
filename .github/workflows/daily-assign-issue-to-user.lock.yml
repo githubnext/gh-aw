@@ -141,7 +141,7 @@ jobs:
           
           # Execute the installer with the specified version
           # Pass VERSION directly to sudo to ensure it's available to the installer script
-          sudo VERSION=0.0.384 bash /tmp/copilot-install.sh
+          sudo VERSION=0.0.385 bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -165,7 +165,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.69 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.69 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -396,7 +396,7 @@ jobs:
             "mcpServers": {
               "github": {
                 "type": "stdio",
-                "container": "ghcr.io/github/github-mcp-server:v0.28.1",
+                "container": "ghcr.io/github/github-mcp-server:v0.29.0",
                 "env": {
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
@@ -445,7 +445,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.384",
+              agent_version: "0.0.385",
               workflow_name: "Auto-Assign Issue",
               experimental: false,
               supports_tools_allowlist: true,
@@ -982,7 +982,7 @@ jobs:
           
           # Execute the installer with the specified version
           # Pass VERSION directly to sudo to ensure it's available to the installer script
-          sudo VERSION=0.0.384 bash /tmp/copilot-install.sh
+          sudo VERSION=0.0.385 bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
