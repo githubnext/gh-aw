@@ -73,7 +73,7 @@ function generateFooterWithExpiration(options) {
     const expirationDate = new Date();
     expirationDate.setHours(expirationDate.getHours() + expiresHours);
     const expirationLine = createExpirationLine(expirationDate);
-    footer = `${footer}\n>\n> ${expirationLine}`;
+    footer = `${footer}\n> ${expirationLine}`;
 
     if (entityType) {
       core.info(`${entityType} will expire on ${expirationDate.toISOString()} (${expiresHours} hours)`);
@@ -111,10 +111,10 @@ function addExpirationToFooter(footer, expiresHours, entityType) {
     // Insert expiration before XML marker
     const xmlMarker = xmlMarkerMatch[0];
     const footerWithoutXml = footer.substring(0, footer.length - xmlMarker.length);
-    footer = `${footerWithoutXml}\n>\n> ${expirationLine}${xmlMarker}`;
+    footer = `${footerWithoutXml}\n> ${expirationLine}${xmlMarker}`;
   } else {
     // No XML marker, just append to footer
-    footer = `${footer}\n>\n> ${expirationLine}`;
+    footer = `${footer}\n> ${expirationLine}`;
   }
 
   if (entityType) {

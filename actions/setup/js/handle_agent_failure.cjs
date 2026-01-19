@@ -7,6 +7,7 @@ const { getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, 
 const { renderTemplate } = require("./messages_core.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
+const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const fs = require("fs");
 
 /**
@@ -47,9 +48,10 @@ async function findPullRequestForCurrentBranch() {
 
 /**
  * Search for or create the parent issue for all agentic workflow failures
+ * @param {number|null} previousParentNumber - Previous parent issue number if creating due to limit
  * @returns {Promise<{number: number, node_id: string}>} Parent issue number and node ID
  */
-async function ensureParentIssue() {
+async function ensureParentIssue(previousParentNumber = null) {
   const { owner, repo } = context.repo;
   const parentTitle = "[agentics] Agentic Workflow Issues";
   const parentLabel = "agentic-workflows";
@@ -68,21 +70,47 @@ async function ensureParentIssue() {
     if (searchResult.data.total_count > 0) {
       const existingIssue = searchResult.data.items[0];
       core.info(`Found existing parent issue #${existingIssue.number}: ${existingIssue.html_url}`);
-      return {
-        number: existingIssue.number,
-        node_id: existingIssue.node_id,
-      };
+
+      // Check the sub-issue count
+      const subIssueCount = await getSubIssueCount(owner, repo, existingIssue.number);
+
+      if (subIssueCount !== null && subIssueCount >= MAX_SUB_ISSUES) {
+        core.warning(`Parent issue #${existingIssue.number} has ${subIssueCount} sub-issues (max: ${MAX_SUB_ISSUES})`);
+        core.info(`Creating a new parent issue (previous parent #${existingIssue.number} is full)`);
+
+        // Fall through to create a new parent issue, passing the previous parent number
+        previousParentNumber = existingIssue.number;
+      } else {
+        // Parent issue is within limits, return it
+        if (subIssueCount !== null) {
+          core.info(`Parent issue has ${subIssueCount} sub-issues (within limit of ${MAX_SUB_ISSUES})`);
+        }
+        return {
+          number: existingIssue.number,
+          node_id: existingIssue.node_id,
+        };
+      }
     }
   } catch (error) {
     core.warning(`Error searching for parent issue: ${getErrorMessage(error)}`);
   }
 
-  // Create parent issue if it doesn't exist
-  core.info("No parent issue found, creating one");
+  // Create parent issue if it doesn't exist or if previous one is full
+  const creationReason = previousParentNumber ? `creating new parent (previous #${previousParentNumber} reached limit)` : "creating first parent";
+  core.info(`No suitable parent issue found, ${creationReason}`);
 
-  const parentBodyContent = `# Agentic Workflow Failures
+  let parentBodyContent = `# Agentic Workflow Failures
 
-This issue tracks all failures from agentic workflows in this repository. Each failed workflow run creates a sub-issue linked here for organization and easy filtering.
+This issue tracks all failures from agentic workflows in this repository. Each failed workflow run creates a sub-issue linked here for organization and easy filtering.`;
+
+  // Add reference to previous parent if this is a continuation
+  if (previousParentNumber) {
+    parentBodyContent += `
+
+> **Note:** This is a continuation parent issue. The previous parent issue #${previousParentNumber} reached the maximum of ${MAX_SUB_ISSUES} sub-issues.`;
+  }
+
+  parentBodyContent += `
 
 ### Purpose
 

@@ -69,6 +69,7 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 		AssignToAgent: &workflow.AssignToAgentConfig{},
 		CreateProjects: &workflow.CreateProjectsConfig{
 			GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+			TargetOwner: "${{ github.repository_owner }}",
 		},
 		UpdateProjects: &workflow.UpdateProjectConfig{
 			GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
