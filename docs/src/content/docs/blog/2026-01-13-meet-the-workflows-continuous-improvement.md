@@ -26,9 +26,9 @@ In our [previous posts](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-sim
 
 Today's agents analyze higher-level concerns and long-term health:
 
-- **[Go Fan](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/go-fan.md?plain=1)** - Daily Go module usage reviewer that analyzes direct dependencies  
-- **[Typist](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/typist.md?plain=1)** - Analyzes Go type usage patterns to improve type safety  
-- **[Repository Quality Improver](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/repository-quality-improver.md?plain=1)** - Takes a holistic view of code quality and suggests improvements  
+- **[Go Fan](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/go-fan.md?plain=1)** - Daily Go module usage reviewer that analyzes direct dependencies  
+- **[Typist](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/typist.md?plain=1)** - Analyzes Go type usage patterns to improve type safety  
+- **[Repository Quality Improver](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/repository-quality-improver.md?plain=1)** - Takes a holistic view of code quality and suggests improvements  
 
 ### Go Fan: The Dependency Enthusiast 🐹
 

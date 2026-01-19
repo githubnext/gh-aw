@@ -28,13 +28,13 @@ Now let's address one of software development's eternal challenges: keeping docu
 
 These agents maintain high-quality documentation and content:
 
-- **[Daily Documentation Updater](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-doc-updater.md?plain=1)** - Reviews and updates documentation to ensure accuracy and completeness  
-- **[Glossary Maintainer](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/glossary-maintainer.md?plain=1)** - Keeps glossary synchronized with codebase  
-- **[Documentation Unbloat](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/unbloat-docs.md?plain=1)** - Reviews and simplifies documentation by reducing verbosity  
-- **[Documentation Noob Tester](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/docs-noob-tester.md?plain=1)** - Tests documentation as a new user would, identifying confusing steps  
-- **[Slide Deck Maintainer](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/slide-deck-maintainer.md?plain=1)** - Maintains presentation slide decks  
-- **[Multi-device Docs Tester](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-multi-device-docs-tester.md?plain=1)** - Tests documentation site across mobile, tablet, and desktop devices  
-- **[Blog Auditor](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/blog-auditor.md?plain=1)** - Verifies blog posts are accessible and contain expected content  
+- **[Daily Documentation Updater](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-doc-updater.md?plain=1)** - Reviews and updates documentation to ensure accuracy and completeness  
+- **[Glossary Maintainer](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/glossary-maintainer.md?plain=1)** - Keeps glossary synchronized with codebase  
+- **[Documentation Unbloat](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/unbloat-docs.md?plain=1)** - Reviews and simplifies documentation by reducing verbosity  
+- **[Documentation Noob Tester](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/docs-noob-tester.md?plain=1)** - Tests documentation as a new user would, identifying confusing steps  
+- **[Slide Deck Maintainer](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/slide-deck-maintainer.md?plain=1)** - Maintains presentation slide decks  
+- **[Multi-device Docs Tester](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-multi-device-docs-tester.md?plain=1)** - Tests documentation site across mobile, tablet, and desktop devices  
+- **[Blog Auditor](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/blog-auditor.md?plain=1)** - Verifies blog posts are accessible and contain expected content  
   
 Documentation is where we challenged conventional wisdom. Can AI agents write *good* documentation?
 

@@ -28,8 +28,8 @@ Now let's meet the agents that work quietly in the background to keep code simpl
 
 The next two agents represent different aspects of  code simplicity: detecting *overcomplicated code* and *duplicated logic*:
 
-- **[Automatic Code Simplifier](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/code-simplifier.md?plain=1)** - Analyzes recently modified code and creates PRs with simplifications  
-- **[Duplicate Code Detector](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/duplicate-code-detector.md?plain=1)** - Uses Serena's semantic analysis to identify duplicate code patterns  
+- **[Automatic Code Simplifier](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/code-simplifier.md?plain=1)** - Analyzes recently modified code and creates PRs with simplifications  
+- **[Duplicate Code Detector](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/duplicate-code-detector.md?plain=1)** - Uses Serena's semantic analysis to identify duplicate code patterns  
 
 The **Automatic Code Simplifier** runs daily, analyzing recently modified code for opportunities to simplify without changing functionality. It looks at what changed in the last few commits and asks: "Could this be clearer? Could it be shorter? Could it be more idiomatic?"
 

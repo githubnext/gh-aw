@@ -30,9 +30,9 @@ We learned that the right agent at the right moment with the right information i
 
 These agents respond to commands, providing on-demand assistance whenever you need it:
 
-- **[Q](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/q.md?plain=1)** - Workflow optimizer that investigates performance and creates PRs  
-- **[Grumpy Reviewer](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/grumpy-reviewer.md?plain=1)** - Performs critical code reviews with personality
-- **[Workflow Generator](https://github.com/githubnext/gh-aw/tree/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/workflow-generator.md?plain=1)** - Creates new workflows from issue requests
+- **[Q](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/q.md?plain=1)** - Workflow optimizer that investigates performance and creates PRs  
+- **[Grumpy Reviewer](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/grumpy-reviewer.md?plain=1)** - Performs critical code reviews with personality
+- **[Workflow Generator](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/workflow-generator.md?plain=1)** - Creates new workflows from issue requests
 
 Interactive workflows changed how we think about agent invocation. Instead of everything running on a schedule, these respond to slash commands and reactions - `/q` summons the workflow optimizer, a 🚀 reaction triggers analysis. Q (yes, named after the James Bond quartermaster) became our go-to troubleshooter - it investigates workflow performance issues and opens PRs with optimizations.
 
