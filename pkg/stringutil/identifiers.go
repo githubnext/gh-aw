@@ -75,24 +75,7 @@ func MarkdownToLockFile(mdPath string) string {
 	}
 
 	cleaned := filepath.Clean(mdPath)
-
-	// Special case: agentic-campaign-generator lives in .github/aw as markdown source,
-	// but its runnable compiled lock file must be in .github/workflows.
-	//
-	// This keeps the repo convention (markdown prompts in .github/aw) while
-	// satisfying GitHub Actions' requirement that runnable workflows live in
-	// .github/workflows.
-	if filepath.Base(cleaned) == "agentic-campaign-generator.md" {
-		dir := filepath.Dir(cleaned)
-		if filepath.Base(dir) == "aw" {
-			githubDir := filepath.Dir(dir)
-			if filepath.Base(githubDir) == ".github" {
-				return filepath.Join(githubDir, "workflows", "agentic-campaign-generator.lock.yml")
-			}
-		}
-	}
-
-	return strings.TrimSuffix(mdPath, ".md") + ".lock.yml"
+	return strings.TrimSuffix(cleaned, ".md") + ".lock.yml"
 }
 
 // LockFileToMarkdown converts a compiled lock file path back to its markdown source path.
@@ -114,20 +97,7 @@ func LockFileToMarkdown(lockPath string) string {
 	}
 
 	cleaned := filepath.Clean(lockPath)
-
-	// Special case: agentic-campaign-generator lock file lives in .github/workflows,
-	// but its markdown source lives in .github/aw.
-	if filepath.Base(cleaned) == "agentic-campaign-generator.lock.yml" {
-		dir := filepath.Dir(cleaned)
-		if filepath.Base(dir) == "workflows" {
-			githubDir := filepath.Dir(dir)
-			if filepath.Base(githubDir) == ".github" {
-				return filepath.Join(githubDir, "aw", "agentic-campaign-generator.md")
-			}
-		}
-	}
-
-	return strings.TrimSuffix(lockPath, ".lock.yml") + ".md"
+	return strings.TrimSuffix(cleaned, ".lock.yml") + ".md"
 }
 
 // CampaignSpecToOrchestrator converts a campaign specification file to its generated orchestrator file.

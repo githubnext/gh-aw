@@ -124,6 +124,37 @@ jobs:
 		t.Fatalf("Failed to create orphaned lock file: %v", err)
 	}
 
+	// Create agentic-campaign-generator source in .github/workflows and its lock file.
+	// This file should NOT be purged when --purge is used.
+	generatorMd := filepath.Join(workflowsDir, "agentic-campaign-generator.md")
+	generatorContent := `---
+name: "Agentic Campaign Generator"
+on:
+  issues:
+    types: [labeled]
+engine: copilot
+---
+
+# Agentic Campaign Generator
+`
+	if err := os.WriteFile(generatorMd, []byte(generatorContent), 0644); err != nil {
+		t.Fatalf("Failed to create generator source file: %v", err)
+	}
+
+	generatorLockYml := filepath.Join(workflowsDir, "agentic-campaign-generator.lock.yml")
+	generatorLockContent := `name: Agentic Campaign Generator
+on:
+  issues:
+    types: [labeled]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "generator"`
+	if err := os.WriteFile(generatorLockYml, []byte(generatorLockContent), 0644); err != nil {
+		t.Fatalf("Failed to create generator lock file: %v", err)
+	}
+
 	// Verify files exist before purge
 	if _, err := os.Stat(campaignLockYml); os.IsNotExist(err) {
 		t.Fatal("Campaign lock file should exist before purge")
@@ -133,6 +164,9 @@ jobs:
 	}
 	if _, err := os.Stat(orphanedLockYml); os.IsNotExist(err) {
 		t.Fatal("Orphaned lock file should exist before purge")
+	}
+	if _, err := os.Stat(generatorLockYml); os.IsNotExist(err) {
+		t.Fatal("Generator lock file should exist before purge")
 	}
 
 	// Run compilation with purge flag
@@ -168,6 +202,11 @@ jobs:
 	// Verify orphaned lock file WAS purged (no source .md)
 	if _, err := os.Stat(orphanedLockYml); !os.IsNotExist(err) {
 		t.Error("Orphaned lock file should have been purged")
+	}
+
+	// Verify agentic-campaign-generator lock file was NOT purged (source exists)
+	if _, err := os.Stat(generatorLockYml); os.IsNotExist(err) {
+		t.Error("agentic-campaign-generator.lock.yml should NOT be purged when source exists")
 	}
 
 	// Verify source files still exist

@@ -21,7 +21,7 @@ This is a **dispatcher agent**. It routes your request to the right campaign pro
 
 ## Files This Applies To
 
-- Campaign generator workflow source: `.github/aw/agentic-campaign-generator.md`
+- Campaign generator workflow source: `.github/workflows/agentic-campaign-generator.md`
 - Generator lock file: `.github/workflows/agentic-campaign-generator.lock.yml`
 - Campaign specs: `.github/workflows/*.campaign.md`
 - Campaign orchestrators: `.github/workflows/*.campaign.g.md` and `.github/workflows/*.campaign.lock.yml`

@@ -125,15 +125,6 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 
 	// Write campaign dispatcher agent if requested
 	if campaign {
-		initLog.Print("Writing campaign dispatcher agent")
-		if err := ensureAgenticCampaignsDispatcher(verbose, false); err != nil {
-			initLog.Printf("Failed to write campaign dispatcher agent: %v", err)
-			return fmt.Errorf("failed to write campaign dispatcher agent: %w", err)
-		}
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created campaign dispatcher agent"))
-		}
-
 		// Write campaign instruction files
 		initLog.Print("Writing campaign instruction files")
 		campaignEnsureFuncs := []struct {
@@ -298,22 +289,16 @@ func addCampaignGeneratorWorkflow(verbose bool) error {
 		return fmt.Errorf("failed to find git root: %w", err)
 	}
 
-	// The runnable artifact is the compiled lock file, which must be in .github/workflows.
-	// Keep the markdown source in .github/aw to match other gh-aw prompts.
+	// Keep the campaign generator source next to its lock file for consistency.
 	workflowsDir := filepath.Join(gitRoot, ".github", "workflows")
-	awDir := filepath.Join(gitRoot, ".github", "aw")
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		initLog.Printf("Failed to create workflows directory: %v", err)
 		return fmt.Errorf("failed to create workflows directory: %w", err)
 	}
-	if err := os.MkdirAll(awDir, 0755); err != nil {
-		initLog.Printf("Failed to create .github/aw directory: %v", err)
-		return fmt.Errorf("failed to create .github/aw directory: %w", err)
-	}
 
 	// Build the agentic-campaign-generator workflow
 	data := campaign.BuildCampaignGenerator()
-	workflowPath := filepath.Join(awDir, "agentic-campaign-generator.md")
+	workflowPath := filepath.Join(workflowsDir, "agentic-campaign-generator.md")
 
 	// Render the workflow to markdown
 	content := renderCampaignGeneratorMarkdown(data)
@@ -329,8 +314,6 @@ func addCampaignGeneratorWorkflow(verbose bool) error {
 	}
 
 	// Compile to lock file using the standard compiler.
-	// agentic-campaign-generator.md lives in .github/aw, but MarkdownToLockFile is
-	// intentionally mapped to emit the runnable lock file into .github/workflows.
 	compiler := workflow.NewCompiler(verbose, "", GetVersion())
 	if err := CompileWorkflowWithValidation(compiler, workflowPath, verbose, false, false, false, false, false); err != nil {
 		initLog.Printf("Failed to compile agentic-campaign-generator: %v", err)
