@@ -469,7 +469,7 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 		}
 
 		// Send initial progress notification
-		sendProgress(ctx, req, "Starting workflow logs download", 0, 5)
+		sendProgress(ctx, req, "Starting workflow logs download", 0, 3)
 
 		// Validate firewall parameters
 		if args.Firewall && args.NoFirewall {
@@ -525,7 +525,8 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 		cmdArgs = append(cmdArgs, "--json")
 
 		// Send progress notification before executing command
-		sendProgress(ctx, req, "Fetching workflow runs from GitHub", 1, 5)
+		// This is the long-running operation that fetches runs and downloads artifacts
+		sendProgress(ctx, req, "Downloading workflow logs (this may take a while)", 1, 3)
 
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)
@@ -540,12 +541,11 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 		}
 
 		// Send progress notification after command execution
-		sendProgress(ctx, req, "Processing workflow logs", 3, 5)
+		sendProgress(ctx, req, "Processing results", 2, 3)
 
 		// Apply jq filter if provided
 		outputStr := string(output)
 		if args.JqFilter != "" {
-			sendProgress(ctx, req, "Applying jq filter", 4, 5)
 			filteredOutput, err := ApplyJqFilter(outputStr, args.JqFilter)
 			if err != nil {
 				return nil, nil, &jsonrpc.Error{
@@ -561,7 +561,7 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 		finalOutput, _ := checkLogsOutputSize(outputStr, args.MaxTokens)
 
 		// Send final progress notification
-		sendProgress(ctx, req, "Workflow logs download complete", 5, 5)
+		sendProgress(ctx, req, "Complete", 3, 3)
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
@@ -620,7 +620,7 @@ Note: Output can be filtered using the jq parameter.`,
 		}
 
 		// Send initial progress notification
-		sendProgress(ctx, req, "Starting workflow run audit", 0, 4)
+		sendProgress(ctx, req, "Starting workflow run audit", 0, 3)
 
 		// Build command arguments
 		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server (same as logs)
@@ -629,7 +629,8 @@ Note: Output can be filtered using the jq parameter.`,
 		cmdArgs := []string{"audit", args.RunIDOrURL, "-o", "/tmp/gh-aw/aw-mcp/logs", "--json"}
 
 		// Send progress notification before executing command
-		sendProgress(ctx, req, "Fetching workflow run information", 1, 4)
+		// This is the long-running operation that fetches run info and downloads artifacts
+		sendProgress(ctx, req, "Fetching and analyzing workflow run (this may take a while)", 1, 3)
 
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)
@@ -644,12 +645,11 @@ Note: Output can be filtered using the jq parameter.`,
 		}
 
 		// Send progress notification after command execution
-		sendProgress(ctx, req, "Analyzing workflow logs and artifacts", 2, 4)
+		sendProgress(ctx, req, "Processing results", 2, 3)
 
 		// Apply jq filter if provided
 		outputStr := string(output)
 		if args.JqFilter != "" {
-			sendProgress(ctx, req, "Applying jq filter", 3, 4)
 			filteredOutput, jqErr := ApplyJqFilter(outputStr, args.JqFilter)
 			if jqErr != nil {
 				return nil, nil, &jsonrpc.Error{
@@ -662,7 +662,7 @@ Note: Output can be filtered using the jq parameter.`,
 		}
 
 		// Send final progress notification
-		sendProgress(ctx, req, "Workflow audit complete", 4, 4)
+		sendProgress(ctx, req, "Complete", 3, 3)
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
