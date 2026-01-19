@@ -36,7 +36,7 @@ tools:
     - "cat docs/src/content/docs/reference/glossary.md"
     - "git log --since='24 hours ago' --oneline --name-only -- '.github/workflows/*.lock.yml'"
 
-timeout-minutes: 30
+timeout-minutes: 60
 
 ---
 
