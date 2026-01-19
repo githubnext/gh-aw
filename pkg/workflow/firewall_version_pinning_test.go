@@ -14,14 +14,33 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 		stepStr := strings.Join(step, "\n")
 
 		expectedVersion := string(constants.DefaultFirewallVersion)
-		expectedInstaller := "curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=" + expectedVersion + " bash"
 
-		if !strings.Contains(stepStr, expectedInstaller) {
-			t.Errorf("Expected installer one-liner: %s", expectedInstaller)
-		}
-
+		// Verify version is used in the installation step
 		if !strings.Contains(stepStr, expectedVersion) {
 			t.Errorf("Expected to log requested version %s in installation step, but it was not found", expectedVersion)
+		}
+
+		// Verify checksum verification is included
+		if !strings.Contains(stepStr, "sha256sum") {
+			t.Error("Expected checksum verification using sha256sum")
+		}
+
+		if !strings.Contains(stepStr, "checksums.txt") {
+			t.Error("Expected to download checksums.txt for verification")
+		}
+
+		// Verify direct binary download (not installer script)
+		if !strings.Contains(stepStr, "releases/download") {
+			t.Error("Expected direct binary download from GitHub releases")
+		}
+
+		if !strings.Contains(stepStr, "AWF_BINARY=\"awf-linux-x64\"") {
+			t.Error("Expected to download awf-linux-x64 binary")
+		}
+
+		// Ensure it's NOT using the unverified installer script
+		if strings.Contains(stepStr, "install.sh") {
+			t.Error("Should NOT use unverified installer script - use direct binary download with checksum verification")
 		}
 	})
 
@@ -30,14 +49,23 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 		step := generateAWFInstallationStep(customVersion, nil)
 		stepStr := strings.Join(step, "\n")
 
-		expectedInstaller := "curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=" + customVersion + " bash"
-
+		// Verify custom version is used
 		if !strings.Contains(stepStr, customVersion) {
 			t.Errorf("Expected to log custom version %s in installation step", customVersion)
 		}
 
-		if !strings.Contains(stepStr, expectedInstaller) {
-			t.Errorf("Expected installer one-liner: %s", expectedInstaller)
+		// Verify checksum verification is included
+		if !strings.Contains(stepStr, "sha256sum") {
+			t.Error("Expected checksum verification using sha256sum")
+		}
+
+		if !strings.Contains(stepStr, "Checksum verification") {
+			t.Error("Expected checksum verification message")
+		}
+
+		// Ensure it's NOT using the unverified installer script
+		if strings.Contains(stepStr, "install.sh") {
+			t.Error("Should NOT use unverified installer script - use direct binary download with checksum verification")
 		}
 	})
 }
@@ -76,12 +104,19 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 			t.Fatal("Expected to find AWF installation step when firewall is enabled")
 		}
 
-		// Verify it logs the default version and uses installer script
+		// Verify it logs the default version and uses checksum verification
 		if !strings.Contains(awfStepStr, string(constants.DefaultFirewallVersion)) {
 			t.Errorf("AWF installation step should reference default version %s", string(constants.DefaultFirewallVersion))
 		}
-		if !strings.Contains(awfStepStr, "raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh") {
-			t.Error("AWF installation should use the installer script")
+		if !strings.Contains(awfStepStr, "releases/download") {
+			t.Error("AWF installation should use direct binary download from GitHub releases")
+		}
+		if !strings.Contains(awfStepStr, "sha256sum") {
+			t.Error("AWF installation should include checksum verification")
+		}
+		// Verify it's NOT using the unverified installer script
+		if strings.Contains(awfStepStr, "install.sh") {
+			t.Error("AWF installation should NOT use unverified installer script")
 		}
 	})
 
@@ -124,8 +159,18 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 			t.Errorf("AWF installation step should use custom version %s", customVersion)
 		}
 
-		if !strings.Contains(awfStepStr, "raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh") {
-			t.Error("AWF installation should use the installer script")
+		// Verify checksum verification is included
+		if !strings.Contains(awfStepStr, "sha256sum") {
+			t.Error("AWF installation should include checksum verification")
+		}
+
+		if !strings.Contains(awfStepStr, "releases/download") {
+			t.Error("AWF installation should use direct binary download from GitHub releases")
+		}
+
+		// Verify it's NOT using the unverified installer script
+		if strings.Contains(awfStepStr, "install.sh") {
+			t.Error("AWF installation should NOT use unverified installer script")
 		}
 	})
 
