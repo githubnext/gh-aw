@@ -57,10 +57,12 @@ tools:
     - "tail *"
     - "cd *"
     - "node *"
+    - "npm *"
     - "curl *"
     - "ps *"
     - "kill *"
     - "sleep *"
+    - "echo *"
     - "mkdir *"
     - "cp *"
     - "mv *"
@@ -248,10 +250,30 @@ After making changes to a documentation file, take screenshots of the rendered p
 
 #### Build and Start Documentation Server
 
-1. Go to the `docs` directory (this was already done in the build steps)
-2. Start the documentation development server using `npm run dev`
-3. Wait for the server to fully start (it should be accessible on `http://localhost:4321/gh-aw/`)
-4. Verify the server is running by making a curl request to test accessibility
+**IMPORTANT**: The documentation was already built in the "Build documentation" step. Use the preview server, not the dev server.
+
+Navigate to the docs directory and start the preview server in the background:
+
+```bash
+cd docs
+npm run preview > /tmp/preview.log 2>&1 &
+echo $! > /tmp/server.pid
+```
+
+Wait for the server to be ready on port 4321:
+
+```bash
+for i in {1..30}; do
+  curl -s http://localhost:4321 > /dev/null && echo "Server ready!" && break
+  echo "Waiting for server... ($i/30)" && sleep 2
+done
+```
+
+Verify the server is accessible:
+
+```bash
+curl -s http://localhost:4321/gh-aw/ | head -20
+```
 
 #### Take Screenshots with Playwright
 
@@ -294,6 +316,15 @@ If you encounter any blocked domains:
 1. Note the domain names and resource types (CSS, fonts, images, etc.)
 2. Include this information in the PR description under a "Blocked Domains" section
 3. Example format: "Blocked: fonts.googleapis.com (fonts), cdn.example.com (CSS)"
+
+#### Cleanup Server
+
+After taking screenshots, stop the preview server:
+
+```bash
+kill $(cat /tmp/server.pid) 2>/dev/null || true
+rm -f /tmp/server.pid /tmp/preview.log
+```
 
 ### 10. Create Pull Request
 
