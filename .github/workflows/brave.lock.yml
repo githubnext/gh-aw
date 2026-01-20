@@ -176,7 +176,7 @@ jobs:
           
           # Execute the installer with the specified version
           # Pass VERSION directly to sudo to ensure it's available to the installer script
-          sudo VERSION=0.0.385 bash /tmp/copilot-install.sh
+          sudo VERSION=0.0.387 bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -437,7 +437,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.385",
+              agent_version: "0.0.387",
               workflow_name: "Brave Web Search Agent",
               experimental: false,
               supports_tools_allowlist: true,
@@ -1075,7 +1075,7 @@ jobs:
           
           # Execute the installer with the specified version
           # Pass VERSION directly to sudo to ensure it's available to the installer script
-          sudo VERSION=0.0.385 bash /tmp/copilot-install.sh
+          sudo VERSION=0.0.387 bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
