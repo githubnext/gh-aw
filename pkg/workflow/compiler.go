@@ -324,8 +324,8 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	log.Printf("Validating GitHub tools against enabled toolsets")
 	if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil {
 		// Extract allowed tools and enabled toolsets from ParsedTools
-		allowedTools := workflowData.ParsedTools.GitHub.Allowed
-		enabledToolsets := ParseGitHubToolsets(strings.Join(workflowData.ParsedTools.GitHub.Toolset, ","))
+		allowedTools := workflowData.ParsedTools.GitHub.Allowed.ToStringSlice()
+		enabledToolsets := ParseGitHubToolsets(strings.Join(workflowData.ParsedTools.GitHub.Toolset.ToStringSlice(), ","))
 
 		// Validate that all allowed tools have their toolsets enabled
 		if err := ValidateGitHubToolsAgainstToolsets(allowedTools, enabledToolsets); err != nil {
