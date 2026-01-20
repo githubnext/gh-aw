@@ -71,13 +71,16 @@ Test workflow`,
 			shouldHaveCheckout: true,
 		},
 		{
-			name: "multiple comma-separated folders in dev mode",
+			name: "multiple folders in array format in dev mode",
 			workflowContent: `---
 name: Test Multiple Folders
 engine: copilot
 on: issues
 features:
-  action-folder: "folder1, folder2, folder3"
+  action-folder:
+    - folder1
+    - folder2
+    - folder3
 ---
 Test workflow`,
 			actionMode:         workflow.ActionModeDev,

@@ -71,24 +71,14 @@ func TestGetActionFolders(t *testing.T) {
 			expected: []string{".claude", "custom-actions"},
 		},
 		{
-			name:     "codex engine with multiple folders",
-			data:     &WorkflowData{EngineConfig: &EngineConfig{ID: "codex"}, Features: map[string]any{"action-folder": "folder1,folder2"}},
+			name:     "codex engine with array of folders",
+			data:     &WorkflowData{EngineConfig: &EngineConfig{ID: "codex"}, Features: map[string]any{"action-folder": []string{"folder1", "folder2"}}},
 			expected: []string{".codex", "folder1", "folder2"},
 		},
 		{
 			name:     "single folder as string (no engine)",
 			data:     &WorkflowData{Features: map[string]any{"action-folder": "custom-actions"}},
 			expected: []string{"custom-actions"},
-		},
-		{
-			name:     "multiple folders comma-separated (no engine)",
-			data:     &WorkflowData{Features: map[string]any{"action-folder": "folder1,folder2"}},
-			expected: []string{"folder1", "folder2"},
-		},
-		{
-			name:     "multiple folders with spaces (no engine)",
-			data:     &WorkflowData{Features: map[string]any{"action-folder": "folder1, folder2 , folder3"}},
-			expected: []string{"folder1", "folder2", "folder3"},
 		},
 		{
 			name:     "array of strings ([]any) (no engine)",
@@ -103,11 +93,6 @@ func TestGetActionFolders(t *testing.T) {
 		{
 			name:     "array with empty strings filtered out (no engine)",
 			data:     &WorkflowData{Features: map[string]any{"action-folder": []any{"folder1", "", "folder2"}}},
-			expected: []string{"folder1", "folder2"},
-		},
-		{
-			name:     "comma-separated with empty parts filtered out (no engine)",
-			data:     &WorkflowData{Features: map[string]any{"action-folder": "folder1,,folder2"}},
 			expected: []string{"folder1", "folder2"},
 		},
 		{
@@ -234,9 +219,9 @@ func TestGenerateCheckoutActionsFolder_WithActionFolder(t *testing.T) {
 			expectedFolders: []string{"actions", "custom-actions"},
 		},
 		{
-			name:       "dev mode with multiple action-folders",
+			name:       "dev mode with multiple action-folders (array)",
 			actionMode: ActionModeDev,
-			features:   map[string]any{"action-folder": "folder1,folder2"},
+			features:   map[string]any{"action-folder": []string{"folder1", "folder2"}},
 			expectedContains: []string{
 				"Checkout actions folder",
 				"sparse-checkout: |",
@@ -338,16 +323,6 @@ func TestGenerateCheckoutActionsFolder_FolderFormats(t *testing.T) {
 			name:            "string: single folder",
 			actionFolderVal: "custom",
 			expectedFolders: []string{"actions", "custom"},
-		},
-		{
-			name:            "string: multiple comma-separated",
-			actionFolderVal: "a,b,c",
-			expectedFolders: []string{"actions", "a", "b", "c"},
-		},
-		{
-			name:            "string: with spaces",
-			actionFolderVal: " a , b , c ",
-			expectedFolders: []string{"actions", "a", "b", "c"},
 		},
 		{
 			name:            "array: []any",

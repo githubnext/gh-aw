@@ -53,6 +53,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+            .claude
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
@@ -99,6 +100,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+            .claude
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
@@ -1166,6 +1168,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+            .claude
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
@@ -1275,6 +1278,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+            .claude
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
@@ -1447,6 +1451,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+            .claude
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup

@@ -102,7 +102,6 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 // Additionally supports the action-folder feature to specify extra folders to checkout
 // beyond the default actions folder. The action-folder value can be:
 // - A single folder name as a string (e.g., "custom-actions")
-// - Multiple folders as a comma-separated string (e.g., "folder1,folder2")
 // - An array of folder names (e.g., ["folder1", "folder2"])
 //
 // Also automatically includes engine-specific folders:
@@ -201,16 +200,9 @@ func getActionFolders(data *WorkflowData) []string {
 			// Handle different value types
 			switch val := actionFolderVal.(type) {
 			case string:
-				// Single string or comma-separated string
+				// Single string value
 				if val != "" {
-					// Split by comma and trim whitespace
-					parts := strings.Split(val, ",")
-					for _, part := range parts {
-						trimmed := strings.TrimSpace(part)
-						if trimmed != "" {
-							folders = append(folders, trimmed)
-						}
-					}
+					folders = append(folders, strings.TrimSpace(val))
 				}
 			case []any:
 				// Array of values

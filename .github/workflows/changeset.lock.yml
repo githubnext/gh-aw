@@ -70,6 +70,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+            .codex
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
@@ -135,6 +136,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+            .codex
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
@@ -1050,6 +1052,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+            .codex
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
@@ -1179,6 +1182,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+            .codex
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
@@ -1296,6 +1300,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+            .codex
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
@@ -1352,6 +1357,7 @@ jobs:
         with:
           sparse-checkout: |
             actions
+            .codex
           persist-credentials: false
       - name: Setup Scripts
         uses: ./actions/setup
@@ -1373,7 +1379,6 @@ jobs:
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent-artifacts
-          path: /tmp/gh-aw/
       - name: Generate GitHub App token
         id: app-token
         uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
@@ -1386,6 +1391,7 @@ jobs:
           permission-contents: write
           permission-issues: write
           permission-pull-requests: write
+          path: /tmp/gh-aw/
       - name: Checkout repository
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
