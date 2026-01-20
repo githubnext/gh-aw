@@ -38,6 +38,7 @@ safe-outputs:
     create-issue:
       expires: 2h
       group: true
+      close-older-issues: true
     add-labels:
       allowed: [smoke-opencode]
     messages:
