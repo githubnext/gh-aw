@@ -1,0 +1,280 @@
+package cli
+
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestUpgradeCommand_UpdatesAgentFiles(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+
+	// Initialize git repository (required for init functionality)
+	os.Chdir(tmpDir)
+	exec.Command("git", "init").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "config", "user.name", "Test User").Run()
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a simple workflow file
+	workflowFile := filepath.Join(workflowsDir, "test-workflow.md")
+	content := `---
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This is a test workflow.
+`
+	err = os.WriteFile(workflowFile, []byte(content), 0644)
+	require.NoError(t, err, "Failed to create test workflow file")
+
+	// Run upgrade command
+	config := UpgradeConfig{
+		Verbose:     false,
+		NoFix:       true, // Skip codemods for this test
+		WorkflowDir: "",
+	}
+
+	err = RunUpgrade(config)
+	require.NoError(t, err, "Upgrade command should succeed")
+
+	// Verify that agent files were created
+	instructionsFile := filepath.Join(tmpDir, ".github", "aw", "github-agentic-workflows.md")
+	assert.FileExists(t, instructionsFile, "Copilot instructions file should be created")
+
+	dispatcherFile := filepath.Join(tmpDir, ".github", "agents", "agentic-workflows.agent.md")
+	assert.FileExists(t, dispatcherFile, "Dispatcher agent file should be created")
+
+	upgradePromptFile := filepath.Join(tmpDir, ".github", "aw", "upgrade-agentic-workflows.md")
+	assert.FileExists(t, upgradePromptFile, "Upgrade prompt file should be created")
+}
+
+func TestUpgradeCommand_AppliesCodemods(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+
+	// Initialize git repository
+	os.Chdir(tmpDir)
+	exec.Command("git", "init").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "config", "user.name", "Test User").Run()
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a workflow with deprecated field
+	workflowFile := filepath.Join(workflowsDir, "test-workflow.md")
+	content := `---
+on:
+  workflow_dispatch:
+
+timeout_minutes: 30
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This is a test workflow with deprecated timeout_minutes field.
+`
+	err = os.WriteFile(workflowFile, []byte(content), 0644)
+	require.NoError(t, err, "Failed to create test workflow file")
+
+	// Run upgrade command (with codemods)
+	config := UpgradeConfig{
+		Verbose:     false,
+		NoFix:       false, // Apply codemods
+		WorkflowDir: "",
+	}
+
+	err = RunUpgrade(config)
+	require.NoError(t, err, "Upgrade command should succeed")
+
+	// Read the updated workflow file
+	updatedContent, err := os.ReadFile(workflowFile)
+	require.NoError(t, err, "Failed to read updated workflow file")
+
+	updatedStr := string(updatedContent)
+
+	// Verify that the deprecated field was replaced
+	assert.NotContains(t, updatedStr, "timeout_minutes:", "timeout_minutes should be replaced")
+	assert.Contains(t, updatedStr, "timeout-minutes: 30", "timeout-minutes should be present")
+}
+
+func TestUpgradeCommand_NoFixFlag(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+
+	// Initialize git repository
+	os.Chdir(tmpDir)
+	exec.Command("git", "init").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "config", "user.name", "Test User").Run()
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a workflow with deprecated field
+	workflowFile := filepath.Join(workflowsDir, "test-workflow.md")
+	content := `---
+on:
+  workflow_dispatch:
+
+timeout_minutes: 30
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This workflow should not be modified when --no-fix is used.
+`
+	err = os.WriteFile(workflowFile, []byte(content), 0644)
+	require.NoError(t, err, "Failed to create test workflow file")
+
+	// Run upgrade command with --no-fix
+	config := UpgradeConfig{
+		Verbose:     false,
+		NoFix:       true, // Skip codemods
+		WorkflowDir: "",
+	}
+
+	err = RunUpgrade(config)
+	require.NoError(t, err, "Upgrade command should succeed")
+
+	// Read the workflow file
+	updatedContent, err := os.ReadFile(workflowFile)
+	require.NoError(t, err, "Failed to read workflow file")
+
+	updatedStr := string(updatedContent)
+
+	// Verify that the deprecated field was NOT replaced
+	assert.Contains(t, updatedStr, "timeout_minutes:", "timeout_minutes should not be replaced with --no-fix")
+	assert.NotContains(t, updatedStr, "timeout-minutes:", "timeout-minutes should not be added with --no-fix")
+}
+
+func TestUpgradeCommand_SpecificWorkflow(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+
+	// Initialize git repository
+	os.Chdir(tmpDir)
+	exec.Command("git", "init").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "config", "user.name", "Test User").Run()
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create two workflow files
+	workflow1 := filepath.Join(workflowsDir, "workflow1.md")
+	workflow1Content := `---
+on:
+  workflow_dispatch:
+
+timeout_minutes: 30
+
+permissions:
+  contents: read
+---
+
+# Workflow 1
+
+This workflow should be upgraded.
+`
+	err = os.WriteFile(workflow1, []byte(workflow1Content), 0644)
+	require.NoError(t, err, "Failed to create workflow1")
+
+	workflow2 := filepath.Join(workflowsDir, "workflow2.md")
+	workflow2Content := `---
+on:
+  workflow_dispatch:
+
+timeout_minutes: 60
+
+permissions:
+  contents: read
+---
+
+# Workflow 2
+
+This workflow should not be upgraded.
+`
+	err = os.WriteFile(workflow2, []byte(workflow2Content), 0644)
+	require.NoError(t, err, "Failed to create workflow2")
+
+	// Run upgrade command for specific workflow
+	config := UpgradeConfig{
+		WorkflowIDs: []string{"workflow1"},
+		Verbose:     false,
+		NoFix:       false,
+		WorkflowDir: "",
+	}
+
+	err = RunUpgrade(config)
+	require.NoError(t, err, "Upgrade command should succeed")
+
+	// Check workflow1 was updated
+	updatedContent1, err := os.ReadFile(workflow1)
+	require.NoError(t, err, "Failed to read workflow1")
+	assert.NotContains(t, string(updatedContent1), "timeout_minutes:", "workflow1 should be upgraded")
+	assert.Contains(t, string(updatedContent1), "timeout-minutes:", "workflow1 should have new syntax")
+
+	// Check workflow2 was NOT updated
+	updatedContent2, err := os.ReadFile(workflow2)
+	require.NoError(t, err, "Failed to read workflow2")
+	assert.Contains(t, string(updatedContent2), "timeout_minutes:", "workflow2 should not be upgraded")
+}
+
+func TestUpgradeCommand_NonGitRepo(t *testing.T) {
+	// Create a temporary directory that's not a git repository
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+
+	// Change to non-git directory
+	os.Chdir(tmpDir)
+
+	// Run upgrade command
+	config := UpgradeConfig{
+		Verbose:     false,
+		NoFix:       true,
+		WorkflowDir: "",
+	}
+
+	err := RunUpgrade(config)
+	// Should fail because we're not in a git repository
+	require.Error(t, err, "Upgrade should fail in non-git repository")
+	assert.Contains(t, strings.ToLower(err.Error()), "git", "Error message should mention git")
+}
