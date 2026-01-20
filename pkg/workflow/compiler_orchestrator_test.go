@@ -481,9 +481,3 @@ func TestDetectTextOutputUsageInOrchestrator(t *testing.T) {
 		})
 	}
 }
-
-// Helper functions
-
-func hasInternalPrefix(key string) bool {
-	return len(key) > 2 && key[0] == '_' && key[1] == '_'
-}
