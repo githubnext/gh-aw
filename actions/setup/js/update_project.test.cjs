@@ -1172,4 +1172,153 @@ describe("updateProject", () => {
     expect(updateCalls.length).toBe(1);
     expect(updateCalls[0][1].value).toEqual({ text: "my-worker-workflow" });
   });
+
+  it("creates status field with all predefined options", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 100,
+      fields: {
+        status: "In Progress",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-status-id"),
+      issueResponse("issue-id-100"),
+      existingItemResponse("issue-id-100", "item-status-id"),
+      // No existing fields - will create status with all options
+      fieldsResponse([]),
+      // Response for creating status field with all options
+      {
+        createProjectV2Field: {
+          projectV2Field: {
+            id: "field-status-id",
+            name: "Status",
+            options: [
+              { id: "opt-todo", name: "Todo" },
+              { id: "opt-in-progress", name: "In Progress" },
+              { id: "opt-review", name: "Review required" },
+              { id: "opt-blocked", name: "Blocked" },
+              { id: "opt-done", name: "Done" },
+            ],
+          },
+        },
+      },
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    // Verify that status field was created with all predefined options
+    const createCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("createProjectV2Field"));
+    expect(createCalls.length).toBe(1);
+
+    // Check that all options were provided
+    const options = createCalls[0][1].options;
+    expect(options).toHaveLength(5);
+    expect(options.map(o => o.name)).toEqual(["Todo", "In Progress", "Review required", "Blocked", "Done"]);
+  });
+
+  it("creates priority field with all predefined options", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 100,
+      fields: {
+        priority: "High",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-priority-id"),
+      issueResponse("issue-id-100"),
+      existingItemResponse("issue-id-100", "item-priority-id"),
+      // No existing fields - will create priority with all options
+      fieldsResponse([]),
+      // Response for creating priority field with all options
+      {
+        createProjectV2Field: {
+          projectV2Field: {
+            id: "field-priority-id",
+            name: "Priority",
+            options: [
+              { id: "opt-high", name: "High" },
+              { id: "opt-medium", name: "Medium" },
+              { id: "opt-low", name: "Low" },
+            ],
+          },
+        },
+      },
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    // Verify that priority field was created with all predefined options
+    const createCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("createProjectV2Field"));
+    expect(createCalls.length).toBe(1);
+
+    // Check that all options were provided
+    const options = createCalls[0][1].options;
+    expect(options).toHaveLength(3);
+    expect(options.map(o => o.name)).toEqual(["High", "Medium", "Low"]);
+  });
+
+  it("creates size field with all predefined options", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 100,
+      fields: {
+        size: "Medium",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-size-id"),
+      issueResponse("issue-id-100"),
+      existingItemResponse("issue-id-100", "item-size-id"),
+      // No existing fields - will create size with all options
+      fieldsResponse([]),
+      // Response for creating size field with all options
+      {
+        createProjectV2Field: {
+          projectV2Field: {
+            id: "field-size-id",
+            name: "Size",
+            options: [
+              { id: "opt-small", name: "Small" },
+              { id: "opt-medium", name: "Medium" },
+              { id: "opt-large", name: "Large" },
+            ],
+          },
+        },
+      },
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    // Verify that size field was created with all predefined options
+    const createCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("createProjectV2Field"));
+    expect(createCalls.length).toBe(1);
+
+    // Check that all options were provided
+    const options = createCalls[0][1].options;
+    expect(options).toHaveLength(3);
+    expect(options.map(o => o.name)).toEqual(["Small", "Medium", "Large"]);
+  });
 });

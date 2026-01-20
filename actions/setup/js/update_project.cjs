@@ -5,6 +5,16 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
+ * Predefined options for campaign-specific single-select fields
+ * These match the project_update_schema.json definitions
+ */
+const CAMPAIGN_FIELD_OPTIONS = {
+  status: ["Todo", "In Progress", "Review required", "Blocked", "Done"],
+  priority: ["High", "Medium", "Low"],
+  size: ["Small", "Medium", "Large"],
+};
+
+/**
  * Log detailed GraphQL error information
  * @param {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} error - GraphQL error
  * @param {string} operation - Operation description
@@ -690,18 +700,26 @@ async function updateProject(output) {
                 core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
                 continue;
               }
-            else
+            else {
+              // For campaign-specific single-select fields (status, priority, size),
+              // create with all predefined options from the schema
+              const fieldKey = fieldName.toLowerCase();
+              const predefinedOptions = CAMPAIGN_FIELD_OPTIONS[fieldKey];
+
+              const options = predefinedOptions ? predefinedOptions.map(opt => ({ name: opt, description: "", color: "GRAY" })) : [{ name: String(fieldValue), description: "", color: "GRAY" }];
+
               try {
                 field = (
                   await github.graphql(
                     "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType,\n                      singleSelectOptions: $options\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          name\n                          options { id name }\n                        }\n                        ... on ProjectV2Field {\n                          id\n                          name\n                        }\n                      }\n                    }\n                  }",
-                    { projectId, name: normalizedFieldName, dataType: "SINGLE_SELECT", options: [{ name: String(fieldValue), description: "", color: "GRAY" }] }
+                    { projectId, name: normalizedFieldName, dataType: "SINGLE_SELECT", options }
                   )
                 ).createProjectV2Field.projectV2Field;
               } catch (createError) {
                 core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
                 continue;
               }
+            }
           if (field.dataType === "DATE") valueToSet = { date: String(fieldValue) };
           else if (field.dataType === "NUMBER") {
             // NUMBER fields use ProjectV2FieldValue input type with number property
@@ -869,18 +887,26 @@ async function updateProject(output) {
                 core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
                 continue;
               }
-            else
+            else {
+              // For campaign-specific single-select fields (status, priority, size),
+              // create with all predefined options from the schema
+              const fieldKey = fieldName.toLowerCase();
+              const predefinedOptions = CAMPAIGN_FIELD_OPTIONS[fieldKey];
+
+              const options = predefinedOptions ? predefinedOptions.map(opt => ({ name: opt, description: "", color: "GRAY" })) : [{ name: String(fieldValue), description: "", color: "GRAY" }];
+
               try {
                 field = (
                   await github.graphql(
                     "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType,\n                      singleSelectOptions: $options\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          name\n                          options { id name }\n                        }\n                        ... on ProjectV2Field {\n                          id\n                          name\n                        }\n                      }\n                    }\n                  }",
-                    { projectId, name: normalizedFieldName, dataType: "SINGLE_SELECT", options: [{ name: String(fieldValue), description: "", color: "GRAY" }] }
+                    { projectId, name: normalizedFieldName, dataType: "SINGLE_SELECT", options }
                   )
                 ).createProjectV2Field.projectV2Field;
               } catch (createError) {
                 core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
                 continue;
               }
+            }
           // Check dataType first to properly handle DATE fields before checking for options
           // This prevents date fields from being misidentified as single-select fields
           if (field.dataType === "DATE") {
