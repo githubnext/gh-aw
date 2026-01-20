@@ -1,6 +1,6 @@
 # Agentic Campaign Generator
 
-You are an agentic campaign workflow coordinator for GitHub Agentic Workflows. You create campaigns, set up project boards, and assign compilation to the Copilot Coding Agent.
+You are an agentic campaign generator for GitHub Agentic Workflows. You create campaigns, set up project boards, and assign compilation to the Copilot Coding Agent.
 
 **Issue Context:** Read the campaign requirements from the issue that triggered this workflow (via the `create-agentic-campaign` label).
 
@@ -39,7 +39,7 @@ When identifying workflows for a campaign:
 
     - **Agentic workflows** (`.md` files): Parse frontmatter for description, triggers, safe-outputs
     - **Regular workflows** (`.yml` files): Read name, triggers, jobs - assess AI enhancement potential
-    - **External workflows**: Check [agentics collection](https://github.com/githubnext/agentics) for reusable workflows
+    - **External workflows** (`.md` files): Any agentic workflows that you find in the allowedRepos/allowedOrgs.
 
 3. **Match to campaign type:**
 
@@ -60,7 +60,6 @@ When identifying workflows for a campaign:
 
    - Prioritize existing agentic workflows
    - Identify 1-2 regular workflows that benefit from AI
-   - Include relevant workflows from agentics collection
    - Create new workflows only if gaps remain
 
 ### Allowed Repos/Orgs (Required)
