@@ -58,11 +58,11 @@ type CompileValidationError struct {
 
 // ValidationResult represents the validation result for a single workflow
 type ValidationResult struct {
-	Workflow     string                    `json:"workflow"`
-	Valid        bool                      `json:"valid"`
-	Errors       []CompileValidationError  `json:"errors"`
-	Warnings     []CompileValidationError  `json:"warnings"`
-	CompiledFile string                    `json:"compiled_file,omitempty"`
+	Workflow     string                   `json:"workflow"`
+	Valid        bool                     `json:"valid"`
+	Errors       []CompileValidationError `json:"errors"`
+	Warnings     []CompileValidationError `json:"warnings"`
+	CompiledFile string                   `json:"compiled_file,omitempty"`
 }
 
 // sanitizeValidationResults creates a sanitized copy of validation results with all
