@@ -209,3 +209,21 @@ func suggestWorkflowNames(target string) []string {
 	// Use the existing FindClosestMatches function from parser package
 	return parser.FindClosestMatches(normalizedTarget, availableNames, 3)
 }
+
+// isWorkflowFile returns true if the file should be treated as a workflow file.
+// README.md files are excluded as they are documentation, not workflows.
+func isWorkflowFile(filename string) bool {
+	base := strings.ToLower(filepath.Base(filename))
+	return base != "readme.md"
+}
+
+// filterWorkflowFiles filters out non-workflow files from a list of markdown files.
+func filterWorkflowFiles(files []string) []string {
+	var filtered []string
+	for _, file := range files {
+		if isWorkflowFile(file) {
+			filtered = append(filtered, file)
+		}
+	}
+	return filtered
+}
