@@ -34,8 +34,10 @@ func hasNetworkRestrictions(networkPermissions *NetworkPermissions) bool {
 
 // checkNetworkSupport validates that the selected engine supports network restrictions
 // when network restrictions are defined in the workflow
-func (c *Compiler) checkNetworkSupport(engine CodingAgentEngine, networkPermissions *NetworkPermissions) error {
-	engineFirewallSupportLog.Printf("Checking network support: engine=%s, strict_mode=%t", engine.GetID(), c.strictMode)
+func (c *Compiler) checkNetworkSupport(engine EngineCapabilities, networkPermissions *NetworkPermissions) error {
+	// Get metadata for logging (engine must also implement EngineMetadata)
+	engineMeta := engine.(EngineMetadata)
+	engineFirewallSupportLog.Printf("Checking network support: engine=%s, strict_mode=%t", engineMeta.GetID(), c.strictMode)
 
 	// First, check for explicit firewall disable
 	if err := c.checkFirewallDisable(engine, networkPermissions); err != nil {
@@ -51,16 +53,16 @@ func (c *Compiler) checkNetworkSupport(engine CodingAgentEngine, networkPermissi
 
 	// Check if engine supports firewall
 	if engine.SupportsFirewall() {
-		engineFirewallSupportLog.Printf("Engine supports firewall: %s", engine.GetID())
+		engineFirewallSupportLog.Printf("Engine supports firewall: %s", engineMeta.GetID())
 		// Engine supports firewall, no issue
 		return nil
 	}
 
-	engineFirewallSupportLog.Printf("Warning: engine does not support firewall but network restrictions exist: %s", engine.GetID())
+	engineFirewallSupportLog.Printf("Warning: engine does not support firewall but network restrictions exist: %s", engineMeta.GetID())
 	// Engine does not support firewall, but network restrictions are present
 	message := fmt.Sprintf(
 		"Selected engine '%s' does not support network firewalling; workflow specifies network restrictions (network.allowed). Network may not be sandboxed.",
-		engine.GetID(),
+		engineMeta.GetID(),
 	)
 
 	if c.strictMode {
@@ -78,7 +80,9 @@ func (c *Compiler) checkNetworkSupport(engine CodingAgentEngine, networkPermissi
 // checkFirewallDisable validates firewall: "disable" configuration
 // - Warning if allowed != * (unrestricted)
 // - Error in strict mode if allowed is not * or engine does not support firewall
-func (c *Compiler) checkFirewallDisable(engine CodingAgentEngine, networkPermissions *NetworkPermissions) error {
+func (c *Compiler) checkFirewallDisable(engine EngineCapabilities, networkPermissions *NetworkPermissions) error {
+	// Get metadata for error messages (engine must also implement EngineMetadata)
+	engineMeta := engine.(EngineMetadata)
 	if networkPermissions == nil || networkPermissions.Firewall == nil {
 		return nil
 	}
@@ -103,7 +107,7 @@ func (c *Compiler) checkFirewallDisable(engine CodingAgentEngine, networkPermiss
 
 		// Also check if engine doesn't support firewall in strict mode when there are no restrictions
 		if c.strictMode && !hasRestrictions && !engine.SupportsFirewall() {
-			return fmt.Errorf("strict mode: engine '%s' does not support firewall", engine.GetID())
+			return fmt.Errorf("strict mode: engine '%s' does not support firewall", engineMeta.GetID())
 		}
 	}
 

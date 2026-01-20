@@ -6,7 +6,7 @@ import (
 )
 
 // generateEngineExecutionSteps generates the GitHub Actions steps for executing the AI engine
-func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, logFile string) {
+func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine EngineExecutor, logFile string) {
 
 	steps := engine.GetExecutionSteps(data, logFile)
 
@@ -18,15 +18,17 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 }
 
 // generateLogParsing generates a step that parses the agent's logs and adds them to the step summary
-func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentEngine) {
+func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine EngineLogParser) {
+	// Get metadata for logging (engine must also implement EngineMetadata)
+	engineMeta := engine.(EngineMetadata)
 	parserScriptName := engine.GetLogParserScriptId()
 	if parserScriptName == "" {
 		// Skip log parsing if engine doesn't provide a parser
-		compilerYamlLog.Printf("Skipping log parsing: engine %s has no parser script", engine.GetID())
+		compilerYamlLog.Printf("Skipping log parsing: engine %s has no parser script", engineMeta.GetID())
 		return
 	}
 
-	compilerYamlLog.Printf("Generating log parsing step for engine: %s (parser=%s)", engine.GetID(), parserScriptName)
+	compilerYamlLog.Printf("Generating log parsing step for engine: %s (parser=%s)", engineMeta.GetID(), parserScriptName)
 
 	logParserScript := GetLogParserScript(parserScriptName)
 	if logParserScript == "" {

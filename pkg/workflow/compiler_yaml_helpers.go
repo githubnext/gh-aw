@@ -26,7 +26,7 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 
 // getInstallationVersion returns the version that will be installed for the given engine.
 // This matches the logic in BuildStandardNpmEngineInstallSteps.
-func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string {
+func getInstallationVersion(data *WorkflowData, engine EngineMetadata) string {
 	engineID := engine.GetID()
 	compilerYamlHelpersLog.Printf("Getting installation version for engine: %s", engineID)
 

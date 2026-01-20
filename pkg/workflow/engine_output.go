@@ -45,7 +45,7 @@ func generateCleanupStep(outputFiles []string) (string, bool) {
 }
 
 // generateEngineOutputCollection generates a step that collects engine-declared output files as artifacts
-func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine CodingAgentEngine) {
+func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine EngineExecutor) {
 	outputFiles := engine.GetDeclaredOutputFiles()
 	if len(outputFiles) == 0 {
 		engineOutputLog.Print("No engine output files to collect")

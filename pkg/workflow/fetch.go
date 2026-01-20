@@ -10,7 +10,7 @@ var fetchLog = logger.New("workflow:fetch")
 
 // AddMCPFetchServerIfNeeded adds the mcp/fetch dockerized MCP server to the tools configuration
 // if the engine doesn't have built-in web-fetch support and web-fetch tool is requested
-func AddMCPFetchServerIfNeeded(tools map[string]any, engine CodingAgentEngine) (map[string]any, []string) {
+func AddMCPFetchServerIfNeeded(tools map[string]any, engine EngineCapabilities) (map[string]any, []string) {
 	// Check if web-fetch tool is requested
 	if _, hasWebFetch := tools["web-fetch"]; !hasWebFetch {
 		fetchLog.Print("web-fetch tool not requested, skipping MCP fetch server")

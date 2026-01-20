@@ -15,8 +15,9 @@ var agenticEngineLog = logger.New("workflow:agentic_engine")
 // GitHubActionStep represents the YAML lines for a single step in a GitHub Actions workflow
 type GitHubActionStep []string
 
-// CodingAgentEngine represents an AI coding agent that can be used as an engine to execute agentic workflows
-type CodingAgentEngine interface {
+// EngineMetadata provides core metadata about an agentic engine
+// This interface is always needed when identifying or describing an engine
+type EngineMetadata interface {
 	// GetID returns the unique identifier for this engine
 	GetID() string
 
@@ -25,7 +26,11 @@ type CodingAgentEngine interface {
 
 	// GetDescription returns a description of this engine's capabilities
 	GetDescription() string
+}
 
+// EngineCapabilities describes the feature capabilities of an agentic engine
+// This interface is used for feature detection and compatibility checking
+type EngineCapabilities interface {
 	// IsExperimental returns true if this engine is experimental
 	IsExperimental() bool
 
@@ -47,20 +52,41 @@ type CodingAgentEngine interface {
 	// SupportsFirewall returns true if this engine supports network firewalling/sandboxing
 	// When true, the engine can enforce network restrictions defined in the workflow
 	SupportsFirewall() bool
+}
+
+// EngineInstaller handles installation workflow generation for an agentic engine
+// This interface is used when generating GitHub Actions installation steps
+type EngineInstaller interface {
+	// GetInstallationSteps returns the GitHub Actions steps needed to install this engine
+	GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep
+
+	// GetRequiredSecretNames returns the list of secret names that this engine needs for execution
+	// This includes engine-specific auth tokens and the MCP gateway API key when MCP servers are present
+	// Returns: slice of secret names (e.g., ["COPILOT_GITHUB_TOKEN", "MCP_GATEWAY_API_KEY"])
+	GetRequiredSecretNames(workflowData *WorkflowData) []string
+}
+
+// EngineExecutor handles runtime execution and configuration for an agentic engine
+// This interface is used when generating execution steps and configuring the engine
+type EngineExecutor interface {
+	// GetExecutionSteps returns the GitHub Actions steps for executing this engine
+	GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep
 
 	// GetDeclaredOutputFiles returns a list of output files that this engine may produce
 	// These files will be automatically uploaded as artifacts if they exist
 	GetDeclaredOutputFiles() []string
 
-	// GetInstallationSteps returns the GitHub Actions steps needed to install this engine
-	GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep
-
-	// GetExecutionSteps returns the GitHub Actions steps for executing this engine
-	GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep
-
 	// RenderMCPConfig renders the MCP configuration for this engine to the given YAML builder
 	RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData)
 
+	// GetDefaultDetectionModel returns the default model to use for threat detection
+	// If empty, no default model is applied and the engine uses its standard default
+	GetDefaultDetectionModel() string
+}
+
+// EngineLogParser handles log parsing and metrics extraction for an agentic engine
+// This interface is used for observability and diagnostics
+type EngineLogParser interface {
 	// ParseLogMetrics extracts metrics from engine-specific log content
 	ParseLogMetrics(logContent string, verbose bool) LogMetrics
 
@@ -70,15 +96,16 @@ type CodingAgentEngine interface {
 	// GetLogFileForParsing returns the log file path to use for JavaScript parsing in the workflow
 	// This may be different from the stdout/stderr log file if the engine produces separate detailed logs
 	GetLogFileForParsing() string
+}
 
-	// GetDefaultDetectionModel returns the default model to use for threat detection
-	// If empty, no default model is applied and the engine uses its standard default
-	GetDefaultDetectionModel() string
-
-	// GetRequiredSecretNames returns the list of secret names that this engine needs for execution
-	// This includes engine-specific auth tokens and the MCP gateway API key when MCP servers are present
-	// Returns: slice of secret names (e.g., ["COPILOT_GITHUB_TOKEN", "MCP_GATEWAY_API_KEY"])
-	GetRequiredSecretNames(workflowData *WorkflowData) []string
+// CodingAgentEngine represents an AI coding agent that can be used as an engine to execute agentic workflows
+// This is a composite interface that includes all engine concerns for backward compatibility
+type CodingAgentEngine interface {
+	EngineMetadata
+	EngineCapabilities
+	EngineInstaller
+	EngineExecutor
+	EngineLogParser
 }
 
 // BaseEngine provides common functionality for agentic engines
