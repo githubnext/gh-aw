@@ -68,8 +68,8 @@ func compileSpecificFiles(
 		result := ValidationResult{
 			Workflow: markdownFile,
 			Valid:    true,
-			Errors:   []ValidationError{},
-			Warnings: []ValidationError{},
+			Errors:   []CompileValidationError{},
+			Warnings: []CompileValidationError{},
 		}
 
 		// Resolve workflow ID or file path to actual file path
@@ -84,7 +84,7 @@ func compileSpecificFiles(
 			stats.Errors++
 			trackWorkflowFailure(stats, markdownFile, 1)
 			result.Valid = false
-			result.Errors = append(result.Errors, ValidationError{
+			result.Errors = append(result.Errors, CompileValidationError{
 				Type:    "resolution_error",
 				Message: err.Error(),
 			})

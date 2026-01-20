@@ -11,6 +11,8 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // createTestProcessedRun creates a test ProcessedRun with customizable parameters
@@ -46,6 +48,49 @@ func createTestProcessedRun(opts ...func(*ProcessedRun)) ProcessedRun {
 	return processedRun
 }
 
+// assertFindingExists checks if a finding with the given category and severity exists
+func assertFindingExists(t *testing.T, findings []Finding, category, severity string, msgAndArgs ...any) {
+	t.Helper()
+	for _, f := range findings {
+		if f.Category == category && f.Severity == severity {
+			return // Found it!
+		}
+	}
+	assert.Fail(t, "Finding not found", "category=%s, severity=%s", category, severity)
+}
+
+// findFindingByCategory returns the first finding with the given category, or nil if not found
+func findFindingByCategory(findings []Finding, category string) *Finding {
+	for _, f := range findings {
+		if f.Category == category {
+			return &f
+		}
+	}
+	return nil
+}
+
+// assertFindingContains checks if a finding with the given category exists and title contains expected text
+func assertFindingContains(t *testing.T, findings []Finding, category, titleContains string, msgAndArgs ...any) {
+	t.Helper()
+	for _, f := range findings {
+		if f.Category == category && strings.Contains(f.Title, titleContains) {
+			return // Found it!
+		}
+	}
+	assert.Fail(t, "Finding not found", "category=%s, title containing '%s'", category, titleContains)
+}
+
+// assertRecommendationExists checks if a recommendation with the given priority and action text exists
+func assertRecommendationExists(t *testing.T, recs []Recommendation, priority, actionContains string, msgAndArgs ...any) {
+	t.Helper()
+	for _, r := range recs {
+		if r.Priority == priority && strings.Contains(r.Action, actionContains) {
+			return // Found it!
+		}
+	}
+	assert.Fail(t, "Recommendation not found", "priority=%s, action containing '%s'", priority, actionContains)
+}
+
 func TestGenerateFindings(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -74,16 +119,8 @@ func TestGenerateFindings(t *testing.T) {
 			warnings:      []ErrorInfo{},
 			expectedCount: 1, // Should have success finding
 			checkFindings: func(t *testing.T, findings []Finding) {
-				found := false
-				for _, f := range findings {
-					if f.Category == "success" && f.Severity == "info" {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Error("Expected success finding not found")
-				}
+				assertFindingExists(t, findings, "success", "info",
+					"Successful workflow should generate a success finding")
 			},
 		},
 		{
@@ -104,19 +141,10 @@ func TestGenerateFindings(t *testing.T) {
 			warnings:      []ErrorInfo{},
 			expectedCount: 1, // Should have failure finding
 			checkFindings: func(t *testing.T, findings []Finding) {
-				found := false
-				for _, f := range findings {
-					if f.Category == "error" && f.Severity == "critical" {
-						found = true
-						if !strings.Contains(f.Title, "Failed") {
-							t.Errorf("Expected failure title, got: %s", f.Title)
-						}
-						break
-					}
-				}
-				if !found {
-					t.Error("Expected failure finding not found")
-				}
+				finding := findFindingByCategory(findings, "error")
+				require.NotNil(t, finding, "Failed workflow should generate an error finding")
+				assert.Equal(t, "critical", finding.Severity, "Error finding should have critical severity")
+				assert.Contains(t, finding.Title, "Failed", "Error finding should have 'Failed' in title")
 			},
 		},
 		{
@@ -133,16 +161,8 @@ func TestGenerateFindings(t *testing.T) {
 			warnings:      []ErrorInfo{},
 			expectedCount: 1, // Timeout finding
 			checkFindings: func(t *testing.T, findings []Finding) {
-				found := false
-				for _, f := range findings {
-					if f.Category == "performance" && strings.Contains(f.Title, "Timeout") {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Error("Expected timeout finding not found")
-				}
+				assertFindingContains(t, findings, "performance", "Timeout",
+					"Timed out workflow should generate a timeout finding")
 			},
 		},
 		{
@@ -158,16 +178,8 @@ func TestGenerateFindings(t *testing.T) {
 			warnings:      []ErrorInfo{},
 			expectedCount: 1, // High cost finding
 			checkFindings: func(t *testing.T, findings []Finding) {
-				found := false
-				for _, f := range findings {
-					if f.Category == "cost" && f.Severity == "high" {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Error("Expected high cost finding not found")
-				}
+				assertFindingExists(t, findings, "cost", "high",
+					"High cost workflow should generate a high cost finding")
 			},
 		},
 		{
@@ -183,16 +195,8 @@ func TestGenerateFindings(t *testing.T) {
 			warnings:      []ErrorInfo{},
 			expectedCount: 1, // Moderate cost finding
 			checkFindings: func(t *testing.T, findings []Finding) {
-				found := false
-				for _, f := range findings {
-					if f.Category == "cost" && f.Severity == "medium" {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Error("Expected moderate cost finding not found")
-				}
+				assertFindingExists(t, findings, "cost", "medium",
+					"Moderate cost workflow should generate a medium cost finding")
 			},
 		},
 		{
@@ -207,16 +211,8 @@ func TestGenerateFindings(t *testing.T) {
 			errors:   []ErrorInfo{},
 			warnings: []ErrorInfo{},
 			checkFindings: func(t *testing.T, findings []Finding) {
-				found := false
-				for _, f := range findings {
-					if f.Category == "performance" && strings.Contains(f.Title, "Token Usage") {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Error("Expected high token usage finding not found")
-				}
+				assertFindingContains(t, findings, "performance", "Token Usage",
+					"High token usage should generate a performance finding")
 			},
 		},
 		{
@@ -230,16 +226,8 @@ func TestGenerateFindings(t *testing.T) {
 			errors:   []ErrorInfo{},
 			warnings: []ErrorInfo{},
 			checkFindings: func(t *testing.T, findings []Finding) {
-				found := false
-				for _, f := range findings {
-					if f.Category == "performance" && strings.Contains(f.Title, "Iterations") {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Error("Expected many iterations finding not found")
-				}
+				assertFindingContains(t, findings, "performance", "Iterations",
+					"Many iterations should generate a performance finding")
 			},
 		},
 		{
@@ -261,16 +249,8 @@ func TestGenerateFindings(t *testing.T) {
 			},
 			warnings: []ErrorInfo{},
 			checkFindings: func(t *testing.T, findings []Finding) {
-				found := false
-				for _, f := range findings {
-					if f.Category == "error" && strings.Contains(f.Title, "Multiple Errors") {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Error("Expected multiple errors finding not found")
-				}
+				assertFindingContains(t, findings, "error", "Multiple Errors",
+					"Multiple errors should generate an error finding")
 			},
 		},
 		{
@@ -288,16 +268,8 @@ func TestGenerateFindings(t *testing.T) {
 			errors:   []ErrorInfo{},
 			warnings: []ErrorInfo{},
 			checkFindings: func(t *testing.T, findings []Finding) {
-				found := false
-				for _, f := range findings {
-					if f.Category == "tooling" && strings.Contains(f.Title, "MCP Server") {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Error("Expected MCP server failures finding not found")
-				}
+				assertFindingContains(t, findings, "tooling", "MCP Server",
+					"MCP server failures should generate a tooling finding")
 			},
 		},
 		{
@@ -316,16 +288,8 @@ func TestGenerateFindings(t *testing.T) {
 			errors:   []ErrorInfo{},
 			warnings: []ErrorInfo{},
 			checkFindings: func(t *testing.T, findings []Finding) {
-				found := false
-				for _, f := range findings {
-					if f.Category == "tooling" && strings.Contains(f.Title, "Tools Not Available") {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Error("Expected missing tools finding not found")
-				}
+				assertFindingContains(t, findings, "tooling", "Tools Not Available",
+					"Missing tools should generate a tooling finding")
 			},
 		},
 		{
@@ -345,16 +309,8 @@ func TestGenerateFindings(t *testing.T) {
 			errors:   []ErrorInfo{},
 			warnings: []ErrorInfo{},
 			checkFindings: func(t *testing.T, findings []Finding) {
-				found := false
-				for _, f := range findings {
-					if f.Category == "network" && strings.Contains(f.Title, "Blocked") {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Error("Expected blocked network requests finding not found")
-				}
+				assertFindingContains(t, findings, "network", "Blocked",
+					"Firewall blocked requests should generate a network finding")
 			},
 		},
 	}
@@ -363,8 +319,9 @@ func TestGenerateFindings(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			findings := generateFindings(tt.processedRun, tt.metrics, tt.errors, tt.warnings)
 
-			if tt.expectedCount > 0 && len(findings) < tt.expectedCount {
-				t.Errorf("Expected at least %d findings, got %d", tt.expectedCount, len(findings))
+			if tt.expectedCount > 0 {
+				assert.GreaterOrEqual(t, len(findings), tt.expectedCount,
+					"Should generate at least %d finding(s) for %s", tt.expectedCount, tt.name)
 			}
 
 			if tt.checkFindings != nil {
@@ -394,16 +351,8 @@ func TestGenerateRecommendations(t *testing.T) {
 			findings:         []Finding{},
 			expectedMinCount: 1,
 			checkRecommendations: func(t *testing.T, recs []Recommendation) {
-				found := false
-				for _, r := range recs {
-					if strings.Contains(r.Action, "error logs") && r.Priority == "high" {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Error("Expected high priority review recommendation for failed workflow")
-				}
+				assertRecommendationExists(t, recs, "high", "error logs",
+					"Failed workflow should generate high priority review recommendation")
 			},
 		},
 		{
@@ -415,16 +364,8 @@ func TestGenerateRecommendations(t *testing.T) {
 			},
 			expectedMinCount: 1,
 			checkRecommendations: func(t *testing.T, recs []Recommendation) {
-				found := false
-				for _, r := range recs {
-					if strings.Contains(r.Action, "error logs") && r.Priority == "high" {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Error("Expected high priority review recommendation for critical findings")
-				}
+				assertRecommendationExists(t, recs, "high", "error logs",
+					"Critical findings should generate high priority review recommendation")
 			},
 		},
 		{
@@ -443,9 +384,7 @@ func TestGenerateRecommendations(t *testing.T) {
 						break
 					}
 				}
-				if !found {
-					t.Error("Expected optimization recommendation for high cost findings")
-				}
+				assert.True(t, found, "High cost findings should generate optimization recommendation")
 			},
 		},
 		{
@@ -468,9 +407,7 @@ func TestGenerateRecommendations(t *testing.T) {
 						break
 					}
 				}
-				if !found {
-					t.Error("Expected add tools recommendation for missing tools")
-				}
+				assert.True(t, found, "Missing tools should generate add tools recommendation")
 			},
 		},
 		{
@@ -493,9 +430,7 @@ func TestGenerateRecommendations(t *testing.T) {
 						break
 					}
 				}
-				if !found {
-					t.Error("Expected MCP fix recommendation for MCP failures")
-				}
+				assert.True(t, found, "MCP failures should generate fix recommendation")
 			},
 		},
 		{
@@ -518,9 +453,7 @@ func TestGenerateRecommendations(t *testing.T) {
 						break
 					}
 				}
-				if !found {
-					t.Error("Expected network review recommendation for firewall blocks")
-				}
+				assert.True(t, found, "Many firewall blocks should generate network review recommendation")
 			},
 		},
 		{
@@ -534,16 +467,8 @@ func TestGenerateRecommendations(t *testing.T) {
 			findings:         []Finding{},
 			expectedMinCount: 1,
 			checkRecommendations: func(t *testing.T, recs []Recommendation) {
-				found := false
-				for _, r := range recs {
-					if r.Priority == "low" && strings.Contains(r.Action, "Monitor") {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Error("Expected low priority monitoring recommendation for successful workflow")
-				}
+				assertRecommendationExists(t, recs, "low", "Monitor",
+					"Successful workflow should generate low priority monitoring recommendation")
 			},
 		},
 	}
@@ -552,9 +477,8 @@ func TestGenerateRecommendations(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			recs := generateRecommendations(tt.processedRun, tt.metrics, tt.findings)
 
-			if len(recs) < tt.expectedMinCount {
-				t.Errorf("Expected at least %d recommendations, got %d", tt.expectedMinCount, len(recs))
-			}
+			assert.GreaterOrEqual(t, len(recs), tt.expectedMinCount,
+				"Should generate at least %d recommendation(s) for %s", tt.expectedMinCount, tt.name)
 
 			if tt.checkRecommendations != nil {
 				tt.checkRecommendations(t, recs)
@@ -579,9 +503,8 @@ func TestGenerateFailureAnalysis(t *testing.T) {
 			}(),
 			errors: []ErrorInfo{},
 			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				if analysis.PrimaryFailure != "failure" {
-					t.Errorf("Expected primary failure 'failure', got %s", analysis.PrimaryFailure)
-				}
+				assert.Equal(t, "failure", analysis.PrimaryFailure,
+					"Primary failure should match workflow conclusion")
 			},
 		},
 		{
@@ -598,9 +521,8 @@ func TestGenerateFailureAnalysis(t *testing.T) {
 			}(),
 			errors: []ErrorInfo{},
 			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				if len(analysis.FailedJobs) != 2 {
-					t.Errorf("Expected 2 failed jobs, got %d", len(analysis.FailedJobs))
-				}
+				assert.Len(t, analysis.FailedJobs, 2,
+					"Should have 2 failed jobs (failure and cancelled)")
 			},
 		},
 		{
@@ -614,9 +536,8 @@ func TestGenerateFailureAnalysis(t *testing.T) {
 				{Type: "error", Message: "Build failed"},
 			},
 			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				if analysis.ErrorSummary != "Build failed" {
-					t.Errorf("Expected single error message in summary, got: %s", analysis.ErrorSummary)
-				}
+				assert.Equal(t, "Build failed", analysis.ErrorSummary,
+					"Error summary should contain single error message")
 			},
 		},
 		{
@@ -632,12 +553,10 @@ func TestGenerateFailureAnalysis(t *testing.T) {
 				{Type: "error", Message: "Third error"},
 			},
 			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				if !strings.Contains(analysis.ErrorSummary, "3 errors") {
-					t.Errorf("Expected '3 errors' in summary, got: %s", analysis.ErrorSummary)
-				}
-				if !strings.Contains(analysis.ErrorSummary, "First error") {
-					t.Errorf("Expected first error in summary, got: %s", analysis.ErrorSummary)
-				}
+				assert.Contains(t, analysis.ErrorSummary, "3 errors",
+					"Error summary should indicate multiple errors")
+				assert.Contains(t, analysis.ErrorSummary, "First error",
+					"Error summary should include first error")
 			},
 		},
 		{
@@ -652,9 +571,8 @@ func TestGenerateFailureAnalysis(t *testing.T) {
 			}(),
 			errors: []ErrorInfo{},
 			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				if !strings.Contains(analysis.RootCause, "MCP server failure") {
-					t.Errorf("Expected MCP server failure root cause, got: %s", analysis.RootCause)
-				}
+				assert.Contains(t, analysis.RootCause, "MCP server failure",
+					"Root cause should identify MCP server failure")
 			},
 		},
 		{
@@ -668,9 +586,8 @@ func TestGenerateFailureAnalysis(t *testing.T) {
 				{Type: "error", Message: "Connection timeout after 30s"},
 			},
 			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				if analysis.RootCause != "Operation timeout" {
-					t.Errorf("Expected 'Operation timeout' root cause, got: %s", analysis.RootCause)
-				}
+				assert.Equal(t, "Operation timeout", analysis.RootCause,
+					"Root cause should identify timeout")
 			},
 		},
 		{
@@ -684,9 +601,8 @@ func TestGenerateFailureAnalysis(t *testing.T) {
 				{Type: "error", Message: "Permission blocked: cannot access file"},
 			},
 			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				if analysis.RootCause != "Permission denied" {
-					t.Errorf("Expected 'Permission denied' root cause, got: %s", analysis.RootCause)
-				}
+				assert.Equal(t, "Permission denied", analysis.RootCause,
+					"Root cause should identify permission issue")
 			},
 		},
 		{
@@ -700,9 +616,8 @@ func TestGenerateFailureAnalysis(t *testing.T) {
 				{Type: "error", Message: "File not found: test.txt"},
 			},
 			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				if analysis.RootCause != "Resource not found" {
-					t.Errorf("Expected 'Resource not found' root cause, got: %s", analysis.RootCause)
-				}
+				assert.Equal(t, "Resource not found", analysis.RootCause,
+					"Root cause should identify missing resource")
 			},
 		},
 		{
@@ -716,9 +631,8 @@ func TestGenerateFailureAnalysis(t *testing.T) {
 				{Type: "error", Message: "Authentication failed for user"},
 			},
 			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				if analysis.RootCause != "Authentication failure" {
-					t.Errorf("Expected 'Authentication failure' root cause, got: %s", analysis.RootCause)
-				}
+				assert.Equal(t, "Authentication failure", analysis.RootCause,
+					"Root cause should identify authentication issue")
 			},
 		},
 		{
@@ -730,12 +644,10 @@ func TestGenerateFailureAnalysis(t *testing.T) {
 			}(),
 			errors: []ErrorInfo{},
 			checkAnalysis: func(t *testing.T, analysis *FailureAnalysis) {
-				if analysis.PrimaryFailure != "unknown" {
-					t.Errorf("Expected 'unknown' primary failure, got: %s", analysis.PrimaryFailure)
-				}
-				if !strings.Contains(analysis.ErrorSummary, "No specific errors") {
-					t.Errorf("Expected 'No specific errors' in summary, got: %s", analysis.ErrorSummary)
-				}
+				assert.Equal(t, "unknown", analysis.PrimaryFailure,
+					"Primary failure should be 'unknown' for empty conclusion")
+				assert.Contains(t, analysis.ErrorSummary, "No specific errors",
+					"Error summary should indicate no errors found")
 			},
 		},
 	}
@@ -744,9 +656,7 @@ func TestGenerateFailureAnalysis(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			analysis := generateFailureAnalysis(tt.processedRun, tt.errors)
 
-			if analysis == nil {
-				t.Fatal("Expected non-nil analysis")
-			}
+			require.NotNil(t, analysis, "Failure analysis should be generated for failed workflow")
 
 			if tt.checkAnalysis != nil {
 				tt.checkAnalysis(t, analysis)
@@ -775,9 +685,8 @@ func TestGeneratePerformanceMetrics(t *testing.T) {
 			},
 			toolUsage: []ToolUsageInfo{},
 			checkMetrics: func(t *testing.T, pm *PerformanceMetrics) {
-				if pm.TokensPerMinute != 500 {
-					t.Errorf("Expected 500 tokens/minute, got %f", pm.TokensPerMinute)
-				}
+				assert.InDelta(t, 500.0, pm.TokensPerMinute, 0.01,
+					"Tokens per minute should be 1000 tokens / 2 minutes = 500")
 			},
 		},
 		{
@@ -792,9 +701,8 @@ func TestGeneratePerformanceMetrics(t *testing.T) {
 			},
 			toolUsage: []ToolUsageInfo{},
 			checkMetrics: func(t *testing.T, pm *PerformanceMetrics) {
-				if pm.CostEfficiency != "excellent" {
-					t.Errorf("Expected 'excellent' cost efficiency, got %s", pm.CostEfficiency)
-				}
+				assert.Equal(t, "excellent", pm.CostEfficiency,
+					"Cost efficiency should be excellent for low cost per minute")
 			},
 		},
 		{
@@ -809,9 +717,8 @@ func TestGeneratePerformanceMetrics(t *testing.T) {
 			},
 			toolUsage: []ToolUsageInfo{},
 			checkMetrics: func(t *testing.T, pm *PerformanceMetrics) {
-				if pm.CostEfficiency != "good" {
-					t.Errorf("Expected 'good' cost efficiency, got %s", pm.CostEfficiency)
-				}
+				assert.Equal(t, "good", pm.CostEfficiency,
+					"Cost efficiency should be good for moderate cost per minute")
 			},
 		},
 		{
@@ -826,9 +733,8 @@ func TestGeneratePerformanceMetrics(t *testing.T) {
 			},
 			toolUsage: []ToolUsageInfo{},
 			checkMetrics: func(t *testing.T, pm *PerformanceMetrics) {
-				if pm.CostEfficiency != "moderate" {
-					t.Errorf("Expected 'moderate' cost efficiency, got %s", pm.CostEfficiency)
-				}
+				assert.Equal(t, "moderate", pm.CostEfficiency,
+					"Cost efficiency should be moderate for higher cost per minute")
 			},
 		},
 		{
@@ -843,9 +749,8 @@ func TestGeneratePerformanceMetrics(t *testing.T) {
 			},
 			toolUsage: []ToolUsageInfo{},
 			checkMetrics: func(t *testing.T, pm *PerformanceMetrics) {
-				if pm.CostEfficiency != "poor" {
-					t.Errorf("Expected 'poor' cost efficiency, got %s", pm.CostEfficiency)
-				}
+				assert.Equal(t, "poor", pm.CostEfficiency,
+					"Cost efficiency should be poor for high cost per minute")
 			},
 		},
 		{
@@ -858,12 +763,10 @@ func TestGeneratePerformanceMetrics(t *testing.T) {
 				{Name: "file_edit", CallCount: 3},
 			},
 			checkMetrics: func(t *testing.T, pm *PerformanceMetrics) {
-				if !strings.Contains(pm.MostUsedTool, "github_issue_read") {
-					t.Errorf("Expected 'github_issue_read' as most used tool, got %s", pm.MostUsedTool)
-				}
-				if !strings.Contains(pm.MostUsedTool, "10 calls") {
-					t.Errorf("Expected '10 calls' in most used tool, got %s", pm.MostUsedTool)
-				}
+				assert.Contains(t, pm.MostUsedTool, "github_issue_read",
+					"Most used tool should be github_issue_read")
+				assert.Contains(t, pm.MostUsedTool, "10 calls",
+					"Most used tool should show 10 calls")
 			},
 		},
 		{
@@ -875,9 +778,8 @@ func TestGeneratePerformanceMetrics(t *testing.T) {
 				{Name: "github_issue_read", CallCount: 10, MaxDuration: "3s"},
 			},
 			checkMetrics: func(t *testing.T, pm *PerformanceMetrics) {
-				if pm.AvgToolDuration == "" {
-					t.Error("Expected non-empty average tool duration")
-				}
+				assert.NotEmpty(t, pm.AvgToolDuration,
+					"Average tool duration should be calculated")
 			},
 		},
 		{
@@ -892,9 +794,8 @@ func TestGeneratePerformanceMetrics(t *testing.T) {
 			metrics:   MetricsData{},
 			toolUsage: []ToolUsageInfo{},
 			checkMetrics: func(t *testing.T, pm *PerformanceMetrics) {
-				if pm.NetworkRequests != 50 {
-					t.Errorf("Expected 50 network requests, got %d", pm.NetworkRequests)
-				}
+				assert.Equal(t, 50, pm.NetworkRequests,
+					"Network requests should match firewall analysis total")
 			},
 		},
 		{
@@ -909,9 +810,8 @@ func TestGeneratePerformanceMetrics(t *testing.T) {
 			},
 			toolUsage: []ToolUsageInfo{},
 			checkMetrics: func(t *testing.T, pm *PerformanceMetrics) {
-				if pm.TokensPerMinute != 0 {
-					t.Errorf("Expected 0 tokens/minute for zero duration, got %f", pm.TokensPerMinute)
-				}
+				assert.InDelta(t, 0.0, pm.TokensPerMinute, 0.01,
+					"Tokens per minute should be 0 for zero duration")
 			},
 		},
 	}
@@ -920,9 +820,7 @@ func TestGeneratePerformanceMetrics(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pm := generatePerformanceMetrics(tt.processedRun, tt.metrics, tt.toolUsage)
 
-			if pm == nil {
-				t.Fatal("Expected non-nil performance metrics")
-			}
+			require.NotNil(t, pm, "Performance metrics should be generated")
 
 			if tt.checkMetrics != nil {
 				tt.checkMetrics(t, pm)
@@ -942,9 +840,7 @@ func TestBuildAuditDataComplete(t *testing.T) {
 	}
 	for filename, content := range testFiles {
 		err := os.WriteFile(tmpDir+"/"+filename, []byte(content), 0644)
-		if err != nil {
-			t.Fatalf("Failed to create test file %s: %v", filename, err)
-		}
+		require.NoError(t, err, "Failed to create test file %s", filename)
 	}
 
 	processedRun := ProcessedRun{
@@ -1011,52 +907,42 @@ func TestBuildAuditDataComplete(t *testing.T) {
 
 	// Verify overview
 	t.Run("Overview", func(t *testing.T) {
-		if auditData.Overview.RunID != 12345 {
-			t.Errorf("Expected RunID 12345, got %d", auditData.Overview.RunID)
-		}
-		if auditData.Overview.WorkflowName != "Complete Test Workflow" {
-			t.Errorf("Expected workflow name 'Complete Test Workflow', got %s", auditData.Overview.WorkflowName)
-		}
-		if auditData.Overview.Status != "completed" {
-			t.Errorf("Expected status 'completed', got %s", auditData.Overview.Status)
-		}
-		if auditData.Overview.Conclusion != "failure" {
-			t.Errorf("Expected conclusion 'failure', got %s", auditData.Overview.Conclusion)
-		}
+		assert.Equal(t, int64(12345), auditData.Overview.RunID,
+			"RunID should match workflow run database ID")
+		assert.Equal(t, "Complete Test Workflow", auditData.Overview.WorkflowName,
+			"Workflow name should match")
+		assert.Equal(t, "completed", auditData.Overview.Status,
+			"Status should match")
+		assert.Equal(t, "failure", auditData.Overview.Conclusion,
+			"Conclusion should match")
 	})
 
 	// Verify metrics
 	t.Run("Metrics", func(t *testing.T) {
-		if auditData.Metrics.TokenUsage != 25000 {
-			t.Errorf("Expected token usage 25000, got %d", auditData.Metrics.TokenUsage)
-		}
-		if auditData.Metrics.ErrorCount != 3 {
-			t.Errorf("Expected error count 3, got %d", auditData.Metrics.ErrorCount)
-		}
-		if auditData.Metrics.WarningCount != 2 {
-			t.Errorf("Expected warning count 2, got %d", auditData.Metrics.WarningCount)
-		}
+		assert.Equal(t, 25000, auditData.Metrics.TokenUsage,
+			"Token usage should match")
+		assert.Equal(t, 3, auditData.Metrics.ErrorCount,
+			"Error count should match")
+		assert.Equal(t, 2, auditData.Metrics.WarningCount,
+			"Warning count should match")
 	})
 
 	// Verify jobs
 	t.Run("Jobs", func(t *testing.T) {
-		if len(auditData.Jobs) != 2 {
-			t.Errorf("Expected 2 jobs, got %d", len(auditData.Jobs))
-		}
+		assert.Len(t, auditData.Jobs, 2,
+			"Should have 2 jobs")
 	})
 
 	// Verify tool usage
 	t.Run("ToolUsage", func(t *testing.T) {
-		if len(auditData.ToolUsage) != 2 {
-			t.Errorf("Expected 2 tool usage entries, got %d", len(auditData.ToolUsage))
-		}
+		assert.Len(t, auditData.ToolUsage, 2,
+			"Should have 2 tool usage entries")
 	})
 
 	// Verify findings are generated
 	t.Run("Findings", func(t *testing.T) {
-		if len(auditData.KeyFindings) == 0 {
-			t.Error("Expected at least one finding")
-		}
+		assert.NotEmpty(t, auditData.KeyFindings,
+			"Should generate at least one finding")
 		// Should have failure finding since conclusion is "failure"
 		hasFailureFinding := false
 		for _, f := range auditData.KeyFindings {
@@ -1065,64 +951,54 @@ func TestBuildAuditDataComplete(t *testing.T) {
 				break
 			}
 		}
-		if !hasFailureFinding {
-			t.Error("Expected failure finding for failed workflow")
-		}
+		assert.True(t, hasFailureFinding,
+			"Failed workflow should generate a critical error finding")
 	})
 
 	// Verify recommendations are generated
 	t.Run("Recommendations", func(t *testing.T) {
-		if len(auditData.Recommendations) == 0 {
-			t.Error("Expected at least one recommendation")
-		}
+		assert.NotEmpty(t, auditData.Recommendations,
+			"Should generate at least one recommendation")
 	})
 
 	// Verify failure analysis is generated
 	t.Run("FailureAnalysis", func(t *testing.T) {
-		if auditData.FailureAnalysis == nil {
-			t.Error("Expected failure analysis for failed workflow")
-		}
+		assert.NotNil(t, auditData.FailureAnalysis,
+			"Failed workflow should generate failure analysis")
 	})
 
 	// Verify performance metrics are generated
 	t.Run("PerformanceMetrics", func(t *testing.T) {
-		if auditData.PerformanceMetrics == nil {
-			t.Error("Expected performance metrics")
-		}
+		assert.NotNil(t, auditData.PerformanceMetrics,
+			"Should generate performance metrics")
 	})
 
 	// Verify firewall analysis is passed through
 	t.Run("FirewallAnalysis", func(t *testing.T) {
-		if auditData.FirewallAnalysis == nil {
-			t.Error("Expected firewall analysis")
-		}
-		if auditData.FirewallAnalysis.TotalRequests != 15 {
-			t.Errorf("Expected 15 total requests, got %d", auditData.FirewallAnalysis.TotalRequests)
-		}
+		require.NotNil(t, auditData.FirewallAnalysis,
+			"Should include firewall analysis")
+		assert.Equal(t, 15, auditData.FirewallAnalysis.TotalRequests,
+			"Total requests should match")
 	})
 
 	// Verify redacted domains are passed through
 	t.Run("RedactedDomainsAnalysis", func(t *testing.T) {
-		if auditData.RedactedDomainsAnalysis == nil {
-			t.Error("Expected redacted domains analysis")
-		}
-		if auditData.RedactedDomainsAnalysis.TotalDomains != 2 {
-			t.Errorf("Expected 2 redacted domains, got %d", auditData.RedactedDomainsAnalysis.TotalDomains)
-		}
+		require.NotNil(t, auditData.RedactedDomainsAnalysis,
+			"Should include redacted domains analysis")
+		assert.Equal(t, 2, auditData.RedactedDomainsAnalysis.TotalDomains,
+			"Total redacted domains should match")
 	})
 
 	// Verify MCP failures are passed through
 	t.Run("MCPFailures", func(t *testing.T) {
-		if len(auditData.MCPFailures) != 1 {
-			t.Errorf("Expected 1 MCP failure, got %d", len(auditData.MCPFailures))
-		}
+		assert.Len(t, auditData.MCPFailures, 1,
+			"Should have 1 MCP failure")
 	})
 
 	// Verify missing tools are passed through
 	t.Run("MissingTools", func(t *testing.T) {
-		if len(auditData.MissingTools) != 1 {
-			t.Errorf("Expected 1 missing tool, got %d", len(auditData.MissingTools))
-		}
+		assert.Len(t, auditData.MissingTools, 1,
+			"Should have 1 missing tool")
 	})
 }
 
@@ -1143,9 +1019,8 @@ func TestBuildAuditDataMinimal(t *testing.T) {
 	auditData := buildAuditData(processedRun, metrics)
 
 	// Should still produce valid data
-	if auditData.Overview.RunID != 1 {
-		t.Errorf("Expected RunID 1, got %d", auditData.Overview.RunID)
-	}
+	assert.Equal(t, int64(1), auditData.Overview.RunID,
+		"RunID should match even with minimal data")
 
 	// Empty slices should be nil or empty, not cause panics
 	// We just want to ensure no panics occur accessing these fields
@@ -1207,37 +1082,28 @@ func TestRenderJSONComplete(t *testing.T) {
 	io.Copy(&buf, r)
 	os.Stdout = oldStdout
 
-	if err != nil {
-		t.Fatalf("renderJSON failed: %v", err)
-	}
+	require.NoError(t, err, "renderJSON should not fail")
 
 	jsonOutput := buf.String()
 
 	// Verify valid JSON
 	var parsed AuditData
-	if err := json.Unmarshal([]byte(jsonOutput), &parsed); err != nil {
-		t.Fatalf("Failed to parse JSON output: %v", err)
-	}
+	err = json.Unmarshal([]byte(jsonOutput), &parsed)
+	require.NoError(t, err, "Should produce valid JSON output")
 
 	// Verify all fields
-	if parsed.Overview.RunID != 99999 {
-		t.Errorf("Expected RunID 99999, got %d", parsed.Overview.RunID)
-	}
-	if len(parsed.KeyFindings) != 1 {
-		t.Errorf("Expected 1 finding, got %d", len(parsed.KeyFindings))
-	}
-	if len(parsed.Recommendations) != 1 {
-		t.Errorf("Expected 1 recommendation, got %d", len(parsed.Recommendations))
-	}
-	if len(parsed.Jobs) != 1 {
-		t.Errorf("Expected 1 job, got %d", len(parsed.Jobs))
-	}
-	if len(parsed.Errors) != 1 {
-		t.Errorf("Expected 1 error, got %d", len(parsed.Errors))
-	}
-	if len(parsed.Warnings) != 2 {
-		t.Errorf("Expected 2 warnings, got %d", len(parsed.Warnings))
-	}
+	assert.Equal(t, int64(99999), parsed.Overview.RunID,
+		"RunID should be preserved in JSON")
+	assert.Len(t, parsed.KeyFindings, 1,
+		"Findings should be preserved in JSON")
+	assert.Len(t, parsed.Recommendations, 1,
+		"Recommendations should be preserved in JSON")
+	assert.Len(t, parsed.Jobs, 1,
+		"Jobs should be preserved in JSON")
+	assert.Len(t, parsed.Errors, 1,
+		"Errors should be preserved in JSON")
+	assert.Len(t, parsed.Warnings, 2,
+		"Warnings should be preserved in JSON")
 }
 
 func TestToolUsageAggregation(t *testing.T) {
@@ -1265,38 +1131,33 @@ func TestToolUsageAggregation(t *testing.T) {
 
 	// Tool usage should be aggregated
 	// The exact aggregation depends on workflow.PrettifyToolName behavior
-	if len(auditData.ToolUsage) == 0 {
-		t.Error("Expected tool usage data")
-	}
+	assert.NotEmpty(t, auditData.ToolUsage,
+		"Should have tool usage data")
 
 	// Check that bash is present
 	bashFound := false
 	for _, tool := range auditData.ToolUsage {
 		if strings.Contains(strings.ToLower(tool.Name), "bash") {
 			bashFound = true
-			if tool.CallCount != 10 {
-				t.Errorf("Expected bash call count 10, got %d", tool.CallCount)
-			}
+			assert.Equal(t, 10, tool.CallCount,
+				"Bash call count should match")
 		}
 	}
-	if !bashFound {
-		t.Error("Expected bash in tool usage")
-	}
+	assert.True(t, bashFound,
+		"Bash should be present in tool usage")
 }
 
 func TestExtractDownloadedFilesEmpty(t *testing.T) {
 	// Test with nonexistent directory
 	files := extractDownloadedFiles("/nonexistent/path")
-	if len(files) != 0 {
-		t.Errorf("Expected empty files for nonexistent path, got %d files", len(files))
-	}
+	assert.Empty(t, files,
+		"Should return empty slice for nonexistent path")
 
 	// Test with empty directory
 	tmpDir := testutil.TempDir(t, "empty-dir-*")
 	files = extractDownloadedFiles(tmpDir)
-	if len(files) != 0 {
-		t.Errorf("Expected empty files for empty directory, got %d files", len(files))
-	}
+	assert.Empty(t, files,
+		"Should return empty slice for empty directory")
 }
 
 func TestFindingSeverityOrdering(t *testing.T) {
@@ -1337,12 +1198,10 @@ func TestFindingSeverityOrdering(t *testing.T) {
 		severityCounts[f.Severity]++
 	}
 
-	if severityCounts["critical"] == 0 {
-		t.Error("Expected at least one critical finding for failed workflow")
-	}
-	if severityCounts["high"] == 0 {
-		t.Error("Expected at least one high severity finding")
-	}
+	assert.NotZero(t, severityCounts["critical"],
+		"Failed workflow should generate at least one critical finding")
+	assert.NotZero(t, severityCounts["high"],
+		"Should generate at least one high severity finding")
 }
 
 func TestRecommendationPriorityOrdering(t *testing.T) {
@@ -1382,9 +1241,8 @@ func TestRecommendationPriorityOrdering(t *testing.T) {
 		priorityCounts[r.Priority]++
 	}
 
-	if priorityCounts["high"] == 0 {
-		t.Error("Expected at least one high priority recommendation")
-	}
+	assert.NotZero(t, priorityCounts["high"],
+		"Should generate at least one high priority recommendation")
 }
 
 func TestDescribeFileAdditionalPatterns(t *testing.T) {
@@ -1399,9 +1257,8 @@ func TestDescribeFileAdditionalPatterns(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.filename, func(t *testing.T) {
 			result := describeFile(tt.filename)
-			if result != tt.description {
-				t.Errorf("Expected description '%s', got '%s'", tt.description, result)
-			}
+			assert.Equal(t, tt.description, result,
+				"File description should match expected value")
 		})
 	}
 }

@@ -65,8 +65,8 @@ func compileWorkflowFile(
 		validationResult: ValidationResult{
 			Workflow: filepath.Base(resolvedFile),
 			Valid:    true,
-			Errors:   []ValidationError{},
-			Warnings: []ValidationError{},
+			Errors:   []CompileValidationError{},
+			Warnings: []CompileValidationError{},
 		},
 		success: false,
 	}
@@ -116,7 +116,7 @@ func compileWorkflowFile(
 			}
 			// Mark as valid but skipped
 			result.validationResult.Valid = true
-			result.validationResult.Warnings = append(result.validationResult.Warnings, ValidationError{
+			result.validationResult.Warnings = append(result.validationResult.Warnings, CompileValidationError{
 				Type:    "shared_workflow",
 				Message: "Skipped: Shared workflow component (missing 'on' field)",
 			})
@@ -129,7 +129,7 @@ func compileWorkflowFile(
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		}
 		result.validationResult.Valid = false
-		result.validationResult.Errors = append(result.validationResult.Errors, ValidationError{
+		result.validationResult.Errors = append(result.validationResult.Errors, CompileValidationError{
 			Type:    "parse_error",
 			Message: err.Error(),
 		})
@@ -147,7 +147,7 @@ func compileWorkflowFile(
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 		}
 		result.validationResult.Valid = false
-		result.validationResult.Errors = append(result.validationResult.Errors, ValidationError{
+		result.validationResult.Errors = append(result.validationResult.Errors, CompileValidationError{
 			Type:    "compilation_error",
 			Message: err.Error(),
 		})
@@ -181,8 +181,8 @@ func processCampaignSpec(opts ProcessCampaignSpecOptions) (ValidationResult, boo
 	result := ValidationResult{
 		Workflow: filepath.Base(opts.ResolvedFile),
 		Valid:    true,
-		Errors:   []ValidationError{},
-		Warnings: []ValidationError{},
+		Errors:   []CompileValidationError{},
+		Warnings: []CompileValidationError{},
 	}
 
 	// Validate the campaign spec file and referenced workflows
@@ -193,7 +193,7 @@ func processCampaignSpec(opts ProcessCampaignSpecOptions) (ValidationResult, boo
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		}
 		result.Valid = false
-		result.Errors = append(result.Errors, ValidationError{
+		result.Errors = append(result.Errors, CompileValidationError{
 			Type:    "campaign_validation_error",
 			Message: vErr.Error(),
 		})
@@ -211,7 +211,7 @@ func processCampaignSpec(opts ProcessCampaignSpecOptions) (ValidationResult, boo
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(p))
 			}
 			result.Valid = false
-			result.Errors = append(result.Errors, ValidationError{
+			result.Errors = append(result.Errors, CompileValidationError{
 				Type:    "campaign_validation_error",
 				Message: p,
 			})
@@ -241,7 +241,7 @@ func processCampaignSpec(opts ProcessCampaignSpecOptions) (ValidationResult, boo
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		}
 		result.Valid = false
-		result.Errors = append(result.Errors, ValidationError{Type: "campaign_orchestrator_error", Message: errMsg})
+		result.Errors = append(result.Errors, CompileValidationError{Type: "campaign_orchestrator_error", Message: errMsg})
 		return result, false
 	}
 

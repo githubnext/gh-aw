@@ -43,6 +43,7 @@ network:
 
 imports:
   - shared/docs-server-lifecycle.md
+  - shared/reporting.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
@@ -107,12 +108,55 @@ Organize findings by severity:
 
 ## Step 5: Report Results
 
+Follow the **Report Structure Guidelines** from shared/reporting.md:
+- Use h3 (###) or lower for all headers (not h2 or h1)
+- Wrap detailed results in `<details><summary><b>Section Name</b></summary>` tags
+- Keep critical information visible, hide verbose details
+
 If issues are detected, create a GitHub issue titled "🔍 Multi-Device Docs Testing Report - [Date]" with:
-- Test summary (triggered by, workflow run, devices tested)
-- Results overview (passed/warning/critical counts)
-- Critical issues and warnings with device names
-- Screenshots showing issues
-- Accessibility findings and recommendations
+
+```markdown
+### Test Summary
+- Triggered by: @${{ github.actor }}
+- Workflow run: [§${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+- Devices tested: {count}
+- Test date: [Date]
+
+### Results Overview
+- 🟢 Passed: {count}
+- 🟡 Warnings: {count}
+- 🔴 Critical: {count}
+
+### Critical Issues
+[List critical issues that block functionality or major accessibility problems - keep visible]
+
+<details>
+<summary><b>View All Warnings</b></summary>
+
+[Minor issues and potential problems with device names and details]
+
+</details>
+
+<details>
+<summary><b>View Detailed Test Results by Device</b></summary>
+
+#### Mobile Devices
+[Test results, screenshots, findings]
+
+#### Tablet Devices
+[Test results, screenshots, findings]
+
+#### Desktop Devices
+[Test results, screenshots, findings]
+
+</details>
+
+### Accessibility Findings
+[Key accessibility issues - keep visible as these are important]
+
+### Recommendations
+[Actionable recommendations for fixing issues - keep visible]
+```
 
 Label with: `documentation`, `testing`, `automated`
 

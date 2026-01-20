@@ -66,6 +66,66 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		problems = append(problems, "workflows should list at least one workflow implementing this campaign - example: ['vulnerability-scanner', 'dependency-updater']")
 	}
 
+	// Validate tracker-label format if provided
+	if strings.TrimSpace(spec.TrackerLabel) != "" {
+		trimmedLabel := strings.TrimSpace(spec.TrackerLabel)
+		// Tracker labels should follow the pattern "campaign:campaign-id"
+		if !strings.HasPrefix(trimmedLabel, "campaign:") {
+			problems = append(problems, fmt.Sprintf("tracker-label should start with 'campaign:' prefix - got '%s', recommended: 'campaign:%s'", trimmedLabel, spec.ID))
+		}
+		// Check for invalid characters in labels (GitHub label restrictions)
+		if strings.Contains(trimmedLabel, " ") {
+			problems = append(problems, fmt.Sprintf("tracker-label cannot contain spaces - got '%s', try replacing spaces with hyphens", trimmedLabel))
+		}
+	}
+
+	// Validate that campaigns with workflows or tracker-label have discovery-repos or discovery-orgs
+	// This ensures discovery is properly scoped
+	hasDiscovery := len(spec.Workflows) > 0 || spec.TrackerLabel != ""
+	hasDiscoveryScope := len(spec.DiscoveryRepos) > 0 || len(spec.DiscoveryOrgs) > 0
+	if hasDiscovery && !hasDiscoveryScope {
+		problems = append(problems, "campaigns with workflows or tracker-label must specify discovery-repos or discovery-orgs for discovery scoping - configure at least one to define where the campaign can discover worker items")
+	}
+
+	// Validate discovery-repos format if provided
+	if len(spec.DiscoveryRepos) > 0 {
+		// Validate each repository format
+		for _, repo := range spec.DiscoveryRepos {
+			trimmed := strings.TrimSpace(repo)
+			if trimmed == "" {
+				problems = append(problems, "discovery-repos must not contain empty entries - remove empty strings from the list")
+				continue
+			}
+			// Validate owner/repo format
+			parts := strings.Split(trimmed, "/")
+			if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+				problems = append(problems, fmt.Sprintf("discovery-repos entry '%s' must be in 'owner/repo' format - example: 'github/docs' or 'myorg/myrepo'", trimmed))
+			}
+			// Warn about common mistakes
+			if strings.Contains(trimmed, "*") {
+				problems = append(problems, fmt.Sprintf("discovery-repos entry '%s' cannot contain wildcards - list each repository explicitly or use discovery-orgs for organization-wide scope", trimmed))
+			}
+		}
+	}
+
+	// Validate discovery-orgs if provided
+	if len(spec.DiscoveryOrgs) > 0 {
+		for _, org := range spec.DiscoveryOrgs {
+			trimmed := strings.TrimSpace(org)
+			if trimmed == "" {
+				problems = append(problems, "discovery-orgs must not contain empty entries - remove empty strings from the list")
+				continue
+			}
+			// Validate organization name format (no slashes, valid GitHub org name)
+			if strings.Contains(trimmed, "/") {
+				problems = append(problems, fmt.Sprintf("discovery-orgs entry '%s' must be an organization name only (not owner/repo format) - example: 'github' not 'github/docs'", trimmed))
+			}
+			if strings.Contains(trimmed, "*") {
+				problems = append(problems, fmt.Sprintf("discovery-orgs entry '%s' cannot contain wildcards - use the organization name directly (e.g., 'myorg')", trimmed))
+			}
+		}
+	}
+
 	// Validate allowed-repos format if provided (now optional - defaults to current repo)
 	if len(spec.AllowedRepos) > 0 {
 		// Validate each repository format
@@ -337,6 +397,8 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		ProjectGitHubToken string                                 `json:"project-github-token,omitempty"`
 		Version            string                                 `json:"version,omitempty"`
 		Workflows          []string                               `json:"workflows,omitempty"`
+		DiscoveryRepos     []string                               `json:"discovery-repos,omitempty"`
+		DiscoveryOrgs      []string                               `json:"discovery-orgs,omitempty"`
 		AllowedRepos       []string                               `json:"allowed-repos,omitempty"`
 		AllowedOrgs        []string                               `json:"allowed-orgs,omitempty"`
 		MemoryPaths        []string                               `json:"memory-paths,omitempty"`
@@ -381,6 +443,8 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		ProjectGitHubToken: spec.ProjectGitHubToken,
 		Version:            spec.Version,
 		Workflows:          spec.Workflows,
+		DiscoveryRepos:     spec.DiscoveryRepos,
+		DiscoveryOrgs:      spec.DiscoveryOrgs,
 		AllowedRepos:       spec.AllowedRepos,
 		AllowedOrgs:        spec.AllowedOrgs,
 		MemoryPaths:        spec.MemoryPaths,

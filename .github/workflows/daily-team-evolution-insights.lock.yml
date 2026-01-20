@@ -357,7 +357,7 @@ jobs:
               allowed_domains: ["*"],
               firewall_enabled: false,
               awf_version: "",
-              awmg_version: "v0.0.69",
+              awmg_version: "v0.0.71",
               steps: {
                 firewall: ""
               },
@@ -517,92 +517,166 @@ jobs:
           Always create a GitHub Discussion with your findings using this structure:
           
           ```markdown
-          # 🌟 Team Evolution Insights - [DATE]
+          # 🌱 Daily Team Evolution Insights - [DATE]
           
           > Daily analysis of how our team is evolving based on the last 24 hours of activity
           
-          ## 📊 Activity Summary
+          [2-3 paragraph executive summary of the most interesting patterns and insights. Start with the "so what" rather than the "what" - lead with insights about what the activity means for the team's evolution.]
+          
+          ## 🎯 Key Observations
+          
+          - 🎯 **Focus Area**: [Main area of development activity and what it tells us about team priorities]
+          - 🚀 **Velocity**: [Development pace, throughput, and what it suggests about team capacity]
+          - 🤝 **Collaboration**: [How team is working together, pairing patterns, review dynamics]
+          - 💡 **Innovation**: [New technologies, approaches, or experiments being explored]
+          
+          <details>
+          <summary><b>📊 Detailed Activity Snapshot</b></summary>
+          
+          ### Development Activity
           
           - **Commits**: [NUMBER] commits by [NUMBER] contributors
-          - **Pull Requests**: [NUMBER] PRs ([OPENED] opened, [MERGED] merged, [REVIEWED] reviewed)
-          - **Issues**: [NUMBER] issues ([OPENED] opened, [CLOSED] closed, [COMMENTED] commented)
-          - **Discussions**: [NUMBER] discussions active
+          - **Files Changed**: [Overview of areas with most changes]
+          - **Commit Patterns**: [Time of day, frequency, message quality]
           
-          ## 🎯 Focus Areas
+          ### Pull Request Activity
           
-          ### Primary Development Focus
-          [What areas of the codebase or features received the most attention?]
+          - **PRs Opened**: [NUMBER] new PRs
+          - **PRs Merged**: [NUMBER] PRs merged ([AVG TIME] average time to merge)
+          - **PRs Reviewed**: [NUMBER] PRs reviewed with [NUMBER] total comments
+          - **Review Quality**: [Depth and constructiveness of reviews]
           
-          ### Key Initiatives
-          [What major efforts or projects are underway?]
+          ### Issue Activity
           
-          ## 👥 Team Dynamics
+          - **Issues Opened**: [NUMBER] new issues ([TYPES] breakdown by type)
+          - **Issues Closed**: [NUMBER] issues resolved
+          - **Issue Discussion**: [NUMBER] issues with active discussion
+          - **Response Time**: [How quickly issues are getting attention]
+          
+          ### Discussion Activity
+          
+          - **Active Discussions**: [NUMBER] discussions with recent activity
+          - **Topics**: [Main themes or questions being discussed]
+          
+          </details>
+          
+          <details>
+          <summary><b>👥 Team Dynamics Deep Dive</b></summary>
           
           ### Active Contributors
-          [Who contributed and what did they work on?]
           
-          ### Collaboration Patterns
-          [How is the team working together?]
+          [Detailed per-author analysis of contributions, areas of focus, and collaboration patterns]
+          
+          ### Collaboration Networks
+          
+          [Who is working with whom? Who is reviewing whose code? Are there knowledge silos or healthy cross-pollination?]
           
           ### New Faces
-          [Any new contributors or people returning after a break?]
+          
+          [Any new contributors or people returning after a break? What areas are they working in?]
+          
+          ### Contribution Patterns
+          
+          [Solo work vs. paired work, commit sizes, PR complexity, review thoroughness]
+          
+          </details>
           
           ## 💡 Emerging Trends
           
           ### Technical Evolution
-          [What new technologies, patterns, or approaches are being adopted?]
+          [What new technologies, patterns, or approaches are being adopted? Why does this matter?]
           
           ### Process Improvements
-          [What changes to development process or tooling are happening?]
+          [What changes to development process or tooling are happening? What problems do they solve?]
           
           ### Knowledge Sharing
-          [What documentation, discussions, or learning is happening?]
+          [What documentation, discussions, or learning is happening? How is it spreading through the team?]
           
           ## 🎨 Notable Work
           
           ### Standout Contributions
-          [Highlight particularly interesting or impactful work]
+          [Highlight particularly interesting or impactful work that deserves recognition]
           
           ### Creative Solutions
-          [Any innovative approaches or clever solutions?]
+          [Any innovative approaches or clever solutions that others might learn from?]
           
           ### Quality Improvements
-          [Refactoring, testing, or code quality enhancements]
-          
-          ## 📈 Velocity & Health
-          
-          ### Development Velocity
-          [How quickly is work moving through the pipeline?]
-          
-          ### Code Review Quality
-          [How thorough and constructive are reviews?]
-          
-          ### Issue Resolution
-          [How efficiently are issues being addressed?]
+          [Refactoring, testing, or code quality enhancements that make the codebase better]
           
           ## 🤔 Observations & Insights
           
           ### What's Working Well
-          [Positive patterns and successes to celebrate]
+          [Positive patterns and successes to celebrate - be specific with examples]
           
           ### Potential Challenges
-          [Areas that might need attention or support]
+          [Areas that might need attention or support - frame constructively]
           
           ### Opportunities
-          [Suggestions for improvement or optimization]
+          [Specific, actionable suggestions for improvement or optimization]
           
           ## 🔮 Looking Forward
           
-          [Based on current patterns, what might we expect to see developing? What opportunities are emerging?]
+          [Based on current patterns, what might we expect to see developing? What opportunities are emerging? What should the team keep in mind?]
           
-          ## 📚 Resources & Links
+          <details>
+          <summary><b>📚 Complete Resource Links</b></summary>
           
-          [Links to particularly interesting PRs, issues, discussions, or commits]
+          ### Pull Requests
+          [Links to all relevant PRs with brief descriptions]
+          
+          ### Issues
+          [Links to all relevant issues with brief descriptions]
+          
+          ### Discussions
+          [Links to all relevant discussions with brief descriptions]
+          
+          ### Notable Commits
+          [Links to particularly interesting commits]
+          
+          </details>
           
           ---
           
           *This analysis was generated automatically by analyzing repository activity. The insights are meant to spark conversation and reflection, not to prescribe specific actions.*
           ```
+          
+          ### Formatting Guidelines
+          
+          **Progressive Disclosure**: For sections with extensive details, use expandable sections to keep the report scannable while maintaining completeness.
+          
+          **Syntax for expandable sections**:
+          
+          ```markdown
+          <details>
+          <summary><b>Section Title</b></summary>
+          
+          [Content goes here]
+          
+          </details>
+          ```
+          
+          **When to use progressive disclosure** (collapse with `<details>`):
+          - Lists with more than 10 items
+          - Detailed technical breakdowns or per-file statistics
+          - Per-author or per-team detailed analysis
+          - Raw data, logs, or complete resource links
+          - Historical comparisons or trend data
+          - Verbose activity snapshots
+          
+          **Keep visible** (don't collapse):
+          - Executive summary and high-level narrative
+          - Key observations and most important insights
+          - Actionable recommendations and opportunities
+          - Celebration of significant achievements
+          - Strategic trends and emerging patterns
+          - Main observations and takeaways
+          
+          **Design Principles**:
+          1. **Lead with insights**: Start with the "so what" not the "what"
+          2. **Progressive disclosure**: Show summary first, details on demand
+          3. **Scannable**: Someone should understand the key points in 30 seconds
+          4. **Complete**: All details available for those who want to dig deeper
+          5. **Balanced**: Roughly 40% visible content, 60% collapsed details
           
           ## Guidelines
           
