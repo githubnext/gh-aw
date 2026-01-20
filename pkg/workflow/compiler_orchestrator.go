@@ -531,6 +531,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	actionCache, actionResolver := c.getSharedActionResolver()
 	workflowData.ActionCache = actionCache
 	workflowData.ActionResolver = actionResolver
+	workflowData.ActionPinWarnings = c.actionPinWarnings // Share warning cache across all workflows
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
 	// to avoid issues with nested keys (e.g., tools.mcps.*.env being confused with top-level env)

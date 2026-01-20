@@ -1249,3 +1249,123 @@ func TestFallbackVersionUsesRequestedVersionInComment(t *testing.T) {
 		})
 	}
 }
+
+// TestActionPinWarningDeduplication tests that repeated calls to GetActionPinWithData
+// for the same action@version only emit the warning once, not multiple times
+func TestActionPinWarningDeduplication(t *testing.T) {
+	tests := []struct {
+		name          string
+		repo          string
+		version       string
+		callCount     int
+		expectedWarns int // How many warnings should be emitted
+	}{
+		{
+			name:          "unknown action called 3 times - warn once",
+			repo:          "unknown/action",
+			version:       "v1.0.0",
+			callCount:     3,
+			expectedWarns: 1,
+		},
+		{
+			name:          "unknown action called 6 times - warn once",
+			repo:          "githubnext/gh-aw/actions/setup",
+			version:       "v0.37.0",
+			callCount:     6,
+			expectedWarns: 1,
+		},
+		{
+			name:          "different versions warn separately",
+			repo:          "unknown/action",
+			version:       "v1.0.0",
+			callCount:     1,
+			expectedWarns: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a shared WorkflowData with the warning cache
+			data := &WorkflowData{
+				StrictMode:        false,
+				ActionPinWarnings: make(map[string]bool),
+			}
+
+			// Capture stderr to count warnings
+			oldStderr := os.Stderr
+			r, w, _ := os.Pipe()
+			os.Stderr = w
+
+			// Call GetActionPinWithData multiple times
+			for i := 0; i < tt.callCount; i++ {
+				_, _ = GetActionPinWithData(tt.repo, tt.version, data)
+			}
+
+			w.Close()
+			os.Stderr = oldStderr
+
+			var buf bytes.Buffer
+			buf.ReadFrom(r)
+			stderr := buf.String()
+
+			// Count the number of warnings in stderr
+			warningCount := strings.Count(stderr, "⚠")
+
+			if warningCount != tt.expectedWarns {
+				t.Errorf("Expected %d warning(s), but got %d\nStderr:\n%s",
+					tt.expectedWarns, warningCount, stderr)
+			}
+
+			// Verify the cache was populated
+			cacheKey := tt.repo + "@" + tt.version
+			if !data.ActionPinWarnings[cacheKey] {
+				t.Errorf("Expected cache to be populated for %s, but it wasn't", cacheKey)
+			}
+		})
+	}
+}
+
+// TestActionPinWarningDeduplicationAcrossDifferentVersions tests that warnings
+// for different versions of the same action are NOT deduplicated (each version warns once)
+func TestActionPinWarningDeduplicationAcrossDifferentVersions(t *testing.T) {
+	// Create a shared WorkflowData with the warning cache
+	data := &WorkflowData{
+		StrictMode:        false,
+		ActionPinWarnings: make(map[string]bool),
+	}
+
+	// Capture stderr
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	// Call with v1.0.0 twice
+	_, _ = GetActionPinWithData("unknown/action", "v1.0.0", data)
+	_, _ = GetActionPinWithData("unknown/action", "v1.0.0", data)
+
+	// Call with v2.0.0 twice
+	_, _ = GetActionPinWithData("unknown/action", "v2.0.0", data)
+	_, _ = GetActionPinWithData("unknown/action", "v2.0.0", data)
+
+	w.Close()
+	os.Stderr = oldStderr
+
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	stderr := buf.String()
+
+	// Should have exactly 2 warnings: one for v1.0.0, one for v2.0.0
+	warningCount := strings.Count(stderr, "⚠")
+	if warningCount != 2 {
+		t.Errorf("Expected 2 warnings (one per version), but got %d\nStderr:\n%s",
+			warningCount, stderr)
+	}
+
+	// Verify both cache keys are populated
+	if !data.ActionPinWarnings["unknown/action@v1.0.0"] {
+		t.Errorf("Cache should contain key for v1.0.0")
+	}
+	if !data.ActionPinWarnings["unknown/action@v2.0.0"] {
+		t.Errorf("Cache should contain key for v2.0.0")
+	}
+}
