@@ -1,0 +1,15 @@
+{
+  "campaign_id": "security-alert-burndown",
+  "date": "2026-01-20",
+  "tasks_total": 0,
+  "tasks_completed": 0,
+  "tasks_in_progress": 0,
+  "tasks_blocked": 0,
+  "high_severity_alerts_fixed": 0,
+  "file_write_vulnerabilities_fixed": 0,
+  "discovery_items_scanned": 0,
+  "discovery_pages_scanned": 3,
+  "items_added_to_project": 0,
+  "items_updated_on_project": 0,
+  "epic_issue_created": true
+}
