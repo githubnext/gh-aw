@@ -33,9 +33,6 @@ tools:
   bash:
     - "*"
   edit:
-  repo-memory:
-    branch-name: memory/firewall-reports
-    description: "Firewall analysis history and aggregated data"
 imports:
   - shared/mcp/gh-aw.md
   - shared/reporting.md
@@ -56,7 +53,7 @@ Collect and analyze firewall logs from all agentic workflows that use the firewa
 
 **Phase 1: Data Collection**
 
-Collect data for the past 30 days (or available data) from cache memory and firewall audit logs:
+Collect data for the past 30 days (or available data) from firewall audit logs:
 
 1. **Firewall Request Data**:
    - Count of allowed requests per day
