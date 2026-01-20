@@ -14,7 +14,6 @@ var upgradeLog = logger.New("cli:upgrade_command")
 
 // UpgradeConfig contains configuration for the upgrade command
 type UpgradeConfig struct {
-	WorkflowIDs []string
 	Verbose     bool
 	WorkflowDir string
 	NoFix       bool
@@ -22,45 +21,43 @@ type UpgradeConfig struct {
 
 // RunUpgrade runs the upgrade command with the given configuration
 func RunUpgrade(config UpgradeConfig) error {
-	return runUpgradeCommand(config.WorkflowIDs, config.Verbose, config.WorkflowDir, config.NoFix, false)
+	return runUpgradeCommand(config.Verbose, config.WorkflowDir, config.NoFix, false)
 }
 
 // NewUpgradeCommand creates the upgrade command
 func NewUpgradeCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "upgrade [workflow]...",
-		Short: "Upgrade repository with latest agent files and apply codemods to workflows",
+		Use:   "upgrade",
+		Short: "Upgrade repository with latest agent files and apply codemods to all workflows",
 		Long: `Upgrade the repository for the latest version of agentic workflows.
 
 This command:
   1. Updates all agent and prompt files to the latest templates (like 'init' command)
-  2. Applies automatic codemods to fix deprecated fields in workflows (like 'fix --write')
+  2. Applies automatic codemods to fix deprecated fields in all workflows (like 'fix --write')
 
 The upgrade process ensures:
 - GitHub Copilot instructions are up-to-date (.github/aw/github-agentic-workflows.md)
 - Dispatcher agent is current (.github/agents/agentic-workflows.agent.md)
 - All workflow prompts are updated (create, update, debug, upgrade)
-- Workflows use the latest syntax and configuration options
-- Deprecated fields are automatically migrated
+- All workflows use the latest syntax and configuration options
+- Deprecated fields are automatically migrated across all workflows
 
-If no workflows are specified, all Markdown files in .github/workflows will be processed.
-
-` + WorkflowIDExplanation + `
+This command always upgrades all Markdown files in .github/workflows.
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` upgrade                    # Upgrade all workflows
-  ` + string(constants.CLIExtensionPrefix) + ` upgrade ci-doctor         # Upgrade specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-fix          # Update agent files only (skip codemods)
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --dir custom/workflows  # Upgrade workflows in custom directory
 
 After upgrading, compile workflows manually with:
   ` + string(constants.CLIExtensionPrefix) + ` compile`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			dir, _ := cmd.Flags().GetString("dir")
 			noFix, _ := cmd.Flags().GetBool("no-fix")
 
-			return runUpgradeCommand(args, verbose, dir, noFix, false)
+			return runUpgradeCommand(verbose, dir, noFix, false)
 		},
 	}
 
@@ -68,16 +65,15 @@ After upgrading, compile workflows manually with:
 	cmd.Flags().Bool("no-fix", false, "Skip applying codemods to workflows (only update agent files)")
 
 	// Register completions
-	cmd.ValidArgsFunction = CompleteWorkflowNames
 	RegisterDirFlagCompletion(cmd, "dir")
 
 	return cmd
 }
 
 // runUpgradeCommand executes the upgrade process
-func runUpgradeCommand(workflowIDs []string, verbose bool, workflowDir string, noFix bool, noCompile bool) error {
-	upgradeLog.Printf("Running upgrade command: workflowIDs=%v, verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v",
-		workflowIDs, verbose, workflowDir, noFix, noCompile)
+func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile bool) error {
+	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v",
+		verbose, workflowDir, noFix, noCompile)
 
 	// Step 1: Update all agent and prompt files (like init command)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating agent and prompt files..."))
@@ -92,13 +88,13 @@ func runUpgradeCommand(workflowIDs []string, verbose bool, workflowDir string, n
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated agent and prompt files"))
 	}
 
-	// Step 2: Apply codemods (unless --no-fix is specified)
+	// Step 2: Apply codemods to all workflows (unless --no-fix is specified)
 	if !noFix {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying codemods to workflows..."))
-		upgradeLog.Print("Applying codemods to workflows")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying codemods to all workflows..."))
+		upgradeLog.Print("Applying codemods to all workflows")
 
 		fixConfig := FixConfig{
-			WorkflowIDs: workflowIDs,
+			WorkflowIDs: nil, // nil means all workflows
 			Write:       true,
 			Verbose:     verbose,
 			WorkflowDir: workflowDir,

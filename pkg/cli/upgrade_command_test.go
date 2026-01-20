@@ -83,9 +83,9 @@ func TestUpgradeCommand_AppliesCodemods(t *testing.T) {
 	err := os.MkdirAll(workflowsDir, 0755)
 	require.NoError(t, err, "Failed to create workflows directory")
 
-	// Create a workflow with deprecated field
-	workflowFile := filepath.Join(workflowsDir, "test-workflow.md")
-	content := `---
+	// Create multiple workflows with deprecated fields to test all workflows are upgraded
+	workflow1 := filepath.Join(workflowsDir, "workflow1.md")
+	workflow1Content := `---
 on:
   workflow_dispatch:
 
@@ -95,14 +95,32 @@ permissions:
   contents: read
 ---
 
-# Test Workflow
+# Workflow 1
 
-This is a test workflow with deprecated timeout_minutes field.
+This workflow has deprecated timeout_minutes field.
 `
-	err = os.WriteFile(workflowFile, []byte(content), 0644)
-	require.NoError(t, err, "Failed to create test workflow file")
+	err = os.WriteFile(workflow1, []byte(workflow1Content), 0644)
+	require.NoError(t, err, "Failed to create workflow1")
 
-	// Run upgrade command (with codemods)
+	workflow2 := filepath.Join(workflowsDir, "workflow2.md")
+	workflow2Content := `---
+on:
+  workflow_dispatch:
+
+timeout_minutes: 60
+
+permissions:
+  contents: read
+---
+
+# Workflow 2
+
+This workflow also has deprecated timeout_minutes field.
+`
+	err = os.WriteFile(workflow2, []byte(workflow2Content), 0644)
+	require.NoError(t, err, "Failed to create workflow2")
+
+	// Run upgrade command (should upgrade ALL workflows)
 	config := UpgradeConfig{
 		Verbose:     false,
 		NoFix:       false, // Apply codemods
@@ -112,15 +130,18 @@ This is a test workflow with deprecated timeout_minutes field.
 	err = RunUpgrade(config)
 	require.NoError(t, err, "Upgrade command should succeed")
 
-	// Read the updated workflow file
-	updatedContent, err := os.ReadFile(workflowFile)
-	require.NoError(t, err, "Failed to read updated workflow file")
+	// Verify both workflows were updated
+	updatedContent1, err := os.ReadFile(workflow1)
+	require.NoError(t, err, "Failed to read workflow1")
+	updatedStr1 := string(updatedContent1)
+	assert.NotContains(t, updatedStr1, "timeout_minutes:", "workflow1 timeout_minutes should be replaced")
+	assert.Contains(t, updatedStr1, "timeout-minutes:", "workflow1 should have new syntax")
 
-	updatedStr := string(updatedContent)
-
-	// Verify that the deprecated field was replaced
-	assert.NotContains(t, updatedStr, "timeout_minutes:", "timeout_minutes should be replaced")
-	assert.Contains(t, updatedStr, "timeout-minutes: 30", "timeout-minutes should be present")
+	updatedContent2, err := os.ReadFile(workflow2)
+	require.NoError(t, err, "Failed to read workflow2")
+	updatedStr2 := string(updatedContent2)
+	assert.NotContains(t, updatedStr2, "timeout_minutes:", "workflow2 timeout_minutes should be replaced")
+	assert.Contains(t, updatedStr2, "timeout-minutes:", "workflow2 should have new syntax")
 }
 
 func TestUpgradeCommand_NoFixFlag(t *testing.T) {
@@ -178,83 +199,6 @@ This workflow should not be modified when --no-fix is used.
 	// Verify that the deprecated field was NOT replaced
 	assert.Contains(t, updatedStr, "timeout_minutes:", "timeout_minutes should not be replaced with --no-fix")
 	assert.NotContains(t, updatedStr, "timeout-minutes:", "timeout-minutes should not be added with --no-fix")
-}
-
-func TestUpgradeCommand_SpecificWorkflow(t *testing.T) {
-	// Create a temporary directory for test files
-	tmpDir := t.TempDir()
-	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir)
-
-	// Initialize git repository
-	os.Chdir(tmpDir)
-	exec.Command("git", "init").Run()
-	exec.Command("git", "config", "user.email", "test@example.com").Run()
-	exec.Command("git", "config", "user.name", "Test User").Run()
-
-	// Create .github/workflows directory
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
-	err := os.MkdirAll(workflowsDir, 0755)
-	require.NoError(t, err, "Failed to create workflows directory")
-
-	// Create two workflow files
-	workflow1 := filepath.Join(workflowsDir, "workflow1.md")
-	workflow1Content := `---
-on:
-  workflow_dispatch:
-
-timeout_minutes: 30
-
-permissions:
-  contents: read
----
-
-# Workflow 1
-
-This workflow should be upgraded.
-`
-	err = os.WriteFile(workflow1, []byte(workflow1Content), 0644)
-	require.NoError(t, err, "Failed to create workflow1")
-
-	workflow2 := filepath.Join(workflowsDir, "workflow2.md")
-	workflow2Content := `---
-on:
-  workflow_dispatch:
-
-timeout_minutes: 60
-
-permissions:
-  contents: read
----
-
-# Workflow 2
-
-This workflow should not be upgraded.
-`
-	err = os.WriteFile(workflow2, []byte(workflow2Content), 0644)
-	require.NoError(t, err, "Failed to create workflow2")
-
-	// Run upgrade command for specific workflow
-	config := UpgradeConfig{
-		WorkflowIDs: []string{"workflow1"},
-		Verbose:     false,
-		NoFix:       false,
-		WorkflowDir: "",
-	}
-
-	err = RunUpgrade(config)
-	require.NoError(t, err, "Upgrade command should succeed")
-
-	// Check workflow1 was updated
-	updatedContent1, err := os.ReadFile(workflow1)
-	require.NoError(t, err, "Failed to read workflow1")
-	assert.NotContains(t, string(updatedContent1), "timeout_minutes:", "workflow1 should be upgraded")
-	assert.Contains(t, string(updatedContent1), "timeout-minutes:", "workflow1 should have new syntax")
-
-	// Check workflow2 was NOT updated
-	updatedContent2, err := os.ReadFile(workflow2)
-	require.NoError(t, err, "Failed to read workflow2")
-	assert.Contains(t, string(updatedContent2), "timeout_minutes:", "workflow2 should not be upgraded")
 }
 
 func TestUpgradeCommand_NonGitRepo(t *testing.T) {
