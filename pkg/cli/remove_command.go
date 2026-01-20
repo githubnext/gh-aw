@@ -33,6 +33,9 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 		return fmt.Errorf("failed to find workflow files: %w", err)
 	}
 
+	// Filter out README.md files
+	mdFiles = filterWorkflowFiles(mdFiles)
+
 	removeLog.Printf("Found %d workflow files", len(mdFiles))
 	if len(mdFiles) == 0 {
 		fmt.Println("No workflow files found to remove.")

@@ -16,8 +16,10 @@ This directory contains design specifications and implementation documentation f
 
 | Document | Status | Implementation |
 |----------|--------|----------------|
+| [Safe Outputs System Specification](./safe-outputs-specification.md) | ✅ Documented | W3C-style formal specification for safe outputs architecture, security, and operations |
 | [Capitalization Guidelines](./capitalization.md) | ✅ Documented | `cmd/gh-aw/capitalization_test.go` |
 | [Safe Output Messages Design System](./safe-output-messages.md) | ✅ Implemented | `pkg/workflow/safe_outputs.go` |
+| [Safe Output Environment Variables Reference](./safe-output-environment-variables.md) | ✅ Documented | Environment variable requirements for safe output jobs |
 | [MCP Logs Guardrail](./MCP_LOGS_GUARDRAIL.md) | ✅ Implemented | `pkg/cli/mcp_logs_guardrail.go` |
 | [YAML Version Compatibility](./yaml-version-gotchas.md) | ✅ Documented | `pkg/workflow/compiler.go` |
 | [Schema Validation](./SCHEMA_VALIDATION.md) | ✅ Documented | `pkg/parser/schemas/` |
@@ -53,4 +55,4 @@ When adding new specifications:
 
 ---
 
-**Last Updated**: 2025-01-08
+**Last Updated**: 2026-01-20
