@@ -51,4 +51,6 @@ The agent instructions are merged with the workflow prompt, customizing the AI e
 
 ## Built-in Agents
 
-The `gh aw init` command sets up workflow creation agents including `create-agentic-workflow` and `debug-agentic-workflow` that help create, debug, and refine workflows using CLI tools (`gh aw logs`, `gh aw audit`, `gh aw run`, `gh aw compile`). These agents are stored in `.github/agents/` and provide conversational workflow authoring and debugging capabilities.
+The `gh aw init` command sets up a unified `agentic-workflows` dispatcher agent that intelligently routes your workflow requests to specialized prompts based on your intent (create/debug/update/upgrade). This agent is stored in `.github/agents/` and provides conversational workflow authoring, debugging, and upgrade capabilities using CLI tools (`gh aw logs`, `gh aw audit`, `gh aw run`, `gh aw compile`).
+
+When you invoke `/agent agentic-workflows` in Copilot Chat, simply state your intent (e.g., "create a workflow that...", "debug why my workflow...", "update my workflow to...") and the agent will route to the appropriate specialized prompt.
