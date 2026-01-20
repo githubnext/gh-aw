@@ -1122,4 +1122,54 @@ describe("updateProject", () => {
     expect(updateCalls.length).toBe(1);
     expect(updateCalls[0][1].value).toEqual({ text: "my-campaign-123" });
   });
+
+  it("creates worker_workflow field as TEXT type (not SINGLE_SELECT)", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 100,
+      fields: {
+        worker_workflow: "my-worker-workflow",
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-worker-workflow-id"),
+      issueResponse("issue-id-100"),
+      existingItemResponse("issue-id-100", "item-worker-workflow-id"),
+      // No existing fields - will need to create worker_workflow as TEXT
+      fieldsResponse([]),
+      // Response for creating worker_workflow field as TEXT type (not SINGLE_SELECT)
+      {
+        createProjectV2Field: {
+          projectV2Field: {
+            id: "field-worker-workflow-id",
+            name: "Worker Workflow",
+          },
+        },
+      },
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    // Verify that worker_workflow field was created with TEXT type (not SINGLE_SELECT)
+    const createCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("createProjectV2Field"));
+    expect(createCalls.length).toBe(1);
+
+    // Check that the field was created with TEXT dataType
+    expect(createCalls[0][1].dataType).toBe("TEXT");
+    expect(createCalls[0][1].name).toBe("Worker Workflow");
+    // Verify that singleSelectOptions was NOT provided (which would indicate SINGLE_SELECT)
+    expect(createCalls[0][1].singleSelectOptions).toBeUndefined();
+
+    // Verify the field value was set using text format
+    const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCalls.length).toBe(1);
+    expect(updateCalls[0][1].value).toEqual({ text: "my-worker-workflow" });
+  });
 });

@@ -643,7 +643,7 @@ async function updateProject(output) {
           // Detect expected field type based on field name and value heuristics
           const datePattern = /^\d{4}-\d{2}-\d{2}$/;
           const isDateField = fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date");
-          const isTextField = "classification" === fieldName.toLowerCase() || "campaign_id" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|"));
+          const isTextField = "classification" === fieldName.toLowerCase() || "campaign_id" === fieldName.toLowerCase() || "worker_workflow" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|"));
           let expectedDataType;
           if (isDateField && typeof fieldValue === "string" && datePattern.test(fieldValue)) {
             expectedDataType = "DATE";
@@ -678,7 +678,7 @@ async function updateProject(output) {
                 core.warning(`Field "${fieldName}" looks like a date field but value "${fieldValue}" is not in YYYY-MM-DD format. Skipping field creation.`);
                 continue;
               }
-            } else if ("classification" === fieldName.toLowerCase() || "campaign_id" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
+            } else if ("classification" === fieldName.toLowerCase() || "campaign_id" === fieldName.toLowerCase() || "worker_workflow" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
               try {
                 field = (
                   await github.graphql(
@@ -822,7 +822,7 @@ async function updateProject(output) {
           // Detect expected field type based on field name and value heuristics
           const datePattern = /^\d{4}-\d{2}-\d{2}$/;
           const isDateField = fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date");
-          const isTextField = "classification" === fieldName.toLowerCase() || "campaign_id" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|"));
+          const isTextField = "classification" === fieldName.toLowerCase() || "campaign_id" === fieldName.toLowerCase() || "worker_workflow" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|"));
           let expectedDataType;
           if (isDateField && typeof fieldValue === "string" && datePattern.test(fieldValue)) {
             expectedDataType = "DATE";
@@ -857,7 +857,7 @@ async function updateProject(output) {
                 core.warning(`Field "${fieldName}" looks like a date field but value "${fieldValue}" is not in YYYY-MM-DD format. Skipping field creation.`);
                 continue;
               }
-            } else if ("classification" === fieldName.toLowerCase() || "campaign_id" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
+            } else if ("classification" === fieldName.toLowerCase() || "campaign_id" === fieldName.toLowerCase() || "worker_workflow" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
               try {
                 field = (
                   await github.graphql(
