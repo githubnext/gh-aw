@@ -487,7 +487,7 @@ func runPostProcessing(
 				workflowDir = ".github/workflows"
 			}
 			absWorkflowDir := filepath.Join(gitRoot, workflowDir)
-			
+
 			// Parse all workflow markdown files to check for expires fields
 			allWorkflowData, parseErr := parseAllWorkflowsInDirectory(compiler, absWorkflowDir)
 			if parseErr == nil {
@@ -626,10 +626,9 @@ func parseAllWorkflowsInDirectory(compiler *workflow.Compiler, workflowsDir stri
 			// Ignore parse errors - workflows might be incomplete
 			continue
 		}
-		
+
 		workflowDataList = append(workflowDataList, workflowData)
 	}
 
 	return workflowDataList, nil
 }
-
