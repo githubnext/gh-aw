@@ -219,6 +219,8 @@ jobs:
             BINARY=dist/linux-amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          sbom: true
+          provenance: mode=max
 
       - name: Create GitHub release
         id: get_release

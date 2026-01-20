@@ -1342,7 +1342,9 @@ jobs:
           context: .
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
+          provenance: mode=max
           push: true
+          sbom: true
           tags: ${{ steps.meta.outputs.tags }}
       - name: Create GitHub release
         id: get_release
