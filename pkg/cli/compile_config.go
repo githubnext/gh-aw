@@ -49,8 +49,8 @@ type CompilationStats struct {
 	FailureDetails  []WorkflowFailure // Detailed information about failed workflows
 }
 
-// ValidationError represents a single validation error or warning
-type ValidationError struct {
+// CompileValidationError represents a single validation error or warning
+type CompileValidationError struct {
 	Type    string `json:"type"`
 	Message string `json:"message"`
 	Line    int    `json:"line,omitempty"`
@@ -58,11 +58,11 @@ type ValidationError struct {
 
 // ValidationResult represents the validation result for a single workflow
 type ValidationResult struct {
-	Workflow     string            `json:"workflow"`
-	Valid        bool              `json:"valid"`
-	Errors       []ValidationError `json:"errors"`
-	Warnings     []ValidationError `json:"warnings"`
-	CompiledFile string            `json:"compiled_file,omitempty"`
+	Workflow     string                    `json:"workflow"`
+	Valid        bool                      `json:"valid"`
+	Errors       []CompileValidationError  `json:"errors"`
+	Warnings     []CompileValidationError  `json:"warnings"`
+	CompiledFile string                    `json:"compiled_file,omitempty"`
 }
 
 // sanitizeValidationResults creates a sanitized copy of validation results with all
@@ -82,13 +82,13 @@ func sanitizeValidationResults(results []ValidationResult) []ValidationResult {
 			Workflow:     result.Workflow,
 			Valid:        result.Valid,
 			CompiledFile: result.CompiledFile,
-			Errors:       make([]ValidationError, len(result.Errors)),
-			Warnings:     make([]ValidationError, len(result.Warnings)),
+			Errors:       make([]CompileValidationError, len(result.Errors)),
+			Warnings:     make([]CompileValidationError, len(result.Warnings)),
 		}
 
 		// Sanitize all error messages
 		for j, err := range result.Errors {
-			sanitized[i].Errors[j] = ValidationError{
+			sanitized[i].Errors[j] = CompileValidationError{
 				Type:    err.Type,
 				Message: stringutil.SanitizeErrorMessage(err.Message),
 				Line:    err.Line,
@@ -97,7 +97,7 @@ func sanitizeValidationResults(results []ValidationResult) []ValidationResult {
 
 		// Sanitize all warning messages
 		for j, warn := range result.Warnings {
-			sanitized[i].Warnings[j] = ValidationError{
+			sanitized[i].Warnings[j] = CompileValidationError{
 				Type:    warn.Type,
 				Message: stringutil.SanitizeErrorMessage(warn.Message),
 				Line:    warn.Line,
