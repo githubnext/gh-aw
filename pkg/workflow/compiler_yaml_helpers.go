@@ -105,6 +105,11 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 // - Multiple folders as a comma-separated string (e.g., "folder1,folder2")
 // - An array of folder names (e.g., ["folder1", "folder2"])
 //
+// Also automatically includes engine-specific folders:
+// - Claude engine: .claude folder
+// - Codex engine: .codex folder
+// - Copilot engine: no additional folder (already using .github)
+//
 // Returns a slice of strings that can be appended to a steps array, where each
 // string represents a line of YAML for the checkout step. Returns nil if:
 // - Not in dev or script mode
@@ -120,7 +125,7 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 		}
 	}
 
-	// Get additional folders from action-folder feature
+	// Get additional folders from action-folder feature and engine-specific folders
 	additionalFolders := getActionFolders(data)
 
 	// Script mode: checkout .github folder from githubnext/gh-aw to /tmp/gh-aw/actions-source/
@@ -172,51 +177,96 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 	return nil
 }
 
-// getActionFolders extracts additional folder names from the action-folder feature.
-// Returns a slice of folder names (may be empty if feature not specified).
+// getActionFolders extracts additional folder names from the action-folder feature
+// and automatically adds engine-specific folders based on the engine being used.
+// Returns a slice of folder names (may be empty if feature not specified and no engine-specific folders).
 func getActionFolders(data *WorkflowData) []string {
-	if data == nil || data.Features == nil {
-		return nil
-	}
-
-	actionFolderVal, exists := data.Features["action-folder"]
-	if !exists || actionFolderVal == nil {
+	if data == nil {
 		return nil
 	}
 
 	var folders []string
 
-	// Handle different value types
-	switch val := actionFolderVal.(type) {
-	case string:
-		// Single string or comma-separated string
-		if val != "" {
-			// Split by comma and trim whitespace
-			parts := strings.Split(val, ",")
-			for _, part := range parts {
-				trimmed := strings.TrimSpace(part)
-				if trimmed != "" {
-					folders = append(folders, trimmed)
+	// Add engine-specific folders automatically
+	engineID := getEngineID(data)
+	engineFolder := getEngineFolderName(engineID)
+	if engineFolder != "" {
+		folders = append(folders, engineFolder)
+	}
+
+	// Add folders from action-folder feature
+	if data.Features != nil {
+		actionFolderVal, exists := data.Features["action-folder"]
+		if exists && actionFolderVal != nil {
+			// Handle different value types
+			switch val := actionFolderVal.(type) {
+			case string:
+				// Single string or comma-separated string
+				if val != "" {
+					// Split by comma and trim whitespace
+					parts := strings.Split(val, ",")
+					for _, part := range parts {
+						trimmed := strings.TrimSpace(part)
+						if trimmed != "" {
+							folders = append(folders, trimmed)
+						}
+					}
 				}
-			}
-		}
-	case []any:
-		// Array of values
-		for _, item := range val {
-			if strItem, ok := item.(string); ok && strItem != "" {
-				folders = append(folders, strings.TrimSpace(strItem))
-			}
-		}
-	case []string:
-		// Array of strings (less common but possible)
-		for _, item := range val {
-			if item != "" {
-				folders = append(folders, strings.TrimSpace(item))
+			case []any:
+				// Array of values
+				for _, item := range val {
+					if strItem, ok := item.(string); ok && strItem != "" {
+						folders = append(folders, strings.TrimSpace(strItem))
+					}
+				}
+			case []string:
+				// Array of strings (less common but possible)
+				for _, item := range val {
+					if item != "" {
+						folders = append(folders, strings.TrimSpace(item))
+					}
+				}
 			}
 		}
 	}
 
 	return folders
+}
+
+// getEngineID extracts the engine ID from WorkflowData
+func getEngineID(data *WorkflowData) string {
+	if data == nil {
+		return ""
+	}
+
+	// Try EngineConfig first (preferred)
+	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		return data.EngineConfig.ID
+	}
+
+	// Fall back to legacy AI field
+	if data.AI != "" {
+		return data.AI
+	}
+
+	return ""
+}
+
+// getEngineFolderName returns the folder name for an engine
+// Returns empty string for copilot (uses .github) or unknown engines
+func getEngineFolderName(engineID string) string {
+	switch engineID {
+	case "claude":
+		return ".claude"
+	case "codex":
+		return ".codex"
+	case "copilot":
+		// Copilot uses .github which is already checked out as the default
+		return ""
+	default:
+		// Unknown or custom engines don't have a specific folder
+		return ""
+	}
 }
 
 // generateGitHubScriptWithRequire generates a github-script step that loads a module using require().

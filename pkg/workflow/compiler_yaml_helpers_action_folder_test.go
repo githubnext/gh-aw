@@ -21,69 +21,114 @@ func TestGetActionFolders(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:     "nil features",
+			name:     "nil features and no engine",
 			data:     &WorkflowData{Features: nil},
 			expected: nil,
 		},
 		{
-			name:     "empty features",
+			name:     "empty features and no engine",
 			data:     &WorkflowData{Features: map[string]any{}},
 			expected: nil,
 		},
 		{
-			name:     "action-folder not specified",
+			name:     "action-folder not specified, no engine",
 			data:     &WorkflowData{Features: map[string]any{"other": "value"}},
 			expected: nil,
 		},
 		{
-			name:     "action-folder is nil",
+			name:     "action-folder is nil, no engine",
 			data:     &WorkflowData{Features: map[string]any{"action-folder": nil}},
 			expected: nil,
 		},
 		{
-			name:     "action-folder is empty string",
+			name:     "action-folder is empty string, no engine",
 			data:     &WorkflowData{Features: map[string]any{"action-folder": ""}},
 			expected: nil,
 		},
 		{
-			name:     "single folder as string",
+			name:     "claude engine only (no action-folder)",
+			data:     &WorkflowData{EngineConfig: &EngineConfig{ID: "claude"}},
+			expected: []string{".claude"},
+		},
+		{
+			name:     "codex engine only (no action-folder)",
+			data:     &WorkflowData{EngineConfig: &EngineConfig{ID: "codex"}},
+			expected: []string{".codex"},
+		},
+		{
+			name:     "copilot engine only (no action-folder)",
+			data:     &WorkflowData{EngineConfig: &EngineConfig{ID: "copilot"}},
+			expected: nil,
+		},
+		{
+			name:     "custom engine only (no action-folder)",
+			data:     &WorkflowData{EngineConfig: &EngineConfig{ID: "custom"}},
+			expected: nil,
+		},
+		{
+			name:     "claude engine with single folder",
+			data:     &WorkflowData{EngineConfig: &EngineConfig{ID: "claude"}, Features: map[string]any{"action-folder": "custom-actions"}},
+			expected: []string{".claude", "custom-actions"},
+		},
+		{
+			name:     "codex engine with multiple folders",
+			data:     &WorkflowData{EngineConfig: &EngineConfig{ID: "codex"}, Features: map[string]any{"action-folder": "folder1,folder2"}},
+			expected: []string{".codex", "folder1", "folder2"},
+		},
+		{
+			name:     "single folder as string (no engine)",
 			data:     &WorkflowData{Features: map[string]any{"action-folder": "custom-actions"}},
 			expected: []string{"custom-actions"},
 		},
 		{
-			name:     "multiple folders comma-separated",
+			name:     "multiple folders comma-separated (no engine)",
 			data:     &WorkflowData{Features: map[string]any{"action-folder": "folder1,folder2"}},
 			expected: []string{"folder1", "folder2"},
 		},
 		{
-			name:     "multiple folders with spaces",
+			name:     "multiple folders with spaces (no engine)",
 			data:     &WorkflowData{Features: map[string]any{"action-folder": "folder1, folder2 , folder3"}},
 			expected: []string{"folder1", "folder2", "folder3"},
 		},
 		{
-			name:     "array of strings ([]any)",
+			name:     "array of strings ([]any) (no engine)",
 			data:     &WorkflowData{Features: map[string]any{"action-folder": []any{"folder1", "folder2"}}},
 			expected: []string{"folder1", "folder2"},
 		},
 		{
-			name:     "array of strings ([]string)",
+			name:     "array of strings ([]string) (no engine)",
 			data:     &WorkflowData{Features: map[string]any{"action-folder": []string{"folder1", "folder2"}}},
 			expected: []string{"folder1", "folder2"},
 		},
 		{
-			name:     "array with empty strings filtered out",
+			name:     "array with empty strings filtered out (no engine)",
 			data:     &WorkflowData{Features: map[string]any{"action-folder": []any{"folder1", "", "folder2"}}},
 			expected: []string{"folder1", "folder2"},
 		},
 		{
-			name:     "comma-separated with empty parts filtered out",
+			name:     "comma-separated with empty parts filtered out (no engine)",
 			data:     &WorkflowData{Features: map[string]any{"action-folder": "folder1,,folder2"}},
 			expected: []string{"folder1", "folder2"},
 		},
 		{
-			name:     "folder with path separators",
+			name:     "folder with path separators (no engine)",
 			data:     &WorkflowData{Features: map[string]any{"action-folder": ".github/custom"}},
 			expected: []string{".github/custom"},
+		},
+		{
+			name:     "legacy AI field with claude",
+			data:     &WorkflowData{AI: "claude"},
+			expected: []string{".claude"},
+		},
+		{
+			name:     "legacy AI field with codex",
+			data:     &WorkflowData{AI: "codex"},
+			expected: []string{".codex"},
+		},
+		{
+			name:     "EngineConfig takes precedence over AI field",
+			data:     &WorkflowData{EngineConfig: &EngineConfig{ID: "claude"}, AI: "codex"},
+			expected: []string{".claude"},
 		},
 	}
 
@@ -101,6 +146,7 @@ func TestGenerateCheckoutActionsFolder_WithActionFolder(t *testing.T) {
 	tests := []struct {
 		name             string
 		actionMode       ActionMode
+		engineID         string
 		features         map[string]any
 		expectedContains []string
 		expectedNotNil   bool
@@ -117,6 +163,62 @@ func TestGenerateCheckoutActionsFolder_WithActionFolder(t *testing.T) {
 			},
 			expectedNotNil:  true,
 			expectedFolders: []string{"actions"},
+		},
+		{
+			name:       "dev mode with claude engine (auto .claude folder)",
+			actionMode: ActionModeDev,
+			engineID:   "claude",
+			features:   map[string]any{},
+			expectedContains: []string{
+				"Checkout actions folder",
+				"sparse-checkout: |",
+				"actions",
+				".claude",
+			},
+			expectedNotNil:  true,
+			expectedFolders: []string{"actions", ".claude"},
+		},
+		{
+			name:       "dev mode with codex engine (auto .codex folder)",
+			actionMode: ActionModeDev,
+			engineID:   "codex",
+			features:   map[string]any{},
+			expectedContains: []string{
+				"Checkout actions folder",
+				"sparse-checkout: |",
+				"actions",
+				".codex",
+			},
+			expectedNotNil:  true,
+			expectedFolders: []string{"actions", ".codex"},
+		},
+		{
+			name:       "dev mode with copilot engine (no additional folder)",
+			actionMode: ActionModeDev,
+			engineID:   "copilot",
+			features:   map[string]any{},
+			expectedContains: []string{
+				"Checkout actions folder",
+				"sparse-checkout: |",
+				"actions",
+			},
+			expectedNotNil:  true,
+			expectedFolders: []string{"actions"},
+		},
+		{
+			name:       "dev mode with claude + custom action-folder",
+			actionMode: ActionModeDev,
+			engineID:   "claude",
+			features:   map[string]any{"action-folder": "custom-actions"},
+			expectedContains: []string{
+				"Checkout actions folder",
+				"sparse-checkout: |",
+				"actions",
+				".claude",
+				"custom-actions",
+			},
+			expectedNotNil:  true,
+			expectedFolders: []string{"actions", ".claude", "custom-actions"},
 		},
 		{
 			name:       "dev mode with single action-folder",
@@ -188,6 +290,11 @@ func TestGenerateCheckoutActionsFolder_WithActionFolder(t *testing.T) {
 
 			data := &WorkflowData{
 				Features: tt.features,
+			}
+
+			// Add engine config if specified
+			if tt.engineID != "" {
+				data.EngineConfig = &EngineConfig{ID: tt.engineID}
 			}
 
 			result := compiler.generateCheckoutActionsFolder(data)

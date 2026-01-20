@@ -21,6 +21,42 @@ func TestActionFolderFeature_Integration(t *testing.T) {
 		shouldHaveCheckout bool
 	}{
 		{
+			name: "claude engine auto-adds .claude folder",
+			workflowContent: `---
+name: Test Claude Engine
+engine: claude
+on: issues
+---
+Test workflow with Claude engine`,
+			actionMode:         workflow.ActionModeDev,
+			expectedFolders:    []string{"actions", ".claude"},
+			shouldHaveCheckout: true,
+		},
+		{
+			name: "codex engine auto-adds .codex folder",
+			workflowContent: `---
+name: Test Codex Engine
+engine: codex
+on: issues
+---
+Test workflow with Codex engine`,
+			actionMode:         workflow.ActionModeDev,
+			expectedFolders:    []string{"actions", ".codex"},
+			shouldHaveCheckout: true,
+		},
+		{
+			name: "copilot engine does not add additional folder",
+			workflowContent: `---
+name: Test Copilot Engine
+engine: copilot
+on: issues
+---
+Test workflow with Copilot engine`,
+			actionMode:         workflow.ActionModeDev,
+			expectedFolders:    []string{"actions"},
+			shouldHaveCheckout: true,
+		},
+		{
 			name: "single custom folder in dev mode",
 			workflowContent: `---
 name: Test Action Folder
