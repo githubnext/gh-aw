@@ -577,29 +577,10 @@
   },
   {
     "name": "update_project",
-    "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
+    "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.\n\nThree usage modes:\n1. Add/update project item: Requires project + content_type. For 'issue' or 'pull_request', also requires content_number. For 'draft_issue', requires draft_title.\n2. Create project fields: Requires project + operation='create_fields' + field_definitions.\n3. Create project view: Requires project + operation='create_view' + view.",
     "inputSchema": {
       "type": "object",
-      "oneOf": [
-        {
-          "title": "Create project fields",
-          "required": ["project", "operation", "field_definitions"],
-          "properties": {
-            "operation": { "const": "create_fields" }
-          }
-        },
-        {
-          "title": "Create project view",
-          "required": ["project", "operation", "view"],
-          "properties": {
-            "operation": { "const": "create_view" }
-          }
-        },
-        {
-          "title": "Add/update project item",
-          "required": ["project", "content_type"]
-        }
-      ],
+      "required": ["project"],
       "properties": {
         "project": {
           "type": "string",
@@ -614,7 +595,7 @@
         "content_type": {
           "type": "string",
           "enum": ["issue", "pull_request", "draft_issue"],
-          "description": "Type of item to add to the project. Use 'issue' or 'pull_request' to add existing repo content, or 'draft_issue' to create a draft item inside the project."
+          "description": "Type of item to add to the project. Use 'issue' or 'pull_request' to add existing repo content, or 'draft_issue' to create a draft item inside the project. Required when operation is not specified."
         },
         "content_number": {
           "type": "number",
@@ -634,7 +615,7 @@
         },
         "field_definitions": {
           "type": "array",
-          "description": "Field definitions to create when operation is create_fields.",
+          "description": "Field definitions to create when operation is create_fields. Required when operation='create_fields'.",
           "items": {
             "type": "object",
             "required": ["name", "data_type"],
@@ -650,7 +631,9 @@
               },
               "options": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "Options for SINGLE_SELECT fields."
               }
             },
@@ -659,15 +642,24 @@
         },
         "view": {
           "type": "object",
-          "description": "View definition to create when operation is create_view.",
+          "description": "View definition to create when operation is create_view. Required when operation='create_view'.",
           "required": ["name", "layout"],
           "properties": {
-            "name": { "type": "string" },
-            "layout": { "type": "string", "enum": ["table", "board", "roadmap"] },
-            "filter": { "type": "string" },
+            "name": {
+              "type": "string"
+            },
+            "layout": {
+              "type": "string",
+              "enum": ["table", "board", "roadmap"]
+            },
+            "filter": {
+              "type": "string"
+            },
             "visible_fields": {
               "type": "array",
-              "items": { "type": "number" },
+              "items": {
+                "type": "number"
+              },
               "description": "Field IDs to show in the view (table/board only)."
             }
           },
