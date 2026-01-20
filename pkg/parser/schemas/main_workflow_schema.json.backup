@@ -3870,9 +3870,7 @@
                       },
                       "options": {
                         "type": "array",
-                        "items": {
-                          "type": "string"
-                        },
+                        "items": { "type": "string" },
                         "description": "Options for SINGLE_SELECT fields. GitHub does not support adding options later."
                       }
                     },
@@ -4570,11 +4568,6 @@
                     }
                   ],
                   "description": "Time until the pull request expires and should be automatically closed (only for same-repo PRs without target-repo). Supports integer (days) or relative time format. Minimum duration: 2 hours."
-                },
-                "auto-merge": {
-                  "type": "boolean",
-                  "description": "Enable auto-merge for the pull request. When enabled, the PR will be automatically merged once all required checks pass and required approvals are met. Defaults to false.",
-                  "default": false
                 }
               },
               "additionalProperties": false,

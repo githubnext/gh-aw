@@ -523,3 +523,84 @@ This test verifies that the aw.patch artifact is downloaded in the safe_outputs 
 		t.Errorf("Expected condition to check for 'create_pull_request' in output_types")
 	}
 }
+
+// TestCreatePullRequestAutoMergeConfig verifies that auto-merge configuration
+// is properly parsed and passed to the JavaScript handler
+func TestCreatePullRequestAutoMergeConfig(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := testutil.TempDir(t, "test-auto-merge-*")
+
+	// Test case with auto-merge configuration
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened]
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+strict: false
+features:
+  dangerous-permissions-write: true
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[bot] "
+    auto-merge: true
+---
+
+# Test Create Pull Request Auto-Merge
+
+This test verifies that auto-merge configuration is properly handled.
+`
+
+	// Write the test file
+	mdFile := filepath.Join(tmpDir, "test-auto-merge.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	// Create compiler and parse the workflow
+	compiler := NewCompiler(false, "", "test")
+	workflowData, err := compiler.ParseWorkflowFile(mdFile)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow: %v", err)
+	}
+
+	// Verify auto-merge configuration is parsed
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected safe-outputs configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.CreatePullRequests == nil {
+		t.Fatal("Expected create-pull-request configuration to be parsed")
+	}
+
+	// Verify auto-merge is set to true
+	if !workflowData.SafeOutputs.CreatePullRequests.AutoMerge {
+		t.Error("Expected auto-merge to be true")
+	}
+
+	// Compile the workflow to verify environment variable is passed
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated .lock.yml file
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that the GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG includes auto_merge
+	if !strings.Contains(lockContentStr, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG environment variable in safe_outputs job")
+	}
+
+	// Verify that the auto-merge configuration is in the handler config JSON
+	if !strings.Contains(lockContentStr, `"auto_merge":true`) {
+		t.Error("Expected auto_merge:true in handler config JSON")
+	}
+}

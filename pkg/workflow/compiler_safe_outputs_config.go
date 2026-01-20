@@ -316,6 +316,9 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.AllowEmpty {
 			handlerConfig["allow_empty"] = cfg.AllowEmpty
 		}
+		if cfg.AutoMerge {
+			handlerConfig["auto_merge"] = cfg.AutoMerge
+		}
 		if cfg.Expires > 0 {
 			handlerConfig["expires"] = cfg.Expires
 		}
