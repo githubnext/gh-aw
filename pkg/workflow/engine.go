@@ -16,6 +16,7 @@ type EngineConfig struct {
 	Version     string
 	Model       string
 	MaxTurns    string
+	Iterations  string // Number of iterations to run the agent in a loop
 	Concurrency string // Agent job-level concurrency configuration (YAML format)
 	UserAgent   string
 	Command     string // Custom executable path (when set, skip installation steps)
@@ -84,6 +85,17 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					config.MaxTurns = fmt.Sprintf("%d", maxTurnsUint64)
 				} else if maxTurnsStr, ok := maxTurns.(string); ok {
 					config.MaxTurns = maxTurnsStr
+				}
+			}
+
+			// Extract optional 'iterations' field
+			if iterations, hasIterations := engineObj["iterations"]; hasIterations {
+				if iterInt, ok := iterations.(int); ok {
+					config.Iterations = fmt.Sprintf("%d", iterInt)
+				} else if iterUint64, ok := iterations.(uint64); ok {
+					config.Iterations = fmt.Sprintf("%d", iterUint64)
+				} else if iterStr, ok := iterations.(string); ok {
+					config.Iterations = iterStr
 				}
 			}
 

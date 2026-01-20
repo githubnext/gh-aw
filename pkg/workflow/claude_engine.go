@@ -400,6 +400,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		}
 	}
 
+	// Wrap with iteration loop if configured
+	command = WrapCommandWithIterationLoop(command, logFile, workflowData)
+
 	// Build environment variables map
 	env := map[string]string{
 		"ANTHROPIC_API_KEY":       "${{ secrets.ANTHROPIC_API_KEY }}",
@@ -449,6 +452,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+	}
+
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Iterations != "" {
+		env["GH_AW_ITERATIONS"] = workflowData.EngineConfig.Iterations
 	}
 
 	// Add model environment variable if model is not explicitly configured

@@ -327,6 +327,9 @@ mkdir -p "$CODEX_HOME/logs"
 		}
 	}
 
+	// Wrap with iteration loop if configured
+	command = WrapCommandWithIterationLoop(command, logFile, workflowData)
+
 	// Get effective GitHub token based on precedence: top-level github-token > default
 	effectiveGitHubToken := getEffectiveGitHubToken("", workflowData.GitHubToken)
 
@@ -353,6 +356,14 @@ mkdir -p "$CODEX_HOME/logs"
 	// Add GH_AW_TOOL_TIMEOUT environment variable (in seconds) if timeout is specified
 	if workflowData.ToolsTimeout > 0 {
 		env["GH_AW_TOOL_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsTimeout)
+	}
+
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+	}
+
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Iterations != "" {
+		env["GH_AW_ITERATIONS"] = workflowData.EngineConfig.Iterations
 	}
 
 	// Add model environment variable if model is not explicitly configured

@@ -354,6 +354,9 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 %s%s 2>&1 | tee %s`, mkdirCommands.String(), copilotCommand, logFile)
 	}
 
+	// Wrap with iteration loop if configured
+	command = WrapCommandWithIterationLoop(command, logFile, workflowData)
+
 	// Use COPILOT_GITHUB_TOKEN
 	// If github-token is specified at workflow level, use that instead
 	var copilotGitHubToken string
@@ -406,6 +409,10 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+	}
+
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Iterations != "" {
+		env["GH_AW_ITERATIONS"] = workflowData.EngineConfig.Iterations
 	}
 
 	// Add model environment variable if model is not explicitly configured

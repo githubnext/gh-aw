@@ -90,6 +90,11 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 				envVars["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
 			}
 
+			// Add GH_AW_ITERATIONS if iterations is configured
+			if workflowData.EngineConfig != nil && workflowData.EngineConfig.Iterations != "" {
+				envVars["GH_AW_ITERATIONS"] = workflowData.EngineConfig.Iterations
+			}
+
 			// Add GH_AW_ARGS if args are configured
 			if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
 				// Join args with space separator for environment variable

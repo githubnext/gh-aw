@@ -346,3 +346,65 @@ func extractSecretName(expr string) string {
 
 	return rest[:endIdx]
 }
+
+// WrapCommandWithIterationLoop wraps a command with the iteration loop script if iterations > 1
+// This implements the ralph-loop pattern where each iteration appends its output to the prompt
+// and re-runs the agent with the augmented context.
+//
+// Parameters:
+//   - command: The base command to execute (e.g., "copilot --prompt ...")
+//   - logFile: The log file path for capturing output
+//   - workflowData: The workflow data containing engine configuration
+//
+// Returns:
+//   - string: The wrapped command (or original if iterations <= 1)
+//
+// Example:
+//   - Input: "copilot --prompt prompt.txt", iterations=3
+//   - Output: "/opt/gh-aw/actions/run_agent_loop.sh copilot --prompt prompt.txt"
+func WrapCommandWithIterationLoop(command string, logFile string, workflowData *WorkflowData) string {
+	// Check if iterations is configured and > 1
+	if workflowData.EngineConfig == nil || workflowData.EngineConfig.Iterations == "" {
+		return command
+	}
+
+	iterations := workflowData.EngineConfig.Iterations
+	engineHelpersLog.Printf("Iterations configured: %s", iterations)
+
+	// For iterations = 1, no need to wrap
+	if iterations == "1" {
+		engineHelpersLog.Print("Iterations = 1, skipping loop wrapper")
+		return command
+	}
+
+	engineHelpersLog.Printf("Wrapping command with iteration loop (iterations=%s)", iterations)
+
+	// The loop script expects:
+	// - GH_AW_ITERATIONS: number of iterations
+	// - GH_AW_PROMPT: path to prompt file
+	// - GH_AW_LOGS_DIR: directory for logs
+	// - GH_AW_LOG_FILE: final log file path
+	// - Command to execute as arguments
+
+	// Extract the actual command (remove the tee redirection if present)
+	// The loop script will handle its own logging
+	actualCommand := command
+	if strings.Contains(command, "| tee") {
+		// Remove the tee redirection - the loop script will handle logging
+		parts := strings.Split(command, "| tee")
+		if len(parts) > 0 {
+			actualCommand = strings.TrimSpace(parts[0])
+		}
+	}
+
+	// Wrap with the loop script
+	// The loop script will execute the command and handle iteration logic
+	wrappedCommand := fmt.Sprintf(`GH_AW_ITERATIONS=%s \
+GH_AW_LOGS_DIR=/tmp/gh-aw/logs \
+GH_AW_LOG_FILE=%s \
+/opt/gh-aw/actions/run_agent_loop.sh \
+%s`, iterations, shellEscapeArg(logFile), actualCommand)
+
+	engineHelpersLog.Print("Command wrapped with iteration loop script")
+	return wrappedCommand
+}
