@@ -73,7 +73,9 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[docs] "
     labels: [documentation, automation]
+    reviewers: [copilot]
     draft: true
+    auto-merge: true
   add-comment:
     max: 1
   upload-asset:

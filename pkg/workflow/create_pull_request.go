@@ -22,6 +22,7 @@ type CreatePullRequestsConfig struct {
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`    // Target repository in format "owner/repo" for cross-repository pull requests
 	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`  // List of additional repositories that pull requests can be created in (additionally to the target-repo)
 	Expires              int      `yaml:"expires,omitempty"`        // Hours until the pull request expires and should be automatically closed (only for same-repo PRs)
+	AutoMerge            bool     `yaml:"auto-merge,omitempty"`     // Enable auto-merge for the pull request when all required checks pass
 }
 
 // buildCreateOutputPullRequestJob creates the create_pull_request job
@@ -81,6 +82,9 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 
 	// Pass the allow-empty configuration
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_ALLOW_EMPTY: %q\n", fmt.Sprintf("%t", data.SafeOutputs.CreatePullRequests.AllowEmpty)))
+
+	// Pass the auto-merge configuration
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_AUTO_MERGE: %q\n", fmt.Sprintf("%t", data.SafeOutputs.CreatePullRequests.AutoMerge)))
 
 	// Pass the maximum patch size configuration
 	maxPatchSize := 1024 // Default value

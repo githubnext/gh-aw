@@ -110,8 +110,8 @@ func generateAssignToAgentConfig(max int, defaultAgent string, target string, al
 	return config
 }
 
-// generatePullRequestConfig creates a config with allowed_labels and allow_empty
-func generatePullRequestConfig(allowedLabels []string, allowEmpty bool) map[string]any {
+// generatePullRequestConfig creates a config with allowed_labels, allow_empty, and auto_merge
+func generatePullRequestConfig(allowedLabels []string, allowEmpty bool, autoMerge bool) map[string]any {
 	config := make(map[string]any)
 	// Note: max is always 1 for pull requests, not configurable
 	if len(allowedLabels) > 0 {
@@ -120,6 +120,10 @@ func generatePullRequestConfig(allowedLabels []string, allowEmpty bool) map[stri
 	// Pass allow_empty flag to MCP server so it can skip patch generation
 	if allowEmpty {
 		config["allow_empty"] = true
+	}
+	// Pass auto_merge flag to enable auto-merge for the pull request
+	if autoMerge {
+		config["auto_merge"] = true
 	}
 	return config
 }
