@@ -1365,19 +1365,6 @@ jobs:
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       - name: Download Go modules
         run: go mod download
-      - name: Generate SBOM for Docker image
-        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
-        with:
-          artifact-name: docker-sbom.spdx.json
-          format: spdx-json
-          image: ghcr.io/${{ github.repository }}:${{ needs.config.outputs.release_tag }}
-          output-file: docker-sbom.spdx.json
-      - name: Attest Docker image
-        uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
-        with:
-          push-to-registry: true
-          subject-digest: ${{ steps.build.outputs.digest }}
-          subject-name: ghcr.io/${{ github.repository }}
       - name: Generate SBOM (SPDX format)
         uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
         with:
