@@ -13,13 +13,13 @@ type CreateIssuesConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	TitlePrefix          string   `yaml:"title-prefix,omitempty"`
 	Labels               []string `yaml:"labels,omitempty"`
-	AllowedLabels        []string `yaml:"allowed-labels,omitempty"` // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
-	Assignees            []string `yaml:"assignees,omitempty"`      // List of users/bots to assign the issue to
-	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`    // Target repository in format "owner/repo" for cross-repository issues
-	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`  // List of additional repositories that issues can be created in
+	AllowedLabels        []string `yaml:"allowed-labels,omitempty"`     // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
+	Assignees            []string `yaml:"assignees,omitempty"`          // List of users/bots to assign the issue to
+	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`        // Target repository in format "owner/repo" for cross-repository issues
+	AllowedRepos         []string `yaml:"allowed-repos,omitempty"`      // List of additional repositories that issues can be created in
 	CloseOlderIssues     bool     `yaml:"close-older-issues,omitempty"` // When true, close older issues with same title prefix or labels as "not planned"
-	Expires              int      `yaml:"expires,omitempty"`        // Hours until the issue expires and should be automatically closed
-	Group                bool     `yaml:"group,omitempty"`          // If true, group issues as sub-issues under a parent issue (workflow ID is used as group identifier)
+	Expires              int      `yaml:"expires,omitempty"`            // Hours until the issue expires and should be automatically closed
+	Group                bool     `yaml:"group,omitempty"`              // If true, group issues as sub-issues under a parent issue (workflow ID is used as group identifier)
 }
 
 // parseIssuesConfig handles create-issue configuration

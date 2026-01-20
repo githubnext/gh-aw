@@ -1,14 +1,7 @@
 // @ts-check
 
 const { describe, it, expect, beforeEach } = require("@jest/globals");
-const {
-  closeOlderIssues,
-  searchOlderIssues,
-  addIssueComment,
-  closeIssueAsNotPlanned,
-  getCloseOlderIssueMessage,
-  MAX_CLOSE_COUNT,
-} = require("./close_older_issues.cjs");
+const { closeOlderIssues, searchOlderIssues, addIssueComment, closeIssueAsNotPlanned, getCloseOlderIssueMessage, MAX_CLOSE_COUNT } = require("./close_older_issues.cjs");
 
 // Mock globals
 global.core = {
@@ -248,16 +241,7 @@ describe("close_older_issues", () => {
       });
 
       const newIssue = { number: 125, html_url: "https://github.com/owner/repo/issues/125" };
-      const results = await closeOlderIssues(
-        mockGithub,
-        "owner",
-        "repo",
-        "Prefix",
-        [],
-        newIssue,
-        "Test Workflow",
-        "https://github.com/owner/repo/actions/runs/123"
-      );
+      const results = await closeOlderIssues(mockGithub, "owner", "repo", "Prefix", [], newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
 
       expect(results).toHaveLength(1);
       expect(results[0].number).toBe(123);
@@ -289,21 +273,10 @@ describe("close_older_issues", () => {
       });
 
       const newIssue = { number: 20, html_url: "https://github.com/owner/repo/issues/20" };
-      const results = await closeOlderIssues(
-        mockGithub,
-        "owner",
-        "repo",
-        "",
-        [],
-        newIssue,
-        "Test Workflow",
-        "https://github.com/owner/repo/actions/runs/123"
-      );
+      const results = await closeOlderIssues(mockGithub, "owner", "repo", "", [], newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
 
       expect(results).toHaveLength(MAX_CLOSE_COUNT);
-      expect(global.core.warning).toHaveBeenCalledWith(
-        `Found 15 older issues, but only closing the first ${MAX_CLOSE_COUNT}`
-      );
+      expect(global.core.warning).toHaveBeenCalledWith(`Found 15 older issues, but only closing the first ${MAX_CLOSE_COUNT}`);
     });
 
     it("should continue on error for individual issues", async () => {
@@ -339,16 +312,7 @@ describe("close_older_issues", () => {
       });
 
       const newIssue = { number: 125, html_url: "https://github.com/owner/repo/issues/125" };
-      const results = await closeOlderIssues(
-        mockGithub,
-        "owner",
-        "repo",
-        "",
-        [],
-        newIssue,
-        "Test Workflow",
-        "https://github.com/owner/repo/actions/runs/123"
-      );
+      const results = await closeOlderIssues(mockGithub, "owner", "repo", "", [], newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
 
       expect(results).toHaveLength(1);
       expect(results[0].number).toBe(124);
@@ -361,16 +325,7 @@ describe("close_older_issues", () => {
       });
 
       const newIssue = { number: 125, html_url: "https://github.com/owner/repo/issues/125" };
-      const results = await closeOlderIssues(
-        mockGithub,
-        "owner",
-        "repo",
-        "Prefix",
-        [],
-        newIssue,
-        "Test Workflow",
-        "https://github.com/owner/repo/actions/runs/123"
-      );
+      const results = await closeOlderIssues(mockGithub, "owner", "repo", "Prefix", [], newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
 
       expect(results).toHaveLength(0);
       expect(global.core.info).toHaveBeenCalledWith("No older issues found to close");
