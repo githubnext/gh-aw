@@ -117,7 +117,7 @@ jobs:
           GH_AW_MAX_DISCOVERY_PAGES: "3"
           GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/TBD
           GH_AW_TRACKER_LABEL: campaign:security-alert-burndown
-          GH_AW_WORKFLOWS: code-scanning-fixer,security-fix-pr
+          GH_AW_WORKFLOWS: code-scanning-fixer,security-fix-pr,security-review
         id: discovery
         name: Run campaign discovery precomputation
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -916,7 +916,7 @@ jobs:
           - KPIs:
             - High-Severity Alerts Fixed (primary): baseline 0 → target 20 over 30 days alerts
             - File Write Vulnerabilities Fixed (supporting): baseline 0 → target 10 over 30 days alerts
-          - Associated workflows: code-scanning-fixer, security-fix-pr
+          - Associated workflows: code-scanning-fixer, security-fix-pr, security-review
           - Memory paths: memory/campaigns/security-alert-burndown/**
           - Metrics glob: `memory/campaigns/security-alert-burndown/metrics/*.json`
           - Cursor glob: `memory/campaigns/security-alert-burndown/cursor.json`
@@ -1035,7 +1035,7 @@ jobs:
                  **Campaign Details:**
                  - Campaign ID: `security-alert-burndown`
                  - Project Board: https://github.com/orgs/githubnext/projects/TBD
-                 - Worker Workflows: `code-scanning-fixer`, `security-fix-pr`
+                 - Worker Workflows: `code-scanning-fixer`, `security-fix-pr`, `security-review`
                  
                  ---
                  `campaign_id: security-alert-burndown`
@@ -1326,10 +1326,10 @@ jobs:
           
           ---
           
-          ## 6) Updating an Existing Item (Minimal Writes)
-          
           PROMPT_EOF
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          ## 6) Updating an Existing Item (Minimal Writes)
+          
           ### Updating Existing Items
           
           Preferred behavior is minimal, idempotent writes:

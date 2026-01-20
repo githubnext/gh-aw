@@ -11,6 +11,7 @@ tracker-label: campaign:security-alert-burndown
 workflows:
   - code-scanning-fixer
   - security-fix-pr
+  - security-review
 
 # Campaign memory storage
 memory-paths:
@@ -86,6 +87,16 @@ Identifies and automatically fixes code security issues by submitting autofixes 
 - Submits autofixes directly to GitHub Code Scanning
 - Can process up to 5 alerts per run
 - **Engine**: Copilot for GitHub API integration
+
+### security-review (On-demand via slash command)
+Security-focused AI agent that reviews pull requests for security implications:
+- Reviews PRs created by other security workflows
+- Identifies changes that could weaken security posture
+- Checks for new vulnerabilities introduced by fixes
+- Provides inline comments on security concerns
+- Ensures fixes don't bypass security controls
+- **Engine**: Configurable (supports multiple AI engines)
+- **Trigger**: `/security-review` slash command on PRs
 
 ## Alert Clustering Strategy
 
