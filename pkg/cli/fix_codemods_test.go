@@ -42,7 +42,7 @@ func TestGetAllCodemods_ReturnsAllCodemods(t *testing.T) {
 
 	// Verify we have the expected number of codemods
 	expectedCount := 11
-	assert.Equal(t, expectedCount, len(codemods), "Should return all %d codemods", expectedCount)
+	assert.Len(t, codemods, expectedCount, "Should return all %d codemods", expectedCount)
 
 	// Verify all codemods have required fields
 	for i, codemod := range codemods {
@@ -113,7 +113,7 @@ func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
 		"grep-tool-removal",
 	}
 
-	require.Equal(t, len(expectedOrder), len(codemods), "Should have expected number of codemods")
+	require.Len(t, codemods, len(expectedOrder), "Should have expected number of codemods")
 
 	for i, expectedID := range expectedOrder {
 		assert.Equal(t, expectedID, codemods[i].ID, "Codemod at position %d should have ID %s", i, expectedID)

@@ -59,14 +59,14 @@ func hasExitedBlock(line, blockIndent string) bool {
 	if len(trimmed) == 0 {
 		return false
 	}
-	
+
 	currentIndent := getIndentation(line)
-	
+
 	// If it's a comment, check indentation to see if we've exited
 	if strings.HasPrefix(trimmed, "#") {
 		return len(currentIndent) <= len(blockIndent)
 	}
-	
+
 	// For regular lines, we've exited if indentation is same or less and it contains a colon
 	return len(currentIndent) <= len(blockIndent) && strings.Contains(line, ":")
 }
@@ -77,16 +77,16 @@ func findAndReplaceInLine(line, oldKey, newKey string) (string, bool) {
 	if !strings.HasPrefix(trimmedLine, oldKey+":") {
 		return line, false
 	}
-	
+
 	// Preserve indentation
 	leadingSpace := getIndentation(line)
-	
+
 	// Extract the value and any trailing comment
 	parts := strings.SplitN(line, ":", 2)
 	if len(parts) < 2 {
 		return line, false
 	}
-	
+
 	valueAndComment := parts[1]
 	return fmt.Sprintf("%s%s:%s", leadingSpace, newKey, valueAndComment), true
 }

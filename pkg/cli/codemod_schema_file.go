@@ -1,9 +1,5 @@
 package cli
 
-import "github.com/githubnext/gh-aw/pkg/logger"
-
-var schemaFileCodemodLog = logger.New("cli:codemod_schema_file")
-
 // getDeleteSchemaFileCodemod creates a codemod for deleting deprecated schema files
 func getDeleteSchemaFileCodemod() Codemod {
 	return Codemod{

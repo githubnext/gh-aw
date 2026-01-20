@@ -109,7 +109,7 @@ func startsWithPrefix(s, prefix string) bool {
 func trimSpace(s string) string {
 	start := 0
 	end := len(s)
-	
+
 	// Trim leading whitespace
 	for start < end {
 		c := s[start]
@@ -118,7 +118,7 @@ func trimSpace(s string) string {
 		}
 		start++
 	}
-	
+
 	// Trim trailing whitespace
 	for end > start {
 		c := s[end-1]
@@ -127,6 +127,6 @@ func trimSpace(s string) string {
 		}
 		end--
 	}
-	
+
 	return s[start:end]
 }

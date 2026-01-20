@@ -95,12 +95,12 @@ Content here.`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lines, md, err := parseFrontmatterLines(tt.content)
-			
+
 			if tt.shouldErr {
 				assert.Error(t, err, "Expected error parsing invalid content")
 				return
 			}
-			
+
 			require.NoError(t, err, "Should parse valid frontmatter")
 			assert.Equal(t, tt.expectedLines, lines, "Frontmatter lines should match")
 			assert.Equal(t, tt.expectedMd, md, "Markdown content should match")
@@ -432,10 +432,10 @@ func TestRemoveFieldFromBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, modified := removeFieldFromBlock(tt.lines, tt.fieldName, tt.parentBlock)
 			assert.Equal(t, tt.shouldModify, modified, "Modification status should match")
-			
+
 			if tt.shouldModify || !modified {
 				// Compare line by line for better error messages
-				assert.Equal(t, len(tt.expectedLines), len(result), "Number of lines should match")
+				assert.Len(t, result, len(tt.expectedLines), "Number of lines should match")
 				for i := range tt.expectedLines {
 					if i < len(result) {
 						assert.Equal(t, tt.expectedLines[i], result[i], "Line %d should match", i)
@@ -461,16 +461,16 @@ func TestRemoveFieldFromBlock_PreservesComments(t *testing.T) {
 	}
 
 	result, modified := removeFieldFromBlock(lines, "firewall", "network")
-	
+
 	require.True(t, modified, "Should modify the lines")
-	
+
 	// Check that the firewall block was removed
 	for _, line := range result {
 		assert.NotContains(t, line, "firewall:", "Firewall line should be removed")
 		assert.NotContains(t, line, "log-level:", "Nested firewall properties should be removed")
 		assert.NotContains(t, line, "This comment should be removed", "Nested comments should be removed")
 	}
-	
+
 	// Check that other content is preserved
 	assert.Contains(t, strings.Join(result, "\n"), "# Network configuration", "Block comment should be preserved")
 	assert.Contains(t, strings.Join(result, "\n"), "# This comment should be preserved", "Comment after firewall should be preserved")

@@ -217,11 +217,11 @@ custom_timeout_minutes: 60
 
 	require.NoError(t, err, "Apply should not return an error")
 	assert.True(t, applied, "Codemod should report changes")
-	
+
 	lines := strings.Split(result, "\n")
 	foundTimeoutMinutes := false
 	foundCustomTimeoutMinutes := false
-	
+
 	for _, line := range lines {
 		if strings.Contains(line, "timeout-minutes: 30") {
 			foundTimeoutMinutes = true
@@ -230,7 +230,7 @@ custom_timeout_minutes: 60
 			foundCustomTimeoutMinutes = true
 		}
 	}
-	
+
 	assert.True(t, foundTimeoutMinutes, "Should replace timeout_minutes")
 	assert.True(t, foundCustomTimeoutMinutes, "Should not replace custom_timeout_minutes")
 }
