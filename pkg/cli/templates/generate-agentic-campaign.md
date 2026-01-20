@@ -19,7 +19,7 @@ When creating or modifying GitHub resources, **use MCP tool calls directly** (no
 
 1. Create GitHub Project
 2. Create views: Roadmap (roadmap), Task Tracker (table), Progress Board (board)
-3. Ensure required campaign project fields exist (see “Project Fields (Required)”). In the default campaign generator workflow, these are configured via safe-outputs and created automatically.
+3. Create required campaign project fields (see “Project Fields (Required)”) using `update_project` with `operation: "create_fields"`
 4. Parse campaign requirements from the triggering issue (available via GitHub event context)
 5. Discover workflows: scan `.github/workflows/*.md` and check [agentics collection](https://github.com/githubnext/agentics)
 6. Generate `.campaign.md` spec in `.github/workflows/`
@@ -63,9 +63,7 @@ allowed-safe-outputs: [create-issue, add-comment]
 
 ## Project Fields (Required)
 
-Campaign orchestrators and project-updaters assume these fields exist.
-
-In the default campaign generator workflow, these fields are configured via safe-outputs and created automatically. If you are running a custom workflow without that configuration, create them up-front with `update_project` using `operation: "create_fields"` and `field_definitions` so single-select options are created correctly (GitHub does not support adding options later).
+Campaign orchestrators and project-updaters assume these fields exist. Create them up-front with `update_project` using `operation: "create_fields"` and `field_definitions` so single-select options are created correctly (GitHub does not support adding options later).
 
 Required fields:
 
