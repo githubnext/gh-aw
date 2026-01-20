@@ -217,17 +217,47 @@ func (t *ToolsConfig) ToMap() map[string]any {
 	return result
 }
 
+// GitHubToolName represents a GitHub tool name (e.g., "issue_read", "create_issue")
+type GitHubToolName string
+
+// GitHubAllowedTools is a slice of GitHub tool names
+type GitHubAllowedTools []GitHubToolName
+
+// ToStringSlice converts GitHubAllowedTools to []string
+func (g GitHubAllowedTools) ToStringSlice() []string {
+	result := make([]string, len(g))
+	for i, tool := range g {
+		result[i] = string(tool)
+	}
+	return result
+}
+
+// GitHubToolset represents a GitHub toolset name (e.g., "default", "repos", "issues")
+type GitHubToolset string
+
+// GitHubToolsets is a slice of GitHub toolset names
+type GitHubToolsets []GitHubToolset
+
+// ToStringSlice converts GitHubToolsets to []string
+func (g GitHubToolsets) ToStringSlice() []string {
+	result := make([]string, len(g))
+	for i, toolset := range g {
+		result[i] = string(toolset)
+	}
+	return result
+}
+
 // GitHubToolConfig represents the configuration for the GitHub tool
 // Can be nil (enabled with defaults), string, or an object with specific settings
 type GitHubToolConfig struct {
-	Allowed     []string `yaml:"allowed,omitempty"`
-	Mode        string   `yaml:"mode,omitempty"`
-	Version     string   `yaml:"version,omitempty"`
-	Args        []string `yaml:"args,omitempty"`
-	ReadOnly    bool     `yaml:"read-only,omitempty"`
-	GitHubToken string   `yaml:"github-token,omitempty"`
-	Toolset     []string `yaml:"toolsets,omitempty"`
-	Lockdown    bool     `yaml:"lockdown,omitempty"`
+	Allowed     GitHubAllowedTools `yaml:"allowed,omitempty"`
+	Mode        string             `yaml:"mode,omitempty"`
+	Version     string             `yaml:"version,omitempty"`
+	Args        []string           `yaml:"args,omitempty"`
+	ReadOnly    bool               `yaml:"read-only,omitempty"`
+	GitHubToken string             `yaml:"github-token,omitempty"`
+	Toolset     GitHubToolsets     `yaml:"toolsets,omitempty"`
+	Lockdown    bool               `yaml:"lockdown,omitempty"`
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool
