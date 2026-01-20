@@ -39,6 +39,9 @@ func ScanWorkflowsForMCP(workflowsDir string, serverFilter string, verbose bool)
 		return nil, fmt.Errorf("failed to search for workflow files: %w", err)
 	}
 
+	// Filter out README.md files
+	files = filterWorkflowFiles(files)
+
 	mcpWorkflowScannerLog.Printf("Found %d workflow files to scan", len(files))
 	var results []WorkflowMCPMetadata
 
