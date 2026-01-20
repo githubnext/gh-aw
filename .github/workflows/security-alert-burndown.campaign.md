@@ -4,7 +4,7 @@ id: security-alert-burndown
 name: Security Alert Burndown
 version: v1
 state: planned
-project-url: https://github.com/orgs/githubnext/projects/TBD
+project-url: https://github.com/orgs/githubnext/projects/122
 tracker-label: campaign:security-alert-burndown
 
 # Worker workflows that will be discovered and dispatched
