@@ -550,6 +550,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	campaignCmd := campaign.NewCommand()
 	secretsCmd := cli.NewSecretsCommand()
 	fixCmd := cli.NewFixCommand()
+	upgradeCmd := cli.NewUpgradeCommand()
 	completionCmd := cli.NewCompletionCommand()
 
 	// Assign commands to groups
@@ -559,6 +560,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	addCmd.GroupID = "setup"
 	removeCmd.GroupID = "setup"
 	updateCmd.GroupID = "setup"
+	upgradeCmd.GroupID = "setup"
 	secretsCmd.GroupID = "setup"
 
 	// Development Commands
@@ -588,6 +590,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	// Add all commands to root
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(updateCmd)
+	rootCmd.AddCommand(upgradeCmd)
 	rootCmd.AddCommand(trialCmd)
 	rootCmd.AddCommand(newCmd)
 	rootCmd.AddCommand(initCmd)

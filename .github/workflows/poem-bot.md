@@ -31,6 +31,10 @@ engine:
   id: copilot
   model: gpt-5
 
+# Import shared reporting guidelines
+imports:
+  - shared/reporting.md
+
 # Deny all network access
 network: {}
 

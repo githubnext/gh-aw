@@ -388,6 +388,9 @@ func getMarkdownWorkflowFiles(workflowDir string) ([]string, error) {
 		return nil, fmt.Errorf("failed to find workflow files: %w", err)
 	}
 
+	// Filter out README.md files
+	mdFiles = filterWorkflowFiles(mdFiles)
+
 	return mdFiles, nil
 }
 
