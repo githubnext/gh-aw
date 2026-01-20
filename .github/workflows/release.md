@@ -220,21 +220,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Generate SBOM for Docker image
-        uses: anchore/sbom-action@v0
-        with:
-          image: ghcr.io/${{ github.repository }}:${{ needs.config.outputs.release_tag }}
-          artifact-name: docker-sbom.spdx.json
-          output-file: docker-sbom.spdx.json
-          format: spdx-json
-
-      - name: Attest Docker image
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-name: ghcr.io/${{ github.repository }}
-          subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
-
       - name: Create GitHub release
         id: get_release
         env:
@@ -257,6 +242,21 @@ jobs:
 
       - name: Download Go modules
         run: go mod download
+
+      - name: Generate SBOM for Docker image
+        uses: anchore/sbom-action@v0
+        with:
+          image: ghcr.io/${{ github.repository }}:${{ needs.config.outputs.release_tag }}
+          artifact-name: docker-sbom.spdx.json
+          output-file: docker-sbom.spdx.json
+          format: spdx-json
+
+      - name: Attest Docker image
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
       - name: Generate SBOM (SPDX format)
         uses: anchore/sbom-action@v0
