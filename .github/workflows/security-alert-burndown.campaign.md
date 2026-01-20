@@ -7,7 +7,7 @@ state: active
 # TODO: Update this URL with the actual GitHub Project URL
 # The project should be at https://github.com/orgs/githubnext/projects/[NUMBER]
 # You can find it by searching for "Security Alert Burndown" in the organization projects
-project-url: https://github.com/orgs/githubnext/projects/1234
+project-url: https://github.com/orgs/githubnext/projects/REPLACE_WITH_ACTUAL_PROJECT_NUMBER
 tracker-label: "campaign:security-alert-burndown"
 
 # Repositories this campaign can operate on

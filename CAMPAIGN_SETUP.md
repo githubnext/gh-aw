@@ -29,7 +29,7 @@ The Security Alert Burndown campaign has been created to automatically fix code 
 2. Search for "Security Alert Burndown" project
 3. Copy the project URL (format: `https://github.com/orgs/githubnext/projects/[NUMBER]`)
 4. Edit `.github/workflows/security-alert-burndown.campaign.md`
-5. Replace line 8: `project-url: https://github.com/orgs/githubnext/projects/1234`
+5. Replace line 10: `project-url: https://github.com/orgs/githubnext/projects/REPLACE_WITH_ACTUAL_PROJECT_NUMBER`
    With: `project-url: https://github.com/orgs/githubnext/projects/[ACTUAL_NUMBER]`
 6. Commit the change
 
