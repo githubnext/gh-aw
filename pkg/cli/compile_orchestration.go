@@ -478,6 +478,32 @@ func runPostProcessing(
 		}
 	}
 
+	// Generate maintenance workflow if needed
+	// When compiling specific files, we need to parse ALL workflows in the directory
+	// to check for expires fields, not just the ones being compiled
+	// Skip maintenance workflow generation when using custom --dir option
+	if !config.NoEmit && config.WorkflowDir == "" {
+		gitRoot, err := findGitRoot()
+		if err == nil {
+			// Use default workflow dir
+			workflowDir := ".github/workflows"
+			absWorkflowDir := filepath.Join(gitRoot, workflowDir)
+
+			// Parse all workflow markdown files to check for expires fields
+			allWorkflowData, parseErr := parseAllWorkflowsInDirectory(compiler, absWorkflowDir)
+			if parseErr == nil {
+				if err := generateMaintenanceWorkflowWrapper(compiler, allWorkflowData, absWorkflowDir, config.Verbose, config.Strict); err != nil {
+					if config.Strict {
+						return err
+					}
+				}
+			} else if config.Verbose {
+				// Log parse error but don't fail compilation
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse all workflows for maintenance generation: %v", parseErr)))
+			}
+		}
+	}
+
 	// Validate campaigns only if we're compiling campaign files
 	// When compiling specific non-campaign workflows, skip campaign validation
 	// When compiling specific campaign files, validate only those campaign files
@@ -521,7 +547,8 @@ func runPostProcessingForDirectory(
 	}
 
 	// Generate maintenance workflow if needed
-	if !config.NoEmit {
+	// Skip maintenance workflow generation when using custom --dir option
+	if !config.NoEmit && config.WorkflowDir == "" {
 		absWorkflowDir := getAbsoluteWorkflowDir(workflowsDir, gitRoot)
 		if err := generateMaintenanceWorkflowWrapper(compiler, workflowDataList, absWorkflowDir, config.Verbose, config.Strict); err != nil {
 			if config.Strict {
@@ -576,4 +603,34 @@ func outputResults(
 	}
 
 	return nil
+}
+
+// parseAllWorkflowsInDirectory parses all workflow markdown files in a directory
+// This is used to check for expires fields across all workflows when generating
+// the maintenance workflow, even when only specific files are being compiled
+func parseAllWorkflowsInDirectory(compiler *workflow.Compiler, workflowsDir string) ([]*workflow.WorkflowData, error) {
+	// Find all markdown files in the directory
+	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to find markdown files: %w", err)
+	}
+
+	var workflowDataList []*workflow.WorkflowData
+	for _, file := range mdFiles {
+		// Skip campaign specs and generated files
+		if strings.HasSuffix(file, ".campaign.md") || strings.HasSuffix(file, ".campaign.g.md") {
+			continue
+		}
+
+		// Parse the workflow file
+		workflowData, err := compiler.ParseWorkflowFile(file)
+		if err != nil {
+			// Ignore parse errors - workflows might be incomplete
+			continue
+		}
+
+		workflowDataList = append(workflowDataList, workflowData)
+	}
+
+	return workflowDataList, nil
 }
