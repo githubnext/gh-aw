@@ -48,6 +48,10 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.Group {
 			handlerConfig["group"] = true
 		}
+		// Add close-older-issues flag to config
+		if cfg.CloseOlderIssues {
+			handlerConfig["close_older_issues"] = true
+		}
 		config["create_issue"] = handlerConfig
 	}
 

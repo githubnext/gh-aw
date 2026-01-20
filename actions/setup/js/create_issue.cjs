@@ -11,6 +11,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
 const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
+const { closeOlderIssues } = require("./close_older_issues.cjs");
 const fs = require("fs");
 
 /**
@@ -171,6 +172,7 @@ async function main(config = {}) {
   const allowedRepos = parseAllowedRepos(config.allowed_repos);
   const defaultTargetRepo = getDefaultTargetRepo(config);
   const groupEnabled = config.group === true || config.group === "true";
+  const closeOlderIssuesEnabled = config.close_older_issues === true || config.close_older_issues === "true";
 
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {
@@ -191,6 +193,9 @@ async function main(config = {}) {
   core.info(`Max count: ${maxCount}`);
   if (groupEnabled) {
     core.info(`Issue grouping enabled: issues will be grouped as sub-issues`);
+  }
+  if (closeOlderIssuesEnabled) {
+    core.info(`Close older issues enabled: older issues with same title prefix or labels will be closed`);
   }
 
   // Track how many items we've processed for max limit
@@ -414,6 +419,22 @@ async function main(config = {}) {
       // Store the mapping of temporary_id -> {repo, number}
       temporaryIdMap.set(normalizeTemporaryId(temporaryId), { repo: qualifiedItemRepo, number: issue.number });
       core.info(`Stored temporary ID mapping: ${temporaryId} -> ${qualifiedItemRepo}#${issue.number}`);
+
+      // Close older issues if enabled
+      if (closeOlderIssuesEnabled && (titlePrefix || envLabels.length > 0)) {
+        core.info(`Attempting to close older issues for ${qualifiedItemRepo}#${issue.number}`);
+        try {
+          const closedIssues = await closeOlderIssues(github, repoParts.owner, repoParts.repo, titlePrefix, envLabels, { number: issue.number, html_url: issue.html_url }, workflowName, runUrl);
+          if (closedIssues.length > 0) {
+            core.info(`Closed ${closedIssues.length} older issue(s)`);
+          }
+        } catch (error) {
+          // Log error but don't fail the workflow
+          core.warning(`Failed to close older issues: ${getErrorMessage(error)}`);
+        }
+      } else if (closeOlderIssuesEnabled) {
+        core.warning("Close older issues enabled but no title-prefix or labels configured - skipping");
+      }
 
       // Handle grouping - find or create parent issue and link sub-issue
       if (groupEnabled && !effectiveParentIssueNumber) {

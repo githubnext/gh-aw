@@ -17,6 +17,7 @@ strict: true
 imports:
   - shared/gh.md
   - shared/mcp/tavily.md
+  - shared/reporting.md
 network:
   allowed:
     - defaults

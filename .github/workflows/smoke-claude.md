@@ -21,6 +21,7 @@ imports:
   - shared/mcp-pagination.md
   - shared/gh.md
   - shared/mcp/tavily.md
+  - shared/reporting.md
 network:
   allowed:
     - defaults
@@ -51,6 +52,7 @@ safe-outputs:
     create-issue:
       expires: 2h
       group: true
+      close-older-issues: true
     add-labels:
       allowed: [smoke-claude]
     messages:

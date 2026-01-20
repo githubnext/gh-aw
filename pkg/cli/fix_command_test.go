@@ -184,12 +184,9 @@ This is a test workflow.
 		t.Error("Expected firewall field to be removed, but it still exists")
 	}
 
-	if !strings.Contains(updatedStr, "sandbox:") {
-		t.Errorf("Expected sandbox field to be added, got:\n%s", updatedStr)
-	}
-
-	if !strings.Contains(updatedStr, "agent: false") {
-		t.Errorf("Expected agent: false in updated content, got:\n%s", updatedStr)
+	// firewall: null should NOT add sandbox.agent (only true values do)
+	if strings.Contains(updatedStr, "sandbox:") {
+		t.Errorf("Expected sandbox field NOT to be added for null firewall, got:\n%s", updatedStr)
 	}
 }
 
@@ -262,18 +259,20 @@ This is a test workflow.
 		t.Error("Expected version field to be removed, but it still exists")
 	}
 
-	if !strings.Contains(updatedStr, "sandbox:") {
-		t.Errorf("Expected sandbox field to be added, got:\n%s", updatedStr)
-	}
-
-	if !strings.Contains(updatedStr, "agent: false") {
-		t.Errorf("Expected agent: false in updated content, got:\n%s", updatedStr)
+	// firewall with nested properties (non-boolean) should NOT add sandbox.agent
+	if strings.Contains(updatedStr, "sandbox:") {
+		t.Errorf("Expected sandbox field NOT to be added for nested firewall, got:\n%s", updatedStr)
 	}
 
 	// Verify compilation works
 	// This ensures the codemod produces valid YAML
 	if strings.Contains(updatedStr, "    log-level:") {
 		t.Error("log-level should not be at wrong indentation level")
+	}
+
+	// Verify other network fields are preserved
+	if !strings.Contains(updatedStr, "allowed:") {
+		t.Error("Expected allowed field to be preserved")
 	}
 }
 
@@ -357,12 +356,14 @@ This workflow tests comment and empty line handling.
 		t.Error("Expected comment within firewall block to be removed, but it still exists")
 	}
 
-	if !strings.Contains(updatedStr, "sandbox:") {
-		t.Errorf("Expected sandbox field to be added, got:\n%s", updatedStr)
+	// firewall with nested properties should NOT add sandbox.agent
+	if strings.Contains(updatedStr, "sandbox:") {
+		t.Errorf("Expected sandbox field NOT to be added for nested firewall, got:\n%s", updatedStr)
 	}
 
-	if !strings.Contains(updatedStr, "agent: false") {
-		t.Errorf("Expected agent: false in updated content, got:\n%s", updatedStr)
+	// Verify other network fields are preserved
+	if !strings.Contains(updatedStr, "allowed:") {
+		t.Error("Expected allowed field to be preserved")
 	}
 }
 
