@@ -105,25 +105,57 @@ function normalizeItem(item, contentType) {
 }
 
 /**
+ * Build scope query parts for GitHub search
+ * @param {string[]} repos - List of repositories to search (owner/repo format)
+ * @param {string[]} orgs - List of organizations to search
+ * @returns {string[]} Array of scope parts (e.g., ["repo:owner/repo", "org:orgname"])
+ */
+function buildScopeParts(repos, orgs) {
+  const scopeParts = [];
+  if (repos && repos.length > 0) {
+    scopeParts.push(...repos.map(r => `repo:${r}`));
+  }
+  if (orgs && orgs.length > 0) {
+    scopeParts.push(...orgs.map(o => `org:${o}`));
+  }
+  return scopeParts;
+}
+
+/**
  * Search for items by tracker-id across issues and PRs
  * @param {any} octokit - GitHub API client
  * @param {string} trackerId - Tracker ID to search for
  * @param {string[]} repos - List of repositories to search (owner/repo format)
+ * @param {string[]} orgs - List of organizations to search
  * @param {number} maxItems - Maximum items to discover
  * @param {number} maxPages - Maximum pages to fetch
  * @param {any} cursor - Cursor for pagination
  * @returns {Promise<{items: any[], cursor: any, itemsScanned: number, pagesScanned: number}>}
  */
-async function searchByTrackerId(octokit, trackerId, repos, maxItems, maxPages, cursor) {
+async function searchByTrackerId(octokit, trackerId, repos, orgs, maxItems, maxPages, cursor) {
   const items = [];
   let itemsScanned = 0;
   let pagesScanned = 0;
 
-  core.info(`Searching for tracker-id: ${trackerId}`);
+  core.info(`Searching for tracker-id: ${trackerId} in ${repos.length} repo(s) and ${orgs.length} org(s)`);
 
   // Search in issues and PRs
   // Format: "gh-aw-tracker-id: workflow-name" appears in issue/PR body or comments
-  const searchQuery = `"gh-aw-tracker-id: ${trackerId}" type:issue`;
+  let searchQuery = `"gh-aw-tracker-id: ${trackerId}" type:issue`;
+
+  // Scope search to allowed repositories and/or organizations
+  // GitHub search query has a limit of ~1024 characters
+  const scopeParts = buildScopeParts(repos, orgs);
+
+  if (scopeParts.length > 0) {
+    const scopeQuery = scopeParts.join(" ");
+    // Check if combined query would exceed GitHub's limit
+    if (searchQuery.length + scopeQuery.length + 3 > 1000) {
+      core.warning(`Search query length (${searchQuery.length + scopeQuery.length}) approaches GitHub's ~1024 character limit. Some repos/orgs may be omitted.`);
+    }
+    searchQuery = `${searchQuery} (${scopeQuery})`;
+    core.info(`Scoped search to: ${scopeParts.join(", ")}`);
+  }
 
   try {
     let page = cursor?.page || 1;
@@ -185,29 +217,34 @@ async function searchByTrackerId(octokit, trackerId, repos, maxItems, maxPages, 
  * @param {any} octokit - GitHub API client
  * @param {string} label - Label to search for
  * @param {string[]} repos - List of repositories to search (owner/repo format)
+ * @param {string[]} orgs - List of organizations to search
  * @param {number} maxItems - Maximum items to discover
  * @param {number} maxPages - Maximum pages to fetch
  * @param {any} cursor - Cursor for pagination
  * @returns {Promise<{items: any[], cursor: any, itemsScanned: number, pagesScanned: number}>}
  */
-async function searchByLabel(octokit, label, repos, maxItems, maxPages, cursor) {
+async function searchByLabel(octokit, label, repos, orgs, maxItems, maxPages, cursor) {
   const items = [];
   let itemsScanned = 0;
   let pagesScanned = 0;
 
-  core.info(`Searching for label: ${label}`);
+  core.info(`Searching for label: ${label} in ${repos.length} repo(s) and ${orgs.length} org(s)`);
 
-  // Build search query for label across all repos
+  // Build search query for label scoped to allowed repositories and/or organizations
   let searchQuery = `label:"${label}"`;
 
-  // If specific repos are provided, add them to the query
-  if (repos && repos.length > 0) {
-    // GitHub search supports up to ~1024 characters in query
-    // For simplicity, we'll search across all repos if the list is large
-    if (repos.length <= 5) {
-      const repoQuery = repos.map(r => `repo:${r}`).join(" ");
-      searchQuery = `${searchQuery} ${repoQuery}`;
+  // Scope search to allowed repositories and/or organizations
+  // GitHub search query has a limit of ~1024 characters
+  const scopeParts = buildScopeParts(repos, orgs);
+
+  if (scopeParts.length > 0) {
+    const scopeQuery = scopeParts.join(" ");
+    // Check if combined query would exceed GitHub's limit
+    if (searchQuery.length + scopeQuery.length + 3 > 1000) {
+      core.warning(`Search query length (${searchQuery.length + scopeQuery.length}) approaches GitHub's ~1024 character limit. Some repos/orgs may be omitted.`);
     }
+    searchQuery = `${searchQuery} (${scopeQuery})`;
+    core.info(`Scoped search to: ${scopeParts.join(", ")}`);
   }
 
   try {
@@ -271,11 +308,13 @@ async function searchByLabel(octokit, label, repos, maxItems, maxPages, cursor) 
  * @returns {Promise<any>} Discovery manifest
  */
 async function discover(config) {
-  const { campaignId, workflows = [], trackerLabel = null, repos = [], maxDiscoveryItems = DEFAULT_MAX_ITEMS, maxDiscoveryPages = DEFAULT_MAX_PAGES, cursorPath = null, projectUrl = null } = config;
+  const { campaignId, workflows = [], trackerLabel = null, repos = [], orgs = [], maxDiscoveryItems = DEFAULT_MAX_ITEMS, maxDiscoveryPages = DEFAULT_MAX_PAGES, cursorPath = null, projectUrl = null } = config;
 
   core.info(`Starting campaign discovery for: ${campaignId}`);
   core.info(`Workflows: ${workflows.join(", ")}`);
   core.info(`Tracker label: ${trackerLabel || "none"}`);
+  core.info(`Repos: ${repos.join(", ")}`);
+  core.info(`Orgs: ${orgs.join(", ")}`);
   core.info(`Max items: ${maxDiscoveryItems}, Max pages: ${maxDiscoveryPages}`);
 
   // Load cursor if available
@@ -297,7 +336,7 @@ async function discover(config) {
       const remainingItems = maxDiscoveryItems - totalItemsScanned;
       const remainingPages = maxDiscoveryPages - totalPagesScanned;
 
-      const result = await searchByTrackerId(octokit, workflow, repos, remainingItems, remainingPages, cursor);
+      const result = await searchByTrackerId(octokit, workflow, repos, orgs, remainingItems, remainingPages, cursor);
 
       allItems.push(...result.items);
       totalItemsScanned += result.itemsScanned;
@@ -312,7 +351,7 @@ async function discover(config) {
       const remainingItems = maxDiscoveryItems - totalItemsScanned;
       const remainingPages = maxDiscoveryPages - totalPagesScanned;
 
-      const result = await searchByLabel(octokit, trackerLabel, repos, remainingItems, remainingPages, cursor);
+      const result = await searchByLabel(octokit, trackerLabel, repos, orgs, remainingItems, remainingPages, cursor);
 
       // Merge items (deduplicate by URL)
       const existingUrls = new Set(allItems.map(i => i.url));
@@ -392,6 +431,10 @@ async function main() {
         .split(",")
         .map(r => r.trim())
         .filter(r => r.length > 0),
+      orgs: (process.env.GH_AW_DISCOVERY_ORGS || core.getInput("orgs") || "")
+        .split(",")
+        .map(o => o.trim())
+        .filter(o => o.length > 0),
       maxDiscoveryItems: parseInt(process.env.GH_AW_MAX_DISCOVERY_ITEMS || core.getInput("max-discovery-items") || DEFAULT_MAX_ITEMS.toString(), 10),
       maxDiscoveryPages: parseInt(process.env.GH_AW_MAX_DISCOVERY_PAGES || core.getInput("max-discovery-pages") || DEFAULT_MAX_PAGES.toString(), 10),
       cursorPath: process.env.GH_AW_CURSOR_PATH || core.getInput("cursor-path") || null,
@@ -404,8 +447,8 @@ async function main() {
     }
 
     // RUNTIME GUARD: Campaigns MUST be scoped
-    if (!config.repos || config.repos.length === 0) {
-      throw new Error("campaigns MUST be scoped: GH_AW_DISCOVERY_REPOS is required and must contain at least one repository. Configure allowed-repos in the campaign spec.");
+    if ((!config.repos || config.repos.length === 0) && (!config.orgs || config.orgs.length === 0)) {
+      throw new Error("campaigns MUST be scoped: GH_AW_DISCOVERY_REPOS or GH_AW_DISCOVERY_ORGS is required. Configure allowed-repos or allowed-orgs in the campaign spec.");
     }
 
     if (!config.workflows || config.workflows.length === 0) {
