@@ -214,6 +214,14 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	buf.WriteString("# allowed-orgs:\n")
 	buf.WriteString("#   - myorg\n")
 	buf.WriteString("\n")
+	buf.WriteString("# Where to discover worker workflows (required for campaigns with workflows)\n")
+	buf.WriteString("discovery-repos:\n")
+	buf.WriteString("  - myorg/backend\n")
+	buf.WriteString("  - myorg/frontend\n")
+	buf.WriteString("# Or use discovery-orgs for organization-wide discovery:\n")
+	buf.WriteString("# discovery-orgs:\n")
+	buf.WriteString("#   - myorg\n")
+	buf.WriteString("\n")
 	buf.WriteString("objective: \"Reduce security vulnerabilities across all repositories\"\n")
 	buf.WriteString("workflows:\n")
 	buf.WriteString("  - vulnerability-scanner\n")
@@ -231,8 +239,8 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	buf.WriteString("    source: code_security\n")
 	buf.WriteString("```\n")
 
-	// Use restrictive permissions (0600) to follow security best practices
-	if err := os.WriteFile(fullPath, []byte(buf.String()), 0o600); err != nil {
+	// Use restrictive permissions (0644) for proper git tracking
+	if err := os.WriteFile(fullPath, []byte(buf.String()), 0o644); err != nil {
 		return "", fmt.Errorf("failed to write campaign spec file '%s': %w", relPath, err)
 	}
 

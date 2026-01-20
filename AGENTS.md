@@ -7,7 +7,7 @@ GitHub Agentic Workflows is a Go-based GitHub CLI extension for writing agentic 
 **gh-aw** is a GitHub CLI extension (`gh aw`) that compiles markdown workflows into GitHub Actions. It is **not** the GitHub Copilot CLI (`copilot` command). While workflows can use the Copilot CLI as an AI engine, gh-aw itself is a separate tool for workflow management and compilation.
 
 - Use `gh aw` commands (e.g., `gh aw compile`, `gh aw run`) to work with agentic workflows
-- Use `/agent` in GitHub Copilot Chat to invoke custom agents like `create-agentic-workflow`
+- Use `/agent` in GitHub Copilot Chat to invoke the unified `agentic-workflows` custom agent (specify your intent: create/debug/update/upgrade)
 - The `copilot` CLI command is only used internally within workflows when specified as the engine
 
 ## Important: Using Skills
@@ -72,6 +72,45 @@ make fmt-cjs     # REQUIRED - ensures JavaScript is properly formatted
 make build       # Rebuild gh-aw after modifying JSON schemas in pkg/parser/schemas/
 ```
 Schema files are embedded in the binary using `//go:embed` directives, so changes require rebuilding the binary.
+
+**ALWAYS RUN LINTERS AFTER ADDING TEST FILES:**
+
+When adding new test files (`*_test.go`), the **unused** linter may catch helper functions that are defined but never called. Always run linters after creating test files to catch these issues early.
+
+```bash
+make lint        # Catches unused, testifylint, misspell, unconvert issues
+```
+
+**Common linting issues in test files:**
+
+1. **unused**: Helper functions defined but never called
+   - ❌ BAD: Defining `func hasInternalPrefix(key string) bool { ... }` but never using it
+   - ✅ GOOD: Either use the function in tests or remove it
+
+2. **testifylint**: Assertion best practices
+   - Always provide descriptive assertion messages
+   - Use `require.*` for setup assertions that must pass
+   - Use `assert.*` for test validations
+   - Use `assert.Error(t, err, "msg")` not `assert.NotNil(t, err)`
+   - Use `assert.NoError(t, err, "msg")` not `assert.Nil(t, err)`
+
+**Before committing test files:**
+```bash
+make agent-finish  # REQUIRED - Full validation including lint
+```
+
+**Example of correct test code:**
+```go
+// ✅ CORRECT - Using helper functions
+func TestCompile(t *testing.T) {
+    compiler := NewCompiler()
+    require.NotNil(t, compiler, "Compiler should be created")
+    
+    // Use helper function if defined
+    err := compiler.Compile("test.md")
+    assert.NoError(t, err, "Should compile valid workflow")
+}
+```
 
 **ALWAYS USE GITHUB MCP FOR GITHUB API ACCESS WITH COPILOT ENGINE:**
 

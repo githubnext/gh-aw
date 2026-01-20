@@ -3690,6 +3690,11 @@
                   "type": "boolean",
                   "description": "If true, group issues as sub-issues under a parent issue. The workflow ID is used as the group identifier. Parent issues are automatically created and managed, with a maximum of 64 sub-issues per parent.",
                   "default": false
+                },
+                "close-older-issues": {
+                  "type": "boolean",
+                  "description": "When true, automatically close older issues matching the same title prefix or labels as 'not planned' with a comment linking to the new issue. Requires title-prefix or labels to be set. Maximum 10 issues will be closed. Only runs if issue creation succeeds.",
+                  "default": false
                 }
               },
               "additionalProperties": false,
@@ -3707,6 +3712,11 @@
                 {
                   "allowed-repos": ["org/other-repo", "org/another-repo"],
                   "title-prefix": "[cross-repo] "
+                },
+                {
+                  "title-prefix": "[weekly-report] ",
+                  "labels": ["report", "automation"],
+                  "close-older-issues": true
                 }
               ]
             },
@@ -3847,6 +3857,31 @@
                       "description": {
                         "type": "string",
                         "description": "Optional human description for the view. Not supported by the GitHub Views API and may be ignored."
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "field-definitions": {
+                  "type": "array",
+                  "description": "Optional array of project custom fields to create up-front. Useful for campaign projects that require a fixed set of fields.",
+                  "items": {
+                    "type": "object",
+                    "required": ["name", "data-type"],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "The field name to create (e.g., 'status', 'campaign_id')"
+                      },
+                      "data-type": {
+                        "type": "string",
+                        "enum": ["DATE", "TEXT", "NUMBER", "SINGLE_SELECT", "ITERATION"],
+                        "description": "The GitHub Projects v2 custom field type"
+                      },
+                      "options": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Options for SINGLE_SELECT fields. GitHub does not support adding options later."
                       }
                     },
                     "additionalProperties": false

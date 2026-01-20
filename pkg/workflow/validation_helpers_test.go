@@ -3,6 +3,9 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestValidateIntRange tests the validateIntRange helper function with boundary values
@@ -302,4 +305,110 @@ func TestValidateIntRangeWithRealWorldValues(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateRequired(t *testing.T) {
+	t.Run("valid non-empty value", func(t *testing.T) {
+		err := ValidateRequired("title", "my title")
+		assert.NoError(t, err)
+	})
+
+	t.Run("empty value fails", func(t *testing.T) {
+		err := ValidateRequired("title", "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "field is required")
+		assert.Contains(t, err.Error(), "Provide a non-empty value")
+	})
+
+	t.Run("whitespace-only value fails", func(t *testing.T) {
+		err := ValidateRequired("title", "   ")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot be empty")
+	})
+}
+
+func TestValidateMaxLength(t *testing.T) {
+	t.Run("value within limit", func(t *testing.T) {
+		err := ValidateMaxLength("title", "short", 100)
+		assert.NoError(t, err)
+	})
+
+	t.Run("value at limit", func(t *testing.T) {
+		err := ValidateMaxLength("title", "12345", 5)
+		assert.NoError(t, err)
+	})
+
+	t.Run("value exceeds limit", func(t *testing.T) {
+		err := ValidateMaxLength("title", "too long value", 5)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "exceeds maximum length")
+		assert.Contains(t, err.Error(), "Shorten")
+	})
+}
+
+func TestValidateMinLength(t *testing.T) {
+	t.Run("value meets minimum", func(t *testing.T) {
+		err := ValidateMinLength("title", "hello", 3)
+		assert.NoError(t, err)
+	})
+
+	t.Run("value below minimum", func(t *testing.T) {
+		err := ValidateMinLength("title", "hi", 5)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "shorter than minimum length")
+		assert.Contains(t, err.Error(), "at least 5 characters")
+	})
+}
+
+func TestValidateInList(t *testing.T) {
+	allowedValues := []string{"open", "closed", "draft"}
+
+	t.Run("value in list", func(t *testing.T) {
+		err := ValidateInList("status", "open", allowedValues)
+		assert.NoError(t, err)
+	})
+
+	t.Run("value not in list", func(t *testing.T) {
+		err := ValidateInList("status", "invalid", allowedValues)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not in allowed list")
+		assert.Contains(t, err.Error(), "open, closed, draft")
+	})
+}
+
+func TestValidatePositiveInt(t *testing.T) {
+	t.Run("positive integer", func(t *testing.T) {
+		err := ValidatePositiveInt("count", 5)
+		assert.NoError(t, err)
+	})
+
+	t.Run("zero fails", func(t *testing.T) {
+		err := ValidatePositiveInt("count", 0)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be a positive integer")
+	})
+
+	t.Run("negative fails", func(t *testing.T) {
+		err := ValidatePositiveInt("count", -1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be a positive integer")
+	})
+}
+
+func TestValidateNonNegativeInt(t *testing.T) {
+	t.Run("positive integer", func(t *testing.T) {
+		err := ValidateNonNegativeInt("count", 5)
+		assert.NoError(t, err)
+	})
+
+	t.Run("zero is valid", func(t *testing.T) {
+		err := ValidateNonNegativeInt("count", 0)
+		assert.NoError(t, err)
+	})
+
+	t.Run("negative fails", func(t *testing.T) {
+		err := ValidateNonNegativeInt("count", -1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be a non-negative integer")
+	})
 }

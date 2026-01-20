@@ -240,7 +240,7 @@ A token that authenticates you to GitHub's APIs with specific permissions. Requi
 
 ### Agent Files
 
-Markdown files with YAML frontmatter stored in `.github/agents/` that define interactive Copilot Chat agents. Created by `gh aw init`, these files (like `create-agentic-workflow.agent.md`) can be invoked with the `/agent` command in Copilot Chat to guide workflow creation with specialized instructions.
+Markdown files with YAML frontmatter stored in `.github/agents/` that define interactive Copilot Chat agents. Created by `gh aw init`, these files (like `agentic-workflows.agent.md`) can be invoked with the `/agent` command in Copilot Chat to guide workflow creation, debugging, and updates with specialized instructions. The `agentic-workflows` agent is a unified dispatcher that routes requests to specialized prompts based on your intent (create/debug/update/upgrade).
 
 ### Fine-grained Personal Access Token
 

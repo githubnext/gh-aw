@@ -48,6 +48,10 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if cfg.Group {
 			handlerConfig["group"] = true
 		}
+		// Add close-older-issues flag to config
+		if cfg.CloseOlderIssues {
+			handlerConfig["close_older_issues"] = true
+		}
 		config["create_issue"] = handlerConfig
 	}
 
@@ -557,6 +561,9 @@ func (c *Compiler) addProjectHandlerManagerConfigEnvVar(steps *[]string, data *W
 		}
 		if len(cfg.Views) > 0 {
 			handlerConfig["views"] = cfg.Views
+		}
+		if len(cfg.FieldDefinitions) > 0 {
+			handlerConfig["field_definitions"] = cfg.FieldDefinitions
 		}
 		config["update_project"] = handlerConfig
 	}

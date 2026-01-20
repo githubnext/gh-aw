@@ -484,6 +484,14 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 
+	// Parse frontmatter config once for performance optimization
+	parsedFrontmatter, err := ParseFrontmatterConfig(result.Frontmatter)
+	if err != nil {
+		orchestratorLog.Printf("Failed to parse frontmatter config: %v", err)
+		// Non-fatal error - continue with nil ParsedFrontmatter
+		parsedFrontmatter = nil
+	}
+
 	// Build workflow data
 	workflowData := &WorkflowData{
 		Name:                workflowName,
@@ -512,6 +520,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		GitHubToken:         extractStringFromMap(result.Frontmatter, "github-token", nil),
 		StrictMode:          c.strictMode,
 		SecretMasking:       secretMasking,
+		ParsedFrontmatter:   parsedFrontmatter,
 	}
 
 	// Apply defaults to sandbox config
@@ -522,6 +531,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	actionCache, actionResolver := c.getSharedActionResolver()
 	workflowData.ActionCache = actionCache
 	workflowData.ActionResolver = actionResolver
+	workflowData.ActionPinWarnings = c.actionPinWarnings // Share warning cache across all workflows
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
 	// to avoid issues with nested keys (e.g., tools.mcps.*.env being confused with top-level env)

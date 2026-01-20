@@ -14,6 +14,8 @@ permissions:
   actions: read
 name: Smoke Copilot
 engine: copilot
+imports:
+  - shared/reporting.md
 network:
   allowed:
     - defaults
@@ -34,6 +36,9 @@ tools:
     languages:
       go: {}
   web-fetch:
+runtimes:
+  go:
+    version: "1.25"
 sandbox:
   mcp:
     container: "ghcr.io/githubnext/gh-aw-mcpg"

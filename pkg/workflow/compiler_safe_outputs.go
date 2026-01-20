@@ -25,7 +25,17 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 	var hasStopAfter bool
 	var otherEvents map[string]any
 
-	if onValue, exists := frontmatter["on"]; exists {
+	// Use cached On field from ParsedFrontmatter if available, otherwise fall back to map access
+	var onValue any
+	var exists bool
+	if workflowData.ParsedFrontmatter != nil && workflowData.ParsedFrontmatter.On != nil {
+		onValue = workflowData.ParsedFrontmatter.On
+		exists = true
+	} else {
+		onValue, exists = frontmatter["on"]
+	}
+
+	if exists {
 		// Check for new format: on.slash_command/on.command and on.reaction
 		if onMap, ok := onValue.(map[string]any); ok {
 			// Check for stop-after in the on section
@@ -280,25 +290,25 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 			githubConfig = make(map[string]any)
 		}
 
-		// Get existing allowed tools
-		var existingAllowed []any
-		if allowed, hasAllowed := githubConfig["allowed"]; hasAllowed {
-			if allowedSlice, ok := allowed.([]any); ok {
-				existingAllowed = allowedSlice
-			}
-		}
+		// Parse the existing GitHub tool configuration for type safety
+		parsedConfig := parseGitHubTool(githubTool)
 
 		// Create a set of existing tools for efficient lookup
 		existingToolsSet := make(map[string]bool)
-		for _, tool := range existingAllowed {
-			if toolStr, ok := tool.(string); ok {
-				existingToolsSet[toolStr] = true
+		if parsedConfig != nil {
+			for _, tool := range parsedConfig.Allowed {
+				existingToolsSet[string(tool)] = true
 			}
 		}
 
 		// Only set allowed tools if explicitly configured
 		// Don't add default tools - let the MCP server use all available tools
-		if len(existingAllowed) > 0 {
+		if len(existingToolsSet) > 0 {
+			// Convert back to []any for the map
+			existingAllowed := make([]any, 0, len(parsedConfig.Allowed))
+			for _, tool := range parsedConfig.Allowed {
+				existingAllowed = append(existingAllowed, string(tool))
+			}
 			githubConfig["allowed"] = existingAllowed
 		}
 		tools["github"] = githubConfig

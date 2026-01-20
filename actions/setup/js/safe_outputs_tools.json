@@ -580,12 +580,36 @@
     "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
     "inputSchema": {
       "type": "object",
-      "required": ["project", "content_type"],
+      "oneOf": [
+        {
+          "title": "Create project fields",
+          "required": ["project", "operation", "field_definitions"],
+          "properties": {
+            "operation": { "const": "create_fields" }
+          }
+        },
+        {
+          "title": "Create project view",
+          "required": ["project", "operation", "view"],
+          "properties": {
+            "operation": { "const": "create_view" }
+          }
+        },
+        {
+          "title": "Add/update project item",
+          "required": ["project", "content_type"]
+        }
+      ],
       "properties": {
         "project": {
           "type": "string",
           "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
           "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted."
+        },
+        "operation": {
+          "type": "string",
+          "enum": ["create_fields", "create_view"],
+          "description": "Optional operation mode. Use create_fields to create required campaign fields up-front, or create_view to add a project view. When omitted, the tool adds/updates project items."
         },
         "content_type": {
           "type": "string",
@@ -607,6 +631,47 @@
         "fields": {
           "type": "object",
           "description": "Custom field values to set on the project item (e.g., {'Status': 'In Progress', 'Priority': 'High'}). Field names must match custom fields defined in the project."
+        },
+        "field_definitions": {
+          "type": "array",
+          "description": "Field definitions to create when operation is create_fields.",
+          "items": {
+            "type": "object",
+            "required": ["name", "data_type"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Field name to create (e.g., 'size', 'priority')."
+              },
+              "data_type": {
+                "type": "string",
+                "enum": ["TEXT", "NUMBER", "DATE", "SINGLE_SELECT", "ITERATION"],
+                "description": "Field type. Use SINGLE_SELECT with options for enumerated values."
+              },
+              "options": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Options for SINGLE_SELECT fields."
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "view": {
+          "type": "object",
+          "description": "View definition to create when operation is create_view.",
+          "required": ["name", "layout"],
+          "properties": {
+            "name": { "type": "string" },
+            "layout": { "type": "string", "enum": ["table", "board", "roadmap"] },
+            "filter": { "type": "string" },
+            "visible_fields": {
+              "type": "array",
+              "items": { "type": "number" },
+              "description": "Field IDs to show in the view (table/board only)."
+            }
+          },
+          "additionalProperties": false
         },
         "campaign_id": {
           "type": "string",

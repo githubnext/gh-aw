@@ -144,7 +144,7 @@ describe("campaign_discovery", () => {
         },
       };
 
-      const result = await searchByTrackerId(octokit, "workflow-1", ["owner/repo"], 100, 10, null);
+      const result = await searchByTrackerId(octokit, "workflow-1", ["owner/repo"], [], 100, 10, null);
 
       expect(result.items).toHaveLength(1);
       expect(result.items[0].content_type).toBe("issue");
@@ -178,6 +178,7 @@ describe("campaign_discovery", () => {
         octokit,
         "workflow-1",
         ["owner/repo"],
+        [],
         5, // max 5 items
         10,
         null
@@ -219,10 +220,47 @@ describe("campaign_discovery", () => {
         },
       };
 
-      const result = await searchByTrackerId(octokit, "workflow-1", ["owner/repo"], 150, 10, null);
+      const result = await searchByTrackerId(octokit, "workflow-1", ["owner/repo"], [], 150, 10, null);
 
       expect(result.items).toHaveLength(150);
       expect(result.pagesScanned).toBe(2);
+    });
+
+    it("should build query with orgs when provided", async () => {
+      const octokit = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn().mockResolvedValue({
+              data: { items: [] },
+            }),
+          },
+        },
+      };
+
+      await searchByTrackerId(octokit, "workflow-1", [], ["myorg"], 100, 10, null);
+
+      const call = octokit.rest.search.issuesAndPullRequests.mock.calls[0][0];
+      expect(call.q).toContain('"gh-aw-tracker-id: workflow-1"');
+      expect(call.q).toContain("org:myorg");
+    });
+
+    it("should build query with both repos and orgs", async () => {
+      const octokit = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn().mockResolvedValue({
+              data: { items: [] },
+            }),
+          },
+        },
+      };
+
+      await searchByTrackerId(octokit, "workflow-1", ["owner/repo1"], ["myorg"], 100, 10, null);
+
+      const call = octokit.rest.search.issuesAndPullRequests.mock.calls[0][0];
+      expect(call.q).toContain('"gh-aw-tracker-id: workflow-1"');
+      expect(call.q).toContain("repo:owner/repo1");
+      expect(call.q).toContain("org:myorg");
     });
   });
 
@@ -250,7 +288,7 @@ describe("campaign_discovery", () => {
         },
       };
 
-      const result = await searchByLabel(octokit, "campaign:test", ["owner/repo"], 100, 10, null);
+      const result = await searchByLabel(octokit, "campaign:test", ["owner/repo"], [], 100, 10, null);
 
       expect(result.items).toHaveLength(1);
       expect(result.items[0].content_type).toBe("issue");
@@ -267,12 +305,50 @@ describe("campaign_discovery", () => {
         },
       };
 
-      await searchByLabel(octokit, "campaign:test", ["owner/repo1", "owner/repo2"], 100, 10, null);
+      await searchByLabel(octokit, "campaign:test", ["owner/repo1", "owner/repo2"], [], 100, 10, null);
 
       const call = octokit.rest.search.issuesAndPullRequests.mock.calls[0][0];
       expect(call.q).toContain('label:"campaign:test"');
       expect(call.q).toContain("repo:owner/repo1");
       expect(call.q).toContain("repo:owner/repo2");
+    });
+
+    it("should build org-specific query when orgs provided", async () => {
+      const octokit = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn().mockResolvedValue({
+              data: { items: [] },
+            }),
+          },
+        },
+      };
+
+      await searchByLabel(octokit, "campaign:test", [], ["myorg", "anotherorg"], 100, 10, null);
+
+      const call = octokit.rest.search.issuesAndPullRequests.mock.calls[0][0];
+      expect(call.q).toContain('label:"campaign:test"');
+      expect(call.q).toContain("org:myorg");
+      expect(call.q).toContain("org:anotherorg");
+    });
+
+    it("should build combined query when both repos and orgs provided", async () => {
+      const octokit = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn().mockResolvedValue({
+              data: { items: [] },
+            }),
+          },
+        },
+      };
+
+      await searchByLabel(octokit, "campaign:test", ["owner/repo1"], ["myorg"], 100, 10, null);
+
+      const call = octokit.rest.search.issuesAndPullRequests.mock.calls[0][0];
+      expect(call.q).toContain('label:"campaign:test"');
+      expect(call.q).toContain("repo:owner/repo1");
+      expect(call.q).toContain("org:myorg");
     });
   });
 

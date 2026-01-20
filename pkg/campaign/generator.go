@@ -17,10 +17,10 @@ func BuildCampaignGenerator() *workflow.WorkflowData {
 
 	data := &workflow.WorkflowData{
 		Name:            "Agentic Campaign Generator",
-		Description:     "Agentic Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation",
+		Description:     "Agentic Campaign generator that discovers workflows, generates a campaign spec and a project board, and assigns to Copilot agent for compilation",
 		On:              buildGeneratorTrigger(),
 		Permissions:     buildGeneratorPermissions(),
-		Concurrency:     "", // No concurrency control for this workflow
+		Concurrency:     "",
 		RunsOn:          "runs-on: ubuntu-latest",
 		Roles:           []string{"admin", "maintainer", "write"},
 		EngineConfig:    &workflow.EngineConfig{ID: "claude"},
@@ -64,7 +64,6 @@ func buildGeneratorTools() map[string]any {
 // buildGeneratorSafeOutputs creates the safe-outputs configuration
 func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 	return &workflow.SafeOutputsConfig{
-		AddComments:   &workflow.AddCommentsConfig{},
 		UpdateIssues:  &workflow.UpdateIssuesConfig{},
 		AssignToAgent: &workflow.AssignToAgentConfig{},
 		CreateProjects: &workflow.CreateProjectsConfig{
@@ -72,8 +71,8 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 			TargetOwner: "${{ github.repository_owner }}",
 			Views: []workflow.ProjectView{
 				{
-					Name:   "Campaign Roadmap",
-					Layout: "roadmap",
+					Name:   "Progress Board",
+					Layout: "board",
 					Filter: "is:issue is:pr",
 				},
 				{
@@ -82,20 +81,57 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 					Filter: "is:issue is:pr",
 				},
 				{
-					Name:   "Progress Board",
-					Layout: "board",
+					Name:   "Campaign Roadmap",
+					Layout: "roadmap",
 					Filter: "is:issue is:pr",
 				},
 			},
 		},
 		UpdateProjects: &workflow.UpdateProjectConfig{
 			GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+			FieldDefinitions: []workflow.ProjectFieldDefinition{
+				{
+					Name:     "status",
+					DataType: "SINGLE_SELECT",
+					Options:  []string{"Todo", "In Progress", "Review required", "Blocked", "Done"},
+				},
+				{
+					Name:     "campaign_id",
+					DataType: "TEXT",
+				},
+				{
+					Name:     "worker_workflow",
+					DataType: "TEXT",
+				},
+				{
+					Name:     "repository",
+					DataType: "TEXT",
+				},
+				{
+					Name:     "priority",
+					DataType: "SINGLE_SELECT",
+					Options:  []string{"High", "Medium", "Low"},
+				},
+				{
+					Name:     "size",
+					DataType: "SINGLE_SELECT",
+					Options:  []string{"Small", "Medium", "Large"},
+				},
+				{
+					Name:     "start_date",
+					DataType: "DATE",
+				},
+				{
+					Name:     "end_date",
+					DataType: "DATE",
+				},
+			},
 		},
 		Messages: &workflow.SafeOutputMessagesConfig{
 			Footer:     "> *Campaign coordination by [{workflow_name}]({run_url})*",
-			RunStarted: "Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...",
-			RunSuccess: "Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready!",
-			RunFailure: "Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...",
+			RunStarted: "[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.",
+			RunSuccess: "[{workflow_name}]({run_url}) has successfully set up your campaign. Copilot Coding Agent will now create a PR.",
+			RunFailure: "[{workflow_name}]({run_url}) {status}. Please check the details and try again.",
 		},
 	}
 }

@@ -38,6 +38,7 @@ type Compiler struct {
 	stepOrderTracker       *StepOrderTracker   // Tracks step ordering for validation
 	actionCache            *ActionCache        // Shared cache for action pin resolutions across all workflows
 	actionResolver         *ActionResolver     // Shared resolver for action pins across all workflows
+	actionPinWarnings      map[string]bool     // Shared cache of already-warned action pin failures (key: "repo@version")
 	importCache            *parser.ImportCache // Shared cache for imported workflow files
 	workflowIdentifier     string              // Identifier for the current workflow being compiled (for schedule scattering)
 	scheduleWarnings       []string            // Accumulated schedule warnings for this compiler instance
@@ -48,15 +49,16 @@ type Compiler struct {
 // NewCompiler creates a new workflow compiler with optional configuration
 func NewCompiler(verbose bool, engineOverride string, version string) *Compiler {
 	c := &Compiler{
-		verbose:          verbose,
-		engineOverride:   engineOverride,
-		version:          version,
-		skipValidation:   true,          // Skip validation by default for now since existing workflows don't fully comply
-		actionMode:       ActionModeDev, // Default to dev mode (local action paths)
-		jobManager:       NewJobManager(),
-		engineRegistry:   GetGlobalEngineRegistry(),
-		stepOrderTracker: NewStepOrderTracker(),
-		artifactManager:  NewArtifactManager(),
+		verbose:           verbose,
+		engineOverride:    engineOverride,
+		version:           version,
+		skipValidation:    true,          // Skip validation by default for now since existing workflows don't fully comply
+		actionMode:        ActionModeDev, // Default to dev mode (local action paths)
+		jobManager:        NewJobManager(),
+		engineRegistry:    GetGlobalEngineRegistry(),
+		stepOrderTracker:  NewStepOrderTracker(),
+		artifactManager:   NewArtifactManager(),
+		actionPinWarnings: make(map[string]bool), // Initialize warning cache
 	}
 
 	return c
@@ -65,16 +67,17 @@ func NewCompiler(verbose bool, engineOverride string, version string) *Compiler 
 // NewCompilerWithCustomOutput creates a new workflow compiler with custom output path
 func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutput string, version string) *Compiler {
 	c := &Compiler{
-		verbose:          verbose,
-		engineOverride:   engineOverride,
-		customOutput:     customOutput,
-		version:          version,
-		skipValidation:   true,          // Skip validation by default for now since existing workflows don't fully comply
-		actionMode:       ActionModeDev, // Default to dev mode (local action paths)
-		jobManager:       NewJobManager(),
-		engineRegistry:   GetGlobalEngineRegistry(),
-		stepOrderTracker: NewStepOrderTracker(),
-		artifactManager:  NewArtifactManager(),
+		verbose:           verbose,
+		engineOverride:    engineOverride,
+		customOutput:      customOutput,
+		version:           version,
+		skipValidation:    true,          // Skip validation by default for now since existing workflows don't fully comply
+		actionMode:        ActionModeDev, // Default to dev mode (local action paths)
+		jobManager:        NewJobManager(),
+		engineRegistry:    GetGlobalEngineRegistry(),
+		stepOrderTracker:  NewStepOrderTracker(),
+		artifactManager:   NewArtifactManager(),
+		actionPinWarnings: make(map[string]bool), // Initialize warning cache
 	}
 
 	return c
@@ -330,6 +333,8 @@ type WorkflowData struct {
 	SecretMasking           *SecretMaskingConfig // secret masking configuration
 	CompilerSkipValidation  *bool                // compiler's skipValidation flag (passed from compiler to engines for MCP gateway schema validation)
 	CompilerWarningCallback func()               // callback to increment compiler warning count (passed from compiler to engines for MCP gateway schema validation warnings)
+	ParsedFrontmatter       *FrontmatterConfig   // cached parsed frontmatter configuration (for performance optimization)
+	ActionPinWarnings       map[string]bool      // cache of already-warned action pin failures (key: "repo@version")
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types

@@ -21,6 +21,7 @@ imports:
   - shared/mcp-pagination.md
   - shared/gh.md
   - shared/mcp/tavily.md
+  - shared/reporting.md
 network:
   allowed:
     - defaults
@@ -42,12 +43,16 @@ tools:
   serena:
     languages:
       go: {}
+runtimes:
+  go:
+    version: "1.25"
 safe-outputs:
     add-comment:
       hide-older-comments: true
     create-issue:
       expires: 2h
       group: true
+      close-older-issues: true
     add-labels:
       allowed: [smoke-claude]
     messages:

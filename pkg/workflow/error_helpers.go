@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// ValidationError represents an error that occurred during input validation
-type ValidationError struct {
+// WorkflowValidationError represents an error that occurred during input validation
+type WorkflowValidationError struct {
 	Field      string
 	Value      string
 	Reason     string
@@ -16,7 +16,7 @@ type ValidationError struct {
 }
 
 // Error implements the error interface
-func (e *ValidationError) Error() string {
+func (e *WorkflowValidationError) Error() string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "[%s] Validation failed for field '%s'",
@@ -41,8 +41,8 @@ func (e *ValidationError) Error() string {
 }
 
 // NewValidationError creates a new validation error with context
-func NewValidationError(field, value, reason, suggestion string) *ValidationError {
-	return &ValidationError{
+func NewValidationError(field, value, reason, suggestion string) *WorkflowValidationError {
+	return &WorkflowValidationError{
 		Field:      field,
 		Value:      value,
 		Reason:     reason,
@@ -184,85 +184,4 @@ func WrapErrorWithContext(err error, context, suggestion string) error {
 	}
 
 	return fmt.Errorf("[%s] %s: %w", timestamp, context, err)
-}
-
-// ValidateRequired validates that a required field is not empty
-func ValidateRequired(field, value string) error {
-	if strings.TrimSpace(value) == "" {
-		return NewValidationError(
-			field,
-			value,
-			"field is required and cannot be empty",
-			fmt.Sprintf("Provide a non-empty value for '%s'", field),
-		)
-	}
-	return nil
-}
-
-// ValidateMaxLength validates that a field does not exceed maximum length
-func ValidateMaxLength(field, value string, maxLength int) error {
-	if len(value) > maxLength {
-		return NewValidationError(
-			field,
-			value,
-			fmt.Sprintf("field exceeds maximum length of %d characters (actual: %d)", maxLength, len(value)),
-			fmt.Sprintf("Shorten '%s' to %d characters or less", field, maxLength),
-		)
-	}
-	return nil
-}
-
-// ValidateMinLength validates that a field meets minimum length requirement
-func ValidateMinLength(field, value string, minLength int) error {
-	if len(value) < minLength {
-		return NewValidationError(
-			field,
-			value,
-			fmt.Sprintf("field is shorter than minimum length of %d characters (actual: %d)", minLength, len(value)),
-			fmt.Sprintf("Ensure '%s' is at least %d characters long", field, minLength),
-		)
-	}
-	return nil
-}
-
-// ValidateInList validates that a value is in an allowed list
-func ValidateInList(field, value string, allowedValues []string) error {
-	for _, allowed := range allowedValues {
-		if value == allowed {
-			return nil
-		}
-	}
-
-	return NewValidationError(
-		field,
-		value,
-		fmt.Sprintf("value is not in allowed list: %v", allowedValues),
-		fmt.Sprintf("Choose one of the allowed values for '%s': %s", field, strings.Join(allowedValues, ", ")),
-	)
-}
-
-// ValidatePositiveInt validates that a value is a positive integer
-func ValidatePositiveInt(field string, value int) error {
-	if value <= 0 {
-		return NewValidationError(
-			field,
-			fmt.Sprintf("%d", value),
-			"value must be a positive integer",
-			fmt.Sprintf("Provide a positive integer value for '%s'", field),
-		)
-	}
-	return nil
-}
-
-// ValidateNonNegativeInt validates that a value is a non-negative integer
-func ValidateNonNegativeInt(field string, value int) error {
-	if value < 0 {
-		return NewValidationError(
-			field,
-			fmt.Sprintf("%d", value),
-			"value must be a non-negative integer",
-			fmt.Sprintf("Provide a non-negative integer value for '%s'", field),
-		)
-	}
-	return nil
 }

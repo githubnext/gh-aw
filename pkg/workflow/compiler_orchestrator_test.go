@@ -481,5 +481,3 @@ func TestDetectTextOutputUsageInOrchestrator(t *testing.T) {
 		})
 	}
 }
-
-// Helper functions

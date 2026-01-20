@@ -17,6 +17,7 @@ strict: true
 imports:
   - shared/gh.md
   - shared/mcp/tavily.md
+  - shared/reporting.md
 network:
   allowed:
     - defaults
@@ -34,6 +35,9 @@ tools:
   serena:
     languages:
       go: {}
+runtimes:
+  go:
+    version: "1.25"
 sandbox:
   mcp:
     container: "ghcr.io/githubnext/gh-aw-mcpg"

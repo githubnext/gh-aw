@@ -98,7 +98,7 @@ func (g *GitHubToolConfig) GetToolsets() string {
 	}
 	// Convert toolset array to comma-separated string
 	// If empty, expandDefaultToolset will apply defaults
-	toolsetsStr := strings.Join(g.Toolset, ",")
+	toolsetsStr := strings.Join(g.Toolset.ToStringSlice(), ",")
 	return expandDefaultToolset(toolsetsStr)
 }
 

@@ -169,10 +169,10 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		}
 
 		if allowed, ok := configMap["allowed"].([]any); ok {
-			config.Allowed = make([]string, 0, len(allowed))
+			config.Allowed = make(GitHubAllowedTools, 0, len(allowed))
 			for _, item := range allowed {
 				if str, ok := item.(string); ok {
-					config.Allowed = append(config.Allowed, str)
+					config.Allowed = append(config.Allowed, GitHubToolName(str))
 				}
 			}
 		}
@@ -205,17 +205,17 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 
 		// Check for both "toolset" and "toolsets" (plural is more common in user configs)
 		if toolset, ok := configMap["toolsets"].([]any); ok {
-			config.Toolset = make([]string, 0, len(toolset))
+			config.Toolset = make(GitHubToolsets, 0, len(toolset))
 			for _, item := range toolset {
 				if str, ok := item.(string); ok {
-					config.Toolset = append(config.Toolset, str)
+					config.Toolset = append(config.Toolset, GitHubToolset(str))
 				}
 			}
 		} else if toolset, ok := configMap["toolset"].([]any); ok {
-			config.Toolset = make([]string, 0, len(toolset))
+			config.Toolset = make(GitHubToolsets, 0, len(toolset))
 			for _, item := range toolset {
 				if str, ok := item.(string); ok {
-					config.Toolset = append(config.Toolset, str)
+					config.Toolset = append(config.Toolset, GitHubToolset(str))
 				}
 			}
 		}

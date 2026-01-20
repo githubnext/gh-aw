@@ -186,7 +186,7 @@ jobs:
           
           # Execute the installer with the specified version
           # Pass VERSION directly to sudo to ensure it's available to the installer script
-          sudo VERSION=0.0.385 bash /tmp/copilot-install.sh
+          sudo VERSION=0.0.387 bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -196,7 +196,7 @@ jobs:
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.10.0
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.69 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.71 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -415,7 +415,7 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.69'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.71'
           
           mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
@@ -472,7 +472,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.385",
+              agent_version: "0.0.387",
               workflow_name: "Organization Health Report",
               experimental: false,
               supports_tools_allowlist: true,
@@ -490,7 +490,7 @@ jobs:
               allowed_domains: ["defaults","python"],
               firewall_enabled: true,
               awf_version: "v0.10.0",
-              awmg_version: "v0.0.69",
+              awmg_version: "v0.0.71",
               steps: {
                 firewall: "squid"
               },
@@ -931,10 +931,69 @@ jobs:
           # Now you know which fields exist and can use them in your analysis
           ```
           
-          ## Report Structure
+          ## Report Structure Guidelines
+          
+          ### 1. Header Levels
+          **Use h3 (###) or lower for all headers in your issue report to maintain proper document hierarchy.**
+          
+          When creating GitHub issues or discussions:
+          - Use `###` (h3) for main sections (e.g., "### Test Summary")
+          - Use `####` (h4) for subsections (e.g., "#### Device-Specific Results")
+          - Never use `##` (h2) or `#` (h1) in reports - these are reserved for titles
+          
+          ### 2. Progressive Disclosure
+          **Wrap detailed test results in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+          
+          Use collapsible sections for:
+          - Verbose details (full test logs, raw data)
+          - Secondary information (minor warnings, extra context)
+          - Per-item breakdowns when there are many items
+          
+          Always keep critical information visible (summary, critical issues, key metrics).
+          
+          ### 3. Report Structure Pattern
           
           1. **Overview**: 1-2 paragraphs summarizing key findings
-          2. **Details**: Use `<details><summary><b>Full Report</b></summary>` for expanded content
+          2. **Critical Information**: Show immediately (summary stats, critical issues)
+          3. **Details**: Use `<details><summary><b>Section Name</b></summary>` for expanded content
+          4. **Context**: Add helpful metadata (workflow run, date, trigger)
+          
+          ### Design Principles (Airbnb-Inspired)
+          
+          Reports should:
+          - **Build trust through clarity**: Most important info immediately visible
+          - **Exceed expectations**: Add helpful context like trends, comparisons
+          - **Create delight**: Use progressive disclosure to reduce overwhelm
+          - **Maintain consistency**: Follow patterns across all reports
+          
+          ### Example Report Structure
+          
+          ```markdown
+          ### Summary
+          - Key metric 1: value
+          - Key metric 2: value
+          - Status: ✅/⚠️/❌
+          
+          ### Critical Issues
+          [Always visible - these are important]
+          
+          <details>
+          <summary><b>View Detailed Results</b></summary>
+          
+          [Comprehensive details, logs, traces]
+          
+          </details>
+          
+          <details>
+          <summary><b>View All Warnings</b></summary>
+          
+          [Minor issues and potential problems]
+          
+          </details>
+          
+          ### Recommendations
+          [Actionable next steps - keep visible]
+          ```
           
           ## Workflow Run References
           
@@ -1042,6 +1101,8 @@ jobs:
              jq -s 'add' /tmp/gh-aw/org-health/prs/*.json > /tmp/gh-aw/org-health/all_prs.json
              ```
           
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           ### Phase 4: Process and Analyze Data with Python
           
           Use Python with pandas to analyze the collected data:
@@ -1092,8 +1153,6 @@ jobs:
               'total_open_prs': len(prs_df[prs_df['state'] == 'open']),
               'total_closed_prs': len(prs_df[prs_df['state'] == 'closed']),
               'prs_opened_7d': len(prs_df[prs_df['created_at'] >= seven_days_ago]),
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
               'prs_closed_7d': len(prs_df[(prs_df['closed_at'] >= seven_days_ago) & (prs_df['state'] == 'closed')]),
               'prs_opened_30d': len(prs_df[prs_df['created_at'] >= thirty_days_ago]),
               'prs_closed_30d': len(prs_df[(prs_df['closed_at'] >= thirty_days_ago) & (prs_df['state'] == 'closed')]),
@@ -1824,7 +1883,7 @@ jobs:
           
           # Execute the installer with the specified version
           # Pass VERSION directly to sudo to ensure it's available to the installer script
-          sudo VERSION=0.0.385 bash /tmp/copilot-install.sh
+          sudo VERSION=0.0.387 bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh

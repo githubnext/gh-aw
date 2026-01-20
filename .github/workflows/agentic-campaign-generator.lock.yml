@@ -19,7 +19,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Agentic Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation
+# Agentic Campaign generator that discovers workflows, generates a campaign spec and a project board, and assigns to Copilot agent for compilation
 
 name: "Agentic Campaign Generator"
 "on":
@@ -83,7 +83,7 @@ jobs:
         env:
           GH_AW_WORKFLOW_NAME: "Agentic Campaign Generator"
           GH_AW_LOCK_FOR_AGENT: "true"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready!\",\"runFailure\":\"Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.\",\"runSuccess\":\"[{workflow_name}]({run_url}) has successfully set up your campaign. Copilot Coding Agent will now create a PR.\",\"runFailure\":\"[{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -190,38 +190,17 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.69 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.71 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":10},"assign_to_agent":{},"create_project":{"max":1,"target_owner":"${{ github.repository_owner }}"},"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_issue":{"max":1},"update_project":{"max":10}}
+          {"assign_to_agent":{},"create_project":{"max":1,"target_owner":"${{ github.repository_owner }}"},"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_issue":{"max":1},"update_project":{"max":10}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
-            {
-              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 10 comment(s) can be added.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "The comment text in Markdown format. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation.",
-                    "type": "string"
-                  },
-                  "item_number": {
-                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). If omitted, the tool will attempt to resolve the target from the current workflow context (triggering issue, PR, or discussion).",
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "body"
-                ],
-                "type": "object"
-              },
-              "name": "add_comment"
-            },
             {
               "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") or assign_to_agent(pull_number=456, agent=\"copilot\")",
               "inputSchema": {
@@ -329,6 +308,41 @@ jobs:
               "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
               "inputSchema": {
                 "additionalProperties": false,
+                "oneOf": [
+                  {
+                    "properties": {
+                      "operation": {
+                        "const": "create_fields"
+                      }
+                    },
+                    "required": [
+                      "project",
+                      "operation",
+                      "field_definitions"
+                    ],
+                    "title": "Create project fields"
+                  },
+                  {
+                    "properties": {
+                      "operation": {
+                        "const": "create_view"
+                      }
+                    },
+                    "required": [
+                      "project",
+                      "operation",
+                      "view"
+                    ],
+                    "title": "Create project view"
+                  },
+                  {
+                    "required": [
+                      "project",
+                      "content_type"
+                    ],
+                    "title": "Add/update project item"
+                  }
+                ],
                 "properties": {
                   "campaign_id": {
                     "description": "Campaign identifier to group related project items. Used to track items created by the same campaign or workflow run.",
@@ -359,20 +373,92 @@ jobs:
                     "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue'.",
                     "type": "string"
                   },
+                  "field_definitions": {
+                    "description": "Field definitions to create when operation is create_fields.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data_type": {
+                          "description": "Field type. Use SINGLE_SELECT with options for enumerated values.",
+                          "enum": [
+                            "TEXT",
+                            "NUMBER",
+                            "DATE",
+                            "SINGLE_SELECT",
+                            "ITERATION"
+                          ],
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Field name to create (e.g., 'size', 'priority').",
+                          "type": "string"
+                        },
+                        "options": {
+                          "description": "Options for SINGLE_SELECT fields.",
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "data_type"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
                   "fields": {
                     "description": "Custom field values to set on the project item (e.g., {'Status': 'In Progress', 'Priority': 'High'}). Field names must match custom fields defined in the project.",
                     "type": "object"
+                  },
+                  "operation": {
+                    "description": "Optional operation mode. Use create_fields to create required campaign fields up-front, or create_view to add a project view. When omitted, the tool adds/updates project items.",
+                    "enum": [
+                      "create_fields",
+                      "create_view"
+                    ],
+                    "type": "string"
                   },
                   "project": {
                     "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted.",
                     "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
                     "type": "string"
+                  },
+                  "view": {
+                    "additionalProperties": false,
+                    "description": "View definition to create when operation is create_view.",
+                    "properties": {
+                      "filter": {
+                        "type": "string"
+                      },
+                      "layout": {
+                        "enum": [
+                          "table",
+                          "board",
+                          "roadmap"
+                        ],
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "visible_fields": {
+                        "description": "Field IDs to show in the view (table/board only).",
+                        "items": {
+                          "type": "number"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "layout"
+                    ],
+                    "type": "object"
                   }
                 },
-                "required": [
-                  "project",
-                  "content_type"
-                ],
                 "type": "object"
               },
               "name": "update_project"
@@ -440,20 +526,6 @@ jobs:
           EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'EOF'
           {
-            "add_comment": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "item_number": {
-                  "issueOrPRNumber": true
-                }
-              }
-            },
             "assign_to_agent": {
               "defaultMax": 1,
               "fields": {
@@ -618,7 +690,7 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="claude"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.69'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.71'
           
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
@@ -690,7 +762,7 @@ jobs:
               allowed_domains: [],
               firewall_enabled: true,
               awf_version: "v0.10.0",
-              awmg_version: "v0.0.69",
+              awmg_version: "v0.0.71",
               steps: {
                 firewall: "squid"
               },
@@ -739,7 +811,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, assign_to_agent, create_project, missing_tool, noop, update_issue, update_project
+          **Available tools**: assign_to_agent, create_project, missing_tool, noop, update_issue, update_project
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -1103,7 +1175,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready!\",\"runFailure\":\"Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.\",\"runSuccess\":\"[{workflow_name}]({run_url}) has successfully set up your campaign. Copilot Coding Agent will now create a PR.\",\"runFailure\":\"[{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1122,7 +1194,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Agentic Campaign Generator"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready!\",\"runFailure\":\"Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.\",\"runSuccess\":\"[{workflow_name}]({run_url}) has successfully set up your campaign. Copilot Coding Agent will now create a PR.\",\"runFailure\":\"[{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1181,7 +1253,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           WORKFLOW_NAME: "Agentic Campaign Generator"
-          WORKFLOW_DESCRIPTION: "Agentic Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation"
+          WORKFLOW_DESCRIPTION: "Agentic Campaign generator that discovers workflows, generates a campaign spec and a project board, and assigns to Copilot agent for compilation"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1359,13 +1431,11 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
-      discussions: write
       issues: write
-      pull-requests: write
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "claude"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...\",\"runSuccess\":\"Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready!\",\"runFailure\":\"Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again...\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.\",\"runSuccess\":\"[{workflow_name}]({run_url}) has successfully set up your campaign. Copilot Coding Agent will now create a PR.\",\"runFailure\":\"[{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
       GH_AW_WORKFLOW_ID: "agentic-campaign-generator"
       GH_AW_WORKFLOW_NAME: "Agentic Campaign Generator"
     outputs:
@@ -1410,7 +1480,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG: "{\"create_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":1,\"target_owner\":\"${{ github.repository_owner }}\",\"views\":[{\"name\":\"Campaign Roadmap\",\"layout\":\"roadmap\",\"filter\":\"is:issue is:pr\"},{\"name\":\"Task Tracker\",\"layout\":\"table\",\"filter\":\"is:issue is:pr\"},{\"name\":\"Progress Board\",\"layout\":\"board\",\"filter\":\"is:issue is:pr\"}]},\"update_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":10}}"
+          GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG: "{\"create_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":1,\"target_owner\":\"${{ github.repository_owner }}\",\"views\":[{\"name\":\"Progress Board\",\"layout\":\"board\",\"filter\":\"is:issue is:pr\"},{\"name\":\"Task Tracker\",\"layout\":\"table\",\"filter\":\"is:issue is:pr\"},{\"name\":\"Campaign Roadmap\",\"layout\":\"roadmap\",\"filter\":\"is:issue is:pr\"}]},\"update_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":10}}"
           GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
         with:
           github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
@@ -1424,7 +1494,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":10},\"missing_data\":{},\"missing_tool\":{},\"update_issue\":{\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"missing_data\":{},\"missing_tool\":{},\"update_issue\":{\"max\":1}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
