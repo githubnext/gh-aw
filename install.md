@@ -100,8 +100,7 @@ Note: MCP server integration is enabled by default. Use `--no-mcp` if you want t
 ```text
 ✓ .gitattributes configured
 ✓ Created .github/aw/github-agentic-workflows.md
-✓ Created .github/agents/create-agentic-workflow.agent.md
-✓ Created .github/agents/debug-agentic-workflow.agent.md
+✓ Created .github/agents/agentic-workflows.agent.md
 
 ℹ Checking recommended gh-aw token secrets in <your-repo>...
 ℹ Checking tokens for engine: copilot
@@ -237,18 +236,20 @@ You should see both the `.md` and `.lock.yml` files.
 
 ### Option B: Create a New Workflow with AI Assistance
 
-If you want to create a custom workflow, use the workflow creation agent:
+If you want to create a custom workflow, use the unified workflow agent and specify your intent:
 
 ```bash
-activate .github/agents/create-agentic-workflow.agent.md
+activate .github/agents/agentic-workflows.agent.md
 ```
 
-This will load the interactive workflow designer agent that will guide you through:
+This will load the interactive workflow agent that intelligently routes your request based on your intent. You can:
 
-- Choosing the right trigger (issues, PRs, schedule, etc.)
-- Configuring permissions and tools
-- Writing the workflow instructions
-- Compiling and testing the workflow
+- **Create** a new workflow: "create a workflow that triages issues"
+- **Debug** an existing workflow: "debug why my workflow is failing"
+- **Update** a workflow: "update my workflow to add web-fetch tool"
+- **Upgrade** workflows: "upgrade all workflows to latest version"
+
+The agent will guide you through the appropriate process for your task.
 
 **Alternative:** You can also manually create a workflow file at `.github/workflows/my-workflow.md` and then compile it:
 
@@ -302,10 +303,10 @@ gh aw logs <workflow-name>
 3. **Get AI help debugging:**
 
    ```
-   activate .github/agents/debug-agentic-workflow.agent.md
+   activate .github/agents/agentic-workflows.agent.md
    ```
 
-   Then describe the issue you're experiencing with your workflow.
+   Then describe the issue: "debug why my workflow is failing" and the agent will help you investigate logs, identify issues, and suggest fixes.
 
 ## Next Steps
 

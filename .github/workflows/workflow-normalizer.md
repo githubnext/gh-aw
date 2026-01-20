@@ -43,7 +43,7 @@ Daily review agentic workflow prompts (markdown files) that have been active in 
 
 ## Style Guidelines to Enforce
 
-Based on the create-agentic-workflow guidelines and Airbnb's design principles of creating delightful, user-focused experiences:
+Based on the agentic workflows guidelines and Airbnb's design principles of creating delightful, user-focused experiences:
 
 ### Markdown Formatting Standards
 

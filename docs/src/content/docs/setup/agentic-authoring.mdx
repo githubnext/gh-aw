@@ -20,31 +20,43 @@ gh aw init
 
 This creates:
 - `.github/aw/github-agentic-workflows.instructions.md` - Custom Copilot instructions for better workflow authoring
-- `.github/agents/create-agentic-workflow.agent.md` - [Agent file](/gh-aw/reference/glossary/#agent-files) (custom AI instructions) for the `/agent create-agentic-workflow` command in Copilot Chat
+- `.github/agents/agentic-workflows.agent.md` - [Agent file](/gh-aw/reference/glossary/#agent-files) (custom AI instructions) for the `/agent agentic-workflows` command in Copilot Chat
 
 :::tip[VS Code integration]
 Once initialized, GitHub Copilot will automatically use these instructions when you edit workflow files in VS Code. See [VS Code Integration](/gh-aw/setup/vscode/) for more details.
 :::
 
-## What is the `create-agentic-workflow` agent?
+## What is the `agentic-workflows` agent?
 
-`.github/agents/create-agentic-workflow.agent.md` is an agent file that contains the structure and instructions GitHub Copilot will use to generate a workflow markdown file that the `gh aw` CLI understands. An [agent file](/gh-aw/reference/glossary/#agent-files) is a specialized instruction set that customizes AI behavior for specific tasks.
+`.github/agents/agentic-workflows.agent.md` is a unified dispatcher agent that routes your workflow requests to specialized prompts based on your intent. An [agent file](/gh-aw/reference/glossary/#agent-files) is a specialized instruction set that customizes AI behavior for specific tasks.
 
 Use the agent when you want to:
-- Draft a new agentic workflow using natural language
-- Iterate on workflow steps with AI assistance inside your editor
+- **Create** a new agentic workflow using natural language
+- **Debug** an existing workflow to investigate failures or analyze logs
+- **Update** an existing workflow to add features or modify behavior
+- **Upgrade** workflows to new gh-aw versions or fix deprecations
 
-The agent contains specialized instructions and toolset to enable efficient workflow authoring.
+The agent intelligently determines your intent and loads the appropriate specialized prompt for your task.
 
-## How to use the `create-agentic-workflow` agent
+## How to use the `agentic-workflows` agent
 
-In Visual Studio Code with GitHub Copilot Chat, or in the interactive Copilot CLI session, invoke the agent with the `/agent` command:
+In Visual Studio Code with GitHub Copilot Chat, or in the interactive Copilot CLI session, invoke the agent with the `/agent` command and specify your intent:
 
 ```sh wrap
-/agent create-agentic-workflow
+# Create a new workflow
+/agent agentic-workflows create a workflow that triages issues
+
+# Debug an existing workflow
+/agent agentic-workflows debug why is my workflow failing?
+
+# Update a workflow
+/agent agentic-workflows update add web-fetch tool to issue-classifier
+
+# Upgrade workflows
+/agent agentic-workflows upgrade all workflows to latest version
 ```
 
-This will start the agentic workflow authoring process with interactive guidance.
+The agent will understand your intent and route to the appropriate specialized prompt for your task.
 
 ## Other Agents and Chats
 

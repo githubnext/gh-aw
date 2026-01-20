@@ -3690,6 +3690,11 @@
                   "type": "boolean",
                   "description": "If true, group issues as sub-issues under a parent issue. The workflow ID is used as the group identifier. Parent issues are automatically created and managed, with a maximum of 64 sub-issues per parent.",
                   "default": false
+                },
+                "close-older-issues": {
+                  "type": "boolean",
+                  "description": "When true, automatically close older issues matching the same title prefix or labels as 'not planned' with a comment linking to the new issue. Requires title-prefix or labels to be set. Maximum 10 issues will be closed. Only runs if issue creation succeeds.",
+                  "default": false
                 }
               },
               "additionalProperties": false,
@@ -3707,6 +3712,11 @@
                 {
                   "allowed-repos": ["org/other-repo", "org/another-repo"],
                   "title-prefix": "[cross-repo] "
+                },
+                {
+                  "title-prefix": "[weekly-report] ",
+                  "labels": ["report", "automation"],
+                  "close-older-issues": true
                 }
               ]
             },

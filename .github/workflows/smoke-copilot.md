@@ -14,6 +14,8 @@ permissions:
   actions: read
 name: Smoke Copilot
 engine: copilot
+imports:
+  - shared/reporting.md
 network:
   allowed:
     - defaults
