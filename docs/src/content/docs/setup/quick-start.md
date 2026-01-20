@@ -235,12 +235,11 @@ Edit the `.md` file and recompile with `gh aw compile`. For AI-assisted customiz
 
 ### Using VS Code with GitHub Copilot
 
-In VS Code with GitHub Copilot Chat, use the `/agent` command to access the `create-agentic-workflow` agent:
+In VS Code with GitHub Copilot Chat, use the `/agent` command to access the `agentic-workflows` agent and specify your intent:
 
 ```
-/agent
-> select create-agentic-workflow
-> edit @.github/workflows/daily-team-status.md
+/agent agentic-workflows
+> update add more details to @.github/workflows/daily-team-status.md
 ```
 
 ### Using Interactive Copilot CLI
@@ -252,11 +251,10 @@ npm install -g @github/copilot-cli
 copilot
 ```
 
-Then in the interactive Copilot session, use the `/agent` command:
+Then in the interactive Copilot session, use the `/agent` command with your intent:
 ```
-/agent
-> select create-agentic-workflow
-> edit @.github/workflows/daily-team-status.md
+/agent agentic-workflows
+> update edit @.github/workflows/daily-team-status.md to include more metrics
 ```
 
 ## What's next?

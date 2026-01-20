@@ -119,10 +119,17 @@ The `release.md` migration from `githubnext/gh-aw` to `githubnext/gh-aw-mcpg` pr
 
 ## Authoring with AI
 
-In GitHub Copilot Chat, you can use custom agents to help create and debug workflows:
+In GitHub Copilot Chat, you can use the unified **agentic-workflows** agent to help create, debug, and update workflows. Simply specify your intent:
 
-- Type `/agent` and select **create-agentic-workflow** for interactive workflow creation/migration
-- Type `/agent` and select **debug-agentic-workflow** for compilation debugging
+```sh wrap
+# Create a new workflow from an imported action
+/agent agentic-workflows create migrate my-action to agentic workflow
+
+# Debug compilation issues
+/agent agentic-workflows debug why is my workflow not compiling?
+```
+
+The agent automatically routes your request to the appropriate specialized prompt based on your intent (create/debug/update/upgrade).
 
 ## Limitations
 
