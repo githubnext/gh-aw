@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
+
+var yamlUtilsLog = logger.New("cli:codemod_yaml_utils")
 
 // reconstructContent rebuilds the full markdown content from frontmatter lines and body
 func reconstructContent(frontmatterLines []string, markdown string) string {
@@ -121,7 +124,7 @@ func removeFieldFromBlock(lines []string, fieldName string, parentBlock string) 
 			modified = true
 			inFieldBlock = true
 			fieldIndent = getIndentation(line)
-			codemodsLog.Printf("Removed %s.%s on line %d", parentBlock, fieldName, i+1)
+			yamlUtilsLog.Printf("Removed %s.%s on line %d", parentBlock, fieldName, i+1)
 			continue
 		}
 
@@ -138,7 +141,7 @@ func removeFieldFromBlock(lines []string, fieldName string, parentBlock string) 
 			if strings.HasPrefix(trimmedLine, "#") {
 				if len(currentIndent) > len(fieldIndent) {
 					// Comment is nested under field, remove it
-					codemodsLog.Printf("Removed nested %s comment on line %d: %s", fieldName, i+1, trimmedLine)
+					yamlUtilsLog.Printf("Removed nested %s comment on line %d: %s", fieldName, i+1, trimmedLine)
 					continue
 				}
 				// Comment is at same or less indentation, exit field block and keep it
@@ -149,7 +152,7 @@ func removeFieldFromBlock(lines []string, fieldName string, parentBlock string) 
 
 			// If this line has more indentation than field, it's a nested property
 			if len(currentIndent) > len(fieldIndent) {
-				codemodsLog.Printf("Removed nested %s property on line %d: %s", fieldName, i+1, trimmedLine)
+				yamlUtilsLog.Printf("Removed nested %s property on line %d: %s", fieldName, i+1, trimmedLine)
 				continue
 			}
 			// We've exited the field block (found a line at same or less indentation)
