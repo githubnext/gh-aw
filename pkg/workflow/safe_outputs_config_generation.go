@@ -77,6 +77,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			safeOutputsConfig["create_pull_request"] = generatePullRequestConfig(
 				data.SafeOutputs.CreatePullRequests.AllowedLabels,
 				data.SafeOutputs.CreatePullRequests.AllowEmpty,
+				data.SafeOutputs.CreatePullRequests.AutoMerge,
 			)
 		}
 		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
