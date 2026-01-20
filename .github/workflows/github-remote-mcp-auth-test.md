@@ -34,15 +34,20 @@ Test that the GitHub remote MCP server can authenticate and access GitHub API wi
 
 ### Test Procedure
 
-1. **List Open Issues**: Use the GitHub MCP server to list 3 open issues in the repository ${{ github.repository }}
-   - Use the `list_issues` tool or equivalent
+1. **Check Tool Availability**: First verify that GitHub MCP tools are available
+   - Attempt to use `list_issues` or `get_repository` tool
+   - If tools are not available or return errors about missing tools/capabilities, the MCP server connection has failed
+
+2. **List Open Issues**: If tools are available, use the GitHub MCP server to list 3 open issues in the repository ${{ github.repository }}
+   - Use the `list_issues` tool
    - Filter for `state: OPEN`
    - Limit to 3 results
    - Extract issue numbers and titles
 
-2. **Verify Authentication**: 
+3. **Verify Authentication**: 
    - If the MCP tool successfully returns issue data, authentication is working correctly
-   - If the MCP tool fails with authentication errors (401, 403, or "unauthorized"), authentication has failed
+   - If the MCP tool fails with authentication errors (401, 403, "unauthorized", or "invalid session"), authentication has failed
+   - **IMPORTANT**: Do NOT fall back to using `gh api` directly - this test must use the MCP server
 
 ### Success Case
 
@@ -65,25 +70,34 @@ If the test fails (authentication error or MCP tool unavailable):
     The daily GitHub remote MCP authentication test has failed.
     
     ### Error Details
-    [Include the specific error message from the MCP tool]
+    [Include the specific error message from the MCP tool or explain what went wrong]
+    
+    ### Root Cause Analysis
+    [Determine if the issue is:
+    - MCP server connection failure (invalid session, 400 error)
+    - Token authentication issue (401, 403 errors)
+    - MCP tools not available/not loaded
+    - Other issue]
     
     ### Expected Behavior
-    The GitHub remote MCP server should authenticate with the GitHub Actions token and successfully list open issues.
+    The GitHub remote MCP server should authenticate with the GitHub Actions token and successfully list open issues using MCP tools.
     
     ### Actual Behavior
-    [Describe what happened - authentication error, timeout, tool unavailable, etc.]
+    [Describe what happened - authentication error, timeout, tool unavailable, connection refused, etc.]
     
     ### Test Configuration
     - Repository: ${{ github.repository }}
     - Workflow: ${{ github.workflow }}
-    - Run: ${{ github.run_id }}
+    - Run ID: ${{ github.run_id }}
+    - Run URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
     - Time: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
     
     ### Next Steps
-    1. Verify GitHub Actions token permissions
-    2. Check GitHub remote MCP server availability
-    3. Review workflow logs for detailed error information
-    4. Test with local mode as fallback if remote mode continues to fail
+    1. Review workflow logs at the run URL above for detailed error information
+    2. Check if GitHub remote MCP server (https://api.githubcopilot.com/mcp/) is available
+    3. Verify token is compatible with GitHub Copilot MCP server
+    4. Consider adding explicit token validation step before running tests
+    5. Consider fallback to local mode if remote mode is consistently unavailable
     ```
 
 ## Guidelines
@@ -91,7 +105,10 @@ If the test fails (authentication error or MCP tool unavailable):
 - **Be concise**: Keep output brief and focused
 - **Test quickly**: This should complete in under 1 minute
 - **Only create discussion on failure**: Don't create discussions when the test passes
-- **Include error details**: If authentication fails, include the exact error message
+- **Do NOT use gh api directly**: This test must verify MCP server authentication, not GitHub CLI
+- **Check for MCP tools**: Verify that GitHub MCP tools are loaded and available
+- **Include error details**: If authentication fails, include the exact error message from the MCP tool
+- **Root cause analysis**: Identify whether the issue is with the MCP server connection, token, or tool availability
 - **Auto-cleanup**: Old test discussions will be automatically closed by the close-older-discussions setting
 
 ## Expected Output
