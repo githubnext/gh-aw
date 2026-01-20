@@ -42,6 +42,9 @@ tools:
   serena:
     languages:
       go: {}
+runtimes:
+  go:
+    version: "1.25"
 safe-outputs:
     add-comment:
       hide-older-comments: true

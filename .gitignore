@@ -167,3 +167,7 @@ detection/
 
 test-script-mode.md
 test-script-mode.lock.yml
+
+# Test metrics patterns workflow (temporary validation file)
+.github/workflows/test-metrics-patterns.md
+.github/workflows/test-metrics-patterns.lock.yml
