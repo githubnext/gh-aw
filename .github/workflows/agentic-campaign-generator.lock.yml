@@ -305,44 +305,9 @@ jobs:
               "name": "noop"
             },
             {
-              "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
+              "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.\n\nThree usage modes:\n1. Add/update project item: Requires project + content_type. For 'issue' or 'pull_request', also requires content_number. For 'draft_issue', requires draft_title.\n2. Create project fields: Requires project + operation='create_fields' + field_definitions.\n3. Create project view: Requires project + operation='create_view' + view.",
               "inputSchema": {
                 "additionalProperties": false,
-                "oneOf": [
-                  {
-                    "properties": {
-                      "operation": {
-                        "const": "create_fields"
-                      }
-                    },
-                    "required": [
-                      "project",
-                      "operation",
-                      "field_definitions"
-                    ],
-                    "title": "Create project fields"
-                  },
-                  {
-                    "properties": {
-                      "operation": {
-                        "const": "create_view"
-                      }
-                    },
-                    "required": [
-                      "project",
-                      "operation",
-                      "view"
-                    ],
-                    "title": "Create project view"
-                  },
-                  {
-                    "required": [
-                      "project",
-                      "content_type"
-                    ],
-                    "title": "Add/update project item"
-                  }
-                ],
                 "properties": {
                   "campaign_id": {
                     "description": "Campaign identifier to group related project items. Used to track items created by the same campaign or workflow run.",
@@ -353,7 +318,7 @@ jobs:
                     "type": "number"
                   },
                   "content_type": {
-                    "description": "Type of item to add to the project. Use 'issue' or 'pull_request' to add existing repo content, or 'draft_issue' to create a draft item inside the project.",
+                    "description": "Type of item to add to the project. Use 'issue' or 'pull_request' to add existing repo content, or 'draft_issue' to create a draft item inside the project. Required when operation is not specified.",
                     "enum": [
                       "issue",
                       "pull_request",
@@ -374,7 +339,7 @@ jobs:
                     "type": "string"
                   },
                   "field_definitions": {
-                    "description": "Field definitions to create when operation is create_fields.",
+                    "description": "Field definitions to create when operation is create_fields. Required when operation='create_fields'.",
                     "items": {
                       "additionalProperties": false,
                       "properties": {
@@ -428,7 +393,7 @@ jobs:
                   },
                   "view": {
                     "additionalProperties": false,
-                    "description": "View definition to create when operation is create_view.",
+                    "description": "View definition to create when operation is create_view. Required when operation='create_view'.",
                     "properties": {
                       "filter": {
                         "type": "string"
@@ -459,6 +424,9 @@ jobs:
                     "type": "object"
                   }
                 },
+                "required": [
+                  "project"
+                ],
                 "type": "object"
               },
               "name": "update_project"
