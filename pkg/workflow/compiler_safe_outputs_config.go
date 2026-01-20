@@ -558,6 +558,9 @@ func (c *Compiler) addProjectHandlerManagerConfigEnvVar(steps *[]string, data *W
 		if len(cfg.Views) > 0 {
 			handlerConfig["views"] = cfg.Views
 		}
+		if len(cfg.FieldDefinitions) > 0 {
+			handlerConfig["field_definitions"] = cfg.FieldDefinitions
+		}
 		config["update_project"] = handlerConfig
 	}
 

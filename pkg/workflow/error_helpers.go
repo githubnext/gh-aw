@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// ValidationError represents an error that occurred during input validation
-type ValidationError struct {
+// WorkflowValidationError represents an error that occurred during input validation
+type WorkflowValidationError struct {
 	Field      string
 	Value      string
 	Reason     string
@@ -16,7 +16,7 @@ type ValidationError struct {
 }
 
 // Error implements the error interface
-func (e *ValidationError) Error() string {
+func (e *WorkflowValidationError) Error() string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "[%s] Validation failed for field '%s'",
@@ -41,8 +41,8 @@ func (e *ValidationError) Error() string {
 }
 
 // NewValidationError creates a new validation error with context
-func NewValidationError(field, value, reason, suggestion string) *ValidationError {
-	return &ValidationError{
+func NewValidationError(field, value, reason, suggestion string) *WorkflowValidationError {
+	return &WorkflowValidationError{
 		Field:      field,
 		Value:      value,
 		Reason:     reason,

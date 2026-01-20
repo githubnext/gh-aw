@@ -952,15 +952,20 @@ async function updateProject(output) {
  * @param {Object} config - Handler configuration
  * @param {number} [config.max] - Maximum number of update_project items to process
  * @param {Array<Object>} [config.views] - Views to create from configuration
+ * @param {Array<Object>} [config.field_definitions] - Field definitions to create from configuration
  * @returns {Promise<Function>} Message handler function
  */
 async function main(config = {}) {
   // Extract configuration
   const maxCount = config.max || 10;
   const configuredViews = Array.isArray(config.views) ? config.views : [];
+  const configuredFieldDefinitions = Array.isArray(config.field_definitions) ? config.field_definitions : [];
 
   if (configuredViews.length > 0) {
     core.info(`Found ${configuredViews.length} configured view(s) in frontmatter`);
+  }
+  if (configuredFieldDefinitions.length > 0) {
+    core.info(`Found ${configuredFieldDefinitions.length} configured field definition(s) in frontmatter`);
   }
   core.info(`Max count: ${maxCount}`);
 
@@ -968,6 +973,7 @@ async function main(config = {}) {
   let processedCount = 0;
   let firstProjectUrl = null;
   let viewsCreated = false;
+  let fieldsCreated = false;
 
   /**
    * Message handler function that processes a single update_project message
@@ -993,8 +999,41 @@ async function main(config = {}) {
         firstProjectUrl = message.project;
       }
 
+      // Create configured fields once before processing the first message
+      // This ensures campaign-required fields exist even if the agent doesn't explicitly emit operation=create_fields.
+      if (!fieldsCreated && configuredFieldDefinitions.length > 0 && firstProjectUrl) {
+        const operation = typeof message?.operation === "string" ? message.operation : "";
+        if (operation !== "create_fields") {
+          fieldsCreated = true;
+          core.info(`Creating ${configuredFieldDefinitions.length} configured field(s) on project: ${firstProjectUrl}`);
+
+          const fieldsOutput = {
+            type: "update_project",
+            project: firstProjectUrl,
+            operation: "create_fields",
+            field_definitions: configuredFieldDefinitions,
+          };
+
+          try {
+            await updateProject(fieldsOutput);
+            core.info("✓ Created configured fields");
+          } catch (err) {
+            // prettier-ignore
+            const error = /** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} */ (err);
+            core.error("Failed to create configured fields");
+            logGraphQLError(error, "Creating configured fields");
+          }
+        }
+      }
+
+      // If the agent requests create_fields but omitted field_definitions, fall back to configured definitions.
+      const effectiveMessage = { ...message };
+      if (effectiveMessage?.operation === "create_fields" && !effectiveMessage.field_definitions && configuredFieldDefinitions.length > 0) {
+        effectiveMessage.field_definitions = configuredFieldDefinitions;
+      }
+
       // Process the update_project message
-      await updateProject(message);
+      await updateProject(effectiveMessage);
 
       // After processing the first message, create configured views if any
       // Views are created after the first item is processed to ensure the project exists
