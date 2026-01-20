@@ -131,11 +131,11 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 			fn   func(bool, bool) error
 			name string
 		}{
+			{ensureCampaignGeneratorInstructions, "campaign generator instructions"},
 			{ensureCampaignOrchestratorInstructions, "campaign orchestrator instructions"},
 			{ensureCampaignProjectUpdateInstructions, "campaign project update instructions"},
 			{ensureCampaignWorkflowExecution, "campaign workflow execution"},
 			{ensureCampaignClosingInstructions, "campaign closing instructions"},
-			{ensureCampaignGeneratorInstructions, "campaign generator instructions"},
 		}
 
 		for _, item := range campaignEnsureFuncs {

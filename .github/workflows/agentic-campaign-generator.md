@@ -1,6 +1,6 @@
 ---
 name: "Agentic Campaign Generator"
-description: "Agentic Campaign generator that creates project board, discovers workflows, generates campaign spec, and assigns to Copilot agent for compilation"
+description: "Agentic Campaign generator that discovers workflows, generates a campaign spec and a project board, and assigns to Copilot agent for compilation"
 on:
   issues:
     types: [labeled]
@@ -17,8 +17,6 @@ tools:
   github:
     toolsets: [default]
 safe-outputs:
-  add-comment:
-    max: 10
   update-issue:
   assign-to-agent:
   create-project:
@@ -26,23 +24,26 @@ safe-outputs:
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
     target-owner: "${{ github.repository_owner }}"
     views:
-      - name: "Campaign Roadmap"
-        layout: "roadmap"
+      - name: "Progress Board"
+        layout: "board"
         filter: "is:issue is:pr"
       - name: "Task Tracker"
         layout: "table"
         filter: "is:issue is:pr"
-      - name: "Progress Board"
-        layout: "board"
+      - name: "Campaign Roadmap"
+        layout: "roadmap"
         filter: "is:issue is:pr"
   update-project:
     max: 10
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
   messages:
     footer: "> *Campaign coordination by [{workflow_name}]({run_url})*"
-    run-started: "Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}..."
-    run-success: "Campaign setup complete! [{workflow_name}]({run_url}) has successfully coordinated your campaign creation. Your project is ready!"
-    run-failure: "Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again..."
+    run-started: "Campaign Generator started:
+[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}..."
+    run-success: "Campaign setup complete:
+This issue has been assigned to Copilot Coding Agent to compile the campaign and create a PR."
+    run-failure: "Campaign setup interrupted!
+[{workflow_name}]({run_url}) {status}. Please check the details and try again."
 timeout-minutes: 10
 ---
 
