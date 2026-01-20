@@ -3,7 +3,7 @@ engine:
   id: custom
   env:
     GH_AW_AGENT_VERSION: "0.15.13"
-    GH_AW_AGENT_MODEL: "anthropic/claude-3-5-sonnet-20241022"
+    GH_AW_AGENT_MODEL: "anthropic/claude-3.5-sonnet"
   steps:
     - name: Install OpenCode and jq
       run: |
@@ -131,7 +131,7 @@ OpenCode automatically integrates with MCP servers configured in your workflow:
 
 **Environment Variables:**
 - `GH_AW_AGENT_VERSION`: OpenCode version (default: `0.15.13`)
-- `GH_AW_AGENT_MODEL`: AI model in `provider/model` format (default: `anthropic/claude-3-5-sonnet-20241022`)
+- `GH_AW_AGENT_MODEL`: AI model in `provider/model` format (default: `anthropic/claude-3.5-sonnet`)
 - `GH_AW_MCP_CONFIG`: Path to MCP config JSON file (automatically set by gh-aw)
 - `ANTHROPIC_API_KEY`: Required if using Anthropic models
 - `OPENAI_API_KEY`: Required if using OpenAI models
