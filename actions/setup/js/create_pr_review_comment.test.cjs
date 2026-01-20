@@ -225,6 +225,7 @@ const mockCore = {
         process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
         process.env.GH_AW_WORKFLOW_SOURCE = "githubnext/agentics/workflows/ci-doctor.md@v1.0.0";
         process.env.GH_AW_WORKFLOW_SOURCE_URL = "https://github.com/githubnext/agentics/tree/v1.0.0/workflows/ci-doctor.md";
+        process.env.GH_AW_PROMPTS_DIR = path.join(__dirname, "..", "md");
         global.context = {
           eventName: "pull_request",
           runId: 12345,
