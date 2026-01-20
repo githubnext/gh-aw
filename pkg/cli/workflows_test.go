@@ -231,5 +231,5 @@ func TestGetMarkdownWorkflowFilesExcludesREADME(t *testing.T) {
 	}
 
 	// Verify total count
-	assert.Equal(t, 5, len(files), "Should have exactly 5 workflow files (excluding README variants)")
+	assert.Len(t, files, 5, "Should have exactly 5 workflow files (excluding README variants)")
 }
