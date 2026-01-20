@@ -5,16 +5,6 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
- * Predefined options for campaign-specific single-select fields
- * These match the project_update_schema.json definitions
- */
-const CAMPAIGN_FIELD_OPTIONS = {
-  status: ["Todo", "In Progress", "Review required", "Blocked", "Done"],
-  priority: ["High", "Medium", "Low"],
-  size: ["Small", "Medium", "Large"],
-};
-
-/**
  * Log detailed GraphQL error information
  * @param {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} error - GraphQL error
  * @param {string} operation - Operation description
@@ -653,7 +643,7 @@ async function updateProject(output) {
           // Detect expected field type based on field name and value heuristics
           const datePattern = /^\d{4}-\d{2}-\d{2}$/;
           const isDateField = fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date");
-          const isTextField = "classification" === fieldName.toLowerCase() || "campaign_id" === fieldName.toLowerCase() || "worker_workflow" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|"));
+          const isTextField = "classification" === fieldName.toLowerCase() || "campaign_id" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|"));
           let expectedDataType;
           if (isDateField && typeof fieldValue === "string" && datePattern.test(fieldValue)) {
             expectedDataType = "DATE";
@@ -688,7 +678,7 @@ async function updateProject(output) {
                 core.warning(`Field "${fieldName}" looks like a date field but value "${fieldValue}" is not in YYYY-MM-DD format. Skipping field creation.`);
                 continue;
               }
-            } else if ("classification" === fieldName.toLowerCase() || "campaign_id" === fieldName.toLowerCase() || "worker_workflow" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
+            } else if ("classification" === fieldName.toLowerCase() || "campaign_id" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
               try {
                 field = (
                   await github.graphql(
@@ -700,26 +690,18 @@ async function updateProject(output) {
                 core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
                 continue;
               }
-            else {
-              // For campaign-specific single-select fields (status, priority, size),
-              // create with all predefined options from the schema
-              const fieldKey = fieldName.toLowerCase();
-              const predefinedOptions = CAMPAIGN_FIELD_OPTIONS[fieldKey];
-
-              const options = predefinedOptions ? predefinedOptions.map(opt => ({ name: opt, description: "", color: "GRAY" })) : [{ name: String(fieldValue), description: "", color: "GRAY" }];
-
+            else
               try {
                 field = (
                   await github.graphql(
                     "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType,\n                      singleSelectOptions: $options\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          name\n                          options { id name }\n                        }\n                        ... on ProjectV2Field {\n                          id\n                          name\n                        }\n                      }\n                    }\n                  }",
-                    { projectId, name: normalizedFieldName, dataType: "SINGLE_SELECT", options }
+                    { projectId, name: normalizedFieldName, dataType: "SINGLE_SELECT", options: [{ name: String(fieldValue), description: "", color: "GRAY" }] }
                   )
                 ).createProjectV2Field.projectV2Field;
               } catch (createError) {
                 core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
                 continue;
               }
-            }
           if (field.dataType === "DATE") valueToSet = { date: String(fieldValue) };
           else if (field.dataType === "NUMBER") {
             // NUMBER fields use ProjectV2FieldValue input type with number property
@@ -840,7 +822,7 @@ async function updateProject(output) {
           // Detect expected field type based on field name and value heuristics
           const datePattern = /^\d{4}-\d{2}-\d{2}$/;
           const isDateField = fieldName.toLowerCase().includes("_date") || fieldName.toLowerCase().includes("date");
-          const isTextField = "classification" === fieldName.toLowerCase() || "campaign_id" === fieldName.toLowerCase() || "worker_workflow" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|"));
+          const isTextField = "classification" === fieldName.toLowerCase() || "campaign_id" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|"));
           let expectedDataType;
           if (isDateField && typeof fieldValue === "string" && datePattern.test(fieldValue)) {
             expectedDataType = "DATE";
@@ -875,7 +857,7 @@ async function updateProject(output) {
                 core.warning(`Field "${fieldName}" looks like a date field but value "${fieldValue}" is not in YYYY-MM-DD format. Skipping field creation.`);
                 continue;
               }
-            } else if ("classification" === fieldName.toLowerCase() || "campaign_id" === fieldName.toLowerCase() || "worker_workflow" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
+            } else if ("classification" === fieldName.toLowerCase() || "campaign_id" === fieldName.toLowerCase() || ("string" == typeof fieldValue && fieldValue.includes("|")))
               try {
                 field = (
                   await github.graphql(
@@ -887,26 +869,18 @@ async function updateProject(output) {
                 core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
                 continue;
               }
-            else {
-              // For campaign-specific single-select fields (status, priority, size),
-              // create with all predefined options from the schema
-              const fieldKey = fieldName.toLowerCase();
-              const predefinedOptions = CAMPAIGN_FIELD_OPTIONS[fieldKey];
-
-              const options = predefinedOptions ? predefinedOptions.map(opt => ({ name: opt, description: "", color: "GRAY" })) : [{ name: String(fieldValue), description: "", color: "GRAY" }];
-
+            else
               try {
                 field = (
                   await github.graphql(
                     "mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {\n                    createProjectV2Field(input: {\n                      projectId: $projectId,\n                      name: $name,\n                      dataType: $dataType,\n                      singleSelectOptions: $options\n                    }) {\n                      projectV2Field {\n                        ... on ProjectV2SingleSelectField {\n                          id\n                          name\n                          options { id name }\n                        }\n                        ... on ProjectV2Field {\n                          id\n                          name\n                        }\n                      }\n                    }\n                  }",
-                    { projectId, name: normalizedFieldName, dataType: "SINGLE_SELECT", options }
+                    { projectId, name: normalizedFieldName, dataType: "SINGLE_SELECT", options: [{ name: String(fieldValue), description: "", color: "GRAY" }] }
                   )
                 ).createProjectV2Field.projectV2Field;
               } catch (createError) {
                 core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
                 continue;
               }
-            }
           // Check dataType first to properly handle DATE fields before checking for options
           // This prevents date fields from being misidentified as single-select fields
           if (field.dataType === "DATE") {
