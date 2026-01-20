@@ -305,7 +305,43 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 				}
 
 				// Handle standard MCP tools (github, playwright) or tools with MCP-compatible type
-				if toolName == "github" || toolName == "playwright" || isCustomMCP {
+				if toolName == "github" {
+					// Parse GitHub tool configuration for type safety
+					githubConfig := parseGitHubTool(toolValue)
+					if githubConfig != nil && len(githubConfig.Allowed) > 0 {
+						// Check for wildcard access first
+						hasWildcard := false
+						for _, tool := range githubConfig.Allowed {
+							if string(tool) == "*" {
+								hasWildcard = true
+								break
+							}
+						}
+
+						if hasWildcard {
+							// For wildcard access, just add the server name with mcp__ prefix
+							allowedTools = append(allowedTools, fmt.Sprintf("mcp__%s", toolName))
+						} else {
+							// For specific tools, add each one individually
+							for _, tool := range githubConfig.Allowed {
+								allowedTools = append(allowedTools, fmt.Sprintf("mcp__%s__%s", toolName, string(tool)))
+							}
+						}
+					} else {
+						// For GitHub tools without explicit allowed list, use appropriate default GitHub tools based on mode
+						githubMode := getGitHubType(mcpConfig)
+						var defaultTools []string
+						if githubMode == "remote" {
+							defaultTools = constants.DefaultGitHubToolsRemote
+						} else {
+							defaultTools = constants.DefaultGitHubToolsLocal
+						}
+						for _, defaultTool := range defaultTools {
+							allowedTools = append(allowedTools, fmt.Sprintf("mcp__github__%s", defaultTool))
+						}
+					}
+				} else if toolName == "playwright" || isCustomMCP {
+					// Handle playwright and custom MCP tools with generic parsing
 					if allowed, hasAllowed := mcpConfig["allowed"]; hasAllowed {
 						if allowedSlice, ok := allowed.([]any); ok {
 							// Check for wildcard access first
@@ -328,18 +364,6 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 									}
 								}
 							}
-						}
-					} else if toolName == "github" {
-						// For GitHub tools without explicit allowed list, use appropriate default GitHub tools based on mode
-						githubMode := getGitHubType(mcpConfig)
-						var defaultTools []string
-						if githubMode == "remote" {
-							defaultTools = constants.DefaultGitHubToolsRemote
-						} else {
-							defaultTools = constants.DefaultGitHubToolsLocal
-						}
-						for _, defaultTool := range defaultTools {
-							allowedTools = append(allowedTools, fmt.Sprintf("mcp__github__%s", defaultTool))
 						}
 					}
 				}

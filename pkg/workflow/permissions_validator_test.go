@@ -140,7 +140,7 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 			name:        "Default toolsets with no permissions",
 			permissions: NewPermissions(),
 			githubToolConfig: &GitHubToolConfig{
-				Toolset: []string{"default"},
+				Toolset: GitHubToolsets{"default"},
 			},
 			expectMissingCount: 3, // contents, issues, pull-requests
 			expectHasIssues:    true,
@@ -153,7 +153,7 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 				PermissionPullRequests: PermissionWrite,
 			}),
 			githubToolConfig: &GitHubToolConfig{
-				Toolset:  []string{"default"},
+				Toolset:  GitHubToolsets{"default"},
 				ReadOnly: false,
 			},
 			expectMissingCount: 0,
@@ -167,7 +167,7 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 				PermissionPullRequests: PermissionRead,
 			}),
 			githubToolConfig: &GitHubToolConfig{
-				Toolset:  []string{"default"},
+				Toolset:  GitHubToolsets{"default"},
 				ReadOnly: false, // Need write permissions
 			},
 			expectMissingCount: 3, // All need write
@@ -181,7 +181,7 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 				PermissionPullRequests: PermissionRead,
 			}),
 			githubToolConfig: &GitHubToolConfig{
-				Toolset:  []string{"default"},
+				Toolset:  GitHubToolsets{"default"},
 				ReadOnly: true,
 			},
 			expectMissingCount: 0,
@@ -193,7 +193,7 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 				PermissionContents: PermissionWrite,
 			}),
 			githubToolConfig: &GitHubToolConfig{
-				Toolset:  []string{"repos", "issues"},
+				Toolset:  GitHubToolsets{"repos", "issues"},
 				ReadOnly: false,
 			},
 			expectMissingCount: 1, // Missing issues: write
@@ -205,7 +205,7 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 				PermissionActions: PermissionRead,
 			}),
 			githubToolConfig: &GitHubToolConfig{
-				Toolset: []string{"actions"},
+				Toolset: GitHubToolsets{"actions"},
 			},
 			expectMissingCount: 0,
 			expectHasIssues:    false,
@@ -345,7 +345,7 @@ func TestValidatePermissions_ComplexScenarios(t *testing.T) {
 			name:        "Shorthand read-all with default toolsets",
 			permissions: NewPermissionsReadAll(),
 			githubToolConfig: &GitHubToolConfig{
-				Toolset:  []string{"default"},
+				Toolset:  GitHubToolsets{"default"},
 				ReadOnly: false,
 			},
 			expectMsg: []string{
@@ -359,7 +359,7 @@ func TestValidatePermissions_ComplexScenarios(t *testing.T) {
 			name:        "All: read with discussions toolset",
 			permissions: NewPermissionsAllRead(),
 			githubToolConfig: &GitHubToolConfig{
-				Toolset:  []string{"discussions"},
+				Toolset:  GitHubToolsets{"discussions"},
 				ReadOnly: false,
 			},
 			expectMsg: []string{
