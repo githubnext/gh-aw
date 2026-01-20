@@ -42,72 +42,6 @@ func GetAllCodemods() []Codemod {
 	}
 }
 
-// getTimeoutMinutesCodemod creates a codemod for migrating timeout_minutes to timeout-minutes
-func getTimeoutMinutesCodemod() Codemod {
-	return Codemod{
-		ID:           "timeout-minutes-migration",
-		Name:         "Migrate timeout_minutes to timeout-minutes",
-		Description:  "Replaces deprecated 'timeout_minutes' field with 'timeout-minutes'",
-		IntroducedIn: "0.1.0",
-		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
-			// Check if the deprecated field exists
-			value, exists := frontmatter["timeout_minutes"]
-			if !exists {
-				return content, false, nil
-			}
-
-			// Parse frontmatter to get raw lines
-			result, err := parser.ExtractFrontmatterFromContent(content)
-			if err != nil {
-				return content, false, fmt.Errorf("failed to parse frontmatter: %w", err)
-			}
-
-			// Replace the field in raw lines while preserving formatting
-			var modified bool
-			frontmatterLines := make([]string, len(result.FrontmatterLines))
-			for i, line := range result.FrontmatterLines {
-				// Check if this line contains the deprecated field
-				trimmedLine := strings.TrimSpace(line)
-				if strings.HasPrefix(trimmedLine, "timeout_minutes:") {
-					// Preserve indentation
-					leadingSpace := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
-
-					// Extract the value and any trailing comment
-					parts := strings.SplitN(line, ":", 2)
-					if len(parts) >= 2 {
-						valueAndComment := parts[1]
-						frontmatterLines[i] = fmt.Sprintf("%stimeout-minutes:%s", leadingSpace, valueAndComment)
-						modified = true
-						codemodsLog.Printf("Replaced timeout_minutes with timeout-minutes on line %d", i+1)
-					} else {
-						frontmatterLines[i] = line
-					}
-				} else {
-					frontmatterLines[i] = line
-				}
-			}
-
-			if !modified {
-				return content, false, nil
-			}
-
-			// Reconstruct the content
-			var lines []string
-			lines = append(lines, "---")
-			lines = append(lines, frontmatterLines...)
-			lines = append(lines, "---")
-			if result.Markdown != "" {
-				lines = append(lines, "")
-				lines = append(lines, result.Markdown)
-			}
-
-			newContent := strings.Join(lines, "\n")
-			codemodsLog.Printf("Applied timeout_minutes migration (value: %v)", value)
-			return newContent, true, nil
-		},
-	}
-}
-
 // getNetworkFirewallCodemod creates a codemod for migrating network.firewall to sandbox.agent
 func getNetworkFirewallCodemod() Codemod {
 	return Codemod{
@@ -1075,21 +1009,6 @@ func getScheduleAtToAroundCodemod() Codemod {
 			newContent := strings.Join(lines, "\n")
 			codemodsLog.Print("Applied schedule 'at' to 'around' migration")
 			return newContent, true, nil
-		},
-	}
-}
-
-// getDeleteSchemaFileCodemod creates a codemod for deleting the deprecated .github/aw/schemas/agentic-workflow.json file
-func getDeleteSchemaFileCodemod() Codemod {
-	return Codemod{
-		ID:           "delete-schema-file",
-		Name:         "Delete deprecated schema file",
-		Description:  "Deletes .github/aw/schemas/agentic-workflow.json which is no longer written by init command",
-		IntroducedIn: "0.6.0",
-		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
-			// This codemod is handled by the fix command itself (see runFixCommand)
-			// It doesn't modify workflow files, so we just return content unchanged
-			return content, false, nil
 		},
 	}
 }
