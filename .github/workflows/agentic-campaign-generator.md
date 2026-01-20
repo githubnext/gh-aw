@@ -38,10 +38,7 @@ safe-outputs:
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
   messages:
     footer: "> *Campaign coordination by [{workflow_name}]({run_url})*"
-    run-started: "Campaign Generator started:
-[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}..."
-    run-success: "Campaign setup complete:
-This issue has been assigned to Copilot Coding Agent to compile the campaign and create a PR."
+    run-started: "[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}."
     run-failure: "Campaign setup interrupted!
 [{workflow_name}]({run_url}) {status}. Please check the details and try again."
 timeout-minutes: 10

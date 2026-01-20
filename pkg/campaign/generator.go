@@ -92,9 +92,7 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 		},
 		Messages: &workflow.SafeOutputMessagesConfig{
 			Footer:     "> *Campaign coordination by [{workflow_name}]({run_url})*",
-			RunStarted: "Campaign Generator started:\n[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}...",
-			RunSuccess: "Campaign setup complete:\nThis issue has been assigned to Copilot Coding Agent to compile the campaign and create a PR.",
-			RunFailure: "Campaign setup interrupted!\n[{workflow_name}]({run_url}) {status}. Please check the details and try again.",
+			RunStarted: "[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.", RunFailure: "[{workflow_name}]({run_url}) {status}. Please check the details and try again.",
 		},
 	}
 }
