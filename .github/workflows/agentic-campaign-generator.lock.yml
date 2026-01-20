@@ -308,6 +308,41 @@ jobs:
               "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.",
               "inputSchema": {
                 "additionalProperties": false,
+                "oneOf": [
+                  {
+                    "properties": {
+                      "operation": {
+                        "const": "create_fields"
+                      }
+                    },
+                    "required": [
+                      "project",
+                      "operation",
+                      "field_definitions"
+                    ],
+                    "title": "Create project fields"
+                  },
+                  {
+                    "properties": {
+                      "operation": {
+                        "const": "create_view"
+                      }
+                    },
+                    "required": [
+                      "project",
+                      "operation",
+                      "view"
+                    ],
+                    "title": "Create project view"
+                  },
+                  {
+                    "required": [
+                      "project",
+                      "content_type"
+                    ],
+                    "title": "Add/update project item"
+                  }
+                ],
                 "properties": {
                   "campaign_id": {
                     "description": "Campaign identifier to group related project items. Used to track items created by the same campaign or workflow run.",
@@ -338,20 +373,92 @@ jobs:
                     "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue'.",
                     "type": "string"
                   },
+                  "field_definitions": {
+                    "description": "Field definitions to create when operation is create_fields.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "data_type": {
+                          "description": "Field type. Use SINGLE_SELECT with options for enumerated values.",
+                          "enum": [
+                            "TEXT",
+                            "NUMBER",
+                            "DATE",
+                            "SINGLE_SELECT",
+                            "ITERATION"
+                          ],
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Field name to create (e.g., 'size', 'priority').",
+                          "type": "string"
+                        },
+                        "options": {
+                          "description": "Options for SINGLE_SELECT fields.",
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "data_type"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
                   "fields": {
                     "description": "Custom field values to set on the project item (e.g., {'Status': 'In Progress', 'Priority': 'High'}). Field names must match custom fields defined in the project.",
                     "type": "object"
+                  },
+                  "operation": {
+                    "description": "Optional operation mode. Use create_fields to create required campaign fields up-front, or create_view to add a project view. When omitted, the tool adds/updates project items.",
+                    "enum": [
+                      "create_fields",
+                      "create_view"
+                    ],
+                    "type": "string"
                   },
                   "project": {
                     "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted.",
                     "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
                     "type": "string"
+                  },
+                  "view": {
+                    "additionalProperties": false,
+                    "description": "View definition to create when operation is create_view.",
+                    "properties": {
+                      "filter": {
+                        "type": "string"
+                      },
+                      "layout": {
+                        "enum": [
+                          "table",
+                          "board",
+                          "roadmap"
+                        ],
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "visible_fields": {
+                        "description": "Field IDs to show in the view (table/board only).",
+                        "items": {
+                          "type": "number"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "layout"
+                    ],
+                    "type": "object"
                   }
                 },
-                "required": [
-                  "project",
-                  "content_type"
-                ],
                 "type": "object"
               },
               "name": "update_project"
