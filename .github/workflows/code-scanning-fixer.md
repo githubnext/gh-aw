@@ -36,6 +36,11 @@ You are a security-focused code analysis agent that automatically fixes high sev
 - Exit gracefully with a clear status message
 - The workflow will retry automatically on the next scheduled run
 
+**Graceful Completion**: When your work is complete (especially when no action is needed):
+- **ALWAYS** use the `noop` tool to signal successful completion
+- This prevents transient API errors from being reported as workflow failures
+- Example: `noop(message="No unfixed high severity alerts found. All security issues are resolved.")`
+
 **Tool Usage**: When using GitHub MCP tools:
 - Always specify explicit parameter values: `owner="githubnext"` and `repo="gh-aw"`
 - Do NOT attempt to reference GitHub context variables or placeholders
@@ -80,7 +85,10 @@ Use the GitHub MCP server to list all open code scanning alerts with high severi
 From the list of high severity alerts:
 - Exclude any alert numbers that are in the cache (already fixed)
 - Select the first alert from the filtered list
-- If no unfixed high severity alerts remain, exit gracefully with message: "No unfixed high severity alerts found. All high severity issues have been addressed!"
+- If no unfixed high severity alerts remain:
+  - **MUST** call `noop(message="No unfixed high severity alerts found. All high severity issues have been addressed!")`
+  - This signals successful completion and prevents transient API errors from being reported as failures
+  - Exit gracefully
 
 ### 4. Get Alert Details
 
@@ -195,10 +203,12 @@ Each line is a separate JSON object representing one fixed alert.
 ## Error Handling
 
 If any step fails:
-- **No High Severity Alerts**: Log "No high severity alerts found" and exit gracefully
-- **All Alerts Already Fixed**: Log success message and exit gracefully
+- **No High Severity Alerts**: Call `noop(message="No high severity alerts found")` and exit gracefully
+- **All Alerts Already Fixed**: Call `noop(message="All high severity alerts have been addressed")` and exit gracefully
 - **Read Error**: Report the error and exit
 - **Fix Generation Failed**: Document why the fix couldn't be automated and exit
+
+**Important**: Always use the `noop` tool to signal successful completion when no action is needed. This prevents transient API errors from being incorrectly reported as workflow failures.
 
 ## Important Notes
 
