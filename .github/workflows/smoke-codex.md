@@ -46,6 +46,7 @@ safe-outputs:
       hide-older-comments: true
     create-issue:
       expires: 2h
+      close-older-issues: true
     add-labels:
       allowed: [smoke-codex]
     hide-comment:
