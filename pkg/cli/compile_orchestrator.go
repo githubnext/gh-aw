@@ -72,8 +72,8 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 	}
 
 	// Make the orchestrator runnable by default.
-	// Use engine from EngineConfig if available, otherwise default to copilot
-	engineID := "copilot"
+	// Use engine from EngineConfig if available, otherwise default to claude.
+	engineID := "claude"
 	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
 		engineID = data.EngineConfig.ID
 	}
@@ -197,8 +197,13 @@ func generateAndCompileCampaignOrchestrator(opts GenerateCampaignOrchestratorOpt
 	}
 
 	// Ensure we pick a real engine in the YAML compiler path.
+	// Campaign orchestrators should default to claude (matching the orchestrator generator).
 	if strings.TrimSpace(data.AI) == "" {
-		data.AI = "copilot"
+		engineID := "claude"
+		if data.EngineConfig != nil && strings.TrimSpace(data.EngineConfig.ID) != "" {
+			engineID = strings.TrimSpace(data.EngineConfig.ID)
+		}
+		data.AI = engineID
 	}
 
 	if !opts.NoEmit {

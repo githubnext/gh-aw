@@ -66,6 +66,10 @@ func TestGenerateAndCompileCampaignOrchestrator(t *testing.T) {
 	}
 	lockStr := string(lockContent)
 
+	if !strings.Contains(lockStr, "engine_id: \"claude\"") {
+		t.Errorf("expected lock file to use claude engine, got: %s", lockPath)
+	}
+
 	requiredPermissions := []string{
 		"contents: read",
 		"issues: read",
@@ -86,6 +90,10 @@ func TestGenerateAndCompileCampaignOrchestrator(t *testing.T) {
 		t.Fatalf("failed to read generated markdown file: %v", readErr)
 	}
 	mdStr := string(mdContent)
+
+	if !strings.Contains(mdStr, "engine: claude") {
+		t.Errorf("expected generated markdown to set engine: claude")
+	}
 
 	// Verify that the Source comment exists and contains a relative path (not absolute)
 	if !strings.Contains(mdStr, "<!-- Source:") {
