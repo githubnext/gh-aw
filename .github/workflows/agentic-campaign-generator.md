@@ -25,9 +25,6 @@ safe-outputs:
     max: 1
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
     target-owner: "${{ github.repository_owner }}"
-  update-project:
-    max: 10
-    github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
     views:
       - name: "Campaign Roadmap"
         layout: "roadmap"
@@ -38,6 +35,9 @@ safe-outputs:
       - name: "Progress Board"
         layout: "board"
         filter: "is:issue is:pr"
+  update-project:
+    max: 10
+    github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
   messages:
     footer: "> *Campaign coordination by [{workflow_name}]({run_url})*"
     run-started: "Campaign Generator starting! [{workflow_name}]({run_url}) is processing your campaign request for this {event_type}..."

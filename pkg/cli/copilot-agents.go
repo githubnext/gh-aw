@@ -271,18 +271,6 @@ func ensureCampaignGeneratorInstructions(verbose bool, skipInstructions bool) er
 	)
 }
 
-// ensureCampaignCreationInstructions ensures that .github/aw/create-agentic-campaign.md exists
-func ensureCampaignCreationInstructions(verbose bool, skipInstructions bool) error {
-	return ensureFileMatchesTemplate(
-		filepath.Join(".github", "aw"),
-		"create-agentic-campaign.md",
-		campaignCreationInstructionsTemplate,
-		"campaign creation instructions",
-		verbose,
-		skipInstructions,
-	)
-}
-
 // deleteSetupAgenticWorkflowsAgent deletes the setup-agentic-workflows.agent.md file if it exists
 func deleteSetupAgenticWorkflowsAgent(verbose bool) error {
 	gitRoot, err := findGitRoot()
