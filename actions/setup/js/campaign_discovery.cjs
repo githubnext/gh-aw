@@ -151,9 +151,7 @@ async function searchByTrackerId(octokit, trackerId, repos, orgs, maxItems, maxP
     const scopeQuery = scopeParts.join(" ");
     // Check if combined query would exceed GitHub's limit
     if (searchQuery.length + scopeQuery.length + 3 > 1000) {
-      core.warning(
-        `Search query length (${searchQuery.length + scopeQuery.length}) approaches GitHub's ~1024 character limit. Some repos/orgs may be omitted.`,
-      );
+      core.warning(`Search query length (${searchQuery.length + scopeQuery.length}) approaches GitHub's ~1024 character limit. Some repos/orgs may be omitted.`);
     }
     searchQuery = `${searchQuery} (${scopeQuery})`;
     core.info(`Scoped search to: ${scopeParts.join(", ")}`);
@@ -243,9 +241,7 @@ async function searchByLabel(octokit, label, repos, orgs, maxItems, maxPages, cu
     const scopeQuery = scopeParts.join(" ");
     // Check if combined query would exceed GitHub's limit
     if (searchQuery.length + scopeQuery.length + 3 > 1000) {
-      core.warning(
-        `Search query length (${searchQuery.length + scopeQuery.length}) approaches GitHub's ~1024 character limit. Some repos/orgs may be omitted.`,
-      );
+      core.warning(`Search query length (${searchQuery.length + scopeQuery.length}) approaches GitHub's ~1024 character limit. Some repos/orgs may be omitted.`);
     }
     searchQuery = `${searchQuery} (${scopeQuery})`;
     core.info(`Scoped search to: ${scopeParts.join(", ")}`);
