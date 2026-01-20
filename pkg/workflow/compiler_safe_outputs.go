@@ -25,7 +25,17 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 	var hasStopAfter bool
 	var otherEvents map[string]any
 
-	if onValue, exists := frontmatter["on"]; exists {
+	// Use cached On field from ParsedFrontmatter if available, otherwise fall back to map access
+	var onValue any
+	var exists bool
+	if workflowData.ParsedFrontmatter != nil && workflowData.ParsedFrontmatter.On != nil {
+		onValue = workflowData.ParsedFrontmatter.On
+		exists = true
+	} else {
+		onValue, exists = frontmatter["on"]
+	}
+
+	if exists {
 		// Check for new format: on.slash_command/on.command and on.reaction
 		if onMap, ok := onValue.(map[string]any); ok {
 			// Check for stop-after in the on section

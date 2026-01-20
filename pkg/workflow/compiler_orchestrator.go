@@ -484,6 +484,14 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 
+	// Parse frontmatter config once for performance optimization
+	parsedFrontmatter, err := ParseFrontmatterConfig(result.Frontmatter)
+	if err != nil {
+		orchestratorLog.Printf("Failed to parse frontmatter config: %v", err)
+		// Non-fatal error - continue with nil ParsedFrontmatter
+		parsedFrontmatter = nil
+	}
+
 	// Build workflow data
 	workflowData := &WorkflowData{
 		Name:                workflowName,
@@ -512,6 +520,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		GitHubToken:         extractStringFromMap(result.Frontmatter, "github-token", nil),
 		StrictMode:          c.strictMode,
 		SecretMasking:       secretMasking,
+		ParsedFrontmatter:   parsedFrontmatter,
 	}
 
 	// Apply defaults to sandbox config
