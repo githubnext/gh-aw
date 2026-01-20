@@ -459,14 +459,36 @@ func TestValidateSpec_MissingAllowedReposIsValid(t *testing.T) {
 		ID:         "test-campaign",
 		Name:       "Test Campaign",
 		ProjectURL: "https://github.com/orgs/org/projects/1",
-		Workflows:  []string{"workflow1"},
-		// AllowedRepos intentionally omitted - should default to current repo
+		// No Workflows, no AllowedRepos - should be valid since no discovery needed
 	}
 
 	problems := ValidateSpec(spec)
-	// Should not have validation problems - allowed-repos is now optional
-	if len(problems) != 0 {
-		t.Errorf("Expected no validation problems for missing allowed-repos (should default to current repo), got: %v", problems)
+	// Should have one problem: missing workflows
+	if len(problems) != 1 {
+		t.Errorf("Expected 1 validation problem (workflows), got: %v", problems)
+	}
+}
+
+func TestValidateSpec_MissingAllowedReposWithWorkflowsIsInvalid(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:         "test-campaign",
+		Name:       "Test Campaign",
+		ProjectURL: "https://github.com/orgs/org/projects/1",
+		Workflows:  []string{"workflow1"},
+		// AllowedRepos intentionally omitted - should fail because workflows need scoping
+	}
+
+	problems := ValidateSpec(spec)
+	// Should have validation problems for missing scope
+	hasDiscoveryScopeError := false
+	for _, p := range problems {
+		if strings.Contains(p, "campaigns with workflows or tracker-label must specify allowed-repos or allowed-orgs") {
+			hasDiscoveryScopeError = true
+			break
+		}
+	}
+	if !hasDiscoveryScopeError {
+		t.Errorf("Expected validation error for missing scope with workflows, got: %v", problems)
 	}
 }
 
@@ -501,14 +523,36 @@ func TestValidateSpec_EmptyAllowedReposIsValid(t *testing.T) {
 		ID:           "test-campaign",
 		Name:         "Test Campaign",
 		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		AllowedRepos: []string{}, // Empty list - should default to current repo
+		AllowedRepos: []string{}, // Empty list, no workflows
 	}
 
 	problems := ValidateSpec(spec)
-	// Should not have validation problems - empty list defaults to current repo
-	if len(problems) != 0 {
-		t.Errorf("Expected no validation problems for empty allowed-repos (should default to current repo), got: %v", problems)
+	// Should have one problem: missing workflows
+	if len(problems) != 1 {
+		t.Errorf("Expected 1 validation problem (workflows), got: %v", problems)
+	}
+}
+
+func TestValidateSpec_EmptyAllowedReposWithWorkflowsIsInvalid(t *testing.T) {
+	spec := &CampaignSpec{
+		ID:           "test-campaign",
+		Name:         "Test Campaign",
+		ProjectURL:   "https://github.com/orgs/org/projects/1",
+		Workflows:    []string{"workflow1"},
+		AllowedRepos: []string{}, // Empty list - should fail with workflows
+	}
+
+	problems := ValidateSpec(spec)
+	// Should have validation problems for missing scope
+	hasDiscoveryScopeError := false
+	for _, p := range problems {
+		if strings.Contains(p, "campaigns with workflows or tracker-label must specify allowed-repos or allowed-orgs") {
+			hasDiscoveryScopeError = true
+			break
+		}
+	}
+	if !hasDiscoveryScopeError {
+		t.Errorf("Expected validation error for empty scope with workflows, got: %v", problems)
 	}
 }
 

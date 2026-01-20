@@ -66,6 +66,27 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		problems = append(problems, "workflows should list at least one workflow implementing this campaign - example: ['vulnerability-scanner', 'dependency-updater']")
 	}
 
+	// Validate tracker-label format if provided
+	if spec.TrackerLabel != "" {
+		trimmedLabel := strings.TrimSpace(spec.TrackerLabel)
+		// Tracker labels should follow the pattern "campaign:campaign-id"
+		if !strings.HasPrefix(trimmedLabel, "campaign:") {
+			problems = append(problems, fmt.Sprintf("tracker-label should start with 'campaign:' prefix - got '%s', recommended: 'campaign:%s'", trimmedLabel, spec.ID))
+		}
+		// Check for invalid characters in labels (GitHub label restrictions)
+		if strings.Contains(trimmedLabel, " ") {
+			problems = append(problems, fmt.Sprintf("tracker-label cannot contain spaces - got '%s', try replacing spaces with hyphens", trimmedLabel))
+		}
+	}
+
+	// Validate that campaigns with workflows or tracker-label have allowed-repos or allowed-orgs
+	// This ensures discovery is properly scoped
+	hasDiscovery := len(spec.Workflows) > 0 || spec.TrackerLabel != ""
+	hasScope := len(spec.AllowedRepos) > 0 || len(spec.AllowedOrgs) > 0
+	if hasDiscovery && !hasScope {
+		problems = append(problems, "campaigns with workflows or tracker-label must specify allowed-repos or allowed-orgs for discovery scoping - configure at least one to define where the campaign can discover items")
+	}
+
 	// Validate allowed-repos format if provided (now optional - defaults to current repo)
 	if len(spec.AllowedRepos) > 0 {
 		// Validate each repository format

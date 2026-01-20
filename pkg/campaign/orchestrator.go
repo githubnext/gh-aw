@@ -328,16 +328,34 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// Add workflow execution instructions when workflows are configured
 	if len(spec.Workflows) > 0 {
 		workflowExecution := RenderWorkflowExecution(promptData)
-		appendPromptSection(markdownBuilder, "WORKFLOW EXECUTION (PHASE 0)", workflowExecution)
-		orchestratorLog.Printf("Campaign '%s' orchestrator includes workflow execution", spec.ID)
+		if workflowExecution == "" {
+			orchestratorLog.Print("Warning: Failed to render workflow execution instructions, template may be missing")
+		} else {
+			appendPromptSection(markdownBuilder, "WORKFLOW EXECUTION (PHASE 0)", workflowExecution)
+			orchestratorLog.Printf("Campaign '%s' orchestrator includes workflow execution", spec.ID)
+		}
 	}
 
 	orchestratorInstructions := RenderOrchestratorInstructions(promptData)
-	appendPromptSection(markdownBuilder, "ORCHESTRATOR INSTRUCTIONS", orchestratorInstructions)
+	if orchestratorInstructions == "" {
+		orchestratorLog.Print("Warning: Failed to render orchestrator instructions, template may be missing")
+	} else {
+		appendPromptSection(markdownBuilder, "ORCHESTRATOR INSTRUCTIONS", orchestratorInstructions)
+	}
 
 	projectInstructions := RenderProjectUpdateInstructions(promptData)
-	appendPromptSection(markdownBuilder, "PROJECT UPDATE INSTRUCTIONS (AUTHORITATIVE FOR WRITES)", projectInstructions)
-	appendPromptSection(markdownBuilder, "CLOSING INSTRUCTIONS (HIGHEST PRIORITY)", RenderClosingInstructions())
+	if projectInstructions == "" {
+		orchestratorLog.Print("Warning: Failed to render project update instructions, template may be missing")
+	} else {
+		appendPromptSection(markdownBuilder, "PROJECT UPDATE INSTRUCTIONS (AUTHORITATIVE FOR WRITES)", projectInstructions)
+	}
+
+	closingInstructions := RenderClosingInstructions()
+	if closingInstructions == "" {
+		orchestratorLog.Print("Warning: Failed to render closing instructions, template may be missing")
+	} else {
+		appendPromptSection(markdownBuilder, "CLOSING INSTRUCTIONS (HIGHEST PRIORITY)", closingInstructions)
+	}
 
 	// Enable safe outputs needed for campaign coordination.
 	// Note: Campaign orchestrators intentionally omit explicit `permissions:` from

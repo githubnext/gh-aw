@@ -231,8 +231,8 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	buf.WriteString("    source: code_security\n")
 	buf.WriteString("```\n")
 
-	// Use restrictive permissions (0600) to follow security best practices
-	if err := os.WriteFile(fullPath, []byte(buf.String()), 0o600); err != nil {
+	// Use restrictive permissions (0644) for proper git tracking
+	if err := os.WriteFile(fullPath, []byte(buf.String()), 0o644); err != nil {
 		return "", fmt.Errorf("failed to write campaign spec file '%s': %w", relPath, err)
 	}
 
