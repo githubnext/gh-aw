@@ -1,9 +1,6 @@
 ---
-steps:
-  - name: Install Markitdown MCP
-    run: pip install markitdown-mcp
 mcp-servers:
   markitdown:
-    command: "markitdown-mcp"
+    container: "mcp/markitdown"
     allowed: ["*"]
 ---

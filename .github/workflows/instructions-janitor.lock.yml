@@ -153,11 +153,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install awf binary
-        run: |
-          echo "Installing awf via installer script (requested version: v0.10.0)"
-          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.10.0 bash
-          which awf
-          awf --version
+        run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.10.0
       - name: Install Claude Code CLI
         run: npm install -g --silent @anthropic-ai/claude-code@2.1.12
       - name: Determine automatic lockdown mode for GitHub MCP server
@@ -171,7 +167,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.69 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.69 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -378,7 +374,7 @@ jobs:
           {
             "mcpServers": {
               "github": {
-                "container": "ghcr.io/github/github-mcp-server:v0.28.1",
+                "container": "ghcr.io/github/github-mcp-server:v0.29.0",
                 "env": {
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",

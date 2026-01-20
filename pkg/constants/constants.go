@@ -248,7 +248,7 @@ const DefaultClaudeCodeVersion Version = "2.1.12"
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY.
-const DefaultCopilotVersion Version = "0.0.384"
+const DefaultCopilotVersion Version = "0.0.385"
 
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
 const DefaultCopilotDetectionModel ModelName = "gpt-5-mini"
@@ -275,7 +275,7 @@ const (
 const DefaultCodexVersion Version = "0.87.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v0.28.1"
+const DefaultGitHubMCPServerVersion Version = "v0.29.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion Version = "v0.10.0"

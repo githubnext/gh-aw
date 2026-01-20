@@ -70,14 +70,24 @@ func validateSafeOutputsAllowedDomains(config *SafeOutputsConfig) error {
 func validateDomainPattern(domain string) error {
 	// Check for empty domain
 	if domain == "" {
-		return fmt.Errorf("domain cannot be empty")
+		return NewValidationError(
+			"domain",
+			"",
+			"domain cannot be empty",
+			"Provide a valid domain name. Examples:\n  - Plain domain: 'github.com'\n  - Wildcard: '*.github.com'\n  - With protocol: 'https://api.github.com'",
+		)
 	}
 
 	// Check for invalid protocol prefixes
 	// Only http:// and https:// are allowed
 	if strings.Contains(domain, "://") {
 		if !strings.HasPrefix(domain, "https://") && !strings.HasPrefix(domain, "http://") {
-			return fmt.Errorf("domain pattern '%s' has invalid protocol, only 'http://' and 'https://' are allowed", domain)
+			return NewValidationError(
+				"domain",
+				domain,
+				"domain pattern has invalid protocol, only 'http://' and 'https://' are allowed",
+				"Remove the invalid protocol or use 'http://' or 'https://'. Examples:\n  - 'https://api.github.com'\n  - 'http://example.com'\n  - 'github.com' (no protocol)",
+			)
 		}
 	}
 
@@ -92,33 +102,63 @@ func validateDomainPattern(domain string) error {
 
 	// Check for wildcard-only pattern
 	if domainWithoutProtocol == "*" {
-		return fmt.Errorf("wildcard-only domain '*' is not allowed, use a specific wildcard pattern like '*.example.com' or 'https://*.example.com'")
+		return NewValidationError(
+			"domain",
+			domain,
+			"wildcard-only domain '*' is not allowed",
+			"Use a specific wildcard pattern with a base domain. Examples:\n  - '*.example.com'\n  - '*.github.com'\n  - 'https://*.api.example.com'",
+		)
 	}
 
 	// Check for wildcard without base domain (must be done before regex)
 	if domainWithoutProtocol == "*." {
-		return fmt.Errorf("wildcard pattern '%s' must have a domain after '*.' (e.g., '*.example.com' or 'https://*.example.com')", domain)
+		return NewValidationError(
+			"domain",
+			domain,
+			"wildcard pattern must have a domain after '*.'",
+			"Add a base domain after the wildcard. Examples:\n  - '*.example.com'\n  - '*.github.com'\n  - 'https://*.api.example.com'",
+		)
 	}
 
 	// Check for multiple wildcards
 	if strings.Count(domainWithoutProtocol, "*") > 1 {
-		return fmt.Errorf("domain pattern '%s' contains multiple wildcards, only one wildcard at the start is allowed (e.g., '*.example.com' or 'https://*.example.com')", domain)
+		return NewValidationError(
+			"domain",
+			domain,
+			"domain pattern contains multiple wildcards, only one wildcard at the start is allowed",
+			"Use a single wildcard at the start of the domain. Examples:\n  - '*.example.com' ✓\n  - '*.*.example.com' ✗ (multiple wildcards)\n  - 'https://*.github.com' ✓",
+		)
 	}
 
 	// Check for wildcard not at the start (in the domain part)
 	if strings.Contains(domainWithoutProtocol, "*") && !strings.HasPrefix(domainWithoutProtocol, "*.") {
-		return fmt.Errorf("domain pattern '%s' has wildcard in invalid position, wildcard must be at the start followed by a dot (e.g., '*.example.com' or 'https://*.example.com')", domain)
+		return NewValidationError(
+			"domain",
+			domain,
+			"wildcard must be at the start followed by a dot",
+			"Move the wildcard to the beginning of the domain. Examples:\n  - '*.example.com' ✓\n  - 'example.*.com' ✗ (wildcard in middle)\n  - 'https://*.github.com' ✓",
+		)
 	}
 
 	// Additional validation for wildcard patterns
 	if strings.HasPrefix(domainWithoutProtocol, "*.") {
 		baseDomain := domainWithoutProtocol[2:] // Remove "*."
 		if baseDomain == "" {
-			return fmt.Errorf("wildcard pattern '%s' must have a domain after '*.' (e.g., '*.example.com' or 'https://*.example.com')", domain)
+			return NewValidationError(
+				"domain",
+				domain,
+				"wildcard pattern must have a domain after '*.'",
+				"Add a base domain after the wildcard. Examples:\n  - '*.example.com'\n  - '*.github.com'\n  - 'https://*.api.example.com'",
+			)
 		}
 		// Ensure the base domain doesn't start with a dot
 		if strings.HasPrefix(baseDomain, ".") {
-			return fmt.Errorf("wildcard pattern '%s' has invalid format, use '*.example.com' or 'https://*.example.com' instead", domain)
+			return NewValidationError(
+				"domain",
+				domain,
+				"wildcard pattern has invalid format (extra dot after wildcard)",
+				"Use correct wildcard format. Examples:\n  - '*.example.com' ✓\n  - '*.*.example.com' ✗ (extra dot)\n  - 'https://*.github.com' ✓",
+			)
 		}
 	}
 
@@ -126,13 +166,28 @@ func validateDomainPattern(domain string) error {
 	if !domainPattern.MatchString(domainWithoutProtocol) {
 		// Provide specific error messages for common issues
 		if strings.HasSuffix(domainWithoutProtocol, ".") {
-			return fmt.Errorf("domain pattern '%s' cannot end with a dot", domain)
+			return NewValidationError(
+				"domain",
+				domain,
+				"domain pattern cannot end with a dot",
+				"Remove the trailing dot from the domain. Examples:\n  - 'example.com' ✓\n  - 'example.com.' ✗\n  - '*.github.com' ✓",
+			)
 		}
 		if strings.Contains(domainWithoutProtocol, "..") {
-			return fmt.Errorf("domain pattern '%s' cannot contain consecutive dots", domain)
+			return NewValidationError(
+				"domain",
+				domain,
+				"domain pattern cannot contain consecutive dots",
+				"Remove extra dots from the domain. Examples:\n  - 'api.example.com' ✓\n  - 'api..example.com' ✗\n  - 'sub.api.example.com' ✓",
+			)
 		}
 		if strings.HasPrefix(domainWithoutProtocol, ".") && !strings.HasPrefix(domainWithoutProtocol, "*.") {
-			return fmt.Errorf("domain pattern '%s' cannot start with a dot (except for wildcard patterns like '*.example.com')", domain)
+			return NewValidationError(
+				"domain",
+				domain,
+				"domain pattern cannot start with a dot (except for wildcard patterns)",
+				"Remove the leading dot or use a wildcard. Examples:\n  - 'example.com' ✓\n  - '.example.com' ✗\n  - '*.example.com' ✓",
+			)
 		}
 		// Check for invalid characters (in the domain part, not protocol)
 		for _, char := range domainWithoutProtocol {
@@ -140,10 +195,20 @@ func validateDomainPattern(domain string) error {
 				(char < 'A' || char > 'Z') &&
 				(char < '0' || char > '9') &&
 				char != '-' && char != '.' && char != '*' {
-				return fmt.Errorf("domain pattern '%s' contains invalid character '%c', only alphanumeric, hyphens, dots, and wildcards are allowed", domain, char)
+				return NewValidationError(
+					"domain",
+					domain,
+					fmt.Sprintf("domain pattern contains invalid character '%c'", char),
+					"Use only alphanumeric characters, hyphens, dots, and wildcards. Examples:\n  - 'api-v2.example.com' ✓\n  - 'api_v2.example.com' ✗ (underscore not allowed)\n  - '*.github.com' ✓",
+				)
 			}
 		}
-		return fmt.Errorf("domain pattern '%s' is not a valid domain format", domain)
+		return NewValidationError(
+			"domain",
+			domain,
+			"domain pattern is not a valid domain format",
+			"Use a valid domain format. Examples:\n  - Plain: 'github.com', 'api.example.com'\n  - Wildcard: '*.github.com', '*.example.com'\n  - With protocol: 'https://api.github.com'",
+		)
 	}
 
 	return nil

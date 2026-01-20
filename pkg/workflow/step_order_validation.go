@@ -112,7 +112,13 @@ func (t *StepOrderTracker) ValidateStepOrdering() error {
 	// If there are artifact uploads but no secret redaction, that's a bug
 	if !t.secretRedactionAdded {
 		stepOrderLog.Print("Validation failed: artifact uploads found but no secret redaction step")
-		return fmt.Errorf("compiler bug: artifact uploads found but no secret redaction step was added (this is a critical security issue)")
+		return NewOperationError(
+			"compile",
+			"workflow steps",
+			"artifact uploads without secret redaction",
+			fmt.Errorf("artifact uploads found but no secret redaction step was added"),
+			"This is a critical security issue - a compiler bug. Please report this issue to the gh-aw maintainers with your workflow file:\nhttps://github.com/githubnext/gh-aw/issues/new",
+		)
 	}
 
 	stepOrderLog.Printf("Secret redaction step found at order %d", t.secretRedactionOrder)
@@ -126,16 +132,26 @@ func (t *StepOrderTracker) ValidateStepOrdering() error {
 	}
 
 	if len(uploadsBeforeRedaction) > 0 {
-		return fmt.Errorf("compiler bug: secret redaction must happen before artifact uploads, but found %d upload(s) before redaction: %s",
-			len(uploadsBeforeRedaction), strings.Join(uploadsBeforeRedaction, ", "))
+		return NewOperationError(
+			"compile",
+			"workflow steps",
+			"incorrect step ordering",
+			fmt.Errorf("found %d upload(s) before secret redaction: %s", len(uploadsBeforeRedaction), strings.Join(uploadsBeforeRedaction, ", ")),
+			"This is a compiler bug - secret redaction must happen before artifact uploads. Please report this issue to the gh-aw maintainers with your workflow file:\nhttps://github.com/githubnext/gh-aw/issues/new",
+		)
 	}
 
 	// Check that all uploaded paths are covered by secret redaction
 	// Secret redaction scans all files in /tmp/gh-aw/ with extensions .txt, .json, .log
 	unscannable := t.findUnscannablePaths(artifactUploads)
 	if len(unscannable) > 0 {
-		return fmt.Errorf("compiler bug: the following artifact upload paths are not covered by secret redaction: %s",
-			strings.Join(unscannable, ", "))
+		return NewOperationError(
+			"compile",
+			"workflow steps",
+			"artifact paths not covered by secret redaction",
+			fmt.Errorf("paths not covered: %s", strings.Join(unscannable, ", ")),
+			"This is a compiler bug - all artifact uploads must be covered by secret redaction. Please report this issue to the gh-aw maintainers with your workflow file:\nhttps://github.com/githubnext/gh-aw/issues/new",
+		)
 	}
 
 	return nil

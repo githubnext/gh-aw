@@ -67,7 +67,13 @@ func getCompiledMCPGatewaySchema() (*jsonschema.Schema, error) {
 		// Parse the embedded schema
 		var schemaDoc any
 		if err := json.Unmarshal([]byte(mcpGatewayConfigSchema), &schemaDoc); err != nil {
-			mcpGatewaySchemaCompileError = fmt.Errorf("failed to parse embedded MCP Gateway configuration schema: %w", err)
+			mcpGatewaySchemaCompileError = NewOperationError(
+				"compile",
+				"MCP Gateway schema",
+				"embedded schema",
+				err,
+				"This is an internal error with the embedded MCP Gateway schema. Please report this issue:\nhttps://github.com/githubnext/gh-aw/issues/new",
+			)
 			return
 		}
 
@@ -75,14 +81,26 @@ func getCompiledMCPGatewaySchema() (*jsonschema.Schema, error) {
 		loader := jsonschema.NewCompiler()
 		schemaURL := "https://docs.github.com/gh-aw/schemas/mcp-gateway-config.schema.json"
 		if err := loader.AddResource(schemaURL, schemaDoc); err != nil {
-			mcpGatewaySchemaCompileError = fmt.Errorf("failed to add MCP Gateway schema resource: %w", err)
+			mcpGatewaySchemaCompileError = NewOperationError(
+				"compile",
+				"MCP Gateway schema",
+				schemaURL,
+				err,
+				"This is an internal error with the MCP Gateway schema resource. Please report this issue:\nhttps://github.com/githubnext/gh-aw/issues/new",
+			)
 			return
 		}
 
 		// Compile the schema once
 		schema, err := loader.Compile(schemaURL)
 		if err != nil {
-			mcpGatewaySchemaCompileError = fmt.Errorf("failed to compile MCP Gateway configuration schema: %w", err)
+			mcpGatewaySchemaCompileError = NewOperationError(
+				"compile",
+				"MCP Gateway schema",
+				schemaURL,
+				err,
+				"This is an internal error compiling the MCP Gateway schema. Please report this issue:\nhttps://github.com/githubnext/gh-aw/issues/new",
+			)
 			return
 		}
 

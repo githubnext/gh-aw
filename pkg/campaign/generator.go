@@ -70,9 +70,6 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 		CreateProjects: &workflow.CreateProjectsConfig{
 			GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 			TargetOwner: "${{ github.repository_owner }}",
-		},
-		UpdateProjects: &workflow.UpdateProjectConfig{
-			GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 			Views: []workflow.ProjectView{
 				{
 					Name:   "Campaign Roadmap",
@@ -90,6 +87,9 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 					Filter: "is:issue is:pr",
 				},
 			},
+		},
+		UpdateProjects: &workflow.UpdateProjectConfig{
+			GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 		},
 		Messages: &workflow.SafeOutputMessagesConfig{
 			Footer:     "> *Campaign coordination by [{workflow_name}]({run_url})*",

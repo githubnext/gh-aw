@@ -197,48 +197,46 @@ const repo = github.context.repo;
 }
 
 func TestScriptRegistry_RegisterWithMode_Validation(t *testing.T) {
-	t.Run("GitHub Script mode with execSync should panic", func(t *testing.T) {
+	t.Run("GitHub Script mode with execSync should return error", func(t *testing.T) {
 		registry := NewScriptRegistry()
 		invalidScript := `
 const { execSync } = require("child_process");
 execSync("ls -la");
 `
-		assert.Panics(t, func() {
-			registry.RegisterWithMode("invalid_script", invalidScript, RuntimeModeGitHubScript)
-		}, "Should panic when registering GitHub Script with execSync")
+		err := registry.RegisterWithMode("invalid_script", invalidScript, RuntimeModeGitHubScript)
+		require.Error(t, err, "Should return error when registering GitHub Script with execSync")
+		assert.Contains(t, err.Error(), "execSync", "Error should mention execSync")
 	})
 
-	t.Run("Node.js mode with GitHub Actions globals should panic", func(t *testing.T) {
+	t.Run("Node.js mode with GitHub Actions globals should return error", func(t *testing.T) {
 		registry := NewScriptRegistry()
 		invalidScript := `
 const fs = require("fs");
 core.info("This should not be here");
 `
-		assert.Panics(t, func() {
-			registry.RegisterWithMode("invalid_script", invalidScript, RuntimeModeNodeJS)
-		}, "Should panic when registering Node.js script with GitHub Actions globals")
+		err := registry.RegisterWithMode("invalid_script", invalidScript, RuntimeModeNodeJS)
+		require.Error(t, err, "Should return error when registering Node.js script with GitHub Actions globals")
+		assert.Contains(t, err.Error(), "GitHub Actions global", "Error should mention GitHub Actions globals")
 	})
 
-	t.Run("Valid GitHub Script mode should not panic", func(t *testing.T) {
+	t.Run("Valid GitHub Script mode should not return error", func(t *testing.T) {
 		registry := NewScriptRegistry()
 		validScript := `
 const { exec } = require("@actions/exec");
 core.info("This is valid for GitHub Script mode");
 `
-		assert.NotPanics(t, func() {
-			registry.RegisterWithMode("valid_script", validScript, RuntimeModeGitHubScript)
-		}, "Should not panic with valid GitHub Script")
+		err := registry.RegisterWithMode("valid_script", validScript, RuntimeModeGitHubScript)
+		assert.NoError(t, err, "Should not return error with valid GitHub Script")
 	})
 
-	t.Run("Valid Node.js mode should not panic", func(t *testing.T) {
+	t.Run("Valid Node.js mode should not return error", func(t *testing.T) {
 		registry := NewScriptRegistry()
 		validScript := `
 const fs = require("fs");
 const { execSync } = require("child_process");
 console.log("This is valid for Node.js mode");
 `
-		assert.NotPanics(t, func() {
-			registry.RegisterWithMode("valid_script", validScript, RuntimeModeNodeJS)
-		}, "Should not panic with valid Node.js script")
+		err := registry.RegisterWithMode("valid_script", validScript, RuntimeModeNodeJS)
+		assert.NoError(t, err, "Should not return error with valid Node.js script")
 	})
 }

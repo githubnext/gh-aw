@@ -14,14 +14,25 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 		stepStr := strings.Join(step, "\n")
 
 		expectedVersion := string(constants.DefaultFirewallVersion)
-		expectedInstaller := "curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=" + expectedVersion + " bash"
 
-		if !strings.Contains(stepStr, expectedInstaller) {
-			t.Errorf("Expected installer one-liner: %s", expectedInstaller)
+		// Verify version is passed to the installation script
+		if !strings.Contains(stepStr, expectedVersion) {
+			t.Errorf("Expected to pass version %s to installation script, but it was not found", expectedVersion)
 		}
 
-		if !strings.Contains(stepStr, expectedVersion) {
-			t.Errorf("Expected to log requested version %s in installation step, but it was not found", expectedVersion)
+		// Verify it calls the install_awf_binary.sh script
+		if !strings.Contains(stepStr, "install_awf_binary.sh") {
+			t.Error("Expected to call install_awf_binary.sh script")
+		}
+
+		// Verify it uses the script from /opt/gh-aw/actions/
+		if !strings.Contains(stepStr, "/opt/gh-aw/actions/install_awf_binary.sh") {
+			t.Error("Expected to call script from /opt/gh-aw/actions/ directory")
+		}
+
+		// Ensure it's NOT using inline bash or the old unverified installer script
+		if strings.Contains(stepStr, "raw.githubusercontent.com") {
+			t.Error("Should NOT download installer script from raw.githubusercontent.com")
 		}
 	})
 
@@ -30,14 +41,19 @@ func TestAWFInstallationStepDefaultVersion(t *testing.T) {
 		step := generateAWFInstallationStep(customVersion, nil)
 		stepStr := strings.Join(step, "\n")
 
-		expectedInstaller := "curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=" + customVersion + " bash"
-
+		// Verify custom version is passed to the script
 		if !strings.Contains(stepStr, customVersion) {
-			t.Errorf("Expected to log custom version %s in installation step", customVersion)
+			t.Errorf("Expected to pass custom version %s to installation script", customVersion)
 		}
 
-		if !strings.Contains(stepStr, expectedInstaller) {
-			t.Errorf("Expected installer one-liner: %s", expectedInstaller)
+		// Verify it calls the install_awf_binary.sh script
+		if !strings.Contains(stepStr, "install_awf_binary.sh") {
+			t.Error("Expected to call install_awf_binary.sh script")
+		}
+
+		// Ensure it's NOT using the old unverified installer pattern
+		if strings.Contains(stepStr, "raw.githubusercontent.com") {
+			t.Error("Should NOT download installer script from raw.githubusercontent.com")
 		}
 	})
 }
@@ -76,12 +92,17 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 			t.Fatal("Expected to find AWF installation step when firewall is enabled")
 		}
 
-		// Verify it logs the default version and uses installer script
+		// Verify it passes the default version to the script
 		if !strings.Contains(awfStepStr, string(constants.DefaultFirewallVersion)) {
-			t.Errorf("AWF installation step should reference default version %s", string(constants.DefaultFirewallVersion))
+			t.Errorf("AWF installation step should pass default version %s to script", string(constants.DefaultFirewallVersion))
 		}
-		if !strings.Contains(awfStepStr, "raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh") {
-			t.Error("AWF installation should use the installer script")
+		// Verify it calls the install_awf_binary.sh script
+		if !strings.Contains(awfStepStr, "install_awf_binary.sh") {
+			t.Error("AWF installation should call install_awf_binary.sh script")
+		}
+		// Verify it's NOT using the old unverified installer script pattern
+		if strings.Contains(awfStepStr, "raw.githubusercontent.com") {
+			t.Error("AWF installation should NOT download from raw.githubusercontent.com")
 		}
 	})
 
@@ -119,13 +140,19 @@ func TestCopilotEngineFirewallInstallation(t *testing.T) {
 			t.Fatal("Expected to find AWF installation step when firewall is enabled")
 		}
 
-		// Verify it logs the custom version
+		// Verify it passes the custom version to the script
 		if !strings.Contains(awfStepStr, customVersion) {
-			t.Errorf("AWF installation step should use custom version %s", customVersion)
+			t.Errorf("AWF installation step should pass custom version %s to script", customVersion)
 		}
 
-		if !strings.Contains(awfStepStr, "raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh") {
-			t.Error("AWF installation should use the installer script")
+		// Verify it calls the install_awf_binary.sh script
+		if !strings.Contains(awfStepStr, "install_awf_binary.sh") {
+			t.Error("AWF installation should call install_awf_binary.sh script")
+		}
+
+		// Verify it's NOT using the old unverified installer script pattern
+		if strings.Contains(awfStepStr, "raw.githubusercontent.com") {
+			t.Error("AWF installation should NOT download from raw.githubusercontent.com")
 		}
 	})
 
