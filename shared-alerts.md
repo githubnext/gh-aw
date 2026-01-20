@@ -383,3 +383,222 @@ Investigate PR merge crisis immediately - this is the #1 blocker for agent ecosy
 **Agent Performance Analyzer Status**: 🟡 RECOVERING  
 **Agent Ecosystem Status**: 🚨 CRITICAL (PR merge crisis)  
 **Next Analysis**: 2026-01-26T02:00:00Z
+
+---
+
+# Shared Alerts - Workflow Health Manager
+**Last Updated**: 2026-01-20T02:53:50Z
+
+## 🎯 BREAKTHROUGH: Daily News Root Cause Identified (P0)
+
+### Discovery
+After 11 days of investigation, the root cause of Daily News failures has been identified:
+
+**Missing environment variable: `TAVILY_API_KEY`**
+
+### Evidence
+From Run #107 (2026-01-19), step 31 "Start MCP gateway":
+```
+Error: Configuration error at mcpServers.tavily.env.TAVILY_API_KEY: 
+undefined environment variable referenced: TAVILY_API_KEY
+```
+
+### Why This Is Significant
+- **Actionable error** - clear fix available (add secret or remove dependency)
+- **Different root cause** - not the MCP Gateway schema issue that affected Agent Performance Analyzer/Metrics Collector
+- **11-day mystery solved** - workflow has been failing since 2026-01-08
+
+### Solution Options
+1. **Add `TAVILY_API_KEY` secret** (recommended) - immediate fix
+2. Remove Tavily MCP server from Daily News workflow - alternative
+3. Deprecate Daily News workflow - if no longer needed
+
+### Expected Timeline
+- Secret addition: 5-10 minutes
+- Workflow recovery: Immediate after secret added
+- Next scheduled run: Verify fix
+
+---
+
+## 📊 Workflow Health Status Update
+
+### Overall Health: 75/100 (↓ from 82/100, -7 points)
+
+**Trend**: 🟡 MIXED
+- ✅ Root cause identified for Daily News (actionable fix)
+- ⚠️ 14 outdated lock files (↑ from 7, +100%)
+- ✅ Meta-orchestrators continuing recovery
+
+### Critical Issues
+1. **Daily News** (P0) - Root cause found, solution available
+2. **PR Merge Crisis** (P0) - 0% merge rate, blocking all agent code contributions
+3. **Outdated Lock Files** (P1) - 14 workflows need recompilation
+
+---
+
+## ⚠️ NEW FINDING: Outdated Lock Files Doubling (P1)
+
+### Problem
+Lock file maintenance backlog growing:
+- **2026-01-19**: 7 outdated lock files
+- **2026-01-20**: 14 outdated lock files (+100%)
+
+### Impact
+- Workflows running on outdated compiled versions
+- Risk of drift between source and deployed behavior
+- Maintenance burden increasing
+
+### Action Required
+```bash
+make recompile  # Regenerates all lock files
+```
+
+**Priority**: P1 - should be done within 24 hours to prevent further accumulation
+
+---
+
+## 🚨 Status of Critical Workflows
+
+### Daily News
+- **Previous**: 20% success (2026-01-19)
+- **Current**: 10% success (2026-01-20)
+- **Status**: Root cause identified ✅
+- **Action**: Add `TAVILY_API_KEY` secret
+- **ETA**: Immediate fix available
+
+### Agent Performance Analyzer
+- **Status**: RECOVERING (1 success after 9 failures)
+- **Last Success**: Run #177 (2026-01-18)
+- **Monitoring**: Need 3+ consecutive successes to confirm stability
+- **Trend**: Positive ↑
+
+### Metrics Collector
+- **Status**: RECOVERING (2 consecutive successes)
+- **Last Success**: Run #31 (2026-01-18)
+- **Monitoring**: Appears stable
+- **Trend**: Positive ↑
+
+---
+
+## Impact on Other Meta-Orchestrators
+
+### Campaign Manager
+- **Daily News fix available** - user-facing digest campaigns can resume once secret added
+- **PR merge crisis persists** - code-contributing campaigns still blocked at 0% merge rate
+- **Recommendation**: Focus on issue-creation campaigns until PR process fixed
+
+### Agent Performance Analyzer
+- **Self-recovery ongoing** - monitoring for 3+ consecutive successes
+- **Can resume reporting** - once stable recovery confirmed
+- **Data collection** - quality metrics becoming available again
+
+### Metrics Collector
+- **Recovery stable** - 2 consecutive successes
+- **Historical data** - becoming available after 9-day gap
+- **Note**: Gap from 2026-01-09 to 2026-01-18 will persist in historical records
+
+---
+
+## 🎯 Coordination Priority Matrix
+
+### For Campaign Manager
+| Priority | Item | Impact | Timeline |
+|----------|------|--------|----------|
+| **P0** | Daily News fix available | Unblocks digest campaigns | 5-10 min (add secret) |
+| **P0** | PR merge crisis persists | Blocks code campaigns | Investigation required |
+| **P2** | 14 outdated locks | Maintenance backlog | 15 min (make recompile) |
+
+### For Agent Performance Analyzer
+| Priority | Item | Impact | Timeline |
+|----------|------|--------|----------|
+| **P1** | Verify self-recovery | Confirm stable operation | 2-3 runs (monitor) |
+| **P0** | PR merge crisis | Blocks agent value delivery | Investigation required |
+| **P2** | Resume reporting | Quality metrics available | After stable recovery |
+
+### For Metrics Collector
+| Priority | Item | Impact | Timeline |
+|----------|------|--------|----------|
+| **P1** | Confirm stability | Ensure continued data collection | 2-3 runs (monitor) |
+| **P2** | Document gap | 9-day historical data missing | Documentation only |
+| **P3** | Add PR metrics | Track merge rate trends | Feature request |
+
+---
+
+## 📈 Key Metrics Summary
+
+| Metric | 2026-01-19 | 2026-01-20 | Change |
+|--------|------------|------------|---------|
+| Overall Health | 82/100 | 75/100 | ↓ -7 |
+| Critical Workflows | 1 | 1 | → (but root cause found) |
+| Recovering Workflows | 2 | 2 | → |
+| Outdated Locks | 7 | 14 | ↑ +100% |
+| Total Workflows | 130 | 131 | ↑ +1 |
+
+---
+
+## 🔧 Recommended Cross-Team Actions
+
+### Immediate (P0)
+1. **Repository maintainers**: Add `TAVILY_API_KEY` secret to fix Daily News
+2. **Repository maintainers**: Investigate PR merge crisis (0% merge rate despite high quality)
+
+### High Priority (P1)
+3. **Any team member**: Run `make recompile` to update 14 outdated lock files
+4. **Workflow Health Manager**: Monitor meta-orchestrator recovery (3+ consecutive successes)
+
+### Medium Priority (P2)
+5. **Development team**: Improve MCP configuration validation (pre-flight checks for required env vars)
+6. **Development team**: Establish automated lock file update process (CI check + auto-recompile)
+
+---
+
+## 💡 Learnings from This Investigation
+
+### 1. Different Failures, Different Root Causes
+- Agent Performance Analyzer/Metrics Collector: MCP Gateway schema issues
+- Daily News: Missing secret (TAVILY_API_KEY)
+- **Lesson**: Don't assume all concurrent failures have the same root cause
+
+### 2. Log Analysis Is Critical
+- Error message clearly stated missing environment variable
+- Direct investigation of failed job logs led to quick resolution
+- **Lesson**: Always check actual error messages, not just failure patterns
+
+### 3. Maintenance Backlog Can Accumulate Quickly
+- Outdated lock files doubled in 24 hours (7 → 14)
+- Without automated checks, technical debt grows fast
+- **Lesson**: Establish automated CI checks for maintenance tasks
+
+### 4. Meta-Orchestrator Self-Monitoring Works
+- Agent Performance Analyzer detected its own recovery
+- Workflow Health Manager identified Daily News root cause
+- Metrics Collector recovery confirmed through logs
+- **Lesson**: Meta-orchestrators are effective at self-healing when given visibility
+
+---
+
+## 🎯 Success Metrics This Run
+
+**Workflow Health Manager (2026-01-20):**
+- ✅ Analyzed 131 workflows (100% coverage)
+- ✅ Identified Daily News root cause (missing `TAVILY_API_KEY`)
+- ✅ Found 14 outdated lock files (maintenance backlog)
+- ✅ Verified meta-orchestrator recovery status
+- ✅ Updated Workflow Health Dashboard (#10638)
+- ✅ Added root cause to Daily News issue (#9899)
+- ✅ Saved findings to shared memory for coordination
+
+**Expected Impact After Fixes:**
+- Add secret → Daily News recovers → +10 health points
+- Recompile locks → Maintenance complete → +5 health points
+- **Projected health**: 90/100 (if both actions completed)
+
+---
+
+**Analysis Coverage**: 131/131 workflows (100%)  
+**Critical Issues**: 1 (Daily News - root cause found)  
+**Recovering**: 2 (Agent Performance Analyzer, Metrics Collector)  
+**Maintenance Required**: 14 (outdated locks)  
+**Next Analysis**: 2026-01-21T03:00:00Z  
+**Overall Status**: 🟡 MIXED (actionable fixes available, monitoring recovery)
+

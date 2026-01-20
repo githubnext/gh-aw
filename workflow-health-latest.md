@@ -1,148 +1,153 @@
-# Workflow Health Dashboard - 2026-01-19
+# Workflow Health Dashboard - 2026-01-20
+
+**Last Updated**: 2026-01-20T02:53:50Z  
+**Run**: https://github.com/githubnext/gh-aw/actions/runs/21157810328  
+**Status**: 🟡 MIXED - Root cause found, 2 recovering, 14 outdated locks
 
 ## Executive Summary
 
-- **Total Workflows**: 130 executable workflows (53 shared includes)
-- **Compilation Status**: 130 lock files (100% coverage) ✅
-- **Critical Failing Workflows**: 1 workflow (Daily News) - 2 workflows RECOVERING ✅
-- **Overall Health Score**: 82/100 ⬆️ (↑ from 78/100 on 2026-01-16)
-- **Trend**: IMPROVING - Meta-orchestrators recovering
+- **Total Workflows**: 131 executable (↑ from 130, +1 new)
+- **Compilation Coverage**: 131/131 lock files (100% ✅)
+- **Critical Issues**: 1 (Daily News - **ROOT CAUSE IDENTIFIED**)
+- **Outdated Lock Files**: 14 workflows (↑ from 7, +100%)
+- **Overall Health Score**: 75/100 (↓ from 82/100, -7 points)
 
-## 🎉 Major Improvement: Workflows Recovering!
+## 🎯 BREAKTHROUGH: Daily News Root Cause Identified!
 
-### Agent Performance Analyzer - RECOVERING ✅
-- **Status**: Latest run #177 (2026-01-18) SUCCESS
-- **Previous**: 9 consecutive failures (2026-01-10 to 2026-01-17)
-- **Success Rate**: 10% (1/10) but trending UP
-- **Health Score**: 25/100 (↑ from 10/100)
-- **Assessment**: Problem resolved by MCP Gateway schema fix (#9898)
+### Problem
+9 consecutive failures (10% success rate) since 2026-01-08.
 
-### Metrics Collector - RECOVERING ✅
-- **Status**: Runs #31, #30 (2026-01-18, 2026-01-17) SUCCESS
-- **Previous**: 5 consecutive failures (2026-01-11 to 2026-01-15)
-- **Success Rate**: 30% (3/10) but trending UP
-- **Health Score**: 40/100 (stable)
-- **Assessment**: Problem resolved by MCP Gateway schema fix (#9898)
+### Root Cause
+**Missing environment variable: `TAVILY_API_KEY`**
 
-## 🚨 Critical Issue Remaining
+Error from Run #107 (2026-01-19):
+```
+Error: Configuration error at mcpServers.tavily.env.TAVILY_API_KEY: 
+undefined environment variable referenced: TAVILY_API_KEY
+```
 
-### Daily News - STILL FAILING (P1)
-- **Status**: 8 consecutive failures since 2026-01-09
-- **Success Rate**: 20% (2/10) ⬇️ WORSE than 2026-01-16
-- **Last Success**: Run #98 (2026-01-08)
-- **Recent Runs**: #99-106 all failed
-- **Health Score**: 20/100 🚨
-- **Previous Issue**: #9899 closed but workflow still failing
-- **New Issue**: Created today for investigation
-- **Impact**: No daily updates for 10+ days
+### Solution Path
+1. **Add `TAVILY_API_KEY` secret** (recommended) - immediate fix
+2. Remove Tavily dependency from workflow - alternative
+3. Deprecate workflow - if no longer needed
 
-**Key Difference from Other Failures:**
-- Agent Performance Analyzer and Metrics Collector recovered after MCP Gateway fix
-- Daily News continues to fail, suggesting different root cause
-- May need separate investigation or redesign
+### Why This Matters
+- **Actionable error** - not timeout or infrastructure
+- **Different from other failures** - Agent Performance Analyzer/Metrics Collector had schema issues, Daily News has missing secret
+- **Clear resolution path** - add secret and workflow recovers
 
-## Healthy Workflows ✅
+## 📊 Health Score Breakdown
 
-- **CI Doctor**: HEALTHY (skipped runs expected with workflow_run trigger)
-- **Compilation**: 130/130 workflows compile successfully
-- **127 Other Workflows**: Operating normally (spot checks show 70-90% success rates)
+| Category | Score | Max | Change |
+|----------|-------|-----|--------|
+| Compilation | 20/20 | 20 | → |
+| Recent Runs | 20/30 | 30 | ↓ (Daily News) |
+| Timeout Issues | 15/20 | 20 | → |
+| Error Handling | 10/15 | 15 | → |
+| Documentation | 10/15 | 15 | ↓ (outdated locks) |
+| **Total** | **75/100** | **100** | **↓ -7** |
 
-## Maintenance Required
+## ⚠️ NEW CRITICAL: Outdated Lock Files (P1)
 
-### Outdated Lock Files (7 workflows)
-These workflows need recompilation (`.md` newer than `.lock.yml`):
-1. `commit-changes-analyzer.md`
-2. `delight.md`
-3. `poem-bot.md`
-4. `repo-tree-map.md`
-5. `static-analysis-report.md`
-6. `technical-doc-writer.md`
-7. `ubuntu-image-analyzer.md`
+**14 workflows** need recompilation (doubled from 7 on 2026-01-19):
+
+1. changeset.md
+2. cli-consistency-checker.md
+3. code-scanning-fixer.md
+4. commit-changes-analyzer.md
+5. copilot-pr-merged-report.md
+6. daily-observability-report.md
+7. daily-repo-chronicle.md
+8. go-fan.md
+9. issue-classifier.md
+10. layout-spec-maintainer.md
+11. python-data-charts.md
+12. smoke-codex.md
+13. step-name-alignment.md
+14. weekly-issue-summary.md
 
 **Action**: Run `make recompile`
 
-## Trends
+## ✅ Positive Developments
 
-### Compared to 2026-01-16
+### Meta-Orchestrators Recovering
+- **Agent Performance Analyzer**: 1 success after 9 failures (monitoring)
+- **Metrics Collector**: 2 consecutive successes (stable)
 
-| Metric | 2026-01-16 | 2026-01-19 | Change |
-|--------|------------|------------|---------|
-| Overall Health | 78/100 | 82/100 | ↑ +4 ✅ |
-| Critical Workflows | 3 | 1 | ↓ -2 ✅ |
-| Agent Perf. Analyzer | 10% | 10% (recovering) | → ✅ |
-| Metrics Collector | 30% | 30% (recovering) | → ✅ |
-| Daily News | 40% | 20% | ⬇️ -20% 🚨 |
+### Compilation Status
+- 100% coverage: All 131 workflows have lock files ✅
+- 54 shared includes correctly excluded ✅
 
-### Meta-Orchestrator Health
-- **Agent Performance Analyzer**: RECOVERING (1 successful run after 9 failures)
-- **Metrics Collector**: RECOVERING (2 consecutive successful runs)
-- **Workflow Health Manager**: Running (60% success, this workflow)
-- **Campaign Manager**: Status unknown
+## 🚨 Cross-Cutting Issue: PR Merge Crisis (P0)
 
-## Systemic Issues
+From Agent Performance Analyzer shared alerts:
+- **0% PR merge rate** despite 95% agent automation
+- 0 out of 100 agent PRs merged in last 7 days
+- High PR quality (60% excellent) but zero merges
+- Likely process/approval bottleneck, not quality issue
 
-### ✅ RESOLVED: Meta-Orchestrator Self-Failure (P1)
-- **Was**: Agent Performance Analyzer and Metrics Collector both failing
-- **Now**: Both recovering with successful runs
-- **Root Cause**: MCP Gateway schema validation error (issue #9898)
-- **Resolution**: Schema migration completed 2026-01-14
-- **Status**: Consider RESOLVED, continue monitoring for stability
+**Impact**: Complete breakdown of agent value delivery
 
-### 🚨 ONGOING: User-Facing Service Degradation (P1)
-- **Affected**: Daily News (20% success, 8 consecutive failures)
-- **Previous Issue**: #9899 closed 2026-01-15 as "not planned"
-- **Current State**: Workflow still failing, no improvement
-- **New Issue**: Created today for fresh investigation
-- **Impact**: No daily repository updates for 10+ days
-- **Status**: UNRESOLVED, requires decision on workflow future
+## 🎯 Priority Actions
 
-### ⚠️ NEW: Issue Closure Gap
-- **Pattern**: Issue #9899 closed but problem persists
-- **Root Cause**: Closed as "not planned" without verification
-- **Impact**: False positive resolution, continued degradation
-- **Recommendation**: Improve closure process, require fix verification
+### Immediate (P0)
+1. Add `TAVILY_API_KEY` secret → fixes Daily News
+2. Investigate PR merge crisis → unblocks agent ecosystem
 
-## Actions Taken This Run
+### High Priority (P1)
+3. Run `make recompile` → updates 14 outdated workflows
+4. Monitor meta-orchestrator recovery → verify stability
 
-### Issues Created
-1. **Workflow Health Dashboard** - Comprehensive status update
-2. **Daily News Investigation** - P1 issue for 8 consecutive failures
+## 📈 Trends (vs 2026-01-19)
 
-### Issues to Monitor
-- #9898 (Metrics Collector) - RESOLVED, confirmed by successful runs
-- #9899 (Daily News) - Closed but problem persists, new issue created
-- New Daily News issue - Tracking ongoing investigation
+| Metric | Previous | Current | Change |
+|--------|----------|---------|--------|
+| Overall Health | 82/100 | 75/100 | ↓ -7 |
+| Total Workflows | 130 | 131 | ↑ +1 |
+| Outdated Locks | 7 | 14 | ↑ +100% |
+| Daily News Success | 20% | 10% | ↓ -10% |
 
-### Key Recommendations
-1. **Investigate Daily News** (P1) - Determine: fix, deprecate, or redesign
-2. **Recompile 7 outdated workflows** (P1) - Run `make recompile`
-3. **Monitor recovering workflows** (P2) - Verify sustained recovery
-4. **Improve issue closure process** (P2) - Require fix verification
+## 📊 Workflow Categories
 
-## Overall Assessment
+- **🟢 Healthy**: 126 workflows (96%)
+- **🟡 Warning**: 2 workflows (Agent Perf. Analyzer, Metrics Collector - recovering)
+- **🔴 Critical**: 1 workflow (Daily News - root cause found)
+- **⚠️ Maintenance**: 14 workflows (outdated locks)
 
-**System Health**: 🟡 IMPROVING ⬆️
+## 🔧 Actions Taken
 
-**Positive Developments:**
-- Meta-orchestrator self-monitoring recovering (Agent Performance Analyzer)
-- Infrastructure metrics collection recovering (Metrics Collector)
-- MCP Gateway schema issue resolved
-- Overall health score increased (+4 points)
-- All workflows compile successfully
+1. ✅ Identified Daily News root cause (missing `TAVILY_API_KEY`)
+2. ✅ Updated Workflow Health Dashboard (#10638)
+3. ✅ Added root cause findings to Daily News issue (#9899)
+4. ✅ Identified 14 outdated lock files (+100% increase)
+5. ✅ Verified meta-orchestrator recovery status
 
-**Remaining Concerns:**
-- Daily News still failing (unique root cause?)
-- 7 workflows need lock file updates
-- Issue closure process needs improvement
+## 🤝 Coordination Notes
 
-**Priority Actions:**
-1. Determine Daily News workflow future (fix, deprecate, or redesign)
-2. Recompile outdated workflows
-3. Monitor recovery stability for meta-orchestrators
-4. Update issue closure process to require verification
+### For Campaign Manager
+- Daily News has actionable fix → expect recovery within 24h if secret added
+- User-facing digest campaigns can resume once operational
+- PR merge crisis still blocks code-contributing campaigns
+
+### For Agent Performance Analyzer
+- Need 3+ consecutive successes to confirm stable recovery
+- PR merge crisis primary blocker (0% merge rate)
+- Quality data collection resuming
+
+### For Metrics Collector
+- Recovery confirmed (2 consecutive successes)
+- Historical metrics becoming available
+- 9-day gap (2026-01-09 to 2026-01-18) will persist
+
+## 📝 Quick Reference
+
+**Critical Issues**: 1 (Daily News)  
+**Recovering**: 2 (Agent Perf. Analyzer, Metrics Collector)  
+**Maintenance Required**: 14 (outdated locks)  
+**Next Check**: 2026-01-21T03:00:00Z
 
 ---
-**Last Updated**: 2026-01-19T02:58:15Z  
-**Run**: https://github.com/githubnext/gh-aw/actions/runs/21123753579  
-**Next Check**: 2026-01-20T03:00:00Z  
-**Status**: IMPROVING (2 recovering, 1 critical)
+
+**Analysis Coverage**: 131/131 workflows (100%)  
+**Overall Status**: 🟡 MIXED (root cause found, actionable fixes available)  
+**Health Score**: 75/100 (↓ from 82/100)
