@@ -79,12 +79,51 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		}
 	}
 
-	// Validate that campaigns with workflows or tracker-label have allowed-repos or allowed-orgs
+	// Validate that campaigns with workflows or tracker-label have discovery-repos or discovery-orgs
 	// This ensures discovery is properly scoped
 	hasDiscovery := len(spec.Workflows) > 0 || spec.TrackerLabel != ""
-	hasScope := len(spec.AllowedRepos) > 0 || len(spec.AllowedOrgs) > 0
-	if hasDiscovery && !hasScope {
-		problems = append(problems, "campaigns with workflows or tracker-label must specify allowed-repos or allowed-orgs for discovery scoping - configure at least one to define where the campaign can discover items")
+	hasDiscoveryScope := len(spec.DiscoveryRepos) > 0 || len(spec.DiscoveryOrgs) > 0
+	if hasDiscovery && !hasDiscoveryScope {
+		problems = append(problems, "campaigns with workflows or tracker-label must specify discovery-repos or discovery-orgs for discovery scoping - configure at least one to define where the campaign can discover worker items")
+	}
+
+	// Validate discovery-repos format if provided
+	if len(spec.DiscoveryRepos) > 0 {
+		// Validate each repository format
+		for _, repo := range spec.DiscoveryRepos {
+			trimmed := strings.TrimSpace(repo)
+			if trimmed == "" {
+				problems = append(problems, "discovery-repos must not contain empty entries - remove empty strings from the list")
+				continue
+			}
+			// Validate owner/repo format
+			parts := strings.Split(trimmed, "/")
+			if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+				problems = append(problems, fmt.Sprintf("discovery-repos entry '%s' must be in 'owner/repo' format - example: 'github/docs' or 'myorg/myrepo'", trimmed))
+			}
+			// Warn about common mistakes
+			if strings.Contains(trimmed, "*") {
+				problems = append(problems, fmt.Sprintf("discovery-repos entry '%s' cannot contain wildcards - list each repository explicitly or use discovery-orgs for organization-wide scope", trimmed))
+			}
+		}
+	}
+
+	// Validate discovery-orgs if provided
+	if len(spec.DiscoveryOrgs) > 0 {
+		for _, org := range spec.DiscoveryOrgs {
+			trimmed := strings.TrimSpace(org)
+			if trimmed == "" {
+				problems = append(problems, "discovery-orgs must not contain empty entries - remove empty strings from the list")
+				continue
+			}
+			// Validate organization name format (no slashes, valid GitHub org name)
+			if strings.Contains(trimmed, "/") {
+				problems = append(problems, fmt.Sprintf("discovery-orgs entry '%s' must be an organization name only (not owner/repo format) - example: 'github' not 'github/docs'", trimmed))
+			}
+			if strings.Contains(trimmed, "*") {
+				problems = append(problems, fmt.Sprintf("discovery-orgs entry '%s' cannot contain wildcards - use the organization name directly (e.g., 'myorg')", trimmed))
+			}
+		}
 	}
 
 	// Validate allowed-repos format if provided (now optional - defaults to current repo)
@@ -358,6 +397,8 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		ProjectGitHubToken string                                 `json:"project-github-token,omitempty"`
 		Version            string                                 `json:"version,omitempty"`
 		Workflows          []string                               `json:"workflows,omitempty"`
+		DiscoveryRepos     []string                               `json:"discovery-repos,omitempty"`
+		DiscoveryOrgs      []string                               `json:"discovery-orgs,omitempty"`
 		AllowedRepos       []string                               `json:"allowed-repos,omitempty"`
 		AllowedOrgs        []string                               `json:"allowed-orgs,omitempty"`
 		MemoryPaths        []string                               `json:"memory-paths,omitempty"`
@@ -402,6 +443,8 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		ProjectGitHubToken: spec.ProjectGitHubToken,
 		Version:            spec.Version,
 		Workflows:          spec.Workflows,
+		DiscoveryRepos:     spec.DiscoveryRepos,
+		DiscoveryOrgs:      spec.DiscoveryOrgs,
 		AllowedRepos:       spec.AllowedRepos,
 		AllowedOrgs:        spec.AllowedOrgs,
 		MemoryPaths:        spec.MemoryPaths,

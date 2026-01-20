@@ -7,13 +7,14 @@ import (
 
 func TestValidateSpec_ValidSpec(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		AllowedRepos: []string{"org/repo1"},
-		Version:      "v1",
-		State:        "active",
-		Workflows:    []string{"workflow1", "workflow2"},
+		ID:             "test-campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		AllowedRepos:   []string{"org/repo1"},
+		Version:        "v1",
+		State:          "active",
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1", "workflow2"},
 	}
 
 	problems := ValidateSpec(spec)
@@ -24,10 +25,11 @@ func TestValidateSpec_ValidSpec(t *testing.T) {
 
 func TestValidateSpec_MissingID(t *testing.T) {
 	spec := &CampaignSpec{
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		AllowedRepos: []string{"org/repo1"},
-		Workflows:    []string{"workflow1"},
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		AllowedRepos:   []string{"org/repo1"},
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
 	}
 
 	problems := ValidateSpec(spec)
@@ -49,11 +51,12 @@ func TestValidateSpec_MissingID(t *testing.T) {
 
 func TestValidateSpec_InvalidIDCharacters(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "Test_Campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		AllowedRepos: []string{"org/repo1"},
-		Workflows:    []string{"workflow1"},
+		ID:             "Test_Campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		AllowedRepos:   []string{"org/repo1"},
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
 	}
 
 	problems := ValidateSpec(spec)
@@ -75,10 +78,11 @@ func TestValidateSpec_InvalidIDCharacters(t *testing.T) {
 
 func TestValidateSpec_MissingName(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		AllowedRepos: []string{"org/repo1"},
-		Workflows:    []string{"workflow1"},
+		ID:             "test-campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		AllowedRepos:   []string{"org/repo1"},
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
 	}
 
 	problems := ValidateSpec(spec)
@@ -125,12 +129,13 @@ func TestValidateSpec_MissingWorkflows(t *testing.T) {
 
 func TestValidateSpec_InvalidState(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		AllowedRepos: []string{"org/repo1"},
-		Workflows:    []string{"workflow1"},
-		State:        "invalid-state",
+		ID:             "test-campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		AllowedRepos:   []string{"org/repo1"},
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
+		State:          "invalid-state",
 	}
 
 	problems := ValidateSpec(spec)
@@ -155,12 +160,13 @@ func TestValidateSpec_ValidStates(t *testing.T) {
 
 	for _, state := range validStates {
 		spec := &CampaignSpec{
-			ID:           "test-campaign",
-			Name:         "Test Campaign",
-			ProjectURL:   "https://github.com/orgs/org/projects/1",
-			AllowedRepos: []string{"org/repo1"},
-			Workflows:    []string{"workflow1"},
-			State:        state,
+			ID:             "test-campaign",
+			Name:           "Test Campaign",
+			ProjectURL:     "https://github.com/orgs/org/projects/1",
+			AllowedRepos:   []string{"org/repo1"},
+			DiscoveryRepos: []string{"test/repo"},
+			Workflows:      []string{"workflow1"},
+			State:          state,
 		}
 
 		problems := ValidateSpec(spec)
@@ -172,11 +178,12 @@ func TestValidateSpec_ValidStates(t *testing.T) {
 
 func TestValidateSpec_VersionDefault(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		AllowedRepos: []string{"org/repo1"},
-		Workflows:    []string{"workflow1"},
+		ID:             "test-campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		AllowedRepos:   []string{"org/repo1"},
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
 	}
 
 	_ = ValidateSpec(spec)
@@ -191,12 +198,13 @@ func TestValidateSpec_RiskLevel(t *testing.T) {
 
 	for _, riskLevel := range validRiskLevels {
 		spec := &CampaignSpec{
-			ID:           "test-campaign",
-			Name:         "Test Campaign",
-			ProjectURL:   "https://github.com/orgs/org/projects/1",
-			AllowedRepos: []string{"org/repo1"},
-			Workflows:    []string{"workflow1"},
-			RiskLevel:    riskLevel,
+			ID:             "test-campaign",
+			Name:           "Test Campaign",
+			ProjectURL:     "https://github.com/orgs/org/projects/1",
+			AllowedRepos:   []string{"org/repo1"},
+			DiscoveryRepos: []string{"test/repo"},
+			Workflows:      []string{"workflow1"},
+			RiskLevel:      riskLevel,
 		}
 
 		problems := ValidateSpec(spec)
@@ -210,11 +218,12 @@ func TestValidateSpec_RiskLevel(t *testing.T) {
 
 func TestValidateSpec_WithApprovalPolicy(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		AllowedRepos: []string{"org/repo1"},
-		Workflows:    []string{"workflow1"},
+		ID:             "test-campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		AllowedRepos:   []string{"org/repo1"},
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
 		ApprovalPolicy: &CampaignApprovalPolicy{
 			RequiredApprovals: 2,
 			RequiredRoles:     []string{"admin", "security"},
@@ -236,6 +245,7 @@ func TestValidateSpec_CompleteSpec(t *testing.T) {
 		ProjectURL:         "https://github.com/orgs/org/projects/1",
 		AllowedRepos:       []string{"org/repo1"},
 		Version:            "v1",
+		DiscoveryRepos:     []string{"org/repo1"},
 		Workflows:          []string{"workflow1", "workflow2"},
 		MemoryPaths:        []string{"memory/campaigns/complete/**"},
 		MetricsGlob:        "memory/campaigns/complete-*.json",
@@ -260,12 +270,13 @@ func TestValidateSpec_CompleteSpec(t *testing.T) {
 
 func TestValidateSpec_ObjectiveWithoutKPIs(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		AllowedRepos: []string{"org/repo1"},
-		Workflows:    []string{"workflow1"},
-		Objective:    "Improve CI stability",
+		ID:             "test-campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		AllowedRepos:   []string{"org/repo1"},
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
+		Objective:      "Improve CI stability",
 		// KPIs intentionally omitted
 	}
 
@@ -288,11 +299,12 @@ func TestValidateSpec_ObjectiveWithoutKPIs(t *testing.T) {
 
 func TestValidateSpec_KPIsWithoutObjective(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		AllowedRepos: []string{"org/repo1"},
-		Workflows:    []string{"workflow1"},
+		ID:             "test-campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		AllowedRepos:   []string{"org/repo1"},
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
 		KPIs: []CampaignKPI{
 			{
 				Name:           "Build success rate",
@@ -324,12 +336,13 @@ func TestValidateSpec_KPIsWithoutObjective(t *testing.T) {
 
 func TestValidateSpec_KPIsMultipleWithoutPrimary(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		AllowedRepos: []string{"org/repo1"},
-		Workflows:    []string{"workflow1"},
-		Objective:    "Improve delivery",
+		ID:             "test-campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		AllowedRepos:   []string{"org/repo1"},
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
+		Objective:      "Improve delivery",
 		KPIs: []CampaignKPI{
 			{Name: "PR cycle time", Priority: "supporting", Baseline: 10, Target: 7, TimeWindowDays: 30},
 			{Name: "Open PRs", Priority: "supporting", Baseline: 20, Target: 10, TimeWindowDays: 30},
@@ -355,12 +368,13 @@ func TestValidateSpec_KPIsMultipleWithoutPrimary(t *testing.T) {
 
 func TestValidateSpec_KPIsMultipleWithMultiplePrimary(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		AllowedRepos: []string{"org/repo1"},
-		Workflows:    []string{"workflow1"},
-		Objective:    "Improve delivery",
+		ID:             "test-campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		AllowedRepos:   []string{"org/repo1"},
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
+		Objective:      "Improve delivery",
 		KPIs: []CampaignKPI{
 			{Name: "Build success rate", Priority: "primary", Baseline: 0.8, Target: 0.95, TimeWindowDays: 7},
 			{Name: "PR cycle time", Priority: "primary", Baseline: 10, Target: 7, TimeWindowDays: 30},
@@ -386,12 +400,13 @@ func TestValidateSpec_KPIsMultipleWithMultiplePrimary(t *testing.T) {
 
 func TestValidateSpec_SingleKPIOmitsPriorityIsAllowed(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		AllowedRepos: []string{"org/repo1"},
-		Workflows:    []string{"workflow1"},
-		Objective:    "Improve CI stability",
+		ID:             "test-campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		AllowedRepos:   []string{"org/repo1"},
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
+		Objective:      "Improve CI stability",
 		KPIs: []CampaignKPI{
 			{
 				Name: "Build success rate",
@@ -411,12 +426,13 @@ func TestValidateSpec_SingleKPIOmitsPriorityIsAllowed(t *testing.T) {
 
 func TestValidateSpec_KPIFieldConstraints(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		AllowedRepos: []string{"org/repo1"},
-		Workflows:    []string{"workflow1"},
-		Objective:    "Improve CI stability",
+		ID:             "test-campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		AllowedRepos:   []string{"org/repo1"},
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
+		Objective:      "Improve CI stability",
 		KPIs: []CampaignKPI{
 			{
 				Name:           "Build success rate",
@@ -459,7 +475,7 @@ func TestValidateSpec_MissingAllowedReposIsValid(t *testing.T) {
 		ID:         "test-campaign",
 		Name:       "Test Campaign",
 		ProjectURL: "https://github.com/orgs/org/projects/1",
-		// No Workflows, no AllowedRepos - should be valid since no discovery needed
+		// No Workflows, no DiscoveryRepos - should be valid since no discovery needed
 	}
 
 	problems := ValidateSpec(spec)
@@ -475,14 +491,14 @@ func TestValidateSpec_MissingAllowedReposWithWorkflowsIsInvalid(t *testing.T) {
 		Name:       "Test Campaign",
 		ProjectURL: "https://github.com/orgs/org/projects/1",
 		Workflows:  []string{"workflow1"},
-		// AllowedRepos intentionally omitted - should fail because workflows need scoping
+		// DiscoveryRepos intentionally omitted - should fail because workflows need scoping
 	}
 
 	problems := ValidateSpec(spec)
 	// Should have validation problems for missing scope
 	hasDiscoveryScopeError := false
 	for _, p := range problems {
-		if strings.Contains(p, "campaigns with workflows or tracker-label must specify allowed-repos or allowed-orgs") {
+		if strings.Contains(p, "campaigns with workflows or tracker-label must specify discovery-repos or discovery-orgs") {
 			hasDiscoveryScopeError = true
 			break
 		}
@@ -494,11 +510,12 @@ func TestValidateSpec_MissingAllowedReposWithWorkflowsIsInvalid(t *testing.T) {
 
 func TestValidateSpec_InvalidAllowedReposFormat(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		AllowedRepos: []string{"invalid-repo-format", "org/repo1"},
+		ID:             "test-campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
+		AllowedRepos:   []string{"invalid-repo-format", "org/repo1"},
 	}
 
 	problems := ValidateSpec(spec)
@@ -535,18 +552,18 @@ func TestValidateSpec_EmptyAllowedReposIsValid(t *testing.T) {
 
 func TestValidateSpec_EmptyAllowedReposWithWorkflowsIsInvalid(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		AllowedRepos: []string{}, // Empty list - should fail with workflows
+		ID:             "test-campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		Workflows:      []string{"workflow1"},
+		DiscoveryRepos: []string{}, // Empty list - should fail with workflows
 	}
 
 	problems := ValidateSpec(spec)
 	// Should have validation problems for missing scope
 	hasDiscoveryScopeError := false
 	for _, p := range problems {
-		if strings.Contains(p, "campaigns with workflows or tracker-label must specify allowed-repos or allowed-orgs") {
+		if strings.Contains(p, "campaigns with workflows or tracker-label must specify discovery-repos or discovery-orgs") {
 			hasDiscoveryScopeError = true
 			break
 		}
@@ -558,28 +575,31 @@ func TestValidateSpec_EmptyAllowedReposWithWorkflowsIsInvalid(t *testing.T) {
 
 func TestValidateSpec_ValidAllowedOrgs(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		AllowedRepos: []string{"org/repo1"},
-		AllowedOrgs:  []string{"github", "microsoft"},
+		ID:             "test-campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
+		AllowedRepos:   []string{"org/repo1"},
+		AllowedOrgs:    []string{"github", "microsoft"},
+		DiscoveryOrgs:  []string{"github", "microsoft"},
 	}
 
 	problems := ValidateSpec(spec)
 	if len(problems) != 0 {
-		t.Errorf("Expected no validation problems with valid allowed-orgs, got: %v", problems)
+		t.Errorf("Expected no validation problems with valid discovery-orgs, got: %v", problems)
 	}
 }
 
 func TestValidateSpec_InvalidAllowedOrgsFormat(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		Workflows:    []string{"workflow1"},
-		AllowedRepos: []string{"org/repo1"},
-		AllowedOrgs:  []string{"github/repo"}, // Invalid - contains slash
+		ID:             "test-campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
+		AllowedRepos:   []string{"org/repo1"},
+		AllowedOrgs:    []string{"github/repo"}, // Invalid - contains slash
 	}
 
 	problems := ValidateSpec(spec)
@@ -654,11 +674,12 @@ func TestSuggestValidID(t *testing.T) {
 
 func TestValidateSpec_InvalidIDWithSuggestion(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "Test Campaign 2025",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		AllowedRepos: []string{"org/repo1"},
-		Workflows:    []string{"workflow1"},
+		ID:             "Test Campaign 2025",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		AllowedRepos:   []string{"org/repo1"},
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
 	}
 
 	problems := ValidateSpec(spec)
@@ -681,11 +702,12 @@ func TestValidateSpec_InvalidIDWithSuggestion(t *testing.T) {
 
 func TestValidateSpec_AllowedReposWildcard(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		AllowedRepos: []string{"org/*"}, // Invalid - wildcard not allowed
-		Workflows:    []string{"workflow1"},
+		ID:             "test-campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		AllowedRepos:   []string{"org/*"}, // Invalid - wildcard not allowed
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
 	}
 
 	problems := ValidateSpec(spec)
@@ -707,12 +729,13 @@ func TestValidateSpec_AllowedReposWildcard(t *testing.T) {
 
 func TestValidateSpec_AllowedOrgsWildcard(t *testing.T) {
 	spec := &CampaignSpec{
-		ID:           "test-campaign",
-		Name:         "Test Campaign",
-		ProjectURL:   "https://github.com/orgs/org/projects/1",
-		AllowedRepos: []string{"org/repo1"},
-		AllowedOrgs:  []string{"github*"}, // Invalid - wildcard not allowed
-		Workflows:    []string{"workflow1"},
+		ID:             "test-campaign",
+		Name:           "Test Campaign",
+		ProjectURL:     "https://github.com/orgs/org/projects/1",
+		AllowedRepos:   []string{"org/repo1"},
+		AllowedOrgs:    []string{"github*"}, // Invalid - wildcard not allowed
+		DiscoveryRepos: []string{"test/repo"},
+		Workflows:      []string{"workflow1"},
 	}
 
 	problems := ValidateSpec(spec)

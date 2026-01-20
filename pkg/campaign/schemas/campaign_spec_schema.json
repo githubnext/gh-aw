@@ -109,6 +109,25 @@
       },
       "minItems": 1
     },
+    "discovery-repos": {
+      "type": "array",
+      "description": "List of repositories (in owner/repo format) where worker workflows are discovered. This controls the scope of GitHub searches for issues/PRs created by worker workflows.",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "discovery-orgs": {
+      "type": "array",
+      "description": "List of GitHub organizations where worker workflows are discovered. When specified, any repository within these organizations is searched for worker-created issues/PRs.",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_.-]+$",
+        "minLength": 1
+      }
+    },
     "allowed-repos": {
       "type": "array",
       "description": "Optional list of repositories (in owner/repo format) that this campaign is allowed to discover and operate on. When omitted, defaults to the current repository where the campaign is defined.",

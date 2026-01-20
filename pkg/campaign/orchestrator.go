@@ -93,16 +93,16 @@ func buildDiscoverySteps(spec *CampaignSpec) []map[string]any {
 		"GH_AW_CURSOR_PATH":         getCursorPath(spec),
 	}
 
-	// Add GH_AW_DISCOVERY_REPOS from spec.AllowedRepos (required field)
-	if len(spec.AllowedRepos) > 0 {
-		envVars["GH_AW_DISCOVERY_REPOS"] = strings.Join(spec.AllowedRepos, ",")
-		orchestratorLog.Printf("Setting GH_AW_DISCOVERY_REPOS from allowed-repos: %v", spec.AllowedRepos)
+	// Add GH_AW_DISCOVERY_REPOS from spec.DiscoveryRepos
+	if len(spec.DiscoveryRepos) > 0 {
+		envVars["GH_AW_DISCOVERY_REPOS"] = strings.Join(spec.DiscoveryRepos, ",")
+		orchestratorLog.Printf("Setting GH_AW_DISCOVERY_REPOS from discovery-repos: %v", spec.DiscoveryRepos)
 	}
 
-	// Add GH_AW_DISCOVERY_ORGS from spec.AllowedOrgs if provided
-	if len(spec.AllowedOrgs) > 0 {
-		envVars["GH_AW_DISCOVERY_ORGS"] = strings.Join(spec.AllowedOrgs, ",")
-		orchestratorLog.Printf("Setting GH_AW_DISCOVERY_ORGS from allowed-orgs: %v", spec.AllowedOrgs)
+	// Add GH_AW_DISCOVERY_ORGS from spec.DiscoveryOrgs if provided
+	if len(spec.DiscoveryOrgs) > 0 {
+		envVars["GH_AW_DISCOVERY_ORGS"] = strings.Join(spec.DiscoveryOrgs, ",")
+		orchestratorLog.Printf("Setting GH_AW_DISCOVERY_ORGS from discovery-orgs: %v", spec.DiscoveryOrgs)
 	}
 
 	steps := []map[string]any{
