@@ -1,28 +1,28 @@
 // @ts-check
 
-const { describe, it, expect, beforeEach } = require("@jest/globals");
-const { closeOlderIssues, searchOlderIssues, addIssueComment, closeIssueAsNotPlanned, getCloseOlderIssueMessage, MAX_CLOSE_COUNT } = require("./close_older_issues.cjs");
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { closeOlderIssues, searchOlderIssues, addIssueComment, closeIssueAsNotPlanned, getCloseOlderIssueMessage, MAX_CLOSE_COUNT } from "./close_older_issues.cjs";
 
 // Mock globals
 global.core = {
-  info: jest.fn(),
-  warning: jest.fn(),
-  error: jest.fn(),
+  info: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
 };
 
 describe("close_older_issues", () => {
   let mockGithub;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockGithub = {
       rest: {
         search: {
-          issuesAndPullRequests: jest.fn(),
+          issuesAndPullRequests: vi.fn(),
         },
         issues: {
-          createComment: jest.fn(),
-          update: jest.fn(),
+          createComment: vi.fn(),
+          update: vi.fn(),
         },
       },
     };
@@ -224,7 +224,7 @@ describe("close_older_issues", () => {
           items: [
             {
               number: 123,
-              title: "Old Issue",
+              title: "Prefix - Old Issue",
               html_url: "https://github.com/owner/repo/issues/123",
               labels: [],
             },
