@@ -91,9 +91,9 @@ allowed-safe-outputs: [create-issue, add-comment]
 safe-outputs:
   create-project:
     max: 1
-    github-token: "<GH_AW_PROJECT_GITHUB_TOKEN>"
+    github-token: "<GH_AW_PROJECT_GITHUB_TOKEN>"  # Provide via workflow secret/env; avoid secrets expressions in runtime-import files
     target-owner: "${{ github.repository_owner }}"
-    views:
+    views:  # Views are created automatically when project is created
       - name: "Campaign Roadmap"
         layout: "roadmap"
         filter: "is:issue is:pr"
