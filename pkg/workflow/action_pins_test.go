@@ -1310,7 +1310,7 @@ func TestActionPinWarningDeduplication(t *testing.T) {
 
 			// Count the number of warnings in stderr
 			warningCount := strings.Count(stderr, "⚠")
-			
+
 			if warningCount != tt.expectedWarns {
 				t.Errorf("Expected %d warning(s), but got %d\nStderr:\n%s",
 					tt.expectedWarns, warningCount, stderr)

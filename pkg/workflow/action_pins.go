@@ -241,10 +241,10 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 				if data.ActionPinWarnings == nil {
 					data.ActionPinWarnings = make(map[string]bool)
 				}
-				
+
 				// Create a cache key for this action@version combination
 				cacheKey := actionRepo + "@" + version
-				
+
 				// Only emit warning if we haven't already warned about this action
 				if !data.ActionPinWarnings[cacheKey] {
 					warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
@@ -282,10 +282,10 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 	if data.ActionPinWarnings == nil {
 		data.ActionPinWarnings = make(map[string]bool)
 	}
-	
+
 	// Create a cache key for this action@version combination
 	cacheKey := actionRepo + "@" + version
-	
+
 	// Only emit warning if we haven't already warned about this action
 	if !data.ActionPinWarnings[cacheKey] {
 		warningMsg := fmt.Sprintf("Unable to pin action %s@%s", actionRepo, version)
