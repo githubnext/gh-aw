@@ -241,6 +241,9 @@ func compileAllFilesInDirectory(
 		return nil, fmt.Errorf("failed to find markdown files: %w", err)
 	}
 
+	// Filter out README.md files
+	mdFiles = filterWorkflowFiles(mdFiles)
+
 	if len(mdFiles) == 0 {
 		return nil, fmt.Errorf("no markdown files found in %s", workflowsDir)
 	}

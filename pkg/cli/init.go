@@ -557,6 +557,9 @@ func ensureMaintenanceWorkflow(verbose bool) error {
 		return fmt.Errorf("failed to find workflow files: %w", err)
 	}
 
+	// Filter out README.md files
+	files = filterWorkflowFiles(files)
+
 	// Create a compiler to parse workflows
 	compiler := workflow.NewCompiler(false, "", GetVersion())
 

@@ -154,6 +154,9 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 		return stats, fmt.Errorf("failed to find markdown files: %w", err)
 	}
 
+	// Filter out README.md files
+	mdFiles = filterWorkflowFiles(mdFiles)
+
 	if len(mdFiles) == 0 {
 		compileHelpersLog.Printf("No markdown files found in %s", workflowsDir)
 		if verbose {
