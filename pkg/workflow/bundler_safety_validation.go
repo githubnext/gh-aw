@@ -79,8 +79,12 @@ func validateNoLocalRequires(bundledContent string) error {
 
 	if len(foundRequires) > 0 {
 		bundlerSafetyLog.Printf("Validation failed: found %d un-inlined local require statements", len(foundRequires))
-		return fmt.Errorf("bundled JavaScript contains %d local require(s) that were not inlined:\n  %s",
-			len(foundRequires), strings.Join(foundRequires, "\n  "))
+		return NewValidationError(
+			"bundled-javascript",
+			fmt.Sprintf("%d un-inlined requires", len(foundRequires)),
+			"bundled JavaScript contains local require() statements that were not inlined during bundling",
+			fmt.Sprintf("Found un-inlined requires:\n\n%s\n\nThis indicates a bundling failure. Check:\n1. All required files are in actions/setup/js/\n2. Bundler configuration includes all dependencies\n3. No circular dependencies exist\n\nRun 'make build' to regenerate bundles", strings.Join(foundRequires, "\n")),
+		)
 	}
 
 	bundlerSafetyLog.Print("Validation successful: no local require statements found")
@@ -117,8 +121,12 @@ func validateNoModuleReferences(bundledContent string) error {
 
 	if len(foundReferences) > 0 {
 		bundlerSafetyLog.Printf("Validation failed: found %d module references", len(foundReferences))
-		return fmt.Errorf("bundled JavaScript for GitHub Script mode contains %d module reference(s) that should have been removed:\n  %s\n\nGitHub Script mode does not support module.exports or exports; these references must be removed during bundling",
-			len(foundReferences), strings.Join(foundReferences, "\n  "))
+		return NewValidationError(
+			"bundled-javascript",
+			fmt.Sprintf("%d module references", len(foundReferences)),
+			"bundled JavaScript for GitHub Script mode contains module.exports or exports references",
+			fmt.Sprintf("Found module references:\n\n%s\n\nGitHub Script mode does not support CommonJS module system. Check:\n1. Bundle configuration removes module references\n2. Code doesn't use module.exports or exports\n3. Using appropriate runtime mode (consider 'nodejs' mode if module system is needed)\n\nRun 'make build' to regenerate bundles", strings.Join(foundReferences, "\n")),
+		)
 	}
 
 	bundlerSafetyLog.Print("Validation successful: no module references found")
@@ -201,8 +209,12 @@ func ValidateEmbeddedResourceRequires(sources map[string]string) error {
 
 	if len(missingDeps) > 0 {
 		bundlerSafetyLog.Printf("Validation failed: found %d missing dependencies", len(missingDeps))
-		return fmt.Errorf("embedded JavaScript files have %d missing local require(s):\n  %s\n\nThese files must be added to GetJavaScriptSources() in js.go",
-			len(missingDeps), strings.Join(missingDeps, "\n  "))
+		return NewValidationError(
+			"embedded-javascript",
+			fmt.Sprintf("%d missing dependencies", len(missingDeps)),
+			"embedded JavaScript files have missing local require() dependencies",
+			fmt.Sprintf("Missing dependencies:\n\n%s\n\nTo fix:\n1. Add missing .cjs files to actions/setup/js/\n2. Update GetJavaScriptSources() in pkg/workflow/js.go to include them\n3. Ensure file paths match require() statements\n4. Run 'make build' to regenerate bundles\n\nExample:\n//go:embed actions/setup/js/missing-file.cjs\nvar missingFileSource string", strings.Join(missingDeps, "\n")),
+		)
 	}
 
 	bundlerSafetyLog.Printf("Validation successful: all local requires are available in sources")

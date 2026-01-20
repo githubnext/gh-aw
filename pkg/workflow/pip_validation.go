@@ -133,7 +133,13 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 			_, pip3Err := exec.LookPath("pip3")
 			if pip3Err != nil {
 				pipValidationLog.Print("Neither uv nor pip commands found, cannot validate")
-				return fmt.Errorf("uv and pip commands not found - cannot validate uv packages. Install uv/pip or disable validation")
+				return NewOperationError(
+					"validate",
+					"uv packages",
+					"",
+					pip3Err,
+					"Install uv or pip to enable package validation:\n\nInstall uv (recommended):\n$ curl -LsSf https://astral.sh/uv/install.sh | sh\n\nOr install pip:\n$ python -m ensurepip --upgrade\n\nAlternatively, disable validation by setting GH_AW_SKIP_UV_VALIDATION=true",
+				)
 			}
 			pipCmd = "pip3"
 			pipValidationLog.Print("Using pip3 for validation")
@@ -166,7 +172,12 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 	}
 
 	if len(errors) > 0 {
-		return fmt.Errorf("uv package validation requires network access:\n  - %s", strings.Join(errors, "\n  - "))
+		return NewValidationError(
+			"uv.packages",
+			fmt.Sprintf("%d packages require validation", len(errors)),
+			"uv package validation requires network access or local cache",
+			fmt.Sprintf("Ensure network access or cache uv packages locally:\n\n%s\n\nCache packages:\n$ uv pip install <package-name> --no-cache\n\nOr connect to network for validation", strings.Join(errors, "\n")),
+		)
 	}
 
 	return nil

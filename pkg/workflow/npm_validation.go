@@ -56,7 +56,13 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 	_, err := exec.LookPath("npm")
 	if err != nil {
 		npmValidationLog.Print("npm command not found, cannot validate npx packages")
-		return fmt.Errorf("npm command not found - cannot validate npx packages. Install Node.js/npm or disable validation")
+		return NewOperationError(
+			"validate",
+			"npx packages",
+			"",
+			err,
+			"Install Node.js and npm to enable npx package validation:\n\nUsing nvm (recommended):\n$ nvm install --lts\n\nOr download from https://nodejs.org\n\nAlternatively, disable validation by setting GH_AW_SKIP_NPX_VALIDATION=true",
+		)
 	}
 
 	var errors []string
@@ -80,7 +86,12 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 
 	if len(errors) > 0 {
 		npmValidationLog.Printf("npx package validation failed with %d errors", len(errors))
-		return fmt.Errorf("npx package validation failed:\n  - %s", strings.Join(errors, "\n  - "))
+		return NewValidationError(
+			"npx.packages",
+			fmt.Sprintf("%d packages not found", len(errors)),
+			"npx packages not found on npm registry",
+			fmt.Sprintf("Fix package names or verify they exist on npm:\n\n%s\n\nCheck package availability:\n$ npm view <package-name>\n\nSearch for similar packages:\n$ npm search <keyword>", strings.Join(errors, "\n")),
+		)
 	}
 
 	npmValidationLog.Print("All npx packages validated successfully")

@@ -65,7 +65,12 @@ func validateActionTag(value any) error {
 	// Convert to string
 	strVal, ok := value.(string)
 	if !ok {
-		return fmt.Errorf("action-tag must be a string, got %T", value)
+		return NewValidationError(
+			"features.action-tag",
+			fmt.Sprintf("%T", value),
+			fmt.Sprintf("action-tag must be a string, got %T", value),
+			"Provide a string value for action-tag. Example:\nfeatures:\n  action-tag: \"a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0\"",
+		)
 	}
 
 	// Allow empty string (falls back to version)
@@ -75,7 +80,12 @@ func validateActionTag(value any) error {
 
 	// Validate it's a full SHA (40 hex characters)
 	if !isValidFullSHA(strVal) {
-		return fmt.Errorf("action-tag must be a full 40-character commit SHA, got %q (length: %d). Short SHAs are not allowed. Use 'git rev-parse <ref>' to get the full SHA", strVal, len(strVal))
+		return NewValidationError(
+			"features.action-tag",
+			strVal,
+			fmt.Sprintf("action-tag must be a full 40-character commit SHA (length: %d). Short SHAs are not allowed", len(strVal)),
+			"Use 'git rev-parse <ref>' to get the full SHA. Example:\n\n$ git rev-parse HEAD\na1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0\n\nThen use in workflow:\nfeatures:\n  action-tag: \"a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0\"",
+		)
 	}
 
 	return nil
