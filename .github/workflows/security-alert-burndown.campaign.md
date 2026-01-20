@@ -57,6 +57,8 @@ owners:
 executive-sponsors:
   - "@mnkiefer"
 risk-level: high
+
+engine: claude
 ---
 
 # Security Alert Burndown Campaign
