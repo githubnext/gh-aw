@@ -39,8 +39,8 @@ safe-outputs:
   messages:
     footer: "> *Campaign coordination by [{workflow_name}]({run_url})*"
     run-started: "[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}."
-    run-failure: "Campaign setup interrupted!
-[{workflow_name}]({run_url}) {status}. Please check the details and try again."
+    run-success: "[{workflow_name}]({run_url}) has successfully set up your campaign. Copilot Coding Agent will now create a PR."
+    run-failure: "[{workflow_name}]({run_url}) {status}. Please check the details and try again."
 timeout-minutes: 10
 ---
 

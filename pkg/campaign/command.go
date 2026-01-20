@@ -221,10 +221,8 @@ func runStatus(pattern string, jsonOutput bool) error {
 		return nil
 	}
 
-	// Build a compact summary view for human-friendly table output.
-	// Full campaign definitions remain available via the --json flag.
-	summaries := buildCampaignSummaries(specs)
-	output := console.RenderStruct(summaries)
+	// Render the actual campaign specs (thin, declarative config) as a table.
+	output := console.RenderStruct(specs)
 	fmt.Print(output)
 	return nil
 }
