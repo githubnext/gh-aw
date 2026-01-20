@@ -89,6 +89,43 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 		},
 		UpdateProjects: &workflow.UpdateProjectConfig{
 			GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
+			FieldDefinitions: []workflow.ProjectFieldDefinition{
+				{
+					Name:     "status",
+					DataType: "SINGLE_SELECT",
+					Options:  []string{"Todo", "In Progress", "Review required", "Blocked", "Done"},
+				},
+				{
+					Name:     "campaign_id",
+					DataType: "TEXT",
+				},
+				{
+					Name:     "worker_workflow",
+					DataType: "TEXT",
+				},
+				{
+					Name:     "repository",
+					DataType: "TEXT",
+				},
+				{
+					Name:     "priority",
+					DataType: "SINGLE_SELECT",
+					Options:  []string{"High", "Medium", "Low"},
+				},
+				{
+					Name:     "size",
+					DataType: "SINGLE_SELECT",
+					Options:  []string{"Small", "Medium", "Large"},
+				},
+				{
+					Name:     "start_date",
+					DataType: "DATE",
+				},
+				{
+					Name:     "end_date",
+					DataType: "DATE",
+				},
+			},
 		},
 		Messages: &workflow.SafeOutputMessagesConfig{
 			Footer:     "> *Campaign coordination by [{workflow_name}]({run_url})*",

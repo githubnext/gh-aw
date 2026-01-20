@@ -3,6 +3,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vite
 let updateProject;
 let parseProjectInput;
 let generateCampaignId;
+let updateProjectHandlerFactory;
 
 const mockCore = {
   debug: vi.fn(),
@@ -53,10 +54,71 @@ beforeAll(async () => {
   updateProject = exports.updateProject;
   parseProjectInput = exports.parseProjectInput;
   generateCampaignId = exports.generateCampaignId;
+  updateProjectHandlerFactory = exports.main;
   // Call main to execute the module
   if (exports.main) {
     await exports.main();
   }
+});
+
+describe("update_project handler config: field_definitions", () => {
+  it("auto-creates configured fields before first message", async () => {
+    const callOrder = [];
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+
+    mockGithub.graphql.mockImplementation(async (query, vars) => {
+      const q = String(query);
+
+      if (q.includes("repository(owner:") || q.includes("repository(owner:")) {
+        return repoResponse("Organization");
+      }
+      if (q.includes("viewer") && !vars) {
+        return viewerResponse("test-bot");
+      }
+      if (q.includes("projectV2(number:") && q.includes("organization")) {
+        return orgProjectV2Response(projectUrl, 60, "project123", "testowner");
+      }
+      if (q.includes("createProjectV2Field")) {
+        callOrder.push("createField");
+        return {
+          createProjectV2Field: {
+            projectV2Field: {
+              id: "field123",
+              name: vars?.name || "unknown",
+              dataType: vars?.dataType || "TEXT",
+              options: [],
+            },
+          },
+        };
+      }
+
+      throw new Error(`Unexpected graphql query in test: ${q}`);
+    });
+
+    mockGithub.request.mockImplementation(async () => {
+      callOrder.push("createView");
+      return { data: { id: 999, url: "https://github.com/orgs/testowner/projects/60/views/999" } };
+    });
+
+    const handler = await updateProjectHandlerFactory({
+      max: 10,
+      field_definitions: [{ name: "campaign_id", data_type: "TEXT" }],
+    });
+
+    await handler(
+      {
+        type: "update_project",
+        project: projectUrl,
+        operation: "create_view",
+        view: { name: "Test View", layout: "table" },
+      },
+      {}
+    );
+
+    expect(callOrder).toContain("createField");
+    expect(callOrder).toContain("createView");
+    expect(callOrder.indexOf("createField")).toBeLessThan(callOrder.indexOf("createView"));
+  });
 });
 
 function clearMock(fn) {

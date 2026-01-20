@@ -13,11 +13,20 @@ type ProjectView struct {
 	Description   string `yaml:"description,omitempty" json:"description,omitempty"`
 }
 
+// ProjectFieldDefinition defines a project custom field configuration
+// used by update_project operation=create_fields.
+type ProjectFieldDefinition struct {
+	Name     string   `yaml:"name" json:"name"`
+	DataType string   `yaml:"data-type" json:"data_type"`
+	Options  []string `yaml:"options,omitempty" json:"options,omitempty"`
+}
+
 // UpdateProjectConfig holds configuration for unified project board management
 type UpdateProjectConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	GitHubToken          string        `yaml:"github-token,omitempty"`
-	Views                []ProjectView `yaml:"views,omitempty"`
+	GitHubToken          string                   `yaml:"github-token,omitempty"`
+	Views                []ProjectView            `yaml:"views,omitempty"`
+	FieldDefinitions     []ProjectFieldDefinition `yaml:"field-definitions,omitempty" json:"field_definitions,omitempty"`
 }
 
 // parseUpdateProjectConfig handles update-project configuration
@@ -96,10 +105,58 @@ func (c *Compiler) parseUpdateProjectConfig(outputMap map[string]any) *UpdatePro
 					}
 				}
 			}
+
+			// Parse field-definitions if specified
+			fieldsData, hasFields := configMap["field-definitions"]
+			if !hasFields {
+				// Allow underscore variant as well
+				fieldsData, hasFields = configMap["field_definitions"]
+			}
+			if hasFields {
+				if fieldsList, ok := fieldsData.([]any); ok {
+					for i, fieldItem := range fieldsList {
+						fieldMap, ok := fieldItem.(map[string]any)
+						if !ok {
+							continue
+						}
+
+						field := ProjectFieldDefinition{}
+
+						if name, exists := fieldMap["name"]; exists {
+							if nameStr, ok := name.(string); ok {
+								field.Name = nameStr
+							}
+						}
+
+						dataType, hasDataType := fieldMap["data-type"]
+						if !hasDataType {
+							dataType = fieldMap["data_type"]
+						}
+						if dataTypeStr, ok := dataType.(string); ok {
+							field.DataType = dataTypeStr
+						}
+
+						if options, exists := fieldMap["options"]; exists {
+							if optionsList, ok := options.([]any); ok {
+								for _, opt := range optionsList {
+									if optStr, ok := opt.(string); ok {
+										field.Options = append(field.Options, optStr)
+									}
+								}
+							}
+						}
+
+						if field.Name != "" && field.DataType != "" {
+							updateProjectConfig.FieldDefinitions = append(updateProjectConfig.FieldDefinitions, field)
+							updateProjectLog.Printf("Parsed field definition %d: %s (%s)", i+1, field.Name, field.DataType)
+						}
+					}
+				}
+			}
 		}
 
-		updateProjectLog.Printf("Parsed update-project config: max=%d, hasCustomToken=%v, viewCount=%d",
-			updateProjectConfig.Max, updateProjectConfig.GitHubToken != "", len(updateProjectConfig.Views))
+		updateProjectLog.Printf("Parsed update-project config: max=%d, hasCustomToken=%v, viewCount=%d, fieldDefinitionCount=%d",
+			updateProjectConfig.Max, updateProjectConfig.GitHubToken != "", len(updateProjectConfig.Views), len(updateProjectConfig.FieldDefinitions))
 		return updateProjectConfig
 	}
 	updateProjectLog.Print("No update-project configuration found")
