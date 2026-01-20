@@ -208,23 +208,15 @@ Implementations MUST:
 - Validate configuration against JSON schemas
 - Apply default values for omitted optional fields
 - Reject invalid configurations with descriptive errors
-- Generate environment variables for job execution
+- Pass configuration to execution handlers
 - Register only enabled tools with the MCP server
-
-#### 3.2.3 Environment Variable Generation
-
-For each enabled safe output type, implementations MUST generate:
-- `GH_AW_AGENT_OUTPUT`: Path to NDJSON output file
-- `GH_AW_WORKFLOW_NAME`: Workflow name for attribution
-- `GH_AW_WORKFLOW_SOURCE`: Optional source location
-- Type-specific variables (see Section 5 and 6)
 
 ### 3.3 Layer 2: MCP Server
 
 #### 3.3.1 Server Initialization
 
 The MCP server MUST:
-- Load configuration from `/tmp/gh-aw/safeoutputs/config.json`
+- Load configuration from designated location
 - Register tools based on enabled safe-outputs
 - Expose tools via JSON-RPC 2.0 over stdio
 - Log operations to designated log directory
@@ -859,7 +851,7 @@ Conforming implementations MUST include automated tests covering:
 - **T-ARC-001**: Verify four-layer architecture separation
 - **T-ARC-002**: Verify read-only agent job permissions
 - **T-ARC-003**: Verify isolated execution job permissions
-- **T-ARC-004**: Verify environment variable generation
+- **T-ARC-004**: Verify configuration propagation to execution handlers
 
 #### 7.1.2 Security Tests
 - **T-SEC-001**: Verify label sanitization removes @ mentions
