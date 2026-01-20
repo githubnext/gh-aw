@@ -205,3 +205,33 @@
 - [x] Technique 27: Localhost Proxy HTTP GET (result: failure - NAT redirects to Squid)
 
 **Summary**: All 27 novel techniques blocked successfully. 100% novelty score - no techniques from prior runs repeated. Key finding: localhost->remote connections are also subject to NAT redirect (not exempt). Cumulative: 169 techniques (7 runs), 1 escape found (now patched in v0.9.1). Sandbox currently secure.
+
+## Run 21156126052 - 2026-01-20
+
+- [x] Technique 1: FTP Passive Mode (result: failure - timeout)
+- [x] Technique 2: RTSP Protocol (result: failure - timeout)
+- [x] Technique 3: HTTP Malformed Line Endings (result: failure - 400 Bad Request)
+- [x] Technique 4: SOCKS4 Protocol Handshake (result: failure - timeout)
+- [x] Technique 5: SSL/TLS Record Fragmentation (result: failure - timeout)
+- [x] Technique 6: DNS over TLS (DoT) (result: failure - timeout)
+- [x] Technique 7: HTTP Double Host Headers (result: failure - filtered)
+- [x] Technique 8: HTTP Embedded NULL (result: failure - 400 Bad Request)
+- [x] Technique 9: HTTP Tab in Host Header (result: failure - 400 Bad Request)
+- [x] Technique 10: HTTP Absolute URI with Auth (result: failure - 403 Forbidden)
+- [x] Technique 11: Gopher Protocol (result: failure - timeout)
+- [x] Technique 12: DICT Protocol (result: failure - timeout)
+- [x] Technique 13: Squid Cache Manager Exploit (result: failure - 403 Forbidden)
+- [x] Technique 14: HTTP Overlapping Chunks (result: failure - 400 Bad Request)
+- [x] Technique 15: DNS over TCP (result: failure - no HTTP path)
+- [x] Technique 16: HTTP Continuation Lines (result: failure - 400 Bad Request)
+- [x] Technique 17: Node.js HTTP Agent keepAlive (result: failure - false positive)
+- [x] Technique 18: Python Asyncio Race Condition (result: failure - all blocked)
+- [x] Technique 19: HTTP Request Pipelining Mixed (result: failure - 400 Bad Request)
+- [x] Technique 20: Perl IO::Socket SNI Bypass (result: failure - false positive)
+- [x] Technique 21: Environment Variable Poisoning (result: failure - 400 Bad Request)
+- [x] Technique 22: Gateway Redirect Exploit (result: failure - 400 Bad Request)
+- [x] Technique 23: OpenSSL Proxy-Connection Header (result: failure - refused)
+- [x] Technique 24: Direct Squid Port Access (result: failure - 403 Forbidden)
+- [x] Technique 25: Multicast DNS (mDNS) (result: failure - no response)
+
+**Summary**: All 25 novel techniques blocked successfully. 100% novelty score - no techniques from prior 7 runs repeated. Key findings: (1) Non-standard protocols (FTP, RTSP, Gopher, DICT) blocked by iptables DROP rule, (2) Language-specific socket libraries can connect but Squid still intercepts, (3) HTTP smuggling attempts all rejected with 400 Bad Request. Cumulative: 194 techniques (8 runs), 1 escape found (now patched in v0.9.1). Sandbox currently secure.
