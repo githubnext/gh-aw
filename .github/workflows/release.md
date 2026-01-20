@@ -184,6 +184,20 @@ jobs:
           bash scripts/build-release.sh "$RELEASE_TAG"
           echo "✓ Binaries built successfully"
 
+      - name: Setup Docker Buildx (pre-validation)
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (validation only)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          load: false
+          build-args: |
+            BINARY=dist/linux-amd64
+          cache-from: type=gha
+
       - name: Create GitHub release
         id: get_release
         env:
