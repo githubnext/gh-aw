@@ -19,7 +19,7 @@ When creating or modifying GitHub resources, **use MCP tool calls directly** (no
 
 1. Create GitHub Project
 2. Create views: Roadmap (roadmap), Task Tracker (table), Progress Board (board)
-3. Create required campaign project fields (see “Project Fields (Required)”) using `update_project` with `operation: "create_fields"`
+3. Create required campaign project fields (see "Project Fields (Required)" and example below) by calling `update_project` with `operation: "create_fields"` and `field_definitions` containing all 8 required fields
 4. Parse campaign requirements from the triggering issue (available via GitHub event context)
 5. Discover workflows: scan `.github/workflows/*.md` and check [agentics collection](https://github.com/githubnext/agentics)
 6. Generate `.campaign.md` spec in `.github/workflows/`
@@ -77,6 +77,38 @@ Required fields:
 - `end_date` (date, `YYYY-MM-DD`)
 
 Create them before adding any items to the project.
+
+**Example: Creating Project Fields**
+
+After creating the project, create all required fields in a single `update_project` call:
+
+```yaml
+update_project:
+  project: "<project-url>"
+  operation: "create_fields"
+  field_definitions:
+    - name: "status"
+      data_type: "SINGLE_SELECT"
+      options: ["Todo", "In Progress", "Review required", "Blocked", "Done"]
+    - name: "campaign_id"
+      data_type: "TEXT"
+    - name: "worker_workflow"
+      data_type: "TEXT"
+    - name: "repository"
+      data_type: "TEXT"
+    - name: "priority"
+      data_type: "SINGLE_SELECT"
+      options: ["High", "Medium", "Low"]
+    - name: "size"
+      data_type: "SINGLE_SELECT"
+      options: ["Small", "Medium", "Large"]
+    - name: "start_date"
+      data_type: "DATE"
+    - name: "end_date"
+      data_type: "DATE"
+```
+
+This ensures all fields exist with proper types before orchestrator workflows begin updating items.
 
 ## Copilot Coding Agent Handoff (Required)
 
