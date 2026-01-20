@@ -282,7 +282,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 
 		// Parse the existing GitHub tool configuration for type safety
 		parsedConfig := parseGitHubTool(githubTool)
-		
+
 		// Create a set of existing tools for efficient lookup
 		existingToolsSet := make(map[string]bool)
 		if parsedConfig != nil {
