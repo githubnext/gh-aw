@@ -63,6 +63,7 @@ async function main(config = {}) {
   const draftDefault = config.draft !== undefined ? config.draft : true;
   const ifNoChanges = config.if_no_changes || "warn";
   const allowEmpty = config.allow_empty || false;
+  const autoMerge = config.auto_merge || false;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
   const baseBranch = config.base_branch || "";
@@ -96,6 +97,7 @@ async function main(config = {}) {
   core.info(`Draft default: ${draftDefault}`);
   core.info(`If no changes: ${ifNoChanges}`);
   core.info(`Allow empty: ${allowEmpty}`);
+  core.info(`Auto-merge: ${autoMerge}`);
   if (expiresHours > 0) {
     core.info(`Pull requests expire after: ${expiresHours} hours`);
   }
@@ -654,6 +656,27 @@ ${patchPreview}`;
           labels: labels,
         });
         core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
+      }
+
+      // Enable auto-merge if configured
+      if (autoMerge) {
+        try {
+          await github.graphql(
+            `mutation($prId: ID!) {
+              enablePullRequestAutoMerge(input: {pullRequestId: $prId}) {
+                pullRequest {
+                  id
+                }
+              }
+            }`,
+            {
+              prId: pullRequest.node_id,
+            }
+          );
+          core.info(`Enabled auto-merge for pull request #${pullRequest.number}`);
+        } catch (autoMergeError) {
+          core.warning(`Failed to enable auto-merge for PR #${pullRequest.number}: ${autoMergeError instanceof Error ? autoMergeError.message : String(autoMergeError)}`);
+        }
       }
 
       // Update the activation comment with PR link (if a comment was created)

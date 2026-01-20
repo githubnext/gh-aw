@@ -25,8 +25,9 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[docs] "
     labels: [documentation, automation]
-    reviewers: copilot
+    reviewers: [copilot]
     draft: false
+    auto-merge: true
 
 tools:
   cache-memory: true

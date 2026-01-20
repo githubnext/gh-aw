@@ -30,6 +30,7 @@ safe-outputs:
     title-prefix: "[docs] "
     labels: [documentation, automation]
     draft: false
+    auto-merge: true
 
 timeout-minutes: 10
 ---
