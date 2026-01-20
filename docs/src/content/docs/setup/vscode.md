@@ -17,11 +17,27 @@ gh aw init
 
 This creates files including:
 - **Copilot instructions**: `.github/aw/github-agentic-workflows.md` - Automatically imported when authoring markdown files under `.github/workflows/`, making Copilot Chat more efficient at generating Agentic Workflows.
-- **Agents**: `.github/agents/create-agentic-workflow.agent.md` - An agent you can reference in Copilot Chat to interactively create workflows.
+- **Agents**: `.github/agents/agentic-workflows.agent.md` - A unified dispatcher agent you can reference in Copilot Chat to create, debug, update, or upgrade workflows.
 
-## create-agentic-workflow agent <a id="create-agentic-workflow"></a>
+## agentic-workflows agent <a id="agentic-workflows"></a>
 
-Use the `/agent` command in Copilot Chat and select `create-agentic-workflow` to interactively design workflows with guided assistance for trigger selection, permissions, security settings, tool configuration, and best practices. The conversational interface helps you build secure workflows without memorizing syntax.
+Use the `/agent` command in Copilot Chat with `agentic-workflows` to work with workflows. The agent intelligently routes your request based on your intent:
+
+```sh wrap
+# Create a new workflow
+/agent agentic-workflows create a workflow that triages issues
+
+# Debug a workflow
+/agent agentic-workflows debug why is my workflow failing?
+
+# Update an existing workflow
+/agent agentic-workflows update add web-fetch tool to my-workflow
+
+# Upgrade workflows
+/agent agentic-workflows upgrade all workflows to latest version
+```
+
+The agent provides guided assistance for trigger selection, permissions, security settings, tool configuration, and best practices. The conversational interface helps you build secure workflows without memorizing syntax.
 
 ## Background Compilation
 
