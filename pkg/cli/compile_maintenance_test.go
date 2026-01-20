@@ -59,7 +59,7 @@ Test workflow that creates issues with expiration.
 		EngineOverride:       "",
 		Validate:             false,
 		Watch:                false,
-		WorkflowDir:          ".github/workflows",
+		WorkflowDir:          "", // Use default directory (empty = .github/workflows)
 		SkipInstructions:     false,
 		NoEmit:               false,
 		Purge:                false,
@@ -153,7 +153,7 @@ Test workflow that creates issues without expiration.
 		EngineOverride:       "",
 		Validate:             false,
 		Watch:                false,
-		WorkflowDir:          ".github/workflows",
+		WorkflowDir:          "", // Use default directory (empty = .github/workflows)
 		SkipInstructions:     false,
 		NoEmit:               false,
 		Purge:                false,
@@ -172,5 +172,74 @@ Test workflow that creates issues without expiration.
 	// and if NONE of them have expires, the maintenance workflow should be deleted
 	if _, err := os.Stat(maintenancePath); !os.IsNotExist(err) {
 		t.Error("Maintenance workflow should be deleted when no workflows have expires field")
+	}
+}
+
+func TestCompileWithCustomDir_SkipsMaintenanceWorkflow(t *testing.T) {
+	// Create temporary directory structure
+	tempDir := testutil.TempDir(t, "test-*")
+	customDir := filepath.Join(tempDir, "custom/workflows")
+	if err := os.MkdirAll(customDir, 0755); err != nil {
+		t.Fatalf("Failed to create custom workflows directory: %v", err)
+	}
+
+	// Change to temp directory
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+
+	// Initialize git repo
+	initCmd := exec.Command("git", "init")
+	initCmd.Dir = tempDir
+	if err := initCmd.Run(); err != nil {
+		t.Fatalf("Failed to initialize git repo: %v", err)
+	}
+
+	// Create a workflow with expires field in custom directory
+	workflowContent := `---
+name: "Test Workflow with Expires"
+on:
+  workflow_dispatch:
+engine: copilot
+safe-outputs:
+  create-issue:
+    max: 1
+    expires: 24
+---
+
+Test workflow that creates issues with expiration.
+`
+	workflowPath := filepath.Join(customDir, "test-expires.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile all workflows in custom --dir
+	config := CompileConfig{
+		MarkdownFiles:        []string{}, // Empty = compile all files in directory
+		Verbose:              false,
+		EngineOverride:       "",
+		Validate:             false,
+		Watch:                false,
+		WorkflowDir:          "custom/workflows", // Custom directory
+		SkipInstructions:     false,
+		NoEmit:               false,
+		Purge:                false,
+		TrialMode:            false,
+		TrialLogicalRepoSlug: "",
+		Strict:               false,
+	}
+
+	_, err := CompileWorkflows(context.Background(), config)
+	if err != nil {
+		t.Fatalf("CompileWorkflows failed: %v", err)
+	}
+
+	// Verify that the maintenance workflow was NOT generated in custom directory
+	maintenancePath := filepath.Join(customDir, "agentics-maintenance.yml")
+	if _, err := os.Stat(maintenancePath); !os.IsNotExist(err) {
+		t.Error("Maintenance workflow should NOT be generated when using custom --dir option")
 	}
 }

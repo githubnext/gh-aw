@@ -478,14 +478,12 @@ func runPostProcessing(
 	// Generate maintenance workflow if needed
 	// When compiling specific files, we need to parse ALL workflows in the directory
 	// to check for expires fields, not just the ones being compiled
-	if !config.NoEmit {
+	// Skip maintenance workflow generation when using custom --dir option
+	if !config.NoEmit && config.WorkflowDir == "" {
 		gitRoot, err := findGitRoot()
 		if err == nil {
-			// Use default workflow dir if not specified
-			workflowDir := config.WorkflowDir
-			if workflowDir == "" {
-				workflowDir = ".github/workflows"
-			}
+			// Use default workflow dir
+			workflowDir := ".github/workflows"
 			absWorkflowDir := filepath.Join(gitRoot, workflowDir)
 
 			// Parse all workflow markdown files to check for expires fields
@@ -546,7 +544,8 @@ func runPostProcessingForDirectory(
 	}
 
 	// Generate maintenance workflow if needed
-	if !config.NoEmit {
+	// Skip maintenance workflow generation when using custom --dir option
+	if !config.NoEmit && config.WorkflowDir == "" {
 		absWorkflowDir := getAbsoluteWorkflowDir(workflowsDir, gitRoot)
 		if err := generateMaintenanceWorkflowWrapper(compiler, workflowDataList, absWorkflowDir, config.Verbose, config.Strict); err != nil {
 			if config.Strict {
