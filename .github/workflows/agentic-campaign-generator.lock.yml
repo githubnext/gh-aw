@@ -83,7 +83,7 @@ jobs:
         env:
           GH_AW_WORKFLOW_NAME: "Agentic Campaign Generator"
           GH_AW_LOCK_FOR_AGENT: "true"
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.\",\"runFailure\":\"Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.\",\"runSuccess\":\"[{workflow_name}]({run_url}) has successfully set up your campaign. Copilot Coding Agent will now create a PR.\",\"runFailure\":\"[{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1068,7 +1068,7 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.\",\"runFailure\":\"Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.\",\"runSuccess\":\"[{workflow_name}]({run_url}) has successfully set up your campaign. Copilot Coding Agent will now create a PR.\",\"runFailure\":\"[{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1087,7 +1087,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Agentic Campaign Generator"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.\",\"runFailure\":\"Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.\",\"runSuccess\":\"[{workflow_name}]({run_url}) has successfully set up your campaign. Copilot Coding Agent will now create a PR.\",\"runFailure\":\"[{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1328,7 +1328,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "claude"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.\",\"runFailure\":\"Campaign setup interrupted! [{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e *Campaign coordination by [{workflow_name}]({run_url})*\",\"runStarted\":\"[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.\",\"runSuccess\":\"[{workflow_name}]({run_url}) has successfully set up your campaign. Copilot Coding Agent will now create a PR.\",\"runFailure\":\"[{workflow_name}]({run_url}) {status}. Please check the details and try again.\"}"
       GH_AW_WORKFLOW_ID: "agentic-campaign-generator"
       GH_AW_WORKFLOW_NAME: "Agentic Campaign Generator"
     outputs:

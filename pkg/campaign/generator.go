@@ -20,7 +20,7 @@ func BuildCampaignGenerator() *workflow.WorkflowData {
 		Description:     "Agentic Campaign generator that discovers workflows, generates a campaign spec and a project board, and assigns to Copilot agent for compilation",
 		On:              buildGeneratorTrigger(),
 		Permissions:     buildGeneratorPermissions(),
-		Concurrency:     "", // No concurrency control for this workflow
+		Concurrency:     "",
 		RunsOn:          "runs-on: ubuntu-latest",
 		Roles:           []string{"admin", "maintainer", "write"},
 		EngineConfig:    &workflow.EngineConfig{ID: "claude"},
@@ -92,7 +92,9 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 		},
 		Messages: &workflow.SafeOutputMessagesConfig{
 			Footer:     "> *Campaign coordination by [{workflow_name}]({run_url})*",
-			RunStarted: "[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.", RunFailure: "[{workflow_name}]({run_url}) {status}. Please check the details and try again.",
+			RunStarted: "[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.",
+			RunSuccess: "[{workflow_name}]({run_url}) has successfully set up your campaign. Copilot Coding Agent will now create a PR.",
+			RunFailure: "[{workflow_name}]({run_url}) {status}. Please check the details and try again.",
 		},
 	}
 }
