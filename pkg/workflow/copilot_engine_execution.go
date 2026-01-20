@@ -31,6 +31,38 @@ import (
 
 var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 
+// isCampaignWorkflow returns true if the workflow is a campaign orchestrator workflow.
+// Campaign workflows are identified by having repo-memory tool with a campaign-id field.
+func isCampaignWorkflow(workflowData *WorkflowData) bool {
+	if workflowData.Tools == nil {
+		return false
+	}
+
+	repoMemory, ok := workflowData.Tools["repo-memory"]
+	if !ok {
+		return false
+	}
+
+	// Check if repo-memory is an array (campaign format)
+	memories, ok := repoMemory.([]any)
+	if !ok {
+		return false
+	}
+
+	// Check if any memory entry has a campaign-id field
+	for _, mem := range memories {
+		memMap, ok := mem.(map[string]any)
+		if !ok {
+			continue
+		}
+		if campaignID, hasCampaignID := memMap["campaign-id"]; hasCampaignID && campaignID != "" {
+			return true
+		}
+	}
+
+	return false
+}
+
 // GetExecutionSteps returns the GitHub Actions steps for executing GitHub Copilot CLI
 func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	copilotExecLog.Printf("Generating execution steps for Copilot: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
@@ -420,6 +452,7 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 		} else {
 			// For agent execution, use agent-specific env var with default fallback
 			// Default to claude-sonnet-4 to prevent backend rejection when no model is configured
+			// This applies to all workflows (campaigns inherit this behavior naturally)
 			env[constants.EnvVarModelAgentCopilot] = fmt.Sprintf("${{ vars.%s || '%s' }}", constants.EnvVarModelAgentCopilot, constants.DefaultCopilotAgentModel)
 		}
 	}

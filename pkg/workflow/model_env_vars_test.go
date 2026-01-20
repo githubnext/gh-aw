@@ -79,7 +79,7 @@ func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 				t.Errorf("Expected command pattern '%s' not found in steps:\n%s", tt.expectedCommand, stepsContent)
 			}
 
-			// Verify env var has fallback to default model for agent jobs
+			// Verify env var has fallback to default model for all agent jobs
 			expectedEnvLine := tt.expectedEnvVar + ": ${{ vars." + tt.expectedEnvVar + " || 'claude-sonnet-4' }}"
 			if !strings.Contains(stepsContent, expectedEnvLine) {
 				t.Errorf("Expected env var line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
@@ -211,5 +211,60 @@ func TestExplicitModelConfigOverridesEnvVar(t *testing.T) {
 	// The explicit model should be in the command
 	if !strings.Contains(stepsContent, "--model gpt-4") {
 		t.Errorf("Explicit model 'gpt-4' not found in command:\n%s", stepsContent)
+	}
+}
+
+// TestCampaignWorkflowUsesDefaultModel tests that campaign workflows get the default model fallback
+func TestCampaignWorkflowUsesDefaultModel(t *testing.T) {
+	// Create a campaign workflow with repo-memory that has campaign-id
+	workflowData := &WorkflowData{
+		Name: "test-campaign",
+		AI:   "copilot",
+		Tools: map[string]any{
+			"bash": []any{"echo"},
+			"repo-memory": []any{
+				map[string]any{
+					"id":          "campaigns",
+					"branch-name": "memory/campaigns",
+					"campaign-id": "test-campaign-id",
+				},
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			// Just enough to make it an agent job
+		},
+	}
+
+	engine, err := GetGlobalEngineRegistry().GetEngine("copilot")
+	if err != nil {
+		t.Fatalf("Failed to get engine: %v", err)
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	// Convert steps to string
+	var stepsStr strings.Builder
+	for _, step := range steps {
+		for _, line := range step {
+			stepsStr.WriteString(line)
+			stepsStr.WriteString("\n")
+		}
+	}
+	stepsContent := stepsStr.String()
+
+	// Check that the environment variable is present
+	if !strings.Contains(stepsContent, constants.EnvVarModelAgentCopilot+":") {
+		t.Errorf("Expected environment variable %s not found in campaign workflow", constants.EnvVarModelAgentCopilot)
+	}
+
+	// For campaign workflows, verify it has the default model fallback
+	expectedEnvLine := constants.EnvVarModelAgentCopilot + ": ${{ vars." + constants.EnvVarModelAgentCopilot + " || 'claude-sonnet-4' }}"
+	if !strings.Contains(stepsContent, expectedEnvLine) {
+		t.Errorf("Expected campaign env var line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
+	}
+
+	// Check that the command uses the env var conditionally
+	if !strings.Contains(stepsContent, "${"+constants.EnvVarModelAgentCopilot+":+ --model") {
+		t.Errorf("Expected conditional model flag not found in campaign workflow command")
 	}
 }
