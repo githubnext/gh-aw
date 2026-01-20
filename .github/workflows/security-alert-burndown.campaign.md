@@ -13,6 +13,10 @@ workflows:
   - security-fix-pr
   - security-review
 
+# Discovery scope - where to search for worker workflow items
+discovery-repos:
+  - githubnext/gh-aw
+
 # Campaign memory storage
 memory-paths:
   - memory/campaigns/security-alert-burndown/**

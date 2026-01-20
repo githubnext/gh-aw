@@ -113,9 +113,10 @@ jobs:
       - env:
           GH_AW_CAMPAIGN_ID: security-alert-burndown
           GH_AW_CURSOR_PATH: /tmp/gh-aw/repo-memory/campaigns/security-alert-burndown/cursor.json
+          GH_AW_DISCOVERY_REPOS: githubnext/gh-aw
           GH_AW_MAX_DISCOVERY_ITEMS: "50"
           GH_AW_MAX_DISCOVERY_PAGES: "3"
-          GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/TBD
+          GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/122
           GH_AW_TRACKER_LABEL: campaign:security-alert-burndown
           GH_AW_WORKFLOWS: code-scanning-fixer,security-fix-pr,security-review
         id: discovery
@@ -195,7 +196,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.69 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.71 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -721,7 +722,7 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.69'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.71'
           
           mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
@@ -796,7 +797,7 @@ jobs:
               allowed_domains: [],
               firewall_enabled: true,
               awf_version: "v0.10.0",
-              awmg_version: "v0.0.69",
+              awmg_version: "v0.0.71",
               steps: {
                 firewall: "squid"
               },
@@ -920,7 +921,7 @@ jobs:
           - Memory paths: memory/campaigns/security-alert-burndown/**
           - Metrics glob: `memory/campaigns/security-alert-burndown/metrics/*.json`
           - Cursor glob: `memory/campaigns/security-alert-burndown/cursor.json`
-          - Project URL: https://github.com/orgs/githubnext/projects/TBD
+          - Project URL: https://github.com/orgs/githubnext/projects/122
           - Governance: max new items per run: 3
           - Governance: max discovery items per run: 50
           - Governance: max discovery pages per run: 3
@@ -1034,7 +1035,7 @@ jobs:
                  
                  **Campaign Details:**
                  - Campaign ID: `security-alert-burndown`
-                 - Project Board: https://github.com/orgs/githubnext/projects/TBD
+                 - Project Board: https://github.com/orgs/githubnext/projects/122
                  - Worker Workflows: `code-scanning-fixer`, `security-fix-pr`, `security-review`
                  
                  ---
@@ -1047,7 +1048,7 @@ jobs:
           3) **After creating the Epic** (or if Epic exists but not on board), add it to the project board:
              ```yaml
              update-project:
-               project: "https://github.com/orgs/githubnext/projects/TBD"
+               project: "https://github.com/orgs/githubnext/projects/122"
                campaign_id: "security-alert-burndown"
                content_type: "issue"
                content_number: <EPIC_ISSUE_NUMBER>
@@ -1161,7 +1162,7 @@ jobs:
           Example status update:
           ```yaml
           create-project-status-update:
-            project: "https://github.com/orgs/githubnext/projects/TBD"
+            project: "https://github.com/orgs/githubnext/projects/122"
             status: "ON_TRACK"
             start_date: "2026-01-06"
             target_date: "2026-01-31"
@@ -1238,7 +1239,7 @@ jobs:
           
           - Writes MUST use only the `update-project` safe-output.
           - All writes MUST target exactly:
-            - **Project URL**: `https://github.com/orgs/githubnext/projects/TBD`
+            - **Project URL**: `https://github.com/orgs/githubnext/projects/122`
           - Every item MUST include:
             - `campaign_id: "security-alert-burndown"`
           
@@ -1309,7 +1310,7 @@ jobs:
           
           ```yaml
           update-project:
-            project: "https://github.com/orgs/githubnext/projects/TBD"
+            project: "https://github.com/orgs/githubnext/projects/122"
             campaign_id: "security-alert-burndown"
             content_type: "issue"              # or "pull_request"
             content_number: 123
@@ -1342,7 +1343,7 @@ jobs:
           
           ```yaml
           update-project:
-            project: "https://github.com/orgs/githubnext/projects/TBD"
+            project: "https://github.com/orgs/githubnext/projects/122"
             campaign_id: "security-alert-burndown"
             content_type: "issue"              # or "pull_request"
             content_number: 123
@@ -1354,7 +1355,7 @@ jobs:
           
           ```yaml
           update-project:
-            project: "https://github.com/orgs/githubnext/projects/TBD"
+            project: "https://github.com/orgs/githubnext/projects/122"
             campaign_id: "security-alert-burndown"
             content_type: "issue"              # or "pull_request"
             content_number: 123
@@ -1432,7 +1433,7 @@ jobs:
           
           - [ ] All writes use `update-project:` blocks (no other write mechanism).
           - [ ] Each `update-project` block includes:
-            - [ ] `project: "https://github.com/orgs/githubnext/projects/TBD"`
+            - [ ] `project: "https://github.com/orgs/githubnext/projects/122"`
             - [ ] `campaign_id: "security-alert-burndown"` (top-level)
             - [ ] `content_type` ∈ {`issue`, `pull_request`}
             - [ ] `content_number` is an integer
