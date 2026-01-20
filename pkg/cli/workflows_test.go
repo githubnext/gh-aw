@@ -178,14 +178,14 @@ func TestGetMarkdownWorkflowFilesExcludesREADME(t *testing.T) {
 
 	// Create several workflow files
 	testFiles := map[string]string{
-		"workflow1.md":       "---\non: push\n---\n# Workflow 1",
-		"workflow2.md":       "---\non: pull_request\n---\n# Workflow 2",
-		"README.md":          "# This is a README",
-		"readme.md":          "# This is a readme",
-		"ReadMe.md":          "# This is a ReadMe",
-		"my-workflow.md":     "---\non: workflow_dispatch\n---\n# My Workflow",
-		"README-test.md":     "---\non: push\n---\n# README Test",
-		"test-README.md":     "---\non: push\n---\n# Test README",
+		"workflow1.md":   "---\non: push\n---\n# Workflow 1",
+		"workflow2.md":   "---\non: pull_request\n---\n# Workflow 2",
+		"README.md":      "# This is a README",
+		"readme.md":      "# This is a readme",
+		"ReadMe.md":      "# This is a ReadMe",
+		"my-workflow.md": "---\non: workflow_dispatch\n---\n# My Workflow",
+		"README-test.md": "---\non: push\n---\n# README Test",
+		"test-README.md": "---\non: push\n---\n# Test README",
 	}
 
 	for filename, content := range testFiles {
