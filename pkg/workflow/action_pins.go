@@ -237,9 +237,21 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 
 			// Only emit warning if the version is not a SHA (SHAs shouldn't generate warnings)
 			if !isAlreadySHA {
-				warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
-					actionRepo, version, actionRepo, selectedPin.Version)
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+				// Initialize the warning cache if needed
+				if data.ActionPinWarnings == nil {
+					data.ActionPinWarnings = make(map[string]bool)
+				}
+
+				// Create a cache key for this action@version combination
+				cacheKey := actionRepo + "@" + version
+
+				// Only emit warning if we haven't already warned about this action
+				if !data.ActionPinWarnings[cacheKey] {
+					warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
+						actionRepo, version, actionRepo, selectedPin.Version)
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+					data.ActionPinWarnings[cacheKey] = true
+				}
 			}
 			actionPinsLog.Printf("Using version in non-strict mode: %s@%s (requested) → %s@%s (used)",
 				actionRepo, version, actionRepo, selectedPin.Version)
@@ -266,11 +278,23 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		return actionRepo + "@" + version + " # " + version, nil
 	}
 
-	warningMsg := fmt.Sprintf("Unable to pin action %s@%s", actionRepo, version)
-	if data.ActionResolver != nil {
-		warningMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
+	// Initialize the warning cache if needed
+	if data.ActionPinWarnings == nil {
+		data.ActionPinWarnings = make(map[string]bool)
 	}
-	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+
+	// Create a cache key for this action@version combination
+	cacheKey := actionRepo + "@" + version
+
+	// Only emit warning if we haven't already warned about this action
+	if !data.ActionPinWarnings[cacheKey] {
+		warningMsg := fmt.Sprintf("Unable to pin action %s@%s", actionRepo, version)
+		if data.ActionResolver != nil {
+			warningMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+		data.ActionPinWarnings[cacheKey] = true
+	}
 	return "", nil
 }
 
