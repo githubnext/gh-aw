@@ -33,9 +33,6 @@ tools:
   bash:
     - "*"
   edit:
-  repo-memory:
-    branch-name: memory/firewall-reports
-    description: "Firewall analysis history and aggregated data"
 imports:
   - shared/mcp/gh-aw.md
   - shared/reporting.md
@@ -56,7 +53,7 @@ Collect and analyze firewall logs from all agentic workflows that use the firewa
 
 **Phase 1: Data Collection**
 
-Collect data for the past 30 days (or available data) from cache memory and firewall audit logs:
+Collect data for the past 30 days (or available data) from firewall audit logs:
 
 1. **Firewall Request Data**:
    - Count of allowed requests per day
@@ -206,6 +203,16 @@ The tool will:
   "count": 100
 }
 ```
+
+### Step 1.5: Early Exit if No Data
+
+**IMPORTANT**: If Step 1 returns zero workflow runs (no firewall-enabled workflows ran in the past 7 days):
+
+1. **Do NOT create a discussion or report**
+2. **Exit early** with a brief log message: "No firewall-enabled workflow runs found in the past 7 days. Exiting without creating a report."
+3. **Stop processing** - do not proceed to Step 2 or any subsequent steps
+
+This prevents creating empty or meaningless reports when there's no data to analyze.
 
 ### Step 2: Analyze Firewall Logs from Collected Runs
 
@@ -358,7 +365,7 @@ Create a new GitHub discussion with:
 
 ## Notes
 
-- If no firewall logs are found, create a simple report stating that no firewall-enabled workflows ran in the past 7 days
+- **Early exit**: If no firewall-enabled workflow runs are found in the past 7 days, exit early without creating a report (see Step 1.5)
 - Include timestamps and run URLs for traceability
 - Use tables and formatting for better readability
 - Add emojis to make the report more engaging (🔥 for firewall, 🚫 for blocked, ✅ for allowed)

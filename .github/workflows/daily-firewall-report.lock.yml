@@ -165,15 +165,6 @@ jobs:
             trending-data-${{ github.workflow }}-
             trending-data-
             trending-
-      # Repo memory git-based storage configuration from frontmatter processed below
-      - name: Clone repo-memory branch (default)
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH_NAME: memory/firewall-reports
-          TARGET_REPO: ${{ github.repository }}
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
-          CREATE_ORPHAN: true
-        run: bash /opt/gh-aw/actions/clone_repo_memory_branch.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -604,30 +595,6 @@ jobs:
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           
-          
-          ---
-          
-          ## Repo Memory Available
-          
-          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch. Firewall analysis history and aggregated data
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Git Branch Storage**: Files are stored in the `memory/firewall-reports` branch of the current repository
-          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
-          - **Merge Strategy**: In case of conflicts, your changes (current version) win
-          - **Persistence**: Files persist across workflow runs via git branch storage
-          
-          **Constraints:**
-          - **Max File Size**: 10240 bytes (0.01 MB) per file
-          - **Max File Count**: 100 files per commit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
-          - `/tmp/gh-aw/repo-memory/default/state.json` - structured state data
-          - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
-          
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
@@ -802,7 +769,7 @@ jobs:
           
           **Phase 1: Data Collection**
           
-          Collect data for the past 30 days (or available data) from cache memory and firewall audit logs:
+          Collect data for the past 30 days (or available data) from firewall audit logs:
           
           1. **Firewall Request Data**:
              - Count of allowed requests per day
@@ -952,6 +919,16 @@ jobs:
             "count": 100
           }
           ```
+          
+          ### Step 1.5: Early Exit if No Data
+          
+          **IMPORTANT**: If Step 1 returns zero workflow runs (no firewall-enabled workflows ran in the past 7 days):
+          
+          1. **Do NOT create a discussion or report**
+          2. **Exit early** with a brief log message: "No firewall-enabled workflow runs found in the past 7 days. Exiting without creating a report."
+          3. **Stop processing** - do not proceed to Step 2 or any subsequent steps
+          
+          This prevents creating empty or meaningless reports when there's no data to analyze.
           
           ### Step 2: Analyze Firewall Logs from Collected Runs
           
@@ -1104,7 +1081,7 @@ jobs:
           
           ## Notes
           
-          - If no firewall logs are found, create a simple report stating that no firewall-enabled workflows ran in the past 7 days
+          - **Early exit**: If no firewall-enabled workflow runs are found in the past 7 days, exit early without creating a report (see Step 1.5)
           - Include timestamps and run URLs for traceability
           - Use tables and formatting for better readability
           - Add emojis to make the report more engaging (🔥 for firewall, 🚫 for blocked, ✅ for allowed)
@@ -1293,15 +1270,6 @@ jobs:
           # AWF runs with sudo, creating files owned by root
           sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
           awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
-      # Upload repo memory as artifacts for push job
-      - name: Upload repo-memory artifact (default)
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
-          retention-days: 1
-          if-no-files-found: ignore
       - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
@@ -1336,7 +1304,6 @@ jobs:
       - activation
       - agent
       - detection
-      - push_repo_memory
       - safe_outputs
       - update_cache_memory
       - upload_assets
@@ -1610,66 +1577,6 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
-
-  push_repo_memory:
-    needs:
-      - agent
-      - detection
-    if: always() && needs.detection.outputs.success == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
-      - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          persist-credentials: false
-          sparse-checkout: .
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Download repo-memory artifact (default)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-        continue-on-error: true
-        with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
-      - name: Push repo-memory changes (default)
-        if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
-          MEMORY_ID: default
-          TARGET_REPO: ${{ github.repository }}
-          BRANCH_NAME: memory/firewall-reports
-          MAX_FILE_SIZE: 10240
-          MAX_FILE_COUNT: 100
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/push_repo_memory.cjs');
-            await main();
 
   safe_outputs:
     needs:
