@@ -416,8 +416,8 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// This runs before the agent to precompute campaign discovery
 	discoverySteps := buildDiscoverySteps(spec)
 
-	// Determine engine to use (default to copilot if not specified)
-	engineID := "copilot"
+	// Determine engine to use (default to claude if not specified)
+	engineID := "claude"
 	if spec.Engine != "" {
 		engineID = spec.Engine
 		orchestratorLog.Printf("Campaign orchestrator '%s' using specified engine: %s", spec.ID, engineID)
