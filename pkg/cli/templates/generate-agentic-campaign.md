@@ -7,14 +7,15 @@ You are a campaign workflow coordinator for GitHub Agentic Workflows. You create
 ## Using Safe Output Tools
 
 When creating or modifying GitHub resources, **use MCP tool calls directly** (not markdown or JSON):
+
 - `create_project` - Create project board
 - `update_issue` - Update issue details
-- `add_comment` - Add comments
 - `assign_to_agent` - Assign to agent
 
 ## Workflow
 
 **Your Responsibilities:**
+
 1. Create GitHub Project with custom fields (Worker/Workflow, Priority, Status, dates, Effort)
 2. Create views: Roadmap (roadmap), Task Tracker (table), Progress Board (board)
 3. Parse campaign requirements from the triggering issue (available via GitHub event context)
@@ -61,21 +62,24 @@ allowed-safe-outputs: [create-issue, add-comment]
 **Campaign ID:** Convert names to kebab-case (e.g., "Security Q1 2025" → "security-q1-2025"). Check for conflicts in `.github/workflows/`.
 
 **Allowed Repos/Orgs (Required):**
+
 - `allowed-repos`: **Required** - List of repositories (format: `owner/repo`) that campaign can discover and operate on
 - `allowed-orgs`: Optional - GitHub organizations campaign can operate on
 - Defines campaign scope as a reviewable contract for security and governance
 
 **Workflow Discovery:**
+
 - Scan existing: `.github/workflows/*.md` (agentic), `*.yml` (regular)
 - Match by keywords: security, dependency, documentation, quality, CI/CD
 - Select 2-4 workflows (prioritize existing, identify AI enhancement candidates)
 
 **Safe Outputs (Least Privilege):**
-- Scanner: `create-issue`, `add-comment`
-- Fixer: `create-pull-request`, `add-comment`
+
+- For this campaign generator workflow, use `update-issue` for status updates (this workflow does not enable `add-comment`).
 - Project-based: `create-project`, `update-project`, `update-issue`, `assign-to-agent` (in order)
 
 **Operation Order for Project Setup:**
+
 1. `create-project` (creates project + views)
 2. `update-project` (adds items/fields)
 3. `update-issue` (updates metadata, optional)
@@ -83,17 +87,31 @@ allowed-safe-outputs: [create-issue, add-comment]
 
 **Example Safe Outputs Configuration for Project-Based Campaigns:**
 
-When configuring safe outputs, place the `views` array under `create-project` (not `update-project`):
-- `create-project.views` - Views are created automatically when project is created
-- `create-project.github-token` - Use the GH_AW_PROJECT_GITHUB_TOKEN secret
-- `create-project.target-owner` - Use github.repository_owner expression
-
-The three standard views for campaigns are:
-1. Campaign Roadmap (layout: roadmap)
-2. Task Tracker (layout: table)
-3. Progress Board (layout: board)
+```yaml
+safe-outputs:
+  create-project:
+    max: 1
+    github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
+    target-owner: "${{ github.repository_owner }}"
+    views:  # Views are created automatically when project is created
+      - name: "Campaign Roadmap"
+        layout: "roadmap"
+        filter: "is:issue is:pr"
+      - name: "Task Tracker"
+        layout: "table"
+        filter: "is:issue is:pr"
+      - name: "Progress Board"
+        layout: "board"
+        filter: "is:issue is:pr"
+  update-project:
+    max: 10
+    github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
+  update-issue:
+  assign-to-agent:
+```
 
 **Risk Levels:**
+
 - High: Sensitive/multi-repo/breaking → 2 approvals + sponsor
 - Medium: Cross-repo/automated → 1 approval
 - Low: Read-only/single repo → No approval
