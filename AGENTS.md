@@ -73,6 +73,45 @@ make build       # Rebuild gh-aw after modifying JSON schemas in pkg/parser/sche
 ```
 Schema files are embedded in the binary using `//go:embed` directives, so changes require rebuilding the binary.
 
+**ALWAYS RUN LINTERS AFTER ADDING TEST FILES:**
+
+When adding new test files (`*_test.go`), the **unused** linter may catch helper functions that are defined but never called. Always run linters after creating test files to catch these issues early.
+
+```bash
+make lint        # Catches unused, testifylint, misspell, unconvert issues
+```
+
+**Common linting issues in test files:**
+
+1. **unused**: Helper functions defined but never called
+   - ❌ BAD: Defining `func hasInternalPrefix(key string) bool { ... }` but never using it
+   - ✅ GOOD: Either use the function in tests or remove it
+
+2. **testifylint**: Assertion best practices
+   - Always provide descriptive assertion messages
+   - Use `require.*` for setup assertions that must pass
+   - Use `assert.*` for test validations
+   - Use `assert.Error(t, err, "msg")` not `assert.NotNil(t, err)`
+   - Use `assert.NoError(t, err, "msg")` not `assert.Nil(t, err)`
+
+**Before committing test files:**
+```bash
+make agent-finish  # REQUIRED - Full validation including lint
+```
+
+**Example of correct test code:**
+```go
+// ✅ CORRECT - Using helper functions
+func TestCompile(t *testing.T) {
+    compiler := NewCompiler()
+    require.NotNil(t, compiler, "Compiler should be created")
+    
+    // Use helper function if defined
+    err := compiler.Compile("test.md")
+    assert.NoError(t, err, "Should compile valid workflow")
+}
+```
+
 **ALWAYS USE GITHUB MCP FOR GITHUB API ACCESS WITH COPILOT ENGINE:**
 
 The Copilot agent **cannot directly access api.github.com**. When using the `copilot` engine, you **must** configure the GitHub MCP server to access GitHub information (repositories, issues, pull requests, etc.).
