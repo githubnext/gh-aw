@@ -253,6 +253,9 @@ const DefaultCopilotVersion Version = "0.0.387"
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
 const DefaultCopilotDetectionModel ModelName = "gpt-5-mini"
 
+// DefaultCopilotAgentModel is the default model for the Copilot engine when used in agent execution
+const DefaultCopilotAgentModel ModelName = "claude-sonnet-4"
+
 // Environment variable names for model configuration
 const (
 	// EnvVarModelAgentCopilot configures the default Copilot model for agent execution

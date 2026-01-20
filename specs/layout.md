@@ -315,6 +315,7 @@ All action scripts are copied from `actions/setup/js/*.cjs` and `actions/setup/s
 |----------|------|-------|-------------|
 | `DefaultMCPRegistryURL` | `URL` | `"https://api.mcp.github.com/v0"` | Default MCP registry URL |
 | `DefaultCopilotDetectionModel` | `ModelName` | `"gpt-5-mini"` | Default Copilot detection model |
+| `DefaultCopilotAgentModel` | `ModelName` | `"claude-sonnet-4"` | Default Copilot agent model |
 | `MaxExpressionLineLength` | `LineLength` | `120` | Max line length for expressions |
 | `ExpressionBreakThreshold` | `LineLength` | `100` | Threshold for breaking long lines |
 | `DefaultActivationJobRunnerImage` | `string` | `"ubuntu-slim"` | Default runner for activation jobs |

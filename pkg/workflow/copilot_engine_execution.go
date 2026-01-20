@@ -418,8 +418,9 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 			// For detection, use detection-specific env var (no builtin default, CLI will use its own)
 			env[constants.EnvVarModelDetectionCopilot] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelDetectionCopilot)
 		} else {
-			// For agent execution, use agent-specific env var
-			env[constants.EnvVarModelAgentCopilot] = fmt.Sprintf("${{ vars.%s || '' }}", constants.EnvVarModelAgentCopilot)
+			// For agent execution, use agent-specific env var with default fallback
+			// Default to claude-sonnet-4 to prevent backend rejection when no model is configured
+			env[constants.EnvVarModelAgentCopilot] = fmt.Sprintf("${{ vars.%s || '%s' }}", constants.EnvVarModelAgentCopilot, constants.DefaultCopilotAgentModel)
 		}
 	}
 

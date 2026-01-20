@@ -79,8 +79,8 @@ func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 				t.Errorf("Expected command pattern '%s' not found in steps:\n%s", tt.expectedCommand, stepsContent)
 			}
 
-			// Verify env var has fallback to empty string for agent jobs
-			expectedEnvLine := tt.expectedEnvVar + ": ${{ vars." + tt.expectedEnvVar + " || '' }}"
+			// Verify env var has fallback to default model for agent jobs
+			expectedEnvLine := tt.expectedEnvVar + ": ${{ vars." + tt.expectedEnvVar + " || 'claude-sonnet-4' }}"
 			if !strings.Contains(stepsContent, expectedEnvLine) {
 				t.Errorf("Expected env var line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
 			}

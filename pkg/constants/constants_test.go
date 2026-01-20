@@ -263,6 +263,7 @@ func TestModelNameConstants(t *testing.T) {
 		expected string
 	}{
 		{"DefaultCopilotDetectionModel", DefaultCopilotDetectionModel, "gpt-5-mini"},
+		{"DefaultCopilotAgentModel", DefaultCopilotAgentModel, "claude-sonnet-4"},
 	}
 
 	for _, tt := range tests {
@@ -446,6 +447,12 @@ func TestSemanticTypeAliases(t *testing.T) {
 		detectionModel := DefaultCopilotDetectionModel
 		if string(detectionModel) != "gpt-5-mini" {
 			t.Errorf("DefaultCopilotDetectionModel = %q, want %q", detectionModel, "gpt-5-mini")
+		}
+
+		// Test DefaultCopilotAgentModel has the correct type
+		agentModel := DefaultCopilotAgentModel
+		if string(agentModel) != "claude-sonnet-4" {
+			t.Errorf("DefaultCopilotAgentModel = %q, want %q", agentModel, "claude-sonnet-4")
 		}
 	})
 
