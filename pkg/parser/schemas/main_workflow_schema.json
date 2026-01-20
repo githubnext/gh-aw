@@ -6048,6 +6048,20 @@
               ],
               "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted. Note: Only supported by the claude engine."
             },
+            "iterations": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Number of iterations to run the agentic engine in a loop as an integer value"
+                },
+                {
+                  "type": "string",
+                  "description": "Number of iterations to run the agentic engine in a loop as a string value"
+                }
+              ],
+              "description": "Number of iterations to run the agentic engine in a loop. On each iteration, the result from the previous run is appended to the original prompt. This implements a ralph-loop style iterative refinement pattern. Only activates when value is greater than 1. Supports all engines (copilot, claude, codex, custom)."
+            },
             "concurrency": {
               "oneOf": [
                 {
