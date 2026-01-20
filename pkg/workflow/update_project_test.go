@@ -71,6 +71,31 @@ func TestParseUpdateProjectConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "config with field-definitions",
+			outputMap: map[string]any{
+				"update-project": map[string]any{
+					"field-definitions": []any{
+						map[string]any{
+							"name":      "status",
+							"data-type": "SINGLE_SELECT",
+							"options":   []any{"Todo", "Done"},
+						},
+						map[string]any{
+							"name":      "campaign_id",
+							"data-type": "TEXT",
+						},
+					},
+				},
+			},
+			expectedConfig: &UpdateProjectConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10},
+				FieldDefinitions: []ProjectFieldDefinition{
+					{Name: "status", DataType: "SINGLE_SELECT", Options: []string{"Todo", "Done"}},
+					{Name: "campaign_id", DataType: "TEXT"},
+				},
+			},
+		},
+		{
 			name: "no update-project config",
 			outputMap: map[string]any{
 				"create-issue": map[string]any{},
@@ -107,6 +132,7 @@ func TestParseUpdateProjectConfig(t *testing.T) {
 				require.NotNil(t, config, "Expected non-nil config")
 				assert.Equal(t, tt.expectedConfig.Max, config.Max, "Max should match")
 				assert.Equal(t, tt.expectedConfig.GitHubToken, config.GitHubToken, "GitHubToken should match")
+				assert.Equal(t, tt.expectedConfig.FieldDefinitions, config.FieldDefinitions, "FieldDefinitions should match")
 			}
 		})
 	}
