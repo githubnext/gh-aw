@@ -105,6 +105,23 @@ function normalizeItem(item, contentType) {
 }
 
 /**
+ * Build scope query parts for GitHub search
+ * @param {string[]} repos - List of repositories to search (owner/repo format)
+ * @param {string[]} orgs - List of organizations to search
+ * @returns {string[]} Array of scope parts (e.g., ["repo:owner/repo", "org:orgname"])
+ */
+function buildScopeParts(repos, orgs) {
+  const scopeParts = [];
+  if (repos && repos.length > 0) {
+    scopeParts.push(...repos.map(r => `repo:${r}`));
+  }
+  if (orgs && orgs.length > 0) {
+    scopeParts.push(...orgs.map(o => `org:${o}`));
+  }
+  return scopeParts;
+}
+
+/**
  * Search for items by tracker-id across issues and PRs
  * @param {any} octokit - GitHub API client
  * @param {string} trackerId - Tracker ID to search for
@@ -127,17 +144,18 @@ async function searchByTrackerId(octokit, trackerId, repos, orgs, maxItems, maxP
   let searchQuery = `"gh-aw-tracker-id: ${trackerId}" type:issue`;
 
   // Scope search to allowed repositories and/or organizations
-  // GitHub search query has a limit of ~1024 characters, so we need to be careful
-  const scopeParts = [];
-  if (repos && repos.length > 0) {
-    scopeParts.push(...repos.map(r => `repo:${r}`));
-  }
-  if (orgs && orgs.length > 0) {
-    scopeParts.push(...orgs.map(o => `org:${o}`));
-  }
+  // GitHub search query has a limit of ~1024 characters
+  const scopeParts = buildScopeParts(repos, orgs);
 
   if (scopeParts.length > 0) {
-    searchQuery = `${searchQuery} (${scopeParts.join(" ")})`;
+    const scopeQuery = scopeParts.join(" ");
+    // Check if combined query would exceed GitHub's limit
+    if (searchQuery.length + scopeQuery.length + 3 > 1000) {
+      core.warning(
+        `Search query length (${searchQuery.length + scopeQuery.length}) approaches GitHub's ~1024 character limit. Some repos/orgs may be omitted.`,
+      );
+    }
+    searchQuery = `${searchQuery} (${scopeQuery})`;
     core.info(`Scoped search to: ${scopeParts.join(", ")}`);
   }
 
@@ -219,16 +237,17 @@ async function searchByLabel(octokit, label, repos, orgs, maxItems, maxPages, cu
 
   // Scope search to allowed repositories and/or organizations
   // GitHub search query has a limit of ~1024 characters
-  const scopeParts = [];
-  if (repos && repos.length > 0) {
-    scopeParts.push(...repos.map(r => `repo:${r}`));
-  }
-  if (orgs && orgs.length > 0) {
-    scopeParts.push(...orgs.map(o => `org:${o}`));
-  }
+  const scopeParts = buildScopeParts(repos, orgs);
 
   if (scopeParts.length > 0) {
-    searchQuery = `${searchQuery} (${scopeParts.join(" ")})`;
+    const scopeQuery = scopeParts.join(" ");
+    // Check if combined query would exceed GitHub's limit
+    if (searchQuery.length + scopeQuery.length + 3 > 1000) {
+      core.warning(
+        `Search query length (${searchQuery.length + scopeQuery.length}) approaches GitHub's ~1024 character limit. Some repos/orgs may be omitted.`,
+      );
+    }
+    searchQuery = `${searchQuery} (${scopeQuery})`;
     core.info(`Scoped search to: ${scopeParts.join(", ")}`);
   }
 

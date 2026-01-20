@@ -67,7 +67,7 @@ func ValidateSpec(spec *CampaignSpec) []string {
 	}
 
 	// Validate tracker-label format if provided
-	if spec.TrackerLabel != "" {
+	if strings.TrimSpace(spec.TrackerLabel) != "" {
 		trimmedLabel := strings.TrimSpace(spec.TrackerLabel)
 		// Tracker labels should follow the pattern "campaign:campaign-id"
 		if !strings.HasPrefix(trimmedLabel, "campaign:") {
