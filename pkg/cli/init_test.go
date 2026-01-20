@@ -291,8 +291,8 @@ func TestInitRepository_Campaign(t *testing.T) {
 		t.Fatalf("Failed to read agentic-campaign-generator workflow: %v", err)
 	}
 	workflowStr := string(workflowContent)
-	if !strings.Contains(workflowStr, "description: \"Campaign generator") {
-		t.Errorf("Expected campaign-generator workflow to contain description")
+	if !strings.Contains(workflowStr, "Agentic Campaign generator") {
+		t.Errorf("Expected campaign-generator workflow to contain description with 'Agentic Campaign generator'")
 	}
 	if !strings.Contains(workflowStr, "create-agentic-campaign") {
 		t.Errorf("Expected campaign-generator workflow to trigger on 'create-agentic-campaign' label")

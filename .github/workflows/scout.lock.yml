@@ -182,14 +182,8 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.12'
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      - name: Install Markitdown MCP
-        run: pip install markitdown-mcp
       - name: Setup jq utilities directory
         run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
 
@@ -240,11 +234,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install awf binary
-        run: |
-          echo "Installing awf via installer script (requested version: v0.10.0)"
-          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.10.0 bash
-          which awf
-          awf --version
+        run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.10.0
       - name: Install Claude Code CLI
         run: npm install -g --silent @anthropic-ai/claude-code@2.1.12
       - name: Determine automatic lockdown mode for GitHub MCP server
@@ -258,7 +248,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.69 mcp/arxiv-mcp-server mcp/context7 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.69 mcp/arxiv-mcp-server mcp/context7 mcp/markitdown node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -453,7 +443,7 @@ jobs:
                 "url": "https://mcp.deepwiki.com/sse"
               },
               "github": {
-                "container": "ghcr.io/github/github-mcp-server:v0.28.1",
+                "container": "ghcr.io/github/github-mcp-server:v0.29.0",
                 "env": {
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
@@ -463,7 +453,7 @@ jobs:
               },
               "markitdown": {
                 "type": "stdio",
-                "command": "markitdown-mcp"
+                "container": "mcp/markitdown"
               },
               "microsoftdocs": {
                 "type": "http",

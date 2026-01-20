@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestCustomActionCopilotTokenFallback tests that custom actions use the correct
@@ -15,7 +16,8 @@ func TestCustomActionCopilotTokenFallback(t *testing.T) {
 	// Register a test custom action
 	testScript := `console.log('test');`
 	actionPath := "./actions/test-action"
-	DefaultScriptRegistry.RegisterWithAction("test_handler", testScript, RuntimeModeGitHubScript, actionPath)
+	err := DefaultScriptRegistry.RegisterWithAction("test_handler", testScript, RuntimeModeGitHubScript, actionPath)
+	require.NoError(t, err)
 
 	workflowData := &WorkflowData{
 		Name:        "Test Workflow",

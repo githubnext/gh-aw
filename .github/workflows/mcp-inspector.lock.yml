@@ -152,8 +152,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Start MCP server
         run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Robust health check with TCP connection test\necho \"Waiting for MCP server to start (PID: $MCP_PID)...\"\nfor i in {1..15}; do\n  # Check if process is still running\n  if ! kill -0 $MCP_PID 2>/dev/null; then\n    echo \"Error: MCP server process died unexpectedly\"\n    exit 1\n  fi\n  \n  # Try to connect to the server port\n  if timeout 1 bash -c \"echo > /dev/tcp/localhost/8765\" 2>/dev/null; then\n    echo \"MCP server is accepting connections on port 8765\"\n    echo \"MCP server started successfully with PID $MCP_PID\"\n    exit 0\n  fi\n  \n  echo \"Waiting for server to accept connections... (attempt $i/15)\"\n  sleep 1\ndone\n\necho \"Error: MCP server failed to accept connections after 15 seconds\"\nexit 1\n"
-      - name: Install Markitdown MCP
-        run: pip install markitdown-mcp
 
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
@@ -202,7 +200,7 @@ jobs:
           
           # Execute the installer with the specified version
           # Pass VERSION directly to sudo to ensure it's available to the installer script
-          sudo VERSION=0.0.384 bash /tmp/copilot-install.sh
+          sudo VERSION=0.0.385 bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh
@@ -210,11 +208,7 @@ jobs:
           # Verify installation
           copilot --version
       - name: Install awf binary
-        run: |
-          echo "Installing awf via installer script (requested version: v0.10.0)"
-          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=v0.10.0 bash
-          which awf
-          awf --version
+        run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.10.0
       - name: Determine automatic lockdown mode for GitHub MCP server
         id: determine-automatic-lockdown
         env:
@@ -226,7 +220,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh docker.io/mcp/brave-search ghcr.io/github/github-mcp-server:v0.28.1 ghcr.io/githubnext/gh-aw-mcpg:v0.0.69 mcp/arxiv-mcp-server mcp/ast-grep:latest mcp/context7 mcp/memory mcp/notion node:lts-alpine python:alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh docker.io/mcp/brave-search ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.69 mcp/arxiv-mcp-server mcp/ast-grep:latest mcp/context7 mcp/markitdown mcp/memory mcp/notion node:lts-alpine python:alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -561,7 +555,7 @@ jobs:
               },
               "github": {
                 "type": "stdio",
-                "container": "ghcr.io/github/github-mcp-server:v0.28.1",
+                "container": "ghcr.io/github/github-mcp-server:v0.29.0",
                 "env": {
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
@@ -571,7 +565,7 @@ jobs:
               },
               "markitdown": {
                 "type": "stdio",
-                "command": "markitdown-mcp",
+                "container": "mcp/markitdown",
                 "tools": [
                   "*"
                 ]
@@ -702,7 +696,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.384",
+              agent_version: "0.0.385",
               workflow_name: "MCP Inspector Agent",
               experimental: false,
               supports_tools_allowlist: true,
@@ -1538,7 +1532,7 @@ jobs:
           
           # Execute the installer with the specified version
           # Pass VERSION directly to sudo to ensure it's available to the installer script
-          sudo VERSION=0.0.384 bash /tmp/copilot-install.sh
+          sudo VERSION=0.0.385 bash /tmp/copilot-install.sh
           
           # Cleanup
           rm -f /tmp/copilot-install.sh

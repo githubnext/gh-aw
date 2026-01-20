@@ -144,7 +144,17 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	return steps
 }
 
-// generateAWFInstallationStep creates a GitHub Actions step to install the AWF binary.
+// generateAWFInstallationStep creates a GitHub Actions step to install the AWF binary
+// with SHA256 checksum verification to protect against supply chain attacks.
+//
+// The installation logic is implemented in a separate shell script (install_awf_binary.sh)
+// which downloads the binary directly from GitHub releases, verifies its checksum against
+// the official checksums.txt file, and installs it. This approach:
+// - Eliminates trust in the installer script itself
+// - Provides full transparency of the installation process
+// - Protects against tampered or compromised installer scripts
+// - Verifies the binary integrity before execution
+//
 // If a custom command is specified in the agent config, the installation is skipped
 // as the custom command replaces the AWF binary.
 func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig) GitHubActionStep {
@@ -162,11 +172,7 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 
 	stepLines := []string{
 		"      - name: Install awf binary",
-		"        run: |",
-		fmt.Sprintf("          echo \"Installing awf via installer script (requested version: %s)\"", version),
-		fmt.Sprintf("          curl -sSL https://raw.githubusercontent.com/githubnext/gh-aw-firewall/main/install.sh | sudo AWF_VERSION=%s bash", version),
-		"          which awf",
-		"          awf --version",
+		fmt.Sprintf("        run: bash /opt/gh-aw/actions/install_awf_binary.sh %s", version),
 	}
 
 	return GitHubActionStep(stepLines)
