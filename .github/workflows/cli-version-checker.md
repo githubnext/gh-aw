@@ -164,7 +164,7 @@ For each CLI tool update:
 
 ### Update Process
 1. Edit `./pkg/constants/constants.go` with new version(s)
-2. Run `make recompile` to update workflows
+2. **REQUIRED**: Run `make recompile` to update workflows (MUST be run after any constant changes)
 3. Verify changes with `git status`
 4. **REQUIRED**: Create issue via safe-outputs with detailed analysis (do NOT skip this step)
 
@@ -241,7 +241,7 @@ Template structure:
   - Use commands like `copilot help <subcommand>` or `<tool> <subcommand> --help`
 - Compare help output between old and new versions (both main help and subcommand help)
 - **SAVE TO CACHE**: Store help outputs (main and all subcommands) and version check results in cache-memory
-- Test with `make recompile` before creating PR
+- **REQUIRED**: Always run `make recompile` after updating constants to regenerate workflow lock files
 - **DO NOT COMMIT** `*.lock.yml` or `pkg/workflow/js/*.js` files directly
 
 ## Common JSON Parsing Issues
