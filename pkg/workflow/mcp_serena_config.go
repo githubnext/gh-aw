@@ -2,11 +2,7 @@ package workflow
 
 import (
 	"strings"
-
-	"github.com/githubnext/gh-aw/pkg/logger"
 )
-
-var serenaConfigLog = logger.New("workflow:mcp_serena_config")
 
 // isSerenaInLocalMode checks if Serena tool is configured with local mode
 func isSerenaInLocalMode(tools *ToolsConfig) bool {

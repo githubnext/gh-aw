@@ -4,11 +4,8 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
-	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
-
-var playwrightConfigLog = logger.New("workflow:mcp_playwright_config")
 
 // PlaywrightDockerArgs represents the common Docker arguments for Playwright container
 type PlaywrightDockerArgs struct {

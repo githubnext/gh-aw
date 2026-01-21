@@ -2,11 +2,7 @@ package workflow
 
 import (
 	"strings"
-
-	"github.com/githubnext/gh-aw/pkg/logger"
 )
-
-var mcpUtilitiesLog = logger.New("workflow:mcp_utilities")
 
 // shellQuote adds shell quoting to a string if needed
 func shellQuote(s string) string {
