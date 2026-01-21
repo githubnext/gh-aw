@@ -31,7 +31,6 @@ name: "The Daily Repository Chronicle"
 "on":
   schedule:
   - cron: "0 16 * * 1-5"
-    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions: {}
