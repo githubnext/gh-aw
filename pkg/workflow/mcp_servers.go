@@ -141,6 +141,49 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		}
 	}
 
+	// Check for HTTP MCP servers with secrets in headers (e.g., Tavily)
+	// These need to be available as environment variables when the MCP gateway starts
+	for toolName, toolValue := range tools {
+		// Skip standard tools that are handled above
+		if toolName == "github" || toolName == "playwright" || toolName == "serena" ||
+			toolName == "cache-memory" || toolName == "agentic-workflows" ||
+			toolName == "safe-outputs" || toolName == "safe-inputs" {
+			continue
+		}
+
+		// Check if this is an MCP tool
+		if toolConfig, ok := toolValue.(map[string]any); ok {
+			if hasMcp, _ := hasMCPConfig(toolConfig); !hasMcp {
+				continue
+			}
+
+			// Get MCP config and check if it's an HTTP type
+			mcpConfig, err := getMCPConfig(toolConfig, toolName)
+			if err != nil {
+				mcpServersLog.Printf("Failed to parse MCP config for tool %s: %v", toolName, err)
+				continue
+			}
+
+			// Extract secrets from headers for HTTP MCP servers
+			if mcpConfig.Type == "http" && len(mcpConfig.Headers) > 0 {
+				headerSecrets := ExtractSecretsFromMap(mcpConfig.Headers)
+				mcpServersLog.Printf("Extracted %d secrets from HTTP MCP server '%s'", len(headerSecrets), toolName)
+				for envVarName, secretExpr := range headerSecrets {
+					envVars[envVarName] = secretExpr
+				}
+			}
+
+			// Also extract secrets from env section if present
+			if len(mcpConfig.Env) > 0 {
+				envSecrets := ExtractSecretsFromMap(mcpConfig.Env)
+				mcpServersLog.Printf("Extracted %d secrets from env section of MCP server '%s'", len(envSecrets), toolName)
+				for envVarName, secretExpr := range envSecrets {
+					envVars[envVarName] = secretExpr
+				}
+			}
+		}
+	}
+
 	return envVars
 }
 
