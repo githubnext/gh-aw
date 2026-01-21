@@ -800,3 +800,64 @@ Test content.`
 		t.Error("Expected concurrency in generated YAML")
 	}
 }
+
+// TestGenerateYAMLStripsANSIEscapeCodes tests that ANSI escape sequences are removed from YAML comments
+func TestGenerateYAMLStripsANSIEscapeCodes(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "yaml-ansi-test")
+
+	// Test with ANSI codes in description, source, and other comments
+	frontmatter := fmt.Sprintf(`---
+name: Test Workflow
+description: "This workflow \x1b[31mdoes important\x1b[0m things\x1b[m"
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+---
+
+# Test Workflow
+
+Test content.`)
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("CompileWorkflow() error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(content)
+
+	// Verify ANSI codes are stripped from description
+	if !strings.Contains(yamlStr, "# This workflow does important things") {
+		t.Error("Expected clean description without ANSI codes in comments")
+	}
+
+	// Verify no ANSI escape sequences remain in the file
+	if strings.Contains(yamlStr, "\x1b[") {
+		t.Error("Found ANSI escape sequences in generated YAML file")
+	}
+
+	// Verify the [m pattern (without ESC) is also not present
+	// This catches cases where only the trailing part of an ANSI code remains
+	if strings.Contains(yamlStr, "[31m") || strings.Contains(yamlStr, "[0m") || strings.Contains(yamlStr, "[m") {
+		// Check if it's actually an ANSI code pattern (after ESC character removal)
+		// We want to allow normal brackets like [something] but catch ANSI patterns
+		lines := strings.Split(yamlStr, "\n")
+		for i, line := range lines {
+			if strings.Contains(line, "[m") || strings.Contains(line, "[0m") || strings.Contains(line, "[31m") {
+				t.Errorf("Found ANSI code remnant in generated YAML at line %d: %q", i+1, line)
+			}
+		}
+	}
+}

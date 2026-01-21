@@ -411,3 +411,125 @@ func TestParseVersionValue(t *testing.T) {
 		})
 	}
 }
+
+func TestStripANSIEscapeCodes(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "no ANSI codes",
+			input:    "Hello World",
+			expected: "Hello World",
+		},
+		{
+			name:     "simple color reset",
+			input:    "Hello World[m",
+			expected: "Hello World[m", // [m without ESC is not an ANSI code
+		},
+		{
+			name:     "ANSI color reset",
+			input:    "Hello World\x1b[m",
+			expected: "Hello World",
+		},
+		{
+			name:     "ANSI color code with reset",
+			input:    "Hello \x1b[31mWorld\x1b[0m",
+			expected: "Hello World",
+		},
+		{
+			name:     "ANSI bold text",
+			input:    "\x1b[1mBold text\x1b[0m",
+			expected: "Bold text",
+		},
+		{
+			name:     "multiple ANSI codes",
+			input:    "\x1b[1m\x1b[31mRed Bold\x1b[0m",
+			expected: "Red Bold",
+		},
+		{
+			name:     "ANSI with parameters",
+			input:    "Text \x1b[1;32mgreen bold\x1b[0m more text",
+			expected: "Text green bold more text",
+		},
+		{
+			name:     "ANSI clear screen",
+			input:    "\x1b[2JCleared",
+			expected: "Cleared",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "only ANSI codes",
+			input:    "\x1b[0m\x1b[31m\x1b[1m",
+			expected: "",
+		},
+		{
+			name:     "real-world example from issue",
+			input:    "2. **REQUIRED**: Run 'make recompile' to update workflows (MUST be run after any constant changes)\x1b[m",
+			expected: "2. **REQUIRED**: Run 'make recompile' to update workflows (MUST be run after any constant changes)",
+		},
+		{
+			name:     "another real-world example",
+			input:    "- **SAVE TO CACHE**: Store help outputs (main and all subcommands) and version check results in cache-memory\x1b[m",
+			expected: "- **SAVE TO CACHE**: Store help outputs (main and all subcommands) and version check results in cache-memory",
+		},
+		{
+			name:     "ANSI underline",
+			input:    "\x1b[4mUnderlined\x1b[0m text",
+			expected: "Underlined text",
+		},
+		{
+			name:     "ANSI 256 color",
+			input:    "\x1b[38;5;214mOrange\x1b[0m",
+			expected: "Orange",
+		},
+		{
+			name:     "mixed content with newlines",
+			input:    "Line 1\x1b[31m\nLine 2\x1b[0m\nLine 3",
+			expected: "Line 1\nLine 2\nLine 3",
+		},
+		{
+			name:     "ANSI cursor movement",
+			input:    "\x1b[2AMove up\x1b[3BMove down",
+			expected: "Move upMove down",
+		},
+		{
+			name:     "ANSI erase in line",
+			input:    "Start\x1b[KEnd",
+			expected: "StartEnd",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := StripANSIEscapeCodes(tt.input)
+			if result != tt.expected {
+				t.Errorf("StripANSIEscapeCodes(%q) = %q, expected %q", tt.input, result, tt.expected)
+			}
+
+			// Verify no ANSI escape sequences remain
+			if result != "" && strings.Contains(result, "\x1b[") {
+				t.Errorf("Result still contains ANSI escape sequences: %q", result)
+			}
+		})
+	}
+}
+
+func BenchmarkStripANSIEscapeCodes_Clean(b *testing.B) {
+	s := "This is a clean string without any ANSI codes"
+	for i := 0; i < b.N; i++ {
+		StripANSIEscapeCodes(s)
+	}
+}
+
+func BenchmarkStripANSIEscapeCodes_WithCodes(b *testing.B) {
+	s := "This \x1b[31mhas\x1b[0m some \x1b[1mANSI\x1b[0m codes"
+	for i := 0; i < b.N; i++ {
+		StripANSIEscapeCodes(s)
+	}
+}
