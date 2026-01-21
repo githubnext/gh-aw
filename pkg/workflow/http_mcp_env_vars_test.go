@@ -67,7 +67,7 @@ func TestCollectMCPEnvironmentVariables_MultipleHTTPMCPServers(t *testing.T) {
 	assert.Contains(t, envVars, "TAVILY_API_KEY", "TAVILY_API_KEY should be extracted")
 	assert.Contains(t, envVars, "DD_API_KEY", "DD_API_KEY should be extracted")
 	assert.Contains(t, envVars, "DD_APP_KEY", "DD_APP_KEY should be extracted")
-	assert.Equal(t, 3, len(envVars), "Should have exactly 3 environment variables")
+	assert.Len(t, envVars, 3, "Should have exactly 3 environment variables")
 }
 
 // TestCollectMCPEnvironmentVariables_HTTPMCPWithoutSecrets verifies that HTTP MCP servers without secrets don't add env vars
