@@ -7,6 +7,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 var compilerActivationJobsLog = logger.New("workflow:compiler_activation_jobs")
@@ -93,7 +94,9 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckStopTimeStepID))
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        env:\n")
-		steps = append(steps, fmt.Sprintf("          GH_AW_STOP_TIME: %s\n", data.StopTime))
+		// Strip ANSI escape codes from stop-time value
+		cleanStopTime := stringutil.StripANSIEscapeCodes(data.StopTime)
+		steps = append(steps, fmt.Sprintf("          GH_AW_STOP_TIME: %s\n", cleanStopTime))
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
@@ -576,7 +579,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Set environment if manual-approval is configured
 	var environment string
 	if data.ManualApproval != "" {
-		environment = fmt.Sprintf("environment: %s", data.ManualApproval)
+		// Strip ANSI escape codes from manual-approval environment name
+		cleanManualApproval := stringutil.StripANSIEscapeCodes(data.ManualApproval)
+		environment = fmt.Sprintf("environment: %s", cleanManualApproval)
 	}
 
 	job := &Job{
