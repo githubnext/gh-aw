@@ -106,12 +106,13 @@ function balanceCodeRegions(markdown) {
   // Third pass: Match fences, detecting and fixing nested patterns
   // Strategy:
   // 1. Process fences in order
-  // 2. For each opener, find ALL potential closers at the same indentation
-  // 3. If there are multiple closers, the user intended the LAST one, so escape middle ones
-  // 4. Skip closers inside already-paired blocks
-  // 5. Respect indentation: only match fences at the same indentation level
+  // 2. For each opener, find potential closers
+  // 3. If first closer has intermediate opener, defer this opener
+  // 4. Otherwise, pair with first direct closer (greedy matching)
+  // 5. Make a second pass for deferred openers
   const fenceLengthAdjustments = new Map(); // lineIndex -> new length
   const processed = new Set();
+  const deferred = new Set(); // Fences to process in second pass
   const unclosedFences = [];
   const pairedBlocks = []; // Track paired blocks with their line ranges
 
@@ -135,7 +136,8 @@ function balanceCodeRegions(markdown) {
     const openFence = fences[i];
     processed.add(i);
 
-    // Find ALL potential closers at same indentation that are NOT inside existing blocks
+    // Find potential closers: bare fences at same indentation that can close this opener
+    // For each closer, track if there's an opener between our opener and that closer
     const potentialClosers = [];
     const openIndentLength = openFence.indent.length;
 
@@ -157,39 +159,112 @@ function balanceCodeRegions(markdown) {
 
         // Only consider fences at the SAME indentation as potential closers
         if (fenceIndentLength === openIndentLength) {
-          potentialClosers.push({ index: j, length: fence.length });
+          // Check if there's an opener between our opener (i) and this closer (j)
+          let hasOpenerBetween = false;
+          for (let k = i + 1; k < j; k++) {
+            if (processed.has(k)) continue;
+            const intermediateFence = fences[k];
+            if (intermediateFence.language !== "" && intermediateFence.indent.length === openIndentLength) {
+              hasOpenerBetween = true;
+              break;
+            }
+          }
+
+          potentialClosers.push({
+            index: j,
+            length: fence.length,
+            hasOpenerBetween,
+          });
         }
       }
     }
 
     if (potentialClosers.length > 0) {
-      // Use the LAST potential closer (farthest from opener)
-      const closerIndex = potentialClosers[potentialClosers.length - 1].index;
-      processed.add(closerIndex);
+      // Check the first potential closer
+      const firstCloser = potentialClosers[0];
 
-      pairedBlocks.push({
-        start: fences[i].lineIndex,
-        end: fences[closerIndex].lineIndex,
-        openIndex: i,
-        closeIndex: closerIndex,
-      });
+      if (firstCloser.hasOpenerBetween) {
+        // There's an opener between our opener and the first closer
+        // Defer this opener - we'll process it after intermediate openers are paired
+        deferred.add(i);
+        processed.delete(i); // Unmark so it can be processed in second pass
+        i++;
+      } else {
+        // No opener before the first closer, so it's a direct match
+        // Check if there are MORE closers without intermediate openers
+        const directClosers = potentialClosers.filter(c => !c.hasOpenerBetween);
 
-      // If there are multiple potential closers, we have nested fences that need escaping
-      if (potentialClosers.length > 1) {
-        // Increase fence length so middle closers can no longer close
-        const maxLength = Math.max(...potentialClosers.map(c => c.length), openFence.length);
-        const newLength = maxLength + 1;
-        fenceLengthAdjustments.set(fences[i].lineIndex, newLength);
-        fenceLengthAdjustments.set(fences[closerIndex].lineIndex, newLength);
+        if (directClosers.length > 1) {
+          // Multiple bare closers without intermediate openers
+          // Count openers between our opener and the last direct closer to determine if this is true nesting
+          const lastDirectCloser = directClosers[directClosers.length - 1];
+          let openerCount = 0;
+          for (let k = i + 1; k < lastDirectCloser.index; k++) {
+            if (processed.has(k)) continue;
+            const intermediateFence = fences[k];
+            if (intermediateFence.language !== "" && intermediateFence.indent.length === openIndentLength) {
+              openerCount++;
+            }
+          }
 
-        // Mark middle closers as processed (they're now treated as content)
-        for (let k = 0; k < potentialClosers.length - 1; k++) {
-          processed.add(potentialClosers[k].index);
+          // True nesting: more closers than openers (e.g., 1 opener, 3 closers)
+          // Nested blocks: closers = openers + 1 (e.g., 2 openers [including us], 2 closers)
+          const closerCount = directClosers.length;
+          const isTrueNesting = closerCount > openerCount + 1;
+
+          if (isTrueNesting) {
+            // TRUE nesting - use the LAST closer and escape middle ones
+            const closerIndex = lastDirectCloser.index;
+            processed.add(closerIndex);
+
+            pairedBlocks.push({
+              start: fences[i].lineIndex,
+              end: fences[closerIndex].lineIndex,
+              openIndex: i,
+              closeIndex: closerIndex,
+            });
+
+            // Increase fence length so middle closers can no longer close
+            const maxLength = Math.max(...directClosers.map(c => c.length), openFence.length);
+            const newLength = maxLength + 1;
+            fenceLengthAdjustments.set(fences[i].lineIndex, newLength);
+            fenceLengthAdjustments.set(fences[closerIndex].lineIndex, newLength);
+
+            // Mark middle closers as processed (they're now treated as content)
+            for (let k = 0; k < directClosers.length - 1; k++) {
+              processed.add(directClosers[k].index);
+            }
+
+            i = closerIndex + 1;
+          } else {
+            // Nested blocks - use the FIRST direct closer (greedy matching)
+            const closerIndex = directClosers[0].index;
+            processed.add(closerIndex);
+
+            pairedBlocks.push({
+              start: fences[i].lineIndex,
+              end: fences[closerIndex].lineIndex,
+              openIndex: i,
+              closeIndex: closerIndex,
+            });
+
+            i = closerIndex + 1;
+          }
+        } else {
+          // Only one direct closer, use it (normal case)
+          const closerIndex = firstCloser.index;
+          processed.add(closerIndex);
+
+          pairedBlocks.push({
+            start: fences[i].lineIndex,
+            end: fences[closerIndex].lineIndex,
+            openIndex: i,
+            closeIndex: closerIndex,
+          });
+
+          i = closerIndex + 1;
         }
       }
-
-      // Continue from after the closer
-      i = closerIndex + 1;
     } else {
       // No closer found - check if this fence is inside a paired block
       const fenceLine = fences[i].lineIndex;
@@ -199,6 +274,49 @@ function balanceCodeRegions(markdown) {
       }
 
       i++;
+    }
+  }
+
+  // Fourth pass: Process deferred fences (those that had intermediate openers)
+  for (const deferredIndex of deferred) {
+    if (processed.has(deferredIndex)) continue; // Already processed in first pass somehow
+
+    const openFence = fences[deferredIndex];
+    processed.add(deferredIndex);
+
+    // Find potential closers (same logic as before)
+    const potentialClosers = [];
+    const openIndentLength = openFence.indent.length;
+
+    for (let j = deferredIndex + 1; j < fences.length; j++) {
+      if (processed.has(j)) continue;
+
+      const fence = fences[j];
+      if (isInsideBlock(fence.lineIndex)) continue;
+
+      const canClose = fence.char === openFence.char && fence.length >= openFence.length && fence.language === "";
+
+      if (canClose && fence.indent.length === openIndentLength) {
+        potentialClosers.push({ index: j, length: fence.length });
+      }
+    }
+
+    if (potentialClosers.length > 0) {
+      // Use the FIRST available closer
+      const closerIndex = potentialClosers[0].index;
+      processed.add(closerIndex);
+
+      pairedBlocks.push({
+        start: fences[deferredIndex].lineIndex,
+        end: fences[closerIndex].lineIndex,
+        openIndex: deferredIndex,
+        closeIndex: closerIndex,
+      });
+    } else {
+      // No closer found
+      if (!isInsideBlock(fences[deferredIndex].lineIndex)) {
+        unclosedFences.push(openFence);
+      }
     }
   }
 
