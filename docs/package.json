@@ -19,7 +19,7 @@
   "dependencies": {
     "@astrojs/starlight": "^0.37.3",
     "@primer/octicons": "^19.21.2",
-    "astro": "^5.16.9",
+    "astro": "^5.16.12",
     "astro-mermaid": "^1.2.0",
     "mermaid": "^11.12.2",
     "sharp": "^0.34.5",
