@@ -34,18 +34,18 @@ func TestPermissionsShortcutInIncludedFiles(t *testing.T) {
 			expectLockFileContains: "permissions: write-all",
 		},
 		{
-			name:                   "read shortcut in included file",
+			name:                   "invalid read shortcut in included file should fail",
 			includedPermissions:    "permissions: read",
-			mainPermissions:        "permissions: read",
-			expectCompilationError: false,
-			expectLockFileContains: "permissions: read",
+			mainPermissions:        "permissions: read-all",
+			expectCompilationError: true, // "read" is no longer a valid shorthand
+			expectLockFileContains: "",
 		},
 		{
-			name:                   "write shortcut in included file",
+			name:                   "invalid write shortcut in included file should fail",
 			includedPermissions:    "permissions: write",
-			mainPermissions:        "permissions: write\nfeatures:\n  dangerous-permissions-write: true",
-			expectCompilationError: false,
-			expectLockFileContains: "permissions: write",
+			mainPermissions:        "permissions: write-all\nfeatures:\n  dangerous-permissions-write: true",
+			expectCompilationError: true, // "write" is no longer a valid shorthand
+			expectLockFileContains: "",
 		},
 		{
 			name: "object form still works in included file",

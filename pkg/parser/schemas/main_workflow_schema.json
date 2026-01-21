@@ -1415,8 +1415,8 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["read-all", "write-all", "read", "write"],
-          "description": "Simple permissions string: 'read-all' (all read permissions), 'write-all' (all write permissions), 'read' or 'write' (basic level)"
+          "enum": ["read-all", "write-all"],
+          "description": "Simple permissions string: 'read-all' (all read permissions) or 'write-all' (all write permissions)"
         },
         {
           "type": "object",

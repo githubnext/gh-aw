@@ -27,7 +27,7 @@ func TestFrontmatterSyntaxErrors(t *testing.T) {
 			frontmatterContent: `---
 name: Test Workflow
 on push
-permissions: read
+permissions: read-all
 ---`,
 			markdownContent: `# Test Workflow
 This is a test workflow.`,
@@ -45,7 +45,7 @@ on:
   push:
     branches:
   - main
-permissions: read
+permissions: read-all
 ---`,
 			markdownContent: `# Test Workflow
 This workflow has invalid indentation.`,
@@ -61,7 +61,7 @@ This workflow has invalid indentation.`,
 name: Test Workflow
 on: push
 name: Duplicate Name
-permissions: read
+permissions: read-all
 ---`,
 			markdownContent: `# Test Workflow
 This workflow has duplicate keys.`,
@@ -78,7 +78,7 @@ name: Test Workflow
 on:
   push:
     branches: [main, dev
-permissions: read
+permissions: read-all
 ---`,
 			markdownContent: `# Test Workflow
 This workflow has unclosed brackets.`,
@@ -94,7 +94,7 @@ This workflow has unclosed brackets.`,
 name: Test Workflow
 on:
   push: {branches: [main], types: [opened
-permissions: read
+permissions: read-all
 ---`,
 			markdownContent: `# Test Workflow
 This workflow has unclosed braces.`,
@@ -109,7 +109,7 @@ This workflow has unclosed braces.`,
 			frontmatterContent: `---
 name: Test Workflow
 on: @invalid_character
-permissions: read
+permissions: read-all
 ---`,
 			markdownContent: `# Test Workflow
 This workflow has invalid YAML characters.`,
@@ -124,7 +124,7 @@ This workflow has invalid YAML characters.`,
 			frontmatterContent: `---
 name: "Test Workflow
 on: push
-permissions: read
+permissions: read-all
 ---`,
 			markdownContent: `# Test Workflow
 This workflow has malformed string quotes.`,
@@ -140,7 +140,7 @@ This workflow has malformed string quotes.`,
 name: Test Workflow
 on: push
 enabled: yes_please
-permissions: read
+permissions: read-all
 ---`,
 			markdownContent: `# Test Workflow
 This workflow has invalid boolean value.`,
@@ -155,7 +155,7 @@ This workflow has invalid boolean value.`,
 			frontmatterContent: `---
 name: Test Workflow
 on:
-permissions: read
+permissions: read-all
 ---`,
 			markdownContent: `# Test Workflow
 This workflow has missing value after colon.`,
@@ -174,7 +174,7 @@ on:
     branches:
       main
       - dev
-permissions: read
+permissions: read-all
 ---`,
 			markdownContent: `# Test Workflow
 This workflow has invalid list structure.`,
@@ -206,7 +206,7 @@ This workflow has unexpected end of stream.`,
 name: Test Workflow
 description: "Invalid escape: \z"
 on: push
-permissions: read
+permissions: read-all
 ---`,
 			markdownContent: `# Test Workflow
 This workflow has invalid escape sequence.`,
@@ -224,7 +224,7 @@ on:
   push:
 	branches:
 	  - main
-permissions: read
+permissions: read-all
 ---`,
 			markdownContent: `# Test Workflow
 This workflow has mixed tab and space indentation.`,
@@ -242,7 +242,7 @@ defaults: &default_settings
   timeout: 30
 on: push
 job1: *missing_anchor
-permissions: read
+permissions: read-all
 ---`,
 			markdownContent: `# Test Workflow
 This workflow has anchor without alias.`,
@@ -270,7 +270,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-permissions: read
+permissions: read-all
 ---`,
 			markdownContent: `# Test Workflow
 This workflow has complex nested structure error.`,
@@ -289,7 +289,7 @@ description: |
   description that has
 invalid_key: value
 on: push
-permissions: read
+permissions: read-all
 ---`,
 			markdownContent: `# Test Workflow
 This workflow has invalid multiline string.`,
@@ -306,7 +306,7 @@ name: Test Workflow
 on: push
 unknown_field: value
 invalid_permissions: write
-permissions: read
+permissions: read-all
 ---`,
 			markdownContent: `# Test Workflow
 This workflow may have schema validation errors.`,
@@ -527,7 +527,7 @@ on:
     branches: [main, dev
   pull_request:
     types: [opened]
-permissions: read
+permissions: read-all
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -616,7 +616,7 @@ func TestFrontmatterSyntaxErrorBoundaryConditions(t *testing.T) {
 			content: `---
 name: Test
 very_long_line_with_error: ` + strings.Repeat("a", 1000) + ` invalid: syntax
-permissions: read
+permissions: read-all
 ---
 
 # Content`,
@@ -630,7 +630,7 @@ name: "测试工作流 🚀"
 description: "这是一个测试"
 invalid_syntax_here
 on: push
-permissions: read
+permissions: read-all
 ---
 
 # 测试内容
@@ -657,7 +657,7 @@ jobs:
           - os: windows
             node: 14
             invalid syntax here
-permissions: read
+permissions: read-all
 ---
 
 # Content`,
