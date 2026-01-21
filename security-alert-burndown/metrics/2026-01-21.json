@@ -1,19 +1,64 @@
 {
   "campaign_id": "security-alert-burndown",
   "date": "2026-01-21",
-  "tasks_total": 0,
+  "tasks_total": 4,
   "tasks_completed": 0,
   "tasks_in_progress": 0,
-  "tasks_blocked": 0,
-  "discovery_run": {
-    "items_discovered": 0,
-    "items_scanned": 0,
-    "pages_scanned": 3,
-    "needs_add_count": 0,
-    "needs_update_count": 0
-  },
-  "kpi_metrics": {
-    "high_severity_alerts_fixed": 0,
-    "file_write_vulnerabilities_fixed": 0
+  "open_alerts": 4,
+  "open_critical_alerts": 1,
+  "fixed_critical_alerts": 4,
+  "fixed_alerts_total": 7,
+  "alert_details": {
+    "open": {
+      "critical": [
+        {
+          "number": 538,
+          "rule": "go/unsafe-quoting",
+          "path": "pkg/workflow/update_project_job.go",
+          "created_at": "2026-01-15T06:07:23Z"
+        }
+      ],
+      "note": [
+        {
+          "number": 497,
+          "rule": "js/unused-local-variable",
+          "path": "scripts/generate-schema-docs.js"
+        },
+        {
+          "number": 496,
+          "rule": "js/unused-local-variable",
+          "path": "scripts/changeset.test.js"
+        },
+        {
+          "number": 495,
+          "rule": "js/unused-local-variable",
+          "path": "docs/test-mobile.mjs"
+        }
+      ]
+    },
+    "fixed": {
+      "critical": [
+        {
+          "number": 537,
+          "rule": "go/unsafe-quoting",
+          "fixed_at": "2026-01-16T06:07:30Z"
+        },
+        {
+          "number": 76,
+          "rule": "CVE-2025-21613",
+          "fixed_at": "2025-12-24T06:03:25Z"
+        },
+        {
+          "number": 75,
+          "rule": "CVE-2023-49569",
+          "fixed_at": "2025-12-24T06:03:25Z"
+        },
+        {
+          "number": 19,
+          "rule": "go/unsafe-quoting",
+          "fixed_at": "2025-10-14T20:41:31Z"
+        }
+      ]
+    }
   }
 }
