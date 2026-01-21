@@ -194,6 +194,8 @@ Report:
    - Recompile and retest
    - If unfixable after 2 attempts, report in status and skip
 
+**Note**: Workflows that accept `workflow_dispatch` inputs can receive parameters from the orchestrator. This enables the orchestrator to provide context, priorities, or targets based on its decisions. See [DispatchOps documentation](https://githubnext.github.io/gh-aw/guides/dispatchops/#with-input-parameters) for input parameter examples.
+
 ---
 
 ## Orchestration Guidelines

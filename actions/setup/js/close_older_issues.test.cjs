@@ -276,7 +276,7 @@ describe("close_older_issues", () => {
       const results = await closeOlderIssues(mockGithub, "owner", "repo", "", [], newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
 
       expect(results).toHaveLength(MAX_CLOSE_COUNT);
-      expect(global.core.warning).toHaveBeenCalledWith(`Found 15 older issues, but only closing the first ${MAX_CLOSE_COUNT}`);
+      expect(global.core.warning).toHaveBeenCalledWith(`⚠️  Found 15 older issues, but only closing the first ${MAX_CLOSE_COUNT}`);
     });
 
     it("should continue on error for individual issues", async () => {
@@ -328,7 +328,7 @@ describe("close_older_issues", () => {
       const results = await closeOlderIssues(mockGithub, "owner", "repo", "Prefix", [], newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
 
       expect(results).toHaveLength(0);
-      expect(global.core.info).toHaveBeenCalledWith("No older issues found to close");
+      expect(global.core.info).toHaveBeenCalledWith("✓ No older issues found to close - operation complete");
     });
   });
 });
