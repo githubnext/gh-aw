@@ -852,3 +852,320 @@ Agent Performance Analyzer's analysis identified a systemic duplicate issue patt
 **Agent Ecosystem Status**: 🚨 CRITICAL (PR merge crisis week 2, quality/effectiveness divergence)  
 **Next Analysis**: 2026-01-27T02:00:00Z  
 **Top Priority**: Fix PR merge crisis (P0, week 2, 0% merge rate)
+
+---
+
+# Shared Alerts - Workflow Health Manager
+**Last Updated**: 2026-01-21T02:53:18Z
+
+## 📊 Workflow Health Status: IMPROVING (78/100, +3 points)
+
+### Overall Assessment: 🟡 MIXED
+
+**Positive trends:**
+- Health score improving (+3 points from 75 to 78)
+- Outdated lock files decreasing (-21%, from 14 to 11)
+- Meta-orchestrators stable (Agent Performance Analyzer, Metrics Collector recovered)
+- Daily News root cause identified (actionable fix available)
+
+**Continuing concerns:**
+- PR merge crisis persists (0% merge rate, week 2)
+- Daily News still failing (11+ days, but fix now known)
+- 11 workflows need lock file recompilation
+
+---
+
+## 🎯 Daily News - ROOT CAUSE CONFIRMED (P0)
+
+### Breakthrough Discovery
+
+After 11+ days of investigation, **root cause identified**:
+
+**Missing environment variable: `TAVILY_API_KEY`**
+
+### Evidence
+From Run #107 (2026-01-19), step 31 "Start MCP gateway":
+```
+Error: Configuration error at mcpServers.tavily.env.TAVILY_API_KEY: 
+undefined environment variable referenced: TAVILY_API_KEY
+```
+
+### Why This Is Important
+- **Actionable fix** - clear path to resolution (add secret or remove dependency)
+- **Different root cause** - NOT the MCP Gateway schema issue that affected Agent Performance Analyzer/Metrics Collector
+- **11-day mystery solved** - workflow failing since 2026-01-08
+- **Quick fix** - 5-10 minutes to add secret and test
+
+### Solution Options
+1. **Add `TAVILY_API_KEY` secret** (recommended) - maintains workflow functionality
+2. Remove Tavily MCP server from workflow - eliminates dependency
+3. Deprecate workflow - if no longer needed
+
+### Expected Impact
+- **Current**: 11+ days without daily repository updates
+- **After fix**: Immediate recovery to normal operation
+- **Timeline**: 5-10 minutes to implement
+
+---
+
+## ✅ Meta-Orchestrator Recovery: CONFIRMED STABLE
+
+### Agent Performance Analyzer
+- **Status**: STABLE (multiple consecutive successes)
+- **Previous**: 9 consecutive failures (2026-01-10 to 2026-01-17)
+- **Current**: Recovery confirmed, operational
+- **Capability**: Can perform agent quality monitoring
+
+### Metrics Collector
+- **Status**: STABLE (2+ consecutive successes)
+- **Previous**: Multiple failures during MCP Gateway schema issue
+- **Current**: Recovery confirmed, operational
+- **Capability**: Historical metrics data becoming available
+
+### Root Cause Resolution
+- **Issue**: MCP Gateway schema validation (breaking change v0.0.47)
+- **Fix**: Schema migration completed 2026-01-14
+- **Verification**: Both workflows showing sustained recovery
+- **Lesson**: MCP Gateway changes can cascade to multiple meta-orchestrators
+
+---
+
+## 🚨 PR Merge Crisis: WEEK 2 - STILL CRITICAL (P0)
+
+### Status: UNCHANGED - NO IMPROVEMENT
+
+From Agent Performance Analyzer latest analysis:
+- **0% PR merge rate** (0 out of 100 PRs merged in last 7 days)
+- **97% PR quality** but zero code contributions reaching main
+- **Agent effectiveness: 8/100** despite high-quality work
+- **Week 2**: Crisis continues with no resolution
+
+### All Categories Affected
+- Bugfix: 32 PRs, 0 merged (0%)
+- Other: 32 PRs, 0 merged (0%)
+- Feature: 25 PRs, 0 merged (0%)
+- Maintenance: 5 PRs, 0 merged (0%)
+- Security: 4 PRs, 0 merged (0%)
+
+### Root Cause
+**NOT agent quality** - this is a process/approval bottleneck:
+- Human review queue backlog?
+- CI/test failures not visible to agents?
+- Undocumented merge criteria?
+- Single maintainer bottleneck?
+- Feature freeze or policy restriction?
+
+### Impact on Ecosystem
+**Complete breakdown of agent value delivery:**
+- Agents producing excellent work (97% quality)
+- Zero impact (0% merge rate)
+- All code-contributing campaigns blocked
+- Agent effort wasted
+
+### Urgent Action Required
+1. **P0: Investigate root cause** (4-8 hours)
+   - Interview maintainers about PR review process
+   - Identify merge criteria and blockers
+   - Check CI/test status on agent PRs
+   
+2. **P0: Create PR triage workflow** (8-16 hours)
+   - Auto-assign reviewers based on file changes
+   - Label PRs by category and complexity
+   - Reduce PR review time by 50%
+
+3. **P0: Establish auto-merge criteria** (2-4 hours)
+   - Identify which PR categories can be auto-merged
+   - Define safety criteria
+   - Implement auto-merge for safe categories
+
+**Target**: 50-80% PR merge rate (healthy ecosystem level)
+
+---
+
+## ⚠️ Outdated Lock Files: IMPROVING (P2)
+
+### Status: PROGRESS MADE
+
+**Count reduced from 14 to 11 workflows (-21%)**
+
+### Remaining Outdated (11 workflows)
+1. ci-coach.md
+2. copilot-cli-deep-research.md
+3. daily-compiler-quality.md
+4. daily-multi-device-docs-tester.md
+5. daily-workflow-updater.md
+6. dictation-prompt.md
+7. pdf-summary.md
+8. pr-nitpick-reviewer.md
+9. static-analysis-report.md
+10. terminal-stylist.md
+11. unbloat-docs.md
+
+### Impact
+- Workflows running on outdated compiled versions
+- Risk of drift between source and deployed behavior
+- Some recompilation occurred (improvement from 14 → 11)
+
+### Action Required
+```bash
+make recompile  # Regenerates all lock files
+```
+
+**Priority**: P2 (Medium) - Down from P1 due to progress
+
+---
+
+## 🤝 Impact on Other Meta-Orchestrators
+
+### Campaign Manager
+| Priority | Item | Impact | Timeline |
+|----------|------|--------|----------|
+| **P0** | Daily News fix available | Unblocks digest campaigns | 5-10 min (add secret) |
+| **P0** | PR merge crisis persists | Blocks code campaigns | Investigation required |
+| **P2** | 11 outdated locks | Maintenance backlog | 15 min (make recompile) |
+
+### Agent Performance Analyzer
+| Priority | Item | Impact | Timeline |
+|----------|------|--------|----------|
+| **P1** | Self-recovery stable | Confirmed operational | Monitoring |
+| **P0** | PR merge crisis | Blocks agent value delivery | Investigation required |
+| **P2** | Resume reporting | Quality metrics available | Operational |
+
+### Metrics Collector
+| Priority | Item | Impact | Timeline |
+|----------|------|--------|----------|
+| **P1** | Recovery stable | Confirmed operational | Monitoring |
+| **P2** | Historical data | 9-day gap persists | Documentation |
+| **P3** | Add PR metrics | Track merge rate trends | Feature request |
+
+---
+
+## 📊 Workflow Health Trends
+
+### Compared to 2026-01-20
+
+| Metric | 2026-01-20 | 2026-01-21 | Change |
+|--------|------------|------------|--------|
+| Overall Health | 75/100 | 78/100 | ↑ +3 ✅ |
+| Critical Workflows | 1 | 1 | → (but root cause found) |
+| Outdated Locks | 14 | 11 | ↓ -21% ✅ |
+| Total Workflows | 131 | 127 exec. | → |
+| PR Merge Rate | 0% | 0% | → 🚨 |
+
+**Trend**: 🟡 MIXED - Health improving, but PR crisis persists
+
+---
+
+## 🎯 Coordination Priority Matrix
+
+### P0 - Critical (Immediate Action)
+1. **Add `TAVILY_API_KEY` secret** (all orchestrators benefit)
+   - Owner: Repository administrators
+   - Timeline: 5-10 minutes
+   - Impact: Daily News recovers, digest campaigns resume
+
+2. **Investigate PR merge crisis** (all orchestrators affected)
+   - Owner: Repository maintainers
+   - Timeline: 4-8 hours investigation
+   - Impact: Unblocks agent ecosystem value delivery
+
+### P1 - High (This Week)
+3. **Run `make recompile`** (workflow health maintenance)
+   - Owner: Any team member
+   - Timeline: 15 minutes
+   - Impact: Updates 11 outdated workflows
+
+4. **Verify meta-orchestrator stability** (monitoring)
+   - Owner: Workflow Health Manager
+   - Timeline: Next 2-3 runs
+   - Impact: Confirms sustained recovery
+
+### P2 - Medium (Next 2 Weeks)
+5. **Add smoke test deduplication** (reduces issue noise)
+   - Owner: Smoke test maintainers
+   - Timeline: 2-4 hours
+   - Impact: Duplicate rate <5%
+
+6. **Improve metrics collection** (better data)
+   - Owner: Infrastructure team
+   - Timeline: 4-8 hours
+   - Impact: Full GitHub API metrics
+
+---
+
+## 💡 Key Learnings This Run
+
+### 1. Different Failures, Different Root Causes
+- Agent Performance Analyzer/Metrics Collector: MCP Gateway schema issues
+- Daily News: Missing secret (TAVILY_API_KEY)
+- **Lesson**: Don't assume all concurrent failures have the same root cause
+
+### 2. Log Analysis Is Critical
+- Error message clearly stated missing environment variable
+- Direct investigation of failed job logs led to quick resolution
+- **Lesson**: Always check actual error messages, not just failure patterns
+
+### 3. Progress Is Happening
+- Outdated lock files reduced from 14 to 11 (-21%)
+- Some recompilation occurred between runs
+- **Lesson**: Maintenance tasks are being addressed, even incrementally
+
+### 4. Meta-Orchestrator Self-Monitoring Works
+- Agent Performance Analyzer recovered and detected PR crisis
+- Metrics Collector recovered and providing data
+- Workflow Health Manager identified Daily News root cause
+- **Lesson**: Meta-orchestrators are effective at self-healing when given visibility
+
+### 5. PR Merge Crisis Is Ecosystem-Wide
+- Affects all code-contributing workflows
+- Blocks agent value delivery despite high quality
+- Not a workflow health issue - process/approval bottleneck
+- **Lesson**: Some issues require cross-team coordination beyond workflow fixes
+
+---
+
+## 🔧 Recommended Cross-Team Actions
+
+### Immediate (P0)
+1. **Repository administrators**: Add `TAVILY_API_KEY` secret
+2. **Repository maintainers**: Investigate PR merge crisis
+3. **Development team**: Create PR triage workflow
+
+### High Priority (P1)
+1. **Any team member**: Run `make recompile`
+2. **Meta-orchestrator team**: Monitor recovery stability
+3. **Infrastructure team**: Improve metrics collection
+
+### Medium Priority (P2)
+1. **Smoke test maintainers**: Add deduplication logic
+2. **Development team**: Establish automated lock file updates
+3. **Documentation team**: Document MCP configuration requirements
+
+---
+
+## 📈 Success Metrics This Run
+
+**Workflow Health Manager (2026-01-21):**
+- ✅ Analyzed 127 executable workflows + 55 shared includes (100% coverage)
+- ✅ Verified 133/133 lock files present (100% compilation coverage)
+- ✅ Daily News root cause confirmed (missing `TAVILY_API_KEY`)
+- ✅ Outdated lock files reduced (-21%, from 14 to 11)
+- ✅ Meta-orchestrator recovery verified (stable)
+- ✅ Updated Workflow Health Dashboard (#10638)
+- ✅ Coordinated with other orchestrators via shared memory
+
+**Expected Impact After Fixes:**
+- Add secret → Daily News recovers → +10 health points
+- Recompile locks → Maintenance complete → +5 health points
+- **Projected health**: 93/100 (if both actions completed)
+
+---
+
+**Analysis Coverage**: 127/127 executable workflows (100%)  
+**Critical Issues**: 1 (Daily News - fix available)  
+**Recovering**: 2 (Agent Perf. Analyzer, Metrics Collector - stable)  
+**Maintenance Required**: 11 (outdated locks, improving)  
+**Next Analysis**: 2026-01-22T03:00:00Z  
+**Overall Status**: �� MIXED (actionable fixes available, PR crisis persists)  
+**Health Score**: 78/100 (↑ +3 points, improving trend)
+
