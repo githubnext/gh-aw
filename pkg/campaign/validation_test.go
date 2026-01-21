@@ -117,7 +117,7 @@ func TestValidateSpec_MissingWorkflows(t *testing.T) {
 
 	found := false
 	for _, p := range problems {
-		if strings.Contains(p, "workflows should list at least one workflow") {
+		if strings.Contains(p, "campaigns must list at least one workflow to orchestrate") {
 			found = true
 			break
 		}

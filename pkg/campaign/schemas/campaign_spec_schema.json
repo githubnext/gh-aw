@@ -100,14 +100,9 @@
       "pattern": "^v[0-9]+$",
       "default": "v1"
     },
-    "mode": {
-      "type": "string",
-      "description": "Campaign mode: 'monitoring' for passive tracking of existing issues/PRs (ProjectOps), or 'active' for orchestrating worker workflows toward a goal (default when omitted)",
-      "enum": ["monitoring", "active"]
-    },
     "workflows": {
       "type": "array",
-      "description": "List of workflow IDs (basenames without .md) that this campaign orchestrates. Required for 'active' mode campaigns. Should be omitted for 'monitoring' mode campaigns.",
+      "description": "List of workflow IDs (basenames without .md) that this campaign orchestrates. Required because campaigns are for active orchestration of worker workflows. For passive monitoring without orchestration, use ProjectOps features instead.",
       "items": {
         "type": "string",
         "minLength": 1

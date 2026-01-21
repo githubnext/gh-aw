@@ -62,25 +62,9 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		problems = append(problems, "name should be provided (falls back to id, but explicit names are recommended) - example: 'Security Q1 2025'")
 	}
 
-	// Validate mode field
-	if spec.Mode == "" {
-		spec.Mode = "active" // Default to active for backward compatibility
-	}
-	if spec.Mode != "monitoring" && spec.Mode != "active" {
-		problems = append(problems, fmt.Sprintf("mode must be 'monitoring' or 'active' - got '%s'", spec.Mode))
-	}
-
-	// Mode-specific validation
-	if spec.Mode == "active" {
-		// Active campaigns require workflows to orchestrate
-		if len(spec.Workflows) == 0 {
-			problems = append(problems, "active campaigns must list at least one workflow to orchestrate - example: ['vulnerability-scanner', 'dependency-updater']. Use mode: 'monitoring' if this campaign only tracks existing issues without orchestrating workflows")
-		}
-	} else if spec.Mode == "monitoring" {
-		// Monitoring campaigns are for passive tracking only
-		if len(spec.Workflows) > 0 {
-			problems = append(problems, "monitoring campaigns should not list workflows (they only track existing issues/PRs without orchestration) - remove 'workflows' field or change mode to 'active' if you want to orchestrate workflows")
-		}
+	// Campaigns are for active orchestration - they require workflows
+	if len(spec.Workflows) == 0 {
+		problems = append(problems, "campaigns must list at least one workflow to orchestrate - example: ['vulnerability-scanner', 'dependency-updater']. For passive monitoring without workflow orchestration, use ProjectOps features instead of campaigns")
 	}
 
 	// Validate tracker-label format if provided
