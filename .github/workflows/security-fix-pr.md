@@ -15,6 +15,7 @@ permissions:
   pull-requests: read
   security-events: read
 engine: copilot
+tracker-id: security-fix-pr
 tools:
   github:
     toolsets: [context, repos, code_security, pull_requests]
