@@ -26,6 +26,8 @@ safe-outputs:
     max: 1
     close-older-discussions: true
 timeout-minutes: 45
+imports:
+  - shared/reporting.md
 ---
 
 # Daily Team Evolution Insights
