@@ -267,14 +267,57 @@ func (r *MCPConfigRendererUnified) RenderSafeOutputsMCP(yaml *strings.Builder) {
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypoint, entrypointArgs, and mounts fields.
 func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder) {
+	// Define environment variables for safe-outputs MCP server
+	envVars := []string{
+		"GH_AW_MCP_LOG_DIR",
+		"GH_AW_SAFE_OUTPUTS",
+		"GH_AW_SAFE_OUTPUTS_CONFIG_PATH",
+		"GH_AW_SAFE_OUTPUTS_TOOLS_PATH",
+		"GH_AW_ASSETS_BRANCH",
+		"GH_AW_ASSETS_MAX_SIZE_KB",
+		"GH_AW_ASSETS_ALLOWED_EXTS",
+		"GITHUB_REPOSITORY",
+		"GITHUB_SERVER_URL",
+		"GITHUB_SHA",
+		"GITHUB_WORKSPACE",
+		"DEFAULT_BRANCH",
+		"GITHUB_RUN_ID",
+		"GITHUB_RUN_NUMBER",
+		"GITHUB_RUN_ATTEMPT",
+		"GITHUB_JOB",
+		"GITHUB_ACTION",
+		"GITHUB_EVENT_NAME",
+		"GITHUB_EVENT_PATH",
+		"GITHUB_ACTOR",
+		"GITHUB_ACTOR_ID",
+		"GITHUB_TRIGGERING_ACTOR",
+		"GITHUB_WORKFLOW",
+		"GITHUB_WORKFLOW_REF",
+		"GITHUB_WORKFLOW_SHA",
+		"GITHUB_REF",
+		"GITHUB_REF_NAME",
+		"GITHUB_REF_TYPE",
+		"GITHUB_HEAD_REF",
+		"GITHUB_BASE_REF",
+	}
+
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + "]\n")
 	yaml.WriteString("          container = \"" + constants.DefaultNodeAlpineLTSImage + "\"\n")
 	yaml.WriteString("          entrypoint = \"node\"\n")
 	yaml.WriteString("          entrypointArgs = [\"/opt/gh-aw/safeoutputs/mcp-server.cjs\"]\n")
 	yaml.WriteString("          mounts = [\"/opt/gh-aw:/opt/gh-aw:ro\", \"/tmp/gh-aw:/tmp/gh-aw:rw\", \"${{ github.workspace }}:${{ github.workspace }}:rw\"]\n")
+
 	// Include all common GitHub Actions environment variables for context
-	yaml.WriteString("          env_vars = [\"GH_AW_MCP_LOG_DIR\", \"GH_AW_SAFE_OUTPUTS\", \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH\", \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_SHA\", \"GITHUB_WORKSPACE\", \"DEFAULT_BRANCH\", \"GITHUB_RUN_ID\", \"GITHUB_RUN_NUMBER\", \"GITHUB_RUN_ATTEMPT\", \"GITHUB_JOB\", \"GITHUB_ACTION\", \"GITHUB_EVENT_NAME\", \"GITHUB_EVENT_PATH\", \"GITHUB_ACTOR\", \"GITHUB_ACTOR_ID\", \"GITHUB_TRIGGERING_ACTOR\", \"GITHUB_WORKFLOW\", \"GITHUB_WORKFLOW_REF\", \"GITHUB_WORKFLOW_SHA\", \"GITHUB_REF\", \"GITHUB_REF_NAME\", \"GITHUB_REF_TYPE\", \"GITHUB_HEAD_REF\", \"GITHUB_BASE_REF\"]\n")
+	// Convert envVars slice to JSON array format
+	yaml.WriteString("          env_vars = [")
+	for i, envVar := range envVars {
+		if i > 0 {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("\"" + envVar + "\"")
+	}
+	yaml.WriteString("]\n")
 }
 
 // RenderSafeInputsMCP generates the Safe Inputs MCP server configuration

@@ -160,14 +160,55 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypoint, entrypointArgs, and mounts fields.
 func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
+	// Define environment variables for safe-outputs MCP server
+	// These are a subset of the full envVars list, excluding some internal variables
+	envVars := []string{
+		"GH_AW_SAFE_OUTPUTS",
+		"GH_AW_ASSETS_BRANCH",
+		"GH_AW_ASSETS_MAX_SIZE_KB",
+		"GH_AW_ASSETS_ALLOWED_EXTS",
+		"GITHUB_REPOSITORY",
+		"GITHUB_SERVER_URL",
+		"GITHUB_SHA",
+		"GITHUB_WORKSPACE",
+		"DEFAULT_BRANCH",
+		"GITHUB_RUN_ID",
+		"GITHUB_RUN_NUMBER",
+		"GITHUB_RUN_ATTEMPT",
+		"GITHUB_JOB",
+		"GITHUB_ACTION",
+		"GITHUB_EVENT_NAME",
+		"GITHUB_EVENT_PATH",
+		"GITHUB_ACTOR",
+		"GITHUB_ACTOR_ID",
+		"GITHUB_TRIGGERING_ACTOR",
+		"GITHUB_WORKFLOW",
+		"GITHUB_WORKFLOW_REF",
+		"GITHUB_WORKFLOW_SHA",
+		"GITHUB_REF",
+		"GITHUB_REF_NAME",
+		"GITHUB_REF_TYPE",
+		"GITHUB_HEAD_REF",
+		"GITHUB_BASE_REF",
+	}
+
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + "]\n")
 	yaml.WriteString("          container = \"" + constants.DefaultNodeAlpineLTSImage + "\"\n")
 	yaml.WriteString("          entrypoint = \"node\"\n")
 	yaml.WriteString("          entrypointArgs = [\"/opt/gh-aw/safeoutputs/mcp-server.cjs\"]\n")
 	yaml.WriteString("          mounts = [\"" + constants.DefaultGhAwMount + "\", \"" + constants.DefaultTmpGhAwMount + "\", \"" + constants.DefaultWorkspaceMount + "\"]\n")
+
 	// Use env_vars array to reference environment variables instead of embedding GitHub Actions expressions
-	yaml.WriteString("          env_vars = [\"GH_AW_SAFE_OUTPUTS\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_SHA\", \"GITHUB_WORKSPACE\", \"DEFAULT_BRANCH\", \"GITHUB_RUN_ID\", \"GITHUB_RUN_NUMBER\", \"GITHUB_RUN_ATTEMPT\", \"GITHUB_JOB\", \"GITHUB_ACTION\", \"GITHUB_EVENT_NAME\", \"GITHUB_EVENT_PATH\", \"GITHUB_ACTOR\", \"GITHUB_ACTOR_ID\", \"GITHUB_TRIGGERING_ACTOR\", \"GITHUB_WORKFLOW\", \"GITHUB_WORKFLOW_REF\", \"GITHUB_WORKFLOW_SHA\", \"GITHUB_REF\", \"GITHUB_REF_NAME\", \"GITHUB_REF_TYPE\", \"GITHUB_HEAD_REF\", \"GITHUB_BASE_REF\"]\n")
+	// Convert envVars slice to JSON array format
+	yaml.WriteString("          env_vars = [")
+	for i, envVar := range envVars {
+		if i > 0 {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("\"" + envVar + "\"")
+	}
+	yaml.WriteString("]\n")
 }
 
 // renderAgenticWorkflowsMCPConfigTOML generates the Agentic Workflows MCP server configuration in TOML format for Codex
