@@ -173,11 +173,8 @@ func TestRenderSafeOutputsMCP_JSON_Copilot(t *testing.T) {
 	output := yaml.String()
 
 	// Verify Copilot-specific fields
-	if !strings.Contains(output, `"type": "local"`) {
-		t.Error("Expected 'type': 'local' field for Copilot")
-	}
-	if !strings.Contains(output, `"tools": ["*"]`) {
-		t.Error("Expected 'tools' field for Copilot")
+	if !strings.Contains(output, `"type": "stdio"`) {
+		t.Error("Expected 'type': 'stdio' field for Copilot")
 	}
 	if !strings.Contains(output, `"safeoutputs": {`) {
 		t.Error("Expected safeoutputs server ID")

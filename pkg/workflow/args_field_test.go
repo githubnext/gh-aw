@@ -53,7 +53,8 @@ func TestArgsField(t *testing.T) {
 			"allowed_domains": []any{"example.com"},
 			"args":            []any{"--browser", "firefox"},
 		}
-		result := getPlaywrightCustomArgs(playwrightTool)
+		playwrightConfig := parsePlaywrightTool(playwrightTool)
+		result := getPlaywrightCustomArgs(playwrightConfig)
 		if len(result) != 2 {
 			t.Errorf("Expected 2 args, got %d", len(result))
 		}
@@ -66,7 +67,8 @@ func TestArgsField(t *testing.T) {
 			"allowed_domains": []any{"example.com"},
 			"args":            []string{"--headless"},
 		}
-		result = getPlaywrightCustomArgs(playwrightToolString)
+		playwrightConfigString := parsePlaywrightTool(playwrightToolString)
+		result = getPlaywrightCustomArgs(playwrightConfigString)
 		if len(result) != 1 {
 			t.Errorf("Expected 1 arg, got %d", len(result))
 		}
@@ -78,7 +80,8 @@ func TestArgsField(t *testing.T) {
 		playwrightToolDefault := map[string]any{
 			"allowed_domains": []any{"example.com"},
 		}
-		result = getPlaywrightCustomArgs(playwrightToolDefault)
+		playwrightConfigDefault := parsePlaywrightTool(playwrightToolDefault)
+		result = getPlaywrightCustomArgs(playwrightConfigDefault)
 		if result != nil {
 			t.Errorf("Expected nil args, got %v", result)
 		}
