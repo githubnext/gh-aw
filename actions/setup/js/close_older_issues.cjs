@@ -33,6 +33,11 @@ function delay(ms) {
  * @returns {Promise<Array<{number: number, title: string, html_url: string, labels: Array<{name: string}>}>>} Matching issues
  */
 async function searchOlderIssues(github, owner, repo, titlePrefix, labels, excludeNumber) {
+  core.info(`Starting search for older issues in ${owner}/${repo}`);
+  core.info(`  Title prefix: ${titlePrefix || "(none)"}`);
+  core.info(`  Labels: ${labels && labels.length > 0 ? labels.join(", ") : "(none)"}`);
+  core.info(`  Exclude issue number: ${excludeNumber}`);
+
   // Build REST API search query
   // Search for open issues, optionally with title prefix or labels
   let searchQuery = `repo:${owner}/${repo} is:issue is:open`;
@@ -41,6 +46,7 @@ async function searchOlderIssues(github, owner, repo, titlePrefix, labels, exclu
     // Escape quotes in title prefix to prevent query injection
     const escapedPrefix = titlePrefix.replace(/"/g, '\\"');
     searchQuery += ` in:title "${escapedPrefix}"`;
+    core.info(`  Added title filter to query: in:title "${escapedPrefix}"`);
   }
 
   // Add label filters to the search query
@@ -51,17 +57,21 @@ async function searchOlderIssues(github, owner, repo, titlePrefix, labels, exclu
       // Escape quotes in label names to prevent query injection
       const escapedLabel = label.replace(/"/g, '\\"');
       searchQuery += ` label:"${escapedLabel}"`;
+      core.info(`  Added label filter to query: label:"${escapedLabel}"`);
     }
   }
 
-  core.info(`Searching with query: ${searchQuery}`);
+  core.info(`Executing GitHub search with query: ${searchQuery}`);
 
   const result = await github.rest.search.issuesAndPullRequests({
     q: searchQuery,
     per_page: 50,
   });
 
+  core.info(`Search API returned ${result?.data?.items?.length || 0} total results`);
+
   if (!result || !result.data || !result.data.items) {
+    core.info("No results returned from search API");
     return [];
   }
 
@@ -70,20 +80,32 @@ async function searchOlderIssues(github, owner, repo, titlePrefix, labels, exclu
   // 2. Must not be a pull request
   // 3. If titlePrefix is specified, must have title starting with the prefix
   // 4. If labels are specified, must have ALL specified labels (AND logic, not OR)
-  return result.data.items
+  core.info("Filtering search results...");
+  let filteredCount = 0;
+  let pullRequestCount = 0;
+  let excludedCount = 0;
+  let titleMismatchCount = 0;
+  let labelMismatchCount = 0;
+
+  const filtered = result.data.items
     .filter(item => {
       // Exclude pull requests
       if (item.pull_request) {
+        pullRequestCount++;
         return false;
       }
 
       // Exclude the newly created issue
       if (item.number === excludeNumber) {
+        excludedCount++;
+        core.info(`  Excluding issue #${item.number} (the newly created issue)`);
         return false;
       }
 
       // Check title prefix if specified
       if (titlePrefix && item.title && !item.title.startsWith(titlePrefix)) {
+        titleMismatchCount++;
+        core.info(`  Excluding issue #${item.number}: title "${item.title}" does not start with "${titlePrefix}"`);
         return false;
       }
 
@@ -93,10 +115,14 @@ async function searchOlderIssues(github, owner, repo, titlePrefix, labels, exclu
         const issueLabels = item.labels?.map(l => l.name) || [];
         const hasAllLabels = labels.every(label => issueLabels.includes(label));
         if (!hasAllLabels) {
+          labelMismatchCount++;
+          core.info(`  Excluding issue #${item.number}: labels [${issueLabels.join(", ")}] do not include all required labels [${labels.join(", ")}]`);
           return false;
         }
       }
 
+      filteredCount++;
+      core.info(`  ✓ Issue #${item.number} matches criteria: ${item.title}`);
       return true;
     })
     .map(item => ({
@@ -105,6 +131,15 @@ async function searchOlderIssues(github, owner, repo, titlePrefix, labels, exclu
       html_url: item.html_url,
       labels: item.labels || [],
     }));
+
+  core.info(`Filtering complete:`);
+  core.info(`  - Matched issues: ${filteredCount}`);
+  core.info(`  - Excluded pull requests: ${pullRequestCount}`);
+  core.info(`  - Excluded new issue: ${excludedCount}`);
+  core.info(`  - Excluded title mismatches: ${titleMismatchCount}`);
+  core.info(`  - Excluded label mismatches: ${labelMismatchCount}`);
+
+  return filtered;
 }
 
 /**
@@ -117,12 +152,18 @@ async function searchOlderIssues(github, owner, repo, titlePrefix, labels, exclu
  * @returns {Promise<{id: number, html_url: string}>} Comment details
  */
 async function addIssueComment(github, owner, repo, issueNumber, message) {
+  core.info(`Adding comment to issue #${issueNumber} in ${owner}/${repo}`);
+  core.info(`  Comment length: ${message.length} characters`);
+
   const result = await github.rest.issues.createComment({
     owner,
     repo,
     issue_number: issueNumber,
     body: message,
   });
+
+  core.info(`  ✓ Comment created successfully with ID: ${result.data.id}`);
+  core.info(`  Comment URL: ${result.data.html_url}`);
 
   return {
     id: result.data.id,
@@ -139,6 +180,8 @@ async function addIssueComment(github, owner, repo, issueNumber, message) {
  * @returns {Promise<{number: number, html_url: string}>} Issue details
  */
 async function closeIssueAsNotPlanned(github, owner, repo, issueNumber) {
+  core.info(`Closing issue #${issueNumber} in ${owner}/${repo} as "not planned"`);
+
   const result = await github.rest.issues.update({
     owner,
     repo,
@@ -146,6 +189,9 @@ async function closeIssueAsNotPlanned(github, owner, repo, issueNumber) {
     state: "closed",
     state_reason: "not_planned",
   });
+
+  core.info(`  ✓ Issue #${result.data.number} closed successfully`);
+  core.info(`  Issue URL: ${result.data.html_url}`);
 
   return {
     number: result.data.number,
@@ -185,32 +231,58 @@ function getCloseOlderIssueMessage({ newIssueUrl, newIssueNumber, workflowName, 
  * @returns {Promise<Array<{number: number, html_url: string}>>} List of closed issues
  */
 async function closeOlderIssues(github, owner, repo, titlePrefix, labels, newIssue, workflowName, runUrl) {
+  core.info("=".repeat(70));
+  core.info("Starting closeOlderIssues operation");
+  core.info("=".repeat(70));
+
   // Build search criteria description for logging
   const searchCriteria = [];
   if (titlePrefix) searchCriteria.push(`title prefix: "${titlePrefix}"`);
   if (labels && labels.length > 0) searchCriteria.push(`labels: [${labels.join(", ")}]`);
-  core.info(`Searching for older issues with ${searchCriteria.join(" and ")}`);
+  core.info(`Search criteria: ${searchCriteria.length > 0 ? searchCriteria.join(" and ") : "(none specified)"}`);
+  core.info(`New issue reference: #${newIssue.number} (${newIssue.html_url})`);
+  core.info(`Workflow: ${workflowName}`);
+  core.info(`Run URL: ${runUrl}`);
+  core.info("");
 
   const olderIssues = await searchOlderIssues(github, owner, repo, titlePrefix, labels, newIssue.number);
 
   if (olderIssues.length === 0) {
-    core.info("No older issues found to close");
+    core.info("✓ No older issues found to close - operation complete");
+    core.info("=".repeat(70));
     return [];
   }
 
-  core.info(`Found ${olderIssues.length} older issue(s) to close`);
+  core.info("");
+  core.info(`Found ${olderIssues.length} older issue(s) matching the criteria`);
+  for (const issue of olderIssues) {
+    core.info(`  - Issue #${issue.number}: ${issue.title}`);
+    core.info(`    Labels: ${issue.labels.map(l => l.name).join(", ") || "(none)"}`);
+    core.info(`    URL: ${issue.html_url}`);
+  }
 
   // Limit to MAX_CLOSE_COUNT issues
   const issuesToClose = olderIssues.slice(0, MAX_CLOSE_COUNT);
 
   if (olderIssues.length > MAX_CLOSE_COUNT) {
-    core.warning(`Found ${olderIssues.length} older issues, but only closing the first ${MAX_CLOSE_COUNT}`);
+    core.warning("");
+    core.warning(`⚠️  Found ${olderIssues.length} older issues, but only closing the first ${MAX_CLOSE_COUNT}`);
+    core.warning(`    The remaining ${olderIssues.length - MAX_CLOSE_COUNT} issue(s) will be processed in subsequent runs`);
   }
+
+  core.info("");
+  core.info(`Preparing to close ${issuesToClose.length} issue(s)...`);
+  core.info("");
 
   const closedIssues = [];
 
   for (let i = 0; i < issuesToClose.length; i++) {
     const issue = issuesToClose[i];
+    core.info("-".repeat(70));
+    core.info(`Processing issue ${i + 1}/${issuesToClose.length}: #${issue.number}`);
+    core.info(`  Title: ${issue.title}`);
+    core.info(`  URL: ${issue.html_url}`);
+
     try {
       // Generate closing message
       const closingMessage = getCloseOlderIssueMessage({
@@ -220,12 +292,13 @@ async function closeOlderIssues(github, owner, repo, titlePrefix, labels, newIss
         runUrl,
       });
 
+      core.info(`  Message length: ${closingMessage.length} characters`);
+      core.info("");
+
       // Add comment first
-      core.info(`Adding closing comment to issue #${issue.number}`);
       await addIssueComment(github, owner, repo, issue.number, closingMessage);
 
       // Then close the issue as "not planned"
-      core.info(`Closing issue #${issue.number} as not planned`);
       await closeIssueAsNotPlanned(github, owner, repo, issue.number);
 
       closedIssues.push({
@@ -233,17 +306,33 @@ async function closeOlderIssues(github, owner, repo, titlePrefix, labels, newIss
         html_url: issue.html_url,
       });
 
-      core.info(`✓ Closed issue #${issue.number}: ${issue.html_url}`);
+      core.info("");
+      core.info(`✓ Successfully closed issue #${issue.number}`);
     } catch (error) {
-      core.error(`✗ Failed to close issue #${issue.number}: ${getErrorMessage(error)}`);
+      core.info("");
+      core.error(`✗ Failed to close issue #${issue.number}`);
+      core.error(`  Error: ${getErrorMessage(error)}`);
+      if (error instanceof Error && error.stack) {
+        core.error(`  Stack trace: ${error.stack}`);
+      }
       // Continue with other issues even if one fails
     }
 
     // Add delay between API operations to avoid rate limiting (except for the last item)
     if (i < issuesToClose.length - 1) {
+      core.info("");
+      core.info(`Waiting ${API_DELAY_MS}ms before processing next issue to avoid rate limiting...`);
       await delay(API_DELAY_MS);
     }
   }
+
+  core.info("");
+  core.info("=".repeat(70));
+  core.info(`Closed ${closedIssues.length} of ${issuesToClose.length} issue(s) successfully`);
+  if (closedIssues.length < issuesToClose.length) {
+    core.warning(`Failed to close ${issuesToClose.length - closedIssues.length} issue(s) - check logs above for details`);
+  }
+  core.info("=".repeat(70));
 
   return closedIssues;
 }

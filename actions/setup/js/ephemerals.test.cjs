@@ -46,7 +46,7 @@ describe("ephemerals", () => {
   describe("extractExpirationDate", () => {
     it("should extract date from body with expiration marker", async () => {
       const { extractExpirationDate } = await import("./ephemerals.cjs");
-      const body = "Some text\n- [x] expires <!-- gh-aw-expires: 2026-01-25T15:54:08.894Z --> on Jan 25, 2026\nMore text";
+      const body = "Some text\n> - [x] expires <!-- gh-aw-expires: 2026-01-25T15:54:08.894Z --> on Jan 25, 2026\nMore text";
       const result = extractExpirationDate(body);
 
       expect(result).toBeInstanceOf(Date);
@@ -94,7 +94,7 @@ describe("ephemerals", () => {
 
     it("should return null for invalid date", async () => {
       const { extractExpirationDate } = await import("./ephemerals.cjs");
-      const body = "- [x] expires <!-- gh-aw-expires: invalid-date --> on Jan 25, 2026";
+      const body = "> - [x] expires <!-- gh-aw-expires: invalid-date --> on Jan 25, 2026";
       const result = extractExpirationDate(body);
 
       expect(result).toBeNull();
@@ -102,7 +102,7 @@ describe("ephemerals", () => {
 
     it("should return null for invalid legacy date", async () => {
       const { extractExpirationDate } = await import("./ephemerals.cjs");
-      const body = "> - [x] expires  on Invalid Date, 9999 UTC";
+      const body = "> - [x] expires  on Not a valid date string UTC";
       const result = extractExpirationDate(body);
 
       expect(result).toBeNull();
@@ -110,7 +110,7 @@ describe("ephemerals", () => {
 
     it("should handle standard expiration marker format", async () => {
       const { extractExpirationDate } = await import("./ephemerals.cjs");
-      const body = "Some text\n- [x] expires <!-- gh-aw-expires: 2026-01-25T15:54:08.894Z --> on Jan 25, 2026\nMore text";
+      const body = "Some text\n> - [x] expires <!-- gh-aw-expires: 2026-01-25T15:54:08.894Z --> on Jan 25, 2026\nMore text";
       const result = extractExpirationDate(body);
 
       expect(result).toBeInstanceOf(Date);
@@ -288,7 +288,7 @@ describe("ephemerals", () => {
       expect(EXPIRATION_PATTERN).toBeInstanceOf(RegExp);
     });
 
-    it("should match standard expiration line without blockquote", async () => {
+    it("should NOT match standard expiration line without blockquote", async () => {
       const { EXPIRATION_PATTERN } = await import("./ephemerals.cjs");
       const line = "- [x] expires <!-- gh-aw-expires: 2026-01-25T15:54:08.894Z --> on Jan 25, 2026";
       // This should NOT match because the pattern requires blockquote prefix
