@@ -22,14 +22,14 @@ func TestPermissionsParser_HasContentsReadAccess(t *testing.T) {
 			expected:    true,
 		},
 		{
-			name:        "shorthand read grants contents access",
+			name:        "invalid shorthand read does not grant contents access",
 			permissions: "permissions: read",
-			expected:    true,
+			expected:    false, // "read" is no longer a valid shorthand
 		},
 		{
-			name:        "shorthand write grants contents access",
+			name:        "invalid shorthand write does not grant contents access",
 			permissions: "permissions: write",
-			expected:    true,
+			expected:    false, // "write" is no longer a valid shorthand
 		},
 		{
 			name:        "shorthand none denies contents access",
@@ -504,8 +504,6 @@ func TestNewPermissionsShorthand(t *testing.T) {
 	}{
 		{"read-all", NewPermissionsReadAll, "read-all"},
 		{"write-all", NewPermissionsWriteAll, "write-all"},
-		{"read", NewPermissionsRead, "read"},
-		{"write", NewPermissionsWrite, "write"},
 		{"none", NewPermissionsNone, "none"},
 	}
 
@@ -737,13 +735,13 @@ func TestPermissionsMerge(t *testing.T) {
 		},
 		{
 			name:   "merge shorthand - write-all wins over read",
-			base:   NewPermissionsRead(),
+			base:   NewPermissionsReadAll(),
 			merge:  NewPermissionsWriteAll(),
 			wantSH: "write-all",
 		},
 		{
 			name:   "merge shorthand - write-all wins over write",
-			base:   NewPermissionsWrite(),
+			base:   NewPermissionsWriteAll(),
 			merge:  NewPermissionsWriteAll(),
 			wantSH: "write-all",
 		},
@@ -754,26 +752,26 @@ func TestPermissionsMerge(t *testing.T) {
 			wantSH: "write-all",
 		},
 		{
-			name:   "merge shorthand - write wins over read-all",
+			name:   "merge shorthand - write-all wins over read-all",
 			base:   NewPermissionsReadAll(),
-			merge:  NewPermissionsWrite(),
-			wantSH: "write",
+			merge:  NewPermissionsWriteAll(),
+			wantSH: "write-all",
 		},
 		{
-			name:   "merge shorthand - write wins over read",
-			base:   NewPermissionsRead(),
-			merge:  NewPermissionsWrite(),
-			wantSH: "write",
+			name:   "merge shorthand - write-all wins over read-all (duplicate for coverage)",
+			base:   NewPermissionsReadAll(),
+			merge:  NewPermissionsWriteAll(),
+			wantSH: "write-all",
 		},
 		{
-			name:   "merge shorthand - write wins over none",
+			name:   "merge shorthand - write-all wins over none",
 			base:   NewPermissionsNone(),
-			merge:  NewPermissionsWrite(),
-			wantSH: "write",
+			merge:  NewPermissionsWriteAll(),
+			wantSH: "write-all",
 		},
 		{
-			name:   "merge shorthand - read-all wins over read",
-			base:   NewPermissionsRead(),
+			name:   "merge shorthand - read-all wins over read-all",
+			base:   NewPermissionsReadAll(),
 			merge:  NewPermissionsReadAll(),
 			wantSH: "read-all",
 		},
@@ -784,21 +782,21 @@ func TestPermissionsMerge(t *testing.T) {
 			wantSH: "read-all",
 		},
 		{
-			name:   "merge shorthand - read wins over none",
+			name:   "merge shorthand - read-all wins over none (duplicate for coverage)",
 			base:   NewPermissionsNone(),
-			merge:  NewPermissionsRead(),
-			wantSH: "read",
+			merge:  NewPermissionsReadAll(),
+			wantSH: "read-all",
 		},
 		{
 			name:   "merge shorthand - read-all preserved when merging read",
 			base:   NewPermissionsReadAll(),
-			merge:  NewPermissionsRead(),
+			merge:  NewPermissionsReadAll(),
 			wantSH: "read-all",
 		},
 		{
 			name:   "merge shorthand - write-all preserved when merging write",
 			base:   NewPermissionsWriteAll(),
-			merge:  NewPermissionsWrite(),
+			merge:  NewPermissionsWriteAll(),
 			wantSH: "write-all",
 		},
 		{
@@ -870,7 +868,7 @@ func TestPermissionsMerge(t *testing.T) {
 		{
 			name:  "merge read shorthand into map - adds all missing scopes as read",
 			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionWrite}),
-			merge: NewPermissionsRead(),
+			merge: NewPermissionsReadAll(),
 			want: map[PermissionScope]PermissionLevel{
 				PermissionContents:         PermissionWrite,
 				PermissionActions:          PermissionRead,
@@ -893,7 +891,7 @@ func TestPermissionsMerge(t *testing.T) {
 		{
 			name:  "merge write shorthand into map - adds all missing scopes as write",
 			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionIssues: PermissionRead}),
-			merge: NewPermissionsWrite(),
+			merge: NewPermissionsWriteAll(),
 			want: map[PermissionScope]PermissionLevel{
 				PermissionIssues:           PermissionRead,
 				PermissionActions:          PermissionWrite,
@@ -941,7 +939,7 @@ func TestPermissionsMerge(t *testing.T) {
 		},
 		{
 			name: "merge complex map into read shorthand",
-			base: NewPermissionsRead(),
+			base: NewPermissionsReadAll(),
 			merge: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
 				PermissionContents:     PermissionWrite,
 				PermissionIssues:       PermissionRead,

@@ -29,7 +29,7 @@ title: Simple Workflow
 on:
   push:
     branches: [main]
-permissions: read
+permissions: read-all
 ---
 
 # Simple markdown`)

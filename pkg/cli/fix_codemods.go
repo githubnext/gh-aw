@@ -24,6 +24,7 @@ func GetAllCodemods() []Codemod {
 		getSafeInputsModeCodemod(),
 		getUploadAssetsCodemod(),
 		getWritePermissionsCodemod(),
+		getPermissionsReadCodemod(), // Fix permissions: read -> permissions: read-all
 		getAgentTaskToAgentSessionCodemod(),
 		getSandboxAgentFalseRemovalCodemod(),
 		getScheduleAtToAroundCodemod(),
