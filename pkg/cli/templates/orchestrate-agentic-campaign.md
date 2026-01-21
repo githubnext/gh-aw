@@ -65,11 +65,44 @@ and synchronizing campaign state into a GitHub Project board.
 
 1. Workers are immutable and campaign-agnostic
 2. The GitHub Project board is the authoritative campaign state
-3. Correlation is explicit (tracker-id)
+3. Correlation is explicit (tracker-id AND labels)
 4. Reads and writes are separate steps (never interleave)
 5. Idempotent operation is mandatory (safe to re-run)
 6. Only predefined project fields may be updated
 7. **Project Update Instructions take precedence for all project writes**
+8. **Campaign items MUST be labeled** for discovery and isolation
+
+---
+
+## Campaign Label Requirements
+
+**All campaign-related issues, PRs, and discussions MUST have two labels:**
+
+1. **`agentic-campaign`** - Generic label marking content as part of ANY campaign
+   - Prevents other workflows from processing campaign items
+   - Enables campaign-wide queries and filters
+
+2. **`z_campaign_{{.CampaignID}}`** - Campaign-specific label
+   - Enables precise discovery of items belonging to THIS campaign
+   - Format: `z_campaign_<campaign-id>` (lowercase, hyphen-separated)
+   - Example: `z_campaign_security-q1-2025`
+
+**Worker Responsibilities:**
+- Workers creating issues/PRs as campaign output MUST add both labels
+- Workers SHOULD use `create-issue` or `create-pr` safe outputs with labels configuration
+- If workers cannot add labels automatically, campaign orchestrator will attempt to add them during discovery
+
+**Non-Campaign Workflow Responsibilities:**
+- Workflows triggered by issues/PRs SHOULD skip items with `agentic-campaign` label
+- Use `skip-if-match` configuration to filter out campaign items:
+  ```yaml
+  on:
+    issues:
+      types: [opened, labeled]
+      skip-if-match:
+        query: "label:agentic-campaign"
+        max: 0  # Skip if ANY campaign items match
+  ```
 
 ---
 
@@ -107,6 +140,8 @@ and synchronizing campaign state into a GitHub Project board.
        ---
        `campaign_id: {{.CampaignID}}`
      labels:
+       - agentic-campaign
+       - z_campaign_{{.CampaignID}}
        - epic
        - type:epic
    ```

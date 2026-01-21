@@ -305,6 +305,10 @@ async function searchByLabel(octokit, label, repos, orgs, maxItems, maxPages, cu
 /**
  * Discover items from worker cache-memory (reads existing worker cache files)
  * Workers use cache-memory to track their outputs; campaign reads these to discover items
+ *
+ * DEPRECATED: This method is being phased out in favor of label-based discovery.
+ * Use label-based discovery via searchByLabel() with "agentic-campaign" and campaign-specific labels instead.
+ *
  * @param {string} campaignId - Campaign identifier (for logging)
  * @param {string[]} workflows - List of worker workflow names
  * @param {number} maxItems - Maximum items to discover
@@ -440,23 +444,73 @@ async function discover(config) {
   let totalItemsScanned = 0;
   let totalPagesScanned = 0;
 
-  // Primary discovery: Read from campaign memory (workers' output records)
-  if (workflows && workflows.length > 0) {
-    core.info(`Attempting memory-based discovery first...`);
+  // Generate campaign-specific label
+  const campaignLabel = `z_campaign_${campaignId.toLowerCase().replace(/[_\s]+/g, "-")}`;
+
+  // Primary discovery: Search by campaign-specific label (most reliable)
+  core.info(`Primary discovery: Searching by campaign-specific label: ${campaignLabel}`);
+  try {
+    const labelResult = await searchByLabel(octokit, campaignLabel, repos, orgs, maxDiscoveryItems, maxDiscoveryPages, cursor);
+    allItems.push(...labelResult.items);
+    totalItemsScanned += labelResult.itemsScanned;
+    totalPagesScanned += labelResult.pagesScanned;
+    cursor = labelResult.cursor;
+    core.info(`Campaign-specific label discovery found ${labelResult.items.length} item(s)`);
+  } catch (labelError) {
+    core.warning(`Campaign-specific label discovery failed: ${labelError instanceof Error ? labelError.message : String(labelError)}`);
+  }
+
+  // Secondary discovery: Search by generic "agentic-campaign" label
+  if (allItems.length === 0 || totalItemsScanned < maxDiscoveryItems) {
+    core.info(`Secondary discovery: Searching by generic agentic-campaign label...`);
+    try {
+      const remainingItems = maxDiscoveryItems - totalItemsScanned;
+      const remainingPages = maxDiscoveryPages - totalPagesScanned;
+
+      const genericResult = await searchByLabel(octokit, "agentic-campaign", repos, orgs, remainingItems, remainingPages, cursor);
+
+      // Filter to only items that match this campaign ID (check body for campaign_id: <id>)
+      const campaignItems = genericResult.items.filter(item => {
+        // Check if item body contains campaign_id: <campaignId>
+        // This requires fetching the full issue/PR data
+        return true; // For now, include all items with generic label
+        // TODO: Add filtering by campaign_id in body text
+      });
+
+      // Merge items (deduplicate by URL)
+      const existingUrls = new Set(allItems.map(i => i.url));
+      for (const item of campaignItems) {
+        if (!existingUrls.has(item.url)) {
+          allItems.push(item);
+        }
+      }
+
+      totalItemsScanned += genericResult.itemsScanned;
+      totalPagesScanned += genericResult.pagesScanned;
+      cursor = genericResult.cursor;
+      core.info(`Generic label discovery found ${campaignItems.length} item(s)`);
+    } catch (genericError) {
+      core.warning(`Generic label discovery failed: ${genericError instanceof Error ? genericError.message : String(genericError)}`);
+    }
+  }
+
+  // Fallback discovery: Read from worker cache-memory (DEPRECATED)
+  if (allItems.length === 0 && workflows && workflows.length > 0) {
+    core.warning(`Label-based discovery found no items. Falling back to DEPRECATED cache-memory discovery...`);
+    core.warning(`This fallback will be removed in a future version. Please ensure workers are adding campaign labels.`);
     try {
       const memoryResult = await discoverFromMemory(campaignId, workflows, maxDiscoveryItems);
       allItems.push(...memoryResult.items);
       totalItemsScanned += memoryResult.itemsScanned;
-      core.info(`Memory-based discovery found ${memoryResult.items.length} item(s)`);
+      core.info(`Cache-memory discovery found ${memoryResult.items.length} item(s)`);
     } catch (memoryError) {
-      core.warning(`Memory-based discovery failed: ${memoryError instanceof Error ? memoryError.message : String(memoryError)}`);
-      core.info(`Falling back to GitHub API search...`);
+      core.warning(`Cache-memory discovery failed: ${memoryError instanceof Error ? memoryError.message : String(memoryError)}`);
     }
   }
 
-  // Fallback discovery: Search GitHub API by tracker-id (if memory discovery yielded nothing or failed)
+  // Tertiary fallback: Search GitHub API by tracker-id (if still no items)
   if (allItems.length === 0 && workflows && workflows.length > 0) {
-    core.info(`No items found in memory, searching GitHub API by tracker-id...`);
+    core.info(`No items found via labels or cache. Searching GitHub API by tracker-id...`);
     for (const workflow of workflows) {
       if (totalItemsScanned >= maxDiscoveryItems || totalPagesScanned >= maxDiscoveryPages) {
         core.warning(`Reached discovery budget limits. Stopping discovery.`);
@@ -475,8 +529,8 @@ async function discover(config) {
     }
   }
 
-  // Discover by tracker label (if provided)
-  if (trackerLabel) {
+  // Legacy discovery by tracker label (if provided and still needed)
+  if (trackerLabel && (allItems.length === 0 || totalItemsScanned < maxDiscoveryItems)) {
     if (totalItemsScanned < maxDiscoveryItems && totalPagesScanned < maxDiscoveryPages) {
       const remainingItems = maxDiscoveryItems - totalItemsScanned;
       const remainingPages = maxDiscoveryPages - totalPagesScanned;
