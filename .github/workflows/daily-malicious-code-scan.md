@@ -19,6 +19,8 @@ safe-outputs:
   threat-detection: false
 timeout-minutes: 15
 strict: true
+imports:
+  - shared/reporting.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
