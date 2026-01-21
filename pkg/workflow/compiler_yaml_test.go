@@ -806,7 +806,7 @@ func TestGenerateYAMLStripsANSIEscapeCodes(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "yaml-ansi-test")
 
 	// Test with ANSI codes in description, source, and other comments
-	frontmatter := fmt.Sprintf(`---
+	frontmatter := `---
 name: Test Workflow
 description: "This workflow \x1b[31mdoes important\x1b[0m things\x1b[m"
 on: push
@@ -818,7 +818,7 @@ strict: false
 
 # Test Workflow
 
-Test content.`)
+Test content.`
 
 	testFile := filepath.Join(tmpDir, "test.md")
 	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
