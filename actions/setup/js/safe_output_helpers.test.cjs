@@ -438,6 +438,21 @@ describe("safe_output_helpers", () => {
         expect(result.error).toContain('Target is "*"');
         expect(result.error).toContain("no item_number/issue_number specified");
       });
+
+      it("should fail with correct error message for invalid explicit target (like 'event')", () => {
+        // This test ensures that update_issue handlers produce "Invalid issue number" errors,
+        // NOT "Invalid pull request number" errors when given an invalid target like "event"
+        const result = helpers.resolveTarget({
+          ...baseParams,
+          targetConfig: "event", // Invalid target value (not "triggering", "*", or a number)
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("Invalid issue number in target configuration");
+        expect(result.error).toContain("event");
+        // Critical: must NOT mention "pull request" for issues-only handlers
+        expect(result.error).not.toContain("pull request");
+        expect(result.shouldFail).toBe(true);
+      });
     });
   });
 });
