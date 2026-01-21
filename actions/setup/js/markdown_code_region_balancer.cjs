@@ -104,13 +104,26 @@ function balanceCodeRegions(markdown) {
   }
 
   // Third pass: Match fences, detecting and fixing nested patterns
-  // Strategy: For each opening fence, find ALL potential closers that are at the same or less indentation.
-  // If there are multiple such closers, use the LAST one and escape the middle ones.
-  // Fences that are MORE indented than the opener are treated as content (examples in documentation).
+  // Strategy:
+  // 1. Process fences in order
+  // 2. For each opener, find ALL potential closers at the same indentation
+  // 3. If there are multiple closers, the user intended the LAST one, so escape middle ones
+  // 4. Skip closers inside already-paired blocks
+  // 5. Respect indentation: only match fences at the same indentation level
   const fenceLengthAdjustments = new Map(); // lineIndex -> new length
   const processed = new Set();
   const unclosedFences = [];
-  const pairedBlocks = []; // Track paired blocks
+  const pairedBlocks = []; // Track paired blocks with their line ranges
+
+  // Helper function to check if a line is inside any paired block
+  const isInsideBlock = lineIndex => {
+    for (const block of pairedBlocks) {
+      if (lineIndex > block.start && lineIndex < block.end) {
+        return true;
+      }
+    }
+    return false;
+  };
 
   let i = 0;
   while (i < fences.length) {
@@ -122,7 +135,7 @@ function balanceCodeRegions(markdown) {
     const openFence = fences[i];
     processed.add(i);
 
-    // Find ALL potential closers at same or less indentation
+    // Find ALL potential closers at same indentation that are NOT inside existing blocks
     const potentialClosers = [];
     const openIndentLength = openFence.indent.length;
 
@@ -131,26 +144,8 @@ function balanceCodeRegions(markdown) {
 
       const fence = fences[j];
 
-      // If this fence has a language specifier and matches our char, it's a nested block
-      if (fence.language !== "" && fence.char === openFence.char) {
-        // Process this nested block with language
-        processed.add(j);
-
-        // Find its closer - must be at the SAME indentation level
-        const nestedIndentLength = fence.indent.length;
-        for (let k = j + 1; k < fences.length; k++) {
-          if (processed.has(k)) continue;
-          const nestedCloser = fences[k];
-          if (
-            nestedCloser.char === fence.char &&
-            nestedCloser.length >= fence.length &&
-            nestedCloser.language === "" &&
-            nestedCloser.indent.length === nestedIndentLength
-          ) {
-            processed.add(k);
-            break;
-          }
-        }
+      // Skip if this fence is inside a paired block
+      if (isInsideBlock(fence.lineIndex)) {
         continue;
       }
 
@@ -161,8 +156,6 @@ function balanceCodeRegions(markdown) {
         const fenceIndentLength = fence.indent.length;
         
         // Only consider fences at the SAME indentation as potential closers
-        // Fences with MORE indentation are treated as content (e.g., examples in markdown blocks)
-        // Fences with LESS indentation are likely closing an outer block, so skip them
         if (fenceIndentLength === openIndentLength) {
           potentialClosers.push({ index: j, length: fence.length });
         }
@@ -200,16 +193,8 @@ function balanceCodeRegions(markdown) {
     } else {
       // No closer found - check if this fence is inside a paired block
       const fenceLine = fences[i].lineIndex;
-      let isInsideBlock = false;
 
-      for (const block of pairedBlocks) {
-        if (fenceLine > block.start && fenceLine < block.end) {
-          isInsideBlock = true;
-          break;
-        }
-      }
-
-      if (!isInsideBlock) {
+      if (!isInsideBlock(fenceLine)) {
         unclosedFences.push(openFence);
       }
 
