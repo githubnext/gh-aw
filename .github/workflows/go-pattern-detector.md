@@ -55,7 +55,7 @@ imports:
 safe-outputs:
   create-issue:
     title-prefix: "[ast-grep] "
-    labels: [code-quality, ast-grep]
+    labels: [code-quality, ast-grep, cookie]
     max: 1
 strict: true
 ---

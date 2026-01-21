@@ -34,7 +34,7 @@ network:
 safe-outputs:
   create-issue:
     title-prefix: "[Stale Repository] "
-    labels: [stale-repository, automated-analysis]
+    labels: [stale-repository, automated-analysis, cookie]
     max: 10
     group: true
   upload-asset:

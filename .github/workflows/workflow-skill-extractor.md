@@ -34,7 +34,7 @@ safe-outputs:
     close-older-discussions: true
   create-issue:
     title-prefix: "[refactoring] "
-    labels: [refactoring, shared-component, improvement]
+    labels: [refactoring, shared-component, improvement, cookie]
     max: 3
     group: true
 

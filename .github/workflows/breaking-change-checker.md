@@ -22,7 +22,7 @@ tools:
 safe-outputs:
   create-issue:
     title-prefix: "[breaking-change] "
-    labels: [breaking-change, automated-analysis]
+    labels: [breaking-change, automated-analysis, cookie]
     assignees: copilot
     max: 1
   messages:

@@ -22,7 +22,7 @@ tools:
 safe-outputs:
   create-issue:
     title-prefix: "[performance] "
-    labels: [performance, automation]
+    labels: [performance, automation, cookie]
     max: 3
     group: true
   add-comment:
