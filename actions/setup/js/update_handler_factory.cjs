@@ -93,6 +93,16 @@ function createUpdateHandlerFactory(handlerConfig) {
       const itemNumber = itemNumberResult.number;
       core.info(`Resolved target ${itemTypeName} #${itemNumber} (target config: ${updateTarget})`);
 
+      // Check if message has an explicit item number that differs from the resolved target
+      // This helps users understand why their specific item isn't being updated
+      const messageItemNumber = item.item_number || item.issue_number || item.pull_request_number;
+      if (updateTarget !== "*" && messageItemNumber !== undefined && messageItemNumber !== itemNumber) {
+        core.warning(
+          `Message specifies ${itemTypeName} #${messageItemNumber}, but handler is configured with target="${updateTarget}" ` +
+            `which resolved to ${itemTypeName} #${itemNumber}. To use the ${itemTypeName} number from the message, configure target: "*" in the workflow's safe-outputs section.`
+        );
+      }
+
       // Build update data (handler-specific logic)
       const updateDataResult = buildUpdateData(item, config);
 

@@ -320,5 +320,90 @@ describe("update_handler_factory.cjs", () => {
       expect(result4.success).toBe(false);
       expect(result4.error).toContain("Max count of 3 reached");
     });
+
+    it("should warn when message item number differs from resolved target", async () => {
+      // This test verifies the warning when a message specifies an item number
+      // but the handler is configured with target="triggering" which resolves to a different number
+      const mockResolveItemNumber = vi.fn().mockReturnValue({ success: true, number: 100 });
+      const mockBuildUpdateData = vi.fn().mockReturnValue({ success: true, data: { title: "Test" } });
+      const mockExecuteUpdate = vi.fn().mockResolvedValue({ html_url: "https://example.com" });
+      const mockFormatSuccessResult = vi.fn().mockReturnValue({ success: true });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_issue",
+        itemTypeName: "issue",
+        supportsPR: false,
+        resolveItemNumber: mockResolveItemNumber,
+        buildUpdateData: mockBuildUpdateData,
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: mockFormatSuccessResult,
+      });
+
+      // Create handler with target="triggering" (default)
+      const handler = await handlerFactory({ target: "triggering" });
+
+      // Message has issue_number=230, but resolved target is #100
+      const result = await handler({ issue_number: 230, title: "Test" });
+
+      expect(result.success).toBe(true);
+      // Should warn that message specifies different issue number
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Message specifies issue #230"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("resolved to issue #100"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('target: "*"'));
+    });
+
+    it("should not warn when target is '*' even if item numbers match differently", async () => {
+      // When target is "*", the item number should come from the message, so no warning needed
+      const mockResolveItemNumber = vi.fn().mockReturnValue({ success: true, number: 230 });
+      const mockBuildUpdateData = vi.fn().mockReturnValue({ success: true, data: { title: "Test" } });
+      const mockExecuteUpdate = vi.fn().mockResolvedValue({ html_url: "https://example.com" });
+      const mockFormatSuccessResult = vi.fn().mockReturnValue({ success: true });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_issue",
+        itemTypeName: "issue",
+        supportsPR: false,
+        resolveItemNumber: mockResolveItemNumber,
+        buildUpdateData: mockBuildUpdateData,
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: mockFormatSuccessResult,
+      });
+
+      // Create handler with target="*"
+      const handler = await handlerFactory({ target: "*" });
+
+      // Message has issue_number=230, and resolved target is also #230
+      const result = await handler({ issue_number: 230, title: "Test" });
+
+      expect(result.success).toBe(true);
+      // Should NOT warn because target is "*"
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
+
+    it("should not warn when message has no item number specified", async () => {
+      const mockResolveItemNumber = vi.fn().mockReturnValue({ success: true, number: 100 });
+      const mockBuildUpdateData = vi.fn().mockReturnValue({ success: true, data: { title: "Test" } });
+      const mockExecuteUpdate = vi.fn().mockResolvedValue({ html_url: "https://example.com" });
+      const mockFormatSuccessResult = vi.fn().mockReturnValue({ success: true });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_issue",
+        itemTypeName: "issue",
+        supportsPR: false,
+        resolveItemNumber: mockResolveItemNumber,
+        buildUpdateData: mockBuildUpdateData,
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: mockFormatSuccessResult,
+      });
+
+      const handler = await handlerFactory({ target: "triggering" });
+
+      // Message has NO issue_number
+      const result = await handler({ title: "Test" });
+
+      expect(result.success).toBe(true);
+      // Should NOT warn because message has no item number
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
   });
 });
