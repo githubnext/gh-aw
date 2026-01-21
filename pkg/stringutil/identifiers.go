@@ -3,6 +3,8 @@ package stringutil
 import (
 	"path/filepath"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // NormalizeWorkflowName removes .md and .lock.yml extensions from workflow names.
@@ -215,4 +217,26 @@ func IsLockFile(path string) bool {
 //	IsCampaignLockFile("test.md")                               // returns false
 func IsCampaignLockFile(path string) bool {
 	return strings.HasSuffix(path, ".campaign.lock.yml")
+}
+
+// FormatCampaignLabel generates a campaign-specific label from a campaign ID.
+// Campaign-specific labels follow the format "z_campaign_<id>" where <id> is the campaign identifier.
+// The "z_" prefix ensures these labels sort last in label lists for better visibility.
+//
+// This function sanitizes the campaign ID by replacing invalid label characters (spaces, special chars)
+// with hyphens to ensure GitHub label compatibility.
+//
+// Examples:
+//
+//	FormatCampaignLabel("security-q1-2025")                     // returns "z_campaign_security-q1-2025"
+//	FormatCampaignLabel("Security Q1 2025")                     // returns "z_campaign_security-q1-2025"
+//	FormatCampaignLabel("dependency_updates")                   // returns "z_campaign_dependency-updates"
+func FormatCampaignLabel(campaignID string) string {
+	// Sanitize campaign ID for label compatibility
+	// Replace spaces and underscores with hyphens, convert to lowercase
+	sanitized := strings.ToLower(campaignID)
+	sanitized = strings.ReplaceAll(sanitized, " ", "-")
+	sanitized = strings.ReplaceAll(sanitized, "_", "-")
+	
+	return constants.CampaignLabelPrefix + sanitized
 }
