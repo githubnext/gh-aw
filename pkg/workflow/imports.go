@@ -448,6 +448,8 @@ func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
 		return config.CreateCodeScanningAlerts != nil
 	case "add-labels":
 		return config.AddLabels != nil
+	case "remove-labels":
+		return config.RemoveLabels != nil
 	case "add-reviewer":
 		return config.AddReviewer != nil
 	case "assign-milestone":
@@ -524,6 +526,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	}
 	if result.AddLabels == nil && importedConfig.AddLabels != nil {
 		result.AddLabels = importedConfig.AddLabels
+	}
+	if result.RemoveLabels == nil && importedConfig.RemoveLabels != nil {
+		result.RemoveLabels = importedConfig.RemoveLabels
 	}
 	if result.AddReviewer == nil && importedConfig.AddReviewer != nil {
 		result.AddReviewer = importedConfig.AddReviewer

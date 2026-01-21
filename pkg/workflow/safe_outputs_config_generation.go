@@ -105,6 +105,13 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				data.SafeOutputs.AddLabels.Allowed,
 			)
 		}
+		if data.SafeOutputs.RemoveLabels != nil {
+			safeOutputsConfig["remove_labels"] = generateMaxWithAllowedConfig(
+				data.SafeOutputs.RemoveLabels.Max,
+				3, // default max
+				data.SafeOutputs.RemoveLabels.Allowed,
+			)
+		}
 		if data.SafeOutputs.AddReviewer != nil {
 			safeOutputsConfig["add_reviewer"] = generateMaxWithReviewersConfig(
 				data.SafeOutputs.AddReviewer.Max,
@@ -546,6 +553,9 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 	if data.SafeOutputs.AddLabels != nil {
 		enabledTools["add_labels"] = true
 	}
+	if data.SafeOutputs.RemoveLabels != nil {
+		enabledTools["remove_labels"] = true
+	}
 	if data.SafeOutputs.AddReviewer != nil {
 		enabledTools["add_reviewer"] = true
 	}
@@ -787,12 +797,17 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 			hasAllowedRepos = len(config.AllowedRepos) > 0
 			targetRepoSlug = config.TargetRepoSlug
 		}
-	case "add_labels", "hide_comment", "link_sub_issue", "mark_pull_request_as_ready_for_review",
+	case "add_labels", "remove_labels", "hide_comment", "link_sub_issue", "mark_pull_request_as_ready_for_review",
 		"add_reviewer", "assign_milestone", "assign_to_agent", "assign_to_user":
 		// These use SafeOutputTargetConfig - check the appropriate config
 		switch toolName {
 		case "add_labels":
 			if config := safeOutputs.AddLabels; config != nil {
+				hasAllowedRepos = len(config.AllowedRepos) > 0
+				targetRepoSlug = config.TargetRepoSlug
+			}
+		case "remove_labels":
+			if config := safeOutputs.RemoveLabels; config != nil {
 				hasAllowedRepos = len(config.AllowedRepos) > 0
 				targetRepoSlug = config.TargetRepoSlug
 			}

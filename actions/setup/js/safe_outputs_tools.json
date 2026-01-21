@@ -294,6 +294,27 @@
     }
   },
   {
+    "name": "remove_labels",
+    "description": "Remove labels from an existing GitHub issue or pull request. If a label is not present on the item, it will be silently skipped. Use this to clean up labels that are no longer applicable.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Label names to remove (e.g., ['bug', 'needs-triage']). Labels that don't exist on the item are silently skipped."
+        },
+        "item_number": {
+          "type": "number",
+          "description": "Issue or PR number to remove labels from. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, removes labels from the item that triggered this workflow."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "add_reviewer",
     "description": "Add reviewers to a GitHub pull request. Reviewers receive notifications and can approve or request changes. Use 'copilot' as a reviewer name to request the Copilot PR review bot.",
     "inputSchema": {
