@@ -280,6 +280,71 @@ The project includes automated license compliance checking:
 
 All dependencies are automatically scanned using Google's `go-licenses` tool in CI, which classifies licenses by type and identifies potential compliance issues. Note that `go-licenses` is not actively maintained, so we install it on-demand rather than as a regular build dependency.
 
+## 🤖 Automated Dependency Updates (Dependabot)
+
+This project uses GitHub Dependabot to automatically keep dependencies up-to-date with weekly security patches and version updates.
+
+### What Dependabot Monitors
+
+Dependabot is configured in `.github/dependabot.yml` to monitor:
+
+1. **Go modules** (`/go.mod`) - Weekly updates for Go dependencies
+2. **npm packages** - Weekly updates for:
+   - Documentation site (`/docs/package.json`)
+   - GitHub Actions setup scripts (`/actions/setup/js/package.json`)
+   - Workflow dependencies (`/.github/workflows/package.json`)
+3. **Python packages** (`/.github/workflows/requirements.txt`) - Weekly updates for workflow scripts
+
+### Expected Behavior
+
+- **Schedule**: Dependabot checks for updates **every Monday** (weekly interval)
+- **Pull Requests**: Creates automated PRs from `dependabot[bot]` for:
+  - Security vulnerabilities (immediate)
+  - Version updates (weekly batch)
+- **Limit**: Maximum of 10 open PRs per ecosystem to prevent overwhelming maintainers
+
+### What to Expect from Dependabot PRs
+
+Dependabot PRs will:
+- Have clear titles like "Bump lodash from 4.17.20 to 4.17.21 in /docs"
+- Include changelog links and release notes
+- Show compatibility score based on semantic versioning
+- Automatically rebase when the base branch changes
+
+### Troubleshooting Dependabot
+
+If Dependabot stops creating PRs:
+
+1. **Check repository settings**: Go to Settings → Security → Dependabot
+   - Ensure "Dependabot alerts" is enabled
+   - Ensure "Dependabot security updates" is enabled
+   - Ensure "Dependabot version updates" is enabled
+
+2. **Verify configuration**: Check `.github/dependabot.yml` syntax
+   - Directory paths must match locations of dependency files
+   - Ecosystem names must be exact: `gomod`, `npm`, `pip`
+
+3. **Check for rate limits**: Dependabot may be rate-limited if there are too many updates
+
+4. **Manual trigger**: You can manually trigger Dependabot from repository Settings → Security → Dependabot
+
+### Handling Dependabot PRs
+
+When reviewing Dependabot PRs:
+
+1. **Review the changes**: Check the changelog and compatibility score
+2. **Let CI run**: Wait for all GitHub Actions checks to pass
+3. **Test if needed**: For major version updates, test locally or let the agent verify
+4. **Merge quickly**: Security updates should be merged as soon as CI passes
+5. **Batch updates**: For minor version updates, you can merge multiple PRs at once
+
+### Security Patches
+
+Dependabot prioritizes security patches:
+- Security vulnerabilities are updated **immediately** (not weekly)
+- PRs are tagged with severity level (critical, high, medium, low)
+- Security PRs should be reviewed and merged within 24-48 hours
+
 ## 🧪 Testing
 
 For comprehensive testing guidelines including assert vs require usage, table-driven test patterns, and best practices, see **[specs/testing.md](specs/testing.md)**.

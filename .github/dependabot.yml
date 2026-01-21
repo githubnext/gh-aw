@@ -1,14 +1,36 @@
 version: 2
 updates:
-- package-ecosystem: npm
-  directory: /.github/workflows
-  schedule:
-    interval: weekly
-- package-ecosystem: pip
-  directory: /.github/workflows
-  schedule:
-    interval: weekly
-- package-ecosystem: gomod
-  directory: /.github/workflows
-  schedule:
-    interval: weekly
+  # Go modules - root directory
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+
+  # npm - documentation site
+  - package-ecosystem: npm
+    directory: /docs
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+
+  # npm - GitHub Actions setup scripts
+  - package-ecosystem: npm
+    directory: /actions/setup/js
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+
+  # npm - workflow dependencies
+  - package-ecosystem: npm
+    directory: /.github/workflows
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+
+  # Python - workflow dependencies
+  - package-ecosystem: pip
+    directory: /.github/workflows
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
