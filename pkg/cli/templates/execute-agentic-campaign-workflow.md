@@ -68,6 +68,20 @@ For each workflow:
    
    on:
      workflow_dispatch:  # Required for execution
+       inputs:
+         priority:
+           description: 'Priority level for this execution'
+           required: false
+           type: choice
+           options:
+             - low
+             - medium
+             - high
+           default: medium
+         target:
+           description: 'Specific target or scope for this run'
+           required: false
+           type: string
    
    tools:
      github:
@@ -85,6 +99,9 @@ For each workflow:
    
    You are a focused workflow that <specific task>.
    
+   Priority: \$\{\{ github.event.inputs.priority \}\}
+   Target: \$\{\{ github.event.inputs.target \}\}
+   
    ## Task
    
    <Clear description of what to do>
@@ -93,6 +110,8 @@ For each workflow:
    
    <What information to provide or actions to take>
    ```
+   
+   **Note**: Define `inputs` under `workflow_dispatch` to accept parameters from the orchestrator. Use `\$\{\{ github.event.inputs.INPUT_NAME \}\}` to reference input values in your workflow markdown. See [DispatchOps documentation](https://githubnext.github.io/gh-aw/guides/dispatchops/#with-input-parameters) for input types and examples.
    
    - Compile it with `gh aw compile <workflow-id>.md`
    - **CRITICAL: Test before use** (see testing requirements below)
