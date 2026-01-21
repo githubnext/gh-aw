@@ -9,7 +9,7 @@
 // guarantees. It enforces constraints on:
 //   - Write permissions on sensitive scopes
 //   - Network access configuration
-//   - Custom MCP server network settings
+//   - Top-level network configuration required for container-based MCP servers
 //   - Bash wildcard tool usage
 //
 // # Validation Functions
@@ -18,7 +18,7 @@
 //  1. validateStrictMode() - Main orchestrator that coordinates all strict mode checks
 //  2. validateStrictPermissions() - Refuses write permissions on sensitive scopes
 //  3. validateStrictNetwork() - Requires explicit network configuration
-//  4. validateStrictMCPNetwork() - Requires network config on custom MCP servers
+//  4. validateStrictMCPNetwork() - Requires top-level network config for container-based MCP servers
 //
 // # Integration with Security Scanners
 //
@@ -104,9 +104,7 @@ func (c *Compiler) validateStrictNetwork(networkPermissions *NetworkPermissions)
 	return nil
 }
 
-// validateStrictMCPNetwork requires network configuration on custom MCP servers
-// Either the MCP server must have its own network config, or the workflow must have
-// a top-level network configuration.
+// validateStrictMCPNetwork requires top-level network configuration when custom MCP servers use containers
 func (c *Compiler) validateStrictMCPNetwork(frontmatter map[string]any, networkPermissions *NetworkPermissions) error {
 	// Check mcp-servers section (new format)
 	mcpServersValue, exists := frontmatter["mcp-servers"]
@@ -119,7 +117,10 @@ func (c *Compiler) validateStrictMCPNetwork(frontmatter map[string]any, networkP
 		return nil
 	}
 
-	// Check each MCP server for network configuration
+	// Check if top-level network configuration exists
+	hasTopLevelNetwork := networkPermissions != nil && len(networkPermissions.Allowed) > 0
+
+	// Check each MCP server for containers
 	for serverName, serverValue := range mcpServersMap {
 		serverConfig, ok := serverValue.(map[string]any)
 		if !ok {
@@ -135,15 +136,9 @@ func (c *Compiler) validateStrictMCPNetwork(frontmatter map[string]any, networkP
 		// Only stdio servers with containers need network configuration
 		if mcpType == "stdio" {
 			if _, hasContainer := serverConfig["container"]; hasContainer {
-				// Check if network configuration is present on the server itself
-				_, hasServerNetwork := serverConfig["network"]
-
-				// Check if top-level network configuration exists
-				hasTopLevelNetwork := networkPermissions != nil && len(networkPermissions.Allowed) > 0
-
-				// Require either server-level OR top-level network configuration
-				if !hasServerNetwork && !hasTopLevelNetwork {
-					return fmt.Errorf("strict mode: custom MCP server '%s' with container must have network configuration for security. Add 'network: { allowed: [...] }' to either the server configuration or the top-level workflow to restrict network access. See: https://githubnext.github.io/gh-aw/reference/network/", serverName)
+				// Require top-level network configuration
+				if !hasTopLevelNetwork {
+					return fmt.Errorf("strict mode: custom MCP server '%s' with container must have top-level network configuration for security. Add 'network: { allowed: [...] }' to the workflow to restrict network access. See: https://githubnext.github.io/gh-aw/reference/network/", serverName)
 				}
 			}
 		}
@@ -221,7 +216,7 @@ func (c *Compiler) validateStrictDeprecatedFields(frontmatter map[string]any) er
 // It performs progressive validation:
 //  1. validateStrictPermissions() - Refuses write permissions on sensitive scopes
 //  2. validateStrictNetwork() - Requires explicit network configuration
-//  3. validateStrictMCPNetwork() - Requires network config on custom MCP servers
+//  3. validateStrictMCPNetwork() - Requires top-level network config for container-based MCP servers
 //  4. validateStrictTools() - Validates tools configuration (e.g., serena local mode)
 //  5. validateStrictDeprecatedFields() - Refuses deprecated fields
 //

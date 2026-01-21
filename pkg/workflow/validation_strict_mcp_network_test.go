@@ -46,28 +46,30 @@ func TestValidateStrictMCPNetwork_InvalidMCPServersType(t *testing.T) {
 	}
 }
 
-// TestValidateStrictMCPNetwork_ContainerWithNetwork tests that validation passes with container + network
-func TestValidateStrictMCPNetwork_ContainerWithNetwork(t *testing.T) {
+// TestValidateStrictMCPNetwork_ContainerWithTopLevelNetwork tests that validation passes with container + top-level network
+func TestValidateStrictMCPNetwork_ContainerWithTopLevelNetwork(t *testing.T) {
 	compiler := NewCompiler(true, "", "")
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
 			"my-server": map[string]any{
 				"container": "my-image",
-				"network": map[string]any{
-					"allowed": []string{"example.com"},
-				},
 			},
 		},
 	}
 
-	err := compiler.validateStrictMCPNetwork(frontmatter, nil)
+	// Top-level network configuration provided
+	networkPermissions := &NetworkPermissions{
+		Allowed: []string{"example.com"},
+	}
+
+	err := compiler.validateStrictMCPNetwork(frontmatter, networkPermissions)
 	if err != nil {
-		t.Errorf("Expected no error for container with network configuration, got: %v", err)
+		t.Errorf("Expected no error for container with top-level network configuration, got: %v", err)
 	}
 }
 
-// TestValidateStrictMCPNetwork_ContainerWithoutNetwork tests that validation fails without network config
+// TestValidateStrictMCPNetwork_ContainerWithoutNetwork tests that validation fails without top-level network config
 func TestValidateStrictMCPNetwork_ContainerWithoutNetwork(t *testing.T) {
 	compiler := NewCompiler(true, "", "")
 	frontmatter := map[string]any{
@@ -81,15 +83,15 @@ func TestValidateStrictMCPNetwork_ContainerWithoutNetwork(t *testing.T) {
 
 	err := compiler.validateStrictMCPNetwork(frontmatter, nil)
 	if err == nil {
-		t.Error("Expected error for container without network configuration, got nil")
+		t.Error("Expected error for container without top-level network configuration, got nil")
 	}
-	expectedMsg := "strict mode: custom MCP server 'my-server' with container must have network configuration for security"
+	expectedMsg := "strict mode: custom MCP server 'my-server' with container must have top-level network configuration for security"
 	if err != nil && !strings.Contains(err.Error(), expectedMsg) {
 		t.Errorf("Expected error message to contain %q, got: %q", expectedMsg, err.Error())
 	}
 }
 
-// TestValidateStrictMCPNetwork_ExplicitStdioTypeContainerWithNetwork tests stdio type with container and network
+// TestValidateStrictMCPNetwork_ExplicitStdioTypeContainerWithNetwork tests stdio type with container and top-level network
 func TestValidateStrictMCPNetwork_ExplicitStdioTypeContainerWithNetwork(t *testing.T) {
 	compiler := NewCompiler(true, "", "")
 	frontmatter := map[string]any{
@@ -98,16 +100,18 @@ func TestValidateStrictMCPNetwork_ExplicitStdioTypeContainerWithNetwork(t *testi
 			"my-server": map[string]any{
 				"type":      "stdio",
 				"container": "my-image",
-				"network": map[string]any{
-					"allowed": []string{"example.com"},
-				},
 			},
 		},
 	}
 
-	err := compiler.validateStrictMCPNetwork(frontmatter, nil)
+	// Top-level network configuration provided
+	networkPermissions := &NetworkPermissions{
+		Allowed: []string{"example.com"},
+	}
+
+	err := compiler.validateStrictMCPNetwork(frontmatter, networkPermissions)
 	if err != nil {
-		t.Errorf("Expected no error for explicit stdio type with container and network, got: %v", err)
+		t.Errorf("Expected no error for explicit stdio type with container and top-level network, got: %v", err)
 	}
 }
 
@@ -130,7 +134,7 @@ func TestValidateStrictMCPNetwork_ExplicitStdioTypeContainerWithoutNetwork(t *te
 	}
 }
 
-// TestValidateStrictMCPNetwork_LocalTypeContainerWithNetwork tests local type (converted to stdio) with network
+// TestValidateStrictMCPNetwork_LocalTypeContainerWithNetwork tests local type (converted to stdio) with top-level network
 func TestValidateStrictMCPNetwork_LocalTypeContainerWithNetwork(t *testing.T) {
 	compiler := NewCompiler(true, "", "")
 	frontmatter := map[string]any{
@@ -139,16 +143,18 @@ func TestValidateStrictMCPNetwork_LocalTypeContainerWithNetwork(t *testing.T) {
 			"my-server": map[string]any{
 				"type":      "local",
 				"container": "my-image",
-				"network": map[string]any{
-					"allowed": []string{"example.com"},
-				},
 			},
 		},
 	}
 
-	err := compiler.validateStrictMCPNetwork(frontmatter, nil)
+	// Top-level network configuration provided
+	networkPermissions := &NetworkPermissions{
+		Allowed: []string{"example.com"},
+	}
+
+	err := compiler.validateStrictMCPNetwork(frontmatter, networkPermissions)
 	if err != nil {
-		t.Errorf("Expected no error for local type (converted to stdio) with container and network, got: %v", err)
+		t.Errorf("Expected no error for local type (converted to stdio) with container and top-level network, got: %v", err)
 	}
 }
 
@@ -253,9 +259,6 @@ func TestValidateStrictMCPNetwork_MultipleServers(t *testing.T) {
 		"mcp-servers": map[string]any{
 			"server1": map[string]any{
 				"container": "image1",
-				"network": map[string]any{
-					"allowed": []string{"example.com"},
-				},
 			},
 			"server2": map[string]any{
 				"type": "http",
@@ -268,7 +271,12 @@ func TestValidateStrictMCPNetwork_MultipleServers(t *testing.T) {
 		},
 	}
 
-	err := compiler.validateStrictMCPNetwork(frontmatter, nil)
+	// Top-level network configuration provided
+	networkPermissions := &NetworkPermissions{
+		Allowed: []string{"example.com"},
+	}
+
+	err := compiler.validateStrictMCPNetwork(frontmatter, networkPermissions)
 	if err != nil {
 		t.Errorf("Expected no error for multiple valid servers, got: %v", err)
 	}
@@ -308,16 +316,18 @@ func TestValidateStrictMCPNetwork_InferredStdioFromContainer(t *testing.T) {
 			"my-server": map[string]any{
 				// Container field alone infers stdio type
 				"container": "my-image",
-				"network": map[string]any{
-					"allowed": []string{"example.com"},
-				},
 			},
 		},
 	}
 
-	err := compiler.validateStrictMCPNetwork(frontmatter, nil)
+	// Top-level network configuration provided
+	networkPermissions := &NetworkPermissions{
+		Allowed: []string{"example.com"},
+	}
+
+	err := compiler.validateStrictMCPNetwork(frontmatter, networkPermissions)
 	if err != nil {
-		t.Errorf("Expected no error for inferred stdio from container with network, got: %v", err)
+		t.Errorf("Expected no error for inferred stdio from container with top-level network, got: %v", err)
 	}
 }
 
@@ -360,30 +370,6 @@ func TestValidateStrictMCPNetwork_InferredStdioFromCommand(t *testing.T) {
 	}
 }
 
-// TestValidateStrictMCPNetwork_ContainerWithTopLevelNetwork tests container with top-level network config
-func TestValidateStrictMCPNetwork_ContainerWithTopLevelNetwork(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
-	frontmatter := map[string]any{
-		"on": "push",
-		"mcp-servers": map[string]any{
-			"my-server": map[string]any{
-				"container": "my-image",
-				// No per-server network config
-			},
-		},
-	}
-
-	// Top-level network configuration provided
-	networkPermissions := &NetworkPermissions{
-		Allowed: []string{"github.com", "defaults"},
-	}
-
-	err := compiler.validateStrictMCPNetwork(frontmatter, networkPermissions)
-	if err != nil {
-		t.Errorf("Expected no error for container with top-level network config, got: %v", err)
-	}
-}
-
 // TestValidateStrictMCPNetwork_ContainerWithNoNetworkConfig tests container without any network config fails
 func TestValidateStrictMCPNetwork_ContainerWithNoNetworkConfig(t *testing.T) {
 	compiler := NewCompiler(true, "", "")
@@ -392,7 +378,6 @@ func TestValidateStrictMCPNetwork_ContainerWithNoNetworkConfig(t *testing.T) {
 		"mcp-servers": map[string]any{
 			"my-server": map[string]any{
 				"container": "my-image",
-				// No per-server network config
 			},
 		},
 	}
@@ -402,7 +387,7 @@ func TestValidateStrictMCPNetwork_ContainerWithNoNetworkConfig(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error for container without any network configuration, got nil")
 	}
-	expectedMsg := "strict mode: custom MCP server 'my-server' with container must have network configuration for security"
+	expectedMsg := "strict mode: custom MCP server 'my-server' with container must have top-level network configuration for security"
 	if err != nil && !strings.Contains(err.Error(), expectedMsg) {
 		t.Errorf("Expected error message to contain %q, got: %q", expectedMsg, err.Error())
 	}
@@ -430,36 +415,9 @@ func TestValidateStrictMCPNetwork_ContainerWithEmptyTopLevelNetwork(t *testing.T
 	if err == nil {
 		t.Error("Expected error for container with empty top-level network configuration, got nil")
 	}
-	expectedMsg := "strict mode: custom MCP server 'my-server' with container must have network configuration for security"
+	expectedMsg := "strict mode: custom MCP server 'my-server' with container must have top-level network configuration for security"
 	if err != nil && !strings.Contains(err.Error(), expectedMsg) {
 		t.Errorf("Expected error message to contain %q, got: %q", expectedMsg, err.Error())
-	}
-}
-
-// TestValidateStrictMCPNetwork_ServerNetworkTakesPrecedence tests server-level network takes precedence over top-level
-func TestValidateStrictMCPNetwork_ServerNetworkTakesPrecedence(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
-	frontmatter := map[string]any{
-		"on": "push",
-		"mcp-servers": map[string]any{
-			"my-server": map[string]any{
-				"container": "my-image",
-				"network": map[string]any{
-					"allowed": []string{"server-domain.com"},
-				},
-			},
-		},
-	}
-
-	// Top-level network with different domains
-	networkPermissions := &NetworkPermissions{
-		Allowed: []string{"top-level-domain.com"},
-	}
-
-	// Should pass because server has its own network config
-	err := compiler.validateStrictMCPNetwork(frontmatter, networkPermissions)
-	if err != nil {
-		t.Errorf("Expected no error when server has its own network config, got: %v", err)
 	}
 }
 
