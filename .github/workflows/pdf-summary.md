@@ -1,5 +1,5 @@
 ---
-description: Summarizes PDF and other documents by analyzing URLs provided via /summarize command or workflow dispatch
+description: pdf summarizer
 on:
   # Command trigger - responds to /summarize mentions
   slash_command:
@@ -23,6 +23,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  discussions: read
 
 engine: copilot
 
@@ -34,6 +35,8 @@ tools:
 
 safe-outputs:
   add-comment:
+    max: 1
+  create-discussion:
     max: 1
   messages:
     footer: "> 📄 *Summary compiled by [{workflow_name}]({run_url})*"
@@ -117,6 +120,10 @@ For each identified URL:
 - Post your analysis as a comment on the triggering issue/PR
 - Format the response clearly with headers and bullet points
 - Include references to the analyzed URLs
+- Create a discussion in the repository with the result of the summarization using safe-outputs:
+  - Create a discussion with the title format: "Summary: [Brief description of resource]"
+  - Include the full analysis as the discussion body
+  - The discussion will be automatically created through the safe-outputs system
 
 ## Response Format
 
