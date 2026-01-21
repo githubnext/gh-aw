@@ -5,21 +5,15 @@
   "tasks_completed": 0,
   "tasks_in_progress": 0,
   "tasks_blocked": 0,
-  "velocity_per_day": 0,
-  "kpis": {
-    "high_severity_alerts_fixed": {
-      "baseline": 0,
-      "current": 0,
-      "target": 20,
-      "days_elapsed": 1,
-      "days_remaining": 29
-    },
-    "file_write_vulnerabilities_fixed": {
-      "baseline": 0,
-      "current": 0,
-      "target": 10,
-      "days_elapsed": 1,
-      "days_remaining": 29
-    }
+  "discovery_run": {
+    "items_discovered": 0,
+    "items_scanned": 0,
+    "pages_scanned": 3,
+    "needs_add_count": 0,
+    "needs_update_count": 0
+  },
+  "kpi_metrics": {
+    "high_severity_alerts_fixed": 0,
+    "file_write_vulnerabilities_fixed": 0
   }
 }
