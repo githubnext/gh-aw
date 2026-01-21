@@ -93,8 +93,12 @@ function createUpdateHandlerFactory(handlerConfig) {
       const itemNumber = itemNumberResult.number;
       core.info(`Resolved target ${itemTypeName} #${itemNumber} (target config: ${updateTarget})`);
 
-      // Check if message has an explicit item number that differs from the resolved target
-      // This helps users understand why their specific item isn't being updated
+      // Check if message has an explicit item number that differs from the resolved target.
+      // This helps users understand why their specific item isn't being updated.
+      // We check multiple fields because different message types use different field names:
+      // - item_number: Generic field (set by resolveIssueNumber/resolvePRNumber)
+      // - issue_number: Used by update_issue messages
+      // - pull_request_number: Used by update_pull_request messages
       const messageItemNumber = item.item_number || item.issue_number || item.pull_request_number;
       if (updateTarget !== "*" && messageItemNumber !== undefined && messageItemNumber !== itemNumber) {
         core.warning(
