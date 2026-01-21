@@ -51,6 +51,8 @@ safe-outputs:
       close-older-issues: true
     add-labels:
       allowed: [smoke-copilot]
+    remove-labels:
+      allowed: [smoke]
     messages:
       footer: "> 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*"
       run-started: "📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing..."
@@ -89,4 +91,6 @@ strict: true
    - Overall status: PASS or FAIL
    - Mention the pull request author and any assignees
 
-If all tests pass, add the label `smoke-copilot` to the pull request.
+If all tests pass:
+- Add the label `smoke-copilot` to the pull request
+- Remove the label `smoke` from the pull request
