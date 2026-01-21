@@ -151,10 +151,36 @@ function resolveTarget(params) {
     // Explicit number
     itemNumber = parseInt(target, 10);
     if (isNaN(itemNumber) || itemNumber <= 0) {
-      const itemTypeName = supportsPR || supportsIssue ? "issue" : "pull request";
+      // Determine the correct item type name based on what the handler supports
+      // Convention: supportsPR=true means both issues and PRs (unless supportsIssue explicitly says otherwise)
+      //             supportsIssue=true means issues only
+      //             supportsPR=false with supportsIssue=false/undefined means PRs only
+      let itemTypeName;
+      let helpText = "";
+
+      if (supportsIssue === true) {
+        // Issues only
+        itemTypeName = "issue";
+        helpText = `Make sure you're using a proper expression like "\${{ github.event.issue.number }}" and that the workflow is running in an issue context.`;
+      } else if (supportsPR === true) {
+        // Both issues and PRs (supportsPR=true is used by handlers that support both)
+        itemTypeName = "issue or pull request";
+        helpText = `Make sure you're using a proper expression like "\${{ github.event.issue.number }}" for issues or "\${{ github.event.pull_request.number }}" for pull requests, and that the workflow is running in the correct context.`;
+      } else {
+        // PRs only (supportsPR=false, supportsIssue=false/undefined)
+        itemTypeName = "pull request";
+        helpText = `Make sure you're using a proper expression like "\${{ github.event.pull_request.number }}" and that the workflow is running in a pull request context.`;
+      }
+
+      // Provide helpful error message if target looks like a failed expression evaluation
+      let errorMessage = `Invalid ${itemTypeName} number in target configuration: ${target}`;
+      if (target === "event" || target === "[object Object]" || target.includes("github.event")) {
+        errorMessage += `. It looks like the target contains a GitHub Actions expression that didn't evaluate correctly. ${helpText}`;
+      }
+
       return {
         success: false,
-        error: `Invalid ${itemTypeName} number in target configuration: ${target}`,
+        error: errorMessage,
         shouldFail: true,
       };
     }

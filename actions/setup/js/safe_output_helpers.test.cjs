@@ -137,7 +137,7 @@ describe("safe_output_helpers", () => {
           targetConfig: "invalid",
         });
         expect(result.success).toBe(false);
-        expect(result.error).toContain("Invalid issue number");
+        expect(result.error).toContain("Invalid issue or pull request number");
         expect(result.shouldFail).toBe(true);
       });
 
@@ -400,6 +400,8 @@ describe("safe_output_helpers", () => {
         });
         expect(result.success).toBe(false);
         expect(result.error).toContain("Invalid issue number");
+        expect(result.error).toContain("GitHub Actions expression that didn't evaluate correctly");
+        expect(result.error).toContain("github.event.issue.number");
         expect(result.error).not.toContain("pull request");
         expect(result.shouldFail).toBe(true);
       });
