@@ -11,12 +11,12 @@ import (
 func TestCollectMCPEnvironmentVariables_HTTPMCPWithSecrets(t *testing.T) {
 	tools := map[string]any{
 		"github": map[string]any{
-			"mode": "remote",
+			"mode":     "remote",
 			"toolsets": []string{"repos", "issues"},
 		},
 		"tavily": map[string]any{
 			"type": "http",
-			"url": "https://mcp.tavily.com/mcp/",
+			"url":  "https://mcp.tavily.com/mcp/",
 			"headers": map[string]string{
 				"Authorization": "Bearer ${{ secrets.TAVILY_API_KEY }}",
 			},
@@ -42,16 +42,16 @@ func TestCollectMCPEnvironmentVariables_MultipleHTTPMCPServers(t *testing.T) {
 	tools := map[string]any{
 		"tavily": map[string]any{
 			"type": "http",
-			"url": "https://mcp.tavily.com/mcp/",
+			"url":  "https://mcp.tavily.com/mcp/",
 			"headers": map[string]string{
 				"Authorization": "Bearer ${{ secrets.TAVILY_API_KEY }}",
 			},
 		},
 		"datadog": map[string]any{
 			"type": "http",
-			"url": "https://api.datadoghq.com/mcp",
+			"url":  "https://api.datadoghq.com/mcp",
 			"headers": map[string]string{
-				"DD-API-KEY": "${{ secrets.DD_API_KEY }}",
+				"DD-API-KEY":         "${{ secrets.DD_API_KEY }}",
 				"DD-APPLICATION-KEY": "${{ secrets.DD_APP_KEY }}",
 			},
 		},
@@ -75,7 +75,7 @@ func TestCollectMCPEnvironmentVariables_HTTPMCPWithoutSecrets(t *testing.T) {
 	tools := map[string]any{
 		"public_api": map[string]any{
 			"type": "http",
-			"url": "https://api.example.com/mcp",
+			"url":  "https://api.example.com/mcp",
 			"headers": map[string]string{
 				"Content-Type": "application/json",
 			},
