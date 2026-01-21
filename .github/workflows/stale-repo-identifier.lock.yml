@@ -31,7 +31,6 @@ name: "Stale Repository Identifier"
 "on":
   schedule:
   - cron: "0 9 1 * *"
-    # Friendly format: every 12h (scattered)
   workflow_dispatch:
     inputs:
       organization:
