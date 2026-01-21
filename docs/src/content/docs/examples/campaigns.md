@@ -46,10 +46,10 @@ Campaign specs (`.campaign.md` files) define:
 ### 2. Worker Workflow Pattern
 
 Worker workflows should:
-- Include tracker-id in created issues/PRs
 - Support workflow_dispatch for orchestration
 - Focus on specific, repeatable tasks
 - Be campaign-agnostic (reusable)
+- Optionally include tracker-id in frontmatter to add tracking metadata to created issues/PRs
 
 ### 3. Folder Organization
 
