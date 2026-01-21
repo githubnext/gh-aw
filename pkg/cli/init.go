@@ -499,6 +499,38 @@ func renderCampaignGeneratorMarkdown(data *workflow.WorkflowData) string {
 			if data.SafeOutputs.UpdateProjects.GitHubToken != "" {
 				fmt.Fprintf(&b, "    github-token: \"%s\"\n", data.SafeOutputs.UpdateProjects.GitHubToken)
 			}
+			if len(data.SafeOutputs.UpdateProjects.Views) > 0 {
+				b.WriteString("    views:\n")
+				for _, view := range data.SafeOutputs.UpdateProjects.Views {
+					fmt.Fprintf(&b, "      - name: \"%s\"\n", view.Name)
+					fmt.Fprintf(&b, "        layout: \"%s\"\n", view.Layout)
+					if strings.TrimSpace(view.Filter) != "" {
+						fmt.Fprintf(&b, "        filter: \"%s\"\n", view.Filter)
+					}
+					if strings.TrimSpace(view.Description) != "" {
+						fmt.Fprintf(&b, "        description: \"%s\"\n", view.Description)
+					}
+					if len(view.VisibleFields) > 0 {
+						b.WriteString("        visible-fields:\n")
+						for _, fieldIndex := range view.VisibleFields {
+							fmt.Fprintf(&b, "          - %d\n", fieldIndex)
+						}
+					}
+				}
+			}
+			if len(data.SafeOutputs.UpdateProjects.FieldDefinitions) > 0 {
+				b.WriteString("    field-definitions:\n")
+				for _, field := range data.SafeOutputs.UpdateProjects.FieldDefinitions {
+					fmt.Fprintf(&b, "      - name: \"%s\"\n", field.Name)
+					fmt.Fprintf(&b, "        data-type: \"%s\"\n", field.DataType)
+					if len(field.Options) > 0 {
+						b.WriteString("        options:\n")
+						for _, opt := range field.Options {
+							fmt.Fprintf(&b, "          - \"%s\"\n", opt)
+						}
+					}
+				}
+			}
 		}
 
 		if data.SafeOutputs.Messages != nil {

@@ -36,6 +36,37 @@ safe-outputs:
   update-project:
     max: 10
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
+    field-definitions:
+      - name: "status"
+        data-type: "SINGLE_SELECT"
+        options:
+          - "Todo"
+          - "In Progress"
+          - "Review Required"
+          - "Blocked"
+          - "Done"
+      - name: "campaign_id"
+        data-type: "TEXT"
+      - name: "worker_workflow"
+        data-type: "TEXT"
+      - name: "repository"
+        data-type: "TEXT"
+      - name: "priority"
+        data-type: "SINGLE_SELECT"
+        options:
+          - "High"
+          - "Medium"
+          - "Low"
+      - name: "size"
+        data-type: "SINGLE_SELECT"
+        options:
+          - "Small"
+          - "Medium"
+          - "Large"
+      - name: "start_date"
+        data-type: "DATE"
+      - name: "end_date"
+        data-type: "DATE"
   messages:
     footer: "> *Campaign coordination by [{workflow_name}]({run_url})*"
     run-started: "[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}."
