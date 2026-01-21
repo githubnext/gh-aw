@@ -10,17 +10,22 @@ permissions:
   pull-requests: read
   security-events: read
 engine: copilot
-tracker-id: code-scanning-fixer
 tools:
   github:
     toolsets: [context, repos, code_security, pull_requests]
   edit:
   bash:
   cache-memory:
+  repo-memory:
+    - id: campaigns
+      branch-name: memory/campaigns
+      file-glob:
+        - "security-alert-burndown/**"
+      description: "Campaign worker output tracking"
 safe-outputs:
   create-pull-request:
     title-prefix: "[code-scanning-fix] "
-    labels: [security, automated-fix, campaign:security-alert-burndown]
+    labels: [security, automated-fix]
     reviewers: copilot
 timeout-minutes: 20
 ---
@@ -166,12 +171,24 @@ After making the code changes, create a pull request with:
 **Run ID**: (available in GitHub context)
 ```
 
-### 8. Record Fixed Alert in Cache
+### 8. Record Fixed Alert in Cache and Campaign Memory
 
 After successfully creating the pull request:
+
+**A. Record in worker cache** (prevents duplicate fixes):
 - Append a new line to `/tmp/gh-aw/cache-memory/fixed-alerts.jsonl`
 - Use the format: `{"alert_number": [alert-number], "fixed_at": "[current-timestamp]", "pr_number": [pr-number]}`
-- This ensures the alert won't be selected again in future runs
+
+**B. Record in campaign memory** (enables campaign discovery):
+- Create directory if it doesn't exist: `/tmp/gh-aw/repo-memory/campaigns/security-alert-burndown/workers/`
+- Append a new line to `/tmp/gh-aw/repo-memory/campaigns/security-alert-burndown/workers/code-scanning-fixer.jsonl`
+- Use the format: `{"pr_url": "[pr-html-url]", "pr_number": [pr-number], "created_at": "[current-timestamp]", "worker": "code-scanning-fixer", "alert_number": [alert-number], "severity": "high", "repo": "githubnext/gh-aw"}`
+- This enables the campaign orchestrator to discover and track this work item
+
+Example campaign memory record:
+```json
+{"pr_url": "https://github.com/githubnext/gh-aw/pull/456", "pr_number": 456, "created_at": "2024-01-15T10:30:00Z", "worker": "code-scanning-fixer", "alert_number": 123, "severity": "high", "repo": "githubnext/gh-aw"}
+```
 
 ## Security Guidelines
 

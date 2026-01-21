@@ -11,7 +11,6 @@ permissions:
   discussions: read
   issues: read
   security-events: read
-tracker-id: security-review
 tools:
   cache-memory: true
   github:
@@ -20,6 +19,12 @@ tools:
   bash: ["*"]
   edit:
   web-fetch:
+  repo-memory:
+    - id: campaigns
+      branch-name: memory/campaigns
+      file-glob:
+        - "security-alert-burndown/**"
+      description: "Campaign worker output tracking"
 safe-outputs:
   add-comment:
     max: 1
