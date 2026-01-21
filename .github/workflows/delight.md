@@ -29,6 +29,7 @@ safe-outputs:
   create-issue:
     labels: [delight]
     max: 2
+    group: true
   messages:
     footer: "> 📊 *User experience analysis by [{workflow_name}]({run_url})*"
     run-started: "📊 Delight Agent starting! [{workflow_name}]({run_url}) is analyzing user-facing aspects for improvement opportunities..."

@@ -36,6 +36,7 @@ safe-outputs:
     title-prefix: "[refactoring] "
     labels: [refactoring, shared-component, improvement]
     max: 3
+    group: true
 
 imports:
   - shared/reporting.md

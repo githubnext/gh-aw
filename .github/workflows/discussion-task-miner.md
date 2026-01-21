@@ -26,6 +26,7 @@ safe-outputs:
     title-prefix: "[Code Quality] "
     labels: [code-quality, automation, task-mining]
     max: 5
+    group: true
     expires: 14d
   add-comment:
     max: 3

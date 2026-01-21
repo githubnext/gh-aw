@@ -36,6 +36,7 @@ safe-outputs:
     title-prefix: "[Stale Repository] "
     labels: [stale-repository, automated-analysis]
     max: 10
+    group: true
   upload-asset:
   messages:
     footer: "> 🔍 *Analysis by [{workflow_name}]({run_url})*"

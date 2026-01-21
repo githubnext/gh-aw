@@ -23,6 +23,7 @@ safe-outputs:
     expires: 7d
     title-prefix: "[workflow-style] "
     max: 5
+    group: true
 imports:
   - shared/reporting.md
   - shared/mcp/gh-aw.md

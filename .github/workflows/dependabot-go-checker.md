@@ -26,6 +26,7 @@ safe-outputs:
     title-prefix: "[deps]"
     labels: [dependencies, go]
     max: 10
+    group: true
 
 tools:
   github:

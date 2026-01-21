@@ -61,6 +61,7 @@ safe-outputs:
     title-prefix: "[🎭 POEM-BOT] "
     labels: [poetry, automation, ai-generated]
     max: 2
+    group: true
 
   # Discussion creation for poem summaries and logs
   create-discussion:

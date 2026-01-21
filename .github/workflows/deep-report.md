@@ -35,6 +35,7 @@ safe-outputs:
     title-prefix: "[deep-report] "
     labels: [automation, improvement, quick-win]
     max: 3
+    group: true
 
 tools:
   repo-memory:

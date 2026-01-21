@@ -24,6 +24,7 @@ safe-outputs:
     title-prefix: "[performance] "
     labels: [performance, automation]
     max: 3
+    group: true
   add-comment:
     max: 5
 timeout-minutes: 20
