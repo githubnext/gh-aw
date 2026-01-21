@@ -221,27 +221,111 @@ describe("safe_outputs_handlers", () => {
   });
 
   describe("createPullRequestHandler", () => {
-    it("should handle create pull request with valid branch", () => {
-      // Mock git commands
-      vi.mock("child_process", () => ({
-        execSync: vi.fn(() => Buffer.from("test-branch")),
-      }));
+    it("should be defined", () => {
+      expect(handlers.createPullRequestHandler).toBeDefined();
+    });
 
+    it("should return error response when patch generation fails (not throw)", () => {
+      // This test verifies the error is returned as content, not thrown
+      // The actual patch generation will fail because we're not in a git repo
       const args = {
         branch: "feature-branch",
         title: "Test PR",
         body: "Test description",
       };
 
-      // This test requires git to be available, so we'll just check it doesn't throw
-      // when branch is provided
-      expect(handlers.createPullRequestHandler).toBeDefined();
+      // The handler should NOT throw an error, it should return an error response
+      const result = handlers.createPullRequestHandler(args);
+
+      // Verify it returns an error response structure
+      expect(result).toBeDefined();
+      expect(result.content).toBeDefined();
+      expect(Array.isArray(result.content)).toBe(true);
+      expect(result.content[0].type).toBe("text");
+      expect(result.isError).toBe(true);
+
+      // Parse the response
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toBeDefined();
+      expect(responseData.error).toContain("Failed to generate patch");
+      expect(responseData.details).toBeDefined();
+      expect(responseData.details).toContain("Make sure you have committed your changes");
+      expect(responseData.details).toContain("git add and git commit");
+
+      // Should not have appended to safe output since patch generation failed
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should include helpful details in error response", () => {
+      const args = {
+        branch: "test-branch",
+        title: "Test",
+        body: "Description",
+      };
+
+      const result = handlers.createPullRequestHandler(args);
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+
+      // Verify the details provide actionable guidance
+      expect(responseData.details).toContain("create a pull request");
+      expect(responseData.details).toContain("git add");
+      expect(responseData.details).toContain("git commit");
+      expect(responseData.details).toContain("create_pull_request");
     });
   });
 
   describe("pushToPullRequestBranchHandler", () => {
     it("should be defined", () => {
       expect(handlers.pushToPullRequestBranchHandler).toBeDefined();
+    });
+
+    it("should return error response when patch generation fails (not throw)", () => {
+      // This test verifies the error is returned as content, not thrown
+      const args = {
+        branch: "feature-branch",
+      };
+
+      // The handler should NOT throw an error, it should return an error response
+      const result = handlers.pushToPullRequestBranchHandler(args);
+
+      // Verify it returns an error response structure
+      expect(result).toBeDefined();
+      expect(result.content).toBeDefined();
+      expect(Array.isArray(result.content)).toBe(true);
+      expect(result.content[0].type).toBe("text");
+      expect(result.isError).toBe(true);
+
+      // Parse the response
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toBeDefined();
+      expect(responseData.error).toContain("Failed to generate patch");
+      expect(responseData.details).toBeDefined();
+      expect(responseData.details).toContain("push to the pull request branch");
+      expect(responseData.details).toContain("git add and git commit");
+
+      // Should not have appended to safe output since patch generation failed
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should include helpful details in error response", () => {
+      const args = {
+        branch: "test-branch",
+      };
+
+      const result = handlers.pushToPullRequestBranchHandler(args);
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+
+      // Verify the details provide actionable guidance
+      expect(responseData.details).toContain("push to the pull request branch");
+      expect(responseData.details).toContain("git add");
+      expect(responseData.details).toContain("git commit");
+      expect(responseData.details).toContain("push_to_pull_request_branch");
     });
   });
 
