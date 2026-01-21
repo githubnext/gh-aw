@@ -18,6 +18,12 @@
  * }
  * ```
  *
+ * Common AI-Generated Error Patterns (in order of frequency):
+ * 1. Unclosed code blocks at end of content (FIXED: adds closing fence)
+ * 2. Nested fences at same indentation level (FIXED: escapes by increasing fence length)
+ * 3. Mixed fence types causing confusion (HANDLED: treats ` and ~ separately)
+ * 4. Indented bare fences in markdown examples (HANDLED: preserves as content)
+ *
  * Rules:
  * - Supports both backtick (`) and tilde (~) fences
  * - Minimum fence length is 3 characters
@@ -25,6 +31,7 @@
  * - Fences can have optional language specifiers
  * - Indentation is preserved but doesn't affect matching
  * - Content inside code blocks should never contain valid fences
+ * - Indented fences (different indentation than opener) are treated as content
  *
  * @module markdown_code_region_balancer
  */
