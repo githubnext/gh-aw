@@ -212,8 +212,8 @@ func TestEnsureFileMatchesTemplate_VerboseOutput(t *testing.T) {
 // TestDeleteOldAgentFiles tests deletion of old agent files
 func TestDeleteOldAgentFiles(t *testing.T) {
 	tests := []struct {
-		name          string
-		filesToCreate []string // Paths relative to git root
+		name            string
+		filesToCreate   []string // Paths relative to git root
 		expectedDeleted []string // Files that should be deleted
 	}{
 		{
@@ -250,8 +250,8 @@ func TestDeleteOldAgentFiles(t *testing.T) {
 			},
 		},
 		{
-			name: "handles no files to delete",
-			filesToCreate: []string{},
+			name:            "handles no files to delete",
+			filesToCreate:   []string{},
 			expectedDeleted: []string{},
 		},
 	}
