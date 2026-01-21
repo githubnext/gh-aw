@@ -149,6 +149,7 @@
     },
     "network": {
       "type": "object",
+      "deprecated": true,
       "properties": {
         "allowed": {
           "type": "array",
@@ -178,7 +179,7 @@
         }
       },
       "additionalProperties": false,
-      "description": "Network configuration for container-based MCP servers",
+      "description": "DEPRECATED: Per-server network configuration is no longer supported. Use top-level workflow 'network:' configuration instead. This field is ignored and will be removed in a future version.",
       "examples": [
         {
           "allowed": ["github.com", "api.github.com"]
@@ -265,19 +266,6 @@
         "required": ["container"]
       },
       "then": {
-        "properties": {
-          "type": {
-            "enum": ["stdio"]
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "required": ["network"]
-      },
-      "then": {
-        "required": ["container"],
         "properties": {
           "type": {
             "enum": ["stdio"]

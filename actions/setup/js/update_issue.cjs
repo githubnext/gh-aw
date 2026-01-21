@@ -103,15 +103,17 @@ function buildIssueUpdateData(item, config) {
     updateData.title = item.title;
   }
   if (item.body !== undefined) {
-    // Store operation information
-    if (item.operation !== undefined) {
-      updateData._operation = item.operation;
-      updateData._rawBody = item.body;
-    }
-    updateData.body = item.body;
+    // Store operation information for consistent footer/append behavior.
+    // Default to "append" so we preserve the original issue text.
+    updateData._operation = item.operation || "append";
+    updateData._rawBody = item.body;
   }
+  // The safe-outputs schema uses "status" (open/closed), while the GitHub API uses "state".
+  // Accept both for compatibility.
   if (item.state !== undefined) {
     updateData.state = item.state;
+  } else if (item.status !== undefined) {
+    updateData.state = item.status;
   }
   if (item.labels !== undefined) {
     updateData.labels = item.labels;
@@ -156,4 +158,4 @@ const main = createUpdateHandlerFactory({
   formatSuccessResult: formatIssueSuccessResult,
 });
 
-module.exports = { main };
+module.exports = { main, buildIssueUpdateData };

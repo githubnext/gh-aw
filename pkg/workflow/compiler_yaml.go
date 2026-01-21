@@ -7,6 +7,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 var compilerYamlLog = logger.New("workflow:compiler_yaml")
@@ -50,8 +51,10 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	// Add description comment if provided
 	if data.Description != "" {
+		// Strip ANSI escape codes to prevent terminal color codes in YAML
+		cleanDescription := stringutil.StripANSIEscapeCodes(data.Description)
 		// Split description into lines and prefix each with "# "
-		descriptionLines := strings.Split(strings.TrimSpace(data.Description), "\n")
+		descriptionLines := strings.Split(strings.TrimSpace(cleanDescription), "\n")
 		for _, line := range descriptionLines {
 			fmt.Fprintf(&yaml, "# %s\n", strings.TrimSpace(line))
 		}
@@ -60,7 +63,9 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// Add source comment if provided
 	if data.Source != "" {
 		yaml.WriteString("#\n")
-		fmt.Fprintf(&yaml, "# Source: %s\n", data.Source)
+		// Strip ANSI escape codes from source path
+		cleanSource := stringutil.StripANSIEscapeCodes(data.Source)
+		fmt.Fprintf(&yaml, "# Source: %s\n", cleanSource)
 	}
 
 	// Add manifest of imported/included files if any exist
@@ -71,14 +76,18 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		if len(data.ImportedFiles) > 0 {
 			yaml.WriteString("#   Imports:\n")
 			for _, file := range data.ImportedFiles {
-				fmt.Fprintf(&yaml, "#     - %s\n", file)
+				// Strip ANSI escape codes from file paths
+				cleanFile := stringutil.StripANSIEscapeCodes(file)
+				fmt.Fprintf(&yaml, "#     - %s\n", cleanFile)
 			}
 		}
 
 		if len(data.IncludedFiles) > 0 {
 			yaml.WriteString("#   Includes:\n")
 			for _, file := range data.IncludedFiles {
-				fmt.Fprintf(&yaml, "#     - %s\n", file)
+				// Strip ANSI escape codes from file paths
+				cleanFile := stringutil.StripANSIEscapeCodes(file)
+				fmt.Fprintf(&yaml, "#     - %s\n", cleanFile)
 			}
 		}
 	}
@@ -86,13 +95,17 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// Add stop-time comment if configured
 	if data.StopTime != "" {
 		yaml.WriteString("#\n")
-		fmt.Fprintf(&yaml, "# Effective stop-time: %s\n", data.StopTime)
+		// Strip ANSI escape codes from stop time
+		cleanStopTime := stringutil.StripANSIEscapeCodes(data.StopTime)
+		fmt.Fprintf(&yaml, "# Effective stop-time: %s\n", cleanStopTime)
 	}
 
 	// Add manual-approval comment if configured
 	if data.ManualApproval != "" {
 		yaml.WriteString("#\n")
-		fmt.Fprintf(&yaml, "# Manual approval required: environment '%s'\n", data.ManualApproval)
+		// Strip ANSI escape codes from manual approval environment
+		cleanManualApproval := stringutil.StripANSIEscapeCodes(data.ManualApproval)
+		fmt.Fprintf(&yaml, "# Manual approval required: environment '%s'\n", cleanManualApproval)
 	}
 
 	yaml.WriteString("\n")

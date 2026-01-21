@@ -194,12 +194,19 @@ jobs:
               "name": "add_comment"
             },
             {
-              "description": "Update an existing GitHub issue's status, title, or body. Use this to modify issue properties after creation. Only the fields you specify will be updated; other fields remain unchanged. CONSTRAINTS: Maximum 20 issue(s) can be updated. Target: *.",
+              "description": "Update an existing GitHub issue's status, title, labels, assignees, milestone, or body. Body updates support replacing, appending to, prepending content, or updating a per-run \"island\" section. CONSTRAINTS: Maximum 20 issue(s) can be updated. Target: *.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
+                  "assignees": {
+                    "description": "Replace the issue assignees with this list of GitHub usernames (e.g., ['octocat', 'mona']).",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
                   "body": {
-                    "description": "New issue body to replace the existing content. Use Markdown formatting.",
+                    "description": "Issue body content in Markdown. For 'replace', this becomes the entire body. For 'append'/'prepend', this content is added with a separator and an attribution footer. For 'replace-island', only the run-specific section is updated.",
                     "type": "string"
                   },
                   "issue_number": {
@@ -208,6 +215,30 @@ jobs:
                       "number",
                       "string"
                     ]
+                  },
+                  "labels": {
+                    "description": "Replace the issue labels with this list (e.g., ['bug', 'campaign:foo']). Labels must exist in the repository.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "milestone": {
+                    "description": "Milestone number to assign (e.g., 1). Use null to clear.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "operation": {
+                    "description": "How to update the issue body: 'append' (default - add to end with separator), 'prepend' (add to start with separator), 'replace' (overwrite entire body), or 'replace-island' (update a run-specific section).",
+                    "enum": [
+                      "replace",
+                      "append",
+                      "prepend",
+                      "replace-island"
+                    ],
+                    "type": "string"
                   },
                   "status": {
                     "description": "New issue status: 'open' to reopen a closed issue, 'closed' to close an open issue.",

@@ -307,6 +307,11 @@ func deleteOldAgentFiles(verbose bool) error {
 		"create-shared-agentic-workflow.agent.md",
 	}
 
+	// Also delete the dangling singular form file from .github/aw/
+	awFiles := []string{
+		"upgrade-agentic-workflow.md", // singular form (typo/duplicate)
+	}
+
 	for _, agentFile := range agentFiles {
 		agentPath := filepath.Join(gitRoot, ".github", "agents", agentFile)
 
@@ -317,6 +322,21 @@ func deleteOldAgentFiles(verbose bool) error {
 			}
 			if verbose {
 				fmt.Fprintf(os.Stderr, "Removed old agent file: %s\n", agentPath)
+			}
+		}
+	}
+
+	// Delete dangling files from .github/aw/
+	for _, awFile := range awFiles {
+		awPath := filepath.Join(gitRoot, ".github", "aw", awFile)
+
+		// Check if the file exists and remove it
+		if _, err := os.Stat(awPath); err == nil {
+			if err := os.Remove(awPath); err != nil {
+				return fmt.Errorf("failed to remove old aw file %s: %w", awFile, err)
+			}
+			if verbose {
+				fmt.Fprintf(os.Stderr, "Removed old aw file: %s\n", awPath)
 			}
 		}
 	}

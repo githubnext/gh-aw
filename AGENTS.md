@@ -608,6 +608,42 @@ data := map[string]any{"key": "value"}
 yamlBytes, err := yaml.Marshal(data)
 ```
 
+### YAML File Editing - ANSI Escape Code Prevention
+
+**CRITICAL**: When editing or generating YAML workflow files (`.github/workflows/*.yml`, `*.lock.yml`):
+
+1. **NEVER copy-paste from colored terminal output** - Always use `--no-color` or `2>&1 | cat` to strip colors
+2. **Validate YAML before committing** - The compiler automatically strips ANSI codes during workflow generation
+3. **Check for invisible characters** - Use `cat -A file.yml | grep '\[m'` to detect ANSI escape sequences
+4. **Run make recompile** - Always recompile workflows after editing .md files to regenerate clean .lock.yml files
+
+**Why this matters:**
+ANSI escape sequences (`\x1b[31m`, `\x1b[0m`, `\x1b[m`) are terminal color codes that break YAML parsing. They can accidentally be introduced through:
+- Copy-pasting from colored terminal output
+- Text editors that preserve ANSI codes
+- Scripts that generate colored output
+
+**Example of safe command usage**:
+```bash
+# ❌ BAD - May include ANSI color codes
+npm view @github/copilot | tee output.txt
+
+# ✅ GOOD - Strip colors before saving
+npm view @github/copilot --no-color | tee output.txt
+# OR
+npm view @github/copilot 2>&1 | cat | tee output.txt
+```
+
+**Prevention layers:**
+1. **Compiler sanitization**: The workflow compiler (`pkg/workflow/compiler_yaml.go`) automatically strips ANSI codes from descriptions, sources, and comments using `stringutil.StripANSIEscapeCodes()`
+2. **CI validation**: The `validate-yaml` job in `.github/workflows/ci.yml` scans all YAML files for ANSI escape sequences before other jobs run
+3. **Detection command**: Run `find .github/workflows -name "*.yml" -o -name "*.yaml" | xargs grep -P '\x1b\[[0-9;]*[a-zA-Z]'` to check for ANSI codes
+
+**If you encounter ANSI codes in workflow files:**
+1. Remove the ANSI codes from the source markdown file
+2. Run `make recompile` to regenerate clean workflow files
+3. The compiler will automatically strip any ANSI codes during compilation
+
 ### Type Patterns and Best Practices
 
 Use appropriate type patterns to improve code clarity, maintainability, and type safety:
