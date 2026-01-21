@@ -548,6 +548,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	mcpServerCmd := cli.NewMCPServerCommand()
 	prCmd := cli.NewPRCommand()
 	campaignCmd := campaign.NewCommand()
+	monitoringCmd := cli.NewMonitoringCommand()
 	secretsCmd := cli.NewSecretsCommand()
 	fixCmd := cli.NewFixCommand()
 	upgradeCmd := cli.NewUpgradeCommand()
@@ -568,6 +569,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	mcpCmd.GroupID = "development"
 	statusCmd.GroupID = "development"
 	fixCmd.GroupID = "development"
+	monitoringCmd.GroupID = "development"
 
 	// Execution Commands
 	runCmd.GroupID = "execution"
@@ -607,6 +609,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	rootCmd.AddCommand(prCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(campaignCmd)
+	rootCmd.AddCommand(monitoringCmd)
 	rootCmd.AddCommand(secretsCmd)
 	rootCmd.AddCommand(fixCmd)
 	rootCmd.AddCommand(completionCmd)
