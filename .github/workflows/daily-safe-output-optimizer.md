@@ -26,7 +26,7 @@ steps:
 safe-outputs:
   create-issue:
     title-prefix: "[safeoutputs] "
-    labels: [bug, safe-outputs, tool-improvement, automated-analysis]
+    labels: [bug, safe-outputs, tool-improvement, automated-analysis, cookie]
     max: 1
 
 timeout-minutes: 30

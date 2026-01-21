@@ -33,7 +33,7 @@ safe-outputs:
     close-older-discussions: true
   create-issue:
     title-prefix: "[deep-report] "
-    labels: [automation, improvement, quick-win]
+    labels: [automation, improvement, quick-win, cookie]
     max: 3
     group: true
 

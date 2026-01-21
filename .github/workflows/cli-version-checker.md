@@ -22,7 +22,7 @@ tools:
 safe-outputs:
   create-issue:
     title-prefix: "[ca] "
-    labels: [automation, dependencies]
+    labels: [automation, dependencies, cookie]
 timeout-minutes: 45
 ---
 

@@ -17,7 +17,7 @@ tools:
 safe-outputs:
   create-issue:
     title-prefix: "[plan] "
-    labels: [plan, ai-generated]
+    labels: [plan, ai-generated, cookie]
     max: 5  # Maximum 5 sub-issues per group
     group: true
   close-discussion:

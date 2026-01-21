@@ -14,7 +14,7 @@ tools:
 safe-outputs:
   create-issue:
     title-prefix: "[duplicate-code] "
-    labels: [code-quality, automated-analysis]
+    labels: [code-quality, automated-analysis, cookie]
     assignees: copilot
     group: true
     max: 3

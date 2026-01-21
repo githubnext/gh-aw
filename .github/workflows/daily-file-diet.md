@@ -22,7 +22,7 @@ imports:
 safe-outputs:
   create-issue:
     title-prefix: "[file-diet] "
-    labels: [refactoring, code-health, automated-analysis]
+    labels: [refactoring, code-health, automated-analysis, cookie]
     max: 1
 
 tools:

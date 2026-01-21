@@ -22,6 +22,7 @@ safe-outputs:
   create-issue:
     expires: 7d
     title-prefix: "[workflow-style] "
+    labels: [cookie]
     max: 5
     group: true
 imports:

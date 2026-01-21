@@ -23,7 +23,7 @@ network:
 safe-outputs:
   create-issue:
     title-prefix: "[step-names] "
-    labels: [maintenance, step-naming]
+    labels: [maintenance, step-naming, cookie]
 
 tools:
   cache-memory: true

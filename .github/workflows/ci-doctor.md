@@ -25,6 +25,7 @@ network: defaults
 safe-outputs:
   create-issue:
     title-prefix: "[CI Failure Doctor] "
+    labels: [cookie]
   add-comment:
   messages:
     footer: "> 🩺 *Diagnosis provided by [{workflow_name}]({run_url})*"

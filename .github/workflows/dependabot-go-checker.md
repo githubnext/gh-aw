@@ -24,7 +24,7 @@ safe-outputs:
     max: 20
   create-issue:
     title-prefix: "[deps]"
-    labels: [dependencies, go]
+    labels: [dependencies, go, cookie]
     max: 10
     group: true
 
