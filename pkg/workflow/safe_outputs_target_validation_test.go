@@ -399,18 +399,33 @@ func TestIsGitHubExpression(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "partial expression start",
+			name: "incomplete expression - missing opening",
+			s:    "incomplete }}",
+			want: false,
+		},
+		{
+			name: "incomplete expression - missing closing",
 			s:    "${{ incomplete",
 			want: false,
 		},
 		{
-			name: "partial expression end",
-			s:    "incomplete }}",
+			name: "empty expression",
+			s:    "${{}}",
 			want: false,
 		},
 		{
 			name: "empty string",
 			s:    "",
+			want: false,
+		},
+		{
+			name: "wrong order - closing before opening",
+			s:    "}} some ${{ text",
+			want: false,
+		},
+		{
+			name: "text with embedded markers but invalid order",
+			s:    "text }} more ${{ stuff",
 			want: false,
 		},
 	}

@@ -123,18 +123,36 @@ func validateTargetValue(configName, target string) error {
 		return nil
 	}
 
+	// Build a helpful suggestion based on the invalid value
+	suggestion := ""
+	if target == "event" || strings.Contains(target, "github.event") {
+		suggestion = "\n\nDid you mean to use \"${{ github.event.issue.number }}\" instead of \"" + target + "\"?"
+	}
+
 	// Invalid target value
 	return fmt.Errorf(
-		"invalid target value for %s: %q\n\nValid target values are:\n  - \"triggering\" (default) - targets the triggering issue/PR/discussion\n  - \"*\" - targets any item specified in the output\n  - A positive integer (e.g., \"123\")\n  - A GitHub Actions expression (e.g., \"${{ github.event.issue.number }}\")\n\nDid you mean to use \"${{ github.event.issue.number }}\" instead of \"event\"?",
+		"invalid target value for %s: %q\n\nValid target values are:\n  - \"triggering\" (default) - targets the triggering issue/PR/discussion\n  - \"*\" - targets any item specified in the output\n  - A positive integer (e.g., \"123\")\n  - A GitHub Actions expression (e.g., \"${{ github.event.issue.number }}\")%s",
 		configName,
 		target,
+		suggestion,
 	)
 }
 
-// isGitHubExpression checks if a string contains a GitHub Actions expression
+// isGitHubExpression checks if a string is a valid GitHub Actions expression
+// A valid expression must have properly balanced ${{ and }} markers
 func isGitHubExpression(s string) bool {
-	// GitHub Actions expressions are in the format ${{ ... }}
-	return strings.Contains(s, "${{") && strings.Contains(s, "}}")
+	// Must contain both opening and closing markers
+	if !strings.Contains(s, "${{") || !strings.Contains(s, "}}") {
+		return false
+	}
+
+	// Basic validation: opening marker must come before closing marker
+	openIndex := strings.Index(s, "${{")
+	closeIndex := strings.Index(s, "}}")
+	
+	// The closing marker must come after the opening marker
+	// and there must be something between them
+	return openIndex >= 0 && closeIndex > openIndex+3
 }
 
 // isPositiveInteger checks if a string is a positive integer
