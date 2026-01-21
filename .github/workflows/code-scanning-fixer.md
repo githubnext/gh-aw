@@ -10,7 +10,6 @@ permissions:
   pull-requests: read
   security-events: read
 engine: copilot
-tracker-id: code-scanning-fixer
 tools:
   github:
     toolsets: [context, repos, code_security, pull_requests]
@@ -20,7 +19,7 @@ tools:
 safe-outputs:
   create-pull-request:
     title-prefix: "[code-scanning-fix] "
-    labels: [security, automated-fix, campaign:security-alert-burndown]
+    labels: [security, automated-fix]
     reviewers: copilot
 timeout-minutes: 20
 ---

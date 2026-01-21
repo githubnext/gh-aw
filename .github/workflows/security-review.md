@@ -11,7 +11,6 @@ permissions:
   discussions: read
   issues: read
   security-events: read
-tracker-id: security-review
 tools:
   cache-memory: true
   github:
