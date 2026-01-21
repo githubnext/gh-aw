@@ -242,3 +242,64 @@ on: pull_request
 		assert.FileExists(t, result.OutputPath)
 	}
 }
+
+func TestFuseWorkflowWithoutTrackerID(t *testing.T) {
+	// This test verifies that campaign worker workflows do NOT require tracker-id
+	// tracker-id is optional and campaigns can discover workers via labels instead
+
+	// Create temporary directory
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Create workflow WITHOUT tracker-id - this should work fine
+	workflowContent := `---
+name: Security Scanner
+description: Scan for vulnerabilities
+on: issues
+permissions:
+  contents: read
+safe-outputs:
+  create-issue:
+---
+# Security Scanner
+Scan repositories for security issues.
+`
+
+	workflowID := "security-scanner"
+	originalPath := filepath.Join(workflowsDir, workflowID+".md")
+	require.NoError(t, os.WriteFile(originalPath, []byte(workflowContent), 0644))
+
+	// Fuse workflow for campaign - should succeed even without tracker-id
+	campaignID := "security-audit-2025"
+	result, err := FuseWorkflowForCampaign(tmpDir, workflowID, campaignID)
+
+	// Should succeed - tracker-id is NOT required
+	require.NoError(t, err, "Campaign worker fusion should succeed without tracker-id")
+	require.NotNil(t, result)
+
+	// Verify result
+	assert.Equal(t, workflowID, result.OriginalWorkflowID)
+	assert.Equal(t, workflowID+"-worker", result.CampaignWorkflowID)
+
+	// Verify file was created
+	assert.FileExists(t, result.OutputPath)
+
+	// Read fused workflow
+	fusedContent, err := os.ReadFile(result.OutputPath)
+	require.NoError(t, err)
+
+	fusedStr := string(fusedContent)
+
+	// Verify campaign metadata was added
+	assert.Contains(t, fusedStr, "campaign-worker: true", "Expected campaign-worker metadata")
+	assert.Contains(t, fusedStr, "campaign-id: "+campaignID, "Expected campaign-id metadata")
+	assert.Contains(t, fusedStr, "source-workflow: "+workflowID, "Expected source-workflow metadata")
+
+	// Verify workflow_dispatch was added
+	assert.Contains(t, fusedStr, "workflow_dispatch", "Expected workflow_dispatch trigger")
+
+	// Verify that tracker-id is NOT present (it wasn't in the original)
+	// This is fine - campaigns can discover workers via labels
+	assert.NotContains(t, fusedStr, "tracker-id:", "tracker-id should not be added if not present in original")
+}
