@@ -58,7 +58,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			// Add safe-outputs MCP server if safe-outputs are configured
 			hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
 			if hasSafeOutputs {
-				renderer.RenderSafeOutputsMCP(yaml)
+				renderer.RenderSafeOutputsMCP(yaml, workflowData)
 			}
 		case "safe-inputs":
 			// Add safe-inputs MCP server if safe-inputs are configured and feature flag is enabled
@@ -141,9 +141,9 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 				renderer := createJSONRenderer(isLast)
 				renderer.RenderAgenticWorkflowsMCP(yaml)
 			},
-			RenderSafeOutputs: func(yaml *strings.Builder, isLast bool) {
+			RenderSafeOutputs: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
 				renderer := createJSONRenderer(isLast)
-				renderer.RenderSafeOutputsMCP(yaml)
+				renderer.RenderSafeOutputsMCP(yaml, workflowData)
 			},
 			RenderSafeInputs: func(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool) {
 				renderer := createJSONRenderer(isLast)

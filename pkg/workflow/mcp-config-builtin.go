@@ -11,90 +11,45 @@ var mcpBuiltinLog = logger.New("workflow:mcp-config-builtin")
 
 // renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration
 // This is a shared function used by both Claude and Custom engines
-func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
+func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
 	mcpBuiltinLog.Print("Rendering Safe Outputs MCP configuration")
-	renderSafeOutputsMCPConfigWithOptions(yaml, isLast, false)
+	renderSafeOutputsMCPConfigWithOptions(yaml, isLast, false, workflowData)
 }
 
 // renderSafeOutputsMCPConfigWithOptions generates the Safe Outputs MCP server configuration with engine-specific options
-// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
-// Uses MCP Gateway spec format: container, entrypoint, entrypointArgs, and mounts fields.
-func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool) {
-	envVars := []string{
-		// GH_AW specific environment variables
-		"GH_AW_MCP_LOG_DIR",
-		"GH_AW_SAFE_OUTPUTS",
-		"GH_AW_SAFE_OUTPUTS_CONFIG_PATH",
-		"GH_AW_SAFE_OUTPUTS_TOOLS_PATH",
-		"GH_AW_ASSETS_BRANCH",
-		"GH_AW_ASSETS_MAX_SIZE_KB",
-		"GH_AW_ASSETS_ALLOWED_EXTS",
-		// GitHub Actions workflow context (already included)
-		"GITHUB_REPOSITORY",
-		"GITHUB_SERVER_URL",
-		"GITHUB_SHA",
-		"GITHUB_WORKSPACE",
-		"DEFAULT_BRANCH",
-		// GitHub Actions run context
-		"GITHUB_RUN_ID",
-		"GITHUB_RUN_NUMBER",
-		"GITHUB_RUN_ATTEMPT",
-		"GITHUB_JOB",
-		"GITHUB_ACTION",
-		// GitHub Actions event context
-		"GITHUB_EVENT_NAME",
-		"GITHUB_EVENT_PATH",
-		// GitHub Actions actor context
-		"GITHUB_ACTOR",
-		"GITHUB_ACTOR_ID",
-		"GITHUB_TRIGGERING_ACTOR",
-		// GitHub Actions workflow context
-		"GITHUB_WORKFLOW",
-		"GITHUB_WORKFLOW_REF",
-		"GITHUB_WORKFLOW_SHA",
-		// GitHub Actions ref context
-		"GITHUB_REF",
-		"GITHUB_REF_NAME",
-		"GITHUB_REF_TYPE",
-		"GITHUB_HEAD_REF",
-		"GITHUB_BASE_REF",
-	}
-
-	// Use MCP Gateway spec format with container, entrypoint, entrypointArgs, and mounts
-	// This will be transformed to Docker command by getMCPConfig transformation logic
+// Now uses HTTP transport instead of stdio, similar to safe-inputs
+// The server is started in a separate step before the agent job
+func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, workflowData *WorkflowData) {
 	yaml.WriteString("              \"" + constants.SafeOutputsMCPServerID + "\": {\n")
 
-	// Add type field for Copilot (per MCP Gateway Specification v1.0.0, use "stdio" for containerized servers)
+	// HTTP transport configuration - server started in separate step
+	// Add type field for HTTP (required by MCP specification for HTTP transport)
+	yaml.WriteString("                \"type\": \"http\",\n")
+
+	// Determine host based on whether agent is disabled
+	host := "host.docker.internal"
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
+		// When agent is disabled (no firewall), use localhost instead of host.docker.internal
+		host = "localhost"
+	}
+
+	// HTTP URL using environment variable - NOT escaped so shell expands it before awmg validation
+	// Use host.docker.internal to allow access from firewall container (or localhost if agent disabled)
+	// Note: awmg validates URL format before variable resolution, so we must expand the port variable
+	yaml.WriteString("                \"url\": \"http://" + host + ":$GH_AW_SAFE_OUTPUTS_PORT\",\n")
+
+	// Add Authorization header with API key
+	yaml.WriteString("                \"headers\": {\n")
 	if includeCopilotFields {
-		yaml.WriteString("                \"type\": \"stdio\",\n")
+		// Copilot format: backslash-escaped shell variable reference
+		yaml.WriteString("                  \"Authorization\": \"\\${GH_AW_SAFE_OUTPUTS_API_KEY}\"\n")
+	} else {
+		// Claude/Custom format: direct shell variable reference
+		yaml.WriteString("                  \"Authorization\": \"$GH_AW_SAFE_OUTPUTS_API_KEY\"\n")
 	}
-
-	// MCP Gateway spec fields for containerized stdio servers
-	yaml.WriteString("                \"container\": \"" + constants.DefaultNodeAlpineLTSImage + "\",\n")
-	yaml.WriteString("                \"entrypoint\": \"node\",\n")
-	yaml.WriteString("                \"entrypointArgs\": [\"/opt/gh-aw/safeoutputs/mcp-server.cjs\"],\n")
-	yaml.WriteString("                \"mounts\": [\"" + constants.DefaultGhAwMount + "\", \"" + constants.DefaultTmpGhAwMount + "\", \"" + constants.DefaultWorkspaceMount + "\"],\n")
-
-	// Note: tools field is NOT included here - the converter script adds it back
-	// for Copilot. This keeps the gateway config compatible with the schema.
-
-	// Write environment variables
-	yaml.WriteString("                \"env\": {\n")
-	for i, envVar := range envVars {
-		isLastEnvVar := i == len(envVars)-1
-		comma := ""
-		if !isLastEnvVar {
-			comma = ","
-		}
-
-		if includeCopilotFields {
-			// Copilot format: backslash-escaped shell variable reference
-			yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
-		} else {
-			// Claude/Custom format: direct shell variable reference
-			yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
-		}
-	}
+	// Close headers - no trailing comma since this is the last field
+	// Note: env block is NOT included for HTTP servers because the old MCP Gateway schema
+	// doesn't allow env in httpServerConfig. The variables are resolved via URL templates.
 	yaml.WriteString("                }\n")
 
 	if isLast {

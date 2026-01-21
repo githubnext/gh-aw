@@ -251,73 +251,35 @@ func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, seren
 }
 
 // RenderSafeOutputsMCP generates the Safe Outputs MCP server configuration
-func (r *MCPConfigRendererUnified) RenderSafeOutputsMCP(yaml *strings.Builder) {
+func (r *MCPConfigRendererUnified) RenderSafeOutputsMCP(yaml *strings.Builder, workflowData *WorkflowData) {
 	mcpRendererLog.Printf("Rendering Safe Outputs MCP: format=%s", r.options.Format)
 
 	if r.options.Format == "toml" {
-		r.renderSafeOutputsTOML(yaml)
+		r.renderSafeOutputsTOML(yaml, workflowData)
 		return
 	}
 
 	// JSON format
-	renderSafeOutputsMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields)
+	renderSafeOutputsMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields, workflowData)
 }
 
 // renderSafeOutputsTOML generates Safe Outputs MCP configuration in TOML format
-// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
-// Uses MCP Gateway spec format: container, entrypoint, entrypointArgs, and mounts fields.
-func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder) {
-	// Define environment variables for safe-outputs MCP server
-	envVars := []string{
-		"GH_AW_MCP_LOG_DIR",
-		"GH_AW_SAFE_OUTPUTS",
-		"GH_AW_SAFE_OUTPUTS_CONFIG_PATH",
-		"GH_AW_SAFE_OUTPUTS_TOOLS_PATH",
-		"GH_AW_ASSETS_BRANCH",
-		"GH_AW_ASSETS_MAX_SIZE_KB",
-		"GH_AW_ASSETS_ALLOWED_EXTS",
-		"GITHUB_REPOSITORY",
-		"GITHUB_SERVER_URL",
-		"GITHUB_SHA",
-		"GITHUB_WORKSPACE",
-		"DEFAULT_BRANCH",
-		"GITHUB_RUN_ID",
-		"GITHUB_RUN_NUMBER",
-		"GITHUB_RUN_ATTEMPT",
-		"GITHUB_JOB",
-		"GITHUB_ACTION",
-		"GITHUB_EVENT_NAME",
-		"GITHUB_EVENT_PATH",
-		"GITHUB_ACTOR",
-		"GITHUB_ACTOR_ID",
-		"GITHUB_TRIGGERING_ACTOR",
-		"GITHUB_WORKFLOW",
-		"GITHUB_WORKFLOW_REF",
-		"GITHUB_WORKFLOW_SHA",
-		"GITHUB_REF",
-		"GITHUB_REF_NAME",
-		"GITHUB_REF_TYPE",
-		"GITHUB_HEAD_REF",
-		"GITHUB_BASE_REF",
+// Now uses HTTP transport instead of stdio, similar to safe-inputs
+func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder, workflowData *WorkflowData) {
+	// Determine host based on whether agent is disabled
+	host := "host.docker.internal"
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
+		// When agent is disabled (no firewall), use localhost instead of host.docker.internal
+		host = "localhost"
 	}
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + "]\n")
-	yaml.WriteString("          container = \"" + constants.DefaultNodeAlpineLTSImage + "\"\n")
-	yaml.WriteString("          entrypoint = \"node\"\n")
-	yaml.WriteString("          entrypointArgs = [\"/opt/gh-aw/safeoutputs/mcp-server.cjs\"]\n")
-	yaml.WriteString("          mounts = [\"/opt/gh-aw:/opt/gh-aw:ro\", \"/tmp/gh-aw:/tmp/gh-aw:rw\", \"${{ github.workspace }}:${{ github.workspace }}:rw\"]\n")
-
-	// Include all common GitHub Actions environment variables for context
-	// Convert envVars slice to JSON array format
-	yaml.WriteString("          env_vars = [")
-	for i, envVar := range envVars {
-		if i > 0 {
-			yaml.WriteString(", ")
-		}
-		yaml.WriteString("\"" + envVar + "\"")
-	}
-	yaml.WriteString("]\n")
+	yaml.WriteString("          type = \"http\"\n")
+	yaml.WriteString("          url = \"http://" + host + ":$GH_AW_SAFE_OUTPUTS_PORT\"\n")
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + ".headers]\n")
+	yaml.WriteString("          Authorization = \"$GH_AW_SAFE_OUTPUTS_API_KEY\"\n")
 }
 
 // RenderSafeInputsMCP generates the Safe Inputs MCP server configuration
@@ -543,7 +505,7 @@ type MCPToolRenderers struct {
 	RenderSerena           func(yaml *strings.Builder, serenaTool any, isLast bool)
 	RenderCacheMemory      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData)
 	RenderAgenticWorkflows func(yaml *strings.Builder, isLast bool)
-	RenderSafeOutputs      func(yaml *strings.Builder, isLast bool)
+	RenderSafeOutputs      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData)
 	RenderSafeInputs       func(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool)
 	RenderWebFetch         func(yaml *strings.Builder, isLast bool)
 	RenderCustomMCPConfig  RenderCustomMCPToolConfigHandler
@@ -829,7 +791,7 @@ func RenderJSONMCPConfig(
 		case "agentic-workflows":
 			options.Renderers.RenderAgenticWorkflows(&configBuilder, isLast)
 		case "safe-outputs":
-			options.Renderers.RenderSafeOutputs(&configBuilder, isLast)
+			options.Renderers.RenderSafeOutputs(&configBuilder, isLast, workflowData)
 		case "safe-inputs":
 			if options.Renderers.RenderSafeInputs != nil {
 				options.Renderers.RenderSafeInputs(&configBuilder, workflowData.SafeInputs, isLast)

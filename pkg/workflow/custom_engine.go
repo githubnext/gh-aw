@@ -202,9 +202,9 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 				renderer := createRenderer(isLast)
 				renderer.RenderAgenticWorkflowsMCP(yaml)
 			},
-			RenderSafeOutputs: func(yaml *strings.Builder, isLast bool) {
+			RenderSafeOutputs: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
 				renderer := createRenderer(isLast)
-				renderer.RenderSafeOutputsMCP(yaml)
+				renderer.RenderSafeOutputsMCP(yaml, workflowData)
 			},
 			RenderSafeInputs: func(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool) {
 				renderer := createRenderer(isLast)
