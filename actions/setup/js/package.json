@@ -10,7 +10,6 @@
     "@vitest/coverage-v8": "^4.0.10",
     "@vitest/ui": "^4.0.10",
     "prettier": "^3.8.0",
-    "terser": "^5.44.1",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vitest": "^4.0.17"
@@ -24,7 +23,6 @@
     "test:js": "vitest run",
     "test:js-watch": "vitest",
     "test:js-coverage": "vitest run --coverage",
-    "format:terser": "find . -name '*.cjs' -type f -not -path './node_modules/*' | while read file; do if ! grep -qE '^(await |/// <reference|// @ts-check)|await import' \"$file\"; then npx terser \"$file\" -b -c dead_code=true,unused=true,collapse_vars=true --ecma 2022 -o \"$file.tmp\" && mv \"$file.tmp\" \"$file\"; fi; done",
     "format:cjs": "npx prettier --write '**/*.cjs' '**/*.ts' '**/*.json' --ignore-path ../../../.prettierignore",
     "lint:cjs": "npx prettier --check '**/*.cjs' '**/*.ts' '**/*.json' --ignore-path ../../../.prettierignore",
     "format:schema": "npx prettier --write ../../../pkg/workflow/schemas/github-workflow.json --ignore-path /dev/null",
