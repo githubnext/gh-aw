@@ -35,7 +35,8 @@ import (
 var fileModeLog = logger.New("workflow:bundler_file_mode")
 
 // ScriptsBasePath is the directory where JavaScript files are written at runtime
-const ScriptsBasePath = "/opt/gh-aw/scripts"
+// This must match SetupActionDestination since files are copied there by the setup action
+const ScriptsBasePath = "/opt/gh-aw/actions"
 
 // SetupActionDestination is the directory where the setup action writes activation scripts
 const SetupActionDestination = "/opt/gh-aw/actions"
