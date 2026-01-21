@@ -193,8 +193,8 @@ func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
 		}
 
 		// Verify that the orchestrator uses manifest-based discovery (not agent-side search)
-		if !strings.Contains(data.MarkdownContent, "Correlation is explicit (tracker-id)") {
-			t.Errorf("expected markdown to mention tracker-id correlation rule, got: %q", data.MarkdownContent)
+		if !strings.Contains(data.MarkdownContent, "Correlation is explicit (tracker-id AND labels)") {
+			t.Errorf("expected markdown to mention tracker-id and labels correlation rule, got: %q", data.MarkdownContent)
 		}
 		if !strings.Contains(data.MarkdownContent, "Read the precomputed discovery manifest") {
 			t.Errorf("expected markdown to include manifest-based discovery instructions, got: %q", data.MarkdownContent)

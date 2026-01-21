@@ -724,3 +724,56 @@ func TestFileTypeHelpers_Exclusivity(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatCampaignLabel(t *testing.T) {
+	tests := []struct {
+		name       string
+		campaignID string
+		expected   string
+	}{
+		{
+			name:       "simple kebab-case id",
+			campaignID: "security-q1-2025",
+			expected:   "z_campaign_security-q1-2025",
+		},
+		{
+			name:       "id with spaces",
+			campaignID: "Security Q1 2025",
+			expected:   "z_campaign_security-q1-2025",
+		},
+		{
+			name:       "id with underscores",
+			campaignID: "dependency_updates",
+			expected:   "z_campaign_dependency-updates",
+		},
+		{
+			name:       "id with mixed case and spaces",
+			campaignID: "Code Quality Campaign",
+			expected:   "z_campaign_code-quality-campaign",
+		},
+		{
+			name:       "id with uppercase",
+			campaignID: "SECURITY_AUDIT",
+			expected:   "z_campaign_security-audit",
+		},
+		{
+			name:       "id with multiple spaces",
+			campaignID: "my   campaign   name",
+			expected:   "z_campaign_my---campaign---name",
+		},
+		{
+			name:       "simple lowercase id",
+			campaignID: "test",
+			expected:   "z_campaign_test",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FormatCampaignLabel(tt.campaignID)
+			if result != tt.expected {
+				t.Errorf("FormatCampaignLabel(%q) = %q, want %q", tt.campaignID, result, tt.expected)
+			}
+		})
+	}
+}

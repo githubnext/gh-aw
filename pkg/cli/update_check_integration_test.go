@@ -51,7 +51,7 @@ func TestUpdateCheckIntegration(t *testing.T) {
 		workflowContent := `---
 name: Test Workflow
 on: workflow_dispatch
-permissions: read
+permissions: read-all
 engine: copilot
 ---
 
@@ -94,7 +94,7 @@ Test workflow content.
 		workflowContent := `---
 name: Test Workflow
 on: workflow_dispatch
-permissions: read
+permissions: read-all
 engine: copilot
 ---
 
@@ -139,7 +139,7 @@ Test workflow content.
 		workflowContent := `---
 name: Test Workflow
 on: workflow_dispatch
-permissions: read
+permissions: read-all
 engine: copilot
 ---
 
@@ -203,7 +203,7 @@ Test workflow content.
 		workflowContent := `---
 name: Test Workflow
 on: workflow_dispatch
-permissions: read
+permissions: read-all
 engine: copilot
 ---
 

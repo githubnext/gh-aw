@@ -27,16 +27,16 @@ func TestPermissionsEnumValidation(t *testing.T) {
 			description: "write-all is a valid shorthand permission",
 		},
 		{
-			name:        "valid: read",
+			name:        "invalid: read (without -all)",
 			permissions: "permissions: read",
-			expectValid: true,
-			description: "read is a valid shorthand permission",
+			expectValid: false,
+			description: "read without -all is not a valid shorthand (use read-all)",
 		},
 		{
-			name:        "valid: write",
+			name:        "invalid: write (without -all)",
 			permissions: "permissions: write",
-			expectValid: true,
-			description: "write is a valid shorthand permission",
+			expectValid: false,
+			description: "write without -all is not a valid shorthand (use write-all)",
 		},
 		{
 			name:        "valid: none",
