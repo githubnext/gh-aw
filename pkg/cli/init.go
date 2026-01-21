@@ -308,25 +308,56 @@ func setupEngineSecrets(engine string, verbose bool) error {
 		}
 		fmt.Fprintln(os.Stderr, "")
 
-		// Attempt to configure them as repository secrets
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Attempting to configure these secrets for repository Actions..."))
-		fmt.Fprintln(os.Stderr, "")
+		// Ask for confirmation before configuring secrets
+		var confirmSetSecrets bool
+		confirmForm := huh.NewForm(
+			huh.NewGroup(
+				huh.NewConfirm().
+					Title("Would you like to configure these secrets as repository Actions secrets?").
+					Description("This will use the gh CLI to set the secrets in your repository").
+					Affirmative("Yes, configure secrets").
+					Negative("No, skip").
+					Value(&confirmSetSecrets),
+			),
+		).WithAccessible(console.IsAccessibleMode())
 
-		successCount := 0
-		for _, secretName := range availableSecrets {
-			if err := attemptSetSecret(secretName, repoSlug, verbose); err != nil {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to set %s: %v", secretName, err)))
-				}
-			} else {
-				successCount++
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("  ✓ Configured %s", secretName)))
-			}
+		if err := confirmForm.Run(); err != nil {
+			return fmt.Errorf("confirmation failed: %w", err)
 		}
 
-		if successCount > 0 {
+		if !confirmSetSecrets {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipped configuring secrets"))
 			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully configured %d secret(s) for repository Actions", successCount)))
+		} else {
+			// Attempt to configure them as repository secrets
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Configuring secrets for repository Actions..."))
+			fmt.Fprintln(os.Stderr, "")
+
+			successCount := 0
+			for _, secretName := range availableSecrets {
+				if err := attemptSetSecret(secretName, repoSlug, verbose); err != nil {
+					// Handle different types of errors gracefully
+					errMsg := err.Error()
+					if strings.Contains(errMsg, "403") || strings.Contains(errMsg, "Forbidden") ||
+						strings.Contains(errMsg, "permissions") || strings.Contains(errMsg, "Resource not accessible") {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  ✗ Insufficient permissions to set %s", secretName)))
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage("    You may need to grant additional permissions to your GitHub token"))
+					} else {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  ✗ Failed to set %s: %v", secretName, err)))
+					}
+				} else {
+					successCount++
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("  ✓ Configured %s", secretName)))
+				}
+			}
+
+			if successCount > 0 {
+				fmt.Fprintln(os.Stderr, "")
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully configured %d secret(s) for repository Actions", successCount)))
+			} else {
+				fmt.Fprintln(os.Stderr, "")
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No secrets were configured. You may need to set them manually."))
+			}
 		}
 	}
 
@@ -359,7 +390,11 @@ func attemptSetSecret(secretName, repoSlug string, verbose bool) error {
 	// Check if secret already exists
 	exists, err := checkSecretExistsInRepo(secretName, repoSlug)
 	if err != nil {
-		// If we can't check, try to set anyway
+		// If we get a permission error, return it immediately
+		if strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "Forbidden") {
+			return fmt.Errorf("insufficient permissions to access repository secrets: %w", err)
+		}
+		// For other errors, log but try to set anyway
 		if verbose {
 			initLog.Printf("Could not check if secret exists: %v", err)
 		}
@@ -395,7 +430,13 @@ func attemptSetSecret(secretName, repoSlug string, verbose bool) error {
 	// Set the secret using gh CLI
 	cmd := workflow.ExecGH("secret", "set", secretName, "--repo", repoSlug, "--body", secretValue)
 	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to set secret: %w (output: %s)", err, string(output))
+		outputStr := string(output)
+		// Check for permission-related errors
+		if strings.Contains(outputStr, "403") || strings.Contains(outputStr, "Forbidden") ||
+			strings.Contains(outputStr, "Resource not accessible") || strings.Contains(err.Error(), "403") {
+			return fmt.Errorf("insufficient permissions to set secrets in repository: %w", err)
+		}
+		return fmt.Errorf("failed to set secret: %w (output: %s)", err, outputStr)
 	}
 
 	initLog.Printf("Successfully set secret: %s", secretName)
