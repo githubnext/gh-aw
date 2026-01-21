@@ -1300,6 +1300,8 @@ jobs:
           2) Read current GitHub Project board state (items + required fields).
           
           3) Parse discovered items from the manifest:
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
              - Each item has: url, content_type (issue/pull_request/discussion), number, repo, created_at, updated_at, state
              - Closed items have: closed_at (for issues) or merged_at (for PRs)
              - Items are pre-sorted by updated_at for deterministic processing
@@ -1326,8 +1328,6 @@ jobs:
             - if closed/merged → format `closed_at`/`merged_at` as `YYYY-MM-DD`
             - if open → **today's date** formatted `YYYY-MM-DD` (required for roadmap view)
           
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           **Why use today for open items?** - GitHub Projects requires end_date for roadmap views. Using today's date shows the item is actively tracked and updates automatically each run until completion.
           
           7) Do NOT implement idempotency by comparing against the board. You may compare for reporting only.
@@ -1504,8 +1504,6 @@ jobs:
           - `worker_workflow`: workflow ID if known, else `"unknown"`
           - `repository`: extract `owner/repo` from the issue/PR URL
           - `priority`: default `Medium` unless explicitly known
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           - `size`: default `Medium` unless explicitly known
           - `start_date`: issue/PR `created_at` formatted `YYYY-MM-DD`
           - `end_date`:
