@@ -393,6 +393,17 @@ describe("safe_output_helpers", () => {
         expect(result.contextType).toBe("issue");
       });
 
+      it("should fail for invalid explicit number with correct error message", () => {
+        const result = helpers.resolveTarget({
+          ...baseParams,
+          targetConfig: "event",
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("Invalid issue number");
+        expect(result.error).not.toContain("pull request");
+        expect(result.shouldFail).toBe(true);
+      });
+
       it("should resolve wildcard with issue_number", () => {
         const result = helpers.resolveTarget({
           ...baseParams,
