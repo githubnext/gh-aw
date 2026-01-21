@@ -154,7 +154,7 @@ function balanceCodeRegions(markdown) {
 
       if (canClose) {
         const fenceIndentLength = fence.indent.length;
-        
+
         // Only consider fences at the SAME indentation as potential closers
         if (fenceIndentLength === openIndentLength) {
           potentialClosers.push({ index: j, length: fence.length });
