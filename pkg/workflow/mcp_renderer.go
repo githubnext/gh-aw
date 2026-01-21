@@ -273,7 +273,8 @@ func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder) 
 	yaml.WriteString("          entrypoint = \"node\"\n")
 	yaml.WriteString("          entrypointArgs = [\"/opt/gh-aw/safeoutputs/mcp-server.cjs\"]\n")
 	yaml.WriteString("          mounts = [\"/opt/gh-aw:/opt/gh-aw:ro\", \"/tmp/gh-aw:/tmp/gh-aw:rw\", \"${{ github.workspace }}:${{ github.workspace }}:rw\"]\n")
-	yaml.WriteString("          env_vars = [\"GH_AW_MCP_LOG_DIR\", \"GH_AW_SAFE_OUTPUTS\", \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH\", \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_SHA\", \"GITHUB_WORKSPACE\", \"DEFAULT_BRANCH\"]\n")
+	// Include all common GitHub Actions environment variables for context
+	yaml.WriteString("          env_vars = [\"GH_AW_MCP_LOG_DIR\", \"GH_AW_SAFE_OUTPUTS\", \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH\", \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GITHUB_REPOSITORY\", \"GITHUB_SERVER_URL\", \"GITHUB_SHA\", \"GITHUB_WORKSPACE\", \"DEFAULT_BRANCH\", \"GITHUB_RUN_ID\", \"GITHUB_RUN_NUMBER\", \"GITHUB_RUN_ATTEMPT\", \"GITHUB_JOB\", \"GITHUB_ACTION\", \"GITHUB_EVENT_NAME\", \"GITHUB_EVENT_PATH\", \"GITHUB_ACTOR\", \"GITHUB_ACTOR_ID\", \"GITHUB_TRIGGERING_ACTOR\", \"GITHUB_WORKFLOW\", \"GITHUB_WORKFLOW_REF\", \"GITHUB_WORKFLOW_SHA\", \"GITHUB_REF\", \"GITHUB_REF_NAME\", \"GITHUB_REF_TYPE\", \"GITHUB_HEAD_REF\", \"GITHUB_BASE_REF\"]\n")
 }
 
 // RenderSafeInputsMCP generates the Safe Inputs MCP server configuration
