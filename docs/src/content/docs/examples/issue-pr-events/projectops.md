@@ -101,6 +101,74 @@ After adding to project board, comment on the issue confirming where it was adde
 
 This workflow creates an intelligent triage system that automatically organizes new issues onto appropriate project boards with relevant status and priority fields.
 
+## Pre-Built Component: Project Board Monitor
+
+For a complete, production-ready monitoring solution, use the pre-built **project-board-monitor** component:
+
+```bash
+gh aw add githubnext/gh-aw/project-board-monitor
+```
+
+This shared component provides comprehensive project board automation out-of-the-box:
+
+**Features:**
+- Event-driven triggers for issues and PRs (opened, reopened, labeled, closed)
+- AI-powered content analysis for intelligent routing
+- Automatic status, priority, and field updates
+- Support for multiple project boards and custom routing rules
+- Comprehensive embedded documentation
+
+**Quick Setup:**
+
+1. **Add the component**:
+   ```bash
+   gh aw add githubnext/gh-aw/project-board-monitor
+   ```
+
+2. **Configure your project URL** in the workflow file:
+   ```markdown
+   PROJECT_URL="https://github.com/orgs/myorg/projects/42"
+   ```
+
+3. **Set up authentication**:
+   ```bash
+   gh aw secrets set GH_AW_PROJECT_GITHUB_TOKEN --value "YOUR_TOKEN"
+   ```
+
+4. **Compile and deploy**:
+   ```bash
+   gh aw compile project-board-monitor.md
+   git add .github/workflows/project-board-monitor.*
+   git commit -m "Add project board monitoring"
+   git push
+   ```
+
+**Example Use Case: Sprint Board Automation**
+
+The project-board-monitor component can automatically manage a sprint board:
+
+1. **New issues** → Added to "Backlog" with AI-determined priority
+2. **Labeled issues** → Moved to appropriate status based on label (e.g., `in-progress` → "In Progress")
+3. **Pull requests** → Added to "In Review" with size estimation
+4. **Closed items** → Moved to "Done" with completion tracking
+
+**Customization:** Edit the routing logic in the workflow file to match your project structure, field names, and business rules. The component includes detailed examples for common scenarios.
+
+**Updates:** Keep your monitoring workflow current with:
+```bash
+gh aw update project-board-monitor
+```
+
+**Alternative: Custom Generation**
+
+For maximum flexibility, generate a custom monitoring workflow from scratch:
+
+```bash
+gh aw monitoring new my-custom-monitor
+```
+
+This creates a fully customizable template you can tailor to specific requirements.
+
 ## Available Safe Outputs
 
 ProjectOps workflows leverage these safe outputs for project management operations:
@@ -193,3 +261,92 @@ ProjectOps complements [GitHub's built-in Projects automation](https://docs.gith
 - [Trigger Events](/gh-aw/reference/triggers/) - Event trigger configuration options
 - [IssueOps Guide](/gh-aw/examples/issue-pr-events/issueops/) - Related issue automation patterns
 - [Token Reference](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2) - GitHub Projects token setup
+
+## Real-World Example: Multi-Team Development Board
+
+Here's a complete example using the project-board-monitor component to automate a multi-team development board:
+
+**Scenario:** You have a project board tracking work across frontend, backend, and DevOps teams. You want automatic routing, prioritization, and status updates.
+
+**Setup:**
+
+1. **Create your project** with custom fields:
+   - Status: Backlog | To Do | In Progress | In Review | Done
+   - Priority: High | Medium | Low
+   - Team: Frontend | Backend | DevOps | Design
+   - Size: Small | Medium | Large
+
+2. **Add the monitoring component:**
+   ```bash
+   gh aw add githubnext/gh-aw/project-board-monitor
+   ```
+
+3. **Configure routing logic** in `project-board-monitor.md`:
+   ```markdown
+   PROJECT_URL="https://github.com/orgs/myorg/projects/123"
+   
+   ## Routing Rules
+   
+   ### Issue Routing by Labels
+   - Labels contain "frontend" or "ui" or "css" → Set Team: "Frontend", Size: "Small"
+   - Labels contain "backend" or "api" or "database" → Set Team: "Backend", Size: "Medium"
+   - Labels contain "devops" or "ci" or "deployment" → Set Team: "DevOps", Size: "Small"
+   - Labels contain "bug" → Set Priority: "High", Status: "To Do"
+   - Labels contain "enhancement" → Set Priority: "Medium", Status: "Backlog"
+   
+   ### PR Routing by Changed Files
+   - Changes to `src/frontend/**` → Set Team: "Frontend", Status: "In Review"
+   - Changes to `src/backend/**` → Set Team: "Backend", Status: "In Review"
+   - Changes to `.github/workflows/**` → Set Team: "DevOps", Status: "In Review"
+   
+   ### Size Estimation
+   - PRs with 1-10 files changed → Size: "Small"
+   - PRs with 11-30 files changed → Size: "Medium"
+   - PRs with 30+ files changed → Size: "Large"
+   
+   ### Status Transitions
+   - Issue/PR opened → Status: "Backlog" (unless Priority: High, then "To Do")
+   - Label "in-progress" added → Status: "In Progress"
+   - PR ready_for_review → Status: "In Review"
+   - Issue/PR closed and merged → Status: "Done"
+   - Issue/PR closed without merge → Archive (remove from project)
+   ```
+
+4. **Deploy:**
+   ```bash
+   gh aw compile project-board-monitor.md
+   git commit -am "Add automated project board monitoring"
+   git push
+   ```
+
+**Results:**
+
+- **Automatic team routing:** Issues and PRs are instantly assigned to the correct team
+- **Smart prioritization:** Bugs get high priority, enhancements get medium priority
+- **Size estimation:** PRs are automatically sized based on complexity
+- **Status tracking:** Board stays current as work progresses through stages
+- **Clean board:** Closed/rejected items are automatically archived
+
+**Monitoring the Monitor:**
+
+Check workflow runs to see the automation in action:
+```bash
+gh aw logs project-board-monitor
+```
+
+**Iterating:**
+
+Adjust routing rules based on team feedback:
+```bash
+# Edit the workflow
+vi .github/workflows/project-board-monitor.md
+
+# Recompile with changes
+gh aw compile project-board-monitor.md
+
+# Deploy updates
+git commit -am "Refine project board routing rules"
+git push
+```
+
+This setup eliminates manual project board management while ensuring consistent categorization and tracking across all team work.
