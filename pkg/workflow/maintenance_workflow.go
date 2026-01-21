@@ -254,7 +254,10 @@ jobs:
 
       - name: Check for out-of-sync workflows and create issue if needed
         uses: ` + GetActionPin("actions/github-script") + `
+        env:
+          GH_AW_AGENT_TOKEN: ${{ secrets.GH_AW_AGENT_TOKEN }}
         with:
+          github-token: ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);

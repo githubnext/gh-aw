@@ -3,6 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateFooterWithMessages, getFooterWorkflowRecompileMessage, getFooterWorkflowRecompileCommentMessage, generateXMLMarker } = require("./messages_footer.cjs");
+const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const fs = require("fs");
 
 /**
@@ -169,6 +170,49 @@ async function main() {
     });
 
     core.info(`✓ Created issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
+
+    // Check if GH_AW_AGENT_TOKEN is available to assign copilot
+    const agentToken = process.env.GH_AW_AGENT_TOKEN;
+    if (agentToken && agentToken.trim()) {
+      core.info("GH_AW_AGENT_TOKEN is available, attempting to assign issue to @copilot");
+
+      try {
+        const agentName = "copilot";
+
+        // Find copilot agent
+        core.info(`Looking for ${agentName} coding agent...`);
+        const agentId = await findAgent(owner, repo, agentName);
+
+        if (!agentId) {
+          core.warning(`${agentName} coding agent is not available for this repository - skipping assignment`);
+        } else {
+          core.info(`Found ${agentName} coding agent (ID: ${agentId})`);
+
+          // Get issue details
+          core.info(`Getting details for issue #${newIssue.data.number}...`);
+          const issueDetails = await getIssueDetails(owner, repo, newIssue.data.number);
+
+          if (!issueDetails) {
+            core.warning("Failed to get issue details - skipping assignment");
+          } else {
+            // Assign copilot to the issue
+            core.info(`Assigning ${agentName} coding agent to issue #${newIssue.data.number}...`);
+            const success = await assignAgentToIssue(issueDetails.issueId, agentId, issueDetails.currentAssignees, agentName, null);
+
+            if (success) {
+              core.info(`✓ Successfully assigned ${agentName} coding agent to issue #${newIssue.data.number}`);
+            } else {
+              core.warning(`Failed to assign ${agentName} via GraphQL`);
+            }
+          }
+        }
+      } catch (assignError) {
+        core.warning(`Failed to assign copilot to issue: ${getErrorMessage(assignError)}`);
+        core.info("Issue was created successfully, but copilot assignment failed - continuing");
+      }
+    } else {
+      core.info("GH_AW_AGENT_TOKEN is not available - skipping copilot assignment");
+    }
 
     // Write to job summary
     await core.summary.addHeading("Workflow Recompilation Needed", 2).addRaw(`Created issue [#${newIssue.data.number}](${newIssue.data.html_url}) to track workflow recompilation.`).write();
