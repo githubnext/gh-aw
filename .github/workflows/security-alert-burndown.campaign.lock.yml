@@ -976,11 +976,44 @@ jobs:
           
           1. Workers are immutable and campaign-agnostic
           2. The GitHub Project board is the authoritative campaign state
-          3. Correlation is explicit (tracker-id)
+          3. Correlation is explicit (tracker-id AND labels)
           4. Reads and writes are separate steps (never interleave)
           5. Idempotent operation is mandatory (safe to re-run)
           6. Only predefined project fields may be updated
           7. **Project Update Instructions take precedence for all project writes**
+          8. **Campaign items MUST be labeled** for discovery and isolation
+          
+          ---
+          
+          ## Campaign Label Requirements
+          
+          **All campaign-related issues, PRs, and discussions MUST have two labels:**
+          
+          1. **`agentic-campaign`** - Generic label marking content as part of ANY campaign
+             - Prevents other workflows from processing campaign items
+             - Enables campaign-wide queries and filters
+          
+          2. **`z_campaign_security-alert-burndown`** - Campaign-specific label
+             - Enables precise discovery of items belonging to THIS campaign
+             - Format: `z_campaign_<campaign-id>` (lowercase, hyphen-separated)
+             - Example: `z_campaign_security-q1-2025`
+          
+          **Worker Responsibilities:**
+          - Workers creating issues/PRs as campaign output MUST add both labels
+          - Workers SHOULD use `create-issue` or `create-pr` safe outputs with labels configuration
+          - If workers cannot add labels automatically, campaign orchestrator will attempt to add them during discovery
+          
+          **Non-Campaign Workflow Responsibilities:**
+          - Workflows triggered by issues/PRs SHOULD skip items with `agentic-campaign` label
+          - Use `skip-if-match` configuration to filter out campaign items:
+            ```yaml
+            on:
+              issues:
+                types: [opened, labeled]
+                skip-if-match:
+                  query: "label:agentic-campaign"
+                  max: 0  # Skip if ANY campaign items match
+            ```
           
           ---
           
@@ -1018,6 +1051,8 @@ jobs:
                  ---
                  `campaign_id: security-alert-burndown`
                labels:
+                 - agentic-campaign
+                 - z_campaign_security-alert-burndown
                  - epic
                  - type:epic
              ```
@@ -1260,6 +1295,8 @@ jobs:
           - `worker_workflow`: workflow ID if known, else `"unknown"`
           - `repository`: extract `owner/repo` from the issue/PR URL
           - `priority`: default `Medium` unless explicitly known
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           - `size`: default `Medium` unless explicitly known
           - `start_date`: issue/PR `created_at` formatted `YYYY-MM-DD`
           - `end_date`:
@@ -1304,8 +1341,6 @@ jobs:
           
           ---
           
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           ## 6) Updating an Existing Item (Minimal Writes)
           
           ### Updating Existing Items
