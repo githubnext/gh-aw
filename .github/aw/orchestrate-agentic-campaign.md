@@ -107,6 +107,8 @@ and synchronizing campaign state into a GitHub Project board.
        ---
        `campaign_id: {{.CampaignID}}`
      labels:
+       - agentic-campaign
+       - z_campaign_{{.CampaignID}}
        - epic
        - type:epic
    ```
