@@ -13,42 +13,7 @@ import (
 
 var mcpServersLog = logger.New("workflow:mcp_servers")
 
-// hasMCPServers checks if the workflow has any MCP servers configured
-func HasMCPServers(workflowData *WorkflowData) bool {
-	if workflowData == nil {
-		return false
-	}
 
-	mcpServersLog.Print("Checking for MCP servers in workflow configuration")
-	// Check for standard MCP tools
-	for toolName, toolValue := range workflowData.Tools {
-		// Skip if the tool is explicitly disabled (set to false)
-		if toolValue == false {
-			continue
-		}
-		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
-			return true
-		}
-		// Check for custom MCP tools
-		if mcpConfig, ok := toolValue.(map[string]any); ok {
-			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
-				return true
-			}
-		}
-	}
-
-	// Check if safe-outputs is enabled (adds safe-outputs MCP server)
-	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
-		return true
-	}
-
-	// Check if safe-inputs is configured and feature flag is enabled (adds safe-inputs MCP server)
-	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
-		return true
-	}
-
-	return false
-}
 
 // collectMCPEnvironmentVariables collects all MCP-related environment variables
 // from the workflow configuration to be passed to both Start MCP gateway and MCP Gateway steps
@@ -732,115 +697,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// without the gateway section. The engine's RenderMCPConfig handles both cases.
 }
 
-// ensureDefaultMCPGatewayConfig ensures MCP gateway has default configuration if not provided
-// The MCP gateway is mandatory and defaults to GitHubnext/gh-aw-mcpg
-func ensureDefaultMCPGatewayConfig(workflowData *WorkflowData) {
-	if workflowData == nil {
-		return
-	}
 
-	// Ensure SandboxConfig exists
-	if workflowData.SandboxConfig == nil {
-		workflowData.SandboxConfig = &SandboxConfig{}
-	}
-
-	// Ensure MCP gateway config exists with defaults
-	if workflowData.SandboxConfig.MCP == nil {
-		mcpServersLog.Print("No MCP gateway configuration found, setting default configuration")
-		workflowData.SandboxConfig.MCP = &MCPGatewayRuntimeConfig{
-			Container: constants.DefaultMCPGatewayContainer,
-			Version:   string(constants.DefaultMCPGatewayVersion),
-			Port:      int(DefaultMCPGatewayPort),
-		}
-	} else {
-		// Fill in defaults for missing fields
-		if workflowData.SandboxConfig.MCP.Container == "" {
-			workflowData.SandboxConfig.MCP.Container = constants.DefaultMCPGatewayContainer
-		}
-		// Only replace empty version with default - preserve user-specified versions including "latest"
-		if workflowData.SandboxConfig.MCP.Version == "" {
-			workflowData.SandboxConfig.MCP.Version = string(constants.DefaultMCPGatewayVersion)
-		}
-		if workflowData.SandboxConfig.MCP.Port == 0 {
-			workflowData.SandboxConfig.MCP.Port = int(DefaultMCPGatewayPort)
-		}
-	}
-
-	// Ensure default mounts are set if not provided
-	if len(workflowData.SandboxConfig.MCP.Mounts) == 0 {
-		mcpServersLog.Print("Setting default gateway mounts")
-		workflowData.SandboxConfig.MCP.Mounts = []string{
-			"/opt:/opt:ro",
-			"/tmp:/tmp:rw",
-			"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw",
-		}
-	}
-}
-
-// shellQuote adds shell quoting to a string if needed
-func shellQuote(s string) string {
-	if strings.ContainsAny(s, " \t\n'\"\\$`") {
-		// Escape single quotes and wrap in single quotes
-		s = strings.ReplaceAll(s, "'", "'\\''")
-		return "'" + s + "'"
-	}
-	return s
-}
-
-// buildDockerCommandWithExpandableVars builds a properly quoted docker command
-// that allows ${GITHUB_WORKSPACE} and $GITHUB_WORKSPACE to be expanded at runtime
-func buildDockerCommandWithExpandableVars(cmd string) string {
-	// Replace ${GITHUB_WORKSPACE} with a placeholder that we'll handle specially
-	// We want: 'docker run ... -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ...'
-	// This closes the single quote, adds the variable in double quotes, then reopens single quote
-
-	// Split on ${GITHUB_WORKSPACE} to handle it specially
-	if strings.Contains(cmd, "${GITHUB_WORKSPACE}") {
-		parts := strings.Split(cmd, "${GITHUB_WORKSPACE}")
-		var result strings.Builder
-		result.WriteString("'")
-		for i, part := range parts {
-			if i > 0 {
-				// Add the variable expansion outside of single quotes
-				result.WriteString("'\"${GITHUB_WORKSPACE}\"'")
-			}
-			// Escape single quotes in the part
-			escapedPart := strings.ReplaceAll(part, "'", "'\\''")
-			result.WriteString(escapedPart)
-		}
-		result.WriteString("'")
-		return result.String()
-	}
-
-	// No GITHUB_WORKSPACE variable, use normal quoting
-	return shellQuote(cmd)
-}
-
-// buildMCPGatewayConfig builds the gateway configuration for inclusion in MCP config files
-// Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required with port and domain
-// Returns nil if sandbox is disabled (sandbox: false) to skip gateway completely
-func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig {
-	if workflowData == nil {
-		return nil
-	}
-
-	// If sandbox is disabled, skip gateway configuration entirely
-	if isSandboxDisabled(workflowData) {
-		return nil
-	}
-
-	// Ensure default configuration is set
-	ensureDefaultMCPGatewayConfig(workflowData)
-
-	// Return gateway config with required fields populated
-	// Use ${...} syntax for environment variable references that will be resolved by the gateway at runtime
-	// Per MCP Gateway Specification v1.0.0 section 4.2, variable expressions use "${VARIABLE_NAME}" syntax
-	return &MCPGatewayRuntimeConfig{
-		Port:   int(DefaultMCPGatewayPort), // Will be formatted as "${MCP_GATEWAY_PORT}" in renderer
-		Domain: "${MCP_GATEWAY_DOMAIN}",    // Gateway variable expression
-		APIKey: "${MCP_GATEWAY_API_KEY}",   // Gateway variable expression
-	}
-}
 
 func getGitHubDockerImageVersion(githubTool any) string {
 	githubDockerImageVersion := string(constants.DefaultGitHubMCPServerVersion) // Default Docker image version
@@ -933,14 +790,7 @@ func hasGitHubLockdownExplicitlySet(githubTool any) bool {
 	return false
 }
 
-// isSandboxDisabled checks if sandbox features are completely disabled (sandbox: false)
-func isSandboxDisabled(workflowData *WorkflowData) bool {
-	if workflowData == nil || workflowData.SandboxConfig == nil {
-		return false
-	}
-	// Check if sandbox was explicitly disabled via sandbox: false
-	return workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled
-}
+
 
 // getGitHubToolsets extracts the toolsets configuration from GitHub tool
 // Expands "default" to individual toolsets for action-friendly compatibility
