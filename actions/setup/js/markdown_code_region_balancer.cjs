@@ -135,7 +135,7 @@ function balanceCodeRegions(markdown) {
     const openFence = fences[i];
     processed.add(i);
 
-    // Find ALL potential closers at same indentation that are NOT inside existing blocks
+    // Find potential closers at same indentation that are NOT inside existing blocks
     const potentialClosers = [];
     const openIndentLength = openFence.indent.length;
 
@@ -163,7 +163,29 @@ function balanceCodeRegions(markdown) {
     }
 
     if (potentialClosers.length > 0) {
-      // Use the LAST potential closer (farthest from opener)
+      // Check if there are language-tagged fences between the opener and potential closers
+      // If there are, we should not escape even if there are multiple potential closers,
+      // as the language-tagged fences indicate intentional code examples within the block
+      let hasLanguageFenceBetween = false;
+      if (potentialClosers.length > 1) {
+        const lastCloserIndex = potentialClosers[potentialClosers.length - 1].index;
+        
+        // Check all fences between the opener and the last potential closer
+        for (let k = i + 1; k < lastCloserIndex; k++) {
+          if (processed.has(k)) continue;
+          const fence = fences[k];
+          if (isInsideBlock(fence.lineIndex)) continue;
+          
+          // If we find ANY language-tagged fence at the same indentation,
+          // treat the potential closers as intended content, not as nested errors
+          if (fence.language !== "" && fence.indent.length === openIndentLength) {
+            hasLanguageFenceBetween = true;
+            break;
+          }
+        }
+      }
+
+      // Always use the last potential closer (farthest from opener)
       const closerIndex = potentialClosers[potentialClosers.length - 1].index;
       processed.add(closerIndex);
 
@@ -174,8 +196,10 @@ function balanceCodeRegions(markdown) {
         closeIndex: closerIndex,
       });
 
-      // If there are multiple potential closers, we have nested fences that need escaping
-      if (potentialClosers.length > 1) {
+      // Only escape if:
+      // 1. There are multiple potential closers (multiple bare fences)
+      // 2. AND there are NO language-tagged fences in between (truly nested, not intentional examples)
+      if (potentialClosers.length > 1 && !hasLanguageFenceBetween) {
         // Increase fence length so middle closers can no longer close
         const maxLength = Math.max(...potentialClosers.map(c => c.length), openFence.length);
         const newLength = maxLength + 1;
