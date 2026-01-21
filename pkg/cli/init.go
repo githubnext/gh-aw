@@ -49,12 +49,6 @@ func InitRepositoryInteractive(verbose bool, rootCmd CommandProvider) error {
 		{"codex", "Codex", "OpenAI Codex/GPT engine"},
 	}
 
-	// Create engine selection options for huh
-	var huhEngineOptions []string
-	for _, opt := range engineOptions {
-		huhEngineOptions = append(huhEngineOptions, opt.value)
-	}
-
 	// Use interactive prompt to select engine
 	form := createEngineSelectionForm(&selectedEngine, engineOptions)
 	if err := form.Run(); err != nil {
