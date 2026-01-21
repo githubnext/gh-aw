@@ -49,8 +49,10 @@ safe-outputs:
       expires: 2h
       group: true
       close-older-issues: true
+    create-pull-request:
+      labels: [smoke-copilot, automated-poem]
     add-labels:
-      allowed: [smoke-copilot]
+      allowed: [smoke-copilot, automated-poem]
     remove-labels:
       allowed: [smoke]
     messages:
@@ -73,6 +75,7 @@ strict: true
 3. **Playwright Testing**: Use playwright to navigate to <https://github.com> and verify the page title contains "GitHub"
 4. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
 5. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+6. **Pull Request Creation Testing**: Create a new poem file in `poems/smoke-test-${{ github.run_id }}.md` with a short creative poem about GitHub Actions and agentic workflows, then commit the changes and create a pull request
 
 ## Output
 
@@ -90,6 +93,11 @@ strict: true
    - ✅ or ❌ for each test result
    - Overall status: PASS or FAIL
    - Mention the pull request author and any assignees
+
+3. **Create a pull request** with the new poem:
+   - Title: "Add smoke test poem - Run ${{ github.run_id }}"
+   - Body: Include the poem content and a note that this is an automated smoke test
+   - Branch name: `smoke-test-poem-${{ github.run_id }}`
 
 If all tests pass:
 - Add the label `smoke-copilot` to the pull request
