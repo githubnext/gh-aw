@@ -2,11 +2,19 @@
 /// <reference types="@actions/github-script" />
 
 /**
- * Regex pattern to match expiration marker with checked checkbox
- * Allows flexible whitespace: - [x] expires <!-- gh-aw-expires: DATE --> on ...
- * Pattern is more resilient to spacing variations
+ * Regex pattern to match expiration marker with checked checkbox and HTML comment (new format)
+ * Format: > - [x] expires <!-- gh-aw-expires: ISO_DATE --> on HUMAN_DATE UTC
+ * Allows flexible whitespace and supports blockquote prefix
  */
-const EXPIRATION_PATTERN = /^-\s*\[x\]\s+expires\s*<!--\s*gh-aw-expires:\s*([^>]+)\s*-->/m;
+const EXPIRATION_PATTERN = /^>\s*-\s*\[x\]\s+expires\s*<!--\s*gh-aw-expires:\s*([^>]+)\s*-->/m;
+
+/**
+ * Regex pattern to match legacy expiration marker without HTML comment (old format)
+ * Format: > - [x] expires  on HUMAN_DATE UTC
+ * Allows flexible whitespace and supports blockquote prefix
+ * Captures the human-readable date for parsing
+ */
+const LEGACY_EXPIRATION_PATTERN = /^>\s*-\s*\[x\]\s+expires\s+on\s+(.+?)\s+UTC\s*$/m;
 
 /**
  * Format a Date object to human-readable string in UTC
@@ -34,25 +42,43 @@ function createExpirationLine(expirationDate) {
 
 /**
  * Extract expiration date from text body
+ * Supports two formats:
+ * 1. New format with HTML comment: > - [x] expires <!-- gh-aw-expires: ISO_DATE --> on HUMAN_DATE UTC
+ * 2. Legacy format without HTML comment: > - [x] expires  on HUMAN_DATE UTC
  * @param {string} body - Text body containing expiration marker
  * @returns {Date|null} Expiration date or null if not found/invalid
  */
 function extractExpirationDate(body) {
+  // Try new format with HTML comment first (preferred)
   const match = body.match(EXPIRATION_PATTERN);
 
-  if (!match) {
-    return null;
+  if (match) {
+    const expirationISO = match[1].trim();
+    const expirationDate = new Date(expirationISO);
+
+    // Validate the date
+    if (!isNaN(expirationDate.getTime())) {
+      return expirationDate;
+    }
   }
 
-  const expirationISO = match[1].trim();
-  const expirationDate = new Date(expirationISO);
+  // Fall back to legacy format without HTML comment
+  const legacyMatch = body.match(LEGACY_EXPIRATION_PATTERN);
 
-  // Validate the date
-  if (isNaN(expirationDate.getTime())) {
-    return null;
+  if (legacyMatch) {
+    const humanReadableDate = legacyMatch[1].trim();
+    // Parse human-readable date format: "Jan 20, 2026, 9:20 AM"
+    // Add "UTC" timezone explicitly if not present to ensure UTC parsing
+    const dateString = humanReadableDate.includes("UTC") ? humanReadableDate : `${humanReadableDate} UTC`;
+    const expirationDate = new Date(dateString);
+
+    // Validate the date
+    if (!isNaN(expirationDate.getTime())) {
+      return expirationDate;
+    }
   }
 
-  return expirationDate;
+  return null;
 }
 
 /**
@@ -126,6 +152,7 @@ function addExpirationToFooter(footer, expiresHours, entityType) {
 
 module.exports = {
   EXPIRATION_PATTERN,
+  LEGACY_EXPIRATION_PATTERN,
   formatExpirationDate,
   createExpirationLine,
   extractExpirationDate,
