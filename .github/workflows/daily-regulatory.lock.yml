@@ -841,8 +841,8 @@ jobs:
               "safeoutputs": {
                 "type": "stdio",
                 "container": "node:lts-alpine",
-                "entrypoint": "node",
-                "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
+                "entrypoint": "sh",
+                "entrypointArgs": ["/opt/gh-aw/actions/start_safe_outputs_mcp.sh"],
                 "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw:rw", "${{ github.workspace }}:${{ github.workspace }}:rw"],
                 "env": {
                   "GH_AW_MCP_LOG_DIR": "\${GH_AW_MCP_LOG_DIR}",

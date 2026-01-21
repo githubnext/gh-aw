@@ -70,9 +70,10 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 	}
 
 	// MCP Gateway spec fields for containerized stdio servers
+	// Use shell script entrypoint to install and configure git before starting MCP server
 	yaml.WriteString("                \"container\": \"" + constants.DefaultNodeAlpineLTSImage + "\",\n")
-	yaml.WriteString("                \"entrypoint\": \"node\",\n")
-	yaml.WriteString("                \"entrypointArgs\": [\"/opt/gh-aw/safeoutputs/mcp-server.cjs\"],\n")
+	yaml.WriteString("                \"entrypoint\": \"sh\",\n")
+	yaml.WriteString("                \"entrypointArgs\": [\"/opt/gh-aw/actions/start_safe_outputs_mcp.sh\"],\n")
 	yaml.WriteString("                \"mounts\": [\"" + constants.DefaultGhAwMount + "\", \"" + constants.DefaultTmpGhAwMount + "\", \"" + constants.DefaultWorkspaceMount + "\"],\n")
 
 	// Note: tools field is NOT included here - the converter script adds it back
@@ -195,8 +196,9 @@ func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + "]\n")
 	yaml.WriteString("          container = \"" + constants.DefaultNodeAlpineLTSImage + "\"\n")
-	yaml.WriteString("          entrypoint = \"node\"\n")
-	yaml.WriteString("          entrypointArgs = [\"/opt/gh-aw/safeoutputs/mcp-server.cjs\"]\n")
+	// Use shell script entrypoint to install and configure git before starting MCP server
+	yaml.WriteString("          entrypoint = \"sh\"\n")
+	yaml.WriteString("          entrypointArgs = [\"/opt/gh-aw/actions/start_safe_outputs_mcp.sh\"]\n")
 	yaml.WriteString("          mounts = [\"" + constants.DefaultGhAwMount + "\", \"" + constants.DefaultTmpGhAwMount + "\", \"" + constants.DefaultWorkspaceMount + "\"]\n")
 
 	// Use env_vars array to reference environment variables instead of embedding GitHub Actions expressions
