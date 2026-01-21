@@ -3,7 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { execSync } = require("child_process");
+const { execFileSync } = require("child_process");
 
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -33,26 +33,26 @@ function generateGitPatch(branchName) {
     if (branchName) {
       // Check if the branch exists locally
       try {
-        execSync(`git show-ref --verify --quiet refs/heads/${branchName}`, { cwd, encoding: "utf8" });
+        execFileSync("git", ["show-ref", "--verify", "--quiet", `refs/heads/${branchName}`], { cwd, encoding: "utf8" });
 
         // Determine base ref for patch generation
         let baseRef;
         try {
           // Check if origin/branchName exists
-          execSync(`git show-ref --verify --quiet refs/remotes/origin/${branchName}`, { cwd, encoding: "utf8" });
+          execFileSync("git", ["show-ref", "--verify", "--quiet", `refs/remotes/origin/${branchName}`], { cwd, encoding: "utf8" });
           baseRef = `origin/${branchName}`;
         } catch {
           // Use merge-base with default branch
-          execSync(`git fetch origin ${defaultBranch}`, { cwd, encoding: "utf8" });
-          baseRef = execSync(`git merge-base origin/${defaultBranch} ${branchName}`, { cwd, encoding: "utf8" }).trim();
+          execFileSync("git", ["fetch", "origin", defaultBranch], { cwd, encoding: "utf8" });
+          baseRef = execFileSync("git", ["merge-base", `origin/${defaultBranch}`, branchName], { cwd, encoding: "utf8" }).trim();
         }
 
         // Count commits to be included
-        const commitCount = parseInt(execSync(`git rev-list --count ${baseRef}..${branchName}`, { cwd, encoding: "utf8" }).trim(), 10);
+        const commitCount = parseInt(execFileSync("git", ["rev-list", "--count", `${baseRef}..${branchName}`], { cwd, encoding: "utf8" }).trim(), 10);
 
         if (commitCount > 0) {
           // Generate patch from the determined base to the branch
-          const patchContent = execSync(`git format-patch ${baseRef}..${branchName} --stdout`, {
+          const patchContent = execFileSync("git", ["format-patch", `${baseRef}..${branchName}`, "--stdout"], {
             cwd,
             encoding: "utf8",
           });
@@ -69,7 +69,7 @@ function generateGitPatch(branchName) {
 
     // Strategy 2: Check if commits were made to current HEAD since checkout
     if (!patchGenerated) {
-      const currentHead = execSync("git rev-parse HEAD", { cwd, encoding: "utf8" }).trim();
+      const currentHead = execFileSync("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf8" }).trim();
 
       if (!githubSha) {
         errorMessage = "GITHUB_SHA environment variable is not set";
@@ -78,14 +78,14 @@ function generateGitPatch(branchName) {
       } else {
         // Check if GITHUB_SHA is an ancestor of current HEAD
         try {
-          execSync(`git merge-base --is-ancestor ${githubSha} HEAD`, { cwd, encoding: "utf8" });
+          execFileSync("git", ["merge-base", "--is-ancestor", githubSha, "HEAD"], { cwd, encoding: "utf8" });
 
           // Count commits between GITHUB_SHA and HEAD
-          const commitCount = parseInt(execSync(`git rev-list --count ${githubSha}..HEAD`, { cwd, encoding: "utf8" }).trim(), 10);
+          const commitCount = parseInt(execFileSync("git", ["rev-list", "--count", `${githubSha}..HEAD`], { cwd, encoding: "utf8" }).trim(), 10);
 
           if (commitCount > 0) {
             // Generate patch from GITHUB_SHA to HEAD
-            const patchContent = execSync(`git format-patch ${githubSha}..HEAD --stdout`, {
+            const patchContent = execFileSync("git", ["format-patch", `${githubSha}..HEAD`, "--stdout"], {
               cwd,
               encoding: "utf8",
             });
