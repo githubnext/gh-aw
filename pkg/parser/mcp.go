@@ -191,6 +191,31 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 		}
 	}
 
+	// Check for safe-inputs configuration (built-in MCP)
+	if safeInputsSection, hasSafeInputs := frontmatter["safe-inputs"]; hasSafeInputs {
+		mcpLog.Print("Found safe-inputs configuration")
+		// Apply server filter if specified
+		if serverFilter == "" || strings.Contains(constants.SafeInputsMCPServerID, strings.ToLower(serverFilter)) {
+			config := MCPServerConfig{
+				BaseMCPServerConfig: types.BaseMCPServerConfig{
+					Type:    "http",
+					Command: "",
+					Env:     make(map[string]string),
+				},
+				Name: constants.SafeInputsMCPServerID,
+			}
+
+			// Parse safe-inputs configuration to determine enabled tools
+			if safeInputsMap, ok := safeInputsSection.(map[string]any); ok {
+				for toolName := range safeInputsMap {
+					config.Allowed = append(config.Allowed, toolName)
+				}
+			}
+
+			configs = append(configs, config)
+		}
+	}
+
 	// Get mcp-servers section from frontmatter
 	mcpServersSection, hasMCPServers := frontmatter["mcp-servers"]
 	if !hasMCPServers {
