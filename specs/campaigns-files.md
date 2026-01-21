@@ -476,6 +476,259 @@ governance:
 
 This ensures that campaign items remain under the control of their respective campaign orchestrators and aren't interfered with by other automated workflows.
 
+## Campaign Workers
+
+Campaign workers are specialized workflows designed to be orchestrated by campaign orchestrators. They follow a first-class worker pattern with explicit contracts and idempotency.
+
+### Worker Design Principles
+
+1. **Dispatch-only triggers**: Workers use `workflow_dispatch` as the primary/only trigger
+   - No schedule, push, or pull_request triggers
+   - Clear ownership: workers are orchestrated, not autonomous
+   - Prevents duplicate execution from multiple trigger sources
+
+2. **Standardized input contract**: All workers accept:
+   - `campaign_id` (string): The campaign identifier orchestrating this worker
+   - `payload` (string): JSON-encoded data specific to the work item
+   
+3. **Idempotency**: Workers implement deterministic behavior:
+   - Compute deterministic work item keys (e.g., `campaign-{id}-{repo}-{alert-id}`)
+   - Use keys in branch names, PR titles, issue titles
+   - Check for existing PR/issue with key + tracker label before creating
+   - Skip or update existing items rather than creating duplicates
+
+4. **Orchestration agnostic**: Workers don't know about orchestration policy
+   - Sequential vs parallel execution is orchestrator's concern
+   - Workers are simple, focused, deterministic units
+
+### Worker Workflow Template
+
+```yaml
+---
+name: Campaign Worker Example
+description: Example worker workflow for campaign orchestration
+
+on:
+  workflow_dispatch:
+    inputs:
+      campaign_id:
+        description: 'Campaign identifier'
+        required: true
+        type: string
+      payload:
+        description: 'JSON payload with work item details'
+        required: true
+        type: string
+
+tracker-id: campaign-worker-example
+
+tools:
+  github:
+    toolsets: [default]
+
+safe-outputs:
+  create-pull-request:
+    max: 1
+  add-comment:
+    max: 2
+---
+
+# Campaign Worker Example
+
+You are a campaign worker that processes work items from a campaign orchestrator.
+
+## Input Contract
+
+The `payload` input contains JSON with the following structure:
+```json
+{
+  "repository": "owner/repo",
+  "work_item_id": "unique-identifier",
+  "target_ref": "main",
+  "additional_context": {}
+}
+```
+
+Parse the payload and extract the work item details.
+
+## Idempotency Requirements
+
+Before creating any GitHub resources:
+
+1. **Generate deterministic key**: 
+   - Format: `campaign-${campaign_id}-${repository}-${work_item_id}`
+   - Use this key in branch names, PR titles, issue titles
+
+2. **Check for existing work**:
+   - Search for PRs/issues with the deterministic key in the title
+   - Filter by tracker label: `campaign:${campaign_id}`
+   - If found: Skip creation or update existing item
+   - If not found: Proceed with creation
+
+3. **Label all created items**:
+   - Apply tracker label: `campaign:${campaign_id}`
+   - This enables discovery by the orchestrator
+   - Prevents interference from other workflows
+
+## Work to Perform
+
+[Specific task description for this worker]
+
+## Expected Output
+
+Report completion status including:
+- Whether work was skipped (already exists) or completed
+- Links to created/updated PRs or issues
+- Any errors or blockers encountered
+```
+
+### Idempotency Implementation Patterns
+
+#### Pattern 1: Deterministic Branch Names
+
+```yaml
+# In worker prompt
+Generate a deterministic branch name:
+- Format: `campaign-${campaign_id}-${repository.replace('/', '-')}-${work_item_id}`
+- Example: `campaign-security-q1-2025-myorg-myrepo-alert-123`
+
+Before creating a new branch:
+1. Check if the branch already exists
+2. If exists: checkout and update
+3. If not: create new branch
+```
+
+#### Pattern 2: PR Title Prefixing
+
+```yaml
+# In worker prompt
+Use a deterministic PR title prefix:
+- Format: `[campaign:${campaign_id}] ${work_item_description}`
+- Example: `[campaign:security-q1-2025] Fix SQL injection in user.go`
+
+Before creating a PR:
+1. Search for open PRs with this title prefix in the target repo
+2. If found: Add a comment with updates or close as duplicate
+3. If not: Create new PR with title
+```
+
+#### Pattern 3: Issue Title Keying
+
+```yaml
+# In worker prompt
+Use a deterministic issue title with key:
+- Format: `[${work_item_id}] ${description}`
+- Example: `[alert-123] High severity: Path traversal vulnerability`
+
+Before creating an issue:
+1. Search for issues with `[${work_item_id}]` in title
+2. Filter by label: `campaign:${campaign_id}`
+3. If found: Update existing issue with new information
+4. If not: Create new issue
+```
+
+#### Pattern 4: Cursor-based Work Tracking
+
+```yaml
+# In worker prompt
+Track processed work items in repo-memory:
+- File: `memory/campaigns/${campaign_id}/processed-items.json`
+- Structure: `{"processed": ["item-1", "item-2", ...]}`
+
+Before processing a work item:
+1. Load the processed items list from repo-memory
+2. Check if current work_item_id is in the list
+3. If found: Skip processing
+4. If not: Process and add to list
+5. Save updated list back to repo-memory
+```
+
+### Worker Discovery
+
+Campaign orchestrators discover worker-created items via:
+
+1. **Tracker Label**: Items labeled with `campaign:${campaign_id}`
+2. **Tracker ID**: Items with `tracker-id: worker-name` in their description
+3. **Discovery Script**: `campaign_discovery.cjs` searches for both
+
+Workers should:
+- Apply the campaign tracker label to all created items
+- Include the worker's tracker-id in issue/PR descriptions (optional)
+- This enables orchestrators to find and track worker output
+
+### Example: Security Fix Worker
+
+```yaml
+---
+name: Security Fix Worker
+description: Creates PRs with security fixes for code scanning alerts
+
+on:
+  workflow_dispatch:
+    inputs:
+      campaign_id:
+        description: 'Campaign identifier'
+        required: true
+        type: string
+      payload:
+        description: 'JSON with alert details'
+        required: true
+        type: string
+
+tracker-id: security-fix-worker
+
+tools:
+  github:
+    toolsets: [default, code_security]
+  bash: ["*"]
+  edit: true
+
+safe-outputs:
+  create-pull-request:
+    max: 1
+---
+
+# Security Fix Worker
+
+Process a code scanning alert and create a fix PR.
+
+## Idempotency Implementation
+
+```javascript
+const payload = JSON.parse(process.env.PAYLOAD);
+const campaignId = process.env.CAMPAIGN_ID;
+const alertId = payload.alert_id;
+const repository = payload.repository;
+
+// Deterministic key
+const workKey = `campaign-${campaignId}-alert-${alertId}`;
+const branchName = `fix/${workKey}`;
+const prTitle = `[${workKey}] Fix: ${payload.alert_title}`;
+
+// Check for existing PR
+const existingPRs = await searchPullRequests({
+  query: `repo:${repository} is:pr is:open "${workKey}" in:title`
+});
+
+if (existingPRs.length > 0) {
+  console.log(`PR already exists: ${existingPRs[0].url}`);
+  // Optionally update with new information
+  return;
+}
+
+// Proceed with fix and PR creation...
+```
+
+## Expected Behavior
+
+1. Parse payload to get alert details
+2. Check for existing PR with deterministic key
+3. If exists: Skip or update
+4. If not: Generate fix and create PR
+5. Apply labels: `campaign:${campaign_id}`, `security`, `automated`
+6. Report completion status
+```
+
 ## For Third-Party Users
 
 ### Using gh-aw Compiler Outside This Repository
