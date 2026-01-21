@@ -1,8 +1,8 @@
 # Workflow Execution
 
-This campaign is configured to **actively execute workflows**. Your role is to run the workflows listed in sequence, collect their outputs, and use those outputs to drive the campaign forward.
+This campaign orchestrator can execute workflows as needed. Your role is to run the workflows listed in sequence, collect their outputs, and use those outputs to drive the campaign forward.
 
-**IMPORTANT: Active execution is an advanced feature. Exercise caution and follow all guidelines carefully.**
+**IMPORTANT: Workflow execution is an advanced capability. Exercise caution and follow all guidelines carefully.**
 
 ---
 
