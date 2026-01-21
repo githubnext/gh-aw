@@ -2,10 +2,10 @@ package workflow
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 var safeOutputsTargetValidationLog = logger.New("workflow:safe_outputs_target_validation")
@@ -118,7 +118,7 @@ func validateTargetValue(configName, target string) error {
 	}
 
 	// Check if it's a positive integer
-	if isPositiveInteger(target) {
+	if stringutil.IsPositiveInteger(target) {
 		safeOutputsTargetValidationLog.Printf("Target for %s is a valid number: %s", configName, target)
 		return nil
 	}
@@ -153,21 +153,4 @@ func isGitHubExpression(s string) bool {
 	// The closing marker must come after the opening marker
 	// and there must be something between them
 	return openIndex >= 0 && closeIndex > openIndex+3
-}
-
-// isPositiveInteger checks if a string is a positive integer
-func isPositiveInteger(s string) bool {
-	// Must not be empty
-	if s == "" {
-		return false
-	}
-
-	// Must not have leading zeros (except "0" itself, but that's not positive)
-	if len(s) > 1 && s[0] == '0' {
-		return false
-	}
-
-	// Must be numeric and > 0
-	num, err := strconv.ParseInt(s, 10, 64)
-	return err == nil && num > 0
 }

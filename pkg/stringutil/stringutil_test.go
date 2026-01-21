@@ -411,3 +411,71 @@ func TestParseVersionValue(t *testing.T) {
 		})
 	}
 }
+
+func TestIsPositiveInteger(t *testing.T) {
+	tests := []struct {
+		name string
+		s    string
+		want bool
+	}{
+		{
+			name: "positive integer",
+			s:    "123",
+			want: true,
+		},
+		{
+			name: "one",
+			s:    "1",
+			want: true,
+		},
+		{
+			name: "large number",
+			s:    "999999999",
+			want: true,
+		},
+		{
+			name: "zero",
+			s:    "0",
+			want: false,
+		},
+		{
+			name: "negative",
+			s:    "-5",
+			want: false,
+		},
+		{
+			name: "leading zeros",
+			s:    "007",
+			want: false,
+		},
+		{
+			name: "float",
+			s:    "3.14",
+			want: false,
+		},
+		{
+			name: "not a number",
+			s:    "abc",
+			want: false,
+		},
+		{
+			name: "empty string",
+			s:    "",
+			want: false,
+		},
+		{
+			name: "spaces",
+			s:    " 123 ",
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsPositiveInteger(tt.s)
+			if got != tt.want {
+				t.Errorf("IsPositiveInteger(%q) = %v, want %v", tt.s, got, tt.want)
+			}
+		})
+	}
+}
