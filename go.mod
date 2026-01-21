@@ -11,7 +11,7 @@ require (
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/creack/pty v1.1.24
 	github.com/fsnotify/fsnotify v1.9.0
-	github.com/goccy/go-yaml v1.19.1
+	github.com/goccy/go-yaml v1.19.2
 	github.com/golangci/golangci-lint/v2 v2.7.2
 	github.com/google/jsonschema-go v0.4.0
 	github.com/modelcontextprotocol/go-sdk v1.2.0
