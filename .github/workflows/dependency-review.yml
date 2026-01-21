@@ -1,0 +1,43 @@
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@4081bf99e2866ebe428fc0173e8f43cfee1679a4 # v4.5.0
+        with:
+          # Block PRs with HIGH or CRITICAL vulnerabilities
+          fail-on-severity: high
+          
+          # Post summary comments in PR for visibility
+          comment-summary-in-pr: true
+          
+          # Deny licenses that conflict with Apache-2.0
+          # GPL-3.0 and AGPL-3.0 are copyleft licenses incompatible with Apache-2.0
+          deny-licenses: GPL-3.0, AGPL-3.0
+          
+          # Allow common permissive licenses that are Apache-2.0 compatible
+          # Apache-2.0, MIT, BSD licenses, ISC, and others are permissive
+          allow-licenses: >-
+            Apache-2.0,
+            MIT,
+            BSD-2-Clause,
+            BSD-3-Clause,
+            ISC,
+            0BSD,
+            CC0-1.0,
+            Unlicense,
+            MPL-2.0
