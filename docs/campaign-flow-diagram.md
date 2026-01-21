@@ -10,7 +10,7 @@ graph TB
     
     CampaignSpec -->|"gh aw compile"| Orchestrator["Orchestrator Workflow<br/>.campaign.g.lock.yml"]
     
-    Orchestrator -->|"scheduled run"| Discover["Discover Work Items<br/>(via tracker-label)"]
+    Orchestrator -->|"scheduled run"| Discover["Discover Work Items<br/>(read from repo-memory)"]
     
     Discover --> Plan["Plan Updates<br/>(apply budgets)"]
     
@@ -18,11 +18,14 @@ graph TB
     
     Update --> Report["Report Status<br/>(KPIs, progress)"]
     
-    Workers["Worker Workflows<br/>(create issues/PRs)"] -.->|"add tracker-label"| Discover
+    Workers["Worker Workflows<br/>(campaign-agnostic)"] -.->|"write files"| Memory["Repo-Memory<br/>(memory/campaigns branch)"]
+    
+    Memory -.->|"read files"| Discover
     
     style CampaignSpec fill:#e1f5ff
     style Orchestrator fill:#fff4e6
     style Workers fill:#e8f5e9
+    style Memory fill:#fff9c4
 ```
 
 ## How It Works
@@ -32,20 +35,22 @@ Define a campaign in `.github/workflows/*.campaign.md`:
 ```yaml
 ---
 id: security-audit
-tracker-label: campaign:security-audit
+memory-paths:
+  - memory/campaigns/security-audit/**
+cursor-glob: memory/campaigns/security-audit/cursor.json
 project-url: https://github.com/orgs/org/projects/1
 ---
 ```
 
 ### Orchestrator
 The orchestrator runs on a schedule (daily) and:
-1. **Discovers** work items by searching for the tracker label
+1. **Discovers** work items by reading files from repo-memory
 2. **Plans** updates based on GitHub state (open/closed/merged)
 3. **Updates** the project board with status and metadata
 4. **Reports** KPIs and progress via project status updates
 
 ### Workers
-Worker workflows create issues or PRs and add the campaign's tracker label. The orchestrator discovers these items in subsequent runs and adds them to the project board.
+Worker workflows are campaign-agnostic and write files to repo-memory (the `memory/campaigns` Git branch). The orchestrator discovers work by reading these files in subsequent runs.
 
 ### Project Board
 The GitHub Project board is the authoritative state for the campaign, with fields for status, dates, priority, and metadata.
