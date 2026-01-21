@@ -22,6 +22,7 @@ safe-outputs:
     title-prefix: "[cli-consistency] "
     labels: [automation, cli, documentation]
     max: 6  # 1 parent + 5 sub-issues
+    group: true
 timeout-minutes: 20
 ---
 

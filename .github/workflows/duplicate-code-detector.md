@@ -16,6 +16,7 @@ safe-outputs:
     title-prefix: "[duplicate-code] "
     labels: [code-quality, automated-analysis]
     assignees: copilot
+    group: true
     max: 3
 timeout-minutes: 15
 strict: true

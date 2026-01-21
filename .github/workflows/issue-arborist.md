@@ -56,6 +56,7 @@ safe-outputs:
   create-issue:
     title-prefix: "[Parent] "
     max: 5
+    group: true
   link-sub-issue:
     max: 50
   create-discussion:

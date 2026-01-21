@@ -19,6 +19,7 @@ tools:
 safe-outputs:
   create-issue:
     max: 5
+    group: true
   create-discussion:
     max: 2
   add-comment:

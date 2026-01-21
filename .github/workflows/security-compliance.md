@@ -29,6 +29,7 @@ safe-outputs:
   create-issue:
     max: 100  # 1 epic + vulnerability tasks
     labels: [security, campaign-tracker]
+    group: true
 
 tools:
   github:
