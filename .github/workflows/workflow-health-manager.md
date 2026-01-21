@@ -26,6 +26,8 @@ safe-outputs:
   update-issue:
     max: 5
 timeout-minutes: 20
+imports:
+  - shared/reporting.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
