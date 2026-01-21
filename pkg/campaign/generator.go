@@ -93,7 +93,7 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 				{
 					Name:     "status",
 					DataType: "SINGLE_SELECT",
-					Options:  []string{"Todo", "In Progress", "Review required", "Blocked", "Done"},
+					Options:  []string{"Todo", "In Progress", "Review Required", "Blocked", "Done"},
 				},
 				{
 					Name:     "campaign_id",
