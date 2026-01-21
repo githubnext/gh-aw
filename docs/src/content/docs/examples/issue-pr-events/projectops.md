@@ -11,24 +11,6 @@ When a new issue or pull request arrives, the agent analyzes it and determines w
 
 Safe outputs handle all project operations in separate, scoped jobs with minimal permissions—the agent job never sees the Projects token, ensuring secure automation.
 
-## ProjectOps vs Campaigns
-
-**ProjectOps** is for passive monitoring and board management:
-- Track and update project boards based on existing issues/PRs
-- Monitor progress without dispatching workflows
-- Aggregate metrics from ongoing work
-- Keep project boards synchronized with repository state
-
-**Campaigns** are for active orchestration:
-- Orchestrate worker workflows toward a goal
-- Create new issues/PRs through coordinated workflows
-- Make decisions and adapt strategy
-- Drive time-bound initiatives with measurable objectives
-
-**Relationship**: Campaigns can use ProjectOps features as components (via tracker-label, discovery), just like they use workflow components. Monitoring is a modular component, not a type of campaign.
-
-See: [Campaigns documentation](/gh-aw/guides/campaigns/getting-started/) for active orchestration.
-
 ## Prerequisites
 
 1. **Create a Project**: Before you wire up a workflow, you must first create the Project in the GitHub UI (user or organization level). Keep the Project URL handy (you'll need to reference it in your workflow instructions).
