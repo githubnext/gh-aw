@@ -91,7 +91,8 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var output strings.Builder
 
-			renderPlaywrightMCPConfigWithOptions(&output, tt.playwrightTool, tt.isLast, tt.includeCopilotFields, tt.inlineArgs)
+			playwrightConfig := parsePlaywrightTool(tt.playwrightTool)
+			renderPlaywrightMCPConfigWithOptions(&output, playwrightConfig, tt.isLast, tt.includeCopilotFields, tt.inlineArgs)
 
 			result := output.String()
 
@@ -321,7 +322,8 @@ func TestRenderPlaywrightMCPConfigTOML(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var output strings.Builder
 
-			renderPlaywrightMCPConfigTOML(&output, tt.playwrightTool)
+			playwrightConfig := parsePlaywrightTool(tt.playwrightTool)
+			renderPlaywrightMCPConfigTOML(&output, playwrightConfig)
 
 			result := output.String()
 

@@ -11,11 +11,12 @@ func BenchmarkRenderPlaywrightMCPConfig(b *testing.B) {
 		"container":       "mcr.microsoft.com/playwright:v1.41.0",
 		"allowed-domains": []any{"github.com", "*.github.io"},
 	}
+	playwrightConfig := parsePlaywrightTool(playwrightTool)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var yaml strings.Builder
-		renderPlaywrightMCPConfig(&yaml, playwrightTool, true)
+		renderPlaywrightMCPConfig(&yaml, playwrightConfig, true)
 	}
 }
 
@@ -30,10 +31,11 @@ func BenchmarkGeneratePlaywrightDockerArgs(b *testing.B) {
 			"*.googleapis.com",
 		},
 	}
+	playwrightConfig := parsePlaywrightTool(playwrightTool)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = generatePlaywrightDockerArgs(playwrightTool)
+		_ = generatePlaywrightDockerArgs(playwrightConfig)
 	}
 }
 
@@ -49,11 +51,12 @@ func BenchmarkRenderPlaywrightMCPConfig_Complex(b *testing.B) {
 		},
 		"args": []any{"--debug", "--timeout", "30000"},
 	}
+	playwrightConfig := parsePlaywrightTool(playwrightTool)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var yaml strings.Builder
-		renderPlaywrightMCPConfig(&yaml, playwrightTool, true)
+		renderPlaywrightMCPConfig(&yaml, playwrightConfig, true)
 	}
 }
 

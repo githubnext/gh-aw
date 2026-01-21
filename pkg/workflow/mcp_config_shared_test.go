@@ -66,7 +66,8 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var yaml strings.Builder
-			renderPlaywrightMCPConfig(&yaml, tt.playwrightTool, tt.isLast)
+			playwrightConfig := parsePlaywrightTool(tt.playwrightTool)
+			renderPlaywrightMCPConfig(&yaml, playwrightConfig, tt.isLast)
 
 			result := yaml.String()
 
