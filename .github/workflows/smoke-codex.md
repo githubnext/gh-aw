@@ -49,6 +49,8 @@ safe-outputs:
       close-older-issues: true
     add-labels:
       allowed: [smoke-codex]
+    remove-labels:
+      allowed: [smoke]
     hide-comment:
     messages:
       footer: "> 🔮 *The oracle has spoken through [{workflow_name}]({run_url})*"
