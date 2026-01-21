@@ -9,9 +9,7 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: daily-choice-test
-engine:
-  id: claude
-  model: claude-opus-4.5
+engine: claude
 strict: true
 timeout-minutes: 10
 
