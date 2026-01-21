@@ -1,5 +1,5 @@
 ---
-timeout-minutes: 5
+timeout-minutes: 10
 strict: true
 on:
   schedule: "0 14 * * 1-5"
@@ -8,6 +8,7 @@ permissions:
   issues: read
 tools:
   github:
+    mode: remote
     toolsets: [issues, labels]
 safe-outputs:
   add-labels:
