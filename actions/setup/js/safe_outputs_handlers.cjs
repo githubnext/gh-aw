@@ -232,7 +232,22 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       // Patch generation failed or patch is empty
       const errorMsg = patchResult.error || "Failed to generate patch";
       server.debug(`Patch generation failed: ${errorMsg}`);
-      throw new Error(errorMsg);
+
+      // Return error as content so the agent can see it, rather than throwing
+      // which causes the tool call to fail silently in some MCP clients
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: errorMsg,
+              details: "No commits were found to create a pull request. Make sure you have committed your changes using git add and git commit before calling create_pull_request.",
+            }),
+          },
+        ],
+        isError: true,
+      };
     }
 
     // prettier-ignore
@@ -287,7 +302,22 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       // Patch generation failed or patch is empty
       const errorMsg = patchResult.error || "Failed to generate patch";
       server.debug(`Patch generation failed: ${errorMsg}`);
-      throw new Error(errorMsg);
+
+      // Return error as content so the agent can see it, rather than throwing
+      // which causes the tool call to fail silently in some MCP clients
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: errorMsg,
+              details: "No commits were found to push to the pull request branch. Make sure you have committed your changes using git add and git commit before calling push_to_pull_request_branch.",
+            }),
+          },
+        ],
+        isError: true,
+      };
     }
 
     // prettier-ignore
