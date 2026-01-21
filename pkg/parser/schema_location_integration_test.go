@@ -13,7 +13,7 @@ func TestValidateWithSchemaAndLocation_PreciseLocation(t *testing.T) {
 	// Create a test file with invalid frontmatter
 	testContent := `---
 on: push
-permissions: read
+permissions: read-all
 age: "not-a-number"
 invalid_property: value
 tools:
@@ -89,7 +89,7 @@ timeout_minutes: 30
 func TestLocateJSONPathInYAML_RealExample(t *testing.T) {
 	// Test with a real frontmatter example
 	yamlContent := `on: push
-permissions: read
+permissions: read-all
 engine: claude
 tools:
   - name: github

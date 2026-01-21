@@ -101,8 +101,9 @@ func (p *PermissionsParser) parse() {
 		return
 	}
 
-	// Check if it's a shorthand permission (read-all, write-all, read, write, none)
-	shorthandPerms := []string{"read-all", "write-all", "read", "write", "none"}
+	// Check if it's a shorthand permission (read-all, write-all, none)
+	// Note: "read" and "write" are no longer valid shorthands as they create invalid GitHub Actions YAML
+	shorthandPerms := []string{"read-all", "write-all", "none"}
 	for _, shorthand := range shorthandPerms {
 		if yamlContent == shorthand {
 			p.isShorthand = true
@@ -160,7 +161,7 @@ func (p *PermissionsParser) HasContentsReadAccess() bool {
 	// Handle shorthand permissions
 	if p.isShorthand {
 		switch p.shorthandValue {
-		case "read-all", "write-all", "read", "write":
+		case "read-all", "write-all":
 			permissionsLog.Printf("Shorthand permissions grant contents read: %s", p.shorthandValue)
 			return true
 		case "none":
@@ -201,10 +202,6 @@ func (p *PermissionsParser) IsAllowed(scope, level string) bool {
 		case "read-all":
 			return level == "read"
 		case "write-all":
-			return level == "read" || level == "write"
-		case "read":
-			return level == "read"
-		case "write":
 			return level == "read" || level == "write"
 		case "none":
 			return false
@@ -309,10 +306,6 @@ func (p *PermissionsParser) ToPermissions() *Permissions {
 			return NewPermissionsReadAll()
 		case "write-all":
 			return NewPermissionsWriteAll()
-		case "read":
-			return NewPermissionsRead()
-		case "write":
-			return NewPermissionsWrite()
 		case "none":
 			return NewPermissionsNone()
 		default:
@@ -501,20 +494,6 @@ func NewPermissionsWriteAll() *Permissions {
 	}
 }
 
-// NewPermissionsRead creates a Permissions with read shorthand
-func NewPermissionsRead() *Permissions {
-	return &Permissions{
-		shorthand: "read",
-	}
-}
-
-// NewPermissionsWrite creates a Permissions with write shorthand
-func NewPermissionsWrite() *Permissions {
-	return &Permissions{
-		shorthand: "write",
-	}
-}
-
 // NewPermissionsNone creates a Permissions with none shorthand
 func NewPermissionsNone() *Permissions {
 	return &Permissions{
@@ -578,9 +557,9 @@ func (p *Permissions) Get(scope PermissionScope) (PermissionLevel, bool) {
 	if p.shorthand != "" {
 		// Shorthand permissions apply to all scopes
 		switch p.shorthand {
-		case "read-all", "read":
+		case "read-all":
 			return PermissionRead, true
-		case "write-all", "write":
+		case "write-all":
 			return PermissionWrite, true
 		case "none":
 			return PermissionNone, true
@@ -687,12 +666,8 @@ func (p *Permissions) Merge(other *Permissions) {
 			// Promote to the higher permission level
 			if other.shorthand == "write-all" || p.shorthand == "write-all" {
 				p.shorthand = "write-all"
-			} else if other.shorthand == "write" || p.shorthand == "write" {
-				p.shorthand = "write"
 			} else if other.shorthand == "read-all" || p.shorthand == "read-all" {
 				p.shorthand = "read-all"
-			} else if other.shorthand == "read" || p.shorthand == "read" {
-				p.shorthand = "read"
 			}
 			// none is lowest, so only keep if both are none
 			return
@@ -701,9 +676,9 @@ func (p *Permissions) Merge(other *Permissions) {
 		// Apply other's shorthand as baseline, then our specific permissions override
 		otherLevel := PermissionNone
 		switch other.shorthand {
-		case "read-all", "read":
+		case "read-all":
 			otherLevel = PermissionRead
-		case "write-all", "write":
+		case "write-all":
 			otherLevel = PermissionWrite
 		}
 

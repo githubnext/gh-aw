@@ -34,21 +34,21 @@ Scan the repository for security vulnerabilities and create issues for any findi
        - Recommended fix
        - References and resources
      - Labels: security, <severity-level>
-     - Body should include tracker-id marker for campaign discovery
+     - Body can optionally include tracker-id marker for campaign discovery
 4. For medium and low-severity findings:
    - Group similar findings into a single issue
    - Include all details in the issue description
 5. Add comments to existing security issues if new information is discovered
 
-## Output Format
+## Output Format (Optional)
 
-When creating issues, always include the tracker-id in the issue body:
+When creating issues, you can optionally include the tracker-id in the issue body to help campaign orchestrators discover and track work items:
 
 ```
 tracker-id: security-scanner
 ```
 
-This allows campaign orchestrators to discover and track the work items you create.
+Note: This is optional. Campaign orchestrators can also discover worker items using labels, so tracker-id is not required.
 
 ## Example Issue
 
