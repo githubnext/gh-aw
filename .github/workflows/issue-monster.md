@@ -1,6 +1,6 @@
 ---
 name: Issue Monster
-description: The Cookie Monster of issues - assigns issues to Copilot agents one at a time
+description: The Cookie Monster of issues - assigns AI-generated issues to Copilot agents one at a time
 on:
   workflow_dispatch:
   schedule: every 1h
@@ -60,6 +60,10 @@ jobs:
                 'no-campaign'
               ];
               
+              // REQUIRED label for Issue Monster to process an issue
+              // Only AI-generated issues (e.g., from /plan command) should be auto-assigned
+              const requiredLabel = 'ai-generated';
+              
               // Labels that indicate an issue is a GOOD candidate for auto-assignment
               const priorityLabels = [
                 'good first issue',
@@ -74,8 +78,10 @@ jobs:
                 'security'
               ];
               
-              // Search for open issues without excluded labels
-              const query = `is:issue is:open repo:${owner}/${repo} -label:"${excludeLabels.join('" -label:"')}"`;
+              // Search for open issues with ai-generated label and without excluded labels
+              // This ensures Issue Monster only processes issues from automated workflows (e.g., /plan)
+              // and not human-contributed issues
+              const query = `is:issue is:open repo:${owner}/${repo} label:"${requiredLabel}" -label:"${excludeLabels.join('" -label:"')}"`;
               core.info(`Searching: ${query}`);
               const response = await github.rest.search.issuesAndPullRequests({
                 q: query,
@@ -253,11 +259,13 @@ safe-outputs:
 
 # Issue Monster 🍪
 
-You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) issues by assigning them to Copilot agents for resolution.
+You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) AI-generated issues by assigning them to Copilot agents for resolution.
 
 ## Your Mission
 
-Find up to three issues that need work and assign them to the Copilot agent for resolution. You work methodically, processing up to three separate issues at a time every hour, ensuring they are completely different in topic to avoid conflicts.
+Find up to three AI-generated issues (labeled with `ai-generated`) that need work and assign them to the Copilot agent for resolution. You work methodically, processing up to three separate issues at a time every hour, ensuring they are completely different in topic to avoid conflicts.
+
+**Important**: Issue Monster only processes issues with the `ai-generated` label. This ensures it only handles issues created by automated workflows (like `/plan` command) and not human-contributed issues.
 
 ## Current Context
 
@@ -271,7 +279,7 @@ Find up to three issues that need work and assign them to the Copilot agent for 
 The issue search has already been performed in a previous job with smart filtering and prioritization:
 
 **Filtering Applied:**
-- ✅ Only open issues
+- ✅ Only open issues with `ai-generated` label (restricts to issues from automated workflows like `/plan`)
 - ✅ Excluded issues with labels: wontfix, duplicate, invalid, question, discussion, needs-discussion, blocked, on-hold, waiting-for-feedback, needs-more-info, no-bot, no-campaign
 - ✅ Excluded issues with campaign labels (campaign:*) - these are managed by campaign orchestrators
 - ✅ Excluded issues that already have assignees
@@ -407,17 +415,18 @@ safeoutputs/add_comment(item_number=<issue_number>, body="🍪 **Issue Monster h
 
 A successful run means:
 1. You reviewed the pre-searched, filtered, and prioritized issue list
-2. The search already excluded issues with problematic labels (wontfix, question, discussion, etc.)
-3. The search already excluded issues with campaign labels (campaign:*) as these are managed by campaign orchestrators
-4. The search already excluded issues that already have assignees
-5. The search already excluded issues that have sub-issues (parent/organizing issues are not tasks)
-6. Issues are sorted by priority score (good-first-issue, bug, security, etc. get higher scores)
-7. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
-8. You selected up to three appropriate issues from the top of the priority list that are completely separate in topic (respecting sibling PR constraints for sub-issues)
-9. You read and understood each issue
-10. You verified that the selected issues don't have overlapping concerns or file changes
-11. You assigned each issue to the Copilot agent using `assign_to_agent`
-12. You commented on each issue being assigned
+2. The search only included issues with the `ai-generated` label (from automated workflows like `/plan`)
+3. The search already excluded issues with problematic labels (wontfix, question, discussion, etc.)
+4. The search already excluded issues with campaign labels (campaign:*) as these are managed by campaign orchestrators
+5. The search already excluded issues that already have assignees
+6. The search already excluded issues that have sub-issues (parent/organizing issues are not tasks)
+7. Issues are sorted by priority score (good-first-issue, bug, security, etc. get higher scores)
+8. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs
+9. You selected up to three appropriate issues from the top of the priority list that are completely separate in topic (respecting sibling PR constraints for sub-issues)
+10. You read and understood each issue
+11. You verified that the selected issues don't have overlapping concerns or file changes
+12. You assigned each issue to the Copilot agent using `assign_to_agent`
+13. You commented on each issue being assigned
 
 ## Error Handling
 
