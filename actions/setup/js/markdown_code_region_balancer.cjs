@@ -104,8 +104,9 @@ function balanceCodeRegions(markdown) {
   }
 
   // Third pass: Match fences, detecting and fixing nested patterns
-  // Key insight: Find ALL valid closers for each opener. If there are multiple,
-  // use the LAST one and increase fence length so middle ones become invalid.
+  // Strategy: For each opening fence, find ALL potential closers that are at the same or less indentation.
+  // If there are multiple such closers, use the LAST one and escape the middle ones.
+  // Fences that are MORE indented than the opener are treated as content (examples in documentation).
   const fenceLengthAdjustments = new Map(); // lineIndex -> new length
   const processed = new Set();
   const unclosedFences = [];
@@ -121,8 +122,9 @@ function balanceCodeRegions(markdown) {
     const openFence = fences[i];
     processed.add(i);
 
-    // Look for ALL valid closers
-    const allMatchingClosers = []; // Track all potential closers
+    // Find ALL potential closers at same or less indentation
+    const potentialClosers = [];
+    const openIndentLength = openFence.indent.length;
 
     for (let j = i + 1; j < fences.length; j++) {
       if (processed.has(j)) continue;
@@ -134,11 +136,17 @@ function balanceCodeRegions(markdown) {
         // Process this nested block with language
         processed.add(j);
 
-        // Find its closer
+        // Find its closer - must be at the SAME indentation level
+        const nestedIndentLength = fence.indent.length;
         for (let k = j + 1; k < fences.length; k++) {
           if (processed.has(k)) continue;
           const nestedCloser = fences[k];
-          if (nestedCloser.char === fence.char && nestedCloser.length >= fence.length && nestedCloser.language === "") {
+          if (
+            nestedCloser.char === fence.char &&
+            nestedCloser.length >= fence.length &&
+            nestedCloser.language === "" &&
+            nestedCloser.indent.length === nestedIndentLength
+          ) {
             processed.add(k);
             break;
           }
@@ -150,13 +158,20 @@ function balanceCodeRegions(markdown) {
       const canClose = fence.char === openFence.char && fence.length >= openFence.length && fence.language === "";
 
       if (canClose) {
-        allMatchingClosers.push({ index: j, length: fence.length });
+        const fenceIndentLength = fence.indent.length;
+        
+        // Only consider fences at the SAME indentation as potential closers
+        // Fences with MORE indentation are treated as content (e.g., examples in markdown blocks)
+        // Fences with LESS indentation are likely closing an outer block, so skip them
+        if (fenceIndentLength === openIndentLength) {
+          potentialClosers.push({ index: j, length: fence.length });
+        }
       }
     }
 
-    if (allMatchingClosers.length > 0) {
-      // Use the LAST valid closer
-      const closerIndex = allMatchingClosers[allMatchingClosers.length - 1].index;
+    if (potentialClosers.length > 0) {
+      // Use the LAST potential closer (farthest from opener)
+      const closerIndex = potentialClosers[potentialClosers.length - 1].index;
       processed.add(closerIndex);
 
       pairedBlocks.push({
@@ -166,17 +181,17 @@ function balanceCodeRegions(markdown) {
         closeIndex: closerIndex,
       });
 
-      // If there are multiple closers, we have nested fences
-      if (allMatchingClosers.length > 1) {
+      // If there are multiple potential closers, we have nested fences that need escaping
+      if (potentialClosers.length > 1) {
         // Increase fence length so middle closers can no longer close
-        const maxLength = Math.max(...allMatchingClosers.map(c => c.length), openFence.length);
+        const maxLength = Math.max(...potentialClosers.map(c => c.length), openFence.length);
         const newLength = maxLength + 1;
         fenceLengthAdjustments.set(fences[i].lineIndex, newLength);
         fenceLengthAdjustments.set(fences[closerIndex].lineIndex, newLength);
 
-        // Mark middle closers as processed
-        for (let k = 0; k < allMatchingClosers.length - 1; k++) {
-          processed.add(allMatchingClosers[k].index);
+        // Mark middle closers as processed (they're now treated as content)
+        for (let k = 0; k < potentialClosers.length - 1; k++) {
+          processed.add(potentialClosers[k].index);
         }
       }
 
