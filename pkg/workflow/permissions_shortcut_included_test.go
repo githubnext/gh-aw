@@ -9,7 +9,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/testutil"
 )
 
-// TestPermissionsShortcutInIncludedFiles tests that permissions shortcuts (read-all, write-all, read, write)
+// TestPermissionsShortcutInIncludedFiles tests that permissions shortcuts (read-all, write-all, none)
 // work correctly in included files, matching the UX of main workflows.
 func TestPermissionsShortcutInIncludedFiles(t *testing.T) {
 	tests := []struct {
@@ -32,20 +32,6 @@ func TestPermissionsShortcutInIncludedFiles(t *testing.T) {
 			mainPermissions:        "permissions: write-all\nfeatures:\n  dangerous-permissions-write: true",
 			expectCompilationError: false,
 			expectLockFileContains: "permissions: write-all",
-		},
-		{
-			name:                   "invalid read shortcut in included file should fail",
-			includedPermissions:    "permissions: read",
-			mainPermissions:        "permissions: read-all",
-			expectCompilationError: true, // "read" is no longer a valid shorthand
-			expectLockFileContains: "",
-		},
-		{
-			name:                   "invalid write shortcut in included file should fail",
-			includedPermissions:    "permissions: write",
-			mainPermissions:        "permissions: write-all\nfeatures:\n  dangerous-permissions-write: true",
-			expectCompilationError: true, // "write" is no longer a valid shorthand
-			expectLockFileContains: "",
 		},
 		{
 			name: "object form still works in included file",

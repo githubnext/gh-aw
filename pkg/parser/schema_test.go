@@ -22,7 +22,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 					},
 					"stop-after": "2024-12-31",
 				},
-				"permissions": "read-all",
+				"permissions":     "read-all",
 				"run-name":        "Test Run",
 				"runs-on":         "ubuntu-latest",
 				"timeout_minutes": 30,
