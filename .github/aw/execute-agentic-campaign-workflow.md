@@ -49,7 +49,7 @@ The following workflows should be executed in order:
 
 For each workflow:
 
-1. **Check if workflow exists** - Look for `.github/workflows/<workflow-id>.md` or `.github/workflows/<workflow-id>.lock.yml`
+1. **Check if workflow exists** - Look for `.github/workflows/<workflow-id>.md`
 
 2. **Create workflow if needed** - Only if ALL guardrails above are satisfied:
    
