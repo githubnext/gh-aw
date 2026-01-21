@@ -17,6 +17,15 @@ func NewInitCommand() *cobra.Command {
 		Short: "Initialize repository for agentic workflows",
 		Long: `Initialize the repository for agentic workflows by configuring .gitattributes and creating GitHub Copilot instruction files.
 
+Interactive Mode (default):
+  gh aw init
+  
+  When invoked without flags, init enters interactive mode and prompts you to:
+  - Select which AI engine to use (Copilot, Claude, or Codex)
+  - Automatically configure engine-specific settings (e.g., MCP for Copilot)
+  - Detect and configure secrets from your environment
+  - Set up repository Actions secrets automatically
+
 This command:
 - Configures .gitattributes to mark .lock.yml files as generated
 - Creates .github/aw/logs/.gitignore to ignore downloaded workflow logs
@@ -69,13 +78,13 @@ After running this command, you can:
 To create, update or debug automated agentic actions using github, playwright, and other tools, load the .github/agents/agentic-workflows.agent.md (applies to .github/workflows/*.md)
 
 Examples:
-  ` + string(constants.CLIExtensionPrefix) + ` init
-  ` + string(constants.CLIExtensionPrefix) + ` init -v
-  ` + string(constants.CLIExtensionPrefix) + ` init --no-mcp
-  ` + string(constants.CLIExtensionPrefix) + ` init --tokens --engine copilot
-  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces
-  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces repo1,repo2
-  ` + string(constants.CLIExtensionPrefix) + ` init --completions`,
+  ` + string(constants.CLIExtensionPrefix) + ` init                                # Interactive mode
+  ` + string(constants.CLIExtensionPrefix) + ` init -v                             # Interactive with verbose output
+  ` + string(constants.CLIExtensionPrefix) + ` init --no-mcp                       # Skip MCP configuration
+  ` + string(constants.CLIExtensionPrefix) + ` init --tokens --engine copilot      # Check Copilot tokens
+  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces                   # Configure Codespaces
+  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces repo1,repo2       # Codespaces with additional repos
+  ` + string(constants.CLIExtensionPrefix) + ` init --completions                  # Install shell completions`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcpFlag, _ := cmd.Flags().GetBool("mcp")
@@ -106,6 +115,18 @@ Examples:
 				for i, repo := range codespaceRepos {
 					codespaceRepos[i] = strings.TrimSpace(repo)
 				}
+			}
+
+			// Check if we should enter interactive mode
+			// Interactive mode: no flags provided at all (only verbose is allowed)
+			if !cmd.Flags().Changed("mcp") && !cmd.Flags().Changed("no-mcp") &&
+				!cmd.Flags().Changed("campaign") && !cmd.Flags().Changed("tokens") &&
+				!cmd.Flags().Changed("engine") && !cmd.Flags().Changed("codespaces") &&
+				!cmd.Flags().Changed("completions") {
+
+				// Enter interactive mode
+				initCommandLog.Print("Entering interactive mode")
+				return InitRepositoryInteractive(verbose, cmd.Root())
 			}
 
 			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, campaign=%v, tokens=%v, engine=%v, codespaces=%v, codespaceEnabled=%v, completions=%v", verbose, mcp, campaign, tokens, engine, codespaceRepos, codespaceEnabled, completions)

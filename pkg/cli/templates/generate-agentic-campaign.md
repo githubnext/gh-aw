@@ -23,7 +23,7 @@ When creating or modifying GitHub resources, **use MCP tool calls directly** (no
 4. Parse campaign requirements from the triggering issue (available via GitHub event context)
 5. Discover workflows: scan `.github/workflows/*.md` and check [agentics collection](https://github.com/githubnext/agentics)
 6. Generate `.campaign.md` spec in `.github/workflows/`
-7. Update issue with campaign summary AND Copilot Coding Agent instructions
+7. Update the triggering issue with a human-readable status + Copilot Coding Agent instructions
 8. Assign to Copilot Coding Agent
 
 **Agent Responsibilities:** Compile with `gh aw compile`, commit files, create PR
@@ -80,11 +80,74 @@ Create them before adding any items to the project.
 
 ## Copilot Coding Agent Handoff (Required)
 
-Before calling `assign_to_agent`, update the triggering issue (via `update_issue`) to include a clear “Handoff to Copilot Coding Agent” section with:
+Before calling `assign_to_agent`, update the triggering issue (via `update_issue`) to include a clear, human-friendly status update.
+
+The issue update MUST be easy to follow for someone unfamiliar with campaigns. Include:
+
+- What you did (Project created, fields/views created, spec generated)
+- What you are about to do next (handoff to agent)
+- What the human should do next (review PR, merge, run orchestrator)
+- Links to documentation
+
+Use `update_issue` with `operation: "append"` so you **do not overwrite** the original issue text.
+
+Docs to link:
+- Getting started: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/
+- Flow & lifecycle: https://githubnext.github.io/gh-aw/guides/campaigns/flow/
+- Campaign specs: https://githubnext.github.io/gh-aw/guides/campaigns/specs/
+
+### Required structure for the issue update
+
+Add a section like this (fill in real values):
+
+```markdown
+## Campaign setup status
+
+**Status:** Ready for PR review
+
+### What just happened
+- Created Project: <project-url>
+- Created standard fields + views (Roadmap, Task Tracker, Progress Board)
+- Generated campaign spec: `.github/workflows/<campaign-id>.campaign.md`
+- Selected workflows: `<workflow-1>`, `<workflow-2>`
+
+### What happens next
+1. Copilot Coding Agent will open a pull request with the generated files.
+2. You review the PR and merge it.
+3. After merge, run the orchestrator workflow from the Actions tab.
+
+### Copilot Coding Agent handoff
+- **Campaign ID:** `<campaign-id>`
+- **Project URL:** <project-url>
+- **Workflows:** `<workflow-1>`, `<workflow-2>`
+
+Run:
+```bash
+gh aw compile
+```
+
+Commit + include in the PR:
+- `.github/workflows/<campaign-id>.campaign.md`
+- `.github/workflows/<campaign-id>.campaign.g.md`
+- `.github/workflows/<campaign-id>.campaign.lock.yml`
+
+Acceptance checklist:
+- `gh aw compile` succeeds
+- Orchestrator lock file updated
+- PR opened and linked back to this issue
+
+Docs:
+- https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/
+- https://githubnext.github.io/gh-aw/guides/campaigns/flow/
+```
+
+### Minimum handoff requirements
+
+In addition to the structure above, include these exact items:
 
 - The generated `campaign-id` and `project-url`
 - The list of selected workflow IDs
-- Exact commands for the agent to run (at minimum): `gh aw compile <campaign-id>`
+- Exact commands for the agent to run (at minimum): `gh aw compile`
 - What files must be committed (the new `.github/workflows/<campaign-id>.campaign.md`, generated `.campaign.g.md`, and compiled `.campaign.lock.yml`)
 - A short acceptance checklist (e.g., “`gh aw compile` succeeds; lock file updated; PR opened”)
 

@@ -325,15 +325,14 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		promptData.MaxProjectCommentsPerRun = spec.Governance.MaxCommentsPerRun
 	}
 
-	// Add workflow execution instructions when workflows are configured
-	if len(spec.Workflows) > 0 {
-		workflowExecution := RenderWorkflowExecution(promptData)
-		if workflowExecution == "" {
-			orchestratorLog.Print("Warning: Failed to render workflow execution instructions, template may be missing")
-		} else {
-			appendPromptSection(markdownBuilder, "WORKFLOW EXECUTION (PHASE 0)", workflowExecution)
-			orchestratorLog.Printf("Campaign '%s' orchestrator includes workflow execution", spec.ID)
-		}
+	// All campaigns include workflow execution capabilities
+	// The orchestrator can dispatch workflows and make decisions regardless of initial configuration
+	workflowExecution := RenderWorkflowExecution(promptData)
+	if workflowExecution == "" {
+		orchestratorLog.Print("Warning: Failed to render workflow execution instructions, template may be missing")
+	} else {
+		appendPromptSection(markdownBuilder, "WORKFLOW EXECUTION (PHASE 0)", workflowExecution)
+		orchestratorLog.Printf("Campaign '%s' orchestrator includes workflow execution", spec.ID)
 	}
 
 	orchestratorInstructions := RenderOrchestratorInstructions(promptData)
