@@ -14,6 +14,7 @@ tools:
   github:
     mode: remote
     toolsets: [repos, issues, discussions]
+    allowed: [get_repository, list_issues, issue_read]
 safe-outputs:
   create-discussion:
     title-prefix: "[auth-test] "

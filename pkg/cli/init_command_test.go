@@ -105,6 +105,54 @@ func TestInitCommandHelp(t *testing.T) {
 	if !strings.Contains(helpText, "Copilot") {
 		t.Error("Expected help text to mention Copilot")
 	}
+
+	if !strings.Contains(helpText, "Interactive Mode") {
+		t.Error("Expected help text to mention Interactive Mode")
+	}
+}
+
+func TestInitCommandInteractiveModeDetection(t *testing.T) {
+	t.Parallel()
+
+	// Test that interactive mode is triggered when no flags are set
+	// We can't test the actual interactive prompts in unit tests, but we can
+	// verify that the command structure supports the detection logic
+
+	cmd := NewInitCommand()
+
+	// Verify that all the flags exist that are checked for interactive mode detection
+	requiredFlags := []string{"mcp", "no-mcp", "campaign", "tokens", "engine", "codespaces", "completions"}
+	for _, flagName := range requiredFlags {
+		flag := cmd.Flags().Lookup(flagName)
+		if flag == nil {
+			t.Errorf("Expected flag %q to exist for interactive mode detection", flagName)
+		}
+	}
+}
+
+func TestInitRepositoryInteractivePreconditions(t *testing.T) {
+	// Test that InitRepositoryInteractive properly checks preconditions
+
+	// Test 1: Fails in CI environment
+	t.Setenv("CI", "true")
+	err := InitRepositoryInteractive(false, nil)
+	if err == nil {
+		t.Error("Expected InitRepositoryInteractive to fail in CI environment")
+	}
+	if !strings.Contains(err.Error(), "automated tests or CI") {
+		t.Errorf("Expected error about CI environment, got: %v", err)
+	}
+
+	// Test 2: Fails in test mode
+	t.Setenv("CI", "")
+	t.Setenv("GO_TEST_MODE", "true")
+	err = InitRepositoryInteractive(false, nil)
+	if err == nil {
+		t.Error("Expected InitRepositoryInteractive to fail in test mode")
+	}
+	if !strings.Contains(err.Error(), "automated tests or CI") {
+		t.Errorf("Expected error about test mode, got: %v", err)
+	}
 }
 
 func TestInitRepositoryBasic(t *testing.T) {

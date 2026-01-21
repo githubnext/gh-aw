@@ -1,8 +1,8 @@
 # Workflow Execution
 
-This campaign is configured to **actively execute workflows**. Your role is to run the workflows listed in sequence, collect their outputs, and use those outputs to drive the campaign forward.
+This campaign orchestrator can execute workflows as needed. Your role is to run the workflows listed in sequence, collect their outputs, and use those outputs to drive the campaign forward.
 
-**IMPORTANT: Active execution is an advanced feature. Exercise caution and follow all guidelines carefully.**
+**IMPORTANT: Workflow execution is an advanced capability. Exercise caution and follow all guidelines carefully.**
 
 ---
 
@@ -49,7 +49,7 @@ The following workflows should be executed in order:
 
 For each workflow:
 
-1. **Check if workflow exists** - Look for `.github/workflows/<workflow-id>.md` or `.github/workflows/<workflow-id>.lock.yml`
+1. **Check if workflow exists** - Look for `.github/workflows/<workflow-id>.md`
 
 2. **Create workflow if needed** - Only if ALL guardrails above are satisfied:
    
@@ -68,6 +68,20 @@ For each workflow:
    
    on:
      workflow_dispatch:  # Required for execution
+       inputs:
+         priority:
+           description: 'Priority level for this execution'
+           required: false
+           type: choice
+           options:
+             - low
+             - medium
+             - high
+           default: medium
+         target:
+           description: 'Specific target or scope for this run'
+           required: false
+           type: string
    
    tools:
      github:
@@ -85,6 +99,9 @@ For each workflow:
    
    You are a focused workflow that <specific task>.
    
+   Priority: \$\{\{ github.event.inputs.priority \}\}
+   Target: \$\{\{ github.event.inputs.target \}\}
+   
    ## Task
    
    <Clear description of what to do>
@@ -93,6 +110,8 @@ For each workflow:
    
    <What information to provide or actions to take>
    ```
+   
+   **Note**: Define `inputs` under `workflow_dispatch` to accept parameters from the orchestrator. Use `\$\{\{ github.event.inputs.INPUT_NAME \}\}` to reference input values in your workflow markdown. See [DispatchOps documentation](https://githubnext.github.io/gh-aw/guides/dispatchops/#with-input-parameters) for input types and examples.
    
    - Compile it with `gh aw compile <workflow-id>.md`
    - **CRITICAL: Test before use** (see testing requirements below)
@@ -118,14 +137,18 @@ For each workflow:
 
 4. **Execute the workflow** (skip if just tested successfully):
    - Trigger: `mcp__github__run_workflow(workflow_id: "<workflow-id>", ref: "main")`
+   - **Pass input parameters based on decisions**: If the workflow accepts inputs, provide them to guide execution (e.g., `inputs: {priority: "high", target: "security"}`)
    - Wait for completion: Poll `mcp__github__get_workflow_run(run_id)` until status is "completed"
    - Collect outputs: Check `mcp__github__download_workflow_run_artifact()` for any artifacts
    - **Handle failures gracefully**: If execution fails, note it in status update but continue campaign
 
 5. **Use outputs for next steps** - Use information from workflow runs to:
    - Inform subsequent workflow executions (e.g., scanner results → upgrader inputs)
+   - Pass contextual inputs to worker workflows based on campaign state and decisions
    - Update project board items with relevant information
    - Make decisions about campaign progress and next actions
+
+**Note**: Workflows that accept `workflow_dispatch` inputs can receive parameters from the orchestrator. This enables the orchestrator to provide context, priorities, or targets based on its decisions. See [DispatchOps documentation](https://githubnext.github.io/gh-aw/guides/dispatchops/#with-input-parameters) for input parameter examples.
 
 ---
 
