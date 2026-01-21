@@ -172,6 +172,17 @@ interface AddLabelsItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for removing labels from an issue or PR
+ */
+interface RemoveLabelsItem extends BaseSafeOutputItem {
+  type: "remove_labels";
+  /** Array of label names to remove */
+  labels: string[];
+  /** Target issue; otherwise resolved from current context */
+  item_number?: number;
+}
+
+/**
  * JSONL item for adding reviewers to a pull request
  */
 interface AddReviewerItem extends BaseSafeOutputItem {
@@ -355,6 +366,7 @@ type SafeOutputItem =
   | CreatePullRequestReviewCommentItem
   | CreateCodeScanningAlertItem
   | AddLabelsItem
+  | RemoveLabelsItem
   | AddReviewerItem
   | UpdateIssueItem
   | UpdatePullRequestItem
@@ -393,6 +405,7 @@ export {
   CreatePullRequestReviewCommentItem,
   CreateCodeScanningAlertItem,
   AddLabelsItem,
+  RemoveLabelsItem,
   AddReviewerItem,
   UpdateIssueItem,
   UpdatePullRequestItem,

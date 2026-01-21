@@ -126,6 +126,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.CloseIssues != nil ||
 		data.SafeOutputs.CloseDiscussions != nil ||
 		data.SafeOutputs.AddLabels != nil ||
+		data.SafeOutputs.RemoveLabels != nil ||
 		data.SafeOutputs.UpdateIssues != nil ||
 		data.SafeOutputs.UpdateDiscussions != nil ||
 		data.SafeOutputs.LinkSubIssue != nil ||
@@ -209,6 +210,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			permissions.Merge(NewPermissionsContentsReadDiscussionsWrite())
 		}
 		if data.SafeOutputs.AddLabels != nil {
+			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
+		}
+		if data.SafeOutputs.RemoveLabels != nil {
 			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
 		}
 		if data.SafeOutputs.UpdateIssues != nil {

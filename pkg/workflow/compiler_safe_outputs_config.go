@@ -183,6 +183,27 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		config["add_labels"] = handlerConfig
 	}
 
+	if data.SafeOutputs.RemoveLabels != nil {
+		cfg := data.SafeOutputs.RemoveLabels
+		handlerConfig := make(map[string]any)
+		if cfg.Max > 0 {
+			handlerConfig["max"] = cfg.Max
+		}
+		if len(cfg.Allowed) > 0 {
+			handlerConfig["allowed"] = cfg.Allowed
+		}
+		if cfg.Target != "" {
+			handlerConfig["target"] = cfg.Target
+		}
+		if cfg.TargetRepoSlug != "" {
+			handlerConfig["target-repo"] = cfg.TargetRepoSlug
+		}
+		if len(cfg.AllowedRepos) > 0 {
+			handlerConfig["allowed_repos"] = cfg.AllowedRepos
+		}
+		config["remove_labels"] = handlerConfig
+	}
+
 	if data.SafeOutputs.UpdateIssues != nil {
 		cfg := data.SafeOutputs.UpdateIssues
 		handlerConfig := make(map[string]any)

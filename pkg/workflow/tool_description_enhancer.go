@@ -176,6 +176,19 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 		}
 
+	case "remove_labels":
+		if config := safeOutputs.RemoveLabels; config != nil {
+			if config.Max > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d label(s) can be removed.", config.Max))
+			}
+			if len(config.Allowed) > 0 {
+				constraints = append(constraints, fmt.Sprintf("Only these labels can be removed: %v.", config.Allowed))
+			}
+			if config.Target != "" {
+				constraints = append(constraints, fmt.Sprintf("Target: %s.", config.Target))
+			}
+		}
+
 	case "add_reviewer":
 		if config := safeOutputs.AddReviewer; config != nil {
 			if config.Max > 0 {
