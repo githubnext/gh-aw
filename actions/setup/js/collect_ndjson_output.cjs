@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { repairJson } = require("./json_repair_helpers.cjs");
 
 async function main() {
   try {
@@ -31,42 +32,6 @@ async function main() {
     // Resolve allowed mentions for the output collector
     // This determines which @mentions are allowed in the agent output
     const allowedMentions = await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig);
-
-    function repairJson(jsonStr) {
-      let repaired = jsonStr.trim();
-      const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
-      repaired = repaired.replace(/[\u0000-\u001F]/g, ch => {
-        const c = ch.charCodeAt(0);
-        return _ctrl[c] || "\\u" + c.toString(16).padStart(4, "0");
-      });
-      repaired = repaired.replace(/'/g, '"');
-      repaired = repaired.replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":');
-      repaired = repaired.replace(/"([^"\\]*)"/g, (match, content) => {
-        if (content.includes("\n") || content.includes("\r") || content.includes("\t")) {
-          const escaped = content.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
-          return `"${escaped}"`;
-        }
-        return match;
-      });
-      repaired = repaired.replace(/"([^"]*)"([^":,}\]]*)"([^"]*)"(\s*[,:}\]])/g, (match, p1, p2, p3, p4) => `"${p1}\\"${p2}\\"${p3}"${p4}`);
-      repaired = repaired.replace(/(\[\s*(?:"[^"]*"(?:\s*,\s*"[^"]*")*\s*),?)\s*}/g, "$1]");
-      const openBraces = (repaired.match(/\{/g) || []).length;
-      const closeBraces = (repaired.match(/\}/g) || []).length;
-      if (openBraces > closeBraces) {
-        repaired += "}".repeat(openBraces - closeBraces);
-      } else if (closeBraces > openBraces) {
-        repaired = "{".repeat(closeBraces - openBraces) + repaired;
-      }
-      const openBrackets = (repaired.match(/\[/g) || []).length;
-      const closeBrackets = (repaired.match(/\]/g) || []).length;
-      if (openBrackets > closeBrackets) {
-        repaired += "]".repeat(openBrackets - closeBrackets);
-      } else if (closeBrackets > openBrackets) {
-        repaired = "[".repeat(closeBrackets - openBrackets) + repaired;
-      }
-      repaired = repaired.replace(/,(\s*[}\]])/g, "$1");
-      return repaired;
-    }
 
     function validateFieldWithInputSchema(value, fieldName, inputSchema, lineNum) {
       if (inputSchema.required && (value === undefined || value === null)) {
