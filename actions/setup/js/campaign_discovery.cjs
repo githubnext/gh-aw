@@ -303,6 +303,115 @@ async function searchByLabel(octokit, label, repos, orgs, maxItems, maxPages, cu
 }
 
 /**
+ * Discover items from campaign memory (workers writing to repo-memory)
+ * @param {string} campaignId - Campaign identifier
+ * @param {string[]} workflows - List of worker workflow names
+ * @param {number} maxItems - Maximum items to discover
+ * @returns {Promise<{items: any[], itemsScanned: number}>}
+ */
+async function discoverFromMemory(campaignId, workflows, maxItems) {
+  const items = [];
+  let itemsScanned = 0;
+
+  // Path where workers write their output records
+  const memoryBasePath = `/tmp/gh-aw/repo-memory/campaigns/${campaignId}/workers`;
+
+  core.info(`Discovering from campaign memory: ${memoryBasePath}`);
+
+  // Check if memory directory exists
+  if (!fs.existsSync(memoryBasePath)) {
+    core.info(`Memory directory not found: ${memoryBasePath}`);
+    return { items, itemsScanned };
+  }
+
+  // Read worker output files for each workflow
+  for (const workflow of workflows) {
+    if (itemsScanned >= maxItems) {
+      core.warning(`Reached max items budget: ${maxItems}`);
+      break;
+    }
+
+    const workerFile = path.join(memoryBasePath, `${workflow}.jsonl`);
+
+    if (!fs.existsSync(workerFile)) {
+      core.info(`No memory file for worker: ${workflow}`);
+      continue;
+    }
+
+    try {
+      const content = fs.readFileSync(workerFile, "utf8");
+      const lines = content
+        .trim()
+        .split("\n")
+        .filter(line => line.trim());
+
+      core.info(`Reading ${lines.length} record(s) from ${workflow}.jsonl`);
+
+      for (const line of lines) {
+        if (itemsScanned >= maxItems) {
+          break;
+        }
+
+        try {
+          const record = JSON.parse(line);
+
+          // Validate required fields
+          if (!record.pr_url || !record.pr_number) {
+            core.warning(`Invalid record in ${workflow}.jsonl: missing pr_url or pr_number`);
+            continue;
+          }
+
+          // Parse repository from pr_url or use provided repo field
+          let owner, repo;
+          if (record.repo) {
+            [owner, repo] = record.repo.split("/");
+          } else {
+            // Extract from URL: https://github.com/owner/repo/pull/123
+            const urlMatch = record.pr_url.match(/github\.com\/([^/]+)\/([^/]+)\/(?:pull|issues)\/(\d+)/);
+            if (urlMatch) {
+              owner = urlMatch[1];
+              repo = urlMatch[2];
+            } else {
+              core.warning(`Could not parse repository from pr_url: ${record.pr_url}`);
+              continue;
+            }
+          }
+
+          // Normalize to campaign discovery format
+          const normalizedItem = {
+            url: record.pr_url,
+            content_type: record.pr_url.includes("/pull/") ? "pull_request" : "issue",
+            number: record.pr_number,
+            repo: `${owner}/${repo}`,
+            created_at: record.created_at || new Date().toISOString(),
+            updated_at: record.updated_at || record.created_at || new Date().toISOString(),
+            state: "open", // Default to open; can be enriched later from GitHub API
+            title: record.title || `Work item from ${workflow}`,
+            worker: record.worker || workflow,
+            // Pass through any additional metadata
+            metadata: {
+              alert_number: record.alert_number,
+              severity: record.severity,
+              source: "memory",
+            },
+          };
+
+          items.push(normalizedItem);
+          itemsScanned++;
+        } catch (parseError) {
+          core.warning(`Failed to parse line in ${workflow}.jsonl: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+        }
+      }
+    } catch (readError) {
+      core.warning(`Failed to read ${workerFile}: ${readError instanceof Error ? readError.message : String(readError)}`);
+    }
+  }
+
+  core.info(`Discovered ${items.length} item(s) from memory`);
+  return { items, itemsScanned };
+}
+
+/**
  * Main discovery function
  * @param {any} config - Configuration object
  * @returns {Promise<any>} Discovery manifest
@@ -325,8 +434,23 @@ async function discover(config) {
   let totalItemsScanned = 0;
   let totalPagesScanned = 0;
 
-  // Discover by tracker-id (one search per workflow)
+  // Primary discovery: Read from campaign memory (workers' output records)
   if (workflows && workflows.length > 0) {
+    core.info(`Attempting memory-based discovery first...`);
+    try {
+      const memoryResult = await discoverFromMemory(campaignId, workflows, maxDiscoveryItems);
+      allItems.push(...memoryResult.items);
+      totalItemsScanned += memoryResult.itemsScanned;
+      core.info(`Memory-based discovery found ${memoryResult.items.length} item(s)`);
+    } catch (memoryError) {
+      core.warning(`Memory-based discovery failed: ${memoryError instanceof Error ? memoryError.message : String(memoryError)}`);
+      core.info(`Falling back to GitHub API search...`);
+    }
+  }
+
+  // Fallback discovery: Search GitHub API by tracker-id (if memory discovery yielded nothing or failed)
+  if (allItems.length === 0 && workflows && workflows.length > 0) {
+    core.info(`No items found in memory, searching GitHub API by tracker-id...`);
     for (const workflow of workflows) {
       if (totalItemsScanned >= maxDiscoveryItems || totalPagesScanned >= maxDiscoveryPages) {
         core.warning(`Reached discovery budget limits. Stopping discovery.`);
