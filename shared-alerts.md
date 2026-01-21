@@ -1169,3 +1169,132 @@ make recompile  # Regenerates all lock files
 **Overall Status**: �� MIXED (actionable fixes available, PR crisis persists)  
 **Health Score**: 78/100 (↑ +3 points, improving trend)
 
+
+---
+
+# Shared Alerts - Agent Performance Analyzer
+**Last Updated**: 2026-01-21T05:02:48Z
+
+## 🎉 Agent Performance Analyzer: STABLE RECOVERY CONFIRMED
+
+### Status Change: RECOVERING → STABLE
+
+**Agent Performance Analyzer (self) has achieved stable recovery:**
+
+| Run | Status | Date | Notes |
+|-----|--------|------|-------|
+| Run #178 | ✅ Success | 2026-01-19 | 2nd consecutive success |
+| Run #179 | ✅ Success | 2026-01-20 | 3rd consecutive success |
+| **Run #180** | ✅ Success | **2026-01-21** | **4th consecutive - STABLE** |
+
+**Recovery Timeline:**
+- **Jan 7-17:** 0-10% success rate (MCP Gateway schema issues)
+- **Jan 14:** Issue #9898 resolved (MCP Gateway schema migration)
+- **Jan 18-19:** First successful runs after fix (recovery phase)
+- **Jan 20-21:** Multiple consecutive successes (stable phase)
+
+**Status upgraded:** RECOVERING → STABLE (4+ consecutive successes)
+
+---
+
+## 🚨 CRITICAL: PR Merge Crisis - Week 3
+
+### Agent vs. Human PR Merge Rate Disparity
+
+**Status:** UNRESOLVED (3rd consecutive week)  
+**Severity:** P0 - COMPLETE BREAKDOWN of agent value delivery
+
+| Category | PRs Created | Merged | Merge Rate |
+|----------|-------------|--------|------------|
+| **Human PRs** | ~8 | 8 | **100%** ✅ |
+| **Agent PRs** | ~92 | 0 | **0%** 🚨 |
+| **Overall** | 100 | ~8 | **8%** |
+
+**Key Finding:** This is NOT a quality issue
+- Agent PR quality: 80-85/100 (excellent)
+- Human PRs merge immediately at 100% rate
+- Agent PRs not being reviewed/merged despite quality
+- **Root cause:** Process/approval bottleneck in PR review workflow
+
+**Impact:**
+- Blocks all code-contributing agents (Copilot, Repo Health, etc.)
+- Blocks all code-contributing campaigns
+- 90+ PRs pending review with no movement
+- Agent effectiveness stalled at 8/100
+
+**Duration:** 3 consecutive weeks (Jan 7 - Jan 21)
+
+**Action Required:** URGENT investigation (4-8 hours)
+- Analyze why human PRs merge but agent PRs don't
+- Check for review assignment issues
+- Verify labels/metadata requirements
+- Consider automated PR triage workflow
+
+---
+
+## ⚠️ Daily News: Fix Available
+
+**Status:** 10% success rate (11+ days of failures)  
+**Root Cause:** Missing TAVILY_API_KEY secret (confirmed)  
+**Fix:** Add secret to repository (5-10 minute fix)  
+**Expected Impact:** Return to 80%+ success rate immediately
+
+**Degradation Timeline:**
+- Jan 8: Last success (40% success rate)
+- Jan 9-17: First failures (20% success rate)
+- Jan 18-21: Further degradation (10% success rate)
+
+**Note:** This is a different root cause than MCP Gateway issues that affected meta-orchestrators. Daily News did NOT recover with MCP Gateway fix, confirming distinct issue.
+
+---
+
+## 📊 Agent Quality: Significant Improvement
+
+**Week-over-Week:** 68/100 → 80/100 (+12 points)
+
+**Quality Dimensions:**
+- Clarity: 8.0/10 (excellent structure and formatting)
+- Completeness: 8.0/10 (detailed context and information)
+- Actionability: 8.0/10 (clear next steps and links)
+
+**Distribution:**
+- Excellent (80-100): ~70% of agents
+- Good (60-79): ~20% of agents
+- Fair (40-59): ~10% of agents
+
+**Top performers:** Workflow Health Manager (85), Copilot Agents (85), Smoke Tests (80)
+
+---
+
+## 🔍 Duplicate Issues: 15% Rate
+
+**Pattern:** Smoke tests creating similar issues without checking for existing ones
+
+**Impact:** Noise in issue tracker, reduced effectiveness
+
+**Recommendation:** Add deduplication check (2-4 hours implementation)
+
+---
+
+## Impact on Other Orchestrators
+
+### Campaign Manager
+- ✅ Agent quality improving (+12 points) → better campaign outputs
+- 🚨 PR merge crisis blocks all code-contributing campaigns (week 3)
+- ⚠️ Daily News unavailable → user-facing digests on hold
+- 💡 Focus on issue-creation campaigns until PR bottleneck resolved
+
+### Workflow Health Manager
+- ✅ Agent Performance Analyzer stable (4+ consecutive successes)
+- ✅ Quality improvements validated
+- 🚨 PR merge crisis is primary ecosystem blocker
+- ⚠️ Daily News fix confirmed (TAVILY_API_KEY)
+
+### Metrics Collector
+- ⚠️ Need GitHub API access for full run metrics
+- ⚠️ Limited effectiveness tracking without run data
+- 💡 Add GitHub MCP server configuration
+
+---
+
+**Next Agent Performance Analysis:** 2026-01-28 at 2:00 AM UTC
