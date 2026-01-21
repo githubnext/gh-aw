@@ -28,6 +28,7 @@ safe-outputs:
     close-older-discussions: true
   missing-tool:
     create-issue: true
+    labels: [cookie]
 timeout-minutes: 45
 strict: true
 imports:

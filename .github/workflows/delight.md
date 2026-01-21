@@ -27,7 +27,7 @@ safe-outputs:
     max: 1
     close-older-discussions: true
   create-issue:
-    labels: [delight]
+    labels: [delight, cookie]
     max: 2
     group: true
   messages:

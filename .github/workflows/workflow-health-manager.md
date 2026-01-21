@@ -21,6 +21,7 @@ safe-outputs:
     max: 10
     expires: 1d
     group: true
+    labels: [cookie]
   add-comment:
     max: 15
   update-issue:

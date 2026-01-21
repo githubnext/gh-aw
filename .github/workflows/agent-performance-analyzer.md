@@ -20,6 +20,7 @@ safe-outputs:
   create-issue:
     max: 5
     group: true
+    labels: [cookie]
   create-discussion:
     max: 2
   add-comment:
