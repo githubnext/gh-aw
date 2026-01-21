@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agentic Workflow Runs Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #24292f;
+            background: #f6f8fa;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+        }
+        h1 {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #24292f;
+        }
+        .subtitle {
+            color: #57606a;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .summary-card {
+            background: #f6f8fa;
+            border-radius: 6px;
+            padding: 20px;
+            border-left: 4px solid #0969da;
+        }
+        .summary-card.warning {
+            border-left-color: #bf8700;
+            background: #fff8c5;
+        }
+        .summary-card.success {
+            border-left-color: #1a7f37;
+            background: #dafbe1;
+        }
+        .summary-card.info {
+            border-left-color: #0969da;
+            background: #ddf4ff;
+        }
+        .summary-card h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #57606a;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .summary-card .value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #24292f;
+        }
+        .workflow-section {
+            margin-bottom: 40px;
+        }
+        .workflow-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #d0d7de;
+        }
+        .workflow-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #24292f;
+        }
+        .workflow-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .workflow-badge.scheduled {
+            background: #ddf4ff;
+            color: #0969da;
+        }
+        .workflow-badge.slash-command {
+            background: #fbefff;
+            color: #8250df;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .info-item {
+            padding: 12px;
+            background: #f6f8fa;
+            border-radius: 6px;
+        }
+        .info-item label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #57606a;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+        .info-item value {
+            display: block;
+            font-size: 14px;
+            color: #24292f;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-badge.success {
+            background: #dafbe1;
+            color: #1a7f37;
+        }
+        .status-badge.failure {
+            background: #ffebe9;
+            color: #cf222e;
+        }
+        .status-badge.skipped {
+            background: #f6f8fa;
+            color: #57606a;
+        }
+        .status-badge.action-required {
+            background: #fff8c5;
+            color: #bf8700;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #d0d7de;
+        }
+        th {
+            font-size: 12px;
+            font-weight: 600;
+            color: #57606a;
+            text-transform: uppercase;
+            background: #f6f8fa;
+        }
+        td {
+            font-size: 14px;
+        }
+        .run-link {
+            color: #0969da;
+            text-decoration: none;
+        }
+        .run-link:hover {
+            text-decoration: underline;
+        }
+        .description {
+            color: #57606a;
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        .schedule {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #ddf4ff;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #0969da;
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+        .failure-details {
+            background: #ffebe9;
+            border-left: 4px solid #cf222e;
+            padding: 16px;
+            border-radius: 6px;
+            margin-top: 16px;
+        }
+        .failure-details h4 {
+            color: #cf222e;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .failure-details p {
+            color: #57606a;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .success-rate {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a7f37;
+        }
+        .success-rate.medium {
+            color: #bf8700;
+        }
+        .success-rate.low {
+            color: #cf222e;
+        }
+        .chart-container {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f6f8fa;
+            border-radius: 6px;
+        }
+        .chart-bars {
+            display: flex;
+            gap: 8px;
+            height: 100px;
+            align-items: flex-end;
+            margin-bottom: 12px;
+        }
+        .chart-bar {
+            flex: 1;
+            background: #1a7f37;
+            border-radius: 4px 4px 0 0;
+            position: relative;
+        }
+        .chart-bar.failure {
+            background: #cf222e;
+        }
+        .chart-bar.skipped {
+            background: #57606a;
+        }
+        .chart-legend {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            justify-content: center;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+        .legend-color.success {
+            background: #1a7f37;
+        }
+        .legend-color.failure {
+            background: #cf222e;
+        }
+        .legend-color.skipped {
+            background: #57606a;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #d0d7de;
+            text-align: center;
+            color: #57606a;
+            font-size: 12px;
+        }
+        .tool-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .tool-tag {
+            padding: 4px 8px;
+            background: #f6f8fa;
+            border: 1px solid #d0d7de;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #24292f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 Agentic Workflow Runs Analysis</h1>
+        <p class="subtitle">Analysis of security-focused agentic workflows in githubnext/gh-aw</p>
+        <p class="subtitle">Generated: January 21, 2026</p>
+
+        <div class="summary">
+            <div class="summary-card warning">
+                <h3>Code Scanning Fixer</h3>
+                <div class="value">60%</div>
+                <p style="font-size: 14px; color: #57606a; margin-top: 8px;">6 of 10 recent runs successful</p>
+            </div>
+            <div class="summary-card success">
+                <h3>Security Fix PR</h3>
+                <div class="value">100%</div>
+                <p style="font-size: 14px; color: #57606a; margin-top: 8px;">10 of 10 recent runs successful</p>
+            </div>
+            <div class="summary-card info">
+                <h3>Security Review</h3>
+                <div class="value">Conditional</div>
+                <p style="font-size: 14px; color: #57606a; margin-top: 8px;">9 of 10 runs skipped (slash command trigger)</p>
+            </div>
+        </div>
+
+        <!-- Code Scanning Fixer -->
+        <div class="workflow-section">
+            <div class="workflow-header">
+                <h2 class="workflow-title">🔍 Code Scanning Fixer</h2>
+                <span class="workflow-badge scheduled">Scheduled</span>
+            </div>
+            
+            <p class="description">
+                Automatically fixes high severity code scanning alerts by creating pull requests with remediation. 
+                This workflow uses GitHub's Code Scanning API to identify vulnerabilities and applies fixes using AI-powered analysis.
+            </p>
+            
+            <div class="schedule">⏰ Runs every 30 minutes</div>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>Latest Run</label>
+                    <value>#279 - January 21, 2026 06:43 UTC</value>
+                </div>
+                <div class="info-item">
+                    <label>Status</label>
+                    <value><span class="status-badge failure">Failed</span></value>
+                </div>
+                <div class="info-item">
+                    <label>Total Runs</label>
+                    <value>279 runs</value>
+                </div>
+                <div class="info-item">
+                    <label>Success Rate (Last 10)</label>
+                    <value><span class="success-rate medium">60%</span></value>
+                </div>
+                <div class="info-item">
+                    <label>Engine</label>
+                    <value>GitHub Copilot</value>
+                </div>
+                <div class="info-item">
+                    <label>Timeout</label>
+                    <value>20 minutes</value>
+                </div>
+            </div>
+
+            <div class="failure-details">
+                <h4>⚠️ Recent Failure Pattern</h4>
+                <p>
+                    4 failures in the last 10 runs. The most recent failure (#279) occurred during the "Execute GitHub Copilot CLI" step. 
+                    Pattern shows intermittent failures approximately every 2-3 runs, suggesting potential issues with:
+                </p>
+                <ul style="margin-top: 8px; margin-left: 20px; color: #57606a;">
+                    <li>Code scanning alert API availability</li>
+                    <li>Copilot CLI execution timeouts</li>
+                    <li>MCP server connectivity issues</li>
+                </ul>
+            </div>
+
+            <h4 style="margin-top: 24px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: #57606a; text-transform: uppercase;">Recent Run History (Last 10)</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Run</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Link</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>#279</td>
+                        <td>Jan 21, 06:43 UTC</td>
+                        <td><span class="status-badge failure">Failure</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21199967712" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#278</td>
+                        <td>Jan 21, 06:03 UTC</td>
+                        <td><span class="status-badge success">Success</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21199116290" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#277</td>
+                        <td>Jan 21, 05:40 UTC</td>
+                        <td><span class="status-badge success">Success</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21198652713" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#276</td>
+                        <td>Jan 21, 05:07 UTC</td>
+                        <td><span class="status-badge success">Success</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21198001333" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#275</td>
+                        <td>Jan 21, 04:44 UTC</td>
+                        <td><span class="status-badge success">Success</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21197544550" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#274</td>
+                        <td>Jan 21, 04:17 UTC</td>
+                        <td><span class="status-badge failure">Failure</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21197049083" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#273</td>
+                        <td>Jan 21, 03:30 UTC</td>
+                        <td><span class="status-badge success">Success</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21195733978" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#272</td>
+                        <td>Jan 21, 02:38 UTC</td>
+                        <td><span class="status-badge failure">Failure</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21195191029" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#271</td>
+                        <td>Jan 21, 01:30 UTC</td>
+                        <td><span class="status-badge success">Success</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21193631622" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#270</td>
+                        <td>Jan 21, 00:46 UTC</td>
+                        <td><span class="status-badge failure">Failure</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21192886778" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4 style="margin-top: 24px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: #57606a; text-transform: uppercase;">Tools & Capabilities</h4>
+            <div class="tool-list">
+                <span class="tool-tag">github (context, repos, code_security, pull_requests)</span>
+                <span class="tool-tag">edit</span>
+                <span class="tool-tag">bash</span>
+                <span class="tool-tag">cache-memory</span>
+            </div>
+
+            <h4 style="margin-top: 24px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: #57606a; text-transform: uppercase;">Safe Outputs</h4>
+            <div style="background: #f6f8fa; padding: 12px; border-radius: 6px; font-size: 14px; color: #24292f;">
+                ✅ create-pull-request (with "[code-scanning-fix]" title prefix, security & automated-fix labels)
+            </div>
+        </div>
+
+        <!-- Security Fix PR -->
+        <div class="workflow-section">
+            <div class="workflow-header">
+                <h2 class="workflow-title">🛡️ Security Fix PR</h2>
+                <span class="workflow-badge scheduled">Scheduled</span>
+            </div>
+            
+            <p class="description">
+                Identifies and automatically fixes code security issues by creating autofixes via GitHub Code Scanning. 
+                Can process up to 5 alerts per run and uses the autofix API to submit fixes directly to GitHub.
+            </p>
+            
+            <div class="schedule">⏰ Runs every 4 hours</div>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>Latest Run</label>
+                    <value>#419 - January 21, 2026 04:26 UTC</value>
+                </div>
+                <div class="info-item">
+                    <label>Status</label>
+                    <value><span class="status-badge success">Success</span></value>
+                </div>
+                <div class="info-item">
+                    <label>Total Runs</label>
+                    <value>419 runs</value>
+                </div>
+                <div class="info-item">
+                    <label>Success Rate (Last 10)</label>
+                    <value><span class="success-rate">100%</span></value>
+                </div>
+                <div class="info-item">
+                    <label>Engine</label>
+                    <value>GitHub Copilot</value>
+                </div>
+                <div class="info-item">
+                    <label>Timeout</label>
+                    <value>20 minutes</value>
+                </div>
+            </div>
+
+            <div style="background: #dafbe1; border-left: 4px solid #1a7f37; padding: 16px; border-radius: 6px; margin-top: 16px;">
+                <h4 style="color: #1a7f37; font-size: 14px; font-weight: 600; margin-bottom: 8px;">✅ Excellent Performance</h4>
+                <p style="color: #57606a; font-size: 14px; line-height: 1.5;">
+                    This workflow has a 100% success rate in the last 10 runs, demonstrating stable and reliable operation. 
+                    No failures detected in recent history.
+                </p>
+            </div>
+
+            <h4 style="margin-top: 24px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: #57606a; text-transform: uppercase;">Recent Run History (Last 5)</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Run</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Link</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>#419</td>
+                        <td>Jan 21, 04:26 UTC</td>
+                        <td><span class="status-badge success">Success</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21197224076" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#418</td>
+                        <td>Jan 21, 00:40 UTC</td>
+                        <td><span class="status-badge success">Success</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21192746757" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#417</td>
+                        <td>Jan 20, 20:28 UTC</td>
+                        <td><span class="status-badge success">Success</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21186127873" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#416</td>
+                        <td>Jan 20, 16:14 UTC</td>
+                        <td><span class="status-badge success">Success</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21178735965" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#415</td>
+                        <td>Jan 20, 12:17 UTC</td>
+                        <td><span class="status-badge success">Success</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21171181019" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4 style="margin-top: 24px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: #57606a; text-transform: uppercase;">Tools & Capabilities</h4>
+            <div class="tool-list">
+                <span class="tool-tag">github (context, repos, code_security, pull_requests)</span>
+                <span class="tool-tag">cache-memory</span>
+            </div>
+
+            <h4 style="margin-top: 24px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: #57606a; text-transform: uppercase;">Safe Outputs</h4>
+            <div style="background: #f6f8fa; padding: 12px; border-radius: 6px; font-size: 14px; color: #24292f;">
+                ✅ autofix-code-scanning-alert (max: 5 alerts per run)
+            </div>
+        </div>
+
+        <!-- Security Review -->
+        <div class="workflow-section">
+            <div class="workflow-header">
+                <h2 class="workflow-title">🔒 Security Review Agent</h2>
+                <span class="workflow-badge slash-command">Slash Command</span>
+            </div>
+            
+            <p class="description">
+                Security-focused AI agent that reviews pull requests to identify changes that could weaken security posture 
+                or extend the security boundaries of the Agentic Workflow Firewall (AWF). Triggered by /security-review comment.
+            </p>
+            
+            <div class="schedule">⚡ Triggered by /security-review command in PR comments</div>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>Latest Run</label>
+                    <value>#445 - January 21, 2026 06:55 UTC</value>
+                </div>
+                <div class="info-item">
+                    <label>Status</label>
+                    <value><span class="status-badge skipped">Skipped</span></value>
+                </div>
+                <div class="info-item">
+                    <label>Total Runs</label>
+                    <value>445 runs</value>
+                </div>
+                <div class="info-item">
+                    <label>Skip Rate (Last 10)</label>
+                    <value><span class="success-rate medium">90%</span></value>
+                </div>
+                <div class="info-item">
+                    <label>Engine</label>
+                    <value>Default (Copilot)</value>
+                </div>
+                <div class="info-item">
+                    <label>Timeout</label>
+                    <value>15 minutes</value>
+                </div>
+            </div>
+
+            <div style="background: #ddf4ff; border-left: 4px solid #0969da; padding: 16px; border-radius: 6px; margin-top: 16px;">
+                <h4 style="color: #0969da; font-size: 14px; font-weight: 600; margin-bottom: 8px;">ℹ️ Event-Driven Workflow</h4>
+                <p style="color: #57606a; font-size: 14px; line-height: 1.5;">
+                    This workflow is triggered by slash commands and typically skips when no matching comment is found. 
+                    Most runs are skipped (9 of 10), which is expected behavior. 1 run required action, indicating a pending review.
+                </p>
+            </div>
+
+            <h4 style="margin-top: 24px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: #57606a; text-transform: uppercase;">Recent Run History (Last 5)</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Run</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Link</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>#445</td>
+                        <td>Jan 21, 06:55 UTC</td>
+                        <td><span class="status-badge skipped">Skipped</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21200221014" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#444</td>
+                        <td>Jan 21, 06:17 UTC</td>
+                        <td><span class="status-badge skipped">Skipped</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21199412818" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#443</td>
+                        <td>Jan 21, 06:17 UTC</td>
+                        <td><span class="status-badge skipped">Skipped</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21199409219" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#442</td>
+                        <td>Jan 21, 06:16 UTC</td>
+                        <td><span class="status-badge skipped">Skipped</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21199402689" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                    <tr>
+                        <td>#441</td>
+                        <td>Jan 21, 06:13 UTC</td>
+                        <td><span class="status-badge skipped">Skipped</span></td>
+                        <td><a href="https://github.com/githubnext/gh-aw/actions/runs/21199317146" class="run-link" target="_blank">View Run →</a></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4 style="margin-top: 24px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: #57606a; text-transform: uppercase;">Tools & Capabilities</h4>
+            <div class="tool-list">
+                <span class="tool-tag">github (all toolsets)</span>
+                <span class="tool-tag">agentic-workflows</span>
+                <span class="tool-tag">bash (*)</span>
+                <span class="tool-tag">edit</span>
+                <span class="tool-tag">web-fetch</span>
+                <span class="tool-tag">cache-memory</span>
+            </div>
+
+            <h4 style="margin-top: 24px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: #57606a; text-transform: uppercase;">Safe Outputs</h4>
+            <div style="background: #f6f8fa; padding: 12px; border-radius: 6px; font-size: 14px; color: #24292f;">
+                ✅ add-comment (max: 1)<br>
+                ✅ create-pull-request-review-comment (max: 10, side: RIGHT)
+            </div>
+
+            <h4 style="margin-top: 24px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: #57606a; text-transform: uppercase;">Security Review Focus Areas</h4>
+            <ul style="margin-left: 20px; color: #57606a; font-size: 14px; line-height: 1.8;">
+                <li>AWF (Agent Workflow Firewall) configuration changes</li>
+                <li>Network access and domain allow/block lists</li>
+                <li>Sandbox configuration modifications</li>
+                <li>Permission escalations (read to write)</li>
+                <li>Tool and MCP server configuration changes</li>
+                <li>Safe outputs and inputs configuration</li>
+                <li>Workflow trigger security (forks, roles, bots)</li>
+                <li>Go code validation logic changes</li>
+                <li>JSON schema security patterns</li>
+                <li>JavaScript security vulnerabilities</li>
+            </ul>
+        </div>
+
+        <!-- Key Findings -->
+        <div class="workflow-section">
+            <h2 class="workflow-title">📊 Key Findings & Recommendations</h2>
+            
+            <h4 style="margin-top: 24px; margin-bottom: 16px; font-size: 16px; font-weight: 600; color: #24292f;">Performance Overview</h4>
+            <ul style="margin-left: 20px; color: #57606a; font-size: 14px; line-height: 1.8;">
+                <li><strong>Code Scanning Fixer:</strong> Experiencing intermittent failures (60% success rate in last 10 runs). Failures occur during Copilot CLI execution, suggesting potential timeout or API connectivity issues.</li>
+                <li><strong>Security Fix PR:</strong> Performing excellently with 100% success rate. This workflow is the most reliable of the three security-focused workflows.</li>
+                <li><strong>Security Review:</strong> Operating as expected with mostly skipped runs (event-driven). 1 run required action, indicating it's actively being used when needed.</li>
+            </ul>
+
+            <h4 style="margin-top: 24px; margin-bottom: 16px; font-size: 16px; font-weight: 600; color: #24292f;">Recommendations</h4>
+            <div style="background: #fff8c5; border-left: 4px solid #bf8700; padding: 16px; border-radius: 6px; margin-top: 16px;">
+                <h5 style="color: #bf8700; font-size: 14px; font-weight: 600; margin-bottom: 12px;">⚠️ Action Items for Code Scanning Fixer</h5>
+                <ol style="margin-left: 20px; color: #57606a; font-size: 14px; line-height: 1.8;">
+                    <li>Investigate the root cause of Copilot CLI execution failures (step 24)</li>
+                    <li>Consider increasing timeout from 20 to 25 minutes for more complex fixes</li>
+                    <li>Add retry logic for transient API failures</li>
+                    <li>Monitor MCP gateway connectivity in failed runs</li>
+                    <li>Review cache-memory data to ensure proper alert tracking</li>
+                </ol>
+            </div>
+
+            <h4 style="margin-top: 24px; margin-bottom: 16px; font-size: 16px; font-weight: 600; color: #24292f;">Workflow Comparison</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Code Scanning Fixer</th>
+                        <th>Security Fix PR</th>
+                        <th>Security Review</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Trigger Type</strong></td>
+                        <td>Scheduled (30m)</td>
+                        <td>Scheduled (4h)</td>
+                        <td>Slash Command</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Total Runs</strong></td>
+                        <td>279</td>
+                        <td>419</td>
+                        <td>445</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Success Rate</strong></td>
+                        <td>60% (last 10)</td>
+                        <td>100% (last 10)</td>
+                        <td>N/A (event-driven)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Output Type</strong></td>
+                        <td>Pull Request</td>
+                        <td>Code Scanning Autofix</td>
+                        <td>PR Review Comments</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Max Fixes/Run</strong></td>
+                        <td>1 alert</td>
+                        <td>5 alerts</td>
+                        <td>10 comments</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Primary Tool</strong></td>
+                        <td>GitHub + Edit</td>
+                        <td>GitHub</td>
+                        <td>GitHub + All Tools</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            <p>Generated automatically using GitHub Actions API and MCP Server</p>
+            <p style="margin-top: 8px;">Repository: <a href="https://github.com/githubnext/gh-aw" target="_blank" style="color: #0969da;">githubnext/gh-aw</a></p>
+        </div>
+    </div>
+</body>
+</html>
