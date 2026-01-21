@@ -182,7 +182,7 @@ function balanceCodeRegions(markdown) {
     if (potentialClosers.length > 0) {
       // Check the first potential closer
       const firstCloser = potentialClosers[0];
-      
+
       if (firstCloser.hasOpenerBetween) {
         // There's an opener between our opener and the first closer
         // Defer this opener - we'll process it after intermediate openers are paired
@@ -193,7 +193,7 @@ function balanceCodeRegions(markdown) {
         // No opener before the first closer, so it's a direct match
         // Check if there are MORE closers without intermediate openers
         const directClosers = potentialClosers.filter(c => !c.hasOpenerBetween);
-        
+
         if (directClosers.length > 1) {
           // Multiple bare closers without intermediate openers
           // Count openers between our opener and the last direct closer to determine if this is true nesting
@@ -206,12 +206,12 @@ function balanceCodeRegions(markdown) {
               openerCount++;
             }
           }
-          
+
           // True nesting: more closers than openers (e.g., 1 opener, 3 closers)
           // Nested blocks: closers = openers + 1 (e.g., 2 openers [including us], 2 closers)
           const closerCount = directClosers.length;
           const isTrueNesting = closerCount > openerCount + 1;
-          
+
           if (isTrueNesting) {
             // TRUE nesting - use the LAST closer and escape middle ones
             const closerIndex = lastDirectCloser.index;
