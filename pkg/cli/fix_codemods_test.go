@@ -41,7 +41,7 @@ func TestGetAllCodemods_ReturnsAllCodemods(t *testing.T) {
 	codemods := GetAllCodemods()
 
 	// Verify we have the expected number of codemods
-	expectedCount := 11
+	expectedCount := 12
 	assert.Len(t, codemods, expectedCount, "Should return all %d codemods", expectedCount)
 
 	// Verify all codemods have required fields
@@ -71,6 +71,7 @@ func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
 		"safe-inputs-mode-removal",
 		"upload-assets-to-upload-asset-migration",
 		"write-permissions-to-read-migration",
+		"permissions-read-to-read-all",
 		"agent-task-to-agent-session-migration",
 		"sandbox-agent-false-removal",
 		"schedule-at-to-around-migration",
@@ -106,6 +107,7 @@ func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
 		"safe-inputs-mode-removal",
 		"upload-assets-to-upload-asset-migration",
 		"write-permissions-to-read-migration",
+		"permissions-read-to-read-all",
 		"agent-task-to-agent-session-migration",
 		"sandbox-agent-false-removal",
 		"schedule-at-to-around-migration",
