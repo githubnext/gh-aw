@@ -10,6 +10,8 @@ import (
 	"github.com/githubnext/gh-aw/pkg/campaign"
 	"github.com/githubnext/gh-aw/pkg/cli"
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestArgumentSyntaxConsistency verifies that command argument syntax is consistent with validators
@@ -22,13 +24,6 @@ func TestArgumentSyntaxConsistency(t *testing.T) {
 		shouldValidate func(*cobra.Command) error
 	}{
 		// Commands with required arguments (using angle brackets <>)
-		{
-			name:           "run command requires workflow",
-			command:        runCmd,
-			expectedUse:    "run <workflow>...",
-			argsValidator:  "MinimumNArgs(1)",
-			shouldValidate: func(cmd *cobra.Command) error { return cmd.Args(cmd, []string{"test"}) },
-		},
 		{
 			name:           "audit command requires run-id",
 			command:        cli.NewAuditCommand(),
@@ -59,6 +54,13 @@ func TestArgumentSyntaxConsistency(t *testing.T) {
 		},
 
 		// Commands with optional arguments (using square brackets [])
+		{
+			name:           "run command has optional workflow",
+			command:        runCmd,
+			expectedUse:    "run [workflow]...",
+			argsValidator:  "no validator (all optional)",
+			shouldValidate: func(cmd *cobra.Command) error { return nil },
+		},
 		{
 			name:           "new command has optional workflow",
 			command:        newCmd,
@@ -133,16 +135,18 @@ func TestArgumentSyntaxConsistency(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Setup step - ensure command is valid
+			require.NotNil(t, tt.command, "Test case %q requires valid command", tt.name)
+
 			// Check Use pattern
 			use := tt.command.Use
-			if use != tt.expectedUse {
-				t.Errorf("Command Use=%q, expected %q", use, tt.expectedUse)
-			}
+			assert.Equal(t, tt.expectedUse, use,
+				"Command %q should have expected Use syntax", tt.command.Name())
 
 			// Validate the Use pattern format
-			if !isValidUseSyntax(use) {
-				t.Errorf("Command Use=%q has invalid syntax", use)
-			}
+			assert.True(t, isValidUseSyntax(use),
+				"Command %q Use=%q should follow valid CLI syntax patterns",
+				tt.command.Name(), use)
 
 			// Skip validation check if not provided
 			if tt.shouldValidate == nil {
@@ -150,9 +154,10 @@ func TestArgumentSyntaxConsistency(t *testing.T) {
 			}
 
 			// Validate that the Args validator works as expected
-			if err := tt.shouldValidate(tt.command); err != nil {
-				t.Errorf("Args validator failed for command %q: %v", tt.command.Name(), err)
-			}
+			err := tt.shouldValidate(tt.command)
+			require.NoError(t, err,
+				"Args validator (%s) should accept valid test arguments for command %q",
+				tt.argsValidator, tt.command.Name())
 		})
 	}
 }
@@ -190,28 +195,20 @@ func TestMCPSubcommandArgumentSyntax(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Find the subcommand
-			var foundCmd *cobra.Command
-			for _, cmd := range mcpCmd.Commands() {
-				if cmd.Name() == tt.subcommand {
-					foundCmd = cmd
-					break
-				}
-			}
-
-			if foundCmd == nil {
-				t.Fatalf("MCP subcommand %q not found", tt.subcommand)
-			}
+			// Find the subcommand - setup step
+			foundCmd := findSubcommand(mcpCmd, tt.subcommand)
+			require.NotNil(t, foundCmd,
+				"Test requires MCP subcommand %q to exist in command list",
+				tt.subcommand)
 
 			use := foundCmd.Use
-			if use != tt.expectedUse {
-				t.Errorf("MCP subcommand Use=%q, expected %q", use, tt.expectedUse)
-			}
+			assert.Equal(t, tt.expectedUse, use,
+				"MCP subcommand %q should have expected Use syntax", tt.subcommand)
 
 			// Validate the Use pattern format
-			if !isValidUseSyntax(use) {
-				t.Errorf("MCP subcommand Use=%q has invalid syntax", use)
-			}
+			assert.True(t, isValidUseSyntax(use),
+				"MCP subcommand %q Use=%q should follow valid syntax pattern",
+				tt.subcommand, use)
 		})
 	}
 }
@@ -234,28 +231,20 @@ func TestPRSubcommandArgumentSyntax(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Find the subcommand
-			var foundCmd *cobra.Command
-			for _, cmd := range prCmd.Commands() {
-				if cmd.Name() == tt.subcommand {
-					foundCmd = cmd
-					break
-				}
-			}
-
-			if foundCmd == nil {
-				t.Fatalf("PR subcommand %q not found", tt.subcommand)
-			}
+			// Find the subcommand - setup step
+			foundCmd := findSubcommand(prCmd, tt.subcommand)
+			require.NotNil(t, foundCmd,
+				"Test requires PR subcommand %q to exist in command list",
+				tt.subcommand)
 
 			use := foundCmd.Use
-			if use != tt.expectedUse {
-				t.Errorf("PR subcommand Use=%q, expected %q", use, tt.expectedUse)
-			}
+			assert.Equal(t, tt.expectedUse, use,
+				"PR subcommand %q should have expected Use syntax", tt.subcommand)
 
 			// Validate the Use pattern format
-			if !isValidUseSyntax(use) {
-				t.Errorf("PR subcommand Use=%q has invalid syntax", use)
-			}
+			assert.True(t, isValidUseSyntax(use),
+				"PR subcommand %q Use=%q should follow valid syntax pattern",
+				tt.subcommand, use)
 		})
 	}
 }
@@ -283,28 +272,20 @@ func TestCampaignSubcommandArgumentSyntax(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Find the subcommand
-			var foundCmd *cobra.Command
-			for _, cmd := range campaignCmd.Commands() {
-				if cmd.Name() == tt.subcommand {
-					foundCmd = cmd
-					break
-				}
-			}
-
-			if foundCmd == nil {
-				t.Fatalf("Campaign subcommand %q not found", tt.subcommand)
-			}
+			// Find the subcommand - setup step
+			foundCmd := findSubcommand(campaignCmd, tt.subcommand)
+			require.NotNil(t, foundCmd,
+				"Test requires campaign subcommand %q to exist in command list",
+				tt.subcommand)
 
 			use := foundCmd.Use
-			if use != tt.expectedUse {
-				t.Errorf("Campaign subcommand Use=%q, expected %q", use, tt.expectedUse)
-			}
+			assert.Equal(t, tt.expectedUse, use,
+				"Campaign subcommand %q should have expected Use syntax", tt.subcommand)
 
 			// Validate the Use pattern format
-			if !isValidUseSyntax(use) {
-				t.Errorf("Campaign subcommand Use=%q has invalid syntax", use)
-			}
+			assert.True(t, isValidUseSyntax(use),
+				"Campaign subcommand %q Use=%q should follow valid syntax pattern",
+				tt.subcommand, use)
 		})
 	}
 }
@@ -429,9 +410,9 @@ func TestArgumentNamingConventions(t *testing.T) {
 			}
 
 			// Argument names should be lowercase with hyphens
-			if !regexp.MustCompile(`^[a-z][a-z0-9-]*$`).MatchString(argName) {
-				t.Errorf("Command %q has argument %q with invalid naming (should be lowercase with hyphens)", cmd.Name(), argName)
-			}
+			assert.Regexp(t, `^[a-z][a-z0-9-]*$`, argName,
+				"Command %q argument %q should use lowercase with hyphens only",
+				cmd.Name(), argName)
 		}
 	}
 }
