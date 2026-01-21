@@ -305,10 +305,10 @@ async function searchByLabel(octokit, label, repos, orgs, maxItems, maxPages, cu
 /**
  * Discover items from worker cache-memory (reads existing worker cache files)
  * Workers use cache-memory to track their outputs; campaign reads these to discover items
- * 
+ *
  * DEPRECATED: This method is being phased out in favor of label-based discovery.
  * Use label-based discovery via searchByLabel() with "agentic-campaign" and campaign-specific labels instead.
- * 
+ *
  * @param {string} campaignId - Campaign identifier (for logging)
  * @param {string[]} workflows - List of worker workflow names
  * @param {number} maxItems - Maximum items to discover
@@ -445,8 +445,8 @@ async function discover(config) {
   let totalPagesScanned = 0;
 
   // Generate campaign-specific label
-  const campaignLabel = `z_campaign_${campaignId.toLowerCase().replace(/[_\s]+/g, '-')}`;
-  
+  const campaignLabel = `z_campaign_${campaignId.toLowerCase().replace(/[_\s]+/g, "-")}`;
+
   // Primary discovery: Search by campaign-specific label (most reliable)
   core.info(`Primary discovery: Searching by campaign-specific label: ${campaignLabel}`);
   try {
@@ -466,9 +466,9 @@ async function discover(config) {
     try {
       const remainingItems = maxDiscoveryItems - totalItemsScanned;
       const remainingPages = maxDiscoveryPages - totalPagesScanned;
-      
+
       const genericResult = await searchByLabel(octokit, "agentic-campaign", repos, orgs, remainingItems, remainingPages, cursor);
-      
+
       // Filter to only items that match this campaign ID (check body for campaign_id: <id>)
       const campaignItems = genericResult.items.filter(item => {
         // Check if item body contains campaign_id: <campaignId>
@@ -476,7 +476,7 @@ async function discover(config) {
         return true; // For now, include all items with generic label
         // TODO: Add filtering by campaign_id in body text
       });
-      
+
       // Merge items (deduplicate by URL)
       const existingUrls = new Set(allItems.map(i => i.url));
       for (const item of campaignItems) {
@@ -484,7 +484,7 @@ async function discover(config) {
           allItems.push(item);
         }
       }
-      
+
       totalItemsScanned += genericResult.itemsScanned;
       totalPagesScanned += genericResult.pagesScanned;
       cursor = genericResult.cursor;
