@@ -563,19 +563,22 @@ clean-docs:
 sync-templates:
 	@echo "Syncing templates from .github to pkg/cli/templates..."
 	@mkdir -p pkg/cli/templates
+	# Workflow management templates
 	@cp .github/aw/github-agentic-workflows.md pkg/cli/templates/
 	@cp .github/aw/create-agentic-workflow.md pkg/cli/templates/
-	@cp .github/aw/update-agentic-workflow.md pkg/cli/templates/
 	@cp .github/aw/create-shared-agentic-workflow.md pkg/cli/templates/
 	@cp .github/aw/debug-agentic-workflow.md pkg/cli/templates/
+	@cp .github/aw/update-agentic-workflow.md pkg/cli/templates/
 	@cp .github/aw/upgrade-agentic-workflows.md pkg/cli/templates/
+	# Agent templates
 	@cp .github/agents/agentic-workflows.agent.md pkg/cli/templates/
-	@cp .github/aw/orchestrate-agentic-campaign.md pkg/cli/templates/
-	@cp .github/aw/update-agentic-campaign-project.md pkg/cli/templates/
-	@cp .github/aw/execute-agentic-campaign-workflow.md pkg/cli/templates/
-	@cp .github/aw/close-agentic-campaign.md pkg/cli/templates/
-	@cp .github/aw/update-agentic-campaign-project-contract.md pkg/cli/templates/
+	# Campaign management templates (lifecycle order)
 	@cp .github/aw/generate-agentic-campaign.md pkg/cli/templates/
+	@cp .github/aw/orchestrate-agentic-campaign.md pkg/cli/templates/
+	@cp .github/aw/execute-agentic-campaign-workflow.md pkg/cli/templates/
+	@cp .github/aw/update-agentic-campaign-project.md pkg/cli/templates/
+	@cp .github/aw/update-agentic-campaign-project-contract.md pkg/cli/templates/
+	@cp .github/aw/close-agentic-campaign.md pkg/cli/templates/
 	@echo "✓ Templates synced successfully"
 
 
