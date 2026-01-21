@@ -129,11 +129,10 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 			includeCopilotFields: true,
 			expectedContent: []string{
 				`"safeoutputs": {`,
-				`"type": "local"`,
+				`"type": "stdio"`,
 				`"container": "node:lts-alpine"`,
 				`"entrypoint": "node"`,
 				`"entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
-				`"tools": ["*"]`,
 				`"env": {`,
 				`"GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}"`,
 				`"GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}"`,
@@ -350,7 +349,7 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 		`container = "node:lts-alpine"`,
 		`entrypoint = "node"`,
 		`entrypointArgs = ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
-		`mounts = ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw"]`,
+		`mounts = ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw:rw", "${{ github.workspace }}:${{ github.workspace }}:rw"]`,
 		`env_vars = ["GH_AW_SAFE_OUTPUTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE", "DEFAULT_BRANCH"]`,
 	}
 
