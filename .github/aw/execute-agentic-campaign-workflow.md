@@ -118,14 +118,18 @@ For each workflow:
 
 4. **Execute the workflow** (skip if just tested successfully):
    - Trigger: `mcp__github__run_workflow(workflow_id: "<workflow-id>", ref: "main")`
+   - **Pass input parameters based on decisions**: If the workflow accepts inputs, provide them to guide execution (e.g., `inputs: {priority: "high", target: "security"}`)
    - Wait for completion: Poll `mcp__github__get_workflow_run(run_id)` until status is "completed"
    - Collect outputs: Check `mcp__github__download_workflow_run_artifact()` for any artifacts
    - **Handle failures gracefully**: If execution fails, note it in status update but continue campaign
 
 5. **Use outputs for next steps** - Use information from workflow runs to:
    - Inform subsequent workflow executions (e.g., scanner results → upgrader inputs)
+   - Pass contextual inputs to worker workflows based on campaign state and decisions
    - Update project board items with relevant information
    - Make decisions about campaign progress and next actions
+
+**Note**: Workflows that accept `workflow_dispatch` inputs can receive parameters from the orchestrator. This enables the orchestrator to provide context, priorities, or targets based on its decisions. See [DispatchOps documentation](https://githubnext.github.io/gh-aw/guides/dispatchops/#with-input-parameters) for input parameter examples.
 
 ---
 
