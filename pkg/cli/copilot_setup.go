@@ -63,7 +63,13 @@ type Workflow struct {
 }
 
 // ensureCopilotSetupSteps creates or updates .github/workflows/copilot-setup-steps.yml
-// The actionMode and version parameters are accepted for future use when action references are added
+// Parameters:
+//   - verbose: Enable verbose output
+//   - actionMode: Action mode for future action references ("dev" for local paths, "release" for remote SHA-pinned paths)
+//   - version: Version string for future action reference resolution (e.g., "v1.0.0")
+//
+// Note: Currently, the copilot-setup-steps.yml file doesn't reference actions using the 'uses:' syntax,
+// so actionMode and version are accepted for future use when action references are added.
 func ensureCopilotSetupSteps(verbose bool, actionMode string, version string) error {
 	copilotSetupLog.Printf("Creating copilot-setup-steps.yml (actionMode=%s, version=%s)", actionMode, version)
 
