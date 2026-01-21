@@ -3577,7 +3577,7 @@
     },
     "safe-outputs": {
       "type": "object",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-code-scanning-alert, create-discussion, copy-project, create-issue, create-project-status-update, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, missing-tool, noop, push-to-pull-request-branch, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-code-scanning-alert, create-discussion, copy-project, create-issue, create-project-status-update, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, missing-tool, noop, push-to-pull-request-branch, remove-labels, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
       "examples": [
         {
@@ -4749,6 +4749,47 @@
             }
           ],
           "description": "Enable AI agents to add labels to GitHub issues or pull requests based on workflow analysis or classification."
+        },
+        "remove-labels": {
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Null configuration allows any labels to be removed."
+            },
+            {
+              "type": "object",
+              "description": "Configuration for removing labels from issues/PRs from agentic workflow output.",
+              "properties": {
+                "allowed": {
+                  "type": "array",
+                  "description": "Optional list of allowed labels that can be removed. If omitted, any labels can be removed.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Optional maximum number of labels to remove (default: 3)",
+                  "minimum": 1
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for labels: 'triggering' (default), '*' (any issue/PR), or explicit issue/PR number"
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository label removal. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            }
+          ],
+          "description": "Enable AI agents to remove labels from GitHub issues or pull requests."
         },
         "add-reviewer": {
           "oneOf": [
