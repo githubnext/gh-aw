@@ -689,7 +689,25 @@ jobs:
                   "GITHUB_SERVER_URL": "$GITHUB_SERVER_URL",
                   "GITHUB_SHA": "$GITHUB_SHA",
                   "GITHUB_WORKSPACE": "$GITHUB_WORKSPACE",
-                  "DEFAULT_BRANCH": "$DEFAULT_BRANCH"
+                  "DEFAULT_BRANCH": "$DEFAULT_BRANCH",
+                  "GITHUB_RUN_ID": "$GITHUB_RUN_ID",
+                  "GITHUB_RUN_NUMBER": "$GITHUB_RUN_NUMBER",
+                  "GITHUB_RUN_ATTEMPT": "$GITHUB_RUN_ATTEMPT",
+                  "GITHUB_JOB": "$GITHUB_JOB",
+                  "GITHUB_ACTION": "$GITHUB_ACTION",
+                  "GITHUB_EVENT_NAME": "$GITHUB_EVENT_NAME",
+                  "GITHUB_EVENT_PATH": "$GITHUB_EVENT_PATH",
+                  "GITHUB_ACTOR": "$GITHUB_ACTOR",
+                  "GITHUB_ACTOR_ID": "$GITHUB_ACTOR_ID",
+                  "GITHUB_TRIGGERING_ACTOR": "$GITHUB_TRIGGERING_ACTOR",
+                  "GITHUB_WORKFLOW": "$GITHUB_WORKFLOW",
+                  "GITHUB_WORKFLOW_REF": "$GITHUB_WORKFLOW_REF",
+                  "GITHUB_WORKFLOW_SHA": "$GITHUB_WORKFLOW_SHA",
+                  "GITHUB_REF": "$GITHUB_REF",
+                  "GITHUB_REF_NAME": "$GITHUB_REF_NAME",
+                  "GITHUB_REF_TYPE": "$GITHUB_REF_TYPE",
+                  "GITHUB_HEAD_REF": "$GITHUB_HEAD_REF",
+                  "GITHUB_BASE_REF": "$GITHUB_BASE_REF"
                 }
               }
             },

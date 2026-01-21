@@ -593,12 +593,35 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			containerCmd += " -e GITHUB_PERSONAL_ACCESS_TOKEN"
 		}
 		containerCmd += " -e GITHUB_MCP_LOCKDOWN"
-		// Standard GitHub Actions environment variables
+		// Standard GitHub Actions environment variables (repository context)
 		containerCmd += " -e GITHUB_REPOSITORY"
 		containerCmd += " -e GITHUB_SERVER_URL"
 		containerCmd += " -e GITHUB_SHA"
 		containerCmd += " -e GITHUB_WORKSPACE"
 		containerCmd += " -e GITHUB_TOKEN"
+		// GitHub Actions run context
+		containerCmd += " -e GITHUB_RUN_ID"
+		containerCmd += " -e GITHUB_RUN_NUMBER"
+		containerCmd += " -e GITHUB_RUN_ATTEMPT"
+		containerCmd += " -e GITHUB_JOB"
+		containerCmd += " -e GITHUB_ACTION"
+		// GitHub Actions event context
+		containerCmd += " -e GITHUB_EVENT_NAME"
+		containerCmd += " -e GITHUB_EVENT_PATH"
+		// GitHub Actions actor context
+		containerCmd += " -e GITHUB_ACTOR"
+		containerCmd += " -e GITHUB_ACTOR_ID"
+		containerCmd += " -e GITHUB_TRIGGERING_ACTOR"
+		// GitHub Actions workflow context
+		containerCmd += " -e GITHUB_WORKFLOW"
+		containerCmd += " -e GITHUB_WORKFLOW_REF"
+		containerCmd += " -e GITHUB_WORKFLOW_SHA"
+		// GitHub Actions ref context
+		containerCmd += " -e GITHUB_REF"
+		containerCmd += " -e GITHUB_REF_NAME"
+		containerCmd += " -e GITHUB_REF_TYPE"
+		containerCmd += " -e GITHUB_HEAD_REF"
+		containerCmd += " -e GITHUB_BASE_REF"
 		// Environment variables used by safeinputs MCP server
 		// Only add if safe-inputs is actually enabled (has tools configured)
 		if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
