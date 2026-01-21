@@ -31,6 +31,12 @@ timeout-minutes: 20
 strict: true
 imports:
   - shared/reporting.md
+steps:
+  - name: Setup Go
+    uses: actions/setup-go@v6
+    with:
+      go-version-file: go.mod
+      cache: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
