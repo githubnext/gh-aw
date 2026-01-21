@@ -11,12 +11,12 @@ var copilotLogsLog = logger.New("workflow:copilot_logs")
 
 // SessionEntry represents a single entry in a Copilot session JSONL file
 type SessionEntry struct {
-	Type     string                 `json:"type"`
-	Subtype  string                 `json:"subtype,omitempty"`
-	Message  *SessionMessage        `json:"message,omitempty"`
-	Usage    *SessionUsage          `json:"usage,omitempty"`
-	NumTurns int                    `json:"num_turns,omitempty"`
-	RawData  map[string]interface{} `json:"-"`
+	Type     string          `json:"type"`
+	Subtype  string          `json:"subtype,omitempty"`
+	Message  *SessionMessage `json:"message,omitempty"`
+	Usage    *SessionUsage   `json:"usage,omitempty"`
+	NumTurns int             `json:"num_turns,omitempty"`
+	RawData  map[string]any  `json:"-"`
 }
 
 // SessionMessage represents the message field in session entries
@@ -26,13 +26,13 @@ type SessionMessage struct {
 
 // SessionContent represents content items in messages
 type SessionContent struct {
-	Type      string                 `json:"type"`
-	Text      string                 `json:"text,omitempty"`
-	ID        string                 `json:"id,omitempty"`
-	Name      string                 `json:"name,omitempty"`
-	Input     map[string]interface{} `json:"input,omitempty"`
-	ToolUseID string                 `json:"tool_use_id,omitempty"`
-	Content   string                 `json:"content,omitempty"`
+	Type      string         `json:"type"`
+	Text      string         `json:"text,omitempty"`
+	ID        string         `json:"id,omitempty"`
+	Name      string         `json:"name,omitempty"`
+	Input     map[string]any `json:"input,omitempty"`
+	ToolUseID string         `json:"tool_use_id,omitempty"`
+	Content   string         `json:"content,omitempty"`
 }
 
 // SessionUsage represents token usage in a session result entry
