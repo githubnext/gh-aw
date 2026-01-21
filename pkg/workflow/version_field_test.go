@@ -65,7 +65,8 @@ func TestVersionField(t *testing.T) {
 			"allowed_domains": []any{"example.com"},
 			"version":         "v1.41.0",
 		}
-		result := getPlaywrightDockerImageVersion(playwrightTool)
+		playwrightConfig := parsePlaywrightTool(playwrightTool)
+		result := getPlaywrightDockerImageVersion(playwrightConfig)
 		if result != "v1.41.0" {
 			t.Errorf("Expected v1.41.0, got %s", result)
 		}
@@ -74,7 +75,8 @@ func TestVersionField(t *testing.T) {
 		playwrightToolDefault := map[string]any{
 			"allowed_domains": []any{"example.com"},
 		}
-		result = getPlaywrightDockerImageVersion(playwrightToolDefault)
+		playwrightConfigDefault := parsePlaywrightTool(playwrightToolDefault)
+		result = getPlaywrightDockerImageVersion(playwrightConfigDefault)
 		if result != string(constants.DefaultPlaywrightBrowserVersion) {
 			t.Errorf("Expected default %s, got %s", string(constants.DefaultPlaywrightBrowserVersion), result)
 		}
@@ -84,7 +86,8 @@ func TestVersionField(t *testing.T) {
 			"allowed_domains": []any{"example.com"},
 			"version":         20,
 		}
-		result = getPlaywrightDockerImageVersion(playwrightToolInt)
+		playwrightConfigInt := parsePlaywrightTool(playwrightToolInt)
+		result = getPlaywrightDockerImageVersion(playwrightConfigInt)
 		if result != "20" {
 			t.Errorf("Expected 20, got %s", result)
 		}
@@ -94,7 +97,8 @@ func TestVersionField(t *testing.T) {
 			"allowed_domains": []any{"example.com"},
 			"version":         1.41,
 		}
-		result = getPlaywrightDockerImageVersion(playwrightToolFloat)
+		playwrightConfigFloat := parsePlaywrightTool(playwrightToolFloat)
+		result = getPlaywrightDockerImageVersion(playwrightConfigFloat)
 		if result != "1.41" {
 			t.Errorf("Expected 1.41, got %s", result)
 		}
@@ -104,7 +108,8 @@ func TestVersionField(t *testing.T) {
 			"allowed_domains": []any{"example.com"},
 			"version":         int64(142),
 		}
-		result = getPlaywrightDockerImageVersion(playwrightToolInt64)
+		playwrightConfigInt64 := parsePlaywrightTool(playwrightToolInt64)
+		result = getPlaywrightDockerImageVersion(playwrightConfigInt64)
 		if result != "142" {
 			t.Errorf("Expected 142, got %s", result)
 		}

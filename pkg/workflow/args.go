@@ -44,9 +44,9 @@ func getGitHubCustomArgs(githubTool any) []string {
 }
 
 // getPlaywrightCustomArgs extracts custom args from Playwright tool configuration
-func getPlaywrightCustomArgs(playwrightTool any) []string {
-	if toolConfig, ok := playwrightTool.(map[string]any); ok {
-		return extractCustomArgs(toolConfig)
+func getPlaywrightCustomArgs(playwrightConfig *PlaywrightToolConfig) []string {
+	if playwrightConfig != nil && len(playwrightConfig.Args) > 0 {
+		return playwrightConfig.Args
 	}
 	return nil
 }

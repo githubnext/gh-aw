@@ -122,21 +122,24 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 func (r *MCPConfigRendererUnified) RenderPlaywrightMCP(yaml *strings.Builder, playwrightTool any) {
 	mcpRendererLog.Printf("Rendering Playwright MCP: format=%s, inline_args=%t", r.options.Format, r.options.InlineArgs)
 
+	// Parse playwright tool configuration to strongly-typed struct
+	playwrightConfig := parsePlaywrightTool(playwrightTool)
+
 	if r.options.Format == "toml" {
-		r.renderPlaywrightTOML(yaml, playwrightTool)
+		r.renderPlaywrightTOML(yaml, playwrightConfig)
 		return
 	}
 
 	// JSON format
-	renderPlaywrightMCPConfigWithOptions(yaml, playwrightTool, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs)
+	renderPlaywrightMCPConfigWithOptions(yaml, playwrightConfig, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs)
 }
 
 // renderPlaywrightTOML generates Playwright MCP configuration in TOML format
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
-func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, playwrightTool any) {
-	args := generatePlaywrightDockerArgs(playwrightTool)
-	customArgs := getPlaywrightCustomArgs(playwrightTool)
+func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig) {
+	args := generatePlaywrightDockerArgs(playwrightConfig)
+	customArgs := getPlaywrightCustomArgs(playwrightConfig)
 
 	// Use official Playwright MCP Docker image (no version tag - only one image)
 	playwrightImage := "mcr.microsoft.com/playwright/mcp"
