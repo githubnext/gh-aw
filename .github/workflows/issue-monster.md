@@ -74,8 +74,8 @@ jobs:
                 'security'
               ];
               
-              // Search for open issues without excluded labels
-              const query = `is:issue is:open repo:${owner}/${repo} -label:"${excludeLabels.join('" -label:"')}"`;
+              // Search for open issues without excluded labels and without assignees
+              const query = `is:issue is:open no:assignee repo:${owner}/${repo} -label:"${excludeLabels.join('" -label:"')}"`;
               core.info(`Searching: ${query}`);
               const response = await github.rest.search.issuesAndPullRequests({
                 q: query,
