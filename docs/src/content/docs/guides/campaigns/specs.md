@@ -18,12 +18,13 @@ The campaign spec is a reviewable configuration file that:
 
 Most users should create specs via the [Getting started flow](/gh-aw/guides/campaigns/getting-started/).
 
-## Minimal spec
+## Minimal spec (active mode)
 
 ```yaml
 # .github/workflows/framework-upgrade.campaign.md
 id: framework-upgrade
 version: "v1"
+mode: "active"  # Orchestrates worker workflows (default when omitted)
 name: "Framework Upgrade"
 description: "Move services to Framework vNext"
 
@@ -61,6 +62,36 @@ workflows:
 state: "active"
 owners:
   - "platform-team"
+```
+
+## Minimal spec (monitoring mode)
+
+```yaml
+# .github/workflows/project-dashboard.campaign.md
+id: project-dashboard
+version: "v1"
+mode: "monitoring"  # Only tracks and updates project boards (ProjectOps)
+name: "Project Dashboard"
+description: "Track progress across repository issues"
+
+project-url: "https://github.com/orgs/ORG/projects/1"
+tracker-label: "project:dashboard"
+
+# Note: No 'workflows' field - monitoring campaigns don't orchestrate workflows
+
+objective: "Maintain up-to-date project board reflecting repository state."
+kpis:
+  - id: board_freshness
+    name: "Board items updated"
+    priority: primary
+    direction: "increase"
+    baseline: 0
+    target: 100
+    time-window-days: 7
+
+state: "active"
+owners:
+  - "project-team"
 ```
 
 ## Core fields (what they do)

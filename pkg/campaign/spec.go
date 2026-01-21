@@ -30,8 +30,17 @@ type CampaignSpec struct {
 	// When omitted, it defaults to v1 during validation.
 	Version string `yaml:"version,omitempty" json:"version,omitempty" console:"header:Version,omitempty"`
 
+	// Mode specifies the campaign mode: "monitoring" or "active".
+	// - "monitoring" (passive): Tracks and updates project boards based on existing issues/PRs.
+	//   Does not orchestrate or dispatch worker workflows. Suitable for ProjectOps use cases.
+	// - "active" (default): Orchestrates worker workflows toward a goal, potentially building
+	//   workflows on the fly and verifying with users. Requires the `workflows` field.
+	// When omitted, defaults to "active" during validation for backward compatibility.
+	Mode string `yaml:"mode,omitempty" json:"mode,omitempty" console:"header:Mode,omitempty"`
+
 	// Workflows associates this campaign with one or more workflow IDs
 	// (basename of the Markdown file without .md).
+	// Required for "active" mode campaigns. Optional for "monitoring" mode campaigns.
 	Workflows []string `yaml:"workflows,omitempty" json:"workflows,omitempty" console:"header:Workflows,omitempty,maxlen:40"`
 
 	// TrackerLabel is an optional label used to discover worker-created issues/PRs
