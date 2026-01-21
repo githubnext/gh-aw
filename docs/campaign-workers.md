@@ -470,5 +470,5 @@ on:
 ## See Also
 
 - [Campaign Files Architecture](../specs/campaigns-files.md)
-- [Campaign Examples](./docs/src/content/docs/examples/campaigns.md)
-- [Safe Outputs Documentation](./docs/src/content/docs/guides/safe-outputs.md)
+- [Campaign Examples](./src/content/docs/examples/campaigns.md)
+- [Safe Outputs Documentation](./src/content/docs/reference/safe-outputs.md)
