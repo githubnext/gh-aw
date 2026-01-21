@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -153,14 +152,4 @@ func isPositiveInteger(s string) bool {
 	// Must be numeric and > 0
 	num, err := strconv.ParseInt(s, 10, 64)
 	return err == nil && num > 0
-}
-
-// isValidTargetExpression validates complex GitHub Actions expressions
-// This is a helper for more sophisticated validation if needed in the future
-func isValidTargetExpression(expr string) bool {
-	// Basic regex to validate GitHub Actions expression syntax
-	// More sophisticated validation could be added here
-	pattern := `^\$\{\{[^}]+\}\}$`
-	matched, _ := regexp.MatchString(pattern, expr)
-	return matched
 }
