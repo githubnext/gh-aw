@@ -29,6 +29,7 @@ This command:
 - Creates upgrade workflow prompt at .github/aw/upgrade-agentic-workflows.md
 - Removes old prompt files from .github/prompts/ if they exist
 - Configures VSCode settings (.vscode/settings.json)
+- Generates/updates .github/workflows/agentics-maintenance.yml if any workflows use expires field for discussions or issues
 
 By default (without --no-mcp):
 - Creates .github/workflows/copilot-setup-steps.yml with gh-aw installation steps
