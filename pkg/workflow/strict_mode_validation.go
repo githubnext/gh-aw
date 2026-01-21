@@ -105,7 +105,9 @@ func (c *Compiler) validateStrictNetwork(networkPermissions *NetworkPermissions)
 }
 
 // validateStrictMCPNetwork requires network configuration on custom MCP servers
-func (c *Compiler) validateStrictMCPNetwork(frontmatter map[string]any) error {
+// Either the MCP server must have its own network config, or the workflow must have
+// a top-level network configuration.
+func (c *Compiler) validateStrictMCPNetwork(frontmatter map[string]any, networkPermissions *NetworkPermissions) error {
 	// Check mcp-servers section (new format)
 	mcpServersValue, exists := frontmatter["mcp-servers"]
 	if !exists {
@@ -133,9 +135,15 @@ func (c *Compiler) validateStrictMCPNetwork(frontmatter map[string]any) error {
 		// Only stdio servers with containers need network configuration
 		if mcpType == "stdio" {
 			if _, hasContainer := serverConfig["container"]; hasContainer {
-				// Check if network configuration is present
-				if _, hasNetwork := serverConfig["network"]; !hasNetwork {
-					return fmt.Errorf("strict mode: custom MCP server '%s' with container must have network configuration for security. Add 'network: { allowed: [...] }' to the server configuration to restrict network access. See: https://githubnext.github.io/gh-aw/reference/network/", serverName)
+				// Check if network configuration is present on the server itself
+				_, hasServerNetwork := serverConfig["network"]
+
+				// Check if top-level network configuration exists
+				hasTopLevelNetwork := networkPermissions != nil && len(networkPermissions.Allowed) > 0
+
+				// Require either server-level OR top-level network configuration
+				if !hasServerNetwork && !hasTopLevelNetwork {
+					return fmt.Errorf("strict mode: custom MCP server '%s' with container must have network configuration for security. Add 'network: { allowed: [...] }' to either the server configuration or the top-level workflow to restrict network access. See: https://githubnext.github.io/gh-aw/reference/network/", serverName)
 				}
 			}
 		}
@@ -239,7 +247,7 @@ func (c *Compiler) validateStrictMode(frontmatter map[string]any, networkPermiss
 	}
 
 	// 3. Require network configuration on custom MCP servers
-	if err := c.validateStrictMCPNetwork(frontmatter); err != nil {
+	if err := c.validateStrictMCPNetwork(frontmatter, networkPermissions); err != nil {
 		return err
 	}
 
