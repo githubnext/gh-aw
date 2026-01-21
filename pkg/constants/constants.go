@@ -351,6 +351,11 @@ const DefaultGhAwMount = "/opt/gh-aw:/opt/gh-aw:ro"
 // Used for logs, cache, and other runtime data that needs read-write access
 const DefaultTmpGhAwMount = "/tmp/gh-aw:/tmp/gh-aw:rw"
 
+// DefaultWorkspaceMount is the mount path for the GitHub workspace directory in containerized MCP servers
+// Uses GitHub Actions expression syntax which expands to the actual workspace path at runtime
+// This is required when MCP servers need read-write access to repository files
+const DefaultWorkspaceMount = "${{ github.workspace }}:${{ github.workspace }}:rw"
+
 // DefaultPythonVersion is the default version of Python for runtime setup
 const DefaultPythonVersion Version = "3.12"
 
