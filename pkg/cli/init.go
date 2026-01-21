@@ -6,14 +6,407 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/charmbracelet/huh"
 	"github.com/githubnext/gh-aw/pkg/campaign"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 var initLog = logger.New("cli:init")
+
+// InitRepositoryInteractive runs an interactive setup for the repository
+func InitRepositoryInteractive(verbose bool, rootCmd CommandProvider) error {
+	initLog.Print("Starting interactive repository initialization")
+
+	// Assert this function is not running in automated unit tests
+	if os.Getenv("GO_TEST_MODE") == "true" || os.Getenv("CI") != "" {
+		return fmt.Errorf("interactive init cannot be used in automated tests or CI environments")
+	}
+
+	// Ensure we're in a git repository
+	if !isGitRepo() {
+		initLog.Print("Not in a git repository, initialization failed")
+		return fmt.Errorf("not in a git repository")
+	}
+	initLog.Print("Verified git repository")
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Welcome to GitHub Agentic Workflows setup!"))
+	fmt.Fprintln(os.Stderr, "")
+
+	// Prompt for engine selection
+	var selectedEngine string
+	engineOptions := []struct {
+		value       string
+		label       string
+		description string
+	}{
+		{"copilot", "GitHub Copilot", "GitHub Copilot CLI with agent support"},
+		{"claude", "Claude", "Anthropic Claude Code coding agent"},
+		{"codex", "Codex", "OpenAI Codex/GPT engine"},
+	}
+
+	// Create engine selection options for huh
+	var huhEngineOptions []string
+	for _, opt := range engineOptions {
+		huhEngineOptions = append(huhEngineOptions, opt.value)
+	}
+
+	// Use interactive prompt to select engine
+	form := createEngineSelectionForm(&selectedEngine, engineOptions)
+	if err := form.Run(); err != nil {
+		return fmt.Errorf("engine selection failed: %w", err)
+	}
+
+	initLog.Printf("User selected engine: %s", selectedEngine)
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Configuring repository for %s engine...", selectedEngine)))
+	fmt.Fprintln(os.Stderr, "")
+
+	// Initialize repository with basic settings
+	if err := initializeBasicRepository(verbose); err != nil {
+		return err
+	}
+
+	// Configure engine-specific settings
+	mcp := false
+	if selectedEngine == "copilot" {
+		mcp = true
+		initLog.Print("Copilot engine selected, enabling MCP configuration")
+	}
+
+	// Configure MCP if copilot is selected
+	if mcp {
+		initLog.Print("Configuring GitHub Copilot Agent MCP integration")
+
+		// Create copilot-setup-steps.yml
+		if err := ensureCopilotSetupSteps(verbose); err != nil {
+			initLog.Printf("Failed to create copilot-setup-steps.yml: %v", err)
+			return fmt.Errorf("failed to create copilot-setup-steps.yml: %w", err)
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .github/workflows/copilot-setup-steps.yml"))
+		}
+
+		// Create .vscode/mcp.json
+		if err := ensureMCPConfig(verbose); err != nil {
+			initLog.Printf("Failed to create MCP config: %v", err)
+			return fmt.Errorf("failed to create MCP config: %w", err)
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .vscode/mcp.json"))
+		}
+	}
+
+	// Configure VSCode settings
+	initLog.Print("Configuring VSCode settings")
+	if err := ensureVSCodeSettings(verbose); err != nil {
+		initLog.Printf("Failed to update VSCode settings: %v", err)
+		return fmt.Errorf("failed to update VSCode settings: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .vscode/settings.json"))
+	}
+
+	// Check and setup secrets for the selected engine
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking required secrets for the selected engine..."))
+	fmt.Fprintln(os.Stderr, "")
+
+	if err := setupEngineSecrets(selectedEngine, verbose); err != nil {
+		// Secret setup is non-fatal, just warn the user
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Secret setup encountered an issue: %v", err)))
+	}
+
+	// Display success message
+	initLog.Print("Interactive repository initialization completed successfully")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Repository initialized for agentic workflows!"))
+	fmt.Fprintln(os.Stderr, "")
+	if mcp {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Copilot Agent MCP integration configured"))
+		fmt.Fprintln(os.Stderr, "")
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To create a workflow, launch Copilot CLI: npx @github/copilot"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then type /agent and select agentic-workflows"))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or add workflows from the catalog: "+string(constants.CLIExtensionPrefix)+" add <workflow-name>"))
+	fmt.Fprintln(os.Stderr, "")
+
+	return nil
+}
+
+// createEngineSelectionForm creates an interactive form for engine selection
+func createEngineSelectionForm(selectedEngine *string, engineOptions []struct {
+	value       string
+	label       string
+	description string
+}) *huh.Form {
+	// Build options for huh.Select
+	var options []huh.Option[string]
+	for _, opt := range engineOptions {
+		options = append(options, huh.NewOption(fmt.Sprintf("%s - %s", opt.label, opt.description), opt.value))
+	}
+
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Which AI engine would you like to use?").
+				Description("Select the AI engine that will power your agentic workflows").
+				Options(options...).
+				Value(selectedEngine),
+		),
+	).WithAccessible(console.IsAccessibleMode())
+}
+
+// initializeBasicRepository sets up the basic repository structure
+func initializeBasicRepository(verbose bool) error {
+	// Configure .gitattributes
+	initLog.Print("Configuring .gitattributes")
+	if err := ensureGitAttributes(); err != nil {
+		initLog.Printf("Failed to configure .gitattributes: %v", err)
+		return fmt.Errorf("failed to configure .gitattributes: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
+	}
+
+	// Ensure .github/aw/logs/.gitignore exists
+	initLog.Print("Ensuring .github/aw/logs/.gitignore exists")
+	if err := ensureLogsGitignore(); err != nil {
+		initLog.Printf("Failed to ensure logs .gitignore: %v", err)
+		return fmt.Errorf("failed to ensure logs .gitignore: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .github/aw/logs/.gitignore"))
+	}
+
+	// Write copilot instructions
+	initLog.Print("Writing GitHub Copilot instructions")
+	if err := ensureCopilotInstructions(verbose, false); err != nil {
+		initLog.Printf("Failed to write copilot instructions: %v", err)
+		return fmt.Errorf("failed to write copilot instructions: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created GitHub Copilot instructions"))
+	}
+
+	// Write dispatcher agent
+	initLog.Print("Writing agentic workflows dispatcher agent")
+	if err := ensureAgenticWorkflowsDispatcher(verbose, false); err != nil {
+		initLog.Printf("Failed to write dispatcher agent: %v", err)
+		return fmt.Errorf("failed to write dispatcher agent: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher agent"))
+	}
+
+	// Write create workflow prompt
+	initLog.Print("Writing create workflow prompt")
+	if err := ensureCreateWorkflowPrompt(verbose, false); err != nil {
+		initLog.Printf("Failed to write create workflow prompt: %v", err)
+		return fmt.Errorf("failed to write create workflow prompt: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created create workflow prompt"))
+	}
+
+	// Write update workflow prompt
+	initLog.Print("Writing update workflow prompt")
+	if err := ensureUpdateWorkflowPrompt(verbose, false); err != nil {
+		initLog.Printf("Failed to write update workflow prompt: %v", err)
+		return fmt.Errorf("failed to write update workflow prompt: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created update workflow prompt"))
+	}
+
+	// Write create shared agentic workflow prompt
+	initLog.Print("Writing create shared agentic workflow prompt")
+	if err := ensureCreateSharedAgenticWorkflowPrompt(verbose, false); err != nil {
+		initLog.Printf("Failed to write create shared workflow prompt: %v", err)
+		return fmt.Errorf("failed to write create shared workflow prompt: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created shared workflow creation prompt"))
+	}
+
+	// Delete existing setup agentic workflows agent if it exists
+	initLog.Print("Cleaning up setup agentic workflows agent")
+	if err := deleteSetupAgenticWorkflowsAgent(verbose); err != nil {
+		initLog.Printf("Failed to delete setup agentic workflows agent: %v", err)
+		return fmt.Errorf("failed to delete setup agentic workflows agent: %w", err)
+	}
+
+	// Write debug workflow prompt
+	initLog.Print("Writing debug workflow prompt")
+	if err := ensureDebugWorkflowPrompt(verbose, false); err != nil {
+		initLog.Printf("Failed to write debug workflow prompt: %v", err)
+		return fmt.Errorf("failed to write debug workflow prompt: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created debug workflow prompt"))
+	}
+
+	// Write upgrade agentic workflows prompt
+	initLog.Print("Writing upgrade agentic workflows prompt")
+	if err := ensureUpgradeAgenticWorkflowsPrompt(verbose, false); err != nil {
+		initLog.Printf("Failed to write upgrade workflows prompt: %v", err)
+		return fmt.Errorf("failed to write upgrade workflows prompt: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created upgrade workflows prompt"))
+	}
+
+	return nil
+}
+
+// setupEngineSecrets checks for engine-specific secrets and attempts to configure them
+func setupEngineSecrets(engine string, verbose bool) error {
+	initLog.Printf("Setting up secrets for engine: %s", engine)
+
+	// Get current repository
+	repoSlug, err := GetCurrentRepoSlug()
+	if err != nil {
+		initLog.Printf("Failed to get current repository: %v", err)
+		return fmt.Errorf("failed to get current repository: %w", err)
+	}
+
+	// Get required secrets for the engine
+	tokensToCheck := getRecommendedTokensForEngine(engine)
+
+	// Check environment for secrets
+	var availableSecrets []string
+	var missingSecrets []tokenSpec
+
+	for _, spec := range tokensToCheck {
+		// Check if secret is available in environment
+		secretValue := os.Getenv(spec.Name)
+
+		// Try alternative environment variable names
+		if secretValue == "" {
+			switch spec.Name {
+			case "ANTHROPIC_API_KEY":
+				secretValue = os.Getenv("ANTHROPIC_KEY")
+			case "OPENAI_API_KEY":
+				secretValue = os.Getenv("OPENAI_KEY")
+			case "COPILOT_GITHUB_TOKEN":
+				// Use the proper GitHub token helper
+				secretValue, _ = parser.GetGitHubToken()
+			}
+		}
+
+		if secretValue != "" {
+			availableSecrets = append(availableSecrets, spec.Name)
+		} else {
+			missingSecrets = append(missingSecrets, spec)
+		}
+	}
+
+	// Display found secrets
+	if len(availableSecrets) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Found the following secrets in your environment:"))
+		for _, secretName := range availableSecrets {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ %s", secretName)))
+		}
+		fmt.Fprintln(os.Stderr, "")
+
+		// Attempt to configure them as repository secrets
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Attempting to configure these secrets for repository Actions..."))
+		fmt.Fprintln(os.Stderr, "")
+
+		successCount := 0
+		for _, secretName := range availableSecrets {
+			if err := attemptSetSecret(secretName, repoSlug, verbose); err != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to set %s: %v", secretName, err)))
+				}
+			} else {
+				successCount++
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("  ✓ Configured %s", secretName)))
+			}
+		}
+
+		if successCount > 0 {
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully configured %d secret(s) for repository Actions", successCount)))
+		}
+	}
+
+	// Display missing secrets
+	if len(missingSecrets) > 0 {
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("The following required secrets are not available in your environment:"))
+
+		parts := splitRepoSlug(repoSlug)
+		cmdOwner := parts[0]
+		cmdRepo := parts[1]
+
+		for _, spec := range missingSecrets {
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✗ %s", spec.Name)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    When needed: %s", spec.When)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    Description: %s", spec.Description)))
+			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("    gh aw secrets set %s --owner %s --repo %s", spec.Name, cmdOwner, cmdRepo)))
+		}
+		fmt.Fprintln(os.Stderr, "")
+	}
+
+	return nil
+}
+
+// attemptSetSecret attempts to set a secret for the repository
+func attemptSetSecret(secretName, repoSlug string, verbose bool) error {
+	initLog.Printf("Attempting to set secret: %s for repo: %s", secretName, repoSlug)
+
+	// Check if secret already exists
+	exists, err := checkSecretExistsInRepo(secretName, repoSlug)
+	if err != nil {
+		// If we can't check, try to set anyway
+		if verbose {
+			initLog.Printf("Could not check if secret exists: %v", err)
+		}
+	} else if exists {
+		// Secret already exists, skip
+		if verbose {
+			initLog.Printf("Secret %s already exists, skipping", secretName)
+		}
+		return nil
+	}
+
+	// Get secret value from environment
+	secretValue := os.Getenv(secretName)
+	if secretValue == "" {
+		// Try alternative names
+		switch secretName {
+		case "ANTHROPIC_API_KEY":
+			secretValue = os.Getenv("ANTHROPIC_KEY")
+		case "OPENAI_API_KEY":
+			secretValue = os.Getenv("OPENAI_KEY")
+		case "COPILOT_GITHUB_TOKEN":
+			secretValue, err = parser.GetGitHubToken()
+			if err != nil {
+				return fmt.Errorf("failed to get GitHub token: %w", err)
+			}
+		}
+	}
+
+	if secretValue == "" {
+		return fmt.Errorf("secret value not found in environment")
+	}
+
+	// Set the secret using gh CLI
+	cmd := workflow.ExecGH("secret", "set", secretName, "--repo", repoSlug, "--body", secretValue)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to set secret: %w (output: %s)", err, string(output))
+	}
+
+	initLog.Printf("Successfully set secret: %s", secretName)
+	return nil
+}
 
 // InitRepository initializes the repository for agentic workflows
 func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine string, codespaceRepos []string, codespaceEnabled bool, completions bool, rootCmd CommandProvider) error {
