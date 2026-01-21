@@ -645,6 +645,7 @@ jobs:
           EOF
           fi
           
+          
           EOFSH_github-discussion-query
           chmod +x /opt/gh-aw/safe-inputs/github-discussion-query.sh
           cat > /opt/gh-aw/safe-inputs/github-issue-query.sh << 'EOFSH_github-issue-query'
