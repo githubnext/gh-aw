@@ -93,7 +93,7 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 				{
 					Name:     "status",
 					DataType: "SINGLE_SELECT",
-					Options:  []string{"Todo", "In Progress", "Review required", "Blocked", "Done"},
+					Options:  []string{"Todo", "In Progress", "Review Required", "Blocked", "Done"},
 				},
 				{
 					Name:     "campaign_id",
@@ -128,10 +128,27 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 			},
 		},
 		Messages: &workflow.SafeOutputMessagesConfig{
-			Footer:     "> *Campaign coordination by [{workflow_name}]({run_url})*",
-			RunStarted: "[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}.",
-			RunSuccess: "[{workflow_name}]({run_url}) has successfully set up your campaign. Copilot Coding Agent will now create a PR.",
-			RunFailure: "[{workflow_name}]({run_url}) {status}. Please check the details and try again.",
+			Footer: "> *Campaign coordination by [{workflow_name}]({run_url})*\n" +
+				"Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/",
+			RunStarted: "[{workflow_name}]({run_url}) started generating your campaign (trigger: {event_type}).\n\n" +
+				"**What’s happening**\n" +
+				"1. Read requirements from this issue\n" +
+				"2. Create a GitHub Project (views + standard fields)\n" +
+				"3. Generate a campaign spec + orchestrator workflow\n" +
+				"4. Update this issue with a handoff checklist\n\n" +
+				"You don’t need to do anything yet. When it finishes, look for a PR link in the issue update.\n\n" +
+				"Learn more: https://githubnext.github.io/gh-aw/guides/campaigns/flow/",
+			RunSuccess: "[{workflow_name}]({run_url}) finished the initial campaign setup.\n\n" +
+				"**Next steps**\n" +
+				"1. Review the pull request created by the Copilot Coding Agent\n" +
+				"2. Merge it\n" +
+				"3. Run the campaign orchestrator from the Actions tab\n\n" +
+				"Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/",
+			RunFailure: "[{workflow_name}]({run_url}) {status}.\n\n" +
+				"**What to do**\n" +
+				"- Open the run link above and check the logs for the first error\n" +
+				"- Fix the issue (permissions/secret/config), then re-run by re-applying the label\n\n" +
+				"Troubleshooting: https://githubnext.github.io/gh-aw/guides/campaigns/flow/#when-something-goes-wrong",
 		},
 	}
 }

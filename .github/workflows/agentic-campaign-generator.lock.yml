@@ -230,12 +230,19 @@ jobs:
               "name": "assign_to_agent"
             },
             {
-              "description": "Update an existing GitHub issue's status, title, or body. Use this to modify issue properties after creation. Only the fields you specify will be updated; other fields remain unchanged. CONSTRAINTS: Maximum 1 issue(s) can be updated.",
+              "description": "Update an existing GitHub issue's status, title, labels, assignees, milestone, or body. Body updates support replacing, appending to, prepending content, or updating a per-run \"island\" section. CONSTRAINTS: Maximum 1 issue(s) can be updated.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
+                  "assignees": {
+                    "description": "Replace the issue assignees with this list of GitHub usernames (e.g., ['octocat', 'mona']).",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
                   "body": {
-                    "description": "New issue body to replace the existing content. Use Markdown formatting.",
+                    "description": "Issue body content in Markdown. For 'replace', this becomes the entire body. For 'append'/'prepend', this content is added with a separator and an attribution footer. For 'replace-island', only the run-specific section is updated.",
                     "type": "string"
                   },
                   "issue_number": {
@@ -244,6 +251,30 @@ jobs:
                       "number",
                       "string"
                     ]
+                  },
+                  "labels": {
+                    "description": "Replace the issue labels with this list (e.g., ['bug', 'campaign:foo']). Labels must exist in the repository.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "milestone": {
+                    "description": "Milestone number to assign (e.g., 1). Use null to clear.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "operation": {
+                    "description": "How to update the issue body: 'append' (default - add to end with separator), 'prepend' (add to start with separator), 'replace' (overwrite entire body), or 'replace-island' (update a run-specific section).",
+                    "enum": [
+                      "replace",
+                      "append",
+                      "prepend",
+                      "replace-island"
+                    ],
+                    "type": "string"
                   },
                   "status": {
                     "description": "New issue status: 'open' to reopen a closed issue, 'closed' to close an open issue.",
@@ -1466,7 +1497,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG: "{\"create_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":1,\"target_owner\":\"${{ github.repository_owner }}\",\"views\":[{\"name\":\"Progress Board\",\"layout\":\"board\",\"filter\":\"is:issue is:pr\"},{\"name\":\"Task Tracker\",\"layout\":\"table\",\"filter\":\"is:issue is:pr\"},{\"name\":\"Campaign Roadmap\",\"layout\":\"roadmap\",\"filter\":\"is:issue is:pr\"}]},\"update_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":10}}"
+          GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG: "{\"create_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":1,\"target_owner\":\"${{ github.repository_owner }}\",\"views\":[{\"name\":\"Progress Board\",\"layout\":\"board\",\"filter\":\"is:issue is:pr\"},{\"name\":\"Task Tracker\",\"layout\":\"table\",\"filter\":\"is:issue is:pr\"},{\"name\":\"Campaign Roadmap\",\"layout\":\"roadmap\",\"filter\":\"is:issue is:pr\"}]},\"update_project\":{\"field_definitions\":[{\"name\":\"status\",\"data_type\":\"SINGLE_SELECT\",\"options\":[\"Todo\",\"In Progress\",\"Review Required\",\"Blocked\",\"Done\"]},{\"name\":\"campaign_id\",\"data_type\":\"TEXT\"},{\"name\":\"worker_workflow\",\"data_type\":\"TEXT\"},{\"name\":\"repository\",\"data_type\":\"TEXT\"},{\"name\":\"priority\",\"data_type\":\"SINGLE_SELECT\",\"options\":[\"High\",\"Medium\",\"Low\"]},{\"name\":\"size\",\"data_type\":\"SINGLE_SELECT\",\"options\":[\"Small\",\"Medium\",\"Large\"]},{\"name\":\"start_date\",\"data_type\":\"DATE\"},{\"name\":\"end_date\",\"data_type\":\"DATE\"}],\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":10}}"
           GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
         with:
           github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}

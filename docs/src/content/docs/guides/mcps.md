@@ -108,12 +108,15 @@ mcp-servers:
     entrypointArgs: ["serve", "--port", "8080"]  # App args after image
     env:
       API_KEY: "${{ secrets.API_KEY }}"
-    network:
-      allowed: ["api.example.com"]  # Restricts egress to allowed domains
     allowed: ["tool1", "tool2"]
+
+network:
+  allowed:
+    - defaults
+    - api.example.com  # Restricts egress to allowed domains
 ```
 
-The `container` field generates `docker run --rm -i <args> <image> <entrypointArgs>`. Network restrictions use a Squid proxy and apply only to containerized stdio servers.
+The `container` field generates `docker run --rm -i <args> <image> <entrypointArgs>`. 
 
 ### 3. HTTP MCP Servers
 
@@ -220,10 +223,6 @@ mcp-servers:
 ```
 
 Use `["*"]` to allow all tools from a custom MCP server.
-
-## Network Egress Permissions
-
-Restrict outbound access for containerized stdio MCP servers using `network.allowed` (see [Docker Container example](#2-docker-container-mcp-servers)). Enforcement uses a [Squid proxy](https://www.squid-cache.org/) with `HTTP_PROXY`/`HTTPS_PROXY` and iptables rules. Only applies to containerized stdio servers.
 
 ## Available Shared MCP Configurations
 

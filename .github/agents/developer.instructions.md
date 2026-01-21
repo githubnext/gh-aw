@@ -576,7 +576,6 @@ graph TD
 
 | Role | File | Purpose | Schedule |
 |------|------|---------|----------|
-| **Campaign Manager** | `campaign-manager.md` | Strategic management of campaigns | Daily |
 | **Workflow Health Manager** | `workflow-health-manager.md` | Monitor workflow health | Daily |
 | **Agent Performance Analyzer** | `agent-performance-analyzer.md` | Analyze agent quality | Daily |
 
