@@ -1,0 +1,20 @@
+{
+  "name": "daily-test-improver-coverage-steps",
+  "version": "1.0.0",
+  "description": "Runs comprehensive test coverage analysis for gh-aw repository with step summary",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "ncc build src/index.js -o .",
+    "test": "echo \"No tests configured\""
+  },
+  "keywords": ["github-actions", "test-coverage", "analysis"],
+  "author": "GitHub Next",
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^1.10.0",
+    "@actions/exec": "^1.1.1"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.0"
+  }
+}
