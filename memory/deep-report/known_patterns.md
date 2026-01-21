@@ -1,8 +1,8 @@
-## Known Patterns (2026-01-16)
+## Known Patterns (2026-01-21)
 
-- Firewall escape surfaced via `docker exec` into sibling safe-outputs container; indicates firewall enforcement only on agent container and no proxy/iptables in sibling containers (critical security gap).
-- Safe-outputs validation errors recur in two workflows: Changeset Generator emitting empty `update_pull_request` and Issue Monster using `target=triggering` in scheduled runs, causing repeated add_comment failures.
-- GitHub API access gaps persist in Copilot PR merged reporting (missing safeinputs-gh/unauthenticated GH token), blocking daily summary generation.
-- MCP GitHub tool definitions show schema/param issues (invalid schema for `github-get_commit`, missing owner param for `github-list_code_scanning_alerts`).
-- Token consumption remains concentrated in Issue Monster and CI Cleaner; high per-run costs still dominate the 30-day baseline.
-- Issue flow shows closures outpacing creation over last 3 days, but unlabeled issues remain (27 total, 5 open).
+- Token spend remains concentrated in CI Cleaner and Issue Monster; CI Cleaner averages 5.2M tokens/run and dominates 19.8% of 30-day Copilot cost.
+- MCP tooling reliability gaps persist: auth-test workflows report missing MCP tools in runtime, blocking remote MCP validation.
+- GitHub MCP payload bloat is recurrent in list_releases and list_code_scanning_alerts; tool responses exceed typical context budgets.
+- Safe outputs show a short-term stability spike (100% success in the last 24h), indicating recent remediation effectiveness.
+- Security posture remains strong; firewall escape tests continue to report zero new escapes post v0.9.1 patch.
+- Daily audits continue to surface missing safe-input GitHub query tools for performance summary workflows.
