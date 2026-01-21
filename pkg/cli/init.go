@@ -44,9 +44,9 @@ func InitRepositoryInteractive(verbose bool, rootCmd CommandProvider) error {
 		label       string
 		description string
 	}{
-		{"copilot", "GitHub Copilot", "GitHub Copilot CLI with agent support"},
-		{"claude", "Claude", "Anthropic Claude Code coding agent"},
-		{"codex", "Codex", "OpenAI Codex/GPT engine"},
+		{string(constants.CopilotEngine), "GitHub Copilot", "GitHub Copilot CLI with agent support"},
+		{string(constants.ClaudeEngine), "Claude", "Anthropic Claude Code coding agent"},
+		{string(constants.CodexEngine), "Codex", "OpenAI Codex/GPT engine"},
 	}
 
 	// Use interactive prompt to select engine
@@ -66,14 +66,14 @@ func InitRepositoryInteractive(verbose bool, rootCmd CommandProvider) error {
 	}
 
 	// Configure engine-specific settings
-	mcp := false
-	if selectedEngine == "copilot" {
-		mcp = true
+	copilotMcp := false
+	if selectedEngine == string(constants.CopilotEngine) {
+		copilotMcp = true
 		initLog.Print("Copilot engine selected, enabling MCP configuration")
 	}
 
 	// Configure MCP if copilot is selected
-	if mcp {
+	if copilotMcp {
 		initLog.Print("Configuring GitHub Copilot Agent MCP integration")
 
 		// Create copilot-setup-steps.yml
@@ -120,7 +120,7 @@ func InitRepositoryInteractive(verbose bool, rootCmd CommandProvider) error {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Repository initialized for agentic workflows!"))
 	fmt.Fprintln(os.Stderr, "")
-	if mcp {
+	if copilotMcp {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Copilot Agent MCP integration configured"))
 		fmt.Fprintln(os.Stderr, "")
 	}
