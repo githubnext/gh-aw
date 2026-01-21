@@ -243,7 +243,7 @@ const GitHubCopilotMCPDomain = "api.githubcopilot.com"
 const DefaultCampaignTemplateProjectURL URL = "https://github.com/orgs/githubnext/projects/74"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.12"
+const DefaultClaudeCodeVersion Version = "2.1.14"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
@@ -311,7 +311,7 @@ var SerenaLanguageSupport = map[string][]string{
 }
 
 // DefaultSandboxRuntimeVersion is the default version of the @anthropic-ai/sandbox-runtime package (SRT)
-const DefaultSandboxRuntimeVersion Version = "0.0.28"
+const DefaultSandboxRuntimeVersion Version = "0.0.29"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.56"

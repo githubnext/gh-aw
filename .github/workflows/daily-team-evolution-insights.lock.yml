@@ -148,7 +148,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.12
+        run: npm install -g --silent @anthropic-ai/claude-code@2.1.14
       - name: Determine automatic lockdown mode for GitHub MCP server
         id: determine-automatic-lockdown
         env:
@@ -343,7 +343,7 @@ jobs:
               engine_name: "Claude Code",
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "2.1.12",
+              agent_version: "2.1.14",
               workflow_name: "Daily Team Evolution Insights",
               experimental: true,
               supports_tools_allowlist: true,
@@ -1218,7 +1218,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.12
+        run: npm install -g --silent @anthropic-ai/claude-code@2.1.14
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
