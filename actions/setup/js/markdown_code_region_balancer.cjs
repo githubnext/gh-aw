@@ -104,12 +104,26 @@ function balanceCodeRegions(markdown) {
   }
 
   // Third pass: Match fences, detecting and fixing nested patterns
-  // Key insight: Find ALL valid closers for each opener. If there are multiple,
-  // use the LAST one and increase fence length so middle ones become invalid.
+  // Strategy:
+  // 1. Process fences in order
+  // 2. For each opener, find ALL potential closers at the same indentation
+  // 3. If there are multiple closers, the user intended the LAST one, so escape middle ones
+  // 4. Skip closers inside already-paired blocks
+  // 5. Respect indentation: only match fences at the same indentation level
   const fenceLengthAdjustments = new Map(); // lineIndex -> new length
   const processed = new Set();
   const unclosedFences = [];
-  const pairedBlocks = []; // Track paired blocks
+  const pairedBlocks = []; // Track paired blocks with their line ranges
+
+  // Helper function to check if a line is inside any paired block
+  const isInsideBlock = lineIndex => {
+    for (const block of pairedBlocks) {
+      if (lineIndex > block.start && lineIndex < block.end) {
+        return true;
+      }
+    }
+    return false;
+  };
 
   let i = 0;
   while (i < fences.length) {
@@ -121,28 +135,17 @@ function balanceCodeRegions(markdown) {
     const openFence = fences[i];
     processed.add(i);
 
-    // Look for ALL valid closers
-    const allMatchingClosers = []; // Track all potential closers
+    // Find ALL potential closers at same indentation that are NOT inside existing blocks
+    const potentialClosers = [];
+    const openIndentLength = openFence.indent.length;
 
     for (let j = i + 1; j < fences.length; j++) {
       if (processed.has(j)) continue;
 
       const fence = fences[j];
 
-      // If this fence has a language specifier and matches our char, it's a nested block
-      if (fence.language !== "" && fence.char === openFence.char) {
-        // Process this nested block with language
-        processed.add(j);
-
-        // Find its closer
-        for (let k = j + 1; k < fences.length; k++) {
-          if (processed.has(k)) continue;
-          const nestedCloser = fences[k];
-          if (nestedCloser.char === fence.char && nestedCloser.length >= fence.length && nestedCloser.language === "") {
-            processed.add(k);
-            break;
-          }
-        }
+      // Skip if this fence is inside a paired block
+      if (isInsideBlock(fence.lineIndex)) {
         continue;
       }
 
@@ -150,13 +153,18 @@ function balanceCodeRegions(markdown) {
       const canClose = fence.char === openFence.char && fence.length >= openFence.length && fence.language === "";
 
       if (canClose) {
-        allMatchingClosers.push({ index: j, length: fence.length });
+        const fenceIndentLength = fence.indent.length;
+
+        // Only consider fences at the SAME indentation as potential closers
+        if (fenceIndentLength === openIndentLength) {
+          potentialClosers.push({ index: j, length: fence.length });
+        }
       }
     }
 
-    if (allMatchingClosers.length > 0) {
-      // Use the LAST valid closer
-      const closerIndex = allMatchingClosers[allMatchingClosers.length - 1].index;
+    if (potentialClosers.length > 0) {
+      // Use the LAST potential closer (farthest from opener)
+      const closerIndex = potentialClosers[potentialClosers.length - 1].index;
       processed.add(closerIndex);
 
       pairedBlocks.push({
@@ -166,17 +174,17 @@ function balanceCodeRegions(markdown) {
         closeIndex: closerIndex,
       });
 
-      // If there are multiple closers, we have nested fences
-      if (allMatchingClosers.length > 1) {
+      // If there are multiple potential closers, we have nested fences that need escaping
+      if (potentialClosers.length > 1) {
         // Increase fence length so middle closers can no longer close
-        const maxLength = Math.max(...allMatchingClosers.map(c => c.length), openFence.length);
+        const maxLength = Math.max(...potentialClosers.map(c => c.length), openFence.length);
         const newLength = maxLength + 1;
         fenceLengthAdjustments.set(fences[i].lineIndex, newLength);
         fenceLengthAdjustments.set(fences[closerIndex].lineIndex, newLength);
 
-        // Mark middle closers as processed
-        for (let k = 0; k < allMatchingClosers.length - 1; k++) {
-          processed.add(allMatchingClosers[k].index);
+        // Mark middle closers as processed (they're now treated as content)
+        for (let k = 0; k < potentialClosers.length - 1; k++) {
+          processed.add(potentialClosers[k].index);
         }
       }
 
@@ -185,16 +193,8 @@ function balanceCodeRegions(markdown) {
     } else {
       // No closer found - check if this fence is inside a paired block
       const fenceLine = fences[i].lineIndex;
-      let isInsideBlock = false;
 
-      for (const block of pairedBlocks) {
-        if (fenceLine > block.start && fenceLine < block.end) {
-          isInsideBlock = true;
-          break;
-        }
-      }
-
-      if (!isInsideBlock) {
+      if (!isInsideBlock(fenceLine)) {
         unclosedFences.push(openFence);
       }
 

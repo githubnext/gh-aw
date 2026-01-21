@@ -88,6 +88,9 @@ func renderTemplate(tmplStr string, data CampaignPromptData) (string, error) {
 		"if": func(condition bool) bool {
 			return condition
 		},
+		"add1": func(i int) int {
+			return i + 1
+		},
 	}
 
 	// Parse template with custom delimiters to match Handlebars style
