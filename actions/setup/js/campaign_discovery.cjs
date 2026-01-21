@@ -303,8 +303,9 @@ async function searchByLabel(octokit, label, repos, orgs, maxItems, maxPages, cu
 }
 
 /**
- * Discover items from campaign memory (workers writing to repo-memory)
- * @param {string} campaignId - Campaign identifier
+ * Discover items from worker cache-memory (reads existing worker cache files)
+ * Workers use cache-memory to track their outputs; campaign reads these to discover items
+ * @param {string} campaignId - Campaign identifier (for logging)
  * @param {string[]} workflows - List of worker workflow names
  * @param {number} maxItems - Maximum items to discover
  * @returns {Promise<{items: any[], itemsScanned: number}>}
@@ -313,101 +314,106 @@ async function discoverFromMemory(campaignId, workflows, maxItems) {
   const items = [];
   let itemsScanned = 0;
 
-  // Path where workers write their output records
-  const memoryBasePath = `/tmp/gh-aw/repo-memory/campaigns/${campaignId}/workers`;
+  core.info(`Discovering from worker cache-memory for campaign: ${campaignId}`);
 
-  core.info(`Discovering from campaign memory: ${memoryBasePath}`);
-
-  // Check if memory directory exists
-  if (!fs.existsSync(memoryBasePath)) {
-    core.info(`Memory directory not found: ${memoryBasePath}`);
-    return { items, itemsScanned };
-  }
-
-  // Read worker output files for each workflow
+  // Read cache-memory for each worker workflow
+  // Workers already track their outputs in cache (e.g., fixed-alerts.jsonl)
   for (const workflow of workflows) {
     if (itemsScanned >= maxItems) {
       core.warning(`Reached max items budget: ${maxItems}`);
       break;
     }
 
-    const workerFile = path.join(memoryBasePath, `${workflow}.jsonl`);
+    // Workers use cache-memory with standardized file names
+    // code-scanning-fixer uses: /tmp/gh-aw/cache-memory/fixed-alerts.jsonl
+    const cacheBasePath = `/tmp/gh-aw/cache-memory`;
 
-    if (!fs.existsSync(workerFile)) {
-      core.info(`No memory file for worker: ${workflow}`);
-      continue;
+    // Try common cache file patterns for different workers
+    const cacheFiles = [
+      path.join(cacheBasePath, "fixed-alerts.jsonl"), // code-scanning-fixer
+      path.join(cacheBasePath, `${workflow}-outputs.jsonl`), // generic pattern
+      path.join(cacheBasePath, `${workflow}.jsonl`), // simple pattern
+    ];
+
+    let found = false;
+    for (const cacheFile of cacheFiles) {
+      if (!fs.existsSync(cacheFile)) {
+        continue;
+      }
+
+      found = true;
+      core.info(`Reading cache for ${workflow} from: ${cacheFile}`);
+
+      try {
+        const content = fs.readFileSync(cacheFile, "utf8");
+        const lines = content
+          .trim()
+          .split("\n")
+          .filter(line => line.trim());
+
+        core.info(`Found ${lines.length} record(s) in ${path.basename(cacheFile)}`);
+
+        for (const line of lines) {
+          if (itemsScanned >= maxItems) {
+            break;
+          }
+
+          try {
+            const record = JSON.parse(line);
+
+            // Transform cache record to discovery format
+            // Cache records have: {alert_number, fixed_at, pr_number}
+            // Need to construct: {pr_url, pr_number, created_at, ...}
+
+            // Validate required fields from cache
+            if (!record.pr_number) {
+              continue; // Skip if no PR number
+            }
+
+            // Construct GitHub URL from pr_number
+            // Assume same repo as campaign (can be enriched later)
+            const repoOwner = process.env.GITHUB_REPOSITORY_OWNER || "githubnext";
+            const repoName = process.env.GITHUB_REPOSITORY?.split("/")[1] || "gh-aw";
+            const prUrl = `https://github.com/${repoOwner}/${repoName}/pull/${record.pr_number}`;
+
+            // Normalize to campaign discovery format
+            const normalizedItem = {
+              url: prUrl,
+              content_type: "pull_request",
+              number: record.pr_number,
+              repo: `${repoOwner}/${repoName}`,
+              created_at: record.fixed_at || record.created_at || new Date().toISOString(),
+              updated_at: record.fixed_at || record.created_at || new Date().toISOString(),
+              state: "open", // Default to open; enriched later from GitHub API
+              title: `Security fix from ${workflow}`,
+              worker: workflow,
+              // Pass through cache metadata
+              metadata: {
+                alert_number: record.alert_number,
+                source: "cache-memory",
+                cache_file: path.basename(cacheFile),
+              },
+            };
+
+            items.push(normalizedItem);
+            itemsScanned++;
+          } catch (parseError) {
+            core.warning(`Failed to parse line in ${path.basename(cacheFile)}: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+          }
+        }
+
+        break; // Found and processed cache file, move to next worker
+      } catch (readError) {
+        core.warning(`Failed to read ${cacheFile}: ${readError instanceof Error ? readError.message : String(readError)}`);
+      }
     }
 
-    try {
-      const content = fs.readFileSync(workerFile, "utf8");
-      const lines = content
-        .trim()
-        .split("\n")
-        .filter(line => line.trim());
-
-      core.info(`Reading ${lines.length} record(s) from ${workflow}.jsonl`);
-
-      for (const line of lines) {
-        if (itemsScanned >= maxItems) {
-          break;
-        }
-
-        try {
-          const record = JSON.parse(line);
-
-          // Validate required fields
-          if (!record.pr_url || !record.pr_number) {
-            core.warning(`Invalid record in ${workflow}.jsonl: missing pr_url or pr_number`);
-            continue;
-          }
-
-          // Parse repository from pr_url or use provided repo field
-          let owner, repo;
-          if (record.repo) {
-            [owner, repo] = record.repo.split("/");
-          } else {
-            // Extract from URL: https://github.com/owner/repo/pull/123
-            const urlMatch = record.pr_url.match(/github\.com\/([^/]+)\/([^/]+)\/(?:pull|issues)\/(\d+)/);
-            if (urlMatch) {
-              owner = urlMatch[1];
-              repo = urlMatch[2];
-            } else {
-              core.warning(`Could not parse repository from pr_url: ${record.pr_url}`);
-              continue;
-            }
-          }
-
-          // Normalize to campaign discovery format
-          const normalizedItem = {
-            url: record.pr_url,
-            content_type: record.pr_url.includes("/pull/") ? "pull_request" : "issue",
-            number: record.pr_number,
-            repo: `${owner}/${repo}`,
-            created_at: record.created_at || new Date().toISOString(),
-            updated_at: record.updated_at || record.created_at || new Date().toISOString(),
-            state: "open", // Default to open; can be enriched later from GitHub API
-            title: record.title || `Work item from ${workflow}`,
-            worker: record.worker || workflow,
-            // Pass through any additional metadata
-            metadata: {
-              alert_number: record.alert_number,
-              severity: record.severity,
-              source: "memory",
-            },
-          };
-
-          items.push(normalizedItem);
-          itemsScanned++;
-        } catch (parseError) {
-          core.warning(`Failed to parse line in ${workflow}.jsonl: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
-        }
-      }
-    } catch (readError) {
-      core.warning(`Failed to read ${workerFile}: ${readError instanceof Error ? readError.message : String(readError)}`);
+    if (!found) {
+      core.info(`No cache file found for worker: ${workflow}`);
     }
   }
 
-  core.info(`Discovered ${items.length} item(s) from memory`);
+  core.info(`Discovered ${items.length} item(s) from worker cache-memory`);
   return { items, itemsScanned };
 }
 

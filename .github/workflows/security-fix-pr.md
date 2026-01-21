@@ -15,16 +15,11 @@ permissions:
   pull-requests: read
   security-events: read
 engine: copilot
+tracker-id: security-fix-pr
 tools:
   github:
     toolsets: [context, repos, code_security, pull_requests]
   cache-memory:
-  repo-memory:
-    - id: campaigns
-      branch-name: memory/campaigns
-      file-glob:
-        - "security-alert-burndown/**"
-      description: "Campaign worker output tracking"
 safe-outputs:
   autofix-code-scanning-alert:
     max: 5
