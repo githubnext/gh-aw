@@ -10,13 +10,11 @@ import (
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
-var mcpServersLog = logger.New("workflow:mcp_servers")
-
-
+var mcpSetupGeneratorLog = logger.New("workflow:mcp_setup_generator")
 
 // generateMCPSetup generates the MCP server configuration setup
 func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) {
-	mcpServersLog.Print("Generating MCP server configuration setup")
+	mcpSetupGeneratorLog.Print("Generating MCP server configuration setup")
 	// Collect tools that need MCP server configuration
 	var mcpTools []string
 
@@ -62,8 +60,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Sort tools to ensure stable code generation
 	sort.Strings(mcpTools)
 
-	if mcpServersLog.Enabled() {
-		mcpServersLog.Printf("Collected %d MCP tools: %v", len(mcpTools), mcpTools)
+	if mcpSetupGeneratorLog.Enabled() {
+		mcpSetupGeneratorLog.Printf("Collected %d MCP tools: %v", len(mcpTools), mcpTools)
 	}
 
 	// Ensure MCP gateway config has defaults set before collecting Docker images
@@ -75,7 +73,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// If no MCP tools, no configuration needed
 	if len(mcpTools) == 0 {
-		mcpServersLog.Print("No MCP tools configured, skipping MCP setup")
+		mcpSetupGeneratorLog.Print("No MCP tools configured, skipping MCP setup")
 		return
 	}
 
@@ -98,7 +96,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	if hasAgenticWorkflows && hasGhAwImport {
-		mcpServersLog.Print("Skipping gh-aw extension installation step (provided by shared/mcp/gh-aw.md import)")
+		mcpSetupGeneratorLog.Print("Skipping gh-aw extension installation step (provided by shared/mcp/gh-aw.md import)")
 	}
 
 	// Only install gh-aw if needed and not already provided by imports
@@ -151,7 +149,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Generate and write the filtered tools.json file
 		filteredToolsJSON, err := generateFilteredToolsJSON(workflowData, c.markdownPath)
 		if err != nil {
-			mcpServersLog.Printf("Error generating filtered tools JSON: %v", err)
+			mcpSetupGeneratorLog.Printf("Error generating filtered tools JSON: %v", err)
 			// Fall back to empty array on error
 			filteredToolsJSON = "[]"
 		}
@@ -177,7 +175,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		if err != nil {
 			// Log error prominently - validation config is critical for safe output processing
 			// The error will be caught at compile time if this ever fails
-			mcpServersLog.Printf("CRITICAL: Error generating validation config JSON: %v - validation will not work correctly", err)
+			mcpSetupGeneratorLog.Printf("CRITICAL: Error generating validation config JSON: %v - validation will not work correctly", err)
 			validationConfigJSON = "{}"
 		}
 		yaml.WriteString("          cat > /opt/gh-aw/safeoutputs/validation.json << 'EOF'\n")
