@@ -6286,7 +6286,8 @@
         },
         "network": {
           "type": "object",
-          "$comment": "Requires 'container' to be specified - network configuration only applies to container-based MCP servers. Validated by 'if/then' constraint in 'allOf' below.",
+          "deprecated": true,
+          "$comment": "DEPRECATED: Per-server network configuration is no longer supported. Use top-level workflow 'network:' configuration instead.",
           "properties": {
             "allowed": {
               "type": "array",
@@ -6308,7 +6309,7 @@
             }
           },
           "additionalProperties": false,
-          "description": "Network configuration for container-based MCP servers"
+          "description": "DEPRECATED: Per-server network configuration is no longer supported. Use top-level workflow 'network:' configuration instead. This field is ignored and will be removed in a future version."
         },
         "allowed": {
           "type": "array",
@@ -6319,7 +6320,7 @@
         }
       },
       "additionalProperties": false,
-      "$comment": "Validation constraints: (1) Mutual exclusion: 'command' and 'container' cannot both be specified. (2) Requirement: Either 'command' or 'container' must be provided (via 'anyOf'). (3) Dependency: 'network' requires 'container' (validated in 'allOf'). (4) Type constraint: When 'type' is 'stdio' or 'local', either 'command' or 'container' is required.",
+      "$comment": "Validation constraints: (1) Mutual exclusion: 'command' and 'container' cannot both be specified. (2) Requirement: Either 'command' or 'container' must be provided (via 'anyOf'). (3) Type constraint: When 'type' is 'stdio' or 'local', either 'command' or 'container' is required. Note: Per-server 'network' field is deprecated and ignored.",
       "anyOf": [
         {
           "required": ["type"]
@@ -6342,14 +6343,6 @@
         ]
       },
       "allOf": [
-        {
-          "if": {
-            "required": ["network"]
-          },
-          "then": {
-            "required": ["container"]
-          }
-        },
         {
           "if": {
             "properties": {

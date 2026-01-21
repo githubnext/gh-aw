@@ -5141,6 +5141,7 @@
         },
         "network": {
           "type": "object",
+          "deprecated": true,
           "properties": {
             "allowed": {
               "type": "array",
@@ -5162,7 +5163,7 @@
             }
           },
           "additionalProperties": false,
-          "description": "Network configuration for container-based MCP servers"
+          "description": "DEPRECATED: Per-server network configuration is no longer supported. Use top-level workflow 'network:' configuration instead. This field is ignored and will be removed in a future version."
         },
         "allowed": {
           "type": "array",
