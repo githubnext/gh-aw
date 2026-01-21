@@ -42,34 +42,34 @@ campaigns turn brief natural language goal definitions into coordinated work tra
 **Example input**: Describe your goal in plain language, such as:
 
 ```md
-Burn down all open code security alerts, prioritizing file-write alerts first
-and batching up to 3 related alerts/PR with a brief fix rationale comment.
+Migrate all API endpoints to the new authentication system,
+ensuring backward compatibility and updating documentation.
 ```
 
 The campaign generator automatically converts this into a **[campaign spec](/gh-aw/guides/campaigns/specs/)** in a pull request where you can review and iterate on the details. Here's what the essential parts look like:
 
 ```yaml
 ---
-id: security-alert-burndown
-name: "Security Alert Burndown"
-description: "Drive the code security alerts backlog to zero"
+id: api-auth-migration
+name: "API Auth Migration"
+description: "Migrate all endpoints to new authentication system"
 
 # GitHub Project for tracking
 project-url: "https://github.com/orgs/ORG/projects/1"
-tracker-label: "campaign:security-alert-burndown"
+tracker-label: "campaign:api-auth-migration"
 
 # Strategic goals
-objective: "Reduce open code security alerts to zero without breaking CI."
+objective: "Migrate all API endpoints to the new auth system without breaking existing clients."
 kpis:
-  - id: open_alerts
-    name: "Open alerts"
+  - id: endpoints_migrated
+    name: "Endpoints migrated"
     priority: primary
-    direction: "decrease"
-    target: 0
+    direction: "increase"
+    target: 100
 
 # Worker workflows to dispatch
 workflows:
-  - security-alert-fix
+  - api-endpoint-migrator
 
 # Governance and pacing
 governance:
