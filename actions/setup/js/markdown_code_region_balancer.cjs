@@ -18,6 +18,12 @@
  * }
  * ```
  *
+ * Common AI-Generated Error Patterns (in order of frequency):
+ * 1. Unclosed code blocks at end of content (FIXED: adds closing fence)
+ * 2. Nested fences at same indentation level (FIXED: escapes by increasing fence length)
+ * 3. Mixed fence types causing confusion (HANDLED: treats ` and ~ separately)
+ * 4. Indented bare fences in markdown examples (HANDLED: preserves as content)
+ *
  * Rules:
  * - Supports both backtick (`) and tilde (~) fences
  * - Minimum fence length is 3 characters
@@ -25,6 +31,7 @@
  * - Fences can have optional language specifiers
  * - Indentation is preserved but doesn't affect matching
  * - Content inside code blocks should never contain valid fences
+ * - Indented fences (different indentation than opener) are treated as content
  *
  * @module markdown_code_region_balancer
  */
@@ -33,10 +40,19 @@
  * Balance markdown code regions by attempting to fix mismatched fences.
  *
  * The algorithm:
- * 1. Parse through markdown line by line, skipping XML comment regions
- * 2. Track code block state (open/closed)
- * 3. When nested fences are detected, increase outer fence length by 1
- * 4. Ensure all opened code blocks are properly closed
+ * 1. Normalize line endings to ensure consistent processing
+ * 2. Parse through markdown line by line, skipping XML comment regions
+ * 3. Track code block state (open/closed)
+ * 4. When nested fences are detected, increase outer fence length by 1
+ * 5. Ensure all opened code blocks are properly closed
+ * 6. Quality check: Verify the result doesn't create more unbalanced regions
+ *    than the original input - if it does, return the original (normalized)
+ *
+ * Quality guarantees:
+ * - Never creates MORE unbalanced code regions than the input
+ * - Always normalizes line endings (\r\n -> \n)
+ * - If the algorithm would degrade quality, returns original content
+ * - Preserves indentation and fence character types
  *
  * @param {string} markdown - Markdown content to balance
  * @returns {string} Balanced markdown with properly matched code regions
@@ -345,7 +361,28 @@ function balanceCodeRegions(markdown) {
     result.push(closingFence);
   }
 
-  return result.join("\n");
+  const resultMarkdown = result.join("\n");
+
+  // Quality check: Verify we didn't make things worse
+  // Compare the unbalanced counts before and after
+  const originalCounts = countCodeRegions(normalizedMarkdown);
+  const resultCounts = countCodeRegions(resultMarkdown);
+
+  // If we created MORE unbalanced regions, give up and return original (normalized)
+  if (resultCounts.unbalanced > originalCounts.unbalanced) {
+    return normalizedMarkdown;
+  }
+
+  // If we didn't improve the balance at all (same unbalanced count),
+  // and we modified the markdown significantly, check if we should give up
+  if (resultCounts.unbalanced === originalCounts.unbalanced && resultMarkdown !== normalizedMarkdown) {
+    // If the total count increased (we added more fences somehow), give up
+    if (resultCounts.total > originalCounts.total) {
+      return normalizedMarkdown;
+    }
+  }
+
+  return resultMarkdown;
 }
 
 /**
