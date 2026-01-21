@@ -312,7 +312,9 @@ async function closeOlderIssues(github, owner, repo, titlePrefix, labels, newIss
       core.info("");
       core.error(`✗ Failed to close issue #${issue.number}`);
       core.error(`  Error: ${getErrorMessage(error)}`);
-      core.error(`  Stack trace: ${error.stack || "(not available)"}`);
+      if (error instanceof Error && error.stack) {
+        core.error(`  Stack trace: ${error.stack}`);
+      }
       // Continue with other issues even if one fails
     }
 

@@ -242,6 +242,16 @@ const GitHubCopilotMCPDomain = "api.githubcopilot.com"
 // This points to the githubnext "[TEMPLATE: Agentic Campaign]" project (Project 74).
 const DefaultCampaignTemplateProjectURL URL = "https://github.com/orgs/githubnext/projects/74"
 
+// AgenticCampaignLabel is the label applied to all campaign-related issues, PRs, and discussions.
+// This label marks content as part of an agentic campaign, preventing other workflows from
+// processing these items to avoid interference with campaign orchestration.
+const AgenticCampaignLabel = "agentic-campaign"
+
+// CampaignLabelPrefix is the prefix used for campaign-specific labels.
+// Campaign-specific labels follow the format "z_campaign_<id>" where <id> is the campaign identifier.
+// The "z_" prefix ensures these labels sort last in label lists.
+const CampaignLabelPrefix = "z_campaign_"
+
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
 const DefaultClaudeCodeVersion Version = "2.1.14"
 

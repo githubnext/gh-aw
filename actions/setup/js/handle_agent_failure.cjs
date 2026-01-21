@@ -53,7 +53,7 @@ async function findPullRequestForCurrentBranch() {
  */
 async function ensureParentIssue(previousParentNumber = null) {
   const { owner, repo } = context.repo;
-  const parentTitle = "[agentics] Agentic Workflow Issues";
+  const parentTitle = "[agentic-workflows] Failed runs";
   const parentLabel = "agentic-workflows";
 
   core.info(`Searching for parent issue: "${parentTitle}"`);
@@ -99,9 +99,7 @@ async function ensureParentIssue(previousParentNumber = null) {
   const creationReason = previousParentNumber ? `creating new parent (previous #${previousParentNumber} reached limit)` : "creating first parent";
   core.info(`No suitable parent issue found, ${creationReason}`);
 
-  let parentBodyContent = `# Agentic Workflow Failures
-
-This issue tracks all failures from agentic workflows in this repository. Each failed workflow run creates a sub-issue linked here for organization and easy filtering.`;
+  let parentBodyContent = `This issue tracks all failures from agentic workflows in this repository. Each failed workflow run creates a sub-issue linked here for organization and easy filtering.`;
 
   // Add reference to previous parent if this is a continuation
   if (previousParentNumber) {
