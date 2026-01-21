@@ -127,10 +127,11 @@ on:
 permissions: {}
 
 jobs:
-  close-expired-discussions:
+  close-expired-entities:
     runs-on: ubuntu-slim
     permissions:
       discussions: write
+      issues: write
     steps:
 `)
 
@@ -168,34 +169,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/close_expired_discussions.cjs');
             await main();
-`)
-
-	// Add close-expired-issues job
-	yaml.WriteString(`
-  close-expired-issues:
-    runs-on: ubuntu-slim
-    permissions:
-      issues: write
-    steps:
-`)
-
-	// Add checkout step only in dev mode (for local action paths)
-	if actionMode == ActionModeDev {
-		yaml.WriteString(`      - name: Checkout actions folder
-        uses: ` + GetActionPin("actions/checkout") + `
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-
-`)
-	}
-
-	// Add setup step with the resolved action reference
-	yaml.WriteString(`      - name: Setup Scripts
-        uses: ` + setupActionRef + `
-        with:
-          destination: /opt/gh-aw/actions
 
       - name: Close expired issues
         uses: ` + GetActionPin("actions/github-script") + `
