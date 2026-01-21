@@ -1,0 +1,25 @@
+{
+  "campaign_id": "security-alert-burndown",
+  "date": "2026-01-21",
+  "tasks_total": 0,
+  "tasks_completed": 0,
+  "tasks_in_progress": 0,
+  "tasks_blocked": 0,
+  "velocity_per_day": 0,
+  "kpis": {
+    "high_severity_alerts_fixed": {
+      "baseline": 0,
+      "current": 0,
+      "target": 20,
+      "days_elapsed": 1,
+      "days_remaining": 29
+    },
+    "file_write_vulnerabilities_fixed": {
+      "baseline": 0,
+      "current": 0,
+      "target": 10,
+      "days_elapsed": 1,
+      "days_remaining": 29
+    }
+  }
+}
