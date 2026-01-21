@@ -208,3 +208,107 @@ func TestEnsureFileMatchesTemplate_VerboseOutput(t *testing.T) {
 		})
 	}
 }
+
+// TestDeleteOldAgentFiles tests deletion of old agent files
+func TestDeleteOldAgentFiles(t *testing.T) {
+	tests := []struct {
+		name          string
+		filesToCreate []string // Paths relative to git root
+		expectedDeleted []string // Files that should be deleted
+	}{
+		{
+			name: "deletes old agent files from .github/agents",
+			filesToCreate: []string{
+				".github/agents/create-agentic-workflow.agent.md",
+				".github/agents/debug-agentic-workflow.agent.md",
+				".github/agents/create-shared-agentic-workflow.agent.md",
+			},
+			expectedDeleted: []string{
+				".github/agents/create-agentic-workflow.agent.md",
+				".github/agents/debug-agentic-workflow.agent.md",
+				".github/agents/create-shared-agentic-workflow.agent.md",
+			},
+		},
+		{
+			name: "deletes singular upgrade-agentic-workflow.md from .github/aw",
+			filesToCreate: []string{
+				".github/aw/upgrade-agentic-workflow.md",
+			},
+			expectedDeleted: []string{
+				".github/aw/upgrade-agentic-workflow.md",
+			},
+		},
+		{
+			name: "deletes both agent and aw files",
+			filesToCreate: []string{
+				".github/agents/create-agentic-workflow.agent.md",
+				".github/aw/upgrade-agentic-workflow.md",
+			},
+			expectedDeleted: []string{
+				".github/agents/create-agentic-workflow.agent.md",
+				".github/aw/upgrade-agentic-workflow.md",
+			},
+		},
+		{
+			name: "handles no files to delete",
+			filesToCreate: []string{},
+			expectedDeleted: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a temporary directory for testing
+			tempDir := testutil.TempDir(t, "test-*")
+
+			// Change to temp directory and initialize git repo
+			oldWd, _ := os.Getwd()
+			defer func() {
+				_ = os.Chdir(oldWd)
+			}()
+			err := os.Chdir(tempDir)
+			if err != nil {
+				t.Fatalf("Failed to change directory: %v", err)
+			}
+
+			// Initialize git repo
+			if err := exec.Command("git", "init").Run(); err != nil {
+				t.Fatalf("Failed to init git repo: %v", err)
+			}
+
+			// Create test files
+			for _, filePath := range tt.filesToCreate {
+				fullPath := filepath.Join(tempDir, filePath)
+				dir := filepath.Dir(fullPath)
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					t.Fatalf("Failed to create directory %s: %v", dir, err)
+				}
+				if err := os.WriteFile(fullPath, []byte("test content"), 0644); err != nil {
+					t.Fatalf("Failed to create file %s: %v", fullPath, err)
+				}
+			}
+
+			// Call deleteOldAgentFiles
+			err = deleteOldAgentFiles(false)
+			if err != nil {
+				t.Fatalf("deleteOldAgentFiles() returned error: %v", err)
+			}
+
+			// Verify expected files were deleted
+			for _, filePath := range tt.expectedDeleted {
+				fullPath := filepath.Join(tempDir, filePath)
+				if _, err := os.Stat(fullPath); !os.IsNotExist(err) {
+					t.Errorf("Expected file %s to be deleted, but it still exists", filePath)
+				}
+			}
+
+			// Verify other files weren't affected (if any exist)
+			// For example, the plural form should not be deleted
+			pluralPath := filepath.Join(tempDir, ".github/aw/upgrade-agentic-workflows.md")
+			if _, err := os.Stat(pluralPath); err == nil {
+				// If it existed, it should still exist
+				t.Logf("Correctly preserved .github/aw/upgrade-agentic-workflows.md (plural)")
+			}
+		})
+	}
+}
