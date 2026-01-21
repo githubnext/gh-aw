@@ -135,7 +135,8 @@ function balanceCodeRegions(markdown) {
     const openFence = fences[i];
     processed.add(i);
 
-    // Find ALL potential closers at same indentation that are NOT inside existing blocks
+    // Find potential closers: bare fences at same indentation that can close this opener
+    // For each closer, track if there's an opener between our opener and that closer
     const potentialClosers = [];
     const openIndentLength = openFence.indent.length;
 
@@ -157,39 +158,111 @@ function balanceCodeRegions(markdown) {
 
         // Only consider fences at the SAME indentation as potential closers
         if (fenceIndentLength === openIndentLength) {
-          potentialClosers.push({ index: j, length: fence.length });
+          // Check if there's an opener between our opener (i) and this closer (j)
+          let hasOpenerBetween = false;
+          for (let k = i + 1; k < j; k++) {
+            if (processed.has(k)) continue;
+            const intermediateFence = fences[k];
+            if (intermediateFence.language !== "" && intermediateFence.indent.length === openIndentLength) {
+              hasOpenerBetween = true;
+              break;
+            }
+          }
+
+          potentialClosers.push({
+            index: j,
+            length: fence.length,
+            hasOpenerBetween,
+          });
         }
       }
     }
 
     if (potentialClosers.length > 0) {
-      // Use the LAST potential closer (farthest from opener)
-      const closerIndex = potentialClosers[potentialClosers.length - 1].index;
-      processed.add(closerIndex);
+      // Check the first potential closer
+      const firstCloser = potentialClosers[0];
+      
+      if (firstCloser.hasOpenerBetween) {
+        // There's an opener between our opener and the first closer
+        // This means the first closer likely closes that intermediate opener
+        // Skip this opener for now, let the intermediate opener get processed first
+        i++;
+      } else {
+        // No opener before the first closer, so it's a direct match
+        // Check if there are MORE closers without intermediate openers
+        const directClosers = potentialClosers.filter(c => !c.hasOpenerBetween);
+        
+        if (directClosers.length > 1) {
+          // Multiple bare closers without intermediate openers
+          // Count openers between our opener and the last direct closer to determine if this is true nesting
+          const lastDirectCloser = directClosers[directClosers.length - 1];
+          let openerCount = 0;
+          for (let k = i + 1; k < lastDirectCloser.index; k++) {
+            if (processed.has(k)) continue;
+            const intermediateFence = fences[k];
+            if (intermediateFence.language !== "" && intermediateFence.indent.length === openIndentLength) {
+              openerCount++;
+            }
+          }
+          
+          // True nesting: more closers than openers (e.g., 1 opener, 3 closers)
+          // Nested blocks: closers = openers + 1 (e.g., 2 openers [including us], 2 closers)
+          const closerCount = directClosers.length;
+          const isTrueNesting = closerCount > openerCount + 1;
+          
+          if (isTrueNesting) {
+            // TRUE nesting - use the LAST closer and escape middle ones
+            const closerIndex = lastDirectCloser.index;
+            processed.add(closerIndex);
 
-      pairedBlocks.push({
-        start: fences[i].lineIndex,
-        end: fences[closerIndex].lineIndex,
-        openIndex: i,
-        closeIndex: closerIndex,
-      });
+            pairedBlocks.push({
+              start: fences[i].lineIndex,
+              end: fences[closerIndex].lineIndex,
+              openIndex: i,
+              closeIndex: closerIndex,
+            });
 
-      // If there are multiple potential closers, we have nested fences that need escaping
-      if (potentialClosers.length > 1) {
-        // Increase fence length so middle closers can no longer close
-        const maxLength = Math.max(...potentialClosers.map(c => c.length), openFence.length);
-        const newLength = maxLength + 1;
-        fenceLengthAdjustments.set(fences[i].lineIndex, newLength);
-        fenceLengthAdjustments.set(fences[closerIndex].lineIndex, newLength);
+            // Increase fence length so middle closers can no longer close
+            const maxLength = Math.max(...directClosers.map(c => c.length), openFence.length);
+            const newLength = maxLength + 1;
+            fenceLengthAdjustments.set(fences[i].lineIndex, newLength);
+            fenceLengthAdjustments.set(fences[closerIndex].lineIndex, newLength);
 
-        // Mark middle closers as processed (they're now treated as content)
-        for (let k = 0; k < potentialClosers.length - 1; k++) {
-          processed.add(potentialClosers[k].index);
+            // Mark middle closers as processed (they're now treated as content)
+            for (let k = 0; k < directClosers.length - 1; k++) {
+              processed.add(directClosers[k].index);
+            }
+
+            i = closerIndex + 1;
+          } else {
+            // Nested blocks - use the FIRST direct closer (greedy matching)
+            const closerIndex = directClosers[0].index;
+            processed.add(closerIndex);
+
+            pairedBlocks.push({
+              start: fences[i].lineIndex,
+              end: fences[closerIndex].lineIndex,
+              openIndex: i,
+              closeIndex: closerIndex,
+            });
+
+            i = closerIndex + 1;
+          }
+        } else {
+          // Only one direct closer, use it (normal case)
+          const closerIndex = firstCloser.index;
+          processed.add(closerIndex);
+
+          pairedBlocks.push({
+            start: fences[i].lineIndex,
+            end: fences[closerIndex].lineIndex,
+            openIndex: i,
+            closeIndex: closerIndex,
+          });
+
+          i = closerIndex + 1;
         }
       }
-
-      // Continue from after the closer
-      i = closerIndex + 1;
     } else {
       // No closer found - check if this fence is inside a paired block
       const fenceLine = fences[i].lineIndex;
