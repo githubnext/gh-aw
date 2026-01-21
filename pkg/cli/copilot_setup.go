@@ -63,8 +63,9 @@ type Workflow struct {
 }
 
 // ensureCopilotSetupSteps creates or updates .github/workflows/copilot-setup-steps.yml
-func ensureCopilotSetupSteps(verbose bool) error {
-	copilotSetupLog.Print("Creating copilot-setup-steps.yml")
+// The actionMode and version parameters are accepted for future use when action references are added
+func ensureCopilotSetupSteps(verbose bool, actionMode string, version string) error {
+	copilotSetupLog.Printf("Creating copilot-setup-steps.yml (actionMode=%s, version=%s)", actionMode, version)
 
 	// Create .github/workflows directory if it doesn't exist
 	workflowsDir := filepath.Join(".github", "workflows")

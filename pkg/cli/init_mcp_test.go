@@ -261,7 +261,7 @@ jobs:
 	}
 
 	// Call ensureCopilotSetupSteps
-	if err := ensureCopilotSetupSteps(false); err != nil {
+	if err := ensureCopilotSetupSteps(false, "dev", "v0.0.1"); err != nil {
 		t.Fatalf("ensureCopilotSetupSteps() returned error: %v", err)
 	}
 
@@ -342,7 +342,7 @@ jobs:
 	}
 
 	// Call ensureCopilotSetupSteps
-	if err := ensureCopilotSetupSteps(false); err != nil {
+	if err := ensureCopilotSetupSteps(false, "dev", "v0.0.1"); err != nil {
 		t.Fatalf("ensureCopilotSetupSteps() returned error: %v", err)
 	}
 

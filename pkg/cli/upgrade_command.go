@@ -7,6 +7,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
@@ -169,6 +170,14 @@ func updateAgentFiles(verbose bool) error {
 	if err := ensureUpgradeAgenticWorkflowsPrompt(verbose, false); err != nil {
 		upgradeLog.Printf("Failed to update upgrade workflows prompt: %v", err)
 		return fmt.Errorf("failed to update upgrade workflows prompt: %w", err)
+	}
+
+	// Update copilot setup steps file
+	// Detect action mode based on version
+	actionMode := workflow.DetectActionMode(GetVersion())
+	if err := ensureCopilotSetupSteps(verbose, actionMode.String(), GetVersion()); err != nil {
+		upgradeLog.Printf("Failed to update copilot-setup-steps.yml: %v", err)
+		return fmt.Errorf("failed to update copilot-setup-steps.yml: %w", err)
 	}
 
 	return nil

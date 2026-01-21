@@ -171,7 +171,9 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		initLog.Print("Configuring GitHub Copilot Agent MCP integration")
 
 		// Create copilot-setup-steps.yml
-		if err := ensureCopilotSetupSteps(verbose); err != nil {
+		// Detect action mode based on version
+		actionMode := workflow.DetectActionMode(GetVersion())
+		if err := ensureCopilotSetupSteps(verbose, actionMode.String(), GetVersion()); err != nil {
 			initLog.Printf("Failed to create copilot-setup-steps.yml: %v", err)
 			return fmt.Errorf("failed to create copilot-setup-steps.yml: %w", err)
 		}

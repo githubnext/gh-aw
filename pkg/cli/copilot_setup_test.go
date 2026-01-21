@@ -156,7 +156,7 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 			}
 
 			// Call the function
-			err = ensureCopilotSetupSteps(tt.verbose)
+			err = ensureCopilotSetupSteps(tt.verbose, "dev", "v0.0.1")
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ensureCopilotSetupSteps() error = %v, wantErr %v", err, tt.wantErr)
@@ -416,7 +416,7 @@ func TestEnsureCopilotSetupStepsFilePermissions(t *testing.T) {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
-	err = ensureCopilotSetupSteps(false)
+	err = ensureCopilotSetupSteps(false, "dev", "v0.0.1")
 	if err != nil {
 		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
 	}
@@ -516,7 +516,7 @@ func TestEnsureCopilotSetupStepsDirectoryCreation(t *testing.T) {
 	}
 
 	// Call function when .github/workflows doesn't exist
-	err = ensureCopilotSetupSteps(false)
+	err = ensureCopilotSetupSteps(false, "dev", "v0.0.1")
 	if err != nil {
 		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
 	}
