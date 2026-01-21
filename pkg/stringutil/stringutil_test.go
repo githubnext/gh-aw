@@ -503,6 +503,41 @@ func TestStripANSIEscapeCodes(t *testing.T) {
 			input:    "Start\x1b[KEnd",
 			expected: "StartEnd",
 		},
+		{
+			name:     "consecutive ANSI codes",
+			input:    "\x1b[1m\x1b[31m\x1b[4mRed Bold Underline\x1b[0m\x1b[0m\x1b[0m",
+			expected: "Red Bold Underline",
+		},
+		{
+			name:     "ANSI with large parameter",
+			input:    "\x1b[38;5;255mWhite\x1b[0m",
+			expected: "White",
+		},
+		{
+			name:     "ANSI RGB color (24-bit)",
+			input:    "\x1b[38;2;255;128;0mOrange RGB\x1b[0m",
+			expected: "Orange RGB",
+		},
+		{
+			name:     "ANSI codes in the middle of words",
+			input:    "hel\x1b[31mlo\x1b[0m wor\x1b[32mld\x1b[0m",
+			expected: "hello world",
+		},
+		{
+			name:     "ANSI save/restore cursor",
+			input:    "Text\x1b[s more text\x1b[u end",
+			expected: "Text more text end",
+		},
+		{
+			name:     "ANSI cursor position",
+			input:    "\x1b[H\x1b[2JClear and home",
+			expected: "Clear and home",
+		},
+		{
+			name:     "long string with multiple ANSI codes",
+			input:    "\x1b[1mThis\x1b[0m \x1b[31mis\x1b[0m \x1b[32ma\x1b[0m \x1b[33mvery\x1b[0m \x1b[34mlong\x1b[0m \x1b[35mstring\x1b[0m \x1b[36mwith\x1b[0m \x1b[37mmany\x1b[0m \x1b[1mANSI\x1b[0m \x1b[4mcodes\x1b[0m",
+			expected: "This is a very long string with many ANSI codes",
+		},
 	}
 
 	for _, tt := range tests {
