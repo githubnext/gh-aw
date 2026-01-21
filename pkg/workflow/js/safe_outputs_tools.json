@@ -477,7 +477,7 @@
   },
   {
     "name": "update_issue",
-    "description": "Update an existing GitHub issue's status, title, or body. Use this to modify issue properties after creation. Only the fields you specify will be updated; other fields remain unchanged.",
+    "description": "Update an existing GitHub issue's status, title, labels, assignees, milestone, or body. Body updates support replacing, appending to, prepending content, or updating a per-run \"island\" section.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -495,7 +495,38 @@
         },
         "body": {
           "type": "string",
-          "description": "New issue body to replace the existing content. Use Markdown formatting."
+          "description": "Issue body content in Markdown. For 'replace', this becomes the entire body. For 'append'/'prepend', this content is added with a separator and an attribution footer. For 'replace-island', only the run-specific section is updated."
+        },
+        "operation": {
+          "type": "string",
+          "enum": [
+            "replace",
+            "append",
+            "prepend",
+            "replace-island"
+          ],
+          "description": "How to update the issue body: 'append' (default - add to end with separator), 'prepend' (add to start with separator), 'replace' (overwrite entire body), or 'replace-island' (update a run-specific section)."
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Replace the issue labels with this list (e.g., ['bug', 'campaign:foo']). Labels must exist in the repository."
+        },
+        "assignees": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Replace the issue assignees with this list of GitHub usernames (e.g., ['octocat', 'mona'])."
+        },
+        "milestone": {
+          "type": [
+            "number",
+            "string"
+          ],
+          "description": "Milestone number to assign (e.g., 1). Use null to clear."
         },
         "issue_number": {
           "type": [
