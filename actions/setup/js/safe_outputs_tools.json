@@ -304,13 +304,15 @@
           "items": {
             "type": "string"
           },
-          "description": "Label names to remove (e.g., ['bug', 'needs-triage']). Labels that don't exist on the item are silently skipped."
+          "minItems": 1,
+          "description": "Label names to remove (e.g., ['bug', 'needs-triage']). Labels that don't exist on the item are silently skipped. At least one label must be provided."
         },
         "item_number": {
           "type": "number",
           "description": "Issue or PR number to remove labels from. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, removes labels from the item that triggered this workflow."
         }
       },
+      "required": ["labels"],
       "additionalProperties": false
     }
   },
