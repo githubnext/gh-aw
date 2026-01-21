@@ -131,8 +131,9 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 	if hasPlaywright {
 		// Extract all expressions from playwright arguments using ExpressionExtractor
 		if playwrightTool, ok := tools["playwright"]; ok {
-			allowedDomains := generatePlaywrightAllowedDomains(playwrightTool)
-			customArgs := getPlaywrightCustomArgs(playwrightTool)
+			playwrightConfig := parsePlaywrightTool(playwrightTool)
+			allowedDomains := generatePlaywrightAllowedDomains(playwrightConfig)
+			customArgs := getPlaywrightCustomArgs(playwrightConfig)
 			playwrightAllowedDomainsSecrets := extractExpressionsFromPlaywrightArgs(allowedDomains, customArgs)
 			for envVarName, originalExpr := range playwrightAllowedDomainsSecrets {
 				envVars[envVarName] = originalExpr
@@ -1010,70 +1011,40 @@ func getGitHubAllowedTools(githubTool any) []string {
 	return nil
 }
 
-func getPlaywrightDockerImageVersion(playwrightTool any) string {
+func getPlaywrightDockerImageVersion(playwrightConfig *PlaywrightToolConfig) string {
 	playwrightDockerImageVersion := string(constants.DefaultPlaywrightBrowserVersion) // Default Playwright browser Docker image version
 	// Extract version setting from tool properties
-	if toolConfig, ok := playwrightTool.(map[string]any); ok {
-		if versionSetting, exists := toolConfig["version"]; exists {
-			switch v := versionSetting.(type) {
-			case string:
-				playwrightDockerImageVersion = v
-			case int:
-				playwrightDockerImageVersion = fmt.Sprintf("%d", v)
-			case int64:
-				playwrightDockerImageVersion = fmt.Sprintf("%d", v)
-			case uint64:
-				playwrightDockerImageVersion = fmt.Sprintf("%d", v)
-			case float64:
-				playwrightDockerImageVersion = fmt.Sprintf("%g", v)
-			}
-		}
+	if playwrightConfig != nil && playwrightConfig.Version != "" {
+		playwrightDockerImageVersion = playwrightConfig.Version
 	}
 	return playwrightDockerImageVersion
 }
 
 // getPlaywrightMCPPackageVersion extracts version setting for the @playwright/mcp NPM package
 // This is separate from the Docker image version because they follow different versioning schemes
-func getPlaywrightMCPPackageVersion(playwrightTool any) string {
+func getPlaywrightMCPPackageVersion(playwrightConfig *PlaywrightToolConfig) string {
 	// Always use the default @playwright/mcp package version.
 	return string(constants.DefaultPlaywrightMCPVersion)
 }
 
 // generatePlaywrightAllowedDomains extracts domain list from Playwright tool configuration with bundle resolution
 // Uses the same domain bundle resolution as top-level network configuration, defaulting to localhost only
-func generatePlaywrightAllowedDomains(playwrightTool any) []string {
+func generatePlaywrightAllowedDomains(playwrightConfig *PlaywrightToolConfig) []string {
 	// Default to localhost with all port variations (same as Copilot agent default)
 	allowedDomains := constants.DefaultAllowedDomains
 
 	// Extract allowed_domains from Playwright tool configuration
-	if toolConfig, ok := playwrightTool.(map[string]any); ok {
-		if domainsConfig, exists := toolConfig["allowed_domains"]; exists {
-			// Create a mock NetworkPermissions structure to use the same domain resolution logic
-			playwrightNetwork := &NetworkPermissions{}
-
-			switch domains := domainsConfig.(type) {
-			case []string:
-				playwrightNetwork.Allowed = domains
-			case []any:
-				// Convert []any to []string
-				allowedDomainsSlice := make([]string, len(domains))
-				for i, domain := range domains {
-					if domainStr, ok := domain.(string); ok {
-						allowedDomainsSlice[i] = domainStr
-					}
-				}
-				playwrightNetwork.Allowed = allowedDomainsSlice
-			case string:
-				// Single domain as string
-				playwrightNetwork.Allowed = []string{domains}
-			}
-
-			// Use the same domain bundle resolution as the top-level network configuration
-			resolvedDomains := GetAllowedDomains(playwrightNetwork)
-
-			// Ensure localhost domains are always included
-			allowedDomains = parser.EnsureLocalhostDomains(resolvedDomains)
+	if playwrightConfig != nil && len(playwrightConfig.AllowedDomains) > 0 {
+		// Create a mock NetworkPermissions structure to use the same domain resolution logic
+		playwrightNetwork := &NetworkPermissions{
+			Allowed: playwrightConfig.AllowedDomains.ToStringSlice(),
 		}
+
+		// Use the same domain bundle resolution as the top-level network configuration
+		resolvedDomains := GetAllowedDomains(playwrightNetwork)
+
+		// Ensure localhost domains are always included
+		allowedDomains = parser.EnsureLocalhostDomains(resolvedDomains)
 	}
 
 	return allowedDomains
@@ -1087,11 +1058,11 @@ type PlaywrightDockerArgs struct {
 }
 
 // generatePlaywrightDockerArgs creates the common Docker arguments for Playwright MCP server
-func generatePlaywrightDockerArgs(playwrightTool any) PlaywrightDockerArgs {
+func generatePlaywrightDockerArgs(playwrightConfig *PlaywrightToolConfig) PlaywrightDockerArgs {
 	return PlaywrightDockerArgs{
-		ImageVersion:      getPlaywrightDockerImageVersion(playwrightTool),
-		MCPPackageVersion: getPlaywrightMCPPackageVersion(playwrightTool),
-		AllowedDomains:    generatePlaywrightAllowedDomains(playwrightTool),
+		ImageVersion:      getPlaywrightDockerImageVersion(playwrightConfig),
+		MCPPackageVersion: getPlaywrightMCPPackageVersion(playwrightConfig),
+		AllowedDomains:    generatePlaywrightAllowedDomains(playwrightConfig),
 	}
 }
 

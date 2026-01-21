@@ -264,30 +264,42 @@ func parsePlaywrightTool(val any) *PlaywrightToolConfig {
 	if configMap, ok := val.(map[string]any); ok {
 		config := &PlaywrightToolConfig{}
 
+		// Handle version field - can be string or number
 		if version, ok := configMap["version"].(string); ok {
 			config.Version = version
+		} else if versionNum, ok := configMap["version"].(int); ok {
+			config.Version = fmt.Sprintf("%d", versionNum)
+		} else if versionNum, ok := configMap["version"].(int64); ok {
+			config.Version = fmt.Sprintf("%d", versionNum)
+		} else if versionNum, ok := configMap["version"].(float64); ok {
+			config.Version = fmt.Sprintf("%g", versionNum)
 		}
 
 		// Handle allowed_domains - can be string or array
 		if allowedDomains, ok := configMap["allowed_domains"]; ok {
 			if str, ok := allowedDomains.(string); ok {
-				config.AllowedDomains = []string{str}
+				config.AllowedDomains = PlaywrightAllowedDomains{PlaywrightDomain(str)}
 			} else if arr, ok := allowedDomains.([]any); ok {
-				config.AllowedDomains = make([]string, 0, len(arr))
+				config.AllowedDomains = make(PlaywrightAllowedDomains, 0, len(arr))
 				for _, item := range arr {
 					if str, ok := item.(string); ok {
-						config.AllowedDomains = append(config.AllowedDomains, str)
+						config.AllowedDomains = append(config.AllowedDomains, PlaywrightDomain(str))
 					}
 				}
 			}
 		}
 
-		if args, ok := configMap["args"].([]any); ok {
-			config.Args = make([]string, 0, len(args))
-			for _, item := range args {
-				if str, ok := item.(string); ok {
-					config.Args = append(config.Args, str)
+		// Handle args field - can be []any or []string
+		if argsValue, ok := configMap["args"]; ok {
+			if arr, ok := argsValue.([]any); ok {
+				config.Args = make([]string, 0, len(arr))
+				for _, item := range arr {
+					if str, ok := item.(string); ok {
+						config.Args = append(config.Args, str)
+					}
 				}
+			} else if arr, ok := argsValue.([]string); ok {
+				config.Args = arr
 			}
 		}
 

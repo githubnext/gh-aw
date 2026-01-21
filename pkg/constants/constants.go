@@ -248,7 +248,7 @@ const DefaultClaudeCodeVersion Version = "2.1.12"
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY.
-const DefaultCopilotVersion Version = "0.0.387"
+const DefaultCopilotVersion Version = "0.0.388"
 
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
 const DefaultCopilotDetectionModel ModelName = "gpt-5-mini"
@@ -281,7 +281,7 @@ const DefaultGitHubMCPServerVersion Version = "v0.29.0"
 const DefaultFirewallVersion Version = "v0.10.0"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.0.71"
+const DefaultMCPGatewayVersion Version = "v0.0.74"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/githubnext/gh-aw-mcpg"
@@ -350,6 +350,11 @@ const DefaultGhAwMount = "/opt/gh-aw:/opt/gh-aw:ro"
 // DefaultTmpGhAwMount is the mount path for temporary gh-aw files in containerized MCP servers
 // Used for logs, cache, and other runtime data that needs read-write access
 const DefaultTmpGhAwMount = "/tmp/gh-aw:/tmp/gh-aw:rw"
+
+// DefaultWorkspaceMount is the mount path for the GitHub workspace directory in containerized MCP servers
+// Uses GitHub Actions expression syntax which expands to the actual workspace path at runtime
+// This is required when MCP servers need read-write access to repository files
+const DefaultWorkspaceMount = "${{ github.workspace }}:${{ github.workspace }}:rw"
 
 // DefaultPythonVersion is the default version of Python for runtime setup
 const DefaultPythonVersion Version = "3.12"

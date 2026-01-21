@@ -657,6 +657,12 @@ if engine.IsValid() {
 - `WorkflowID` - Workflow identifiers/basename without .md extension (user-provided workflow names)
 - `EngineName` - AI engine names (e.g., `CopilotEngine`, `ClaudeEngine`, `CodexEngine`, `CustomEngine`)
 
+**Available semantic types in `pkg/workflow`**:
+- `GitHubToolName` - GitHub tool names (e.g., "issue_read", "create_issue") 
+- `GitHubAllowedTools` - Typed slice of GitHub tool names with conversion helpers
+- `GitHubToolset` - GitHub toolset names (e.g., "default", "repos", "issues")
+- `GitHubToolsets` - Typed slice of GitHub toolset names with conversion helpers
+
 **Dynamic Types** - Use `map[string]any` for truly dynamic data:
 ```go
 // ✅ GOOD - Unknown structure at compile time

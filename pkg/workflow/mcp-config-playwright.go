@@ -11,17 +11,17 @@ var mcpPlaywrightLog = logger.New("workflow:mcp-config-playwright")
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration
 // Uses Docker container to launch Playwright MCP for consistent browser environment
 // This is a shared function used by both Claude and Custom engines
-func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
+func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig, isLast bool) {
 	mcpPlaywrightLog.Print("Rendering Playwright MCP configuration")
-	renderPlaywrightMCPConfigWithOptions(yaml, playwrightTool, isLast, false, false)
+	renderPlaywrightMCPConfigWithOptions(yaml, playwrightConfig, isLast, false, false)
 }
 
 // renderPlaywrightMCPConfigWithOptions generates the Playwright MCP server configuration with engine-specific options
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
-func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
-	args := generatePlaywrightDockerArgs(playwrightTool)
-	customArgs := getPlaywrightCustomArgs(playwrightTool)
+func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig, isLast bool, includeCopilotFields bool, inlineArgs bool) {
+	args := generatePlaywrightDockerArgs(playwrightConfig)
+	customArgs := getPlaywrightCustomArgs(playwrightConfig)
 
 	// Extract all expressions from playwright arguments and replace them with env var references
 	expressions := extractExpressionsFromPlaywrightArgs(args.AllowedDomains, customArgs)
@@ -119,9 +119,9 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 // renderPlaywrightMCPConfigTOML generates the Playwright MCP server configuration in TOML format for Codex
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
-func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
-	args := generatePlaywrightDockerArgs(playwrightTool)
-	customArgs := getPlaywrightCustomArgs(playwrightTool)
+func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig) {
+	args := generatePlaywrightDockerArgs(playwrightConfig)
+	customArgs := getPlaywrightCustomArgs(playwrightConfig)
 
 	// Use official Playwright MCP Docker image (no version tag - only one image)
 	playwrightImage := "mcr.microsoft.com/playwright/mcp"

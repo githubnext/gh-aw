@@ -224,6 +224,161 @@ const SafeInputsFeatureFlag = "safe-inputs"
 - Prevents typos when checking feature flags
 - Easy to find all usages through IDE navigation
 
+#### Tool Configuration Types
+
+**Location**: `pkg/workflow/tools_types.go`
+
+**Purpose**: Type-safe tool configuration using semantic types and typed slices
+
+Tool configurations demonstrate the pattern of combining semantic types with typed slices to provide compile-time type safety while maintaining clean APIs.
+
+**Semantic Types for Tool Names**:
+
+```go
+// GitHubToolName represents a GitHub tool name (e.g., "issue_read", "create_issue")
+type GitHubToolName string
+
+// GitHubToolset represents a GitHub toolset name (e.g., "default", "repos", "issues")
+type GitHubToolset string
+```
+
+**Typed Slices for Collections**:
+
+```go
+// GitHubAllowedTools is a slice of GitHub tool names
+type GitHubAllowedTools []GitHubToolName
+
+// ToStringSlice converts GitHubAllowedTools to []string
+func (g GitHubAllowedTools) ToStringSlice() []string {
+    result := make([]string, len(g))
+    for i, tool := range g {
+        result[i] = string(tool)
+    }
+    return result
+}
+
+// GitHubToolsets is a slice of GitHub toolset names
+type GitHubToolsets []GitHubToolset
+
+// ToStringSlice converts GitHubToolsets to []string
+func (g GitHubToolsets) ToStringSlice() []string {
+    result := make([]string, len(g))
+    for i, toolset := range g {
+        result[i] = string(toolset)
+    }
+    return result
+}
+```
+
+**Usage in Configuration Structs**:
+
+```go
+// GitHubToolConfig represents the configuration for the GitHub tool
+type GitHubToolConfig struct {
+    Allowed     GitHubAllowedTools `yaml:"allowed,omitempty"`
+    Mode        string             `yaml:"mode,omitempty"`
+    Version     string             `yaml:"version,omitempty"`
+    Args        []string           `yaml:"args,omitempty"`
+    ReadOnly    bool               `yaml:"read-only,omitempty"`
+    GitHubToken string             `yaml:"github-token,omitempty"`
+    Toolset     GitHubToolsets     `yaml:"toolsets,omitempty"`
+    Lockdown    bool               `yaml:"lockdown,omitempty"`
+}
+```
+
+**Benefits**:
+- **Type safety**: Prevents mixing tool names with arbitrary strings
+- **Self-documenting**: Type names make intent clear (e.g., `GitHubToolName` vs `string`)
+- **Conversion helpers**: `ToStringSlice()` methods enable interoperability with legacy code
+- **Compile-time validation**: Mismatched types caught at compile time, not runtime
+- **IDE support**: Better autocomplete and navigation for tool names
+
+**Migration Pattern - Before/After**:
+
+```go
+// ❌ BEFORE - Using []any and map[string]any
+type GitHubToolConfig struct {
+    Allowed []any          // Could be any type - no compile-time safety
+    Toolset []any          // What values are valid?
+}
+
+func processTools(config map[string]any) {
+    // Need runtime type assertions everywhere
+    if allowed, ok := config["allowed"].([]any); ok {
+        for _, tool := range allowed {
+            if toolStr, ok := tool.(string); ok {
+                // Finally have a string, but could be invalid tool name
+                processTool(toolStr)
+            }
+        }
+    }
+}
+
+// ✅ AFTER - Using semantic types and typed slices
+type GitHubToolConfig struct {
+    Allowed GitHubAllowedTools  // Clear what this contains
+    Toolset GitHubToolsets      // Clear what this contains
+}
+
+func processTools(config *GitHubToolConfig) {
+    // Type-safe access, no assertions needed
+    for _, tool := range config.Allowed {
+        // tool is GitHubToolName, not just any string
+        processTool(string(tool))
+    }
+}
+```
+
+**When to Use Typed Slices vs `[]any`**:
+
+✅ **Use typed slices (e.g., `GitHubAllowedTools`) when:**
+- The slice contains elements of a known, consistent type
+- You want compile-time type safety
+- The elements represent a specific domain concept (e.g., tool names, toolsets)
+- You need helper methods on the slice (e.g., `ToStringSlice()`)
+- The slice is part of a configuration struct used across the codebase
+
+❌ **Use `[]any` when:**
+- The slice genuinely contains mixed types (e.g., YAML parsing where values can be string, int, bool)
+- You're parsing external data with unknown structure
+- The values are truly dynamic and can't be typed at compile time
+- You're working with legacy APIs that require `[]any`
+
+**Example - Parsing Dynamic to Typed**:
+
+```go
+// Parse dynamic YAML input
+toolsMap := map[string]any{
+    "github": map[string]any{
+        "allowed": []any{"issue_read", "create_issue"},  // Dynamic from YAML
+    },
+}
+
+// Convert to typed configuration
+func parseGitHubConfig(data map[string]any) (*GitHubToolConfig, error) {
+    config := &GitHubToolConfig{}
+    
+    if allowed, ok := data["allowed"].([]any); ok {
+        // Convert []any to GitHubAllowedTools
+        for _, item := range allowed {
+            if str, ok := item.(string); ok {
+                config.Allowed = append(config.Allowed, GitHubToolName(str))
+            }
+        }
+    }
+    
+    return config, nil
+}
+
+// Now use type-safe configuration
+func processConfig(config *GitHubToolConfig) {
+    for _, tool := range config.Allowed {
+        // Type-safe iteration, no assertions needed
+        fmt.Printf("Processing tool: %s\n", tool)
+    }
+}
+```
+
 ### When to Use Semantic Type Aliases
 
 ✅ **Use semantic type aliases when:**
@@ -783,7 +938,8 @@ Need to represent a value?
 
 | Pattern | When to Use | Example |
 |---------|-------------|---------|
-| Semantic Type Alias | Domain-specific primitives | `type LineLength int`, `type WorkflowID string`, `type EngineName string` |
+| Semantic Type Alias | Domain-specific primitives | `type LineLength int`, `type WorkflowID string`, `type EngineName string`, `type GitHubToolName string` |
+| Typed Slices | Collections of semantic types | `type GitHubAllowedTools []GitHubToolName`, `type GitHubToolsets []GitHubToolset` |
 | `map[string]any` | Dynamic YAML/JSON parsing | Frontmatter, tool configs |
 | Behavior Interface | Multiple implementations | `CodingAgentEngine` |
 | Configuration Interface | Varied config structures | `ToolConfig` |
@@ -802,7 +958,9 @@ Need to represent a value?
 | **Models** | `ModelName` | `DefaultCopilotDetectionModel` |
 | **GitHub Actions** | `JobName`, `StepID` | `AgentJobName`, `CheckMembershipStepID` |
 | **CLI** | `CommandPrefix` | `CLIExtensionPrefix` |
+| **Tool Configuration** | `GitHubToolName`, `GitHubToolset` | (typed tool names and toolsets) |
+| **Tool Collections** | `GitHubAllowedTools`, `GitHubToolsets` | (typed slices with conversion helpers) |
 
 ---
 
-**Last Updated**: 2025-12-18
+**Last Updated**: 2026-01-20
