@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var schemaSuggestionsLog = logger.New("parser:schema_suggestions")
 
 // Constants for suggestion limits and field generation
 const (
@@ -17,30 +21,37 @@ const (
 
 // generateSchemaBasedSuggestions generates helpful suggestions based on the schema and error type
 func generateSchemaBasedSuggestions(schemaJSON, errorMessage, jsonPath string) string {
+	schemaSuggestionsLog.Printf("Generating schema suggestions: path=%s, schema_size=%d bytes", jsonPath, len(schemaJSON))
 	// Parse the schema to extract information for suggestions
 	var schemaDoc any
 	if err := json.Unmarshal([]byte(schemaJSON), &schemaDoc); err != nil {
+		schemaSuggestionsLog.Printf("Failed to parse schema JSON: %v", err)
 		return "" // Can't parse schema, no suggestions
 	}
 
 	// Check if this is an additional properties error
 	if strings.Contains(strings.ToLower(errorMessage), "additional propert") && strings.Contains(strings.ToLower(errorMessage), "not allowed") {
+		schemaSuggestionsLog.Print("Detected additional properties error")
 		invalidProps := extractAdditionalPropertyNames(errorMessage)
 		acceptedFields := extractAcceptedFieldsFromSchema(schemaDoc, jsonPath)
 
 		if len(acceptedFields) > 0 {
+			schemaSuggestionsLog.Printf("Found %d accepted fields for invalid properties %v", len(acceptedFields), invalidProps)
 			return generateFieldSuggestions(invalidProps, acceptedFields)
 		}
 	}
 
 	// Check if this is a type error
 	if strings.Contains(strings.ToLower(errorMessage), "got ") && strings.Contains(strings.ToLower(errorMessage), "want ") {
+		schemaSuggestionsLog.Print("Detected type mismatch error")
 		example := generateExampleJSONForPath(schemaDoc, jsonPath)
 		if example != "" {
+			schemaSuggestionsLog.Printf("Generated example JSON: length=%d bytes", len(example))
 			return fmt.Sprintf("Expected format: %s", example)
 		}
 	}
 
+	schemaSuggestionsLog.Print("No suggestions generated for error")
 	return ""
 }
 
@@ -73,10 +84,12 @@ func extractAcceptedFieldsFromSchema(schemaDoc any, jsonPath string) []string {
 // navigateToSchemaPath navigates to the appropriate schema section for a given JSON path
 func navigateToSchemaPath(schema map[string]any, jsonPath string) map[string]any {
 	if jsonPath == "" {
+		schemaSuggestionsLog.Print("Navigating to root schema path")
 		return schema // Root level
 	}
 
 	// Parse the JSON path and navigate through the schema
+	schemaSuggestionsLog.Printf("Navigating schema path: %s", jsonPath)
 	pathSegments := parseJSONPath(jsonPath)
 	current := schema
 
@@ -184,6 +197,7 @@ func generateFieldSuggestions(invalidProps, acceptedFields []string) string {
 // It returns up to maxResults matches that have a Levenshtein distance of 3 or less.
 // Results are sorted by distance (closest first), then alphabetically for ties.
 func FindClosestMatches(target string, candidates []string, maxResults int) []string {
+	schemaSuggestionsLog.Printf("Finding closest matches for '%s' from %d candidates", target, len(candidates))
 	type match struct {
 		value    string
 		distance int
@@ -224,6 +238,7 @@ func FindClosestMatches(target string, candidates []string, maxResults int) []st
 		results = append(results, matches[i].value)
 	}
 
+	schemaSuggestionsLog.Printf("Found %d closest matches (from %d total matches within max distance)", len(results), len(matches))
 	return results
 }
 
