@@ -580,7 +580,6 @@ sync-templates:
 	@cp .github/aw/orchestrate-agentic-campaign.md pkg/cli/templates/
 	@cp .github/aw/execute-agentic-campaign-workflow.md pkg/cli/templates/
 	@cp .github/aw/update-agentic-campaign-project.md pkg/cli/templates/
-	@cp .github/aw/update-agentic-campaign-project-contract.md pkg/cli/templates/
 	@cp .github/aw/close-agentic-campaign.md pkg/cli/templates/
 
 	@echo "✓ Templates synced successfully"

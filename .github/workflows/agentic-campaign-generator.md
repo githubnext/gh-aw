@@ -37,35 +37,25 @@ safe-outputs:
     max: 10
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
     field-definitions:
-      - name: "status"
-        data-type: "SINGLE_SELECT"
-        options:
-          - "Todo"
-          - "In Progress"
-          - "Review Required"
-          - "Blocked"
-          - "Done"
-      - name: "campaign_id"
+      - name: "Campaign Id"
         data-type: "TEXT"
-      - name: "worker_workflow"
+      - name: "Worker Workflow"
         data-type: "TEXT"
-      - name: "repository"
-        data-type: "TEXT"
-      - name: "priority"
+      - name: "Priority"
         data-type: "SINGLE_SELECT"
         options:
           - "High"
           - "Medium"
           - "Low"
-      - name: "size"
+      - name: "Size"
         data-type: "SINGLE_SELECT"
         options:
           - "Small"
           - "Medium"
           - "Large"
-      - name: "start_date"
+      - name: "Start Date"
         data-type: "DATE"
-      - name: "end_date"
+      - name: "End Date"
         data-type: "DATE"
   messages:
     run-started: "### :rocket: Campaign setup started
