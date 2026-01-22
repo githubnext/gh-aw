@@ -173,6 +173,7 @@ mkdir -p "${SAFE_OUTPUTS_DEST}"
 
 SAFE_OUTPUTS_FILES=(
   "safe_outputs_mcp_server.cjs"
+  "safe_outputs_mcp_server_http.cjs"
   "safe_outputs_bootstrap.cjs"
   "safe_outputs_tools_loader.cjs"
   "safe_outputs_config.cjs"
@@ -180,6 +181,7 @@ SAFE_OUTPUTS_FILES=(
   "safe_outputs_append.cjs"
   "mcp_server_core.cjs"
   "mcp_logger.cjs"
+  "mcp_http_transport.cjs"
   "mcp_handler_python.cjs"
   "mcp_handler_shell.cjs"
   "mcp_handler_go.cjs"
