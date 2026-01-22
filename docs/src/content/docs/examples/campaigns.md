@@ -95,7 +95,7 @@ Workers are stored alongside regular workflows, not in campaign-specific folders
 ## Learn More
 
 - [Campaign Guides](/gh-aw/guides/campaigns/) - Campaign setup and configuration
-- [Flow & lifecycle](/gh-aw/guides/campaigns/flow/) - How the orchestrator runs
+- [Campaign lifecycle](/gh-aw/guides/campaigns/lifecycle/) - How the orchestrator runs
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - dispatch_workflow configuration
 
 ## Pattern Analysis

@@ -430,6 +430,12 @@ async function discover(config) {
   const needsAddCount = allItems.filter(i => i.state === "open").length;
   const needsUpdateCount = allItems.filter(i => i.state === "closed" || i.merged_at).length;
 
+  // Determine if budget was exhausted
+  const itemsBudgetExhausted = totalItemsScanned >= maxDiscoveryItems;
+  const pagesBudgetExhausted = totalPagesScanned >= maxDiscoveryPages;
+  const budgetExhausted = itemsBudgetExhausted || pagesBudgetExhausted;
+  const exhaustedReason = itemsBudgetExhausted ? "max_items_reached" : pagesBudgetExhausted ? "max_pages_reached" : null;
+
   // Build manifest
   const manifest = {
     schema_version: MANIFEST_VERSION,
@@ -442,6 +448,8 @@ async function discover(config) {
       pages_scanned: totalPagesScanned,
       max_items_budget: maxDiscoveryItems,
       max_pages_budget: maxDiscoveryPages,
+      budget_exhausted: budgetExhausted,
+      exhausted_reason: exhaustedReason,
       cursor: cursor,
     },
     summary: {
@@ -460,6 +468,16 @@ async function discover(config) {
   }
 
   core.info(`Discovery complete: ${allItems.length} items found`);
+  core.info(`Budget utilization: ${totalItemsScanned}/${maxDiscoveryItems} items, ${totalPagesScanned}/${maxDiscoveryPages} pages`);
+
+  if (budgetExhausted) {
+    if (allItems.length === 0) {
+      core.warning(`Discovery budget exhausted with 0 items found. Consider increasing budget limits in governance configuration.`);
+    } else {
+      core.info(`Discovery stopped at budget limit. Use cursor for continuation in next run.`);
+    }
+  }
+
   core.info(`Summary: ${needsAddCount} to add, ${needsUpdateCount} to update`);
 
   return manifest;

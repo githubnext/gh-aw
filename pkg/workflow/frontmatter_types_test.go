@@ -314,12 +314,14 @@ func TestParseFrontmatterConfig(t *testing.T) {
 
 	t.Run("preserves complex nested structures", func(t *testing.T) {
 		frontmatter := map[string]any{
-			"safe-jobs": map[string]any{
-				"custom-job": map[string]any{
-					"conditions": []any{
-						map[string]any{
-							"field": "status",
-							"value": "success",
+			"safe-outputs": map[string]any{
+				"jobs": map[string]any{
+					"custom-job": map[string]any{
+						"conditions": []any{
+							map[string]any{
+								"field": "status",
+								"value": "success",
+							},
 						},
 					},
 				},
@@ -331,13 +333,17 @@ func TestParseFrontmatterConfig(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		if config.SafeJobs == nil {
-			t.Fatal("SafeJobs should not be nil")
+		if config.SafeOutputs == nil {
+			t.Fatal("SafeOutputs should not be nil")
 		}
 
-		customJob, ok := config.SafeJobs["custom-job"]
+		if config.SafeOutputs.Jobs == nil {
+			t.Fatal("SafeOutputs.Jobs should not be nil")
+		}
+
+		customJob, ok := config.SafeOutputs.Jobs["custom-job"]
 		if !ok {
-			t.Fatal("custom-job should exist")
+			t.Fatal("custom-job should exist in SafeOutputs.Jobs")
 		}
 
 		if customJob == nil {

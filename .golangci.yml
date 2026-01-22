@@ -17,7 +17,6 @@ linters:
   disable:
     - errcheck       # Disabled due to exclude-functions not working properly in golangci-lint v2
     - gocritic       # Disabled due to disabled-checks not working properly in golangci-lint v2
-    - modernize      # Disabled due to exclude-rules not working properly in golangci-lint v2
     - revive         # Disabled due to exclude-rules not working properly in golangci-lint v2
 
 linters-settings:

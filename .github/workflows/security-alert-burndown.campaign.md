@@ -33,8 +33,8 @@ kpis:
     priority: supporting
 governance:
   max-new-items-per-run: 3
-  max-discovery-items-per-run: 50
-  max-discovery-pages-per-run: 3
+  max-discovery-items-per-run: 100
+  max-discovery-pages-per-run: 5
   max-project-updates-per-run: 10
   max-comments-per-run: 3
   opt-out-labels:

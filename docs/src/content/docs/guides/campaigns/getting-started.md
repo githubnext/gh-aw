@@ -42,7 +42,7 @@ The orchestrator runs on a schedule (daily by default) and will:
 - sync issues/PRs into the Project
 - post a Project status update each run
 
-For details, see [Flow & lifecycle](/gh-aw/guides/campaigns/flow/).
+For details, see [Campaign lifecycle](/gh-aw/guides/campaigns/lifecycle/).
 
 ## Keep it simple (best practices)
 
