@@ -54,6 +54,7 @@ safe-outputs:
     remove-labels:
       allowed: [smoke]
     messages:
+      append-only-comments: true
       footer: "> 📰 *BREAKING: Report filed by [{workflow_name}]({run_url})*"
       run-started: "📰 BREAKING: [{workflow_name}]({run_url}) is now investigating this {event_type}. Sources say the story is developing..."
       run-success: "📰 VERDICT: [{workflow_name}]({run_url}) has concluded. All systems operational. This is a developing story. 🎤"
