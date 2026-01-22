@@ -149,7 +149,7 @@ func isGitHubExpression(s string) bool {
 	// Basic validation: opening marker must come before closing marker
 	openIndex := strings.Index(s, "${{")
 	closeIndex := strings.Index(s, "}}")
-	
+
 	// The closing marker must come after the opening marker
 	// and there must be something between them
 	return openIndex >= 0 && closeIndex > openIndex+3
