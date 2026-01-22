@@ -116,7 +116,7 @@ jobs:
           GH_AW_DISCOVERY_REPOS: githubnext/gh-aw
           GH_AW_MAX_DISCOVERY_ITEMS: "50"
           GH_AW_MAX_DISCOVERY_PAGES: "3"
-          GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/130
+          GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/132
           GH_AW_TRACKER_LABEL: campaign:security-alert-burndown
           GH_AW_WORKFLOWS: code-scanning-fixer,security-fix-pr
         id: discovery
@@ -906,7 +906,7 @@ jobs:
           - Memory paths: memory/campaigns/security-alert-burndown/**
           - Metrics glob: `memory/campaigns/security-alert-burndown/metrics/*.json`
           - Cursor glob: `memory/campaigns/security-alert-burndown/cursor.json`
-          - Project URL: https://github.com/orgs/githubnext/projects/130
+          - Project URL: https://github.com/orgs/githubnext/projects/132
           - Governance: max new items per run: 3
           - Governance: max discovery items per run: 50
           - Governance: max discovery pages per run: 3
@@ -1342,7 +1342,7 @@ jobs:
                  
                  **Campaign Details:**
                  - Campaign ID: `security-alert-burndown`
-                 - Project Board: https://github.com/orgs/githubnext/projects/130
+                 - Project Board: https://github.com/orgs/githubnext/projects/132
                  - Worker Workflows: `code-scanning-fixer`, `security-fix-pr`
                  
                  ---
@@ -1357,7 +1357,7 @@ jobs:
           3) **After creating the Epic** (or if Epic exists but not on board), add it to the project board:
              ```yaml
              update-project:
-               project: "https://github.com/orgs/githubnext/projects/130"
+               project: "https://github.com/orgs/githubnext/projects/132"
                campaign_id: "security-alert-burndown"
                content_type: "issue"
                content_number: <EPIC_ISSUE_NUMBER>
@@ -1473,7 +1473,7 @@ jobs:
           Example status update:
           ```yaml
           create-project-status-update:
-            project: "https://github.com/orgs/githubnext/projects/130"
+            project: "https://github.com/orgs/githubnext/projects/132"
             status: "ON_TRACK"
             start_date: "2026-01-06"
             target_date: "2026-01-31"
@@ -1550,7 +1550,7 @@ jobs:
           
           - Writes MUST use only the `update-project` safe-output.
           - All writes MUST target exactly:
-            - **Project URL**: `https://github.com/orgs/githubnext/projects/130`
+            - **Project URL**: `https://github.com/orgs/githubnext/projects/132`
           - Every item MUST include:
             - `campaign_id: "security-alert-burndown"`
           
@@ -1621,7 +1621,7 @@ jobs:
           
           ```yaml
           update-project:
-            project: "https://github.com/orgs/githubnext/projects/130"
+            project: "https://github.com/orgs/githubnext/projects/132"
             campaign_id: "security-alert-burndown"
             content_type: "issue"              # or "pull_request"
             content_number: 123
@@ -1652,7 +1652,7 @@ jobs:
           
           ```yaml
           update-project:
-            project: "https://github.com/orgs/githubnext/projects/130"
+            project: "https://github.com/orgs/githubnext/projects/132"
             campaign_id: "security-alert-burndown"
             content_type: "issue"              # or "pull_request"
             content_number: 123
@@ -1664,7 +1664,7 @@ jobs:
           
           ```yaml
           update-project:
-            project: "https://github.com/orgs/githubnext/projects/130"
+            project: "https://github.com/orgs/githubnext/projects/132"
             campaign_id: "security-alert-burndown"
             content_type: "issue"              # or "pull_request"
             content_number: 123
@@ -1742,7 +1742,7 @@ jobs:
           
           - [ ] All writes use `update-project:` blocks (no other write mechanism).
           - [ ] Each `update-project` block includes:
-            - [ ] `project: "https://github.com/orgs/githubnext/projects/130"`
+            - [ ] `project: "https://github.com/orgs/githubnext/projects/132"`
             - [ ] `campaign_id: "security-alert-burndown"` (top-level)
             - [ ] `content_type` ∈ {`issue`, `pull_request`}
             - [ ] `content_number` is an integer
