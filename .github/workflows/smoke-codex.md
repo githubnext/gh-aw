@@ -19,7 +19,6 @@ imports:
   - shared/gh.md
   - shared/mcp/tavily.md
   - shared/reporting.md
-  - shared/github-queries-safe-input.md
 network:
   allowed:
     - defaults
@@ -46,10 +45,13 @@ sandbox:
 safe-outputs:
     add-comment:
       hide-older-comments: true
-      discussion: true
+      max: 2
     create-issue:
       expires: 2h
       close-older-issues: true
+    create-discussion:
+      expires: 2h
+      close-older-discussions: true
     add-labels:
       allowed: [smoke-codex]
     remove-labels:
@@ -76,7 +78,7 @@ timeout-minutes: 10
 5. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item
 6. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-codex-${{ github.run_id }}.txt` with content "Smoke test passed for Codex at $(date)" (create the directory if it doesn't exist)
 7. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-8. **Discussion Interaction Testing**: Use the `github-discussion-query` safe-input tool to get 1 random discussion from ${{ github.repository }} (use params: limit=1, jq=".[0]") and add a mystical, oracle-themed comment stating that the smoke test agent was here (be creative and use mystical language)
+8. **Discussion Creation Testing**: Create a new discussion in ${{ github.repository }} with a mystical, oracle-themed title about the smoke test (be creative and use mystical language)
 
 ## Output
 
@@ -85,6 +87,6 @@ Add a **very brief** comment (max 5-10 lines) to the current pull request with:
 - ✅ or ❌ for each test result
 - Overall status: PASS or FAIL
 
-Add a **mystical oracle-themed comment** to the randomly selected discussion mentioning that the smoke test was here (be creative and use mystical language)
+Add a **mystical oracle-themed comment** to the created discussion mentioning that this is a smoke test validation (be creative and use mystical language)
 
 If all tests pass, add the label `smoke-codex` to the pull request.
