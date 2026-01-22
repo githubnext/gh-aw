@@ -78,7 +78,20 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 We welcome your feedback on GitHub Agentic Workflows! Please file bugs and feature requests as issues in this repository,
 and share your thoughts in the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord).
 
-## Peli's Agent Factory
+## Examples and Patterns
+
+### Ralph Loop Pattern
+
+The [Ralph Loop](examples/ralph/) is an autonomous, iterative development pattern where AI agents work persistently toward completing PRD goals. Named after Ralph Wiggum from The Simpsons, this pattern enables agents to:
+
+- Work through structured PRDs autonomously
+- Learn from failures across iterations
+- Commit only tested, working code
+- Track progress and learnings automatically
+
+Perfect for feature development, refactoring tasks, and systematic code improvements. See the [Ralph Loop Guide](examples/ralph/README.md) and [Tutorial](https://githubnext.github.io/gh-aw/guides/ralph-loop/) to get started.
+
+### Peli's Agent Factory
 
 See the [Peli's Agent Factory](https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/) for a guided tour through many uses of agentic workflows.
 

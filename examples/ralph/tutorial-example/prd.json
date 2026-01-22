@@ -1,0 +1,190 @@
+{
+  "feature": "User Profile Management",
+  "status": "in_progress",
+  "created_at": "2026-01-22T00:00:00Z",
+  "updated_at": "2026-01-22T03:15:00Z",
+  "user_stories": [
+    {
+      "id": "US-001",
+      "title": "View User Profile",
+      "priority": 1,
+      "status": "completed",
+      "estimate_minutes": 30,
+      "acceptance_criteria": [
+        {
+          "id": "AC-001-1",
+          "description": "GET /api/profile endpoint returns user profile",
+          "completed": true,
+          "completed_at": "2026-01-22T01:30:00Z"
+        },
+        {
+          "id": "AC-001-2",
+          "description": "Response includes: username, email, created_at, avatar_url",
+          "completed": true,
+          "completed_at": "2026-01-22T01:30:00Z"
+        },
+        {
+          "id": "AC-001-3",
+          "description": "Returns 401 if not authenticated",
+          "completed": true,
+          "completed_at": "2026-01-22T01:45:00Z"
+        },
+        {
+          "id": "AC-001-4",
+          "description": "Returns 404 if user not found",
+          "completed": true,
+          "completed_at": "2026-01-22T01:45:00Z"
+        },
+        {
+          "id": "AC-001-5",
+          "description": "Unit tests pass with 100% coverage",
+          "completed": true,
+          "completed_at": "2026-01-22T02:00:00Z"
+        }
+      ],
+      "tests": [
+        {
+          "name": "test_get_profile_success",
+          "status": "passed",
+          "file": "tests/test_profile.py"
+        },
+        {
+          "name": "test_get_profile_unauthorized",
+          "status": "passed",
+          "file": "tests/test_profile.py"
+        },
+        {
+          "name": "test_get_profile_not_found",
+          "status": "passed",
+          "file": "tests/test_profile.py"
+        }
+      ]
+    },
+    {
+      "id": "US-002",
+      "title": "Update User Profile",
+      "priority": 2,
+      "status": "in_progress",
+      "estimate_minutes": 45,
+      "acceptance_criteria": [
+        {
+          "id": "AC-002-1",
+          "description": "PUT /api/profile endpoint updates user profile",
+          "completed": true,
+          "completed_at": "2026-01-22T02:30:00Z"
+        },
+        {
+          "id": "AC-002-2",
+          "description": "Can update: username, email, avatar_url",
+          "completed": true,
+          "completed_at": "2026-01-22T02:30:00Z"
+        },
+        {
+          "id": "AC-002-3",
+          "description": "Validates email format",
+          "completed": true,
+          "completed_at": "2026-01-22T02:45:00Z"
+        },
+        {
+          "id": "AC-002-4",
+          "description": "Username must be unique (returns 409 if duplicate)",
+          "completed": false,
+          "notes": "Currently investigating race condition in uniqueness check"
+        },
+        {
+          "id": "AC-002-5",
+          "description": "Returns updated profile on success",
+          "completed": true,
+          "completed_at": "2026-01-22T02:30:00Z"
+        },
+        {
+          "id": "AC-002-6",
+          "description": "Returns 400 for invalid input",
+          "completed": true,
+          "completed_at": "2026-01-22T02:45:00Z"
+        },
+        {
+          "id": "AC-002-7",
+          "description": "Unit tests pass with 100% coverage",
+          "completed": false,
+          "notes": "Pending completion of AC-002-4"
+        }
+      ],
+      "tests": [
+        {
+          "name": "test_update_profile_success",
+          "status": "passed",
+          "file": "tests/test_profile.py"
+        },
+        {
+          "name": "test_update_profile_invalid_email",
+          "status": "passed",
+          "file": "tests/test_profile.py"
+        },
+        {
+          "name": "test_update_profile_duplicate_username",
+          "status": "failed",
+          "file": "tests/test_profile.py",
+          "error": "Race condition: concurrent updates can create duplicate usernames"
+        }
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Upload Profile Avatar",
+      "priority": 3,
+      "status": "pending",
+      "estimate_minutes": 60,
+      "acceptance_criteria": [
+        {
+          "id": "AC-003-1",
+          "description": "POST /api/profile/avatar endpoint accepts image upload",
+          "completed": false
+        },
+        {
+          "id": "AC-003-2",
+          "description": "Supports JPEG, PNG formats (max 2MB)",
+          "completed": false
+        },
+        {
+          "id": "AC-003-3",
+          "description": "Resizes image to 200x200px",
+          "completed": false
+        },
+        {
+          "id": "AC-003-4",
+          "description": "Stores image in cloud storage (S3-compatible)",
+          "completed": false
+        },
+        {
+          "id": "AC-003-5",
+          "description": "Updates avatar_url in user profile",
+          "completed": false
+        },
+        {
+          "id": "AC-003-6",
+          "description": "Returns 413 for files > 2MB",
+          "completed": false
+        },
+        {
+          "id": "AC-003-7",
+          "description": "Returns 415 for unsupported formats",
+          "completed": false
+        },
+        {
+          "id": "AC-003-8",
+          "description": "Unit tests pass with 100% coverage",
+          "completed": false
+        }
+      ],
+      "tests": []
+    }
+  ],
+  "overall_progress": {
+    "completed_stories": 1,
+    "total_stories": 3,
+    "completed_criteria": 14,
+    "total_criteria": 20,
+    "percent_complete": 70
+  }
+}
