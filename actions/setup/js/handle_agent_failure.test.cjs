@@ -425,7 +425,7 @@ When prompted, instruct the agent to debug this workflow failure.`;
       expect(failureIssueCreateCall.body).toContain("<!-- gh-aw-expires:");
       expect(failureIssueCreateCall.body).not.toContain("## Root Cause");
       expect(failureIssueCreateCall.body).not.toContain("## Expected Outcome");
-      expect(failureIssueCreateCall.body).toContain("Generated from Test Workflow");
+      expect(failureIssueCreateCall.body).toContain("Generated from [Test Workflow](https://github.com/test-owner/test-repo/actions/runs/123)");
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Created new issue #42"));
     });
@@ -492,7 +492,7 @@ When prompted, instruct the agent to debug this workflow failure.`;
       expect(commentCall.body).toContain("Agent job [123]");
       expect(commentCall.body).toContain("https://github.com/test-owner/test-repo/actions/runs/123");
       expect(commentCall.body).not.toContain("```bash");
-      expect(commentCall.body).toContain("Generated from Test Workflow");
+      expect(commentCall.body).toContain("Generated from [Test Workflow](https://github.com/test-owner/test-repo/actions/runs/123)");
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Added comment to existing issue #10"));
     });
