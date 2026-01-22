@@ -4655,6 +4655,41 @@
           ],
           "description": "Enable AI agents to add review comments to specific lines in pull request diffs during code review workflows."
         },
+        "dispatch-workflow": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for dispatching GitHub Actions workflows from agentic output. Enables campaign orchestrators and coordination workflows to trigger worker workflows with custom inputs.",
+              "properties": {
+                "workflows": {
+                  "type": "array",
+                  "description": "List of workflow names (without .md extension) that can be dispatched. Workflow files must exist in the same directory and be workflow_dispatch-enabled.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of workflow dispatches allowed per run (default: 1)",
+                  "minimum": 1,
+                  "maximum": 10
+                }
+              },
+              "required": ["workflows"],
+              "additionalProperties": false
+            },
+            {
+              "type": "array",
+              "description": "Shorthand: list of workflow names to allow dispatching",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          ],
+          "description": "Enable AI agents to trigger workflow_dispatch events on specified workflows, useful for campaign orchestration and multi-workflow coordination."
+        },
         "create-code-scanning-alert": {
           "oneOf": [
             {

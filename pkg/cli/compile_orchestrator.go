@@ -116,6 +116,16 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 			}
 			outputs["create-project-status-update"] = statusUpdateConfig
 		}
+		if data.SafeOutputs.DispatchWorkflow != nil && len(data.SafeOutputs.DispatchWorkflow.Workflows) > 0 {
+			dispatchWorkflowConfig := map[string]any{
+				"workflows": data.SafeOutputs.DispatchWorkflow.Workflows,
+			}
+			// Include max if explicitly set
+			if data.SafeOutputs.DispatchWorkflow.Max > 0 {
+				dispatchWorkflowConfig["max"] = data.SafeOutputs.DispatchWorkflow.Max
+			}
+			outputs["dispatch-workflow"] = dispatchWorkflowConfig
+		}
 		if len(outputs) > 0 {
 			payload := map[string]any{"safe-outputs": outputs}
 			if out, err := yaml.Marshal(payload); err == nil {

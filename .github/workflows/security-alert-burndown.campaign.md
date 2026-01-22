@@ -49,6 +49,7 @@ allowed-safe-outputs:
   - autofix-code-scanning-alert
   - add-comment
   - update-project
+  - dispatch-workflow
 tags:
   - security
   - automated-fixes
