@@ -1,0 +1,39 @@
+{
+  "title": "Example Project PRD",
+  "description": "A sample Product Requirements Document showing the Ralph Loop pattern for task management",
+  "tasks": [
+    {
+      "id": "task-1",
+      "title": "Create project structure",
+      "description": "Set up the basic project directory structure with necessary folders and configuration files",
+      "status": "incomplete",
+      "priority": "high",
+      "dependencies": []
+    },
+    {
+      "id": "task-2",
+      "title": "Implement core functionality",
+      "description": "Build the main feature logic according to specifications",
+      "status": "incomplete",
+      "priority": "high",
+      "dependencies": ["task-1"]
+    },
+    {
+      "id": "task-3",
+      "title": "Add unit tests",
+      "description": "Write comprehensive unit tests for the core functionality with edge cases",
+      "status": "incomplete",
+      "priority": "medium",
+      "dependencies": ["task-2"]
+    },
+    {
+      "id": "task-4",
+      "title": "Update documentation",
+      "description": "Document the API, usage examples, and implementation details",
+      "status": "incomplete",
+      "priority": "low",
+      "dependencies": ["task-2"]
+    }
+  ],
+  "progress": []
+}
