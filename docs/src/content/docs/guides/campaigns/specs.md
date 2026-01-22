@@ -19,7 +19,9 @@ The campaign spec is a reviewable configuration file that:
 
 Most users should create specs via the [Getting started flow](/gh-aw/guides/campaigns/getting-started/).
 
-## Minimal spec
+## Complete spec example
+
+This example shows a complete, working campaign spec with all commonly-used fields:
 
 ```yaml
 # .github/workflows/framework-upgrade.campaign.md
