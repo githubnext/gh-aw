@@ -249,6 +249,12 @@ async function main() {
     }
   }
 
+  // At this point, we must have a comment ID (verified by earlier checks)
+  if (!commentId) {
+    core.setFailed("Comment ID is required for updating existing comment");
+    return;
+  }
+
   // Check if this is a discussion comment (GraphQL node ID format)
   const isDiscussionComment = commentId.startsWith("DC_");
 
