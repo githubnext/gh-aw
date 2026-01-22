@@ -7,10 +7,11 @@ var createProjectLog = logger.New("workflow:create_project")
 // CreateProjectsConfig holds configuration for creating GitHub Projects V2
 type CreateProjectsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	GitHubToken          string        `yaml:"github-token,omitempty"`
-	TargetOwner          string        `yaml:"target-owner,omitempty"` // Default target owner (org/user) for the new project
-	TitlePrefix          string        `yaml:"title-prefix,omitempty"` // Default prefix for auto-generated project titles
-	Views                []ProjectView `yaml:"views,omitempty"`        // Project views to create automatically after project creation
+	GitHubToken          string                   `yaml:"github-token,omitempty"`
+	TargetOwner          string                   `yaml:"target-owner,omitempty"`        // Default target owner (org/user) for the new project
+	TitlePrefix          string                   `yaml:"title-prefix,omitempty"`        // Default prefix for auto-generated project titles
+	Views                []ProjectView            `yaml:"views,omitempty"`               // Project views to create automatically after project creation
+	FieldDefinitions     []ProjectFieldDefinition `yaml:"field-definitions,omitempty"`   // Project field definitions to create automatically after project creation
 }
 
 // parseCreateProjectsConfig handles create-project configuration
@@ -105,10 +106,58 @@ func (c *Compiler) parseCreateProjectsConfig(outputMap map[string]any) *CreatePr
 					}
 				}
 			}
+
+			// Parse field-definitions if specified
+			fieldsData, hasFields := configMap["field-definitions"]
+			if !hasFields {
+				// Allow underscore variant as well
+				fieldsData, hasFields = configMap["field_definitions"]
+			}
+			if hasFields {
+				if fieldsList, ok := fieldsData.([]any); ok {
+					for i, fieldItem := range fieldsList {
+						fieldMap, ok := fieldItem.(map[string]any)
+						if !ok {
+							continue
+						}
+
+						field := ProjectFieldDefinition{}
+
+						if name, exists := fieldMap["name"]; exists {
+							if nameStr, ok := name.(string); ok {
+								field.Name = nameStr
+							}
+						}
+
+						dataType, hasDataType := fieldMap["data-type"]
+						if !hasDataType {
+							dataType = fieldMap["data_type"]
+						}
+						if dataTypeStr, ok := dataType.(string); ok {
+							field.DataType = dataTypeStr
+						}
+
+						if options, exists := fieldMap["options"]; exists {
+							if optionsList, ok := options.([]any); ok {
+								for _, opt := range optionsList {
+									if optStr, ok := opt.(string); ok {
+										field.Options = append(field.Options, optStr)
+									}
+								}
+							}
+						}
+
+						if field.Name != "" && field.DataType != "" {
+							createProjectsConfig.FieldDefinitions = append(createProjectsConfig.FieldDefinitions, field)
+							createProjectLog.Printf("Parsed field definition %d: %s (%s)", i+1, field.Name, field.DataType)
+						}
+					}
+				}
+			}
 		}
 
-		createProjectLog.Printf("Parsed create-project config: max=%d, hasCustomToken=%v, hasTargetOwner=%v, hasTitlePrefix=%v, viewCount=%d",
-			createProjectsConfig.Max, createProjectsConfig.GitHubToken != "", createProjectsConfig.TargetOwner != "", createProjectsConfig.TitlePrefix != "", len(createProjectsConfig.Views))
+		createProjectLog.Printf("Parsed create-project config: max=%d, hasCustomToken=%v, hasTargetOwner=%v, hasTitlePrefix=%v, viewCount=%d, fieldDefinitionCount=%d",
+			createProjectsConfig.Max, createProjectsConfig.GitHubToken != "", createProjectsConfig.TargetOwner != "", createProjectsConfig.TitlePrefix != "", len(createProjectsConfig.Views), len(createProjectsConfig.FieldDefinitions))
 		return createProjectsConfig
 	}
 	createProjectLog.Print("No create-project configuration found")
