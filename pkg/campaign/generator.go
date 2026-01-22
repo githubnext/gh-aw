@@ -128,27 +128,28 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 			},
 		},
 		Messages: &workflow.SafeOutputMessagesConfig{
-			Footer: "> *Campaign coordination by [{workflow_name}]({run_url})*\n" +
-				"Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/",
-			RunStarted: "[{workflow_name}]({run_url}) started generating your campaign (trigger: {event_type}).\n\n" +
-				"**What’s happening**\n" +
-				"1. Read requirements from this issue\n" +
-				"2. Create a GitHub Project (views + standard fields)\n" +
-				"3. Generate a campaign spec + orchestrator workflow\n" +
-				"4. Update this issue with a handoff checklist\n\n" +
-				"You don’t need to do anything yet. When it finishes, look for a PR link in the issue update.\n\n" +
-				"Learn more: https://githubnext.github.io/gh-aw/guides/campaigns/flow/",
-			RunSuccess: "[{workflow_name}]({run_url}) finished the initial campaign setup.\n\n" +
-				"**Next steps**\n" +
-				"1. Review the pull request created by the Copilot Coding Agent\n" +
-				"2. Merge it\n" +
-				"3. Run the campaign orchestrator from the Actions tab\n\n" +
-				"Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/",
-			RunFailure: "[{workflow_name}]({run_url}) {status}.\n\n" +
-				"**What to do**\n" +
-				"- Open the run link above and check the logs for the first error\n" +
-				"- Fix the issue (permissions/secret/config), then re-run by re-applying the label\n\n" +
-				"Troubleshooting: https://githubnext.github.io/gh-aw/guides/campaigns/flow/#when-something-goes-wrong",
+			Footer: "> *Managed by [{workflow_name}]({run_url})*\n" +
+				"> Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/",
+			RunStarted: "### :rocket: Campaign setup started\n\n" +
+				"Creating a tracking Project and generating campaign files + orchestrator workflow.\n\n" +
+				"No action needed right now — this run will open a pull request and post the link + checklist back on this issue when ready.\n\n" +
+				"> To stop this run: remove the label that started it.\n" +
+				"> Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/",
+			RunSuccess: "### :white_check_mark: Campaign setup complete\n\n" +
+				"Tracking Project created and pull request with generated campaign files is ready.\n\n" +
+				"Next steps:\n" +
+				"- Review + merge the PR\n" +
+				"- Run the campaign from the Actions tab\n\n" +
+				"> Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/",
+			RunFailure: "### :x: Campaign setup {status}\n\n" +
+				"Common causes:\n" +
+				"- `GH_AW_PROJECT_GITHUB_TOKEN` is missing or invalid\n" +
+				"- Token lacks access to GitHub Projects\n\n" +
+				"Action required:\n" +
+				"- Fix the first error in the logs\n" +
+				"- Re-apply the label to re-run\n\n" +
+				"> Troubleshooting: https://githubnext.github.io/gh-aw/guides/campaigns/flow/#when-something-goes-wrong\n" +
+				"> Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/",
 		},
 	}
 }

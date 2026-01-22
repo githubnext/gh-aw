@@ -68,10 +68,33 @@ safe-outputs:
       - name: "end_date"
         data-type: "DATE"
   messages:
-    footer: "> *Campaign coordination by [{workflow_name}]({run_url})*"
-    run-started: "[{workflow_name}]({run_url}) is processing your campaign request for this {event_type}."
-    run-success: "[{workflow_name}]({run_url}) has successfully set up your campaign. Copilot Coding Agent will now create a PR."
-    run-failure: "[{workflow_name}]({run_url}) {status}. Please check the details and try again."
+    footer: "> *Managed by [{workflow_name}]({run_url})*
+Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/"
+    run-started: "### :rocket: Campaign setup started
+
+I’m creating a tracking Project and generating the campaign files + orchestrator workflow.
+
+Next, I’ll open a pull request and post the link + checklist in this issue.
+
+> To stop this run: remove the label that started it.
+
+> To learn more about campaigns, visit: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/"
+    run-success: "### :white_check_mark: Campaign setup complete
+
+All set — the tracking Project is created and the pull request with the generated campaign files is ready.
+
+Next: review + merge the PR, then run the orchestrator from the Actions tab.
+
+> To learn more about campaigns, visit: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/"
+    run-failure: "### :x: Campaign setup {status}
+
+This is usually a quick fix. First check that `GH_AW_PROJECT_GITHUB_TOKEN` is set and has access to GitHub Projects.
+
+Retry: fix the first error in the logs, then re-apply the label to re-run
+
+> Troubleshooting: https://githubnext.github.io/gh-aw/guides/campaigns/flow/#when-something-goes-wrong
+
+> To learn more about campaigns, visit: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/"
 timeout-minutes: 10
 ---
 
