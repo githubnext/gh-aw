@@ -201,7 +201,7 @@ func TestRuntimeMountsInCopilotEngine(t *testing.T) {
 
 		// Detect runtime requirements
 		runtimeRequirements := DetectRuntimeRequirements(workflowData)
-		require.Greater(t, len(runtimeRequirements), 0, "Should detect runtime requirements")
+		require.NotEmpty(t, runtimeRequirements, "Should detect runtime requirements")
 
 		// Contribute runtime mounts
 		ContributeRuntimeMounts(workflowData.SandboxConfig.Agent, runtimeRequirements)
@@ -210,7 +210,7 @@ func TestRuntimeMountsInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		require.Greater(t, len(steps), 0, "Should generate execution steps")
+		require.NotEmpty(t, steps, "Should generate execution steps")
 
 		stepContent := strings.Join(steps[0], "\n")
 
@@ -256,7 +256,7 @@ func TestRuntimeMountsInCopilotEngine(t *testing.T) {
 		engine := NewCopilotEngine()
 		steps := engine.GetExecutionSteps(workflowData, "test.log")
 
-		require.Greater(t, len(steps), 0, "Should generate execution steps")
+		require.NotEmpty(t, steps, "Should generate execution steps")
 
 		stepContent := strings.Join(steps[0], "\n")
 

@@ -10,11 +10,11 @@ import (
 
 func TestGetRuntimeMounts(t *testing.T) {
 	tests := []struct {
-		name              string
-		requirements      []RuntimeRequirement
-		expectedContains  []string
-		expectedExcludes  []string
-		expectedMinCount  int
+		name             string
+		requirements     []RuntimeRequirement
+		expectedContains []string
+		expectedExcludes []string
+		expectedMinCount int
 	}{
 		{
 			name: "node runtime includes toolcache and npm cache",
@@ -169,7 +169,7 @@ func TestGetRuntimeMounts(t *testing.T) {
 			// Verify mount format (source:dest:mode)
 			for _, mount := range mounts {
 				parts := strings.Split(mount, ":")
-				assert.Equal(t, 3, len(parts),
+				assert.Len(t, parts, 3,
 					"Mount %q should have 3 parts (source:dest:mode)", mount)
 				assert.NotEmpty(t, parts[0], "Source path should not be empty in mount %q", mount)
 				assert.NotEmpty(t, parts[1], "Destination path should not be empty in mount %q", mount)
@@ -182,33 +182,33 @@ func TestGetRuntimeMounts(t *testing.T) {
 
 func TestGetRuntimeMountDefinition(t *testing.T) {
 	tests := []struct {
-		name             string
-		runtimeID        string
-		expectNil        bool
+		name              string
+		runtimeID         string
+		expectNil         bool
 		expectedMinMounts int
 	}{
 		{
-			name:             "node has mount definitions",
-			runtimeID:        "node",
-			expectNil:        false,
+			name:              "node has mount definitions",
+			runtimeID:         "node",
+			expectNil:         false,
 			expectedMinMounts: 2,
 		},
 		{
-			name:             "python has mount definitions",
-			runtimeID:        "python",
-			expectNil:        false,
+			name:              "python has mount definitions",
+			runtimeID:         "python",
+			expectNil:         false,
 			expectedMinMounts: 2,
 		},
 		{
-			name:             "go has mount definitions",
-			runtimeID:        "go",
-			expectNil:        false,
+			name:              "go has mount definitions",
+			runtimeID:         "go",
+			expectNil:         false,
 			expectedMinMounts: 3,
 		},
 		{
-			name:             "unknown runtime returns nil",
-			runtimeID:        "unknown-runtime",
-			expectNil:        true,
+			name:              "unknown runtime returns nil",
+			runtimeID:         "unknown-runtime",
+			expectNil:         true,
 			expectedMinMounts: 0,
 		},
 	}
@@ -232,11 +232,11 @@ func TestGetRuntimeMountDefinition(t *testing.T) {
 
 func TestContributeRuntimeMounts(t *testing.T) {
 	tests := []struct {
-		name             string
-		agentConfig      *AgentSandboxConfig
-		requirements     []RuntimeRequirement
+		name              string
+		agentConfig       *AgentSandboxConfig
+		requirements      []RuntimeRequirement
 		expectedMinMounts int
-		expectNoChange   bool
+		expectNoChange    bool
 	}{
 		{
 			name: "adds runtime mounts to empty agent config",
@@ -250,7 +250,7 @@ func TestContributeRuntimeMounts(t *testing.T) {
 				},
 			},
 			expectedMinMounts: 2,
-			expectNoChange:   false,
+			expectNoChange:    false,
 		},
 		{
 			name: "adds runtime mounts to existing user mounts",
@@ -267,23 +267,23 @@ func TestContributeRuntimeMounts(t *testing.T) {
 				},
 			},
 			expectedMinMounts: 3, // 1 custom + 2 runtime
-			expectNoChange:   false,
+			expectNoChange:    false,
 		},
 		{
-			name:             "nil agent config does not panic",
-			agentConfig:      nil,
-			requirements:     []RuntimeRequirement{},
+			name:              "nil agent config does not panic",
+			agentConfig:       nil,
+			requirements:      []RuntimeRequirement{},
 			expectedMinMounts: 0,
-			expectNoChange:   true,
+			expectNoChange:    true,
 		},
 		{
 			name: "no requirements does not add mounts",
 			agentConfig: &AgentSandboxConfig{
 				ID: "awf",
 			},
-			requirements:     []RuntimeRequirement{},
+			requirements:      []RuntimeRequirement{},
 			expectedMinMounts: 0,
-			expectNoChange:   true,
+			expectNoChange:    true,
 		},
 		{
 			name: "multiple runtimes add combined mounts",
@@ -301,7 +301,7 @@ func TestContributeRuntimeMounts(t *testing.T) {
 				},
 			},
 			expectedMinMounts: 5, // 2 (node) + 3 (go)
-			expectNoChange:   false,
+			expectNoChange:    false,
 		},
 	}
 
@@ -316,7 +316,7 @@ func TestContributeRuntimeMounts(t *testing.T) {
 
 			if tt.expectNoChange {
 				if tt.agentConfig != nil {
-					assert.Equal(t, originalMountCount, len(tt.agentConfig.Mounts),
+					assert.Len(t, tt.agentConfig.Mounts, originalMountCount,
 						"Mount count should not change")
 				}
 			} else {
@@ -330,8 +330,8 @@ func TestContributeRuntimeMounts(t *testing.T) {
 
 func TestGetRuntimeMountsForWorkflow(t *testing.T) {
 	tests := []struct {
-		name             string
-		workflowData     *WorkflowData
+		name              string
+		workflowData      *WorkflowData
 		expectedMinMounts int
 	}{
 		{
@@ -353,8 +353,8 @@ func TestGetRuntimeMountsForWorkflow(t *testing.T) {
 			expectedMinMounts: 2, // python mounts
 		},
 		{
-			name:             "nil workflow returns empty list",
-			workflowData:     nil,
+			name:              "nil workflow returns empty list",
+			workflowData:      nil,
 			expectedMinMounts: 0,
 		},
 		{
