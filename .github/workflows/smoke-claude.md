@@ -46,6 +46,13 @@ tools:
 runtimes:
   go:
     version: "1.25"
+  node:
+    version: "22"
+steps:
+  - name: Setup Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: "22"
 safe-outputs:
     add-comment:
       hide-older-comments: true
