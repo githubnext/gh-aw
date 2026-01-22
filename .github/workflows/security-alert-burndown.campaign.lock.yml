@@ -114,8 +114,8 @@ jobs:
           GH_AW_CAMPAIGN_ID: security-alert-burndown
           GH_AW_CURSOR_PATH: /tmp/gh-aw/repo-memory/campaigns/security-alert-burndown/cursor.json
           GH_AW_DISCOVERY_REPOS: githubnext/gh-aw
-          GH_AW_MAX_DISCOVERY_ITEMS: "50"
-          GH_AW_MAX_DISCOVERY_PAGES: "3"
+          GH_AW_MAX_DISCOVERY_ITEMS: "100"
+          GH_AW_MAX_DISCOVERY_PAGES: "5"
           GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/134
           GH_AW_TRACKER_LABEL: campaign:security-alert-burndown
           GH_AW_WORKFLOWS: code-scanning-fixer,security-fix-pr
@@ -908,8 +908,8 @@ jobs:
           - Cursor glob: `memory/campaigns/security-alert-burndown/cursor.json`
           - Project URL: https://github.com/orgs/githubnext/projects/134
           - Governance: max new items per run: 3
-          - Governance: max discovery items per run: 50
-          - Governance: max discovery pages per run: 3
+          - Governance: max discovery items per run: 100
+          - Governance: max discovery pages per run: 5
           - Governance: opt-out labels: no-campaign, no-bot, skip-security-fix
           - Governance: max project updates per run: 10
           - Governance: max comments per run: 3
@@ -1255,10 +1255,10 @@ jobs:
           
           
           
-          **Read budget**: max discovery items per run: 50
+          **Read budget**: max discovery items per run: 100
           
           
-          **Read budget**: max discovery pages per run: 3
+          **Read budget**: max discovery pages per run: 5
           
           
           **Write budget**: max project updates per run: 10
