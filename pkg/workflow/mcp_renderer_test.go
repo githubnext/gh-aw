@@ -168,7 +168,7 @@ func TestRenderSafeOutputsMCP_JSON_Copilot(t *testing.T) {
 	})
 
 	var yaml strings.Builder
-	renderer.RenderSafeOutputsMCP(&yaml)
+	renderer.RenderSafeOutputsMCP(&yaml, nil)
 
 	output := yaml.String()
 
@@ -204,7 +204,7 @@ func TestRenderSafeOutputsMCP_JSON_Claude(t *testing.T) {
 	})
 
 	var yaml strings.Builder
-	renderer.RenderSafeOutputsMCP(&yaml)
+	renderer.RenderSafeOutputsMCP(&yaml, nil)
 
 	output := yaml.String()
 
@@ -233,7 +233,7 @@ func TestRenderSafeOutputsMCP_TOML(t *testing.T) {
 	})
 
 	var yaml strings.Builder
-	renderer.RenderSafeOutputsMCP(&yaml)
+	renderer.RenderSafeOutputsMCP(&yaml, nil)
 
 	output := yaml.String()
 
@@ -535,7 +535,7 @@ func TestOptionCombinations(t *testing.T) {
 			renderer.RenderPlaywrightMCP(&yaml, playwrightTool)
 
 			yaml.Reset()
-			renderer.RenderSafeOutputsMCP(&yaml)
+			renderer.RenderSafeOutputsMCP(&yaml, nil)
 
 			yaml.Reset()
 			renderer.RenderAgenticWorkflowsMCP(&yaml)

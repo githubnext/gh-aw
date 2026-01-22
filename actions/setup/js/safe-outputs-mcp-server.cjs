@@ -16,7 +16,7 @@ const { startHttpServer } = require("./safe_outputs_mcp_server_http.cjs");
 if (require.main === module) {
   const port = parseInt(process.env.GH_AW_SAFE_OUTPUTS_PORT || "3001", 10);
   const logDir = process.env.GH_AW_MCP_LOG_DIR;
-  
+
   startHttpServer({ port, logDir }).catch(error => {
     console.error(`Failed to start safe-outputs HTTP server: ${error.message}`);
     process.exit(1);
