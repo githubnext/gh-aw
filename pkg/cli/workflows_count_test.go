@@ -3,7 +3,6 @@ package cli
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,8 +33,7 @@ func TestWorkflowCounting(t *testing.T) {
 	// Build set of workflow names from .md files
 	mdWorkflowNames := make(map[string]bool)
 	for _, file := range mdFiles {
-		base := filepath.Base(file)
-		name := strings.TrimSuffix(base, ".md")
+		name := extractWorkflowNameFromPath(file)
 		mdWorkflowNames[name] = true
 	}
 

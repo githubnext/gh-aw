@@ -120,8 +120,7 @@ func fetchGitHubWorkflows(repoOverride string, verbose bool) (map[string]*GitHub
 	mdFiles, _ := getMarkdownWorkflowFiles("")
 	mdWorkflowNames := make(map[string]bool)
 	for _, file := range mdFiles {
-		base := filepath.Base(file)
-		name := strings.TrimSuffix(base, ".md")
+		name := extractWorkflowNameFromPath(file)
 		mdWorkflowNames[name] = true
 	}
 
