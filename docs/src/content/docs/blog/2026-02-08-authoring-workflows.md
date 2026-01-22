@@ -21,13 +21,7 @@ next:
 
 <img src="/gh-aw/peli.png" alt="Peli de Halleux" width="200" style="float: right; margin: 0 0 20px 20px; border-radius: 8px;" />
 
-*Excellent!* You've arrived at the *invention room* - our practical guide in the Peli's Agent Factory series! Now that you've glimpsed [the magnificent machinery under the hood](/gh-aw/blog/2026-02-05-how-workflows-work/), it's time to don your inventor's cap and start creating your own confections!
-
-Ready to build your own agentic workflows? Awesome! Let's make it happen.
-
-Now that you understand how workflows operate under the hood, we'll walk through the practical side of creating your own. This guide shares patterns, tips, and best practices from creating our collection of automated agentic workflows in practice. Don't worry - we'll start simple and build up from there.
-
-Let's dive in!
+Now that you understand [how workflows operate under the hood](/gh-aw/blog/2026-02-05-how-workflows-work/), this guide walks through creating your own. We'll share patterns, tips, and best practices from our collection of automated agentic workflows.
 
 ## The Authoring Process
 
@@ -37,54 +31,17 @@ Creating an effective agentic workflow breaks down into five straightforward sta
 1. Define Purpose → 2. Choose Pattern → 3. Write Prompt → 4. Configure → 5. Test & Iterate
 ```
 
-Let's walk through each stage with real examples from the factory.
-
 ## Stage 1: Define Purpose
 
-Before writing any code, get crystal clear on what you're building. Answer these questions:
+Before writing code, clarify what you're building:
 
-### What Problem Are You Solving?
+**Problem**: Be specific. Instead of "improve code quality," define concrete goals like "detect duplicate code blocks over 50 lines" or "identify functions without test coverage."
 
-Be specific! Instead of "improve code quality," try:
+**Audience**: Team members need conversational tone with explanations. Maintainers need technical detail and reproduction steps. External contributors need welcoming tone with context.
 
-- "Detect duplicate code blocks over 50 lines"
-- "Identify functions without test coverage"
-- "Find outdated API usage patterns"
+**Output**: Define the artifact - issue with findings, PR with fixes, discussion with metrics, or comment with analysis.
 
-The more specific you are, the better your agent will perform.
-
-### Who Is the Audience?
-
-Different audiences need different approaches:
-
-**Team members**: Conversational tone, explain recommendations  
-**Maintainers**: Technical detail, include reproduction steps  
-**External contributors**: Welcoming tone, provide context
-
-Know who you're talking to!
-
-### What Should the Output Be?
-
-Define the artifact the agent will create:
-
-- Issue with findings and recommendations
-- PR with automated fixes
-- Discussion with metrics and visualizations
-- Comment with analysis results
-
-Be clear about what success looks like.
-
-### How Often Should It Run?
-
-Consider the appropriate cadence:
-
-- **Continuous** (every commit): Quality checks, smoke tests
-- **Hourly**: CI monitoring, security scanning
-- **Daily**: Metrics, health checks, cleanup
-- **Weekly**: Deep analysis, trend reports
-- **On-demand**: Reviews, investigations, fixes
-
-Match the frequency to the need.
+**Cadence**: Match frequency to need - continuous (quality checks), hourly (CI monitoring), daily (health checks), weekly (trend reports), or on-demand (reviews).
 
 ## Stage 2: Choose Your Pattern
 
@@ -112,17 +69,11 @@ Select from the [12 design patterns](03-design-patterns.md) and [9 operational p
 
 ## Stage 3: Write an Effective Prompt
 
-The prompt is the heart of your workflow. Great prompts are:
+The prompt is the heart of your workflow. Great prompts are clear, structured, contextual, personality-driven, and tool-aware.
 
 ### Clear and Specific
 
-❌ **Poor**: "Analyze the code"
-
-✅ **Good**: "Analyze the codebase for functions longer than 100 lines. For each long function, identify:
-
-1. Primary responsibility
-2. Potential split points
-3. Suggested refactoring approach"
+Instead of "Analyze the code," write "Analyze the codebase for functions longer than 100 lines. For each long function, identify: primary responsibility, potential split points, and suggested refactoring approach."
 
 ### Structured
 
@@ -181,15 +132,7 @@ Our coverage goal is 80% for critical paths (payment, auth, user management).
 
 ### Personality-Driven
 
-Give your agent character:
-
-**The Meticulous Auditor**: "Review every configuration file with extreme attention to detail. Note even minor inconsistencies."
-
-**The Helpful Janitor**: "Propose small, incremental improvements. Make the codebase a little better each day."
-
-**The Creative Poet**: "Compose verses that capture the repository's essence and team achievements."
-
-**The Critical Reviewer**: "Challenge assumptions. Ask hard questions. Push for excellence."
+Give your agent character: meticulous auditor (extreme attention to detail), helpful janitor (small incremental improvements), creative poet (capture team achievements), or critical reviewer (challenge assumptions, push for excellence).
 
 ### Tool-Aware
 
@@ -214,66 +157,15 @@ serena find-duplicates --min-lines 30 --similarity 0.8
 
 ### Frontmatter Best Practices
 
-#### Start Minimal, Add as Needed
+**Start minimal**: Begin with read-only permissions, add write permissions only when safe outputs require them.
 
-```yaml
----
-description: Daily test coverage report
-on:
-  schedule: "0 9 * * 1-5"  # Weekdays at 9am
-permissions:
-  contents: read  # Start with read-only
----
-```
+**Use imports**: Reference common needs like `shared/reporting.md`, `shared/python-dataviz.md`, and `shared/jqschema.md`.
 
-Add write permissions only when safe outputs require them.
+**Add guardrails**: Configure safe outputs with `max_items`, `close_older`, `expire`, and `if_no_changes: skip`.
 
-#### Use Imports for Common Needs
+**Allowlist tools**: Explicitly list needed GitHub toolsets (`[repos, issues]`) and bash commands (`[git, jq, python3]`).
 
-```yaml
----
-description: Repository health metrics
-imports:
-  - shared/reporting.md       # Report formatting
-  - shared/python-dataviz.md  # Visualization
-  - shared/jqschema.md        # JSON processing
-on:
-  schedule: "0 0 * * 0"  # Weekly on Sunday
----
-```
-
-#### Configure Safe Outputs with Guardrails
-
-```yaml
-safe_outputs:
-  create_issue:
-    title_prefix: "[Health Check]"
-    labels: ["automated", "health"]
-    max_items: 3         # Limit to 3 issues
-    close_older: true    # Close old duplicates
-    expire: "+14d"       # Auto-close after 2 weeks
-    if_no_changes: skip  # Don't create if unchanged
-```
-
-#### Allowlist Tools Explicitly
-
-```yaml
-tools:
-  github:
-    toolsets: [repos, issues]  # Only what you need
-  bash:
-    commands: [git, jq, python3]  # Explicit list
-```
-
-#### Restrict Network Access
-
-```yaml
-network:
-  allowed:
-    - "api.github.com"      # GitHub API
-    - "api.tavily.com"      # Web search
-    # No wildcards in production
-```
+**Restrict network**: Specify allowed domains (`api.github.com`, `api.tavily.com`). Avoid wildcards in production.
 
 ## Stage 5: Test and Iterate
 
@@ -294,39 +186,11 @@ gh aw compile --output test.lock.yml workflow.md
 
 ### Staged Rollout
 
-#### Phase 1: Manual Trigger
+**Phase 1**: Start with manual workflow dispatch. Run several times, review outputs, iterate on prompt.
 
-Start with manual workflow dispatch:
+**Phase 2**: Add limited schedule (once weekly) with `stop-after: "+1mo"`. Monitor for a month, adjust based on feedback.
 
-```yaml
-on:
-  workflow_dispatch:
-```
-
-Run a few times manually, review outputs, iterate on prompt.
-
-#### Phase 2: Limited Schedule
-
-Add a schedule with time limit:
-
-```yaml
-on:
-  workflow_dispatch:
-  schedule: "0 9 * * 1"  # Once a week
-stop-after: "+1mo"       # Auto-expire in 1 month
-```
-
-Monitor for a month, adjust based on feedback.
-
-#### Phase 3: Production
-
-Remove time limit, adjust schedule as needed:
-
-```yaml
-on:
-  workflow_dispatch:
-  schedule: "0 9 * * 1-5"  # Weekdays
-```
+**Phase 3**: Remove time limit, adjust schedule to production cadence (e.g., weekdays).
 
 ### Iteration Checklist
 
@@ -502,35 +366,15 @@ Store new analysis results for future reference.
 
 ## Common Mistakes to Avoid
 
-### Mistake 1: Vague Prompts
+**Vague prompts**: Use specific criteria like "flag functions with cyclomatic complexity > 15" instead of "tell me what's wrong."
 
-❌ "Look at the code and tell me what's wrong"
+**Missing constraints**: Always set `max_items`, `close_older`, and `expire` to prevent duplicate issues.
 
-✅ "Analyze functions in src/ for complexity. Flag any function with cyclomatic complexity > 15. For each, suggest refactoring approach."
+**Too many permissions**: Start with `contents: read`, add specific permissions as needed. Never use `write-all`.
 
-### Mistake 2: Missing Constraints
+**No testing**: Test manually first, then use limited schedule with expiration before production.
 
-❌ No max_items, creates 50 duplicate issues
-
-✅ `max_items: 3`, `close_older: true`, `expire: "+7d"`
-
-### Mistake 3: Too Many Permissions
-
-❌ `permissions: write-all`
-
-✅ Start with `contents: read`, add specific permissions as needed
-
-### Mistake 4: No Testing
-
-❌ Deploy directly to production schedule
-
-✅ Test manually first, then limited schedule with expiration
-
-### Mistake 5: Overly Complex
-
-❌ One workflow that does 10 different things
-
-✅ Multiple focused workflows, each doing one thing well
+**Overly complex**: Create multiple focused workflows instead of one workflow doing 10 things.
 
 ## Resources and Examples
 
@@ -571,14 +415,7 @@ Browse the factory for inspiration:
 
 ## Your Turn
 
-You now have everything you need to author effective agentic workflows:
-
-1. **Start simple** - Pick one repetitive task
-2. **Follow patterns** - Use proven designs
-3. **Test iteratively** - Manual → Limited → Production
-4. **Share learnings** - Contribute to the community
-
-Ready to begin? The next article will walk you through getting your first workflow running.
+You now have everything you need: start with one repetitive task, follow proven patterns, test iteratively (manual → limited → production), and share learnings with the community. The next article walks you through getting your first workflow running.
 
 ## What's Next?
 
