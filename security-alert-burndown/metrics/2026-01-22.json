@@ -6,6 +6,11 @@
   "tasks_in_progress": 0,
   "tasks_blocked": 0,
   "critical_alerts": 1,
-  "high_alerts": 0,
-  "note": "Initial campaign run. Current state better than baseline: 1 critical (baseline: 5, target: 0), 0 high (baseline: 15, target: 5). No worker outputs discovered yet."
+  "high_severity_alerts": 0,
+  "critical_alerts_baseline": 5,
+  "high_severity_alerts_baseline": 15,
+  "critical_alerts_target": 0,
+  "high_severity_alerts_target": 5,
+  "velocity_per_day": 0,
+  "notes": "Initial campaign kickoff. Epic created and added to project board. Discovered 1 critical alert remaining (down from baseline of 5). No high-severity alerts remaining (down from baseline of 15). High-severity KPI already achieved."
 }
