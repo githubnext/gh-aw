@@ -42,7 +42,7 @@ governance:
     - no-bot
     - skip-security-fix
 owners:
-  - "@githubnext/security-team"
+  - "@mnkiefer"
 risk-level: high
 allowed-safe-outputs:
   - create-pull-request
