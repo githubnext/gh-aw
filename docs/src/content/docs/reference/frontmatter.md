@@ -167,16 +167,61 @@ See [CLI Commands](/gh-aw/setup/cli/#compile) and [Security Guide](/gh-aw/guides
 
 ### Feature Flags (`features:`)
 
-Enable experimental or optional features as boolean key-value pairs.
+Enable experimental or optional features as key-value pairs.
 
 ```yaml wrap
 features:
   my-experimental-feature: true
+  action-mode: "script"
 ```
 
 > [!NOTE]
 > Firewall Configuration
 > The `features.firewall` field has been removed. The agent sandbox is now mandatory and defaults to AWF (Agent Workflow Firewall). See [Sandbox Configuration](/gh-aw/reference/sandbox/) for details.
+
+#### Action Mode (`features.action-mode`)
+
+Controls how the workflow compiler generates custom action references in compiled workflows. Can be set to `"dev"`, `"release"`, or `"script"`.
+
+```yaml wrap
+features:
+  action-mode: "script"
+```
+
+**Available modes:**
+
+- **`dev`** (default): References custom actions using local paths (e.g., `uses: ./actions/setup`). Best for development and testing workflows in the gh-aw repository.
+
+- **`release`**: References custom actions using SHA-pinned remote paths (e.g., `uses: githubnext/gh-aw/actions/setup@sha`). Used for production workflows with version pinning.
+
+- **`script`**: Generates direct shell script calls instead of using GitHub Actions `uses:` syntax. The compiler:
+  1. Checks out the `githubnext/gh-aw` repository's `actions` folder to `/tmp/gh-aw/actions-source`
+  2. Runs the setup script directly: `bash /tmp/gh-aw/actions-source/actions/setup/setup.sh`
+  3. Uses shallow clone (`depth: 1`) for efficiency
+
+**When to use script mode:**
+
+- Testing custom action scripts during development
+- Debugging action installation issues
+- Environments where local action references are not available
+- Advanced debugging scenarios requiring direct script execution
+
+**Example:**
+
+```yaml wrap
+---
+name: Debug Workflow
+on: workflow_dispatch
+features:
+  action-mode: "script"
+permissions:
+  contents: read
+---
+
+Debug workflow using script mode for custom actions.
+```
+
+**Note:** The `action-mode` can also be overridden via the CLI flag `--action-mode` or the environment variable `GH_AW_ACTION_MODE`. The precedence is: CLI flag > feature flag > environment variable > auto-detection.
 
 ### AI Engine (`engine:`)
 
