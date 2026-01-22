@@ -13,6 +13,11 @@ engine: copilot
 tools:
   github:
     toolsets: [context, repos, code_security, pull_requests]
+  repo-memory:
+    - id: campaigns
+      branch-name: memory/campaigns
+      file-glob: [security-alert-burndown/**]
+      campaign-id: security-alert-burndown
   edit:
   bash:
   cache-memory:
