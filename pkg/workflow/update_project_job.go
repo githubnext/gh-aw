@@ -44,7 +44,8 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal views configuration: %w", err)
 		}
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PROJECT_VIEWS: '%s'\n", string(viewsJSON)))
+		// Use %q to properly quote and escape the JSON for YAML
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PROJECT_VIEWS: %q\n", string(viewsJSON)))
 	}
 
 	jobCondition := BuildSafeOutputType("update_project")
