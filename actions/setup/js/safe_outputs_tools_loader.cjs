@@ -46,6 +46,7 @@ function attachHandlers(tools, handlers) {
     create_pull_request: handlers.createPullRequestHandler,
     push_to_pull_request_branch: handlers.pushToPullRequestBranchHandler,
     upload_asset: handlers.uploadAssetHandler,
+    create_project: handlers.createProjectHandler,
   };
 
   tools.forEach(tool => {
