@@ -81,6 +81,9 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Reset the step order tracker for this compilation
 	c.stepOrderTracker = NewStepOrderTracker()
 
+	// Reset schedule friendly formats for this compilation
+	c.scheduleFriendlyFormats = nil
+
 	// Reset the artifact manager for this compilation
 	if c.artifactManager == nil {
 		c.artifactManager = NewArtifactManager()

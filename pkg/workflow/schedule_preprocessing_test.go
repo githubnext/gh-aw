@@ -1234,3 +1234,110 @@ func TestFuzzyScheduleScatteringWarningWithoutRepoSlug(t *testing.T) {
 		t.Errorf("expected warning about missing repository context, got warnings: %v", warnings)
 	}
 }
+
+// TestFriendlyFormatDeterminism verifies that friendly format comments are generated
+// deterministically and don't carry over between compilations
+func TestFriendlyFormatDeterminism(t *testing.T) {
+	// Create a compiler instance
+	compiler := NewCompiler(false, "", "test")
+	compiler.SetWorkflowIdentifier("test-workflow.md")
+
+	// Frontmatter with daily schedule
+	frontmatter1 := map[string]any{
+		"on": map[string]any{
+			"schedule": "daily",
+		},
+	}
+
+	// First compilation - preprocess schedule
+	err := compiler.preprocessScheduleFields(frontmatter1, "test-workflow-1.md", "")
+	if err != nil {
+		t.Fatalf("failed to preprocess schedule: %v", err)
+	}
+
+	// Verify friendly format was stored
+	if compiler.scheduleFriendlyFormats == nil || len(compiler.scheduleFriendlyFormats) == 0 {
+		t.Fatalf("expected friendly formats to be stored after preprocessing")
+	}
+
+	firstFormat := compiler.scheduleFriendlyFormats[0]
+	if !strings.Contains(firstFormat, "daily") {
+		t.Errorf("expected friendly format to contain 'daily', got: %s", firstFormat)
+	}
+
+	// Generate YAML for first compilation
+	yamlStr1 := `"on":
+  schedule:
+  - cron: "30 13 * * *"
+  workflow_dispatch:`
+
+	result1 := compiler.addFriendlyScheduleComments(yamlStr1, frontmatter1)
+	if !strings.Contains(result1, "# Friendly format: daily (scattered)") {
+		t.Errorf("expected friendly format comment in first compilation, got:\n%s", result1)
+	}
+
+	// Second compilation with different frontmatter (weekly schedule)
+	// Reset compiler state as would happen in a new compilation
+	compiler.scheduleFriendlyFormats = nil
+
+	frontmatter2 := map[string]any{
+		"on": map[string]any{
+			"schedule": "weekly",
+		},
+	}
+
+	err = compiler.preprocessScheduleFields(frontmatter2, "test-workflow-2.md", "")
+	if err != nil {
+		t.Fatalf("failed to preprocess schedule: %v", err)
+	}
+
+	// Verify friendly format was replaced, not appended
+	if compiler.scheduleFriendlyFormats == nil || len(compiler.scheduleFriendlyFormats) == 0 {
+		t.Fatalf("expected friendly formats to be stored after second preprocessing")
+	}
+
+	secondFormat := compiler.scheduleFriendlyFormats[0]
+	if !strings.Contains(secondFormat, "weekly") {
+		t.Errorf("expected friendly format to contain 'weekly', got: %s", secondFormat)
+	}
+
+	// Verify the old format doesn't leak into the second compilation
+	yamlStr2 := `"on":
+  schedule:
+  - cron: "15 9 * * 1"
+  workflow_dispatch:`
+
+	result2 := compiler.addFriendlyScheduleComments(yamlStr2, frontmatter2)
+	if !strings.Contains(result2, "# Friendly format: weekly (scattered)") {
+		t.Errorf("expected 'weekly' friendly format comment in second compilation, got:\n%s", result2)
+	}
+	if strings.Contains(result2, "# Friendly format: daily") {
+		t.Errorf("unexpected 'daily' format leaking into second compilation, got:\n%s", result2)
+	}
+
+	// Third compilation - compile the first workflow again
+	// This ensures the format is deterministic across repeated compilations
+	compiler.scheduleFriendlyFormats = nil
+
+	// Create a fresh frontmatter map (important: don't reuse the modified one)
+	frontmatter3 := map[string]any{
+		"on": map[string]any{
+			"schedule": "daily",
+		},
+	}
+
+	err = compiler.preprocessScheduleFields(frontmatter3, "test-workflow-1.md", "")
+	if err != nil {
+		t.Fatalf("failed to preprocess schedule in third compilation: %v", err)
+	}
+
+	result3 := compiler.addFriendlyScheduleComments(yamlStr1, frontmatter3)
+	if !strings.Contains(result3, "# Friendly format: daily (scattered)") {
+		t.Errorf("expected 'daily' friendly format comment in third compilation, got:\n%s", result3)
+	}
+
+	// Verify the results are identical for the same workflow
+	if result1 != result3 {
+		t.Errorf("expected identical results for same workflow, got:\n===First===\n%s\n===Third===\n%s", result1, result3)
+	}
+}
