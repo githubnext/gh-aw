@@ -50,6 +50,7 @@ This is a test workflow.
 		Verbose:     false,
 		NoFix:       true, // Skip codemods for this test
 		WorkflowDir: "",
+		Push:        false,
 	}
 
 	err = RunUpgrade(config)
@@ -125,6 +126,7 @@ This workflow also has deprecated timeout_minutes field.
 		Verbose:     false,
 		NoFix:       false, // Apply codemods
 		WorkflowDir: "",
+		Push:        false,
 	}
 
 	err = RunUpgrade(config)
@@ -185,6 +187,7 @@ This workflow should not be modified when --no-fix is used.
 		Verbose:     false,
 		NoFix:       true, // Skip codemods
 		WorkflowDir: "",
+		Push:        false,
 	}
 
 	err = RunUpgrade(config)
@@ -215,6 +218,7 @@ func TestUpgradeCommand_NonGitRepo(t *testing.T) {
 		Verbose:     false,
 		NoFix:       true,
 		WorkflowDir: "",
+		Push:        false,
 	}
 
 	err := RunUpgrade(config)
@@ -262,6 +266,7 @@ This is a test workflow that should be compiled during upgrade.
 		Verbose:     false,
 		NoFix:       false, // Apply codemods and compile
 		WorkflowDir: "",
+		Push:        false,
 	}
 
 	err = RunUpgrade(config)
@@ -317,6 +322,7 @@ This workflow should not be compiled with --no-fix.
 		Verbose:     false,
 		NoFix:       true, // Skip codemods and compilation
 		WorkflowDir: "",
+		Push:        false,
 	}
 
 	err = RunUpgrade(config)
@@ -325,4 +331,117 @@ This workflow should not be compiled with --no-fix.
 	// Verify that the lock file was NOT created
 	lockFile := filepath.Join(workflowsDir, "test-workflow.lock.yml")
 	assert.NoFileExists(t, lockFile, "Lock file should not be created with --no-fix")
+}
+
+func TestUpgradeCommand_PushRequiresCleanWorkingDirectory(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+
+	// Initialize git repository
+	os.Chdir(tmpDir)
+	exec.Command("git", "init").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "config", "user.name", "Test User").Run()
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a workflow file
+	workflowFile := filepath.Join(workflowsDir, "test-workflow.md")
+	content := `---
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This is a test workflow.
+`
+	err = os.WriteFile(workflowFile, []byte(content), 0644)
+	require.NoError(t, err, "Failed to create test workflow file")
+
+	// Commit the workflow file first
+	exec.Command("git", "add", ".").Run()
+	exec.Command("git", "commit", "-m", "Initial commit").Run()
+
+	// Create an uncommitted change
+	unstagedFile := filepath.Join(tmpDir, "uncommitted.txt")
+	err = os.WriteFile(unstagedFile, []byte("uncommitted content"), 0644)
+	require.NoError(t, err, "Failed to create uncommitted file")
+
+	// Run upgrade command with --push (should fail due to uncommitted changes)
+	config := UpgradeConfig{
+		Verbose:     false,
+		NoFix:       true,
+		WorkflowDir: "",
+		Push:        true,
+	}
+
+	err = RunUpgrade(config)
+	require.Error(t, err, "Upgrade with --push should fail when there are uncommitted changes")
+	assert.Contains(t, strings.ToLower(err.Error()), "clean", "Error message should mention clean working directory")
+}
+
+func TestUpgradeCommand_PushWithNoChanges(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+
+	// Initialize git repository
+	os.Chdir(tmpDir)
+	exec.Command("git", "init").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "config", "user.name", "Test User").Run()
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a simple workflow
+	workflowFile := filepath.Join(workflowsDir, "test-workflow.md")
+	content := `---
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This workflow is already up to date.
+`
+	err = os.WriteFile(workflowFile, []byte(content), 0644)
+	require.NoError(t, err, "Failed to create test workflow file")
+
+	// Commit everything first
+	exec.Command("git", "add", ".").Run()
+	exec.Command("git", "commit", "-m", "Initial commit").Run()
+
+	// Create all the agent files to ensure no changes will be made
+	if err := ensureCopilotInstructions(false, false); err == nil {
+		exec.Command("git", "add", ".").Run()
+		exec.Command("git", "commit", "-m", "Add agent files").Run()
+	}
+
+	// Run upgrade command with --push (should succeed but not create a new commit)
+	config := UpgradeConfig{
+		Verbose:     false,
+		NoFix:       true, // Skip codemods to avoid changes
+		WorkflowDir: "",
+		Push:        true,
+	}
+
+	err = RunUpgrade(config)
+	// Should succeed even if no changes to commit
+	require.NoError(t, err, "Upgrade with --push should succeed when working directory is clean")
 }

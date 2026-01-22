@@ -533,3 +533,116 @@ func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
 
 	return status, nil
 }
+
+// hasChangesToCommit checks if there are any changes in the working directory
+func hasChangesToCommit() (bool, error) {
+	gitLog.Print("Checking for modified files")
+	cmd := exec.Command("git", "status", "--porcelain")
+	output, err := cmd.Output()
+	if err != nil {
+		gitLog.Printf("Failed to check git status: %v", err)
+		return false, fmt.Errorf("failed to check git status: %w", err)
+	}
+
+	hasChanges := len(strings.TrimSpace(string(output))) > 0
+	gitLog.Printf("Has changes to commit: %v", hasChanges)
+	return hasChanges, nil
+}
+
+// hasRemote checks if a remote repository named 'origin' is configured
+func hasRemote() bool {
+	gitLog.Print("Checking for remote repository")
+	cmd := exec.Command("git", "remote", "get-url", "origin")
+	err := cmd.Run()
+	hasRemoteRepo := err == nil
+	gitLog.Printf("Has remote repository: %v", hasRemoteRepo)
+	return hasRemoteRepo
+}
+
+// pullFromRemote pulls the latest changes from the remote repository using rebase
+func pullFromRemote(verbose bool) error {
+	gitLog.Print("Pulling latest changes from remote")
+	pullCmd := exec.Command("git", "pull", "--rebase")
+	if output, err := pullCmd.CombinedOutput(); err != nil {
+		gitLog.Printf("Failed to pull changes: %v, output: %s", err, string(output))
+		return fmt.Errorf("failed to pull changes: %w", err)
+	}
+	gitLog.Print("Successfully pulled latest changes")
+	return nil
+}
+
+// stageAllChanges stages all modified files using git add -A
+func stageAllChanges(verbose bool) error {
+	gitLog.Print("Staging all changes")
+	addCmd := exec.Command("git", "add", "-A")
+	if output, err := addCmd.CombinedOutput(); err != nil {
+		gitLog.Printf("Failed to stage changes: %v, output: %s", err, string(output))
+		return fmt.Errorf("failed to stage changes: %w", err)
+	}
+	gitLog.Print("Successfully staged all changes")
+	return nil
+}
+
+// pushToRemote pushes the current branch to the remote repository
+func pushToRemote(verbose bool) error {
+	gitLog.Print("Pushing changes to remote")
+	pushCmd := exec.Command("git", "push")
+	if output, err := pushCmd.CombinedOutput(); err != nil {
+		gitLog.Printf("Failed to push changes: %v, output: %s", err, string(output))
+		return fmt.Errorf("failed to push changes: %w\nOutput: %s", err, string(output))
+	}
+	gitLog.Print("Successfully pushed changes to remote")
+	return nil
+}
+
+// commitAndPushChanges is a helper that orchestrates the full commit and push workflow
+// It checks for changes, pulls from remote (if exists), stages all changes, commits, and pushes (if remote exists)
+func commitAndPushChanges(commitMessage string, verbose bool) error {
+	gitLog.Printf("Starting commit and push workflow with message: %s", commitMessage)
+
+	// Check if there are any changes to commit
+	hasChanges, err := hasChangesToCommit()
+	if err != nil {
+		return err
+	}
+
+	if !hasChanges {
+		gitLog.Print("No changes to commit")
+		return nil
+	}
+
+	// Pull latest changes from remote before committing (if remote exists)
+	if hasRemote() {
+		gitLog.Print("Remote repository exists, pulling latest changes")
+		if err := pullFromRemote(verbose); err != nil {
+			return err
+		}
+	} else {
+		gitLog.Print("No remote repository configured, skipping pull")
+	}
+
+	// Stage all modified files
+	if err := stageAllChanges(verbose); err != nil {
+		return err
+	}
+
+	// Commit the changes
+	gitLog.Printf("Committing changes with message: %s", commitMessage)
+	if err := commitChanges(commitMessage, verbose); err != nil {
+		gitLog.Printf("Failed to commit changes: %v", err)
+		return fmt.Errorf("failed to commit changes: %w", err)
+	}
+
+	// Push the changes (only if remote exists)
+	if hasRemote() {
+		gitLog.Print("Remote repository exists, pushing changes")
+		if err := pushToRemote(verbose); err != nil {
+			return err
+		}
+	} else {
+		gitLog.Print("No remote repository configured, skipping push")
+	}
+
+	gitLog.Print("Commit and push workflow completed successfully")
+	return nil
+}

@@ -444,8 +444,17 @@ func attemptSetSecret(secretName, repoSlug string, verbose bool) error {
 }
 
 // InitRepository initializes the repository for agentic workflows
-func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine string, codespaceRepos []string, codespaceEnabled bool, completions bool, rootCmd CommandProvider) error {
+func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine string, codespaceRepos []string, codespaceEnabled bool, completions bool, push bool, rootCmd CommandProvider) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
+
+	// If --push is enabled, ensure git status is clean before starting
+	if push {
+		initLog.Print("Checking for clean working directory (--push enabled)")
+		if err := checkCleanWorkingDirectory(verbose); err != nil {
+			initLog.Printf("Git status check failed: %v", err)
+			return fmt.Errorf("--push requires a clean working directory: %w", err)
+		}
+	}
 
 	// Ensure we're in a git repository
 	if !isGitRepo() {
@@ -679,6 +688,34 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	}
 
 	initLog.Print("Repository initialization completed successfully")
+
+	// If --push is enabled, commit and push changes
+	if push {
+		initLog.Print("Push enabled - preparing to commit and push changes")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Preparing to commit and push changes..."))
+
+		// Use the helper function to orchestrate the full workflow
+		commitMessage := "chore: initialize agentic workflows"
+		if err := commitAndPushChanges(commitMessage, verbose); err != nil {
+			// Check if it's the "no changes" case
+			hasChanges, checkErr := hasChangesToCommit()
+			if checkErr == nil && !hasChanges {
+				initLog.Print("No changes to commit")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No changes to commit"))
+			} else {
+				return err
+			}
+		} else {
+			// Print success messages based on whether remote exists
+			fmt.Fprintln(os.Stderr, "")
+			if hasRemote() {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes pushed to remote"))
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes committed locally (no remote configured)"))
+			}
+		}
+	}
 
 	// Display success message with next steps
 	fmt.Fprintln(os.Stderr, "")
