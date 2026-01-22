@@ -3,10 +3,6 @@
   "date": "2026-01-22",
   "tasks_total": 0,
   "tasks_completed": 0,
-  "tasks_in_progress": 0,
-  "tasks_blocked": 0,
-  "critical_alerts": 5,
-  "high_severity_alerts": 15,
-  "velocity_per_day": 0,
-  "estimated_completion": null
+  "tasks_in_progress": 1,
+  "notes": "Initial campaign run. Epic issue created and added to board. No work items discovered yet - workers have not generated any labeled issues/PRs."
 }
