@@ -440,18 +440,9 @@ func (c *Compiler) generateWorkflowOverviewStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("            await generateWorkflowOverview(core);\n")
 }
 
-func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {
-	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload Safe Outputs", []string{"${{ env.GH_AW_SAFE_OUTPUTS }}"})
-
-	yaml.WriteString("      - name: Upload Safe Outputs\n")
-	yaml.WriteString("        if: always()\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
-	yaml.WriteString("        with:\n")
-	fmt.Fprintf(yaml, "          name: %s\n", constants.SafeOutputArtifactName)
-	yaml.WriteString("          path: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
-	yaml.WriteString("          if-no-files-found: warn\n")
-
+// generateIngestAgentOutputStep generates the step that processes agent output from JSONL
+// This step must run AFTER secret redaction but BEFORE artifact uploads
+func (c *Compiler) generateIngestAgentOutputStep(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("      - name: Ingest agent output\n")
 	yaml.WriteString("        id: collect_output\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
@@ -501,6 +492,21 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("            setupGlobals(core, github, context, exec, io);\n")
 	yaml.WriteString("            const { main } = require('/opt/gh-aw/actions/collect_ndjson_output.cjs');\n")
 	yaml.WriteString("            await main();\n")
+}
+
+// generateUploadSafeOutputsSteps generates the steps that upload safe outputs and sanitized agent output
+// This must run AFTER the Ingest agent output step
+func (c *Compiler) generateUploadSafeOutputsSteps(yaml *strings.Builder, data *WorkflowData) {
+	// Record artifact upload for validation
+	c.stepOrderTracker.RecordArtifactUpload("Upload Safe Outputs", []string{"${{ env.GH_AW_SAFE_OUTPUTS }}"})
+
+	yaml.WriteString("      - name: Upload Safe Outputs\n")
+	yaml.WriteString("        if: always()\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
+	yaml.WriteString("        with:\n")
+	fmt.Fprintf(yaml, "          name: %s\n", constants.SafeOutputArtifactName)
+	yaml.WriteString("          path: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
+	yaml.WriteString("          if-no-files-found: warn\n")
 
 	// Record artifact upload for validation
 	c.stepOrderTracker.RecordArtifactUpload("Upload sanitized agent output", []string{"${{ env.GH_AW_AGENT_OUTPUT }}"})
@@ -512,5 +518,4 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	fmt.Fprintf(yaml, "          name: %s\n", constants.AgentOutputArtifactName)
 	yaml.WriteString("          path: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
-
 }

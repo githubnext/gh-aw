@@ -219,9 +219,16 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// This ensures all artifacts are scanned for secrets before being uploaded
 	c.generateSecretRedactionStep(yaml, yaml.String(), data)
 
-	// Add output collection step only if safe-outputs feature is used (GH_AW_SAFE_OUTPUTS functionality)
+	// Add output ingestion step immediately after secret redaction (if safe-outputs feature is used)
+	// This step processes the JSONL output file and must run BEFORE artifact uploads
 	if data.SafeOutputs != nil {
-		c.generateOutputCollectionStep(yaml, data)
+		c.generateIngestAgentOutputStep(yaml, data)
+	}
+
+	// Add output upload steps only if safe-outputs feature is used (GH_AW_SAFE_OUTPUTS functionality)
+	// This must come AFTER the Ingest agent output step
+	if data.SafeOutputs != nil {
+		c.generateUploadSafeOutputsSteps(yaml, data)
 	}
 
 	// Add engine-declared output files collection (if any)

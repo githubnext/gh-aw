@@ -189,14 +189,14 @@ func TestSafeOutputsConfigGeneration(t *testing.T) {
 			compiler := NewCompiler(false, "", "test")
 			config := compiler.extractSafeOutputsConfig(tt.frontmatter)
 
-			// Test the config generation in generateOutputCollectionStep by creating a mock workflow data
+			// Test the config generation in generateIngestAgentOutputStep by creating a mock workflow data
 			workflowData := &WorkflowData{
 				SafeOutputs: config,
 			}
 
-			// Use the compiler's generateOutputCollectionStep to verify config is not in env vars
+			// Use the compiler's generateIngestAgentOutputStep to verify config is not in env vars
 			var yamlBuilder strings.Builder
-			compiler.generateOutputCollectionStep(&yamlBuilder, workflowData)
+			compiler.generateIngestAgentOutputStep(&yamlBuilder, workflowData)
 			generatedYAML := yamlBuilder.String()
 
 			// Config should NOT be in environment variables anymore - it's in a file

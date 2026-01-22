@@ -659,4 +659,8 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 
 // generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata
 
-// generateOutputCollectionStep generates a step that reads the output file and sets it as a GitHub Actions output
+// generateIngestAgentOutputStep generates a step that processes agent output from JSONL
+// This step must run AFTER secret redaction but BEFORE artifact uploads
+
+// generateUploadSafeOutputsSteps generates steps that upload safe outputs and sanitized agent output
+// This must run AFTER the Ingest agent output step
