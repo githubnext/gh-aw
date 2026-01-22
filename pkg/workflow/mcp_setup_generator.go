@@ -542,6 +542,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			containerCmd += " -e GH_AW_SAFE_INPUTS_PORT"
 			containerCmd += " -e GH_AW_SAFE_INPUTS_API_KEY"
 		}
+		// Environment variables used by safeoutputs MCP server
+		// Only add if safe-outputs is actually enabled (has tools configured)
+		if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+			containerCmd += " -e GH_AW_SAFE_OUTPUTS_PORT"
+			containerCmd += " -e GH_AW_SAFE_OUTPUTS_API_KEY"
+		}
 		if len(gatewayConfig.Env) > 0 {
 			envVarNames := make([]string, 0, len(gatewayConfig.Env))
 			for envVarName := range gatewayConfig.Env {
