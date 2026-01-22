@@ -41,6 +41,14 @@ gh aw init
 
 This command installs agents and tools for GitHub Copilot.
 
+Commit and push the changes in git
+
+```bash wrap
+git add .
+git commit -m "files added from 'gh aw init'"
+git push
+```
+
 ### Step 3 — Add a sample workflow
 
 Add a sample from the [agentics](https://github.com/githubnext/agentics) collection. From your repository root run:
