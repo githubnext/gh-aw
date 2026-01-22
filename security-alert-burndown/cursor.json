@@ -1,4 +1,6 @@
 {
   "page": 1,
-  "label": "campaign:security-alert-burndown"
+  "trackerId": "dependabot-bundler",
+  "last_updated": "2026-01-22T20:20:54.822Z",
+  "discovery_complete": true
 }
