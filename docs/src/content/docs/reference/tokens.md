@@ -359,6 +359,32 @@ gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
 **Token precedence**: per-output → global safe-outputs → workflow-level → `GH_AW_AGENT_TOKEN` (no further fallback - must be explicitly configured)
 
 > [!NOTE]
+> Two ways to assign Copilot agents
+> 
+> There are two different methods for assigning GitHub Copilot agents to issues or pull requests:
+> 
+> 1. **Via `assign-to-agent` safe output** (uses `GH_AW_AGENT_TOKEN`): Use when you need to assign agents to **existing** issues or PRs after they've been created. This is a standalone operation that requires the token documented on this page.
+> 
+>    ```yaml
+>    safe-outputs:
+>      assign-to-agent:
+>        name: "copilot"
+>        allowed: [copilot]
+>    ```
+> 
+> 2. **Via `assignees` or `reviewers` fields** (uses `COPILOT_GITHUB_TOKEN`): Use when creating new issues or PRs and want to assign the agent immediately. This is configured as part of `create-issue` or `create-pull-request` safe outputs.
+> 
+>    ```yaml
+>    safe-outputs:
+>      create-issue:
+>        assignees: copilot  # or assignees: [copilot, user1]
+>      create-pull-request:
+>        reviewers: copilot  # or reviewers: [copilot, user1]
+>    ```
+> 
+> For most workflows that create issues with agent assignments, use method 2 (`assignees: copilot`) as it's simpler and uses the existing `COPILOT_GITHUB_TOKEN`. Use method 1 (`assign-to-agent`) when you need to assign agents to issues that already exist or when you need fine-grained control over agent assignment operations.
+
+> [!NOTE]
 > Resource owner requirements
 > The token's resource owner must match the repository ownership:
 > - **User-owned repositories**: Use a token where the resource owner is your user account
