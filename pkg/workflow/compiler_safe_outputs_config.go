@@ -5,19 +5,24 @@ import (
 	"fmt"
 )
 
+<<<<<<< HEAD
+=======
+var compilerSafeOutputsConfigLog = logger.New("workflow:compiler_safe_outputs_config")
+
+>>>>>>> origin/main
 func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *WorkflowData) {
 	if data.SafeOutputs == nil {
-		compilerSafeOutputsLog.Print("No safe-outputs configuration, skipping handler manager config")
+		compilerSafeOutputsConfigLog.Print("No safe-outputs configuration, skipping handler manager config")
 		return
 	}
 
-	compilerSafeOutputsLog.Print("Building handler manager configuration for safe-outputs")
+	compilerSafeOutputsConfigLog.Print("Building handler manager configuration for safe-outputs")
 	config := make(map[string]map[string]any)
 
 	// Add config for each enabled safe output type with their options
 	// Presence in config = enabled, so no need for "enabled": true field
 	if data.SafeOutputs.CreateIssues != nil {
-		compilerSafeOutputsLog.Print("Adding create_issue handler configuration")
+		compilerSafeOutputsConfigLog.Print("Adding create_issue handler configuration")
 		cfg := data.SafeOutputs.CreateIssues
 		handlerConfig := make(map[string]any)
 		if cfg.Max > 0 {
@@ -522,7 +527,7 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 
 	// Only add the env var if there are handlers to configure
 	if len(config) > 0 {
-		compilerSafeOutputsLog.Printf("Marshaling handler config with %d handlers", len(config))
+		compilerSafeOutputsConfigLog.Printf("Marshaling handler config with %d handlers", len(config))
 		configJSON, err := json.Marshal(config)
 		if err != nil {
 			consolidatedSafeOutputsLog.Printf("Failed to marshal handler config: %v", err)
@@ -531,9 +536,9 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		// Escape the JSON for YAML (handle quotes and special chars)
 		configStr := string(configJSON)
 		*steps = append(*steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: %q\n", configStr))
-		compilerSafeOutputsLog.Printf("Added handler config env var: size=%d bytes", len(configStr))
+		compilerSafeOutputsConfigLog.Printf("Added handler config env var: size=%d bytes", len(configStr))
 	} else {
-		compilerSafeOutputsLog.Print("No handlers configured, skipping config env var")
+		compilerSafeOutputsConfigLog.Print("No handlers configured, skipping config env var")
 	}
 }
 
@@ -542,11 +547,11 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 // These handlers require GH_AW_PROJECT_GITHUB_TOKEN and are processed separately from the main handler manager.
 func (c *Compiler) addProjectHandlerManagerConfigEnvVar(steps *[]string, data *WorkflowData) {
 	if data.SafeOutputs == nil {
-		compilerSafeOutputsLog.Print("No safe-outputs configuration, skipping project handler config")
+		compilerSafeOutputsConfigLog.Print("No safe-outputs configuration, skipping project handler config")
 		return
 	}
 
-	compilerSafeOutputsLog.Print("Building project handler manager configuration")
+	compilerSafeOutputsConfigLog.Print("Building project handler manager configuration")
 	config := make(map[string]map[string]any)
 
 	// Add config for project-related safe output types

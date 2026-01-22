@@ -4,7 +4,7 @@
 **Branch:** {branch}  
 **Run URL:** {run_url}{pull_request_info}
 
-{secret_verification_context}
+{secret_verification_context}{assignment_errors_context}
 
 ### Action Required
 
