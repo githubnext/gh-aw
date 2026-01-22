@@ -111,15 +111,6 @@ func TestValidateStrictPermissions(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "shorthand write is refused",
-			frontmatter: map[string]any{
-				"on":          "push",
-				"permissions": "write",
-			},
-			expectError: true,
-			errorMsg:    "strict mode: write permission 'contents: write' is not allowed for security reasons. Use 'safe-outputs.create-issue', 'safe-outputs.create-pull-request', 'safe-outputs.add-comment', or 'safe-outputs.update-issue' to perform write operations safely",
-		},
-		{
 			name: "shorthand write-all is refused",
 			frontmatter: map[string]any{
 				"on":          "push",
@@ -143,6 +134,52 @@ func TestValidateStrictPermissions(t *testing.T) {
 				"permissions": nil,
 			},
 			expectError: false,
+		},
+		{
+			name: "id-token write is allowed (safe permission for OIDC)",
+			frontmatter: map[string]any{
+				"on": "push",
+				"permissions": map[string]any{
+					"id-token": "write",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "id-token write with read permissions is allowed",
+			frontmatter: map[string]any{
+				"on": "push",
+				"permissions": map[string]any{
+					"contents": "read",
+					"id-token": "write",
+					"issues":   "read",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "id-token write with other safe write permissions is allowed",
+			frontmatter: map[string]any{
+				"on": "push",
+				"permissions": map[string]any{
+					"id-token":     "write",
+					"attestations": "write",
+					"actions":      "write",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "id-token write with blocked write permissions fails on blocked permissions",
+			frontmatter: map[string]any{
+				"on": "push",
+				"permissions": map[string]any{
+					"id-token": "write",
+					"contents": "write",
+				},
+			},
+			expectError: true,
+			errorMsg:    "strict mode: write permission 'contents: write' is not allowed for security reasons",
 		},
 	}
 
@@ -353,10 +390,10 @@ func TestValidateStrictMode(t *testing.T) {
 			},
 			networkPermissions: &NetworkPermissions{
 				Mode:    "custom",
-				Allowed: []string{"api.example.com"},
+				Allowed: []string{}, // Empty allowed list - no top-level network config
 			},
 			expectError: true,
-			errorMsg:    "strict mode: custom MCP server 'my-server' with container must have network configuration for security",
+			errorMsg:    "strict mode: custom MCP server 'my-server' with container must have top-level network configuration for security",
 		},
 		{
 			name:       "strict mode with container MCP and network config",
@@ -414,6 +451,22 @@ func TestValidateStrictMode(t *testing.T) {
 			strictMode: true,
 			frontmatter: map[string]any{
 				"on": "push",
+			},
+			networkPermissions: &NetworkPermissions{
+				Mode:    "custom",
+				Allowed: []string{"api.example.com"},
+			},
+			expectError: false,
+		},
+		{
+			name:       "strict mode with id-token write is allowed",
+			strictMode: true,
+			frontmatter: map[string]any{
+				"on": "push",
+				"permissions": map[string]any{
+					"id-token": "write",
+					"contents": "read",
+				},
 			},
 			networkPermissions: &NetworkPermissions{
 				Mode:    "custom",
