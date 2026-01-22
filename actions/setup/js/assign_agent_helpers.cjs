@@ -122,6 +122,19 @@ async function findAgent(owner, repo, agentName) {
   } catch (error) {
     const errorMessage = getErrorMessage(error);
     core.error(`Failed to find ${agentName} agent: ${errorMessage}`);
+
+    // Re-throw authentication/permission errors so they can be handled by the caller
+    // This allows ignore-if-missing logic to work properly
+    if (
+      errorMessage.includes("Bad credentials") ||
+      errorMessage.includes("Not Authenticated") ||
+      errorMessage.includes("Resource not accessible") ||
+      errorMessage.includes("Insufficient permissions") ||
+      errorMessage.includes("requires authentication")
+    ) {
+      throw error;
+    }
+
     return null;
   }
 }

@@ -17,11 +17,12 @@ type UpgradeConfig struct {
 	Verbose     bool
 	WorkflowDir string
 	NoFix       bool
+	Push        bool
 }
 
 // RunUpgrade runs the upgrade command with the given configuration
 func RunUpgrade(config UpgradeConfig) error {
-	return runUpgradeCommand(config.Verbose, config.WorkflowDir, config.NoFix, false)
+	return runUpgradeCommand(config.Verbose, config.WorkflowDir, config.NoFix, false, config.Push)
 }
 
 // NewUpgradeCommand creates the upgrade command
@@ -49,19 +50,22 @@ This command always upgrades all Markdown files in .github/workflows.
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` upgrade                    # Upgrade all workflows
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-fix          # Update agent files only (skip codemods and compilation)
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --push            # Upgrade and automatically commit/push changes
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --dir custom/workflows  # Upgrade workflows in custom directory`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			dir, _ := cmd.Flags().GetString("dir")
 			noFix, _ := cmd.Flags().GetBool("no-fix")
+			push, _ := cmd.Flags().GetBool("push")
 
-			return runUpgradeCommand(verbose, dir, noFix, false)
+			return runUpgradeCommand(verbose, dir, noFix, false, push)
 		},
 	}
 
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 	cmd.Flags().Bool("no-fix", false, "Skip applying codemods and compiling workflows (only update agent files)")
+	cmd.Flags().Bool("push", false, "Automatically commit and push changes after successful upgrade")
 
 	// Register completions
 	RegisterDirFlagCompletion(cmd, "dir")
@@ -70,11 +74,24 @@ Examples:
 }
 
 // runUpgradeCommand executes the upgrade process
-func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile bool) error {
-	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v",
-		verbose, workflowDir, noFix, noCompile)
+func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile bool, push bool) error {
+	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, push=%v",
+		verbose, workflowDir, noFix, noCompile, push)
 
-	// Step 0: Ensure gh-aw extension is on the latest version
+	// Step 0a: If --push is enabled, ensure git status is clean before starting
+	if push {
+		upgradeLog.Print("Checking for clean working directory (--push enabled)")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking git status..."))
+		if err := checkCleanWorkingDirectory(verbose); err != nil {
+			upgradeLog.Printf("Git status check failed: %v", err)
+			return fmt.Errorf("--push requires a clean working directory: %w", err)
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Working directory is clean"))
+		}
+	}
+
+	// Step 0b: Ensure gh-aw extension is on the latest version
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking gh-aw extension version..."))
 	if err := ensureLatestExtensionVersion(verbose); err != nil {
 		upgradeLog.Printf("Extension version check failed: %v", err)
@@ -160,6 +177,48 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 	// Print success message
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Upgrade complete"))
+
+	// Step 4: If --push is enabled, commit and push changes
+	if push {
+		upgradeLog.Print("Push enabled - preparing to commit and push changes")
+		fmt.Fprintln(os.Stderr, "")
+
+		// Check if we're on the default branch
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking current branch..."))
+		if err := checkOnDefaultBranch(verbose); err != nil {
+			upgradeLog.Printf("Default branch check failed: %v", err)
+			return fmt.Errorf("cannot push: %w", err)
+		}
+
+		// Confirm with user (skip in CI)
+		if err := confirmPushOperation(verbose); err != nil {
+			upgradeLog.Printf("Push operation not confirmed: %v", err)
+			return fmt.Errorf("push operation cancelled: %w", err)
+		}
+
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Preparing to commit and push changes..."))
+
+		// Use the helper function to orchestrate the full workflow
+		commitMessage := "chore: upgrade agentic workflows"
+		if err := commitAndPushChanges(commitMessage, verbose); err != nil {
+			// Check if it's the "no changes" case
+			hasChanges, checkErr := hasChangesToCommit()
+			if checkErr == nil && !hasChanges {
+				upgradeLog.Print("No changes to commit")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No changes to commit"))
+				return nil
+			}
+			return err
+		}
+
+		// Print success messages based on whether remote exists
+		fmt.Fprintln(os.Stderr, "")
+		if hasRemote() {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes pushed to remote"))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes committed locally (no remote configured)"))
+		}
+	}
 
 	return nil
 }

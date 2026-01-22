@@ -2,7 +2,7 @@
 id: security-alert-burndown
 name: Security Alert Burndown
 description: Systematically burns down code security alerts with focus on file write issues
-project-url: https://github.com/orgs/githubnext/projects/130
+project-url: https://github.com/orgs/githubnext/projects/134
 version: v1
 state: planned
 workflows:
@@ -33,8 +33,8 @@ kpis:
     priority: supporting
 governance:
   max-new-items-per-run: 3
-  max-discovery-items-per-run: 50
-  max-discovery-pages-per-run: 3
+  max-discovery-items-per-run: 100
+  max-discovery-pages-per-run: 5
   max-project-updates-per-run: 10
   max-comments-per-run: 3
   opt-out-labels:

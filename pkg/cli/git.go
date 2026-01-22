@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/charmbracelet/huh"
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -532,4 +534,235 @@ func checkWorkflowFileStatus(workflowPath string) (*WorkflowFileStatus, error) {
 	}
 
 	return status, nil
+}
+
+// hasChangesToCommit checks if there are any changes in the working directory
+func hasChangesToCommit() (bool, error) {
+	gitLog.Print("Checking for modified files")
+	cmd := exec.Command("git", "status", "--porcelain")
+	output, err := cmd.Output()
+	if err != nil {
+		gitLog.Printf("Failed to check git status: %v", err)
+		return false, fmt.Errorf("failed to check git status: %w", err)
+	}
+
+	hasChanges := len(strings.TrimSpace(string(output))) > 0
+	gitLog.Printf("Has changes to commit: %v", hasChanges)
+	return hasChanges, nil
+}
+
+// hasRemote checks if a remote repository named 'origin' is configured
+func hasRemote() bool {
+	gitLog.Print("Checking for remote repository")
+	cmd := exec.Command("git", "remote", "get-url", "origin")
+	err := cmd.Run()
+	hasRemoteRepo := err == nil
+	gitLog.Printf("Has remote repository: %v", hasRemoteRepo)
+	return hasRemoteRepo
+}
+
+// pullFromRemote pulls the latest changes from the remote repository using rebase
+func pullFromRemote(verbose bool) error {
+	gitLog.Print("Pulling latest changes from remote")
+	pullCmd := exec.Command("git", "pull", "--rebase")
+	if output, err := pullCmd.CombinedOutput(); err != nil {
+		gitLog.Printf("Failed to pull changes: %v, output: %s", err, string(output))
+		return fmt.Errorf("failed to pull changes: %w", err)
+	}
+	gitLog.Print("Successfully pulled latest changes")
+	return nil
+}
+
+// stageAllChanges stages all modified files using git add -A
+func stageAllChanges(verbose bool) error {
+	gitLog.Print("Staging all changes")
+	addCmd := exec.Command("git", "add", "-A")
+	if output, err := addCmd.CombinedOutput(); err != nil {
+		gitLog.Printf("Failed to stage changes: %v, output: %s", err, string(output))
+		return fmt.Errorf("failed to stage changes: %w", err)
+	}
+	gitLog.Print("Successfully staged all changes")
+	return nil
+}
+
+// pushToRemote pushes the current branch to the remote repository
+func pushToRemote(verbose bool) error {
+	gitLog.Print("Pushing changes to remote")
+	pushCmd := exec.Command("git", "push")
+	if output, err := pushCmd.CombinedOutput(); err != nil {
+		gitLog.Printf("Failed to push changes: %v, output: %s", err, string(output))
+		return fmt.Errorf("failed to push changes: %w\nOutput: %s", err, string(output))
+	}
+	gitLog.Print("Successfully pushed changes to remote")
+	return nil
+}
+
+// commitAndPushChanges is a helper that orchestrates the full commit and push workflow
+// It checks for changes, pulls from remote (if exists), stages all changes, commits, and pushes (if remote exists)
+func commitAndPushChanges(commitMessage string, verbose bool) error {
+	gitLog.Printf("Starting commit and push workflow with message: %s", commitMessage)
+
+	// Check if there are any changes to commit
+	hasChanges, err := hasChangesToCommit()
+	if err != nil {
+		return err
+	}
+
+	if !hasChanges {
+		gitLog.Print("No changes to commit")
+		return nil
+	}
+
+	// Pull latest changes from remote before committing (if remote exists)
+	if hasRemote() {
+		gitLog.Print("Remote repository exists, pulling latest changes")
+		if err := pullFromRemote(verbose); err != nil {
+			return err
+		}
+	} else {
+		gitLog.Print("No remote repository configured, skipping pull")
+	}
+
+	// Stage all modified files
+	if err := stageAllChanges(verbose); err != nil {
+		return err
+	}
+
+	// Commit the changes
+	gitLog.Printf("Committing changes with message: %s", commitMessage)
+	if err := commitChanges(commitMessage, verbose); err != nil {
+		gitLog.Printf("Failed to commit changes: %v", err)
+		return fmt.Errorf("failed to commit changes: %w", err)
+	}
+
+	// Push the changes (only if remote exists)
+	if hasRemote() {
+		gitLog.Print("Remote repository exists, pushing changes")
+		if err := pushToRemote(verbose); err != nil {
+			return err
+		}
+	} else {
+		gitLog.Print("No remote repository configured, skipping push")
+	}
+
+	gitLog.Print("Commit and push workflow completed successfully")
+	return nil
+}
+
+// getDefaultBranch gets the default branch name for the repository
+func getDefaultBranch() (string, error) {
+	gitLog.Print("Getting default branch name")
+
+	// Get repository slug (owner/repo)
+	repoSlug := getRepositorySlugFromRemote()
+	if repoSlug == "" {
+		gitLog.Print("No remote repository configured, cannot determine default branch")
+		return "", fmt.Errorf("no remote repository configured")
+	}
+
+	// Parse owner and repo from slug
+	parts := strings.Split(repoSlug, "/")
+	if len(parts) != 2 {
+		gitLog.Printf("Invalid repository slug format: %s", repoSlug)
+		return "", fmt.Errorf("invalid repository slug format: %s", repoSlug)
+	}
+
+	owner, repo := parts[0], parts[1]
+
+	// Use gh CLI to get default branch from GitHub API
+	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/%s", owner, repo), "--jq", ".default_branch")
+	output, err := cmd.Output()
+	if err != nil {
+		gitLog.Printf("Failed to get default branch: %v", err)
+		return "", fmt.Errorf("failed to get default branch: %w", err)
+	}
+
+	defaultBranch := strings.TrimSpace(string(output))
+	if defaultBranch == "" {
+		gitLog.Print("Empty default branch returned")
+		return "", fmt.Errorf("could not determine default branch")
+	}
+
+	gitLog.Printf("Default branch: %s", defaultBranch)
+	return defaultBranch, nil
+}
+
+// checkOnDefaultBranch checks if the current branch is the default branch
+// Returns an error if no remote is configured or if not on the default branch
+func checkOnDefaultBranch(verbose bool) error {
+	gitLog.Print("Checking if on default branch")
+
+	// Get current branch
+	currentBranch, err := getCurrentBranch()
+	if err != nil {
+		return fmt.Errorf("failed to get current branch: %w", err)
+	}
+
+	// Get default branch
+	defaultBranch, err := getDefaultBranch()
+	if err != nil {
+		// If no remote is configured, fail the push operation
+		if strings.Contains(err.Error(), "no remote repository configured") {
+			gitLog.Print("No remote configured, cannot push")
+			return fmt.Errorf("--push requires a remote repository to be configured")
+		}
+		return fmt.Errorf("failed to get default branch: %w", err)
+	}
+
+	// Compare branches
+	if currentBranch != defaultBranch {
+		gitLog.Printf("Not on default branch: current=%s, default=%s", currentBranch, defaultBranch)
+		return fmt.Errorf("not on default branch: current branch is '%s', default branch is '%s'", currentBranch, defaultBranch)
+	}
+
+	gitLog.Printf("On default branch: %s", currentBranch)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ On default branch: %s", currentBranch)))
+	}
+	return nil
+}
+
+// confirmPushOperation prompts the user to confirm push operation (skips in CI)
+func confirmPushOperation(verbose bool) error {
+	gitLog.Print("Checking if user confirmation is needed for push operation")
+
+	// Skip confirmation in CI environments
+	if IsRunningInCI() {
+		gitLog.Print("Running in CI, skipping user confirmation")
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Running in CI - skipping confirmation prompt"))
+		}
+		return nil
+	}
+
+	// Prompt user for confirmation
+	gitLog.Print("Prompting user for push confirmation")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("This will commit and push changes to the remote repository."))
+
+	var confirmed bool
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title("Do you want to proceed with commit and push?").
+				Description("This will stage all changes, commit them, and push to the remote repository").
+				Value(&confirmed),
+		),
+	).WithAccessible(console.IsAccessibleMode())
+
+	if err := form.Run(); err != nil {
+		gitLog.Printf("Confirmation prompt failed: %v", err)
+		return fmt.Errorf("confirmation prompt failed: %w", err)
+	}
+
+	if !confirmed {
+		gitLog.Print("User declined push operation")
+		return fmt.Errorf("push operation cancelled by user")
+	}
+
+	gitLog.Print("User confirmed push operation")
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Push operation confirmed"))
+	}
+	return nil
 }

@@ -76,6 +76,9 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("          GH_AW_REACTION: %q\n", data.AIReaction))
 
 		steps = append(steps, "        with:\n")
+		// Explicitly use the GitHub Actions token (GITHUB_TOKEN) for reactions
+		// This ensures proper authentication for adding reactions
+		steps = append(steps, "          github-token: ${{ secrets.GITHUB_TOKEN }}\n")
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("add_reaction.cjs"))
 	}

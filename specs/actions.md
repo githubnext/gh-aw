@@ -678,27 +678,43 @@ The custom GitHub Actions build system provides a foundation for migrating from 
 
 The system is production-ready and extensible, with clear paths for enhancement and migration of existing inline scripts.
 
-## Compiler Integration: Dev Action Mode
+## Compiler Integration: Action Modes
 
-> This section documents the dev action mode feature that enables the workflow compiler to generate references to custom actions instead of embedding JavaScript inline.
+> This section documents the action mode features that control how the workflow compiler generates custom action references in compiled workflows.
 
 ### Overview
 
-The dev action mode feature complements the build system by enabling the workflow compiler to generate `uses:` references to custom actions instead of embedding JavaScript inline via `actions/github-script`. This creates a complete development workflow:
+The action mode system enables the workflow compiler to generate different types of references to custom actions. Three modes are supported:
+
+1. **Dev mode** (`ActionModeDev`): References custom actions using local paths (e.g., `uses: ./actions/setup`)
+2. **Release mode** (`ActionModeRelease`): References custom actions using SHA-pinned remote paths (e.g., `uses: githubnext/gh-aw/actions/setup@sha`)
+3. **Script mode** (`ActionModeScript`): Generates direct shell script calls instead of using GitHub Actions `uses:` syntax
+
+This creates a complete development workflow:
 
 1. Create and build custom actions (using build system described above)
-2. Compile workflows with dev action mode enabled
-3. Generated workflows reference local actions instead of inline JavaScript
+2. Compile workflows with action mode enabled
+3. Generated workflows reference actions according to the selected mode
+
+### Action Mode Selection
+
+Action modes can be configured in multiple ways with the following precedence (highest to lowest):
+
+1. **CLI flag**: `gh aw compile --action-mode script`
+2. **Feature flag**: `features.action-mode: "script"` in workflow frontmatter
+3. **Environment variable**: `GH_AW_ACTION_MODE=script`
+4. **Auto-detection**: Based on build flags and GitHub Actions context
 
 ### Implementation Details
 
 #### 1. Action Mode Type (`pkg/workflow/action_mode.go`)
 
-Added `ActionMode` enum type with two modes:
-- **`ActionModeInline`**: Embeds JavaScript inline using `actions/github-script` (default, backward compatible)
-- **`ActionModeDev`**: References custom actions using local paths
+Defines the `ActionMode` enum type with three modes:
+- **`ActionModeDev`**: References custom actions using local paths (default for development)
+- **`ActionModeRelease`**: References custom actions using SHA-pinned remote paths (for production)
+- **`ActionModeScript`**: Generates direct shell script calls instead of using `uses:` syntax
 
-Includes validation methods `IsValid()` and `String()`.
+Includes validation methods `IsValid()`, `IsDev()`, `IsRelease()`, `IsScript()`, and `String()`.
 
 #### 2. Compiler Support (`pkg/workflow/compiler_types.go`)
 
@@ -721,10 +737,48 @@ Includes validation methods `IsValid()` and `String()`.
   - `addCustomActionGitHubToken()`
   - `addCustomActionCopilotGitHubToken()`
   - `addCustomActionAgentGitHubToken()`
-- Updated `buildSafeOutputJob()` to choose between inline and dev modes based on compiler settings
+- Updated `buildSafeOutputJob()` to choose between inline and action modes based on compiler settings
 - Falls back to inline mode if action path is not registered
 
-#### 5. Safe Output Job Configuration
+#### 5. Script Mode Implementation (`pkg/workflow/compiler_yaml_helpers.go`)
+
+Script mode implements direct shell script execution instead of using GitHub Actions `uses:` syntax:
+
+**Checkout Step** (`generateCheckoutActionsFolder`):
+```yaml
+- name: Checkout actions folder
+  uses: actions/checkout@v5
+  with:
+    repository: githubnext/gh-aw
+    sparse-checkout: |
+      actions
+    path: /tmp/gh-aw/actions-source
+    depth: 1
+    persist-credentials: false
+```
+
+**Setup Step** (`generateSetupStep`):
+```yaml
+- name: Setup Scripts
+  run: |
+    bash /tmp/gh-aw/actions-source/actions/setup/setup.sh
+  env:
+    INPUT_DESTINATION: /opt/gh-aw/actions
+```
+
+**Key differences from dev/release modes:**
+- Checks out the `githubnext/gh-aw` repository instead of the workflow repository
+- Uses sparse checkout to only fetch the `actions` folder
+- Runs setup.sh script directly instead of using `uses: ./actions/setup` or `uses: githubnext/gh-aw/actions/setup@sha`
+- Shallow clone (`depth: 1`) for efficiency
+- Environment variable `INPUT_DESTINATION` passed to setup script
+
+**When script mode is active:**
+- The compiler detects `features.action-mode: "script"` in workflow frontmatter
+- All jobs that need custom actions get the checkout + script execution steps
+- The setup.sh script copies JavaScript and shell scripts from `/tmp/gh-aw/actions-source/actions/setup/` to the destination
+
+#### 6. Safe Output Job Configuration
 
 - Extended `SafeOutputJobConfig` struct with `ScriptName` field
 - Script name enables lookup of custom action path from registry
@@ -742,24 +796,63 @@ workflow.DefaultScriptRegistry.RegisterWithAction(
     workflow.RuntimeModeGitHubScript,
     "./actions/create-issue", // Must match action directory name
 )
-```text
+```
 
-#### Step 2: Compile with Custom Action Mode
+#### Step 2: Compile with Action Mode
 
+**Dev mode** (local action references):
 ```go
 compiler := workflow.NewCompiler(false, "", "1.0.0")
 compiler.SetActionMode(workflow.ActionModeDev)
 compiler.CompileWorkflow("workflow.md")
-```text
+```
+
+**Release mode** (SHA-pinned remote references):
+```go
+compiler := workflow.NewCompiler(false, "", "1.0.0")
+compiler.SetActionMode(workflow.ActionModeRelease)
+compiler.CompileWorkflow("workflow.md")
+```
+
+**Script mode** (direct shell script execution):
+```go
+compiler := workflow.NewCompiler(false, "", "1.0.0")
+compiler.SetActionMode(workflow.ActionModeScript)
+compiler.CompileWorkflow("workflow.md")
+```
+
+Or via frontmatter feature flag:
+```yaml
+---
+name: Test Workflow
+on: workflow_dispatch
+features:
+  action-mode: "script"
+permissions:
+  contents: read
+---
+
+Test workflow using script mode.
+```
 
 #### Step 3: Output Comparison
 
-**With Custom Action Mode** (generates custom action reference):
+**With Dev Mode** (local action reference):
 ```yaml
 jobs:
   create_issue:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            actions
+          path: /tmp/gh-aw/actions
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
       - name: Create Output Issue
         id: create_issue
         uses: ./actions/create-issue
@@ -767,7 +860,36 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-```text
+```
+
+**With Script Mode** (direct script execution):
+```yaml
+jobs:
+  create_issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@v5
+        with:
+          repository: githubnext/gh-aw
+          sparse-checkout: |
+            actions
+          path: /tmp/gh-aw/actions-source
+          depth: 1
+          persist-credentials: false
+      - name: Setup Scripts
+        run: |
+          bash /tmp/gh-aw/actions-source/actions/setup/setup.sh
+        env:
+          INPUT_DESTINATION: /opt/gh-aw/actions
+      - name: Create Output Issue
+        id: create_issue
+        uses: ./actions/create-issue
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+```
 
 **With Inline Mode (default)** (embeds JavaScript):
 ```yaml

@@ -23,6 +23,7 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/gh.md
 #     - shared/opencode.md
 
 name: "Smoke OpenCode"
@@ -474,12 +475,116 @@ jobs:
           
           bash /opt/gh-aw/actions/start_safe_outputs_server.sh
           
+      - name: Setup Safe Inputs Config
+        run: |
+          mkdir -p /opt/gh-aw/safe-inputs/logs
+          cat > /opt/gh-aw/safe-inputs/tools.json << 'EOF_TOOLS_JSON'
+          {
+            "serverName": "safeinputs",
+            "version": "1.0.0",
+            "logDir": "/opt/gh-aw/safe-inputs/logs",
+            "tools": [
+              {
+                "name": "gh",
+                "description": "Execute any gh CLI command. This tool is accessible as 'safeinputs-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
+                "inputSchema": {
+                  "properties": {
+                    "args": {
+                      "description": "Arguments to pass to gh CLI (without the 'gh' prefix). Examples: 'pr list --limit 5', 'issue view 123', 'api repos/{owner}/{repo}'",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "args"
+                  ],
+                  "type": "object"
+                },
+                "handler": "gh.sh",
+                "env": {
+                  "GH_AW_GH_TOKEN": "GH_AW_GH_TOKEN",
+                  "GH_DEBUG": "GH_DEBUG"
+                },
+                "timeout": 60
+              }
+            ]
+          }
+          EOF_TOOLS_JSON
+          cat > /opt/gh-aw/safe-inputs/mcp-server.cjs << 'EOFSI'
+            const path = require("path");
+            const { startHttpServer } = require("./safe_inputs_mcp_server_http.cjs");
+            const configPath = path.join(__dirname, "tools.json");
+            const port = parseInt(process.env.GH_AW_SAFE_INPUTS_PORT || "3000", 10);
+            const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
+            startHttpServer(configPath, {
+              port: port,
+              stateless: true,
+              logDir: "/opt/gh-aw/safe-inputs/logs"
+            }).catch(error => {
+              console.error("Failed to start safe-inputs HTTP server:", error);
+              process.exit(1);
+            });
+          EOFSI
+          chmod +x /opt/gh-aw/safe-inputs/mcp-server.cjs
+          
+      - name: Setup Safe Inputs Tool Files
+        run: |
+          cat > /opt/gh-aw/safe-inputs/gh.sh << 'EOFSH_gh'
+          #!/bin/bash
+          # Auto-generated safe-input tool: gh
+          # Execute any gh CLI command. This tool is accessible as 'safeinputs-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
+          
+          set -euo pipefail
+          
+          echo "gh $INPUT_ARGS"
+          echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
+          GH_TOKEN="$GH_AW_GH_TOKEN" gh $INPUT_ARGS
+          
+          EOFSH_gh
+          chmod +x /opt/gh-aw/safe-inputs/gh.sh
+          
+      - name: Generate Safe Inputs MCP Server Config
+        id: safe-inputs-config
+        run: |
+          # Generate a secure random API key (360 bits of entropy, 40+ chars)
+          API_KEY=""
+          API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          PORT=3000
+          
+          # Register API key as secret to mask it from logs
+          echo "::add-mask::${API_KEY}"
+          
+          # Set outputs for next steps
+          {
+            echo "safe_inputs_api_key=${API_KEY}"
+            echo "safe_inputs_port=${PORT}"
+          } >> "$GITHUB_OUTPUT"
+          
+          echo "Safe Inputs MCP server will run on port ${PORT}"
+          
+      - name: Start Safe Inputs MCP HTTP Server
+        id: safe-inputs-start
+        env:
+          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-config.outputs.safe_inputs_port }}
+          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}
+          GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_DEBUG: 1
+        run: |
+          # Environment variables are set above to prevent template injection
+          export GH_AW_SAFE_INPUTS_PORT
+          export GH_AW_SAFE_INPUTS_API_KEY
+          
+          bash /opt/gh-aw/actions/start_safe_inputs_server.sh
+          
       - name: Start MCP gateway
         id: start-mcp-gateway
         env:
+          GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-start.outputs.api_key }}
+          GH_AW_SAFE_INPUTS_PORT: ${{ steps.safe-inputs-start.outputs.port }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-start.outputs.api_key }}
           GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-start.outputs.port }}
+          GH_DEBUG: 1
           GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
@@ -496,7 +601,7 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="custom"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.76'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_INPUTS_PORT -e GH_AW_SAFE_INPUTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GH_AW_GH_TOKEN -e GH_DEBUG -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.76'
           
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
@@ -508,6 +613,13 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
                   "GITHUB_READ_ONLY": "1",
                   "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
+                }
+              },
+              "safeinputs": {
+                "type": "http",
+                "url": "http://host.docker.internal:$GH_AW_SAFE_INPUTS_PORT",
+                "headers": {
+                  "Authorization": "$GH_AW_SAFE_INPUTS_API_KEY"
                 }
               },
               "safeoutputs": {
@@ -645,6 +757,23 @@ jobs:
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           
           
+          **IMPORTANT**: Always use the `safeinputs-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `safeinputs-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
+          
+          **Correct**:
+          ```
+          Use the safeinputs-gh tool with args: "pr list --limit 5"
+          Use the safeinputs-gh tool with args: "issue view 123"
+          ```
+          
+          **Incorrect**:
+          ```
+          Use the gh safe-input tool with args: "pr list --limit 5"  ❌ (Wrong tool name - use safeinputs-gh)
+          Run: gh pr list --limit 5  ❌ (No authentication in bash)
+          Execute bash: gh issue view 123  ❌ (No authentication in bash)
+          ```
+          
+          
+          
           # Smoke Test: OpenCode Custom Engine Validation
           
           **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
@@ -652,10 +781,11 @@ jobs:
           ## Test Requirements
           
           1. **GitHub MCP Testing**: Review the last 2 merged pull requests in __GH_AW_GITHUB_REPOSITORY__
-          2. **Serena MCP Testing**: Use the Serena MCP server tool `activate_project` to initialize the workspace at `__GH_AW_GITHUB_WORKSPACE__` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools)
-          3. **Playwright Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
-          4. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-opencode-__GH_AW_GITHUB_RUN_ID__.txt` with content "Smoke test passed for OpenCode at $(date)" (create the directory if it doesn't exist)
-          5. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+          2. **Safe Inputs GH CLI Testing**: Use the `safeinputs-gh` tool to query 2 pull requests from __GH_AW_GITHUB_REPOSITORY__ (use args: "pr list --repo __GH_AW_GITHUB_REPOSITORY__ --limit 2 --json number,title,author")
+          3. **Serena MCP Testing**: Use the Serena MCP server tool `activate_project` to initialize the workspace at `__GH_AW_GITHUB_WORKSPACE__` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools)
+          4. **Playwright Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
+          5. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-opencode-__GH_AW_GITHUB_RUN_ID__.txt` with content "Smoke test passed for OpenCode at $(date)" (create the directory if it doesn't exist)
+          6. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
           
           ## Output
           
@@ -877,6 +1007,15 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/parse_custom_log.cjs');
             await main();
+      - name: Parse safe-inputs logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/parse_safe_inputs_logs.cjs');
+            await main();
       - name: Parse MCP gateway logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -896,6 +1035,7 @@ jobs:
             /tmp/gh-aw/aw-prompts/prompt.txt
             /tmp/gh-aw/aw_info.json
             /tmp/gh-aw/mcp-logs/
+            /tmp/gh-aw/safe-inputs/logs/
             /tmp/gh-aw/agent-stdio.log
           if-no-files-found: ignore
 
@@ -1237,6 +1377,7 @@ jobs:
         env:
           GH_AW_REACTION: "rocket"
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);

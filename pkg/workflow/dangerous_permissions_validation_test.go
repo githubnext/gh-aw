@@ -85,6 +85,22 @@ func TestValidateDangerousPermissions(t *testing.T) {
 			shouldError:   true,
 			errorContains: "issues: write",
 		},
+		{
+			name:        "id-token write without feature flag - should pass (id-token is safe)",
+			permissions: "permissions:\n  id-token: write",
+			shouldError: false,
+		},
+		{
+			name:        "id-token write with other read permissions - should pass",
+			permissions: "permissions:\n  contents: read\n  id-token: write\n  issues: read",
+			shouldError: false,
+		},
+		{
+			name:          "id-token write with other write permissions - should error on other permissions",
+			permissions:   "permissions:\n  contents: write\n  id-token: write",
+			shouldError:   true,
+			errorContains: "contents: write",
+		},
 	}
 
 	for _, tt := range tests {
@@ -147,7 +163,7 @@ func TestFindWritePermissions(t *testing.T) {
 		{
 			name:               "write-all shorthand",
 			permissions:        NewPermissionsWriteAll(),
-			expectedWriteCount: 16,  // All permission scopes
+			expectedWriteCount: 15,  // All permission scopes except id-token (which is excluded)
 			expectedScopes:     nil, // Don't check specific scopes for shorthand
 		},
 		{
@@ -155,6 +171,27 @@ func TestFindWritePermissions(t *testing.T) {
 			permissions:        NewPermissionsContentsReadIssuesWrite(),
 			expectedWriteCount: 1,
 			expectedScopes:     []PermissionScope{PermissionIssues},
+		},
+		{
+			name: "id-token write is excluded from dangerous permissions",
+			permissions: func() *Permissions {
+				p := NewPermissions()
+				p.Set(PermissionIdToken, PermissionWrite)
+				return p
+			}(),
+			expectedWriteCount: 0, // id-token should be excluded
+			expectedScopes:     []PermissionScope{},
+		},
+		{
+			name: "id-token write with other write permissions - only other permissions counted",
+			permissions: func() *Permissions {
+				p := NewPermissions()
+				p.Set(PermissionIdToken, PermissionWrite)
+				p.Set(PermissionContents, PermissionWrite)
+				return p
+			}(),
+			expectedWriteCount: 1, // Only contents, not id-token
+			expectedScopes:     []PermissionScope{PermissionContents},
 		},
 	}
 

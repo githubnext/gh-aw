@@ -16,34 +16,35 @@ type FileTracker interface {
 
 // Compiler handles converting markdown workflows to GitHub Actions YAML
 type Compiler struct {
-	verbose                bool
-	engineOverride         string
-	customOutput           string              // If set, output will be written to this path instead of default location
-	version                string              // Version of the extension
-	skipValidation         bool                // If true, skip schema validation
-	noEmit                 bool                // If true, validate without generating lock files
-	strictMode             bool                // If true, enforce strict validation requirements
-	trialMode              bool                // If true, suppress safe outputs for trial mode execution
-	trialLogicalRepoSlug   string              // If set in trial mode, the logical repository to checkout
-	refreshStopTime        bool                // If true, regenerate stop-after times instead of preserving existing ones
-	forceRefreshActionPins bool                // If true, clear action cache and resolve all actions from GitHub API
-	actionCacheCleared     bool                // Tracks if action cache has already been cleared (for forceRefreshActionPins)
-	markdownPath           string              // Path to the markdown file being compiled (for context in dynamic tool generation)
-	actionMode             ActionMode          // Mode for generating JavaScript steps (inline vs custom actions)
-	actionTag              string              // Override action SHA or tag for actions/setup (when set, overrides actionMode to release)
-	jobManager             *JobManager         // Manages jobs and dependencies
-	engineRegistry         *EngineRegistry     // Registry of available agentic engines
-	fileTracker            FileTracker         // Optional file tracker for tracking created files
-	warningCount           int                 // Number of warnings encountered during compilation
-	stepOrderTracker       *StepOrderTracker   // Tracks step ordering for validation
-	actionCache            *ActionCache        // Shared cache for action pin resolutions across all workflows
-	actionResolver         *ActionResolver     // Shared resolver for action pins across all workflows
-	actionPinWarnings      map[string]bool     // Shared cache of already-warned action pin failures (key: "repo@version")
-	importCache            *parser.ImportCache // Shared cache for imported workflow files
-	workflowIdentifier     string              // Identifier for the current workflow being compiled (for schedule scattering)
-	scheduleWarnings       []string            // Accumulated schedule warnings for this compiler instance
-	repositorySlug         string              // Repository slug (owner/repo) used as seed for scattering
-	artifactManager        *ArtifactManager    // Tracks artifact uploads/downloads for validation
+	verbose                 bool
+	engineOverride          string
+	customOutput            string              // If set, output will be written to this path instead of default location
+	version                 string              // Version of the extension
+	skipValidation          bool                // If true, skip schema validation
+	noEmit                  bool                // If true, validate without generating lock files
+	strictMode              bool                // If true, enforce strict validation requirements
+	trialMode               bool                // If true, suppress safe outputs for trial mode execution
+	trialLogicalRepoSlug    string              // If set in trial mode, the logical repository to checkout
+	refreshStopTime         bool                // If true, regenerate stop-after times instead of preserving existing ones
+	forceRefreshActionPins  bool                // If true, clear action cache and resolve all actions from GitHub API
+	actionCacheCleared      bool                // Tracks if action cache has already been cleared (for forceRefreshActionPins)
+	markdownPath            string              // Path to the markdown file being compiled (for context in dynamic tool generation)
+	actionMode              ActionMode          // Mode for generating JavaScript steps (inline vs custom actions)
+	actionTag               string              // Override action SHA or tag for actions/setup (when set, overrides actionMode to release)
+	jobManager              *JobManager         // Manages jobs and dependencies
+	engineRegistry          *EngineRegistry     // Registry of available agentic engines
+	fileTracker             FileTracker         // Optional file tracker for tracking created files
+	warningCount            int                 // Number of warnings encountered during compilation
+	stepOrderTracker        *StepOrderTracker   // Tracks step ordering for validation
+	actionCache             *ActionCache        // Shared cache for action pin resolutions across all workflows
+	actionResolver          *ActionResolver     // Shared resolver for action pins across all workflows
+	actionPinWarnings       map[string]bool     // Shared cache of already-warned action pin failures (key: "repo@version")
+	importCache             *parser.ImportCache // Shared cache for imported workflow files
+	workflowIdentifier      string              // Identifier for the current workflow being compiled (for schedule scattering)
+	scheduleWarnings        []string            // Accumulated schedule warnings for this compiler instance
+	repositorySlug          string              // Repository slug (owner/repo) used as seed for scattering
+	artifactManager         *ArtifactManager    // Tracks artifact uploads/downloads for validation
+	scheduleFriendlyFormats map[int]string      // Maps schedule item index to friendly format string for current workflow
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration

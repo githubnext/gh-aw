@@ -81,6 +81,9 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Reset the step order tracker for this compilation
 	c.stepOrderTracker = NewStepOrderTracker()
 
+	// Reset schedule friendly formats for this compilation
+	c.scheduleFriendlyFormats = nil
+
 	// Reset the artifact manager for this compilation
 	if c.artifactManager == nil {
 		c.artifactManager = NewArtifactManager()
@@ -356,8 +359,10 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			return errors.New(formattedErr)
 		}
 
-		// Print informational message if "projects" toolset is used
-		for _, toolset := range enabledToolsets {
+		// Print informational message if "projects" toolset is explicitly specified
+		// (not when implied by "all", as users unlikely intend to use projects with "all")
+		originalToolsets := workflowData.ParsedTools.GitHub.Toolset.ToStringSlice()
+		for _, toolset := range originalToolsets {
 			if toolset == "projects" {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("The 'projects' toolset requires a GitHub token with organization Projects permissions."))
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("See: https://githubnext.github.io/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2"))

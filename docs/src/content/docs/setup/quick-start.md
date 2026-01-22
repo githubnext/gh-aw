@@ -36,18 +36,10 @@ gh extension install githubnext/gh-aw
 Initialize your repository to configure custom agents and MCP server:
 
 ```bash wrap
-gh aw init
+gh aw init --push
 ```
 
-This command installs agents and tools for GitHub Copilot.
-
-Commit and push the changes in Git.
-
-```bash wrap
-git add .
-git commit -m "files added from 'gh aw init'"
-git push
-```
+This command installs agents and tools for GitHub Copilot and automatically commits and pushes the changes to your repository.
 
 ### Step 3 — Add a sample workflow
 

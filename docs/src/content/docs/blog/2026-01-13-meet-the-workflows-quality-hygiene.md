@@ -30,9 +30,9 @@ Now let's shift from collaboration ceremony to fault investigation.
 
 These are our diligent caretakers - the agents that spot problems before they become bigger problems:
 
-- **[CI Doctor](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/ci-doctor.md?plain=1)** - Investigates failed workflows and opens diagnostic issues (it's like having a DevOps specialist on call 24/7)  
-- **[Schema Consistency Checker](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/schema-consistency-checker.md?plain=1)** - Detects when schemas, code, and docs drift apart  
-- **[Breaking Change Checker](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/breaking-change-checker.md?plain=1)** - Watches for changes that might break things for users  
+- **[CI Doctor](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/ci-doctor.md?plain=1)** - Investigates failed workflows and opens diagnostic issues (it's like having a DevOps specialist on call 24/7)  
+- **[Schema Consistency Checker](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/schema-consistency-checker.md?plain=1)** - Detects when schemas, code, and docs drift apart  
+- **[Breaking Change Checker](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/breaking-change-checker.md?plain=1)** - Watches for changes that might break things for users  
 
 The CI Doctor was one of our most important workflows. Instead of drowning in CI failure notifications, we now get *timely*, *investigated* failures with actual diagnostic insights. The agent doesn't just tell us something broke - it analyzes logs, identifies patterns, searches for similar past issues, and even suggests fixes - even before the human has read the failure notification. We learned that agents excel at the tedious investigation work that humans find draining.
 
@@ -41,6 +41,30 @@ The Schema Consistency Checker caught drift that would have taken us days to not
 These "hygiene" workflows became our first line of defense, catching issues before they reached users.
 
 The CI Doctor has inspired a growing range of similar workflows inside GitHub, where agents proactively do depth investigations of site incidents and failures. This is the future of operational excellence: AI agents kicking in immediately to do depth investigation, for faster organizational response.
+
+## Using These Workflows
+
+You can add these workflows to your own repository and remix them. Get going with our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/), then run one of the following:
+
+**CI Doctor:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/ci-doctor.md
+```
+
+**Schema Consistency Checker:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/schema-consistency-checker.md
+```
+
+**Breaking Change Checker:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/breaking-change-checker.md
+```
+
+Then edit and remix the workflow specifications to meet your needs, recompile using `gh aw compile`, and push to your repository. See our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/) for further installation and setup instructions.
 
 ## Learn More
 

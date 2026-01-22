@@ -127,11 +127,31 @@ gh aw init --codespaces                 # Configure devcontainer for current rep
 gh aw init --codespaces repo1,repo2     # Configure devcontainer for additional repos
 gh aw init --campaign                   # Enable campaign functionality
 gh aw init --completions                # Install shell completions
+gh aw init --push                       # Initialize and automatically commit/push changes
 ```
 
 **Interactive Mode:** When invoked without `--engine`, prompts you to select an engine and optionally configure repository secrets using the `gh` CLI.
 
-**Options:** `--engine` (copilot, claude, codex), `--no-mcp`, `--tokens`, `--codespaces`, `--campaign`, `--completions`
+**Options:** `--engine` (copilot, claude, codex), `--no-mcp`, `--tokens`, `--codespaces`, `--campaign`, `--completions`, `--push`
+
+##### `--push` Flag
+
+The `--push` flag automatically commits and pushes initialization changes to the remote repository:
+
+1. **Remote check**: Requires a remote repository to be configured
+2. **Branch validation**: Verifies current branch matches repository default branch
+3. **User confirmation**: Prompts for confirmation before committing/pushing (skipped in CI)
+4. **Pre-check**: Validates working directory is clean before starting
+5. **Initialization**: Runs normal init process
+6. **Automatic commit**: Stages all changes with commit message "chore: initialize agentic workflows"
+7. **Pull and push**: Pulls latest changes with rebase, then pushes to remote
+
+Safety features:
+- Prevents accidental pushes to non-default branches
+- Requires explicit user confirmation outside CI environments
+- Auto-confirms in CI (detected via `CI`, `CONTINUOUS_INTEGRATION`, `GITHUB_ACTIONS` env vars)
+
+When used, requires a clean working directory (no uncommitted changes) before starting.
 
 #### `add`
 
@@ -258,13 +278,19 @@ gh aw run workflow --push --ref main        # Push to specific branch
 
 The `--push` flag automatically handles workflow updates before execution:
 
-1. **Auto-recompilation**: Detects when `.lock.yml` is outdated and recompiles workflow
-2. **Transitive imports**: Collects and stages all imported files recursively
-3. **Confirmation prompt**: Interactive confirmation dialog before commit
-4. **Smart staging**: Stages workflow `.md` and `.lock.yml` files plus dependencies
-5. **Automatic commit**: Creates commit with message "Updated agentic workflow"
-6. **Branch validation**: Verifies specified branch with `--ref` exists before pushing
-7. **Workflow dispatch**: Triggers workflow run after successful push
+1. **Remote check**: Requires a remote repository to be configured
+2. **Branch validation**: Verifies current branch matches repository default branch (or branch specified with `--ref`)
+3. **User confirmation**: Prompts for confirmation before committing/pushing (skipped in CI)
+4. **Auto-recompilation**: Detects when `.lock.yml` is outdated and recompiles workflow
+5. **Transitive imports**: Collects and stages all imported files recursively
+6. **Smart staging**: Stages workflow `.md` and `.lock.yml` files plus dependencies
+7. **Automatic commit**: Creates commit with message "Updated agentic workflow"
+8. **Workflow dispatch**: Triggers workflow run after successful push
+
+Safety features:
+- Prevents accidental pushes to non-default branches (unless explicitly specified with `--ref`)
+- Requires explicit user confirmation outside CI environments
+- Auto-confirms in CI (detected via `CI`, `CONTINUOUS_INTEGRATION`, `GITHUB_ACTIONS` env vars)
 
 When `--push` is not used, warnings are displayed for missing or outdated lock files.
 
@@ -380,6 +406,39 @@ gh aw update ci-doctor --major --force    # Allow major version updates
 ```
 
 **Options:** `--dir`, `--merge`, `--major`, `--force`
+
+#### `upgrade`
+
+Upgrade the gh-aw extension and update all workflow files to the latest version. Applies codemods to fix deprecated fields, updates agent instruction files, and recompiles workflows.
+
+```bash wrap
+gh aw upgrade                              # Upgrade extension and all workflows
+gh aw upgrade --no-fix                     # Update agent files only (skip codemods and compilation)
+gh aw upgrade --push                       # Upgrade and automatically commit/push changes
+gh aw upgrade --push --no-fix              # Update agent files and push
+```
+
+**Options:** `--dir`, `--no-fix`, `--push`
+
+##### `--push` Flag
+
+The `--push` flag automatically commits and pushes upgrade changes to the remote repository:
+
+1. **Remote check**: Requires a remote repository to be configured
+2. **Branch validation**: Verifies current branch matches repository default branch
+3. **User confirmation**: Prompts for confirmation before committing/pushing (skipped in CI)
+4. **Pre-check**: Validates working directory is clean before starting
+5. **Version check**: Ensures gh-aw extension is on latest version
+6. **Upgrade process**: Updates agent files, applies codemods, and recompiles workflows
+7. **Automatic commit**: Stages all changes with commit message "chore: upgrade agentic workflows"
+8. **Pull and push**: Pulls latest changes with rebase, then pushes to remote
+
+Safety features:
+- Prevents accidental pushes to non-default branches
+- Requires explicit user confirmation outside CI environments
+- Auto-confirms in CI (detected via `CI`, `CONTINUOUS_INTEGRATION`, `GITHUB_ACTIONS` env vars)
+
+When used, requires a clean working directory (no uncommitted changes) before starting.
 
 ### Advanced
 

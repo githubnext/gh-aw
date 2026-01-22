@@ -26,13 +26,13 @@ Think of this as your guided tour through our agent factory. We're showcasing th
 
 ## Starting Simple: Automated Issue Triage
 
-To start the tour, let's begin with one of the simple workflows that **handles incoming activity** - issue triage.
+To start the tour, let's begin with one of the simpler workflows that **handles incoming activity** - issue triage.
 
-Issue triage represents a "hello world" of automated agentic workflows: practical, immediately useful, relatively simple, and impactful. It's used as the starter examples in other agentic automation technologies like [Claude Code in GitHub Actions](https://code.claude.com/docs/en/github-actions).
+Issue triage represents a "hello world" of automated agentic workflows: practical, immediately useful, relatively simple, and impactful. It's used as the starter example in other agentic automation technologies like [Claude Code in GitHub Actions](https://code.claude.com/docs/en/github-actions).
 
 When a new issue is opened, the triage agent analyzes its content, does research in the codebase and other issues, responds with a comment, and applies appropriate labels based on predefined categories. This helps maintainers quickly understand the nature of incoming issues without manual review.
 
-Let's take a look at the full **[Issue Triage Agent](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/issue-triage-agent.md?plain=1)**:
+Let's take a look at the full **[Issue Triage Agent](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/issue-triage-agent.md?plain=1)**:
 
 ```markdown
 ---
@@ -66,7 +66,7 @@ Skip issues that:
 - Already have any of these labels
 - Have been assigned to any user (especially non-bot users)
 
-Do research on the issue in the context of the codebase and, after after
+Do research on the issue in the context of the codebase and, after
 adding the label to an issue, mention the issue author in a comment, explain
 why the label was added and give a brief summary of how the issue may be
 addressed.
@@ -74,9 +74,21 @@ addressed.
 
 Note how concise this is - it's like reading a to-do list for the agent. The workflow runs whenever a new issue is opened or reopened. It checks for unlabeled issues, analyzes their content, and applies appropriate labels based on content analysis. It even leaves a friendly comment explaining the label choice.
 
-In the frontmatter, we define permissions, tools, and safe outputs. This ensures the agent only has access to what it needs and can't perform any unsafe actions. The natural language instructions in the body guide the agent's behavior in a clear, human-readable way.
+In the frontmatter, we define [permissions](/gh-aw/reference/frontmatter/#permissions-permissions), [tools](/gh-aw/reference/tools/), and [safe outputs](/gh-aw/reference/safe-outputs/). This ensures the agent only has access to what it needs and can't perform any unsafe actions. The natural language instructions in the body guide the agent's behavior in a clear, human-readable way.
 
 We've deliberately kept this workflow ultra-simple. In practice, in your own repo, **customization** is key. Triage differs in every repository. Tailoring workflows to your specific context will make them more effective. Generic agents are okay, but customized ones are often a better fit.
+
+## Using These Workflows
+
+You can add this workflow to your own repository and remix it as follows:
+
+**Issue Triage Agent:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/issue-triage-agent.md
+```
+
+Then edit and remix the workflow specification to meet your needs, recompile using `gh aw compile`, and push to your repository. See our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/) for further installation and setup instructions.
 
 ## Next Up: Code Quality & Refactoring Workflows
 

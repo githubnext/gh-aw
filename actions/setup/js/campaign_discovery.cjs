@@ -303,125 +303,6 @@ async function searchByLabel(octokit, label, repos, orgs, maxItems, maxPages, cu
 }
 
 /**
- * Discover items from worker cache-memory (reads existing worker cache files)
- * Workers use cache-memory to track their outputs; campaign reads these to discover items
- *
- * DEPRECATED: This method is being phased out in favor of label-based discovery.
- * Use label-based discovery via searchByLabel() with "agentic-campaign" and campaign-specific labels instead.
- *
- * @param {string} campaignId - Campaign identifier (for logging)
- * @param {string[]} workflows - List of worker workflow names
- * @param {number} maxItems - Maximum items to discover
- * @returns {Promise<{items: any[], itemsScanned: number}>}
- */
-async function discoverFromMemory(campaignId, workflows, maxItems) {
-  const items = [];
-  let itemsScanned = 0;
-
-  core.info(`Discovering from worker cache-memory for campaign: ${campaignId}`);
-
-  // Read cache-memory for each worker workflow
-  // Workers already track their outputs in cache (e.g., fixed-alerts.jsonl)
-  for (const workflow of workflows) {
-    if (itemsScanned >= maxItems) {
-      core.warning(`Reached max items budget: ${maxItems}`);
-      break;
-    }
-
-    // Workers use cache-memory with standardized file names
-    // code-scanning-fixer uses: /tmp/gh-aw/cache-memory/fixed-alerts.jsonl
-    const cacheBasePath = `/tmp/gh-aw/cache-memory`;
-
-    // Try common cache file patterns for different workers
-    const cacheFiles = [
-      path.join(cacheBasePath, "fixed-alerts.jsonl"), // code-scanning-fixer
-      path.join(cacheBasePath, `${workflow}-outputs.jsonl`), // generic pattern
-      path.join(cacheBasePath, `${workflow}.jsonl`), // simple pattern
-    ];
-
-    let found = false;
-    for (const cacheFile of cacheFiles) {
-      if (!fs.existsSync(cacheFile)) {
-        continue;
-      }
-
-      found = true;
-      core.info(`Reading cache for ${workflow} from: ${cacheFile}`);
-
-      try {
-        const content = fs.readFileSync(cacheFile, "utf8");
-        const lines = content
-          .trim()
-          .split("\n")
-          .filter(line => line.trim());
-
-        core.info(`Found ${lines.length} record(s) in ${path.basename(cacheFile)}`);
-
-        for (const line of lines) {
-          if (itemsScanned >= maxItems) {
-            break;
-          }
-
-          try {
-            const record = JSON.parse(line);
-
-            // Transform cache record to discovery format
-            // Cache records have: {alert_number, fixed_at, pr_number}
-            // Need to construct: {pr_url, pr_number, created_at, ...}
-
-            // Validate required fields from cache
-            if (!record.pr_number) {
-              continue; // Skip if no PR number
-            }
-
-            // Construct GitHub URL from pr_number
-            // Assume same repo as campaign (can be enriched later)
-            const repoOwner = process.env.GITHUB_REPOSITORY_OWNER || "githubnext";
-            const repoName = process.env.GITHUB_REPOSITORY?.split("/")[1] || "gh-aw";
-            const prUrl = `https://github.com/${repoOwner}/${repoName}/pull/${record.pr_number}`;
-
-            // Normalize to campaign discovery format
-            const normalizedItem = {
-              url: prUrl,
-              content_type: "pull_request",
-              number: record.pr_number,
-              repo: `${repoOwner}/${repoName}`,
-              created_at: record.fixed_at || record.created_at || new Date().toISOString(),
-              updated_at: record.fixed_at || record.created_at || new Date().toISOString(),
-              state: "open", // Default to open; enriched later from GitHub API
-              title: `Security fix from ${workflow}`,
-              worker: workflow,
-              // Pass through cache metadata
-              metadata: {
-                alert_number: record.alert_number,
-                source: "cache-memory",
-                cache_file: path.basename(cacheFile),
-              },
-            };
-
-            items.push(normalizedItem);
-            itemsScanned++;
-          } catch (parseError) {
-            core.warning(`Failed to parse line in ${path.basename(cacheFile)}: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
-          }
-        }
-
-        break; // Found and processed cache file, move to next worker
-      } catch (readError) {
-        core.warning(`Failed to read ${cacheFile}: ${readError instanceof Error ? readError.message : String(readError)}`);
-      }
-    }
-
-    if (!found) {
-      core.info(`No cache file found for worker: ${workflow}`);
-    }
-  }
-
-  core.info(`Discovered ${items.length} item(s) from worker cache-memory`);
-  return { items, itemsScanned };
-}
-
-/**
  * Main discovery function
  * @param {any} config - Configuration object
  * @returns {Promise<any>} Discovery manifest
@@ -494,23 +375,9 @@ async function discover(config) {
     }
   }
 
-  // Fallback discovery: Read from worker cache-memory (DEPRECATED)
+  // Fallback: Search GitHub API by tracker-id (if still no items)
   if (allItems.length === 0 && workflows && workflows.length > 0) {
-    core.warning(`Label-based discovery found no items. Falling back to DEPRECATED cache-memory discovery...`);
-    core.warning(`This fallback will be removed in a future version. Please ensure workers are adding campaign labels.`);
-    try {
-      const memoryResult = await discoverFromMemory(campaignId, workflows, maxDiscoveryItems);
-      allItems.push(...memoryResult.items);
-      totalItemsScanned += memoryResult.itemsScanned;
-      core.info(`Cache-memory discovery found ${memoryResult.items.length} item(s)`);
-    } catch (memoryError) {
-      core.warning(`Cache-memory discovery failed: ${memoryError instanceof Error ? memoryError.message : String(memoryError)}`);
-    }
-  }
-
-  // Tertiary fallback: Search GitHub API by tracker-id (if still no items)
-  if (allItems.length === 0 && workflows && workflows.length > 0) {
-    core.info(`No items found via labels or cache. Searching GitHub API by tracker-id...`);
+    core.info(`No items found via labels. Searching GitHub API by tracker-id...`);
     for (const workflow of workflows) {
       if (totalItemsScanned >= maxDiscoveryItems || totalPagesScanned >= maxDiscoveryPages) {
         core.warning(`Reached discovery budget limits. Stopping discovery.`);
@@ -563,6 +430,12 @@ async function discover(config) {
   const needsAddCount = allItems.filter(i => i.state === "open").length;
   const needsUpdateCount = allItems.filter(i => i.state === "closed" || i.merged_at).length;
 
+  // Determine if budget was exhausted
+  const itemsBudgetExhausted = totalItemsScanned >= maxDiscoveryItems;
+  const pagesBudgetExhausted = totalPagesScanned >= maxDiscoveryPages;
+  const budgetExhausted = itemsBudgetExhausted || pagesBudgetExhausted;
+  const exhaustedReason = itemsBudgetExhausted ? "max_items_reached" : pagesBudgetExhausted ? "max_pages_reached" : null;
+
   // Build manifest
   const manifest = {
     schema_version: MANIFEST_VERSION,
@@ -575,6 +448,8 @@ async function discover(config) {
       pages_scanned: totalPagesScanned,
       max_items_budget: maxDiscoveryItems,
       max_pages_budget: maxDiscoveryPages,
+      budget_exhausted: budgetExhausted,
+      exhausted_reason: exhaustedReason,
       cursor: cursor,
     },
     summary: {
@@ -593,6 +468,16 @@ async function discover(config) {
   }
 
   core.info(`Discovery complete: ${allItems.length} items found`);
+  core.info(`Budget utilization: ${totalItemsScanned}/${maxDiscoveryItems} items, ${totalPagesScanned}/${maxDiscoveryPages} pages`);
+
+  if (budgetExhausted) {
+    if (allItems.length === 0) {
+      core.warning(`Discovery budget exhausted with 0 items found. Consider increasing budget limits in governance configuration.`);
+    } else {
+      core.info(`Discovery stopped at budget limit. Use cursor for continuation in next run.`);
+    }
+  }
+
   core.info(`Summary: ${needsAddCount} to add, ${needsUpdateCount} to update`);
 
   return manifest;
