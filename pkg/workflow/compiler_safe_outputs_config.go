@@ -7,7 +7,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
-var compilerSafeOutputsLog = logger.New("workflow:compiler_safe_outputs_config")
+var compilerSafeOutputsConfigLog = logger.New("workflow:compiler_safe_outputs_config")
 
 func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *WorkflowData) {
 	if data.SafeOutputs == nil {
