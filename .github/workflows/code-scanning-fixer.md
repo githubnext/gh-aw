@@ -13,14 +13,19 @@ engine: copilot
 tools:
   github:
     toolsets: [context, repos, code_security, pull_requests]
+  repo-memory:
+    - id: campaigns
+      branch-name: memory/campaigns
+      file-glob: [security-alert-burndown/**]
+      campaign-id: security-alert-burndown
   edit:
   bash:
   cache-memory:
 safe-outputs:
   create-pull-request:
     title-prefix: "[code-scanning-fix] "
-    labels: [security, automated-fix]
-    reviewers: copilot
+    labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
+    reviewers: [copilot]
 timeout-minutes: 20
 ---
 
