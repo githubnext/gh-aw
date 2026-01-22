@@ -1670,6 +1670,7 @@ jobs:
         env:
           GH_AW_REACTION: "heart"
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
