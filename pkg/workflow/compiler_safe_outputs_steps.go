@@ -159,14 +159,14 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// Environment variables
 	steps = append(steps, "        env:\n")
 	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
-	
+
 	// Check if any project-handler types are enabled
 	// If so, pass the temporary project map from the project handler step
 	hasProjectHandlerTypes := data.SafeOutputs.CreateProjects != nil ||
 		data.SafeOutputs.CreateProjectStatusUpdates != nil ||
 		data.SafeOutputs.UpdateProjects != nil ||
 		data.SafeOutputs.CopyProjects != nil
-	
+
 	if hasProjectHandlerTypes {
 		// If project handler ran before this, pass its temporary project map
 		// This allows update_issue and other text-based handlers to resolve project temporary IDs

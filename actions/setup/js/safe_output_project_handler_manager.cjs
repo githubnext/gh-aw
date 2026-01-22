@@ -228,7 +228,7 @@ async function main() {
 
     // Set outputs
     core.setOutput("processed_count", processedCount);
-    
+
     // Export temporary project map as output so the regular handler manager can use it
     // to resolve project URLs in text (e.g., update_issue body)
     const temporaryProjectMapJson = JSON.stringify(temporaryProjectMap || {});
