@@ -81,7 +81,7 @@ timeout-minutes: 10
 6. **Runtime Mount Testing - npm**: Execute `npm ls` command to verify that npm is available in the container (this tests that the runtime manager properly mounted Node.js folders)
 7. **Runtime Mount Testing - Docs Dependencies**: Install documentation dependencies by running `cd docs && npm ci` to verify npm can install packages using the cache
 8. **Runtime Mount Testing - Docs Build**: Build the documentation by running `cd docs && npm run build` to verify Node.js runtime is fully functional with build tools
-9. **Runtime Mount Testing - JS Tests**: Run JavaScript tests with `make test-js` to verify Node.js can execute tests and all mounts are working correctly
+9. **Runtime Mount Testing - JS Tests**: Run JavaScript tests with `cd actions/setup/js && npm ci && npm run test:js -- --no-file-parallelism` to verify Node.js can execute tests and all mounts are working correctly
 10. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-codex-${{ github.run_id }}.txt` with content "Smoke test passed for Codex at $(date)" (create the directory if it doesn't exist)
 11. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 
