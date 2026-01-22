@@ -2733,6 +2733,11 @@ safe-outputs:
     # (optional)
     run-started: "example-value"
 
+    # When true, the workflow completion notifier creates a new comment instead of
+    # editing the activation comment. Default: false.
+    # (optional)
+    append-only-comments: false
+
     # Custom message template for successful workflow completion. Available
     # placeholders: {workflow_name}, {run_url}. Default: '✅ Agentic
     # [{workflow_name}]({run_url}) completed successfully.'

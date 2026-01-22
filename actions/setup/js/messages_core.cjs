@@ -36,6 +36,7 @@
  * @property {string} [agentFailureIssue] - Custom footer template for agent failure tracking issues
  * @property {string} [agentFailureComment] - Custom footer template for comments on agent failure tracking issues
  * @property {string} [closeOlderDiscussion] - Custom message for closing older discussions as outdated
+ * @property {boolean} [appendOnlyComments] - If true, create new comments instead of updating the activation comment
  */
 
 /**

@@ -128,11 +128,10 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 			},
 		},
 		Messages: &workflow.SafeOutputMessagesConfig{
-			Footer: "> *Managed by [{workflow_name}]({run_url})*\n" +
-				"> Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/",
+			AppendOnlyComments: true,
 			RunStarted: "### :rocket: Campaign setup started\n\n" +
 				"Creating a tracking Project and generating campaign files + orchestrator workflow.\n\n" +
-				"No action needed right now — this run will open a pull request and post the link + checklist back on this issue when ready.\n\n" +
+				"No action needed right now — the [{workflow_name}]({run_url}) will open a pull request and post the link + checklist back on this issue when ready.\n\n" +
 				"> To stop this run: remove the label that started it.\n" +
 				"> Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/",
 			RunSuccess: "### :white_check_mark: Campaign setup complete\n\n" +
