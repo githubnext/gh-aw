@@ -110,18 +110,39 @@ func fetchGitHubWorkflows(repoOverride string, verbose bool) (map[string]*GitHub
 		return nil, fmt.Errorf("failed to parse workflow data: %w", err)
 	}
 
-	// Stop spinner with success message
-	if !verbose {
-		spinner.StopWithMessage(fmt.Sprintf("✓ Fetched %d workflows", len(workflows)))
-	}
-
 	workflowMap := make(map[string]*GitHubWorkflow)
 	for i, workflow := range workflows {
 		name := extractWorkflowNameFromPath(workflow.Path)
 		workflowMap[name] = &workflows[i]
 	}
 
-	workflowsLog.Printf("Fetched %d GitHub workflows", len(workflowMap))
+	// Count user workflows (those with .md files) vs internal workflows
+	mdFiles, _ := getMarkdownWorkflowFiles("")
+	mdWorkflowNames := make(map[string]bool)
+	for _, file := range mdFiles {
+		name := extractWorkflowNameFromPath(file)
+		mdWorkflowNames[name] = true
+	}
+
+	var userWorkflowCount, internalWorkflowCount int
+	for name := range workflowMap {
+		if mdWorkflowNames[name] {
+			userWorkflowCount++
+		} else {
+			internalWorkflowCount++
+		}
+	}
+
+	// Stop spinner with success message showing user and internal workflow counts
+	if !verbose {
+		if internalWorkflowCount > 0 {
+			spinner.StopWithMessage(fmt.Sprintf("✓ Fetched %d public and %d internal workflows", userWorkflowCount, internalWorkflowCount))
+		} else {
+			spinner.StopWithMessage(fmt.Sprintf("✓ Fetched %d workflows", userWorkflowCount))
+		}
+	}
+
+	workflowsLog.Printf("Fetched %d GitHub workflows (%d user, %d internal)", len(workflowMap), userWorkflowCount, internalWorkflowCount)
 	return workflowMap, nil
 }
 
