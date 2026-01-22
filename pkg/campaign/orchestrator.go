@@ -325,6 +325,50 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		promptData.MaxProjectCommentsPerRun = spec.Governance.MaxCommentsPerRun
 	}
 
+	// Add bootstrap configuration if present
+	if spec.Bootstrap != nil {
+		promptData.BootstrapMode = spec.Bootstrap.Mode
+		if spec.Bootstrap.SeederWorker != nil {
+			promptData.SeederWorkerID = spec.Bootstrap.SeederWorker.WorkflowID
+			// Convert payload map to JSON string for template rendering
+			if len(spec.Bootstrap.SeederWorker.Payload) > 0 {
+				payloadBytes, err := yaml.Marshal(spec.Bootstrap.SeederWorker.Payload)
+				if err == nil {
+					promptData.SeederPayload = string(payloadBytes)
+				}
+			}
+			promptData.SeederMaxItems = spec.Bootstrap.SeederWorker.MaxItems
+		}
+		if spec.Bootstrap.ProjectTodos != nil {
+			promptData.StatusField = spec.Bootstrap.ProjectTodos.StatusField
+			if promptData.StatusField == "" {
+				promptData.StatusField = "Status"
+			}
+			promptData.TodoValue = spec.Bootstrap.ProjectTodos.TodoValue
+			if promptData.TodoValue == "" {
+				promptData.TodoValue = "Todo"
+			}
+			promptData.TodoMaxItems = spec.Bootstrap.ProjectTodos.MaxItems
+			promptData.RequireFields = spec.Bootstrap.ProjectTodos.RequireFields
+		}
+	}
+
+	// Add worker metadata if present
+	if len(spec.Workers) > 0 {
+		promptData.WorkerMetadata = spec.Workers
+	}
+
+	// Render bootstrap instructions if bootstrap is configured
+	if spec.Bootstrap != nil && spec.Bootstrap.Mode != "" {
+		bootstrapInstructions := RenderBootstrapInstructions(promptData)
+		if bootstrapInstructions == "" {
+			orchestratorLog.Print("Warning: Failed to render bootstrap instructions, template may be missing")
+		} else {
+			appendPromptSection(markdownBuilder, "BOOTSTRAP INSTRUCTIONS (PHASE 0)", bootstrapInstructions)
+			orchestratorLog.Printf("Campaign '%s' orchestrator includes bootstrap mode: %s", spec.ID, spec.Bootstrap.Mode)
+		}
+	}
+
 	// All campaigns include workflow execution capabilities
 	// The orchestrator can dispatch workflows and make decisions regardless of initial configuration
 	workflowExecution := RenderWorkflowExecution(promptData)

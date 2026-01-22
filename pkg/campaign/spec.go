@@ -121,6 +121,16 @@ type CampaignSpec struct {
 	// Default: copilot (when not specified).
 	Engine string `yaml:"engine,omitempty" json:"engine,omitempty" console:"header:Engine,omitempty"`
 
+	// Bootstrap defines the initial work item creation strategy when discovery
+	// returns zero items. This provides a way to seed the campaign with initial
+	// work when there are no worker-created items to discover.
+	Bootstrap *CampaignBootstrapConfig `yaml:"bootstrap,omitempty" json:"bootstrap,omitempty"`
+
+	// Workers defines metadata for worker workflows, including their capabilities,
+	// payload schemas, and output labeling contracts. This enables deterministic
+	// worker selection and ensures worker outputs are discoverable.
+	Workers []WorkerMetadata `yaml:"workers,omitempty" json:"workers,omitempty"`
+
 	// ConfigPath is populated at load time with the relative path of
 	// the YAML file on disk, to help users locate definitions.
 	ConfigPath string `yaml:"-" json:"config_path" console:"header:Config Path,maxlen:60"`
@@ -256,4 +266,127 @@ type CampaignValidationResult struct {
 	Name       string   `json:"name" console:"header:Name"`
 	ConfigPath string   `json:"config_path" console:"header:Config Path"`
 	Problems   []string `json:"problems,omitempty" console:"header:Problems,omitempty"`
+}
+
+// CampaignBootstrapConfig defines how to create initial work items when discovery
+// returns zero items. This provides multiple strategies for bootstrapping a campaign.
+type CampaignBootstrapConfig struct {
+	// Mode determines the bootstrap strategy when no work items are discovered.
+	// Valid values:
+	//   - "seeder-worker": Dispatch a seeder/scanner worker workflow to discover work
+	//   - "project-todos": Read items from Project board's "Todo" column
+	//   - "manual": Skip bootstrap, wait for manual work item creation
+	Mode string `yaml:"mode" json:"mode"`
+
+	// SeederWorker specifies which worker workflow to dispatch for initial scanning.
+	// Only used when Mode is "seeder-worker".
+	SeederWorker *SeederWorkerConfig `yaml:"seeder-worker,omitempty" json:"seeder_worker,omitempty"`
+
+	// ProjectTodos specifies configuration for reading from Project board.
+	// Only used when Mode is "project-todos".
+	ProjectTodos *ProjectTodosConfig `yaml:"project-todos,omitempty" json:"project_todos,omitempty"`
+}
+
+// SeederWorkerConfig defines configuration for dispatching a seeder/scanner worker.
+type SeederWorkerConfig struct {
+	// WorkflowID is the workflow identifier (basename without .md) to dispatch.
+	WorkflowID string `yaml:"workflow-id" json:"workflow_id"`
+
+	// Payload is the JSON payload to send to the seeder worker.
+	// This should conform to the worker's payload schema.
+	Payload map[string]any `yaml:"payload" json:"payload"`
+
+	// MaxItems caps the number of work items the seeder should return.
+	// 0 means use the worker's default.
+	MaxItems int `yaml:"max-items,omitempty" json:"max_items,omitempty"`
+}
+
+// ProjectTodosConfig defines configuration for reading from a Project board's Todo column.
+type ProjectTodosConfig struct {
+	// StatusField is the name of the Project status field to filter on.
+	// Defaults to "Status".
+	StatusField string `yaml:"status-field,omitempty" json:"status_field,omitempty"`
+
+	// TodoValue is the status value that indicates a work item is ready to start.
+	// Defaults to "Todo".
+	TodoValue string `yaml:"todo-value,omitempty" json:"todo_value,omitempty"`
+
+	// MaxItems caps the number of Todo items to process per orchestrator run.
+	// 0 means use the governance default.
+	MaxItems int `yaml:"max-items,omitempty" json:"max_items,omitempty"`
+
+	// RequireFields lists Project field names that must be populated for an
+	// item to be considered valid work. Empty items are skipped.
+	RequireFields []string `yaml:"require-fields,omitempty" json:"require_fields,omitempty"`
+}
+
+// WorkerMetadata defines metadata for a worker workflow, including its capabilities,
+// payload schema, and output labeling contract.
+type WorkerMetadata struct {
+	// ID is the workflow identifier (basename without .md).
+	ID string `yaml:"id" json:"id"`
+
+	// Name is a human-readable name for the worker.
+	Name string `yaml:"name,omitempty" json:"name,omitempty"`
+
+	// Description describes what the worker does.
+	Description string `yaml:"description,omitempty" json:"description,omitempty"`
+
+	// Capabilities lists what types of work this worker can perform.
+	// Examples: "scan-security-alerts", "fix-dependencies", "update-docs"
+	Capabilities []string `yaml:"capabilities" json:"capabilities"`
+
+	// PayloadSchema defines the expected structure of the JSON payload.
+	// This is a map of field names to field types/descriptions.
+	PayloadSchema map[string]WorkerPayloadField `yaml:"payload-schema" json:"payload_schema"`
+
+	// OutputLabeling defines the labeling contract for worker outputs.
+	// This guarantees outputs are discoverable and attributable.
+	OutputLabeling WorkerOutputLabeling `yaml:"output-labeling" json:"output_labeling"`
+
+	// IdempotencyStrategy describes how the worker ensures idempotent execution.
+	// Valid values: "branch-based", "pr-title-based", "issue-title-based", "cursor-based"
+	IdempotencyStrategy string `yaml:"idempotency-strategy" json:"idempotency_strategy"`
+
+	// Priority indicates worker priority for deterministic selection when multiple
+	// workers can handle the same work item. Higher numbers = higher priority.
+	Priority int `yaml:"priority,omitempty" json:"priority,omitempty"`
+}
+
+// WorkerPayloadField defines a single field in the worker payload schema.
+type WorkerPayloadField struct {
+	// Type is the field's data type: "string", "number", "boolean", "array", "object"
+	Type string `yaml:"type" json:"type"`
+
+	// Description explains what this field contains and how it's used.
+	Description string `yaml:"description" json:"description"`
+
+	// Required indicates whether this field must be present in the payload.
+	Required bool `yaml:"required,omitempty" json:"required,omitempty"`
+
+	// Example provides a sample value for this field.
+	Example any `yaml:"example,omitempty" json:"example,omitempty"`
+}
+
+// WorkerOutputLabeling defines the labeling and metadata contract for worker outputs.
+type WorkerOutputLabeling struct {
+	// TrackerLabel is the label applied to all worker-created items for campaign tracking.
+	// Format: "campaign:{campaign_id}" (e.g., "campaign:security-q1-2025")
+	TrackerLabel string `yaml:"tracker-label" json:"tracker_label"`
+
+	// AdditionalLabels are other labels the worker applies to created items.
+	// Examples: "security", "automated", "dependencies"
+	AdditionalLabels []string `yaml:"additional-labels,omitempty" json:"additional_labels,omitempty"`
+
+	// KeyInTitle indicates whether the worker includes a deterministic key in
+	// the title of created items (format: "[{key}] {title}").
+	KeyInTitle bool `yaml:"key-in-title" json:"key_in_title"`
+
+	// KeyFormat describes the key format when KeyInTitle is true.
+	// Example: "campaign-{campaign_id}-{repository}-{work_item_id}"
+	KeyFormat string `yaml:"key-format,omitempty" json:"key_format,omitempty"`
+
+	// MetadataFields lists Project fields the worker populates with work metadata.
+	// Examples: "Campaign Id", "Worker Workflow", "Priority"
+	MetadataFields []string `yaml:"metadata-fields,omitempty" json:"metadata_fields,omitempty"`
 }

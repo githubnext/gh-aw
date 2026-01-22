@@ -79,6 +79,17 @@ type CampaignPromptData struct {
 
 	// Workflows is the list of worker workflow IDs associated with this campaign.
 	Workflows []string
+
+	// Bootstrap configuration
+	BootstrapMode  string
+	SeederWorkerID string
+	SeederPayload  string
+	SeederMaxItems int
+	StatusField    string
+	TodoValue      string
+	TodoMaxItems   int
+	RequireFields  []string
+	WorkerMetadata []WorkerMetadata
 }
 
 // renderTemplate renders a template string with the given data.
@@ -174,6 +185,22 @@ func RenderClosingInstructions() string {
 	if err != nil {
 		templateLog.Printf("Failed to render closing instructions: %v", err)
 		return "Use these details to coordinate workers and track progress."
+	}
+	return strings.TrimSpace(result)
+}
+
+// RenderBootstrapInstructions renders the bootstrap instructions with the given data.
+func RenderBootstrapInstructions(data CampaignPromptData) string {
+	tmplStr, err := loadTemplate("bootstrap-agentic-campaign.md")
+	if err != nil {
+		templateLog.Printf("Failed to load bootstrap instructions template: %v", err)
+		return ""
+	}
+
+	result, err := renderTemplate(tmplStr, data)
+	if err != nil {
+		templateLog.Printf("Failed to render bootstrap instructions: %v", err)
+		return ""
 	}
 	return strings.TrimSpace(result)
 }
