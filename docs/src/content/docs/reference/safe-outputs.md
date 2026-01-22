@@ -804,7 +804,7 @@ When `allowed` list is configured, existing agent assignees not in the list are 
 > [!TIP]
 > Assignment methods
 > 
-> Use `assign-to-agent` when you need to programmatically assign agents to **existing** issues or PRs through workflow automation. If you're creating new issues and want to assign an agent immediately, use `assignees: copilot` in your [`create-issue`](#issue-creation-create-issue) configuration instead, which is simpler and uses `COPILOT_GITHUB_TOKEN`:
+> Use `assign-to-agent` when you need to programmatically assign agents to **existing** issues or PRs through workflow automation. If you're creating new issues and want to assign an agent immediately, use `assignees: copilot` in your [`create-issue`](#issue-creation-create-issue) configuration instead, which is simpler:
 > 
 > ```yaml
 > safe-outputs:
@@ -812,7 +812,9 @@ When `allowed` list is configured, existing agent assignees not in the list are 
 >     assignees: copilot  # Assigns agent when creating issue
 > ```
 > 
-> Both methods result in the same outcome as [manually assigning issues to Copilot through the GitHub UI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot), but are automated through workflow safe outputs. See [GitHub Tokens reference](/gh-aw/reference/tokens/#gh_aw_agent_token-agent-assignment) for token configuration details and [GitHub's official Copilot coding agent documentation](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) for more about the Copilot agent.
+> **Important**: Both methods use the **same token** (`GH_AW_AGENT_TOKEN`) and **same GraphQL API** (`replaceActorsForAssignable` mutation) to assign copilot. When you use `assignees: copilot` in create-issue, the copilot assignee is automatically filtered out and assigned in a separate post-step using the agent token and GraphQL, identical to the `assign-to-agent` safe output.
+> 
+> Both methods result in the same outcome as [manually assigning issues to Copilot through the GitHub UI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot). See [GitHub Tokens reference](/gh-aw/reference/tokens/#gh_aw_agent_token-agent-assignment) for token configuration details and [GitHub's official Copilot coding agent documentation](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) for more about the Copilot agent.
 
 ### Assign to User (`assign-to-user:`)
 
@@ -913,7 +915,7 @@ safe-outputs:
 
 ## Assigning to Copilot
 
-Use `assignees: copilot` or `reviewers: copilot` for bot assignment. Requires `COPILOT_GITHUB_TOKEN` or `GH_AW_GITHUB_TOKEN` PAT—default `GITHUB_TOKEN` lacks permissions.
+Use `assignees: copilot` or `reviewers: copilot` for bot assignment. Requires `GH_AW_AGENT_TOKEN` (or fallback to `GH_AW_GITHUB_TOKEN`/`GITHUB_TOKEN`)—uses GraphQL API to assign the bot.
 
 ## Custom Runner Image
 

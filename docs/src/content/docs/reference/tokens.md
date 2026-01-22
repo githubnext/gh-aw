@@ -361,9 +361,9 @@ gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
 > [!NOTE]
 > Two ways to assign Copilot agents
 > 
-> There are two different methods for assigning GitHub Copilot agents to issues or pull requests:
+> There are two different methods for assigning GitHub Copilot agents to issues or pull requests. **Both methods use the same token (`GH_AW_AGENT_TOKEN`) and GraphQL API** to perform the assignment:
 > 
-> 1. **Via `assign-to-agent` safe output** (uses `GH_AW_AGENT_TOKEN`): Use when you need to programmatically assign agents to **existing** issues or PRs through workflow automation. This is a standalone operation that requires the token documented on this page.
+> 1. **Via `assign-to-agent` safe output**: Use when you need to programmatically assign agents to **existing** issues or PRs through workflow automation. This is a standalone operation that requires the token documented on this page.
 > 
 >    ```yaml
 >    safe-outputs:
@@ -372,17 +372,17 @@ gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
 >        allowed: [copilot]
 >    ```
 > 
-> 2. **Via `assignees` or `reviewers` fields** (uses `COPILOT_GITHUB_TOKEN`): Use when creating new issues or PRs through workflows and want to assign the agent immediately. This is configured as part of `create-issue` or `create-pull-request` safe outputs and mirrors the [standard GitHub UI flow for assigning issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot).
+> 2. **Via `assignees` field in `create-issue`**: Use when creating new issues through workflows and want to assign the agent immediately. When `copilot` is in the assignees list, it's automatically filtered out and assigned via GraphQL in a separate step after issue creation (using the same token and API as method 1).
 > 
 >    ```yaml
 >    safe-outputs:
 >      create-issue:
 >        assignees: copilot  # or assignees: [copilot, user1]
->      create-pull-request:
->        reviewers: copilot  # or reviewers: [copilot, user1]
 >    ```
 > 
-> For most workflows that create issues with agent assignments, use method 2 (`assignees: copilot`) as it's simpler and uses the existing `COPILOT_GITHUB_TOKEN`. Use method 1 (`assign-to-agent`) when you need to programmatically assign agents to issues that already exist or when you need fine-grained control over agent assignment operations.
+> Both methods result in the same outcome as [manually assigning issues to Copilot through the GitHub UI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot). Method 2 is simpler when creating issues, while method 1 provides fine-grained control for existing issues.
+> 
+> **Technical Implementation**: Both methods use the GraphQL `replaceActorsForAssignable` mutation to assign the `copilot-swe-agent` bot to issues or PRs. The token precedence for both is: per-output → global safe-outputs → workflow-level → `GH_AW_AGENT_TOKEN` (with fallback to `GH_AW_GITHUB_TOKEN` or `GITHUB_TOKEN` if not set).
 > 
 > See [GitHub's official documentation on assigning issues to Copilot](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) for more details on the Copilot coding agent.
 
