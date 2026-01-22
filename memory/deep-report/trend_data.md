@@ -1,9 +1,8 @@
-## Trend Data (as of 2026-01-21T15:15:43Z)
+## Trend Data (as of 2026-01-22T15:15:28Z)
 
-- Workflow audit (2026-01-21): 10 runs, 8 workflows, 80.0% success, 5,198,547 tokens, $0.84 cost, 1 error + 1 missing tool.
-- Copilot token baseline (30 days ending 2026-01-21): 159,191,117 tokens, $1,591.91, 370 runs, 57 workflows; top spenders CI Cleaner (31.5M), Issue Monster (14.2M), Agent Persona Explorer (8.5M).
-- Safe outputs health (2026-01-20): 10 runs, 16 safe-output ops, 100% success; 1 informational missing_tool (Go toolchain absent).
-- Firewall security (2026-01-21): 21 techniques tested, 0 escapes; only historical escape was Docker-in-Docker (patched in v0.9.1).
-- Issues (last 7 days dataset): 394 total, 76 open / 318 closed; unlabeled 27 total (1 open); last 3 days 119 created vs 70 closed.
-- Label frequency (weekly): agentic-workflows 116, automation 84, plan 43, ai-generated 43, code-quality 42.
-- MCP structural analysis (2026-01-21): critical bloat in list_releases (~210KB for perPage=1) and list_code_scanning_alerts (~97KB for 4 items).
+- Copilot token report (30 days ending 2026-01-22): 101,969,175 tokens, $101.97, 239 runs, 53 workflows; top spenders CI Cleaner (13.7M), Agent Persona Explorer (12.5M), CI Failure Doctor (10.9M), Issue Monster (10.8M).
+- Copilot session insights (2026-01-22): 50 sessions, 22% completion rate (+6pp day-over-day), 0 loop detections, 0 context issues, 50% skipped.
+- Safe outputs health (2026-01-21): 9 safe-output jobs, 100% success across 8 workflows; missing_tool outputs processed successfully.
+- Workflow lockfile stats (2026-01-22): 134 workflows, average size 73.7 KB, 71 steps/workflow, 100% concurrency adoption, 74% scheduled, 68% schedule+workflow_dispatch.
+- Issues (last 7 days dataset): 491 total, 52 open / 439 closed; unlabeled 41 total (5 open); last 3 days 204 created vs 196 closed.
+- MCP structural analysis (2026-01-22): average rating 3.77/5; list_releases ~5,800 tokens, list_pull_requests ~4,200 tokens, list_code_scanning_alerts ~3,800 tokens.
