@@ -19,7 +19,7 @@ The developer reviews the research report to determine if worthwhile improvement
 
 ### Phase 3: Assign
 
-The developer reviews the generated issues and decides which ones to execute. Approved issues are assigned to `@copilot` for automated implementation and can be executed sequentially or in parallel depending on dependencies. Each copilot agent creates a pull request with the implementation for developer review and merging.
+The developer reviews the generated issues and decides which ones to execute. Approved issues are [assigned to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot) for automated implementation and can be executed sequentially or in parallel depending on dependencies. Copilot creates a pull request with the implementation for developer review and merging.
 
 ## When to Use ResearchPlanAssign
 
@@ -37,17 +37,17 @@ Runs daily to scan all agentic workflows with security tools (zizmor, poutine, a
 
 **Plan Phase**: Developer reviews the security discussion and uses the `/plan` command to convert high-priority findings into issues.
 
-**Assign Phase**: Developer assigns generated issues to `@copilot` for automated fixes.
+**Assign Phase**: Developer [assigns generated issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot) for automated fixes.
 
 ### Duplicate Code Detection → Plan → Refactor
 
 **Research Phase**: [`duplicate-code-detector.md`](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/duplicate-code-detector.md)
 
-Runs daily using Serena MCP for semantic code analysis to identify exact, structural, and functional duplication. Creates one issue per distinct pattern (max 3 per run) and assigns directly to `@copilot` since duplication fixes are typically straightforward.
+Runs daily using Serena MCP for semantic code analysis to identify exact, structural, and functional duplication. Creates one issue per distinct pattern (max 3 per run) that are [assigned to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot) (via `assignees: copilot` in workflow config) since duplication fixes are typically straightforward.
 
 **Plan Phase**: Since issues are already well-scoped, the plan phase is implicit in the research output.
 
-**Assign Phase**: Issues are pre-assigned to `@copilot` for automated refactoring.
+**Assign Phase**: Issues are created and [assigned to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot) (via `assignees: copilot`) for automated refactoring.
 
 ### File Size Analysis → Plan → Refactor
 
@@ -57,7 +57,7 @@ Runs weekdays to monitor file sizes, identify files exceeding healthy size thres
 
 **Plan Phase**: The research issue already contains a concrete refactoring plan.
 
-**Assign Phase**: Developer reviews and assigns to `@copilot` or handles manually depending on complexity.
+**Assign Phase**: Developer reviews and [assigns to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot) or handles manually depending on complexity.
 
 ### Deep Research → Plan → Implementation
 
@@ -79,7 +79,7 @@ Performs deep research investigations using multiple research MCPs (Tavily, arXi
 
 ## Customization
 
-Adapt the ResearchPlanAssign strategy by customizing the research focus (static analysis, performance metrics, documentation quality, security, code duplication, test coverage), frequency (daily, weekly, on-demand), report format (discussions vs issues), planning approach (automatic vs manual), and assignment method (pre-assign to `@copilot`, manual, or mixed).
+Adapt the ResearchPlanAssign strategy by customizing the research focus (static analysis, performance metrics, documentation quality, security, code duplication, test coverage), frequency (daily, weekly, on-demand), report format (discussions vs issues), planning approach (automatic vs manual), and assignment method (pre-assign via `assignees: copilot` in workflow config, [manual assignment through GitHub UI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot), or mixed).
 
 ## Benefits
 
