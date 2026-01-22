@@ -5,23 +5,7 @@
   "tasks_completed": 0,
   "tasks_in_progress": 0,
   "tasks_blocked": 0,
-  "security_alerts": {
-    "critical": 1,
-    "high": 0,
-    "total_open": 4
-  },
-  "kpi_status": {
-    "critical_alerts": {
-      "baseline": 5,
-      "current": 1,
-      "target": 0,
-      "progress_percent": 80
-    },
-    "high_alerts": {
-      "baseline": 15,
-      "current": 0,
-      "target": 5,
-      "progress_percent": 100
-    }
-  }
+  "critical_alerts": 1,
+  "high_alerts": 0,
+  "note": "Initial campaign run. Current state better than baseline: 1 critical (baseline: 5, target: 0), 0 high (baseline: 15, target: 5). No worker outputs discovered yet."
 }

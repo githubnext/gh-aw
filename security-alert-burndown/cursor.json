@@ -1,6 +1,4 @@
 {
   "page": 1,
-  "trackerId": "dependabot-bundler",
-  "last_updated": "2026-01-22T20:20:54.822Z",
-  "discovery_complete": true
+  "trackerId": "code-scanning-fixer"
 }
