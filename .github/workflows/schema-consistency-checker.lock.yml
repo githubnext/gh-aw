@@ -695,7 +695,6 @@ jobs:
           
           **Key files to analyze:**
           - `pkg/parser/schemas/main_workflow_schema.json`
-          - `pkg/parser/schemas/included_file_schema.json`
           - `pkg/parser/schemas/mcp_config_schema.json`
           - `pkg/parser/frontmatter.go` and `pkg/parser/*.go`
           - `pkg/workflow/compiler.go` - main workflow compiler
@@ -709,7 +708,7 @@ jobs:
           - `pkg/workflow/engine_firewall_support.go` - firewall support checking
           - `pkg/workflow/strict_mode.go` - strict mode validation
           - `pkg/workflow/stop_after.go` - stop-after processing
-          - `pkg/workflow/safe_jobs.go` - safe-jobs configuration
+          - `pkg/workflow/safe_jobs.go` - safe-jobs configuration (internal - accessed via safe-outputs.jobs)
           - `pkg/workflow/runtime_setup.go` - runtime overrides
           - `pkg/workflow/github_token.go` - github-token configuration
           - `pkg/workflow/*.go` (all workflow processing files that use frontmatter)
