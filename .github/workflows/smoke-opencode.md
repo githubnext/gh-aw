@@ -15,7 +15,21 @@ permissions:
 name: Smoke OpenCode
 imports:
   - shared/opencode.md
-strict: true
+safe-inputs:
+  gh:
+    description: "Execute any gh CLI command. This tool is accessible as 'safeinputs-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues."
+    inputs:
+      args:
+        type: string
+        description: "Arguments to pass to gh CLI (without the 'gh' prefix). Examples: 'pr list --limit 5', 'issue view 123', 'api repos/{owner}/{repo}'"
+        required: true
+    env:
+      GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_DEBUG: "1"
+    run: |
+      echo "gh $INPUT_ARGS"
+      echo "  token: ${GH_AW_GH_TOKEN:0:6}..."
+      GH_TOKEN="$GH_AW_GH_TOKEN" gh $INPUT_ARGS
 sandbox:
   mcp:
     container: "ghcr.io/githubnext/gh-aw-mcpg"
@@ -56,10 +70,11 @@ timeout-minutes: 10
 ## Test Requirements
 
 1. **GitHub MCP Testing**: Review the last 2 merged pull requests in ${{ github.repository }}
-2. **Serena MCP Testing**: Use the Serena MCP server tool `activate_project` to initialize the workspace at `${{ github.workspace }}` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools)
-3. **Playwright Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
-4. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-opencode-${{ github.run_id }}.txt` with content "Smoke test passed for OpenCode at $(date)" (create the directory if it doesn't exist)
-5. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+2. **Safe Inputs GH CLI Testing**: Use the `safeinputs-gh` tool to query 2 pull requests from ${{ github.repository }} (use args: "pr list --repo ${{ github.repository }} --limit 2 --json number,title,author")
+3. **Serena MCP Testing**: Use the Serena MCP server tool `activate_project` to initialize the workspace at `${{ github.workspace }}` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools)
+4. **Playwright Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
+5. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-opencode-${{ github.run_id }}.txt` with content "Smoke test passed for OpenCode at $(date)" (create the directory if it doesn't exist)
+6. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 
 ## Output
 
