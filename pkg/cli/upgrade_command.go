@@ -3,8 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"os/exec"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -186,92 +184,24 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Preparing to commit and push changes..."))
 
-		// Check if there are any changes to commit
-		upgradeLog.Print("Checking for modified files")
-		cmd := exec.Command("git", "status", "--porcelain")
-		output, err := cmd.Output()
-		if err != nil {
-			upgradeLog.Printf("Failed to check git status: %v", err)
-			return fmt.Errorf("failed to check git status: %w", err)
-		}
-
-		if len(strings.TrimSpace(string(output))) == 0 {
-			upgradeLog.Print("No changes to commit")
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No changes to commit"))
-			return nil
-		}
-
-		// Pull latest changes from remote before committing (if remote exists)
-		upgradeLog.Print("Checking for remote repository")
-		checkRemoteCmd := exec.Command("git", "remote", "get-url", "origin")
-		if err := checkRemoteCmd.Run(); err == nil {
-			// Remote exists, pull changes
-			upgradeLog.Print("Pulling latest changes from remote")
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pulling latest changes from remote..."))
-			}
-			pullCmd := exec.Command("git", "pull", "--rebase")
-			if output, err := pullCmd.CombinedOutput(); err != nil {
-				upgradeLog.Printf("Failed to pull changes: %v, output: %s", err, string(output))
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to pull changes: %v", err)))
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("You may need to manually resolve conflicts and push"))
-				return fmt.Errorf("failed to pull changes: %w", err)
-			}
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Pulled latest changes"))
-			}
-		} else {
-			upgradeLog.Print("No remote repository configured, skipping pull")
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No remote repository configured, skipping pull"))
-			}
-		}
-
-		// Stage all modified files
-		upgradeLog.Print("Staging all changes")
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Staging changes..."))
-		}
-		addCmd := exec.Command("git", "add", "-A")
-		if output, err := addCmd.CombinedOutput(); err != nil {
-			upgradeLog.Printf("Failed to stage changes: %v, output: %s", err, string(output))
-			return fmt.Errorf("failed to stage changes: %w", err)
-		}
-
-		// Commit the changes
-		upgradeLog.Print("Committing changes")
+		// Use the helper function to orchestrate the full workflow
 		commitMessage := "chore: upgrade agentic workflows"
-		if err := commitChanges(commitMessage, verbose); err != nil {
-			upgradeLog.Printf("Failed to commit changes: %v", err)
-			return fmt.Errorf("failed to commit changes: %w", err)
-		}
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes committed"))
+		if err := commitAndPushChanges(commitMessage, verbose); err != nil {
+			// Check if it's the "no changes" case
+			hasChanges, checkErr := hasChangesToCommit()
+			if checkErr == nil && !hasChanges {
+				upgradeLog.Print("No changes to commit")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No changes to commit"))
+				return nil
+			}
+			return err
 		}
 
-		// Push the changes (only if remote exists)
-		upgradeLog.Print("Checking if remote repository exists for push")
-		checkRemoteCmd = exec.Command("git", "remote", "get-url", "origin")
-		if err := checkRemoteCmd.Run(); err == nil {
-			// Remote exists, push changes
-			upgradeLog.Print("Pushing changes to remote")
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pushing to remote..."))
-			}
-			pushCmd := exec.Command("git", "push")
-			if output, err := pushCmd.CombinedOutput(); err != nil {
-				upgradeLog.Printf("Failed to push changes: %v, output: %s", err, string(output))
-				return fmt.Errorf("failed to push changes: %w\nOutput: %s", err, string(output))
-			}
-
-			fmt.Fprintln(os.Stderr, "")
+		// Print success messages based on whether remote exists
+		fmt.Fprintln(os.Stderr, "")
+		if hasRemote() {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes pushed to remote"))
 		} else {
-			upgradeLog.Print("No remote repository configured, skipping push")
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No remote repository configured, changes committed locally"))
-			}
-			fmt.Fprintln(os.Stderr, "")
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes committed locally (no remote configured)"))
 		}
 	}
