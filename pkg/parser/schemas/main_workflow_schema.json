@@ -4903,9 +4903,9 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository agent assignment. Takes precedence over trial target repo settings."
                 },
-                "ignore-if-missing": {
+                "ignore-if-error": {
                   "type": "boolean",
-                  "description": "If true, the workflow continues gracefully when the agent token (GH_AW_AGENT_TOKEN) is not available, logging a warning instead of failing. Default is false. Useful for workflows that should not fail when agent assignment is optional.",
+                  "description": "If true, the workflow continues gracefully when agent assignment fails (e.g., due to missing token or insufficient permissions), logging a warning instead of failing. Default is false. Useful for workflows that should not fail when agent assignment is optional.",
                   "default": false
                 },
                 "github-token": {

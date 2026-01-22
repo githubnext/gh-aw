@@ -50,10 +50,10 @@ async function main() {
   const targetConfig = process.env.GH_AW_AGENT_TARGET?.trim() || "triggering";
   core.info(`Target configuration: ${targetConfig}`);
 
-  // Get ignore-if-missing flag (defaults to false)
-  const ignoreIfMissing = process.env.GH_AW_AGENT_IGNORE_IF_MISSING === "true";
-  if (ignoreIfMissing) {
-    core.info("Ignore-if-missing mode enabled: Will not fail if agent token is unavailable");
+  // Get ignore-if-error flag (defaults to false)
+  const ignoreIfError = process.env.GH_AW_AGENT_IGNORE_IF_ERROR === "true";
+  if (ignoreIfError) {
+    core.info("Ignore-if-error mode enabled: Will not fail if agent assignment encounters errors");
   }
 
   // Get allowed agents list (comma-separated)
@@ -279,9 +279,9 @@ async function main() {
         errorMessage.includes("Insufficient permissions") ||
         errorMessage.includes("requires authentication");
 
-      // If ignore-if-missing is enabled and this is an auth error, log warning and skip
-      if (ignoreIfMissing && isAuthError) {
-        core.warning(`Agent token not available or insufficient permissions for assigning ${agentName} to ${type} #${number}. Skipping due to ignore-if-missing=true.`);
+      // If ignore-if-error is enabled and this is an auth error, log warning and skip
+      if (ignoreIfError && isAuthError) {
+        core.warning(`Agent assignment failed for ${agentName} on ${type} #${number} due to authentication/permission error. Skipping due to ignore-if-error=true.`);
         core.info(`Error details: ${errorMessage}`);
         results.push({
           issue_number: issueNumber,
@@ -335,12 +335,12 @@ async function main() {
   }
 
   if (skippedCount > 0) {
-    summaryContent += `⏭️ Skipped ${skippedCount} agent assignment(s) (ignore-if-missing enabled):\n\n`;
+    summaryContent += `⏭️ Skipped ${skippedCount} agent assignment(s) (ignore-if-error enabled):\n\n`;
     summaryContent += results
       .filter(r => r.skipped)
       .map(r => {
         const itemType = r.issue_number ? `Issue #${r.issue_number}` : `Pull Request #${r.pull_number}`;
-        return `- ${itemType} → Agent: ${r.agent} (agent token not available)`;
+        return `- ${itemType} → Agent: ${r.agent} (assignment failed due to error)`;
       })
       .join("\n");
     summaryContent += "\n\n";
