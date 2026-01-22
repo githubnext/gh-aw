@@ -52,9 +52,18 @@ func TestSortStrings(t *testing.T) {
 
 			SortStrings(result)
 
-			assert.Equal(t, tt.expected, result, "SortStrings should return correctly sorted slice")
+			assert.Equal(t, tt.expected, result, "SortStrings failed for test case: %s", tt.name)
 		})
 	}
+}
+
+func TestSortStrings_NilSlice(t *testing.T) {
+	var nilSlice []string
+
+	// Should not panic with nil slice
+	SortStrings(nilSlice)
+
+	assert.Nil(t, nilSlice, "SortStrings should handle nil slice without panic")
 }
 
 func TestSortPermissionScopes(t *testing.T) {
@@ -98,9 +107,18 @@ func TestSortPermissionScopes(t *testing.T) {
 
 			SortPermissionScopes(result)
 
-			assert.Equal(t, tt.expected, result, "SortPermissionScopes should return correctly sorted slice")
+			assert.Equal(t, tt.expected, result, "SortPermissionScopes failed for test case: %s", tt.name)
 		})
 	}
+}
+
+func TestSortPermissionScopes_NilSlice(t *testing.T) {
+	var nilSlice []PermissionScope
+
+	// Should not panic with nil slice
+	SortPermissionScopes(nilSlice)
+
+	assert.Nil(t, nilSlice, "SortPermissionScopes should handle nil slice without panic")
 }
 
 func TestSanitizeWorkflowName(t *testing.T) {
@@ -184,7 +202,7 @@ func TestSanitizeWorkflowName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeWorkflowName(tt.input)
-			assert.Equal(t, tt.expected, result, "SanitizeWorkflowName should sanitize input correctly")
+			assert.Equal(t, tt.expected, result, "SanitizeWorkflowName failed for test case: %s", tt.name)
 		})
 	}
 }
@@ -235,12 +253,22 @@ func TestShortenCommand(t *testing.T) {
 			input:    "\n\n\n",
 			expected: "   ",
 		},
+		{
+			name:     "unicode characters",
+			input:    "echo 你好世界 αβγ test",
+			expected: "echo 你好世界 α...", // Truncates at 20 bytes, not 20 characters
+		},
+		{
+			name:     "long unicode string",
+			input:    "αβγδεζηθικλμνξοπρστυφχψω",
+			expected: "αβγδεζηθικ...", // Truncates at 20 bytes, not 20 characters
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ShortenCommand(tt.input)
-			assert.Equal(t, tt.expected, result, "ShortenCommand should process input correctly")
+			assert.Equal(t, tt.expected, result, "ShortenCommand failed for test case: %s", tt.name)
 		})
 	}
 }
@@ -419,7 +447,58 @@ func TestSanitizeName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SanitizeName(tt.input, tt.opts)
-			assert.Equal(t, tt.expected, result, "SanitizeName should sanitize input according to options")
+			assert.Equal(t, tt.expected, result, "SanitizeName failed for test case: %s", tt.name)
+		})
+	}
+}
+
+func TestSanitizeName_NilOptions(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "nil options - empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "nil options - only hyphens",
+			input:    "---",
+			expected: "-", // Multiple hyphens consolidated to single hyphen
+		},
+		{
+			name:     "nil options - leading/trailing hyphens",
+			input:    "-workflow-",
+			expected: "-workflow-", // Preserved with nil opts (TrimHyphens is false)
+		},
+		{
+			name:     "nil options - underscores replaced",
+			input:    "test_workflow_name",
+			expected: "test-workflow-name", // Underscores replaced when not in PreserveSpecialChars
+		},
+		{
+			name:     "nil options - dots removed",
+			input:    "workflow.test.name",
+			expected: "workflowtestname", // Dots removed when PreserveSpecialChars is empty
+		},
+		{
+			name:     "nil options - complex name",
+			input:    "Test_Workflow.Name@123",
+			expected: "test-workflowname123", // Special chars removed when PreserveSpecialChars is empty
+		},
+		{
+			name:     "nil options - multiple special characters",
+			input:    "workflow@#$%test",
+			expected: "workflowtest", // Special chars removed when PreserveSpecialChars is empty
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SanitizeName(tt.input, nil)
+			assert.Equal(t, tt.expected, result, "SanitizeName with nil options failed for test case: %s", tt.name)
 		})
 	}
 }
