@@ -26,7 +26,7 @@ func TestGetDefaultBranch(t *testing.T) {
 
 		// Should fail because no remote is configured
 		_, err := getDefaultBranch()
-		assert.Error(t, err, "Should fail when no remote is configured")
+		require.Error(t, err, "Should fail when no remote is configured")
 		assert.Contains(t, err.Error(), "no remote repository configured")
 	})
 }
