@@ -115,8 +115,11 @@ Commands are organized by workflow lifecycle: creating, building, testing, monit
 
 Initialize repository for agentic workflows. Configures `.gitattributes`, Copilot instructions, prompt files, and logs `.gitignore`. Enables MCP server integration by default (use `--no-mcp` to skip).
 
+When run without arguments, enters interactive mode to guide you through engine selection (Copilot, Claude, or Codex) and secret configuration.
+
 ```bash wrap
-gh aw init                              # With MCP integration (default)
+gh aw init                              # Interactive mode: select engine and configure secrets
+gh aw init --engine copilot             # Non-interactive with specific engine
 gh aw init --no-mcp                     # Skip MCP server integration
 gh aw init --tokens --engine copilot    # Check Copilot token configuration
 gh aw init --codespaces                 # Configure devcontainer for current repo
@@ -125,7 +128,9 @@ gh aw init --campaign                   # Enable campaign functionality
 gh aw init --completions                # Install shell completions
 ```
 
-**Options:** `--no-mcp`, `--tokens`, `--engine` (copilot, claude, codex), `--codespaces`, `--campaign`, `--completions`
+**Interactive Mode:** When invoked without `--engine`, prompts you to select an engine and optionally configure repository secrets using the `gh` CLI.
+
+**Options:** `--engine` (copilot, claude, codex), `--no-mcp`, `--tokens`, `--codespaces`, `--campaign`, `--completions`
 
 #### `add`
 
