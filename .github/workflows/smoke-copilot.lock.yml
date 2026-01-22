@@ -945,10 +945,11 @@ jobs:
           2. **Safe Inputs GH CLI Testing**: Use the `safeinputs-gh` tool to query 2 pull requests from __GH_AW_GITHUB_REPOSITORY__ (use args: "pr list --repo __GH_AW_GITHUB_REPOSITORY__ --limit 2 --json number,title,author")
           3. **Serena MCP Testing**: Use the Serena MCP server tool `activate_project` to initialize the workspace at `__GH_AW_GITHUB_WORKSPACE__` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools)
           4. **Playwright Testing**: Use playwright to navigate to <https://github.com> and verify the page title contains "GitHub"
-          5. **Runtime Mount Testing - Go Build**: Build the gh-aw binary by running `go build -o /tmp/gh-aw-test ./cmd/gh-aw` to verify that Go runtime is fully functional with all dependencies and build tools (this tests that the runtime manager properly mounted Go folders including toolcache, GOPATH, and build cache)
-          6. **Runtime Mount Testing - Go Test**: Run Go unit tests by executing `go test ./pkg/console -v -run TestFormatSuccess` to verify Go can compile and run tests with all mounts working correctly
-          7. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-__GH_AW_GITHUB_RUN_ID__.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
-          8. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+          5. **Runtime Mount Testing - Show Go Paths**: Display Go binary locations by running `which go && go version && go env GOROOT GOPATH GOCACHE` to verify Go is accessible and show mount points
+          6. **Runtime Mount Testing - Go Build**: Build the gh-aw binary by running `go build -o /tmp/gh-aw-test ./cmd/gh-aw` to verify that Go runtime is fully functional with all dependencies and build tools (this tests that the runtime manager properly mounted Go folders including toolcache, GOPATH, and build cache)
+          7. **Runtime Mount Testing - Go Test**: Run Go unit tests by executing `go test ./pkg/console -v -run TestFormatSuccess` to verify Go can compile and run tests with all mounts working correctly
+          8. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-__GH_AW_GITHUB_RUN_ID__.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
+          9. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
           
           ## Output
           
