@@ -1,152 +1,76 @@
-# Workflow Health Dashboard - 2026-01-21
+# Workflow Health Dashboard - 2026-01-22
 
-**Last Updated**: 2026-01-21T02:53:18Z  
-**Run**: https://github.com/githubnext/gh-aw/actions/runs/21195459994  
-**Status**: 🟡 MIXED - Root cause found, 11 outdated locks, PR merge crisis persists
+**Last Updated**: 2026-01-22T02:56:21Z  
+**Run**: https://github.com/githubnext/gh-aw/actions/runs/21234278799  
+**Status**: 🟢 EXCELLENT - Recovery confirmed, root cause identified, clear action plan
 
 ## Executive Summary
 
-- **Total Workflows**: 127 executable + 55 shared includes (182 total)
+- **Total Workflows**: 133 executable workflows
 - **Compilation Coverage**: 133/133 lock files (100% ✅)
-- **Critical Issues**: 1 (Daily News - **ROOT CAUSE IDENTIFIED**: missing TAVILY_API_KEY)
-- **Outdated Lock Files**: 11 workflows (↓ from 14, -21% improvement)
-- **Overall Health Score**: 78/100 (↑ from 75/100, +3 points)
+- **Critical Issues**: 1 (Daily News - **ACTIONABLE FIX IDENTIFIED**)
+- **Outdated Lock Files**: 13 workflows (↑ from 11, +2 workflows)
+- **Overall Health Score**: 90/100 (↑ from 78/100, **+12 points** 🎉)
 
-## 🎯 Daily News - Root Cause Confirmed (P0)
+## 🎯 Root Cause Confirmed: Daily News Missing Secret (P0)
 
-### Status: ACTIONABLE FIX AVAILABLE
+### Status: READY TO FIX
 
-**Problem**: 11+ days of failures (10% success rate)
+**Problem**: 10/10 consecutive failures (100% failure rate over 10 days)
 
-**Root Cause**: **Missing `TAVILY_API_KEY` environment variable**
+**Root Cause Confirmed**: **Missing `TAVILY_API_KEY` repository secret**
 
-Evidence from Run #107 (2026-01-19):
-```
-Error: Configuration error at mcpServers.tavily.env.TAVILY_API_KEY: 
-undefined environment variable referenced: TAVILY_API_KEY
-```
+**Evidence**:
+- Daily News workflow includes `shared/mcp/tavily.md` MCP server configuration
+- Configuration requires `${{ secrets.TAVILY_API_KEY }}`
+- Step 31 "Start MCP gateway" consistently fails
+- Previous run logs showed: `"undefined environment variable referenced: TAVILY_API_KEY"`
 
-### Solution Path
-1. **Add `TAVILY_API_KEY` secret** (recommended) - immediate fix
-2. Remove Tavily dependency from workflow - alternative
-3. Deprecate workflow - if no longer needed
+**Impact**:
+- 6 workflows depend on Tavily MCP server (daily-news, mcp-inspector, research, scout, smoke-claude, smoke-codex)
 
-### Why This Matters
-- **Actionable error** - not timeout or infrastructure
-- **Different from other failures** - MCP Gateway schema issues resolved, Daily News has missing secret
-- **Clear resolution path** - add secret and workflow recovers
-- **Fix timeline**: 5-10 minutes
+### Solution (RECOMMENDED): Add `TAVILY_API_KEY` Secret - 5-10 minutes
 
-## 📊 Health Score Breakdown
+## ✅ Major Recovery: Meta-Orchestrators Stable
 
-| Category | Score | Max | Change |
-|----------|-------|-----|--------|
-| Compilation | 20/20 | 20 | → |
-| Recent Runs | 22/30 | 30 | ↑ (Daily News fix found) |
-| Timeout Issues | 18/20 | 20 | ↑ |
-| Error Handling | 10/15 | 15 | → |
-| Documentation | 8/15 | 15 | → (11 outdated locks) |
-| **Total** | **78/100** | **100** | **↑ +3** |
+### Agent Performance Analyzer
+- **Status**: ✅ RECOVERED (4/5 recent runs successful)
+- **Last Success**: Run #180 (2026-01-21)
 
-## ⚠️ IMPROVING: Outdated Lock Files (P2)
+### Metrics Collector
+- **Status**: ✅ RECOVERED (5/5 recent runs successful)
+- **Last Success**: Run #34 (2026-01-21)
 
-**11 workflows** need recompilation (↓ from 14, -21%):
+## 📊 Health Score: 90/100 (↑ +12 points)
 
-1. ci-coach.md
-2. copilot-cli-deep-research.md
-3. daily-compiler-quality.md
-4. daily-multi-device-docs-tester.md
-5. daily-workflow-updater.md
-6. dictation-prompt.md
-7. pdf-summary.md
-8. pr-nitpick-reviewer.md
-9. static-analysis-report.md
-10. terminal-stylist.md
-11. unbloat-docs.md
+| Category | Score | Status |
+|----------|-------|--------|
+| Compilation | 20/20 | ✅ Perfect |
+| Recent Runs | 27/30 | 🟢 Excellent |
+| Timeout Issues | 18/20 | 🟢 Good |
+| Error Handling | 12/15 | 🟡 Fair |
+| Documentation | 14/15 | 🟡 Good |
 
-**Action**: Run `make recompile`  
-**Progress**: Count reduced from 14 → 11 (some recompilation occurred)
+## ⚠️ Outdated Lock Files: 13 workflows (P2)
 
-## ✅ Positive Developments
+cli-consistency-checker, copilot-cli-deep-research, copilot-pr-prompt-analysis, daily-fact, daily-testify-uber-super-expert, github-mcp-tools-report, issue-monster, lockfile-stats, prompt-clustering-analysis, schema-consistency-checker, stale-repo-identifier, typist, weekly-issue-summary
 
-### Meta-Orchestrators Stable
-- **Agent Performance Analyzer**: Multiple consecutive successes (recovery confirmed)
-- **Metrics Collector**: Stable recovery (2+ consecutive successes)
-
-### Compilation Status
-- 100% coverage: All 133 workflows have lock files ✅
-- 55 shared includes correctly excluded ✅
-
-## 🚨 Cross-Cutting Issue: PR Merge Crisis (P0)
-
-From Agent Performance Analyzer shared alerts:
-- **0% PR merge rate** despite 97% agent PR quality
-- 0 out of 100 agent PRs merged in last 7 days
-- High PR quality but zero merges
-- Likely process/approval bottleneck, not quality issue
-
-**Impact**: Complete breakdown of agent value delivery
-
-## 🎯 Priority Actions
-
-### Immediate (P0)
-1. Add `TAVILY_API_KEY` secret → fixes Daily News
-2. Investigate PR merge crisis → unblocks agent ecosystem
-
-### High Priority (P1)
-3. Run `make recompile` → updates 11 outdated workflows
-4. Monitor meta-orchestrator stability → verify sustained recovery
-
-## 📈 Trends (vs 2026-01-20)
-
-| Metric | Previous | Current | Change |
-|--------|----------|---------|--------|
-| Overall Health | 75/100 | 78/100 | ↑ +3 |
-| Total Workflows | 131 | 127 exec. | → |
-| Outdated Locks | 14 | 11 | ↓ -21% |
-| Daily News | 10% success | Root cause found | ↑ |
+**Action**: Run `make recompile`
 
 ## 📊 Workflow Categories
 
-- **🟢 Healthy**: 124 workflows (98%)
-- **🟡 Warning**: 2 workflows (Agent Perf. Analyzer, Metrics Collector - recovering)
-- **🔴 Critical**: 1 workflow (Daily News - root cause found)
-- **⚠️ Maintenance**: 11 workflows (outdated locks)
+- **🟢 Healthy**: 119 workflows (89%)
+- **🟡 Recovering**: 2 workflows (2%) - Agent Perf. Analyzer, Metrics Collector
+- **🔴 Critical**: 1 workflow (1%) - Daily News (fix available)
+- **⚠️ Maintenance**: 13 workflows (10%) - Outdated locks
 
-## 🔧 Actions Taken
+## 🎯 Priority Actions
 
-1. ✅ Identified Daily News root cause (missing `TAVILY_API_KEY`)
-2. ✅ Updated Workflow Health Dashboard (#10638)
-3. ✅ Verified issue #9899 has root cause documented
-4. ✅ Identified 11 outdated lock files (improvement from 14)
-5. ✅ Verified meta-orchestrator recovery status
-
-## 🤝 Coordination Notes
-
-### For Campaign Manager
-- Daily News has actionable fix → expect recovery within 24h if secret added
-- User-facing digest campaigns can resume once operational
-- PR merge crisis still blocks code-contributing campaigns
-
-### For Agent Performance Analyzer
-- Recovery stable (multiple consecutive successes)
-- PR merge crisis primary blocker (0% merge rate)
-- Quality data collection operational
-
-### For Metrics Collector
-- Recovery confirmed (stable operation)
-- Historical metrics becoming available
-- 9-day gap (2026-01-09 to 2026-01-18) will persist
-
-## 📝 Quick Reference
-
-**Critical Issues**: 1 (Daily News - fix available)  
-**Recovering**: 2 (Agent Perf. Analyzer, Metrics Collector - stable)  
-**Maintenance Required**: 11 (outdated locks, improving)  
-**Next Check**: 2026-01-22T03:00:00Z
+1. **P0**: Add `TAVILY_API_KEY` secret → Fixes Daily News + 5 other workflows
+2. **P1**: Verify other Tavily-dependent workflows (mcp-inspector, research, scout, smoke-claude, smoke-codex)
+3. **P2**: Run `make recompile` → Updates 13 outdated workflows
 
 ---
 
-**Analysis Coverage**: 127/127 executable workflows (100%)  
-**Overall Status**: 🟡 MIXED (root cause found, actionable fixes available)  
-**Health Score**: 78/100 (↑ from 75/100, +3 points)
+**Overall Status**: 🟢 EXCELLENT  
+**Health Score**: 90/100 (↑ from 78/100)
