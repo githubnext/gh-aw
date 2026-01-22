@@ -86,9 +86,6 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 					Filter: "is:issue is:pr",
 				},
 			},
-		},
-		UpdateProjects: &workflow.UpdateProjectConfig{
-			GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 			FieldDefinitions: []workflow.ProjectFieldDefinition{
 				{
 					Name:     "Campaign Id",
@@ -117,6 +114,9 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 					DataType: "DATE",
 				},
 			},
+		},
+		UpdateProjects: &workflow.UpdateProjectConfig{
+			GitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 		},
 		Messages: &workflow.SafeOutputMessagesConfig{
 			AppendOnlyComments: true,

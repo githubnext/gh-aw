@@ -919,6 +919,19 @@ func renderCampaignGeneratorMarkdown(data *workflow.WorkflowData) string {
 					fmt.Fprintf(&b, "        filter: \"%s\"\n", view.Filter)
 				}
 			}
+			if len(data.SafeOutputs.CreateProjects.FieldDefinitions) > 0 {
+				b.WriteString("    field-definitions:\n")
+				for _, field := range data.SafeOutputs.CreateProjects.FieldDefinitions {
+					fmt.Fprintf(&b, "      - name: \"%s\"\n", field.Name)
+					fmt.Fprintf(&b, "        data-type: \"%s\"\n", field.DataType)
+					if len(field.Options) > 0 {
+						b.WriteString("        options:\n")
+						for _, opt := range field.Options {
+							fmt.Fprintf(&b, "          - \"%s\"\n", opt)
+						}
+					}
+				}
+			}
 		}
 
 		if data.SafeOutputs.UpdateProjects != nil {

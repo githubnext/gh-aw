@@ -4016,6 +4016,33 @@
                     },
                     "additionalProperties": false
                   }
+                },
+                "field-definitions": {
+                  "type": "array",
+                  "description": "Optional array of project custom fields to create automatically after project creation. Useful for campaign projects that require a fixed set of fields.",
+                  "items": {
+                    "type": "object",
+                    "required": ["name", "data-type"],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "The field name to create (e.g., 'Campaign Id', 'Priority')"
+                      },
+                      "data-type": {
+                        "type": "string",
+                        "enum": ["DATE", "TEXT", "NUMBER", "SINGLE_SELECT", "ITERATION"],
+                        "description": "The GitHub Projects v2 custom field type"
+                      },
+                      "options": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Options for SINGLE_SELECT fields. GitHub does not support adding options later."
+                      }
+                    },
+                    "additionalProperties": false
+                  }
                 }
               },
               "additionalProperties": false

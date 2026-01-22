@@ -198,6 +198,14 @@ func TestParseCreateProjectsConfig(t *testing.T) {
 					assert.Equal(t, expectedView.VisibleFields, config.Views[i].VisibleFields, "View visible fields should match")
 					assert.Equal(t, expectedView.Description, config.Views[i].Description, "View description should match")
 				}
+
+				// Check field definitions
+				assert.Len(t, config.FieldDefinitions, len(tt.expectedConfig.FieldDefinitions), "Field definitions count should match")
+				for i, expectedField := range tt.expectedConfig.FieldDefinitions {
+					assert.Equal(t, expectedField.Name, config.FieldDefinitions[i].Name, "Field name should match")
+					assert.Equal(t, expectedField.DataType, config.FieldDefinitions[i].DataType, "Field data type should match")
+					assert.Equal(t, expectedField.Options, config.FieldDefinitions[i].Options, "Field options should match")
+				}
 			}
 		})
 	}
@@ -252,4 +260,116 @@ func TestCreateProjectsConfig_ViewsParsing(t *testing.T) {
 	assert.Equal(t, "Timeline", config.Views[1].Name)
 	assert.Equal(t, "roadmap", config.Views[1].Layout)
 	assert.Empty(t, config.Views[1].Filter) // No filter specified
+}
+
+func TestCreateProjectsConfig_FieldDefinitionsParsing(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	outputMap := map[string]any{
+		"create-project": map[string]any{
+			"max": 1,
+			"field-definitions": []any{
+				map[string]any{
+					"name":      "Campaign Id",
+					"data-type": "TEXT",
+				},
+				map[string]any{
+					"name":      "Priority",
+					"data-type": "SINGLE_SELECT",
+					"options":   []any{"High", "Medium", "Low"},
+				},
+				map[string]any{
+					"name":      "Start Date",
+					"data-type": "DATE",
+				},
+			},
+		},
+	}
+
+	config := compiler.parseCreateProjectsConfig(outputMap)
+	require.NotNil(t, config, "Config should not be nil")
+	require.Len(t, config.FieldDefinitions, 3, "Should parse 3 field definitions")
+
+	// Check first field
+	assert.Equal(t, "Campaign Id", config.FieldDefinitions[0].Name)
+	assert.Equal(t, "TEXT", config.FieldDefinitions[0].DataType)
+	assert.Empty(t, config.FieldDefinitions[0].Options)
+
+	// Check second field
+	assert.Equal(t, "Priority", config.FieldDefinitions[1].Name)
+	assert.Equal(t, "SINGLE_SELECT", config.FieldDefinitions[1].DataType)
+	assert.Equal(t, []string{"High", "Medium", "Low"}, config.FieldDefinitions[1].Options)
+
+	// Check third field
+	assert.Equal(t, "Start Date", config.FieldDefinitions[2].Name)
+	assert.Equal(t, "DATE", config.FieldDefinitions[2].DataType)
+	assert.Empty(t, config.FieldDefinitions[2].Options)
+}
+
+func TestCreateProjectsConfig_FieldDefinitionsWithUnderscores(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	// Test underscore variant of field-definitions and data-type
+	outputMap := map[string]any{
+		"create-project": map[string]any{
+			"max": 1,
+			"field_definitions": []any{
+				map[string]any{
+					"name":      "Worker Workflow",
+					"data_type": "TEXT",
+				},
+			},
+		},
+	}
+
+	config := compiler.parseCreateProjectsConfig(outputMap)
+	require.NotNil(t, config, "Config should not be nil")
+	require.Len(t, config.FieldDefinitions, 1, "Should parse 1 field definition")
+
+	assert.Equal(t, "Worker Workflow", config.FieldDefinitions[0].Name)
+	assert.Equal(t, "TEXT", config.FieldDefinitions[0].DataType)
+}
+
+func TestCreateProjectsConfig_ViewsAndFieldDefinitions(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	outputMap := map[string]any{
+		"create-project": map[string]any{
+			"max":          1,
+			"target-owner": "myorg",
+			"views": []any{
+				map[string]any{
+					"name":   "Campaign Board",
+					"layout": "board",
+				},
+			},
+			"field-definitions": []any{
+				map[string]any{
+					"name":      "Campaign Id",
+					"data-type": "TEXT",
+				},
+				map[string]any{
+					"name":      "Size",
+					"data-type": "SINGLE_SELECT",
+					"options":   []any{"Small", "Medium", "Large"},
+				},
+			},
+		},
+	}
+
+	config := compiler.parseCreateProjectsConfig(outputMap)
+	require.NotNil(t, config, "Config should not be nil")
+
+	// Check views
+	require.Len(t, config.Views, 1, "Should have 1 view")
+	assert.Equal(t, "Campaign Board", config.Views[0].Name)
+	assert.Equal(t, "board", config.Views[0].Layout)
+
+	// Check field definitions
+	require.Len(t, config.FieldDefinitions, 2, "Should have 2 field definitions")
+	assert.Equal(t, "Campaign Id", config.FieldDefinitions[0].Name)
+	assert.Equal(t, "TEXT", config.FieldDefinitions[0].DataType)
+	assert.Equal(t, "Size", config.FieldDefinitions[1].Name)
+	assert.Equal(t, "SINGLE_SELECT", config.FieldDefinitions[1].DataType)
+	assert.Equal(t, []string{"Small", "Medium", "Large"}, config.FieldDefinitions[1].Options)
 }
