@@ -5,12 +5,8 @@
   "tasks_completed": 0,
   "tasks_in_progress": 0,
   "tasks_blocked": 0,
-  "run_summary": {
-    "discovered_items": 0,
-    "items_added": 0,
-    "items_updated": 0,
-    "items_failed": 0,
-    "epic_created": true
-  },
-  "notes": "Campaign initialization run. Epic issue created. Awaiting worker outputs from code-scanning-fixer and security-fix-pr."
+  "critical_alerts": 5,
+  "high_severity_alerts": 15,
+  "velocity_per_day": 0,
+  "estimated_completion": null
 }
