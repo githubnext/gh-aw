@@ -24,8 +24,8 @@ tools:
 safe-outputs:
   create-pull-request:
     title-prefix: "[code-scanning-fix] "
-    labels: [security, automated-fix]
-    reviewers: copilot
+    labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
+    reviewers: [copilot]
 timeout-minutes: 20
 ---
 

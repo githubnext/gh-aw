@@ -24,8 +24,8 @@ tools:
 safe-outputs:
   create-pull-request:
     title-prefix: "[dependabot-bundle] "
-    labels: [security, dependencies, dependabot, automated-fix]
-    reviewers: copilot
+    labels: [security, dependencies, dependabot, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
+    reviewers: [copilot]
 timeout-minutes: 25
 ---
 
