@@ -2,9 +2,9 @@
 /// <reference types="@actions/github-script" />
 
 /**
- * Redacts secrets from files in /tmp/gh-aw directory before uploading artifacts
- * This script processes all .txt, .json, .log, .md, .mdx, .yml, .jsonl files under /tmp/gh-aw and redacts
- * any strings matching the actual secret values provided via environment variables.
+ * Redacts secrets from files in /tmp/gh-aw and /opt/gh-aw directories before uploading artifacts
+ * This script processes all .txt, .json, .log, .md, .mdx, .yml, .jsonl files under /tmp/gh-aw and /opt/gh-aw
+ * and redacts any strings matching the actual secret values provided via environment variables.
  */
 const fs = require("fs");
 const path = require("path");
@@ -125,10 +125,12 @@ async function main() {
       return;
     }
     core.info(`Found ${secretValues.length} secret(s) to redact`);
-    // Find all target files in /tmp/gh-aw directory
+    // Find all target files in /tmp/gh-aw and /opt/gh-aw directories
     const targetExtensions = [".txt", ".json", ".log", ".md", ".mdx", ".yml", ".jsonl"];
-    const files = findFiles("/tmp/gh-aw", targetExtensions);
-    core.info(`Found ${files.length} file(s) to scan for secrets`);
+    const tmpFiles = findFiles("/tmp/gh-aw", targetExtensions);
+    const optFiles = findFiles("/opt/gh-aw", targetExtensions);
+    const files = [...tmpFiles, ...optFiles];
+    core.info(`Found ${files.length} file(s) to scan for secrets (${tmpFiles.length} in /tmp/gh-aw, ${optFiles.length} in /opt/gh-aw)`);
     let totalRedactions = 0;
     let filesWithRedactions = 0;
     // Process each file
