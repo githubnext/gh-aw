@@ -559,6 +559,68 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			}
 		}
 
+		// Add environment variables collected from HTTP MCP servers (e.g., TAVILY_API_KEY)
+		// These are needed for the gateway to resolve ${VAR} references in MCP server configs
+		if len(mcpEnvVars) > 0 {
+			// Get list of environment variable names already added to avoid duplicates
+			addedEnvVars := make(map[string]bool)
+
+			// Mark standard environment variables as already added
+			standardEnvVars := []string{
+				"MCP_GATEWAY_PORT", "MCP_GATEWAY_DOMAIN", "MCP_GATEWAY_API_KEY", "DEBUG",
+				"MCP_GATEWAY_LOG_DIR", "GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS",
+				"GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH",
+				"GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS",
+				"DEFAULT_BRANCH", "GITHUB_MCP_SERVER_TOKEN", "GITHUB_MCP_LOCKDOWN",
+				"GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE",
+				"GITHUB_TOKEN", "GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ATTEMPT",
+				"GITHUB_JOB", "GITHUB_ACTION", "GITHUB_EVENT_NAME", "GITHUB_EVENT_PATH",
+				"GITHUB_ACTOR", "GITHUB_ACTOR_ID", "GITHUB_TRIGGERING_ACTOR",
+				"GITHUB_WORKFLOW", "GITHUB_WORKFLOW_REF", "GITHUB_WORKFLOW_SHA",
+				"GITHUB_REF", "GITHUB_REF_NAME", "GITHUB_REF_TYPE", "GITHUB_HEAD_REF", "GITHUB_BASE_REF",
+			}
+			for _, envVar := range standardEnvVars {
+				addedEnvVars[envVar] = true
+			}
+
+			// Mark conditionally added environment variables
+			if hasGitHub && getGitHubType(githubTool) == "remote" && engine.GetID() == "copilot" {
+				addedEnvVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = true
+			}
+			if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
+				addedEnvVars["GH_AW_SAFE_INPUTS_PORT"] = true
+				addedEnvVars["GH_AW_SAFE_INPUTS_API_KEY"] = true
+			}
+			if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+				addedEnvVars["GH_AW_SAFE_OUTPUTS_PORT"] = true
+				addedEnvVars["GH_AW_SAFE_OUTPUTS_API_KEY"] = true
+			}
+
+			// Mark gateway config environment variables as added
+			if len(gatewayConfig.Env) > 0 {
+				for envVarName := range gatewayConfig.Env {
+					addedEnvVars[envVarName] = true
+				}
+			}
+
+			// Add remaining environment variables from mcpEnvVars
+			envVarNames := make([]string, 0)
+			for envVarName := range mcpEnvVars {
+				if !addedEnvVars[envVarName] {
+					envVarNames = append(envVarNames, envVarName)
+				}
+			}
+			sort.Strings(envVarNames)
+
+			for _, envVarName := range envVarNames {
+				containerCmd += " -e " + envVarName
+			}
+
+			if mcpSetupGeneratorLog.Enabled() && len(envVarNames) > 0 {
+				mcpSetupGeneratorLog.Printf("Added %d HTTP MCP environment variables to gateway container: %v", len(envVarNames), envVarNames)
+			}
+		}
+
 		// Add volume mounts
 		if len(gatewayConfig.Mounts) > 0 {
 			for _, mount := range gatewayConfig.Mounts {

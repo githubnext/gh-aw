@@ -41,6 +41,67 @@ function findFiles(dir, extensions) {
 }
 
 /**
+ * Built-in regex patterns for common credential types
+ * Each pattern is designed to match legitimate credential formats
+ */
+const BUILT_IN_PATTERNS = [
+  // GitHub tokens
+  { name: "GitHub Personal Access Token (classic)", pattern: /ghp_[0-9a-zA-Z]{36}/g },
+  { name: "GitHub Server-to-Server Token", pattern: /ghs_[0-9a-zA-Z]{36}/g },
+  { name: "GitHub OAuth Access Token", pattern: /gho_[0-9a-zA-Z]{36}/g },
+  { name: "GitHub User Access Token", pattern: /ghu_[0-9a-zA-Z]{36}/g },
+  { name: "GitHub Fine-grained PAT", pattern: /github_pat_[0-9a-zA-Z_]{82}/g },
+  { name: "GitHub Refresh Token", pattern: /ghr_[0-9a-zA-Z]{36}/g },
+
+  // Azure tokens
+  { name: "Azure Storage Account Key", pattern: /[a-zA-Z0-9+/]{88}==/g },
+  { name: "Azure SAS Token", pattern: /\?sv=[0-9-]+&s[rts]=[\w\-]+&sig=[A-Za-z0-9%+/=]+/g },
+
+  // Google/GCP tokens
+  { name: "Google API Key", pattern: /AIzaSy[0-9A-Za-z_-]{33}/g },
+  { name: "Google OAuth Access Token", pattern: /ya29\.[0-9A-Za-z_-]+/g },
+
+  // AWS tokens
+  { name: "AWS Access Key ID", pattern: /AKIA[0-9A-Z]{16}/g },
+
+  // OpenAI tokens
+  { name: "OpenAI API Key", pattern: /sk-[a-zA-Z0-9]{48}/g },
+  { name: "OpenAI Project API Key", pattern: /sk-proj-[a-zA-Z0-9]{48,64}/g },
+
+  // Anthropic tokens
+  { name: "Anthropic API Key", pattern: /sk-ant-api03-[a-zA-Z0-9_-]{95}/g },
+];
+
+/**
+ * Detects and redacts secrets matching built-in patterns
+ * @param {string} content - File content to process
+ * @returns {{content: string, redactionCount: number, detectedPatterns: string[]}} Redacted content, count, and detected pattern types
+ */
+function redactBuiltInPatterns(content) {
+  let redactionCount = 0;
+  let redacted = content;
+  const detectedPatterns = [];
+
+  for (const { name, pattern } of BUILT_IN_PATTERNS) {
+    const matches = redacted.match(pattern);
+    if (matches && matches.length > 0) {
+      // Redact each match
+      for (const match of matches) {
+        const prefix = match.substring(0, 3);
+        const asterisks = "*".repeat(Math.max(0, match.length - 3));
+        const replacement = prefix + asterisks;
+        redacted = redacted.split(match).join(replacement);
+      }
+      redactionCount += matches.length;
+      detectedPatterns.push(name);
+      core.info(`Redacted ${matches.length} occurrence(s) of ${name}`);
+    }
+  }
+
+  return { content: redacted, redactionCount, detectedPatterns };
+}
+
+/**
  * Redacts secrets from file content using exact string matching
  * @param {string} content - File content to process
  * @param {string[]} secretValues - Array of secret values to redact
@@ -83,12 +144,22 @@ function redactSecrets(content, secretValues) {
 function processFile(filePath, secretValues) {
   try {
     const content = fs.readFileSync(filePath, "utf8");
-    const { content: redactedContent, redactionCount } = redactSecrets(content, secretValues);
-    if (redactionCount > 0) {
-      fs.writeFileSync(filePath, redactedContent, "utf8");
-      core.info(`Processed ${filePath}: ${redactionCount} redaction(s)`);
+
+    // First, redact built-in patterns
+    const builtInResult = redactBuiltInPatterns(content);
+    let redacted = builtInResult.content;
+    let totalRedactions = builtInResult.redactionCount;
+
+    // Then, redact custom secrets
+    const customResult = redactSecrets(redacted, secretValues);
+    redacted = customResult.content;
+    totalRedactions += customResult.redactionCount;
+
+    if (totalRedactions > 0) {
+      fs.writeFileSync(filePath, redacted, "utf8");
+      core.info(`Processed ${filePath}: ${totalRedactions} redaction(s)`);
     }
-    return redactionCount;
+    return totalRedactions;
   } catch (error) {
     core.warning(`Failed to process file ${filePath}: ${getErrorMessage(error)}`);
     return 0;
@@ -101,30 +172,32 @@ function processFile(filePath, secretValues) {
 async function main() {
   // Get the list of secret names from environment variable
   const secretNames = process.env.GH_AW_SECRET_NAMES;
-  if (!secretNames) {
-    core.info("GH_AW_SECRET_NAMES not set, no redaction performed");
-    return;
-  }
-  core.info("Starting secret redaction in /tmp/gh-aw directory");
+
+  core.info("Starting secret redaction in /tmp/gh-aw and /opt/gh-aw directories");
   try {
-    // Parse the comma-separated list of secret names
-    const secretNameList = secretNames.split(",").filter(name => name.trim());
-    // Collect the actual secret values from environment variables
+    // Collect custom secret values from environment variables
     const secretValues = [];
-    for (const secretName of secretNameList) {
-      const envVarName = `SECRET_${secretName}`;
-      const secretValue = process.env[envVarName];
-      // Skip empty or undefined secrets
-      if (!secretValue || secretValue.trim() === "") {
-        continue;
+    if (secretNames) {
+      // Parse the comma-separated list of secret names
+      const secretNameList = secretNames.split(",").filter(name => name.trim());
+      for (const secretName of secretNameList) {
+        const envVarName = `SECRET_${secretName}`;
+        const secretValue = process.env[envVarName];
+        // Skip empty or undefined secrets
+        if (!secretValue || secretValue.trim() === "") {
+          continue;
+        }
+        secretValues.push(secretValue.trim());
       }
-      secretValues.push(secretValue.trim());
     }
-    if (secretValues.length === 0) {
-      core.info("No secret values found to redact");
-      return;
+
+    if (secretValues.length > 0) {
+      core.info(`Found ${secretValues.length} custom secret(s) to redact`);
     }
-    core.info(`Found ${secretValues.length} secret(s) to redact`);
+
+    // Always scan for built-in patterns, even if there are no custom secrets
+    core.info("Scanning for built-in credential patterns and custom secrets");
+
     // Find all target files in /tmp/gh-aw and /opt/gh-aw directories
     const targetExtensions = [".txt", ".json", ".log", ".md", ".mdx", ".yml", ".jsonl"];
     const tmpFiles = findFiles("/tmp/gh-aw", targetExtensions);
@@ -153,4 +226,4 @@ async function main() {
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-module.exports = { main };
+module.exports = { main, redactSecrets, redactBuiltInPatterns, BUILT_IN_PATTERNS };
