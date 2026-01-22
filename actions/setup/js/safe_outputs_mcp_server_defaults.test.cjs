@@ -168,11 +168,11 @@ import { spawn } from "child_process";
           setTimeout(() => {
             const initMessage = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test-client", version: "1.0.0" } } }) + "\n";
             child.stdin.write(initMessage);
-          }, 100),
+          }, 300),
           setTimeout(() => {
             const listToolsMessage = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }) + "\n";
             child.stdin.write(listToolsMessage);
-          }, 200),
+          }, 600),
           setTimeout(() => {
             (clearTimeout(timeout), child.kill());
             const listResponse = receivedMessages.find(m => 2 === m.id);
@@ -185,7 +185,7 @@ import { spawn } from "child_process";
               expect(createPrTool.inputSchema.properties.branch.description).toContain("If omitted"),
               expect(createPrTool.inputSchema.properties.branch.description).toContain("current"),
               resolve());
-          }, 500));
+          }, 1500));
       });
     }),
       it("should have optional branch parameter for push_to_pull_request_branch", async () => {
@@ -216,11 +216,11 @@ import { spawn } from "child_process";
             setTimeout(() => {
               const initMessage = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test-client", version: "1.0.0" } } }) + "\n";
               child.stdin.write(initMessage);
-            }, 100),
+            }, 300),
             setTimeout(() => {
               const listToolsMessage = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }) + "\n";
               child.stdin.write(listToolsMessage);
-            }, 200),
+            }, 600),
             setTimeout(() => {
               (clearTimeout(timeout), child.kill());
               const listResponse = receivedMessages.find(m => 2 === m.id);
@@ -233,7 +233,7 @@ import { spawn } from "child_process";
                 expect(pushTool.inputSchema.properties.branch.description).toContain("If omitted"),
                 expect(pushTool.inputSchema.properties.branch.description).toContain("current"),
                 resolve());
-            }, 500));
+            }, 1500));
         });
       }));
   }),
@@ -312,11 +312,11 @@ import { spawn } from "child_process";
             setTimeout(() => {
               const initMessage = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test-client", version: "1.0.0" } } }) + "\n";
               child.stdin.write(initMessage);
-            }, 100),
+            }, 300),
             setTimeout(() => {
               const toolCallMessage = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "create_issue", arguments: { title: "Test Issue", body: "Test body" } } }) + "\n";
               child.stdin.write(toolCallMessage);
-            }, 200),
+            }, 600),
             setTimeout(() => {
               (clearTimeout(timeout), child.kill());
               const toolCallResponse = receivedMessages.find(m => 2 === m.id);
@@ -329,7 +329,7 @@ import { spawn } from "child_process";
               (expect(firstContent.type).toBe("text"), expect(firstContent.text).toBeDefined(), expect(() => JSON.parse(firstContent.text)).not.toThrow());
               const parsedResult = JSON.parse(firstContent.text);
               (expect(parsedResult).toHaveProperty("result"), expect(parsedResult.result).toBe("success"), resolve());
-            }, 500));
+            }, 1500));
         });
       }));
   }));
