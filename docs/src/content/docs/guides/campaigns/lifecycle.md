@@ -1,5 +1,5 @@
 ---
-title: Campaign Flow & Lifecycle
+title: Campaign Lifecycle
 description: What happens when the campaign orchestrator runs, and how to pause or finish a campaign.
 banner:
   content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'

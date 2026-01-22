@@ -13,15 +13,19 @@ The campaign spec is a reviewable configuration file that:
 
 - names the campaign
 - points to a GitHub Project for tracking
+- defines where to discover worker-created items
 - lists the workflows the orchestrator should dispatch
 - defines goals (objective + KPIs)
 
 Most users should create specs via the [Getting started flow](/gh-aw/guides/campaigns/getting-started/).
 
-## Minimal spec
+## Complete spec example
+
+This example shows a complete, working campaign spec with all commonly-used fields:
 
 ```yaml
 # .github/workflows/framework-upgrade.campaign.md
+---
 id: framework-upgrade
 version: "v1"
 name: "Framework Upgrade"
@@ -30,16 +34,22 @@ description: "Move services to Framework vNext"
 project-url: "https://github.com/orgs/ORG/projects/1"
 tracker-label: "campaign:framework-upgrade"
 
+# Discovery: Where to find worker-created issues/PRs
+discovery-repos:
+  - "myorg/service-a"
+  - "myorg/service-b"
+# Or use discovery-orgs for organization-wide discovery:
+# discovery-orgs:
+#   - "myorg"
+
 # Optional: Custom GitHub token for Projects v2 operations
 # project-github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
 
-## Optional: Repositories this campaign can operate on
-## If omitted, defaults to the repository where the campaign spec lives.
-allowed-repos:
-  - "myorg/service-a"
-  - "myorg/service-b"
-
-# Optional: Organizations this campaign can operate on
+# Optional: Restrict which repos this campaign can operate on
+# If omitted, defaults to the repository where the campaign spec lives.
+# allowed-repos:
+#   - "myorg/service-a"
+#   - "myorg/service-b"
 # allowed-orgs:
 #   - "myorg"
 
@@ -48,12 +58,19 @@ kpis:
   - id: services_upgraded
     name: "Services upgraded"
     priority: primary
-    direction: "increase"
+    unit: count
+    baseline: 0
     target: 50
+    time-window-days: 30
+    direction: "increase"
   - id: incidents
     name: "Incidents caused"
-    direction: "decrease"
+    priority: supporting
+    unit: count
+    baseline: 5
     target: 0
+    time-window-days: 30
+    direction: "decrease"
 
 workflows:
   - framework-upgrade
@@ -61,29 +78,48 @@ workflows:
 state: "active"
 owners:
   - "platform-team"
+---
 ```
 
 ## Core fields (what they do)
 
 ### Required
 
-- `id`: stable identifier used for file naming and reporting.
-- `name`: human-friendly name.
-- `project-url`: GitHub Project used for tracking.
-- `objective`: one sentence describing what “done” means.
-- `kpis`: measures used in status updates.
-- `workflows`: workflow IDs the orchestrator can dispatch (via `workflow_dispatch`).
-- `state`: lifecycle state, typically `active`.
+- `id`: Stable identifier used for file naming and reporting (lowercase letters, digits, hyphens only).
+- `name`: Human-friendly name for the campaign.
+- `project-url`: GitHub Project URL used for tracking.
+
+### Required for discovery
+
+When your campaign uses `workflows` or `tracker-label`, you must specify where to discover worker-created items:
+
+- `discovery-repos`: List of repositories (in `owner/repo` format) where worker workflows create issues/PRs.
+- `discovery-orgs`: List of GitHub organizations where worker workflows operate (searches all repos in those orgs).
+
+At least one of `discovery-repos` or `discovery-orgs` is required when using workflows or tracker labels.
+
+### Commonly used
+
+- `objective`: One sentence describing what success means for this campaign.
+- `kpis`: List of 1-3 KPIs used to measure progress toward the objective.
+- `workflows`: Workflow IDs the orchestrator can dispatch via `workflow_dispatch`.
+- `tracker-label`: Label used to discover worker-created issues/PRs (commonly `campaign:<id>`).
+- `state`: Lifecycle state (`planned`, `active`, `paused`, `completed`, or `archived`).
 
 ### Optional
 
-- `tracker-label`: label used to help discovery across runs (commonly `campaign:<id>`).
-- `allowed-repos`: repositories the campaign can operate on (defaults to the repo containing the spec).
-- `allowed-orgs`: organizations the campaign can operate on.
-- `project-github-token`: token to use for Projects operations when `GITHUB_TOKEN` isn’t enough.
+- `allowed-repos`: Repositories this campaign can operate on (defaults to the repo containing the spec).
+- `allowed-orgs`: Organizations this campaign can operate on.
+- `project-github-token`: Token expression for Projects v2 operations (e.g., `${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}`).
+- `description`: Brief description of the campaign.
+- `version`: Spec version (defaults to `v1`).
+- `owners`: Primary human owners for this campaign.
+- `governance`: Pacing and opt-out policies (see Governance section below).
 
 > [!IMPORTANT]
-> Use `priority: primary` (not `primary: true`) to mark your primary KPI.
+> - Use `priority: primary` (not `primary: true`) to mark your primary KPI.
+> - The `discovery-*` fields control WHERE to search for worker outputs.
+> - The `allowed-*` fields control WHERE the campaign can operate.
 
 ## Strategic goals (objective + KPIs)
 
@@ -94,13 +130,25 @@ Use `objective` and `kpis` to define what “done” means and how progress shou
 
 ## KPIs (recommended shape)
 
+Each KPI requires these fields:
+
+- `name`: Human-readable KPI name.
+- `baseline`: Starting value.
+- `target`: Goal value.
+- `time-window-days`: Rolling window for measurement (e.g., 7, 14, 30 days).
+
+Optional fields:
+
+- `id`: Stable identifier (lowercase letters, digits, hyphens).
+- `priority`: `primary` or `supporting` (exactly one KPI should be primary).
+- `unit`: Unit of measurement (e.g., `count`, `percent`, `days`).
+- `direction`: `increase` or `decrease` (describes improvement direction).
+- `source`: Signal source (`ci`, `pull_requests`, `code_security`, or `custom`).
+
 Keep KPIs small and crisp:
 
-- Use 1 primary KPI + a few supporting KPIs.
-- Use `direction: increase|decrease|maintain` to describe the desired trend.
-- Use `target` when there is a clear threshold.
-
-If you define `kpis`, also define `objective` (and vice versa). It keeps the spec reviewable and makes reports consistent.
+- Use 1 primary KPI + up to 2 supporting KPIs (maximum 3 total).
+- When you define `kpis`, also define `objective` (and vice versa).
 
 ## Unified tracking (GitHub Project)
 
@@ -115,11 +163,7 @@ Project updates are applied by the orchestrator using safe outputs; see [Update 
 
 Use `workflows` to list the dispatchable workflows (“workers”) the orchestrator can trigger via `workflow_dispatch`.
 
-For worker requirements and dispatch behavior, see [Dispatching worker workflows](/gh-aw/guides/campaigns/flow/#dispatching-worker-workflows).
-
-## Governance (pacing)
-
-Use `governance` to cap how much the orchestrator updates per run.
+For worker requirements and dispatch behavior, see [Dispatching worker workflows](/gh-aw/guides/campaigns/lifecycle/#dispatching-worker-workflows).
 
 ## Governance (pacing & safety)
 
@@ -147,5 +191,5 @@ governance:
 
 ## Next
 
-- See [Flow & lifecycle](/gh-aw/guides/campaigns/flow/) for what happens each run.
+- See [Campaign lifecycle](/gh-aw/guides/campaigns/lifecycle/) for what happens each run.
 - See [CLI commands](/gh-aw/guides/campaigns/cli-commands/) to validate and inspect campaigns.
