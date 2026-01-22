@@ -693,6 +693,20 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	if push {
 		initLog.Print("Push enabled - preparing to commit and push changes")
 		fmt.Fprintln(os.Stderr, "")
+
+		// Check if we're on the default branch
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking current branch..."))
+		if err := checkOnDefaultBranch(verbose); err != nil {
+			initLog.Printf("Default branch check failed: %v", err)
+			return fmt.Errorf("cannot push: %w", err)
+		}
+
+		// Confirm with user (skip in CI)
+		if err := confirmPushOperation(verbose); err != nil {
+			initLog.Printf("Push operation not confirmed: %v", err)
+			return fmt.Errorf("push operation cancelled: %w", err)
+		}
+
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Preparing to commit and push changes..."))
 
 		// Use the helper function to orchestrate the full workflow

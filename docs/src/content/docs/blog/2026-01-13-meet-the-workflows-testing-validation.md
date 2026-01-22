@@ -30,19 +30,19 @@ These agents keep everything running smoothly through continuous testing:
 
 ### Code Quality & Test Validation
 
-- **[Daily Testify Uber Super Expert](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-testify-uber-super-expert.md?plain=1)** - Analyzes test files daily and suggests testify-based improvements
+- **[Daily Testify Uber Super Expert](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/daily-testify-uber-super-expert.md?plain=1)** - Analyzes test files daily and suggests testify-based improvements
 - **[Daily Test Improver](https://github.com/githubnext/agentics/blob/main/workflows/daily-test-improver.md?plain=1)** - Identifies coverage gaps and implements new tests incrementally
-- **[Daily Compiler Quality Check](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-compiler-quality.md?plain=1)** - Analyzes compiler code to ensure it meets quality standards
+- **[Daily Compiler Quality Check](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/daily-compiler-quality.md?plain=1)** - Analyzes compiler code to ensure it meets quality standards
 
 ### User Experience & Integration Testing
 
-- **[Daily Multi-Device Docs Tester](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-multi-device-docs-tester.md?plain=1)** - Tests documentation across devices with Playwright (mobile matters!)
-- **[CLI Consistency Checker](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/cli-consistency-checker.md?plain=1)** - Inspects the CLI for inconsistencies, typos, and documentation gaps
+- **[Daily Multi-Device Docs Tester](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/daily-multi-device-docs-tester.md?plain=1)** - Tests documentation across devices with Playwright (mobile matters!)
+- **[CLI Consistency Checker](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/cli-consistency-checker.md?plain=1)** - Inspects the CLI for inconsistencies, typos, and documentation gaps
 
 ### CI/CD Optimization
 
-- **[CI Coach](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/ci-coach.md?plain=1)** - Analyzes CI pipelines and suggests optimizations
-- **[Workflow Health Manager](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/workflow-health-manager.md?plain=1)** - Meta-orchestrator monitoring health of all agentic workflows
+- **[CI Coach](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/ci-coach.md?plain=1)** - Analyzes CI pipelines and suggests optimizations
+- **[Workflow Health Manager](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/workflow-health-manager.md?plain=1)** - Meta-orchestrator monitoring health of all agentic workflows
 
 The Daily Testify Expert and Daily Test Improver work together to continuously improve our test suite - one analyzes existing tests for quality improvements, the other identifies coverage gaps and implements new tests. The Compiler Quality Check and Breaking Change Checker maintain code quality and API stability.
 
@@ -51,6 +51,54 @@ The Multi-Device Docs Tester uses Playwright to test our documentation on differ
 The CI Coach suggests pipeline optimizations to keep builds fast, while the Workflow Health Manager watches all these watchers, ensuring the testing infrastructure itself stays healthy.
 
 These workflows embody the principle: **trust but verify**. Just because it worked yesterday doesn't mean it works today.
+
+## Using These Workflows
+
+You can add these workflows to your own repository and remix them. Get going with our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/), then run one of the following:
+
+**Daily Testify Uber Super Expert:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/daily-testify-uber-super-expert.md
+```
+
+**Daily Test Improver:**
+
+```bash
+gh aw add githubnext/agentics/workflows/daily-test-improver.md
+```
+
+**Daily Compiler Quality Check:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/daily-compiler-quality.md
+```
+
+**Daily Multi-Device Docs Tester:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/daily-multi-device-docs-tester.md
+```
+
+**CLI Consistency Checker:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/cli-consistency-checker.md
+```
+
+**CI Coach:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/ci-coach.md
+```
+
+**Workflow Health Manager:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/workflow-health-manager.md
+```
+
+Then edit and remix the workflow specifications to meet your needs, recompile using `gh aw compile`, and push to your repository. See our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/) for further installation and setup instructions.
 
 ## Learn More
 

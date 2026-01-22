@@ -24,7 +24,7 @@ In our [previous posts](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-sim
 
 ## A Continuous Style Workflow
 
-Today's post is dedicated to one agent, and the larger concept it represents: the **[Terminal Stylist](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/terminal-stylist.md?plain=1)** workflow. This agent's purpose is to **make things look better**, by reviewing and enhancing the style of command-line interface (CLI) output.
+Today's post is dedicated to one agent, and the larger concept it represents: the **[Terminal Stylist](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/terminal-stylist.md?plain=1)** workflow. This agent's purpose is to **make things look better**, by reviewing and enhancing the style of command-line interface (CLI) output.
 
 Command-line interfaces are a primary interaction point for developer tools. When output is inconsistent or noisy, it still “works,” but it adds friction. When it’s well-styled, information becomes scannable, color highlights what matters, layouts remain readable across light and dark themes, and the overall experience feels professional.
 
@@ -41,6 +41,18 @@ The Terminal Stylist shows that autonomous improvement isn’t limited to struct
 This is especially useful in AI-assisted development, where quick suggestions tend to default to `fmt.Println`. The Terminal Stylist cleans up after the AI, bringing that output back in line with the project’s conventions.
 
 Continuous Style is a new frontier in code quality. It recognizes that how code *looks* matters just as much as how it *works*. By automating style reviews, we ensure that every interaction with our tools feels polished and professional.
+
+## Using These Workflows
+
+You can add this workflow to your own repository and remix it as follows:
+
+**Terminal Stylist:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/terminal-stylist.md
+```
+
+Then edit and remix the workflow specification to meet your needs, recompile using `gh aw compile`, and push to your repository. See our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/) for further installation and setup instructions.
 
 ## Next Up: Continuous Improvement
 

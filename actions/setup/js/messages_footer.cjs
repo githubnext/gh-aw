@@ -129,8 +129,8 @@ function getFooterAgentFailureIssueMessage(ctx) {
   // Create context with both camelCase and snake_case keys
   const templateContext = toSnakeCase(ctx);
 
-  // Default footer template
-  const defaultFooter = "> Generated from {workflow_name}";
+  // Default footer template with link to workflow run
+  const defaultFooter = "> Generated from [{workflow_name}]({run_url})";
 
   // Use custom agent failure issue footer if configured, otherwise use default footer
   return messages?.agentFailureIssue ? renderTemplate(messages.agentFailureIssue, templateContext) : renderTemplate(defaultFooter, templateContext);
@@ -147,8 +147,8 @@ function getFooterAgentFailureCommentMessage(ctx) {
   // Create context with both camelCase and snake_case keys
   const templateContext = toSnakeCase(ctx);
 
-  // Default footer template
-  const defaultFooter = "> Generated from {workflow_name}";
+  // Default footer template with link to workflow run
+  const defaultFooter = "> Generated from [{workflow_name}]({run_url})";
 
   // Use custom agent failure comment footer if configured, otherwise use default footer
   return messages?.agentFailureComment ? renderTemplate(messages.agentFailureComment, templateContext) : renderTemplate(defaultFooter, templateContext);
