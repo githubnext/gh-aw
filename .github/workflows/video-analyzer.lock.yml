@@ -1030,16 +1030,13 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/parse_mcp_gateway_log.cjs');
             await main();
-      - name: Print firewall logs
+      - name: Fix firewall log permissions
         if: always()
         continue-on-error: true
-        env:
-          AWF_LOGS_DIR: /tmp/gh-aw/sandbox/firewall/logs
         run: |
           # Fix permissions on firewall logs so they can be uploaded as artifacts
           # AWF runs with sudo, creating files owned by root
           sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
-          awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
