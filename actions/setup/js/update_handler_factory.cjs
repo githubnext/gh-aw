@@ -117,8 +117,12 @@ function createUpdateHandlerFactory(handlerConfig) {
       const updateData = updateDataResult.data;
 
       // Validate that we have something to update
+      // Note: Fields starting with "_" are internal (e.g., _rawBody, _operation)
+      // and will be processed by executeUpdate. We should NOT skip if _rawBody exists.
       const updateFields = Object.keys(updateData).filter(k => !k.startsWith("_"));
-      if (updateFields.length === 0) {
+      const hasRawBody = updateData._rawBody !== undefined;
+
+      if (updateFields.length === 0 && !hasRawBody) {
         core.info(`No update fields provided for ${itemTypeName} #${itemNumber} - treating as no-op (skipping update)`);
         return {
           success: true,
