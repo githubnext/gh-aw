@@ -951,6 +951,23 @@ func TestBuildStandardSafeOutputEnvVars(t *testing.T) {
 				"GH_AW_ENGINE_MODEL: \"gpt-4\"",
 			},
 		},
+		{
+			name: "with repo-memory campaign-id",
+			workflowData: &WorkflowData{
+				Name:        "Test Workflow",
+				SafeOutputs: &SafeOutputsConfig{},
+				RepoMemoryConfig: &RepoMemoryConfig{
+					Memories: []RepoMemoryEntry{{
+						ID:         "campaigns",
+						CampaignID: "security-alert-burndown",
+					}},
+				},
+			},
+			targetRepoSlug: "",
+			expectedInVars: []string{
+				"GH_AW_CAMPAIGN_ID: \"security-alert-burndown\"",
+			},
+		},
 	}
 
 	for _, tt := range tests {

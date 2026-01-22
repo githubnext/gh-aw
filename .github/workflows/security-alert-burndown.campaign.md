@@ -8,6 +8,8 @@ state: planned
 workflows:
   - code-scanning-fixer
   - security-fix-pr
+  - dependabot-bundler
+  - secret-scanning-triage
 allowed-repos:
   - githubnext/gh-aw
 discovery-repos:
@@ -17,7 +19,7 @@ memory-paths:
   - memory/campaigns/security-alert-burndown/**
 metrics-glob: memory/campaigns/security-alert-burndown/metrics/*.json
 cursor-glob: memory/campaigns/security-alert-burndown/cursor.json
-objective: Systematically reduce code security alerts to zero critical issues and fewer than 5 high-severity issues
+objective: Systematically reduce security alerts (code scanning, Dependabot, secret scanning) to zero critical issues and fewer than 5 high-severity issues
 kpis:
   - name: Critical Security Alerts
     baseline: 5
@@ -33,8 +35,8 @@ kpis:
     priority: supporting
 governance:
   max-new-items-per-run: 3
-  max-discovery-items-per-run: 50
-  max-discovery-pages-per-run: 3
+  max-discovery-items-per-run: 100
+  max-discovery-pages-per-run: 5
   max-project-updates-per-run: 10
   max-comments-per-run: 3
   opt-out-labels:
@@ -46,6 +48,7 @@ owners:
 risk-level: high
 allowed-safe-outputs:
   - create-pull-request
+  - create-issue
   - autofix-code-scanning-alert
   - add-comment
   - update-project
@@ -53,6 +56,8 @@ tags:
   - security
   - automated-fixes
   - code-scanning
+  - dependabot
+  - secret-scanning
 ---
 
 # Security Alert Burndown Campaign

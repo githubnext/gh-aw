@@ -114,16 +114,16 @@ jobs:
           GH_AW_CAMPAIGN_ID: security-alert-burndown
           GH_AW_CURSOR_PATH: /tmp/gh-aw/repo-memory/campaigns/security-alert-burndown/cursor.json
           GH_AW_DISCOVERY_REPOS: githubnext/gh-aw
-          GH_AW_MAX_DISCOVERY_ITEMS: "50"
-          GH_AW_MAX_DISCOVERY_PAGES: "3"
+          GH_AW_MAX_DISCOVERY_ITEMS: "100"
+          GH_AW_MAX_DISCOVERY_PAGES: "5"
           GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/134
           GH_AW_TRACKER_LABEL: campaign:security-alert-burndown
-          GH_AW_WORKFLOWS: code-scanning-fixer,security-fix-pr
+          GH_AW_WORKFLOWS: code-scanning-fixer,security-fix-pr,dependabot-bundler,secret-scanning-triage
         id: discovery
         name: Run campaign discovery precomputation
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN || secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           script: |-
 
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -898,18 +898,18 @@ jobs:
           
           This workflow orchestrates the 'Security Alert Burndown' campaign.
           
-          - Objective: Systematically reduce code security alerts to zero critical issues and fewer than 5 high-severity issues
+          - Objective: Systematically reduce security alerts (code scanning, Dependabot, secret scanning) to zero critical issues and fewer than 5 high-severity issues
           - KPIs:
             - Critical Security Alerts (primary): baseline 5 → target 0 over 90 days alerts
             - High-Severity Alerts (supporting): baseline 15 → target 5 over 90 days alerts
-          - Associated workflows: code-scanning-fixer, security-fix-pr
+          - Associated workflows: code-scanning-fixer, security-fix-pr, dependabot-bundler, secret-scanning-triage
           - Memory paths: memory/campaigns/security-alert-burndown/**
           - Metrics glob: `memory/campaigns/security-alert-burndown/metrics/*.json`
           - Cursor glob: `memory/campaigns/security-alert-burndown/cursor.json`
           - Project URL: https://github.com/orgs/githubnext/projects/134
           - Governance: max new items per run: 3
-          - Governance: max discovery items per run: 50
-          - Governance: max discovery pages per run: 3
+          - Governance: max discovery items per run: 100
+          - Governance: max discovery pages per run: 5
           - Governance: opt-out labels: no-campaign, no-bot, skip-security-fix
           - Governance: max project updates per run: 10
           - Governance: max comments per run: 3
@@ -933,6 +933,10 @@ jobs:
           1. `code-scanning-fixer`
           
           2. `security-fix-pr`
+          
+          3. `dependabot-bundler`
+          
+          4. `secret-scanning-triage`
           
           
           
@@ -1255,10 +1259,10 @@ jobs:
           
           
           
-          **Read budget**: max discovery items per run: 50
+          **Read budget**: max discovery items per run: 100
           
           
-          **Read budget**: max discovery pages per run: 3
+          **Read budget**: max discovery pages per run: 5
           
           
           **Write budget**: max project updates per run: 10
@@ -1336,14 +1340,14 @@ jobs:
                body: |
                  ## Campaign Overview
                  
-                 **Objective**: Systematically reduce code security alerts to zero critical issues and fewer than 5 high-severity issues
+                 **Objective**: Systematically reduce security alerts (code scanning, Dependabot, secret scanning) to zero critical issues and fewer than 5 high-severity issues
                  
                  This Epic issue tracks the overall progress of the campaign. All work items are sub-issues of this Epic.
                  
                  **Campaign Details:**
                  - Campaign ID: `security-alert-burndown`
                  - Project Board: https://github.com/orgs/githubnext/projects/134
-                 - Worker Workflows: `code-scanning-fixer`, `security-fix-pr`
+                 - Worker Workflows: `code-scanning-fixer`, `security-fix-pr`, `dependabot-bundler`, `secret-scanning-triage`
                  
                  ---
                  `campaign_id: security-alert-burndown`
@@ -1374,14 +1378,14 @@ jobs:
           
           4) **Record the Epic issue number** in repo-memory for reference (e.g., in cursor file or metadata).
           
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           **Note:** This step typically runs only on the first orchestrator execution. On subsequent runs, verify the Epic exists and is on the board, but do not recreate it.
           
           ---
           
           ### Step 1 — Read State (Discovery) [NO WRITES]
           
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           **IMPORTANT**: Discovery has been precomputed. Read the discovery manifest instead of performing GitHub-wide searches.
           
           1) Read the precomputed discovery manifest: `./.gh-aw/campaign.discovery.json`

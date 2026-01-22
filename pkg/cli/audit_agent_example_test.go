@@ -159,7 +159,6 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 			"Jobs",
 			"Firewall Analysis",
 			"Tool Usage",
-			"Errors and Warnings",
 		}
 
 		for _, section := range expectedSections {

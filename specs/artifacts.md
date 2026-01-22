@@ -46,6 +46,9 @@ This section provides an overview of artifacts organized by job name, with dupli
 - `python-source-and-data`
   - **Paths**: `/tmp/gh-aw/python/*.py`, `/tmp/gh-aw/python/data/*`
   - **Used in**: 9 workflow(s) - copilot-pr-nlp-analysis.md, daily-copilot-token-report.md, daily-issues-report.md, daily-news.md, daily-repo-chronicle.md, github-mcp-structural-analysis.md, python-data-charts.md, stale-repo-identifier.md, weekly-issue-summary.md
+- `repo-memory-campaigns`
+  - **Paths**: `/tmp/gh-aw/repo-memory/campaigns`
+  - **Used in**: 1 workflow(s) - code-scanning-fixer.md
 - `repo-memory-default`
   - **Paths**: `/tmp/gh-aw/repo-memory/default`
   - **Used in**: 8 workflow(s) - agent-performance-analyzer.md, copilot-pr-nlp-analysis.md, daily-copilot-token-report.md, daily-news.md, deep-report.md, metrics-collector.md, security-compliance.md, workflow-health-manager.md
@@ -105,6 +108,9 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 **Artifacts Downloaded:**
 
+- `repo-memory-campaigns`
+  - **Download paths**: `/tmp/gh-aw/repo-memory/campaigns`
+  - **Used in**: 1 workflow(s) - code-scanning-fixer.md
 - `repo-memory-default`
   - **Download paths**: `/tmp/gh-aw/repo-memory/default`
   - **Used in**: 8 workflow(s) - agent-performance-analyzer.md, copilot-pr-nlp-analysis.md, daily-copilot-token-report.md, daily-news.md, deep-report.md, metrics-collector.md, security-compliance.md, workflow-health-manager.md
@@ -969,6 +975,10 @@ This section provides an overview of artifacts organized by job name, with dupli
     - `/tmp/gh-aw/sandbox/agent/logs/`
     - `/tmp/gh-aw/redacted-urls.log`
 
+- **Artifact**: `repo-memory-campaigns`
+  - **Upload paths**:
+    - `/tmp/gh-aw/repo-memory/campaigns`
+
 - **Artifact**: `cache-memory`
   - **Upload paths**:
     - `/tmp/gh-aw/cache-memory`
@@ -988,7 +998,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `agent-output` (by name)
   - **Download path**: `/tmp/gh-aw/safeoutputs/`
-  - **Depends on jobs**: [activation agent detection safe_outputs update_cache_memory]
+  - **Depends on jobs**: [activation agent detection push_repo_memory safe_outputs update_cache_memory]
 
 #### Job: `detection`
 
@@ -1007,6 +1017,14 @@ This section provides an overview of artifacts organized by job name, with dupli
 - **Artifact**: `agent-output` (by name)
   - **Download path**: `/tmp/gh-aw/threat-detection/`
   - **Depends on jobs**: [agent]
+
+#### Job: `push_repo_memory`
+
+**Downloads:**
+
+- **Artifact**: `repo-memory-campaigns` (by name)
+  - **Download path**: `/tmp/gh-aw/repo-memory/campaigns`
+  - **Depends on jobs**: [agent detection]
 
 #### Job: `safe_outputs`
 

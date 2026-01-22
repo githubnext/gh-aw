@@ -2,7 +2,7 @@
 
 ## Overview
 
-All three JSON schema files in this repository enforce strict validation by having `"additionalProperties": false` at the root level, which prevents typos and undefined fields from silently passing validation.
+Both JSON schema files in this repository enforce strict validation by having `"additionalProperties": false` at the root level, which prevents typos and undefined fields from silently passing validation.
 
 ## Schema Files
 
@@ -11,12 +11,7 @@ All three JSON schema files in this repository enforce strict validation by havi
 - **Root property**: `"additionalProperties": false` (line 3002)
 - **Purpose**: Validates agentic workflow frontmatter in `.github/workflows/*.md` files
 
-### 2. Included File Schema
-- **File**: `pkg/parser/schemas/included_file_schema.json`
-- **Root property**: `"additionalProperties": false` (line 426)
-- **Purpose**: Validates imported/included workflow files
-
-### 3. MCP Config Schema
+### 2. MCP Config Schema
 - **File**: `pkg/parser/schemas/mcp_config_schema.json`
 - **Root property**: `"additionalProperties": false` (line 99)
 - **Purpose**: Validates MCP (Model Context Protocol) server configuration
@@ -37,11 +32,10 @@ When `"additionalProperties": false` is set at the root level of a JSON schema, 
 
 Comprehensive test coverage is provided in:
 - **File**: `pkg/parser/schema_additional_properties_test.go`
-- **Test cases**: 16 total
-  - 8 tests for common typos in main workflow schema
-  - 3 tests for typos in included file schema
-  - 3 tests for typos in MCP config schema
-  - 2 tests to verify valid properties are still accepted
+- **Test cases**: Tests for common typos and validation
+  - Tests for common typos in main workflow schema
+  - Tests for typos in MCP config schema
+  - Tests to verify valid properties are still accepted
 
 Run tests with:
 ```bash
@@ -87,9 +81,6 @@ The schemas are embedded in the Go binary using `//go:embed` directives in `pkg/
 ```go
 //go:embed schemas/main_workflow_schema.json
 var mainWorkflowSchema string
-
-//go:embed schemas/included_file_schema.json
-var includedFileSchema string
 
 //go:embed schemas/mcp_config_schema.json
 var mcpConfigSchema string
