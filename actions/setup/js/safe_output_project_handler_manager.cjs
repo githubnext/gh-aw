@@ -105,7 +105,7 @@ async function loadHandlers(config) {
  * Process project-related safe output messages
  * @param {Map<string, Function>} messageHandlers - Map of type to handler function
  * @param {Array<Object>} messages - Array of safe output messages
- * @returns {Promise<{results: Array<Object>, processedCount: number}>} Processing results
+ * @returns {Promise<{results: Array<Object>, processedCount: number, temporaryProjectMap: Object}>} Processing results
  */
 async function processMessages(messageHandlers, messages) {
   const results = [];
@@ -181,7 +181,10 @@ async function processMessages(messageHandlers, messages) {
     }
   }
 
-  return { results, processedCount };
+  // Convert temporaryProjectMap to plain object for serialization
+  const temporaryProjectMapObj = Object.fromEntries(temporaryProjectMap);
+
+  return { results, processedCount, temporaryProjectMap: temporaryProjectMapObj };
 }
 
 /**
@@ -221,10 +224,16 @@ async function main() {
     }
 
     // Process messages
-    const { results, processedCount } = await processMessages(messageHandlers, messages);
+    const { results, processedCount, temporaryProjectMap } = await processMessages(messageHandlers, messages);
 
     // Set outputs
     core.setOutput("processed_count", processedCount);
+
+    // Export temporary project map as output so the regular handler manager can use it
+    // to resolve project URLs in text (e.g., update_issue body)
+    const temporaryProjectMapJson = JSON.stringify(temporaryProjectMap || {});
+    core.setOutput("temporary_project_map", temporaryProjectMapJson);
+    core.info(`Exported temporary project map with ${Object.keys(temporaryProjectMap || {}).length} mapping(s)`);
 
     // Summary
     const successCount = results.filter(r => r.success).length;
@@ -235,6 +244,7 @@ async function main() {
     core.info(`Project-related messages processed: ${processedCount}`);
     core.info(`Successful: ${successCount}`);
     core.info(`Failed: ${failureCount}`);
+    core.info(`Temporary project IDs registered: ${Object.keys(temporaryProjectMap || {}).length}`);
 
     if (failureCount > 0) {
       core.setFailed(`${failureCount} project-related message(s) failed to process`);

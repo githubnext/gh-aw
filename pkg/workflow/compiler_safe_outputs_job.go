@@ -162,6 +162,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 		// Add outputs from project handler manager
 		outputs["process_project_safe_outputs_processed_count"] = "${{ steps.process_project_safe_outputs.outputs.processed_count }}"
+		outputs["process_project_safe_outputs_temporary_project_map"] = "${{ steps.process_project_safe_outputs.outputs.temporary_project_map }}"
 
 		// Add permissions for project-related types
 		// Note: Projects v2 cannot use GITHUB_TOKEN; it requires a PAT or GitHub App token
