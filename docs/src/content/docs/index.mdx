@@ -80,23 +80,31 @@ Workflows run with read-only permissions by default. Write operations require ex
 
 ## Example: Daily Issues Report
 
-Here's a simple workflow that runs daily to analyze repository issues:
+Here's a simple workflow that runs daily to create an upbeat status report:
 
 ```markdown
 ---
-on: daily
-permissions: read
+on:
+  schedule: daily
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
 safe-outputs:
-  create-discussion:
+  create-issue:
+    title-prefix: "[team-status] "
+    labels: [report, daily-status]
+    close-older-issues: true
 ---
 
 ## Daily Issues Report
 
-Analyze repository issues and create a discussion
-with metrics, trends, and key insights.
+Create an upbeat daily status report for the team as a GitHub issue.
 ```
 
-The `gh aw compile` command transforms this into a GitHub Actions workflow that runs an AI agent in a containerized environment on a schedule.
+The `gh aw` cli converts this into a GitHub Actions Workflow (.yml) that runs an AI agent (Copilot, Claude, Codex, ...) in a containerized environment on a schedule or manually.
+
+The AI agent reads your repository context, analyzes issues, generates visualizations, and creates reports - all defined in natural language rather than complex code.
 
 <div style="max-width: 600px; margin: 3rem auto; text-align: center;">
 
