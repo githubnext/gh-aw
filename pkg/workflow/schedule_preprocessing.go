@@ -12,10 +12,6 @@ import (
 
 var schedulePreprocessingLog = logger.New("workflow:schedule_preprocessing")
 
-// scheduleFriendlyFormats stores the friendly formats for schedule cron expressions
-// Key is: "on.schedule[index]"
-var scheduleFriendlyFormats = make(map[string]map[int]string)
-
 // normalizeScheduleString handles the common schedule string parsing, warning emission,
 // fuzzy scattering, and validation logic. It returns the normalized cron expression
 // and the original friendly format, or an error if validation fails.
@@ -187,10 +183,10 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 
 		// Store friendly format if it was converted
 		if original != "" {
-			friendlyFormatsKey := fmt.Sprintf("%p", frontmatter)
-			friendlyFormats := make(map[int]string)
-			friendlyFormats[0] = original
-			scheduleFriendlyFormats[friendlyFormatsKey] = friendlyFormats
+			if c.scheduleFriendlyFormats == nil {
+				c.scheduleFriendlyFormats = make(map[int]string)
+			}
+			c.scheduleFriendlyFormats[0] = original
 		}
 
 		return nil
@@ -228,10 +224,10 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 
 		// Store friendly format if it was converted
 		if original != "" {
-			friendlyFormatsKey := fmt.Sprintf("%p", frontmatter)
-			friendlyFormats := make(map[int]string)
-			friendlyFormats[0] = original
-			scheduleFriendlyFormats[friendlyFormatsKey] = friendlyFormats
+			if c.scheduleFriendlyFormats == nil {
+				c.scheduleFriendlyFormats = make(map[int]string)
+			}
+			c.scheduleFriendlyFormats[0] = original
 		}
 
 		// Add workflow_dispatch if not already present
@@ -249,10 +245,10 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 		return fmt.Errorf("schedule field must be a string or an array")
 	}
 
-	// Store friendly formats in a compiler-specific map
-	// Use the frontmatter map's pointer as a unique key
-	friendlyFormatsKey := fmt.Sprintf("%p", frontmatter)
-	friendlyFormats := make(map[int]string)
+	// Initialize friendly formats map for this compilation
+	if c.scheduleFriendlyFormats == nil {
+		c.scheduleFriendlyFormats = make(map[int]string)
+	}
 
 	// Process each schedule item
 	schedulePreprocessingLog.Printf("Processing %d schedule items", len(scheduleArray))
@@ -284,13 +280,8 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 
 		// If there was an original friendly format, store it for later use
 		if original != "" {
-			friendlyFormats[i] = original
+			c.scheduleFriendlyFormats[i] = original
 		}
-	}
-
-	// Store the friendly formats if any were found
-	if len(friendlyFormats) > 0 {
-		scheduleFriendlyFormats[friendlyFormatsKey] = friendlyFormats
 	}
 
 	// Add workflow_dispatch if not already present
@@ -376,10 +367,8 @@ func (c *Compiler) createTriggerParseError(filePath, content, triggerStr string,
 // addFriendlyScheduleComments adds comments showing the original friendly format for schedule cron expressions
 // This function is called after the YAML has been generated from the frontmatter
 func (c *Compiler) addFriendlyScheduleComments(yamlStr string, frontmatter map[string]any) string {
-	// Retrieve the friendly formats for this frontmatter
-	friendlyFormatsKey := fmt.Sprintf("%p", frontmatter)
-	friendlyFormats, exists := scheduleFriendlyFormats[friendlyFormatsKey]
-	if !exists || len(friendlyFormats) == 0 {
+	// Retrieve the friendly formats for this compilation
+	if len(c.scheduleFriendlyFormats) == 0 {
 		return yamlStr
 	}
 
@@ -411,7 +400,7 @@ func (c *Compiler) addFriendlyScheduleComments(yamlStr string, frontmatter map[s
 			result = append(result, line)
 
 			// Add friendly format comment if available
-			if friendly, exists := friendlyFormats[scheduleItemIndex]; exists {
+			if friendly, exists := c.scheduleFriendlyFormats[scheduleItemIndex]; exists {
 				// Get the indentation of the cron line
 				indentation := ""
 				if len(line) > len(trimmedLine) {
