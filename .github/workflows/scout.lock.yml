@@ -1189,13 +1189,6 @@ jobs:
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SECRET_TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
-      - name: Upload Safe Outputs
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: safe-output
-          path: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          if-no-files-found: warn
       - name: Ingest agent output
         id: collect_output
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1211,6 +1204,13 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/collect_ndjson_output.cjs');
             await main();
+      - name: Upload Safe Outputs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: safe-output
+          path: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          if-no-files-found: warn
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
