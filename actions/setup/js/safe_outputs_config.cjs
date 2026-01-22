@@ -12,7 +12,7 @@ const path = require("path");
  */
 function loadConfig(server) {
   // Read configuration from file
-  const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+  const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/opt/gh-aw/safeoutputs/config.json";
   let safeOutputsConfigRaw;
 
   server.debug(`Reading config from file: ${configPath}`);
@@ -41,7 +41,8 @@ function loadConfig(server) {
   server.debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
 
   // Handle GH_AW_SAFE_OUTPUTS with default fallback
-  const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
+  // Default is /opt (read-only mount for agent container)
+  const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/opt/gh-aw/safeoutputs/outputs.jsonl";
   if (!process.env.GH_AW_SAFE_OUTPUTS) {
     server.debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
   }

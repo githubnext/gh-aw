@@ -74,7 +74,7 @@ describe("safe_outputs_tools_loader", () => {
       delete process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
 
       // Clean up the default path to ensure isolation from other test runs/jobs
-      const defaultPath = "/tmp/gh-aw/safeoutputs/tools.json";
+      const defaultPath = "/opt/gh-aw/safeoutputs/tools.json";
       const defaultDir = path.dirname(defaultPath);
       if (fs.existsSync(defaultPath)) {
         fs.unlinkSync(defaultPath);
@@ -86,7 +86,7 @@ describe("safe_outputs_tools_loader", () => {
       const result = loadTools(mockServer);
 
       expect(result).toEqual([]);
-      expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("/tmp/gh-aw/safeoutputs/tools.json"));
+      expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("/opt/gh-aw/safeoutputs/tools.json"));
     });
   });
 
