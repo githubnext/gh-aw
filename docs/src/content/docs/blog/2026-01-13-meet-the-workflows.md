@@ -26,7 +26,7 @@ Think of this as your guided tour through our agent factory. We're showcasing th
 
 ## Starting Simple: Automated Issue Triage
 
-To start the tour, let's begin with one of the simple workflows that **handles incoming activity** - issue triage.
+To start the tour, let's begin with one of the simpler workflows that **handles incoming activity** - issue triage.
 
 Issue triage represents a "hello world" of automated agentic workflows: practical, immediately useful, relatively simple, and impactful. It's used as the starter example in other agentic automation technologies like [Claude Code in GitHub Actions](https://code.claude.com/docs/en/github-actions).
 
