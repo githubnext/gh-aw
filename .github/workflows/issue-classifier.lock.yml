@@ -625,7 +625,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: bash /opt/gh-aw/actions/print_prompt_summary.sh
       - name: Run AI Inference
-        uses: actions/ai-inference@334892bb203895caaed82ec52d23c1ed9385151e # v2
+        uses: actions/ai-inference@a6101c89c6feaecc585efdd8d461f18bb7896f20 # v2
         env:
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -930,7 +930,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Run AI Inference
-        uses: actions/ai-inference@334892bb203895caaed82ec52d23c1ed9385151e # v2
+        uses: actions/ai-inference@a6101c89c6feaecc585efdd8d461f18bb7896f20 # v2
         env:
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
