@@ -90,10 +90,6 @@ Configures the default GitHub token for engine authentication, checkout steps, a
 github-token: ${{ secrets.CUSTOM_PAT }}
 ```
 
-> [!CAUTION]
-> Secret Expression Required
-> Must use GitHub Actions secret expressions (e.g., `${{ secrets.CUSTOM_PAT }}`). Plaintext tokens are rejected. Valid: `${{ secrets.GITHUB_TOKEN }}`, `${{ secrets.CUSTOM_PAT }}`. Invalid: plaintext tokens, environment variables.
-
 **Token precedence** (highest to lowest):
 1. Individual safe-output `github-token` (e.g., `create-issue.github-token`)
 2. Safe-outputs global `github-token`
