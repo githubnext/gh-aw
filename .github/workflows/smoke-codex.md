@@ -71,8 +71,9 @@ timeout-minutes: 10
 3. **Serena MCP Testing**: Use the Serena MCP server tool `activate_project` to initialize the workspace at `${{ github.workspace }}` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools)
 4. **Playwright Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
 5. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item
-6. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-codex-${{ github.run_id }}.txt` with content "Smoke test passed for Codex at $(date)" (create the directory if it doesn't exist)
-7. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+6. **Runtime Mount Testing**: Execute `npm ls` command to verify that npm is available in the container (this tests that the runtime manager properly mounted Node.js folders)
+7. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-codex-${{ github.run_id }}.txt` with content "Smoke test passed for Codex at $(date)" (create the directory if it doesn't exist)
+8. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 
 ## Output
 
