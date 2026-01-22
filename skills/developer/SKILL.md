@@ -1091,7 +1091,6 @@ All three JSON schema files enforce strict validation with `"additionalPropertie
 | File | Purpose |
 |------|---------|
 | `pkg/parser/schemas/main_workflow_schema.json` | Validates agentic workflow frontmatter in `.github/workflows/*.md` files |
-| `pkg/parser/schemas/included_file_schema.json` | Validates imported/included workflow files |
 | `pkg/parser/schemas/mcp_config_schema.json` | Validates MCP (Model Context Protocol) server configuration |
 
 ### How It Works
