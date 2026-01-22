@@ -60,6 +60,8 @@ async function main(config = {}) {
   // Extract configuration
   const titlePrefix = config.title_prefix || "";
   const envLabels = config.labels ? (Array.isArray(config.labels) ? config.labels : config.labels.split(",")).map(label => String(label).trim()).filter(label => label) : [];
+  // Default to draft: true for security - ensures AI-generated PRs cannot be auto-merged accidentally
+  // and gives reviewers a chance to review code before it goes live
   const draftDefault = config.draft !== undefined ? config.draft : true;
   const ifNoChanges = config.if_no_changes || "warn";
   const allowEmpty = config.allow_empty || false;

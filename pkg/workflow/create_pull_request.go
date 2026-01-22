@@ -16,7 +16,7 @@ type CreatePullRequestsConfig struct {
 	Labels               []string `yaml:"labels,omitempty"`
 	AllowedLabels        []string `yaml:"allowed-labels,omitempty"` // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
 	Reviewers            []string `yaml:"reviewers,omitempty"`      // List of users/bots to assign as reviewers to the pull request
-	Draft                *bool    `yaml:"draft,omitempty"`          // Pointer to distinguish between unset (nil) and explicitly false
+	Draft                *bool    `yaml:"draft,omitempty"`          // Create as draft PR. Defaults to true if omitted. Use explicit false for auto-merge workflows.
 	IfNoChanges          string   `yaml:"if-no-changes,omitempty"`  // Behavior when no changes to push: "warn" (default), "error", or "ignore"
 	AllowEmpty           bool     `yaml:"allow-empty,omitempty"`    // Allow creating PR without patch file or with empty patch (useful for preparing feature branches)
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`    // Target repository in format "owner/repo" for cross-repository pull requests
@@ -66,7 +66,9 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	customEnvVars = append(customEnvVars, buildTitlePrefixEnvVar("GH_AW_PR_TITLE_PREFIX", data.SafeOutputs.CreatePullRequests.TitlePrefix)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_LABELS", data.SafeOutputs.CreatePullRequests.Labels)...)
 	customEnvVars = append(customEnvVars, buildLabelsEnvVar("GH_AW_PR_ALLOWED_LABELS", data.SafeOutputs.CreatePullRequests.AllowedLabels)...)
-	// Pass draft setting - default to true for backwards compatibility
+	// Pass draft setting - default to true to ensure agentic workflows create draft PRs
+	// This is a security best practice: draft PRs cannot be auto-merged accidentally
+	// and give reviewers a chance to review AI-generated code before it goes live
 	draftValue := true // Default value
 	if data.SafeOutputs.CreatePullRequests.Draft != nil {
 		draftValue = *data.SafeOutputs.CreatePullRequests.Draft
@@ -202,6 +204,14 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 	// Validate target-repo (wildcard "*" is not allowed)
 	if validateTargetRepoSlug(config.TargetRepoSlug, createPRLog) {
 		return nil // Invalid configuration, return nil to cause validation error
+	}
+
+	// Check if draft is explicitly set to false - this is allowed but discouraged
+	// The default is true to ensure agentic workflows create draft PRs by default
+	if config.Draft != nil && *config.Draft == false {
+		createPRLog.Print("WARNING: draft: false is explicitly set - agentic workflows should create draft PRs by default")
+		// Note: This is informational only - we don't block the compilation
+		// Some workflows (e.g., with auto-merge: true) intentionally use draft: false
 	}
 
 	// Log expires if configured
