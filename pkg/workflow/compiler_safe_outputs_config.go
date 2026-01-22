@@ -81,6 +81,10 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if len(cfg.AllowedRepos) > 0 {
 			handlerConfig["allowed_repos"] = cfg.AllowedRepos
 		}
+		// Add discussion flag to config
+		if cfg.Discussion != nil && *cfg.Discussion {
+			handlerConfig["discussion"] = true
+		}
 		config["add_comment"] = handlerConfig
 	}
 

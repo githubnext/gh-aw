@@ -11,11 +11,13 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  discussions: read
   
 name: Smoke OpenCode
 imports:
   - shared/opencode.md
   - shared/gh.md
+  - shared/github-queries-safe-input.md
 strict: true
 sandbox:
   mcp:
@@ -36,6 +38,7 @@ tools:
 safe-outputs:
     add-comment:
       hide-older-comments: true
+      discussion: true
     create-issue:
       expires: 2h
       group: true
@@ -62,6 +65,7 @@ timeout-minutes: 10
 4. **Playwright Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
 5. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-opencode-${{ github.run_id }}.txt` with content "Smoke test passed for OpenCode at $(date)" (create the directory if it doesn't exist)
 6. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+7. **Discussion Interaction Testing**: Use the `github-discussion-query` safe-input tool to get 1 random discussion from ${{ github.repository }} (use params: limit=1, jq=".[0]") and add a space/rocket-themed comment stating that the smoke test agent was here (be creative and use space mission language)
 
 ## Output
 
@@ -77,5 +81,7 @@ timeout-minutes: 10
    - PR titles only (no descriptions)
    - ✅ or ❌ for each test result
    - Overall status: PASS or FAIL
+
+3. Add a **space/rocket-themed comment** to the randomly selected discussion mentioning that the smoke test was here (be creative and use space mission language)
 
 If all tests pass, add the label `smoke-opencode` to the pull request.

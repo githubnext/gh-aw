@@ -11,6 +11,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  discussions: read
   
 name: Smoke Claude
 engine:
@@ -22,6 +23,7 @@ imports:
   - shared/gh.md
   - shared/mcp/tavily.md
   - shared/reporting.md
+  - shared/github-queries-safe-input.md
 network:
   allowed:
     - defaults
@@ -49,6 +51,7 @@ runtimes:
 safe-outputs:
     add-comment:
       hide-older-comments: true
+      discussion: true
     create-issue:
       expires: 2h
       group: true
@@ -76,6 +79,7 @@ timeout-minutes: 10
 5. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item
 6. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-claude-${{ github.run_id }}.txt` with content "Smoke test passed for Claude at $(date)" (create the directory if it doesn't exist)
 7. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+8. **Discussion Interaction Testing**: Use the `github-discussion-query` safe-input tool to get 1 random discussion from ${{ github.repository }} (use params: limit=1, jq=".[0]") and add a fun comment stating that the smoke test agent was here (be creative and playful with the comment, comic-book style)
 
 ## Output
 
@@ -91,5 +95,7 @@ timeout-minutes: 10
    - PR titles only (no descriptions)
    - ✅ or ❌ for each test result
    - Overall status: PASS or FAIL
+
+3. Add a **fun comic-book style comment** to the randomly selected discussion mentioning that the smoke test was here (be playful and use comic-book language)
 
 If all tests pass, add the label `smoke-claude` to the pull request.
