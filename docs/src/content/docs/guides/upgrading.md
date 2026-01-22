@@ -1,6 +1,6 @@
 ---
 title: Upgrading Agentic Workflows
-description: Step-by-step guide to upgrade your repository to the latest version of agentic workflows, including updating extensions, applying codemods, and validating changes.
+description: Step-by-step guide to upgrade your repository to the latest version of agentic workflows, including updating extensions, applying codemods, compiling workflows, and validating changes.
 sidebar:
   order: 100
 ---
@@ -9,10 +9,11 @@ This guide walks you through upgrading your agentic workflows to the latest vers
 
 ## Overview
 
-The upgrade process updates two key areas:
+The upgrade process updates three key areas:
 
 1. **Agent and prompt files** — GitHub Copilot instructions, dispatcher agent, and workflow creation prompts
 2. **Workflow syntax** — Automatically migrates deprecated fields and applies the latest configuration patterns
+3. **Workflow compilation** — Automatically compiles all workflows to generate up-to-date `.lock.yml` files
 
 > [!TIP]
 > Quick Upgrade
@@ -21,7 +22,7 @@ The upgrade process updates two key areas:
 > ```bash wrap
 > gh aw upgrade
 > ```
-> This updates agent files and applies codemods to all workflows.
+> This updates agent files, applies codemods, and compiles all workflows.
 
 ## Prerequisites
 
@@ -104,7 +105,7 @@ Run the upgrade command from your repository root:
 gh aw upgrade
 ```
 
-This command performs two main operations:
+This command performs three main operations:
 
 ### 3.1 Updates Agent and Prompt Files
 
@@ -132,6 +133,10 @@ The upgrade automatically applies codemods to fix deprecated fields in all workf
 | **delete-schema-file** | Deletes deprecated schema file | Removes `.github/aw/schemas/agentic-workflow.json` |
 | **delete-old-agents** | Deletes old `.agent.md` files moved to `.github/aw/` | Removes outdated agent files |
 
+### 3.3 Compiles All Workflows
+
+The upgrade automatically compiles all workflows to generate or update `.lock.yml` files, ensuring they're ready to run in GitHub Actions.
+
 **Example output:**
 
 ```text
@@ -144,6 +149,8 @@ Processing workflow: daily-team-status
 Processing workflow: issue-triage
   ✓ Applied safe-inputs-mode-removal
 All workflows processed.
+Compiling all workflows...
+✓ Compiled 3 workflow(s)
 
 ✓ Upgrade complete
 ```
@@ -151,13 +158,13 @@ All workflows processed.
 ### Command Options
 
 ```bash wrap
-# Standard upgrade (updates agent files + applies codemods)
+# Standard upgrade (updates agent files + applies codemods + compiles workflows)
 gh aw upgrade
 
 # Verbose output (shows detailed progress)
 gh aw upgrade -v
 
-# Update agent files only (skip codemods)
+# Update agent files only (skip codemods and compilation)
 gh aw upgrade --no-fix
 
 # Upgrade workflows in custom directory
@@ -242,22 +249,22 @@ safe-inputs:
 > git diff --word-diff .github/workflows/my-workflow.md
 > ```
 
-## Step 5: Compile and Validate
+## Step 5: Verify Compilation
 
-Compile your workflows to ensure they're valid and generate updated `.lock.yml` files:
+The `gh aw upgrade` command automatically compiles all workflows, so you typically don't need to run `gh aw compile` separately. However, if you want to verify compilation or recompile specific workflows:
 
 ```bash wrap
-# Compile all workflows
+# Verify all workflows compiled successfully (optional)
 gh aw compile
 
-# Compile with validation
+# Compile with additional validation
 gh aw compile --validate
 
-# Compile specific workflow
+# Recompile specific workflow
 gh aw compile my-workflow
 ```
 
-**Expected output:**
+**Expected output (if running compile again):**
 
 ```text
 ✓ Compiled daily-team-status
@@ -268,10 +275,10 @@ All workflows compiled successfully.
 
 ### Troubleshooting Compilation Errors
 
-If compilation fails, the error message will indicate the issue:
+If the upgrade command shows compilation warnings or you want more detailed validation:
 
 ```bash wrap
-# See detailed validation errors
+# See detailed validation errors for a specific workflow
 gh aw compile my-workflow --validate
 ```
 
@@ -293,7 +300,31 @@ gh aw compile my-workflow --validate
 > gh aw fix --write                # Fix all workflows
 > ```
 
-## Step 6: Test Your Workflows
+## Step 6: Review Generated Lock Files
+
+After the upgrade compiles your workflows, review the generated or updated `.lock.yml` files:
+
+```bash wrap
+# Check that lock files were generated/updated
+git status | grep .lock.yml
+
+# Review changes to lock files
+git diff .github/workflows/*.lock.yml
+```
+
+**What to verify:**
+
+- ✅ Each `.md` workflow has a corresponding `.lock.yml` file
+- ✅ Lock files are tracked in Git (not in `.gitignore`)
+- ✅ Lock files contain GitHub Actions YAML syntax
+- ✅ No obvious errors in the generated workflow structure
+
+> [!CAUTION]
+> Never Edit Lock Files Directly
+>
+> `.lock.yml` files are auto-generated. Always edit the `.md` file and recompile with `gh aw compile`.
+
+## Step 7: Test Your Workflows
 
 Before pushing changes, test your workflows to ensure they work correctly:
 
@@ -353,7 +384,7 @@ gh aw mcp inspect my-workflow
 > gh pr create --draft --title "Upgrade workflows" --body "Testing upgraded workflows"
 > ```
 
-## Step 7: Commit and Push Changes
+## Step 8: Commit and Push Changes
 
 Once you've reviewed and tested the changes, commit them to your repository:
 
@@ -433,22 +464,30 @@ gh aw fix --write -v
 gh aw fix my-workflow --write -v
 ```
 
-### Compilation Errors After Upgrade
+### Compilation Errors During Upgrade
 
-**Symptom:** `gh aw compile` fails with validation errors.
+**Symptom:** The upgrade command shows compilation warnings or errors.
 
 **Solution:**
 
 ```bash wrap
-# See detailed error messages
+# Review detailed error messages
 gh aw compile my-workflow --validate
 
-# Check for syntax errors
+# Check for syntax errors in the source file
 cat .github/workflows/my-workflow.md
 
 # Verify YAML structure
 head -20 .github/workflows/my-workflow.md
+
+# Fix the workflow and recompile
+gh aw compile my-workflow
 ```
+
+> [!NOTE]
+> Non-Critical Compilation Errors
+>
+> The upgrade command treats compilation errors as warnings and continues. Review any warnings and fix issues in the source `.md` files before committing.
 
 ### Workflows Not Running After Upgrade
 
@@ -458,8 +497,9 @@ head -20 .github/workflows/my-workflow.md
 
 1. **Verify compilation:** Ensure `.lock.yml` files are up-to-date and committed
    ```bash wrap
-   gh aw compile
-   git status  # Check if .lock.yml files are modified
+   git status  # Check if .lock.yml files were updated
+   git add .github/workflows/*.lock.yml
+   git commit -m "Update compiled workflow lock files"
    ```
 
 2. **Check workflow status:** Ensure workflows are enabled
@@ -507,10 +547,10 @@ If you're upgrading from an older version (e.g., v0.0.x to v0.2.x), review the [
 For repositories using custom workflow directories:
 
 ```bash wrap
-# Upgrade custom directory
+# Upgrade custom directory (includes compilation)
 gh aw upgrade --dir custom/workflows
 
-# Compile custom directory
+# Verify or recompile specific workflows if needed
 gh aw compile --dir custom/workflows
 ```
 
@@ -528,8 +568,9 @@ gh aw fix my-workflow --write
 # Skip codemods during upgrade
 gh aw upgrade --no-fix
 
-# Then manually fix specific workflows
+# Then manually fix and compile specific workflows
 gh aw fix workflow-1 workflow-2 --write
+gh aw compile workflow-1 workflow-2
 ```
 
 ### Upgrading in CI/CD Pipelines
@@ -556,9 +597,6 @@ jobs:
       
       - name: Upgrade workflows
         run: gh aw upgrade
-      
-      - name: Compile workflows
-        run: gh aw compile
       
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
