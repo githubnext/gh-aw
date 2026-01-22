@@ -39,6 +39,38 @@ async function minimizeComment(github, nodeId, reason = "outdated") {
 }
 
 /**
+ * Check if a comment should be hidden by the hideOlderComments function
+ * @param {string} commentBody - The comment body text
+ * @param {string} workflowId - The workflow ID to match
+ * @returns {boolean} true if the comment should be hidden, false otherwise
+ */
+function shouldHideComment(commentBody, workflowId) {
+  if (!commentBody) {
+    return false;
+  }
+
+  // Comment must have the workflow-id marker
+  const hasWorkflowId = commentBody.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`);
+  if (!hasWorkflowId) {
+    return false;
+  }
+
+  // Exclude reaction comments (activation comments)
+  const isReactionComment = commentBody.includes(`<!-- gh-aw-comment-type: reaction -->`);
+  if (isReactionComment) {
+    return false;
+  }
+
+  // Exclude append-only comments (should persist across runs)
+  const isAppendOnlyComment = commentBody.includes(`<!-- gh-aw-comment-type: append-only -->`);
+  if (isAppendOnlyComment) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Find comments on an issue/PR with a specific tracker-id
  * @param {any} github - GitHub REST API instance
  * @param {string} owner - Repository owner
@@ -66,10 +98,8 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workf
       break;
     }
 
-    // Filter comments that contain the workflow-id and are NOT reaction or append-only comments
-    const filteredComments = data
-      .filter(comment => comment.body?.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- gh-aw-comment-type: reaction -->`) && !comment.body.includes(`<!-- gh-aw-comment-type: append-only -->`))
-      .map(({ id, node_id, body }) => ({ id, node_id, body }));
+    // Filter comments that should be hidden
+    const filteredComments = data.filter(comment => shouldHideComment(comment.body, workflowId)).map(({ id, node_id, body }) => ({ id, node_id, body }));
 
     comments.push(...filteredComments);
 
@@ -122,9 +152,7 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
       break;
     }
 
-    const filteredComments = result.repository.discussion.comments.nodes
-      .filter(comment => comment.body?.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- gh-aw-comment-type: reaction -->`) && !comment.body.includes(`<!-- gh-aw-comment-type: append-only -->`))
-      .map(({ id, body }) => ({ id, body }));
+    const filteredComments = result.repository.discussion.comments.nodes.filter(comment => shouldHideComment(comment.body, workflowId)).map(({ id, body }) => ({ id, body }));
 
     comments.push(...filteredComments);
 
