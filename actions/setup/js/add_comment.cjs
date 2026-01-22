@@ -66,9 +66,9 @@ async function findCommentsWithTrackerId(github, owner, repo, issueNumber, workf
       break;
     }
 
-    // Filter comments that contain the workflow-id and are NOT reaction comments
+    // Filter comments that contain the workflow-id and are NOT reaction or append-only comments
     const filteredComments = data
-      .filter(comment => comment.body?.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- gh-aw-comment-type: reaction -->`))
+      .filter(comment => comment.body?.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- gh-aw-comment-type: reaction -->`) && !comment.body.includes(`<!-- gh-aw-comment-type: append-only -->`))
       .map(({ id, node_id, body }) => ({ id, node_id, body }));
 
     comments.push(...filteredComments);
@@ -123,7 +123,7 @@ async function findDiscussionCommentsWithTrackerId(github, owner, repo, discussi
     }
 
     const filteredComments = result.repository.discussion.comments.nodes
-      .filter(comment => comment.body?.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- gh-aw-comment-type: reaction -->`))
+      .filter(comment => comment.body?.includes(`<!-- gh-aw-workflow-id: ${workflowId} -->`) && !comment.body.includes(`<!-- gh-aw-comment-type: reaction -->`) && !comment.body.includes(`<!-- gh-aw-comment-type: append-only -->`))
       .map(({ id, body }) => ({ id, body }));
 
     comments.push(...filteredComments);
@@ -412,6 +412,11 @@ async function main(config = {}) {
     const trackerIDComment = getTrackerID("markdown");
     if (trackerIDComment) {
       processedBody += "\n\n" + trackerIDComment;
+    }
+
+    // Add append-only marker if enabled to prevent hiding by future runs
+    if (appendOnlyComments) {
+      processedBody += "\n\n<!-- gh-aw-comment-type: append-only -->";
     }
 
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";

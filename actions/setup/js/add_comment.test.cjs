@@ -527,5 +527,114 @@ describe("add_comment", () => {
       // Clean up
       delete process.env.GITHUB_WORKFLOW;
     });
+
+    it("should include append-only marker in comment body when append-only-comments is enabled", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      // Set up environment variable for append-only-comments
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        appendOnlyComments: true,
+      });
+      process.env.GITHUB_WORKFLOW = "test-workflow";
+
+      let capturedComment = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedComment = params;
+        return {
+          data: {
+            id: 12345,
+            html_url: `https://github.com/owner/repo/issues/${params.issue_number}#issuecomment-12345`,
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "Append-only comment",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedComment).toBeTruthy();
+      expect(capturedComment.body).toContain("<!-- gh-aw-comment-type: append-only -->");
+
+      // Clean up
+      delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+      delete process.env.GITHUB_WORKFLOW;
+    });
+
+    it("should not hide append-only comments from previous runs", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      // Set up environment WITHOUT append-only-comments (new run)
+      delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+      process.env.GITHUB_WORKFLOW = "test-workflow";
+
+      let hideCommentsWasCalled = false;
+      let hiddenCommentIds = [];
+
+      // Simulate finding an old append-only comment and a regular comment
+      mockGithub.rest.issues.listComments = async () => {
+        return {
+          data: [
+            {
+              id: 888,
+              node_id: "IC_kwDOTest888",
+              body: "Old append-only comment <!-- gh-aw-workflow-id: test-workflow --><!-- gh-aw-comment-type: append-only -->",
+            },
+            {
+              id: 999,
+              node_id: "IC_kwDOTest999",
+              body: "Old regular comment <!-- gh-aw-workflow-id: test-workflow -->",
+            },
+          ],
+        };
+      };
+
+      mockGithub.graphql = async (query, variables) => {
+        if (query.includes("minimizeComment")) {
+          hideCommentsWasCalled = true;
+          hiddenCommentIds.push(variables.nodeId);
+        }
+        return {
+          minimizeComment: {
+            minimizedComment: {
+              isMinimized: true,
+            },
+          },
+        };
+      };
+
+      mockGithub.rest.issues.createComment = async params => {
+        return {
+          data: {
+            id: 12345,
+            html_url: `https://github.com/owner/repo/issues/${params.issue_number}#issuecomment-12345`,
+          },
+        };
+      };
+
+      // Execute with hide-older-comments enabled (but not append-only)
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ hide_older_comments: true }); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "New comment",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(hideCommentsWasCalled).toBe(true);
+      // Should only hide the regular comment, not the append-only comment
+      expect(hiddenCommentIds).toEqual(["IC_kwDOTest999"]);
+      expect(hiddenCommentIds).not.toContain("IC_kwDOTest888");
+
+      // Clean up
+      delete process.env.GITHUB_WORKFLOW;
+    });
   });
 });
