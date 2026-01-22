@@ -13,6 +13,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
+const { getMessages } = require("./messages_core.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "add_comment";
@@ -279,6 +280,10 @@ async function main(config = {}) {
   const maxCount = config.max || 20;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
+  // Check if append-only-comments is enabled in messages config
+  const messagesConfig = getMessages();
+  const appendOnlyComments = messagesConfig?.appendOnlyComments === true;
+
   core.info(`Add comment configuration: max=${maxCount}, target=${commentTarget}`);
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {
@@ -286,6 +291,9 @@ async function main(config = {}) {
   }
   if (hideOlderCommentsEnabled) {
     core.info("Hide-older-comments is enabled");
+  }
+  if (appendOnlyComments) {
+    core.info("Append-only-comments is enabled - will not hide older comments");
   }
 
   // Track state
@@ -420,9 +428,12 @@ async function main(config = {}) {
     core.info(`Adding comment to ${isDiscussion ? "discussion" : "issue/PR"} #${itemNumber} in ${itemRepo}`);
 
     try {
-      // Hide older comments if enabled
-      if (hideOlderCommentsEnabled && workflowId) {
+      // Hide older comments if enabled AND append-only-comments is not enabled
+      // When append-only-comments is true, we want to keep all comments visible
+      if (hideOlderCommentsEnabled && !appendOnlyComments && workflowId) {
         await hideOlderComments(github, repoParts.owner, repoParts.repo, itemNumber, workflowId, isDiscussion);
+      } else if (hideOlderCommentsEnabled && appendOnlyComments) {
+        core.info("Skipping hide-older-comments because append-only-comments is enabled");
       }
 
       /** @type {{ id: string | number, html_url: string }} */
