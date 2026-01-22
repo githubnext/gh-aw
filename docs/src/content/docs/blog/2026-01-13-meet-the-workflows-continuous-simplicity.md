@@ -56,7 +56,7 @@ The workflows never take a day off, never get tired, and never let technical deb
 
 ## Using These Workflows
 
-You can add these workflows to your own repository and remix them as follows:
+You can add these workflows to your own repository and remix them. Get going with our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/), then run one of the following:
 
 **Automatic Code Simplifier:**
 

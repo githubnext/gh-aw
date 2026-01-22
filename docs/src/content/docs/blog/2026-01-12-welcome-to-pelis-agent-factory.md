@@ -18,13 +18,11 @@ Welcome, welcome, WELCOME to Peli's Agent Factory!
 
 Imagine a software repository where AI agents work alongside your team - not replacing developers, but handling the repetitive, time-consuming tasks that slow down collaboration and forward progress.
 
-Peli's Agent Factory is our exploration of what happens when you take the design philosophy of **"let's create a new automated agentic workflow for that"** as the answer to almost every opportunity that arises! What happens when you **max out on automated agentic workflows** - when you make and use dozens of specialized, automated AI agentic workflows and use them in real repositories.
+Peli's Agent Factory is our exploration of what happens when you take the design philosophy of **"let's create a new automated agentic workflow for that"** as the answer to almost every opportunity that arises! What happens when you **max out on automated agentic workflows** - when you make and use dozens of specialized, automated AI agentic workflows and use them in practice.
 
 Software development is changing rapidly. This is our attempt to understand how automated agentic AI can make software teams more efficient, collaborative, and more enjoyable.
 
 Let's explore together!
-
-[Current Factory Status](/gh-aw/agent-factory-status)
 
 ## What Is Peli's Agent Factory?
 
@@ -63,24 +61,24 @@ The factory becomes both an experiment and a reference collection - a living lib
 In our first series, [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows/), we'll take you on a tour of the most interesting agents in the factory. Each article is bite-sized. If you'd like to skip ahead, here's the full list of articles in the series:
 
 1. [Meet a Simple Triage Workflow](/gh-aw/blog/2026-01-13-meet-the-workflows/)
-2. [Continuous Simplicity](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/)
-3. [Continuous Refactoring](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-refactoring/)
-4. [Continuous Style Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-style/)
-5. [Continuous Improvement Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-improvement/)
-6. [Continuous Documentation Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-documentation/)
-7. [Issue & PR Management Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/)
-8. [Fault Investigation Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/)
-9. [Metrics & Analytics Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/)
-10. [Operations & Release Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/)
-11. [Security-related Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/)
-12. [Teamwork & Culture Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/)
-13. [Interactive & ChatOps Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-interactive-chatops/)
-14. [Testing & Validation Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-testing-validation/)
-15. [Tool & Infrastructure Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-tool-infrastructure/)
-16. [Multi-Phase Improver Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-multi-phase/)
-17. [Organization & Cross-Repo Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-organization/)
-18. [Advanced Analytics & ML Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-advanced-analytics/)
-19. [Project Coordination Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-campaigns/)
+2. [Introducing Continuous Simplicity](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/)
+3. [Introducing Continuous Refactoring](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-refactoring/)
+4. [Introducing Continuous Style](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-style/)
+5. [Introducing Continuous Improvement](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-improvement/)
+6. [Introducing Continuous Documentation](/gh-aw/blog/2026-01-13-meet-the-workflows-documentation/)
+7. [Meet the Issue & PR Management Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-issue-management/)
+8. [Meet the Fault Investigation Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-quality-hygiene/)
+9. [Meet the Metrics & Analytics Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/)
+10. [Meet the Operations & Release Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-operations-release/)
+11. [Meet the Security-related Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-security-compliance/)
+12. [Meet the Teamwork & Culture Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/)
+13. [Meet the Interactive & ChatOps Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-interactive-chatops/)
+14. [Meet the Testing & Validation Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-testing-validation/)
+15. [Meet the Tool & Infrastructure Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-tool-infrastructure/)
+16. [Introducing Multi-Phase Improver Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-multi-phase/)
+17. [Meet the Organization & Cross-Repo Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-organization/)
+18. [Go Deep with Advanced Analytics & ML Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-advanced-analytics/)
+19. [Go Deep with Project Coordination Workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-campaigns/)
 
 ## What We're Learning
 
@@ -109,3 +107,7 @@ Want to start with automated agentic workflows on GitHub? See our [Quick Start](
 ## Credits
 
 **Peli's Agent Factory** is a research project by GitHub Next, Microsoft Research and collaborators, including Peli de Halleux, Don Syme, Mara Kiefer, Edward Aftandilian, Russell Horton, Jiaxiao Zhou. This is part of GitHub Next's exploration of [Continuous AI](https://githubnext.com/projects/continuous-ai) - making AI-enriched automation as routine as CI/CD.
+
+## Factory Status
+
+[Current Factory Status](/gh-aw/agent-factory-status)

@@ -41,7 +41,7 @@ These workflows implement patterns like epic issues, progress tracking, and dead
 
 ## Using These Workflows
 
-You can add these workflows to your own repository and remix them as follows:
+You can add these workflows to your own repository and remix them. Get going with our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/), then run one of the following:
 
 **Plan Command:**
 
