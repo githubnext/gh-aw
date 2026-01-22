@@ -115,7 +115,7 @@ describe("safe_outputs_config", () => {
 
       const result = loadConfig(mockServer);
 
-      expect(result.outputFile).toBe("/tmp/gh-aw/safeoutputs/outputs.jsonl");
+      expect(result.outputFile).toBe("/opt/gh-aw/safeoutputs/outputs.jsonl");
       expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("GH_AW_SAFE_OUTPUTS not set"));
     });
 

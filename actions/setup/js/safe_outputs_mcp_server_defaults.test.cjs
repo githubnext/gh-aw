@@ -9,10 +9,10 @@ import { spawn } from "child_process";
       (tempOutputDir = path.join("/tmp", `test_safe_outputs_defaults_${Date.now()}`)),
       fs.mkdirSync(tempOutputDir, { recursive: !0 }),
       (tempConfigFile = path.join(tempOutputDir, "config.json")),
-      fs.existsSync("/tmp/gh-aw/safeoutputs") || fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }));
-    const defaultConfigPath = path.join("/tmp/gh-aw/safeoutputs", "config.json");
+      fs.existsSync("/opt/gh-aw/safeoutputs") || fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }));
+    const defaultConfigPath = path.join("/opt/gh-aw/safeoutputs", "config.json");
     fs.writeFileSync(defaultConfigPath, JSON.stringify({ create_issue: !0, missing_tool: !0 }));
-    const toolsJsonPath = path.join("/tmp/gh-aw/safeoutputs", "tools.json"),
+    const toolsJsonPath = path.join("/opt/gh-aw/safeoutputs", "tools.json"),
       toolsJsonContent = fs.readFileSync(path.join(__dirname, "safe_outputs_tools.json"), "utf8");
     fs.writeFileSync(toolsJsonPath, toolsJsonContent);
   }),
@@ -20,8 +20,8 @@ import { spawn } from "child_process";
       ((process.env = originalEnv), fs.existsSync(tempConfigFile) && fs.unlinkSync(tempConfigFile), fs.existsSync(tempOutputDir) && fs.rmSync(tempOutputDir, { recursive: !0, force: !0 }));
     }),
     it("should use default output file when GH_AW_SAFE_OUTPUTS is not set", async () => {
-      (delete process.env.GH_AW_SAFE_OUTPUTS, delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH, fs.existsSync("/tmp/gh-aw/safeoutputs") || fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }));
-      const defaultConfigPath = path.join("/tmp/gh-aw/safeoutputs", "config.json");
+      (delete process.env.GH_AW_SAFE_OUTPUTS, delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH, fs.existsSync("/opt/gh-aw/safeoutputs") || fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }));
+      const defaultConfigPath = path.join("/opt/gh-aw/safeoutputs", "config.json");
       fs.writeFileSync(defaultConfigPath, JSON.stringify({ create_issue: !0, missing_tool: !0 }));
       const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
       return new Promise((resolve, reject) => {
@@ -45,16 +45,16 @@ import { spawn } from "child_process";
           setTimeout(() => {
             (child.kill(),
               clearTimeout(timeout),
-              expect(stderr).toContain("GH_AW_SAFE_OUTPUTS not set, using default: /tmp/gh-aw/safeoutputs/outputs.jsonl"),
-              expect(stderr).toContain("Reading config from file: /tmp/gh-aw/safeoutputs/config.json"),
+              expect(stderr).toContain("GH_AW_SAFE_OUTPUTS not set, using default: /opt/gh-aw/safeoutputs/outputs.jsonl"),
+              expect(stderr).toContain("Reading config from file: /opt/gh-aw/safeoutputs/config.json"),
               resolve());
           }, 2e3));
       });
     }),
     it("should read config from default file when config file exists", async () => {
       (delete process.env.GH_AW_SAFE_OUTPUTS, delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH);
-      const defaultConfigFile = path.join("/tmp/gh-aw/safeoutputs", "config.json");
-      (fs.existsSync("/tmp/gh-aw/safeoutputs") || fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(defaultConfigFile, JSON.stringify({ create_issue: { enabled: !0 }, add_comment: { enabled: !0, max: 3 } })));
+      const defaultConfigFile = path.join("/opt/gh-aw/safeoutputs", "config.json");
+      (fs.existsSync("/opt/gh-aw/safeoutputs") || fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(defaultConfigFile, JSON.stringify({ create_issue: { enabled: !0 }, add_comment: { enabled: !0, max: 3 } })));
       const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -74,7 +74,7 @@ import { spawn } from "child_process";
             (child.kill(),
               clearTimeout(timeout),
               fs.existsSync(defaultConfigFile) && fs.unlinkSync(defaultConfigFile),
-              expect(stderr).toContain("Reading config from file: /tmp/gh-aw/safeoutputs/config.json"),
+              expect(stderr).toContain("Reading config from file: /opt/gh-aw/safeoutputs/config.json"),
               expect(stderr).toContain("Successfully parsed config from file with 2 configuration keys"),
               expect(stderr).toContain("Final processed config:"),
               expect(stderr).toContain("create_issue"),
@@ -83,7 +83,7 @@ import { spawn } from "child_process";
       });
     }),
     it("should use empty config when default file does not exist", async () => {
-      (delete process.env.GH_AW_SAFE_OUTPUTS, delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH, fs.existsSync("/tmp/gh-aw/safeoutputs/config.json") && fs.unlinkSync("/tmp/gh-aw/safeoutputs/config.json"));
+      (delete process.env.GH_AW_SAFE_OUTPUTS, delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH, fs.existsSync("/opt/gh-aw/safeoutputs/config.json") && fs.unlinkSync("/opt/gh-aw/safeoutputs/config.json"));
       const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -102,7 +102,7 @@ import { spawn } from "child_process";
           setTimeout(() => {
             (child.kill(),
               clearTimeout(timeout),
-              expect(stderr).toContain("Config file does not exist at: /tmp/gh-aw/safeoutputs/config.json"),
+              expect(stderr).toContain("Config file does not exist at: /opt/gh-aw/safeoutputs/config.json"),
               expect(stderr).toContain("Using minimal default configuration"),
               expect(stderr).toContain("Final processed config: {}"),
               resolve());
