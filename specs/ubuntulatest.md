@@ -1,11 +1,12 @@
 # Ubuntu Actions Runner Image Analysis
 
-**Last Updated**: 2026-01-08  
-**Source**: [Ubuntu2404-Readme.md (20260105)](https://github.com/actions/runner-images/blob/releases/ubuntu24/20260105/images/ubuntu/Ubuntu2404-Readme.md)  
+**Last Updated**: 2026-01-22  
+**Source**: [Ubuntu2404-Readme.md (20260111.209)](https://github.com/actions/runner-images/blob/ubuntu24/20260111.209/images/ubuntu/Ubuntu2404-Readme.md)  
 **Ubuntu Version**: 24.04.3 LTS  
-**Image Version**: 20260105.202.1  
-**Kernel Version**: 6.11.0-1018-azure  
-**Systemd Version**: 255.4-1ubuntu8.12  
+**Image Version**: 20260111.209.1  
+**Runner Version**: 2.331.0  
+**Kernel Version**: 6.11.0-1018-azure (or similar)  
+**Systemd Version**: 255.4-1ubuntu8.12 (or similar)  
 
 ## Overview
 
@@ -711,33 +712,39 @@ The GitHub Actions runner environment has several aspects that cannot be perfect
 
 ## Upcoming Changes & Announcements
 
-As of the 20260105 image version, the following changes are planned:
+As of the 20260111.209 image version (January 22, 2026), the following changes are noted:
 
-1. **Docker Update (February 9, 2026)**:
+1. **Docker Update (February 9, 2026)** - UPCOMING:
    - Docker Server and Client → version 29.1.x
    - Docker Compose → version 2.40.3
+   - Source: [Announcement](https://github.com/actions/runner-images/issues/11457)
 
-2. **Azure PowerShell Module (January 26, 2026)**:
+2. **Azure PowerShell Module (January 26, 2026)** - UPCOMING:
    - Azure PowerShell Module → version 14.6.0
 
-3. **Ubuntu 22.04 Deprecations (January 12, 2026)**:
+3. **Recent Changes (as of January 2026)**:
+   - Runner version updated to 2.331.0
+   - Git updated to version 2.52.0
+   - Various package updates and security patches
+
+4. **Ubuntu 22.04 Deprecations** (completed):
    - Pre-cached Docker images removed
    - Additional Haskell (GHC) instances removed
 
-4. **Android SDK Changes (January 12, 2026)**:
+5. **Android SDK Changes** (completed):
    - Android SDK platforms and build tools older than version 34 removed
-   - Android NDK 26 removed; NDK 27 becomes default
+   - Android NDK 26 removed; NDK 27 is now default
 
-5. **Python Changes (January 12, 2026)**:
+6. **Python Changes** (completed):
    - Python 3.9 removed
-   - Python 3.12 becomes the default on Windows images
+   - Python 3.12 is now the default on Windows images
 
 For the latest announcements, see the [runner-images repository announcements](https://github.com/actions/runner-images#announcements).
 
 ## References
 
 - **Runner Image Repository**: [actions/runner-images](https://github.com/actions/runner-images)
-- **Documentation Source**: [Ubuntu2404-Readme.md (20260105)](https://github.com/actions/runner-images/blob/releases/ubuntu24/20260105/images/ubuntu/Ubuntu2404-Readme.md)
+- **Documentation Source**: [Ubuntu2404-Readme.md (20260111.209)](https://github.com/actions/runner-images/blob/ubuntu24/20260111.209/images/ubuntu/Ubuntu2404-Readme.md)
 - **Ubuntu Documentation**: [Ubuntu 24.04 (Noble Numbat)](https://ubuntu.com/blog/tag/ubuntu-24-04-lts)
 - **Docker Documentation**: [Docker Build Guide](https://docs.docker.com/build/)
 - **GitHub Actions Documentation**: [Using GitHub-hosted runners](https://docs.github.com/en/actions/using-github-hosted-runners)
