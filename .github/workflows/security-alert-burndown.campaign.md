@@ -2,7 +2,7 @@
 id: security-alert-burndown
 name: Security Alert Burndown
 description: Systematically burns down code security alerts with focus on file write issues
-project-url: https://github.com/orgs/githubnext/projects/90ee2db58e56
+project-url: https://github.com/orgs/githubnext/projects/130
 version: v1
 state: planned
 workflows:
