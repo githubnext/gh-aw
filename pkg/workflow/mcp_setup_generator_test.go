@@ -414,3 +414,118 @@ Test workflow with custom container and version.`,
 		})
 	}
 }
+
+// TestHTTPMCPSecretsPassedToGatewayContainer verifies that secrets from HTTP MCP servers
+// (like TAVILY_API_KEY) are correctly passed to the gateway container via -e flags
+func TestHTTPMCPSecretsPassedToGatewayContainer(t *testing.T) {
+	frontmatter := `---
+on: workflow_dispatch
+engine: copilot
+tools:
+  github:
+    mode: remote
+    toolsets: [repos, issues]
+  tavily:
+    type: http
+    url: "https://mcp.tavily.com/mcp/"
+    headers:
+      Authorization: "Bearer ${{ secrets.TAVILY_API_KEY }}"
+    allowed: ["*"]
+---
+
+# Test HTTP MCP Secrets
+
+Test that TAVILY_API_KEY is passed to gateway container.
+`
+
+	compiler := NewCompiler(false, "", "test-version")
+
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "test.md")
+
+	err := os.WriteFile(inputFile, []byte(frontmatter), 0644)
+	require.NoError(t, err, "Failed to write test input file")
+
+	err = compiler.CompileWorkflow(inputFile)
+	require.NoError(t, err, "Compilation should succeed")
+
+	outputFile := stringutil.MarkdownToLockFile(inputFile)
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err, "Failed to read output file")
+	yamlStr := string(content)
+
+	// Verify TAVILY_API_KEY is in the step's env block
+	assert.Contains(t, yamlStr, "TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}",
+		"TAVILY_API_KEY should be in the Start MCP gateway step's env block")
+
+	// Verify TAVILY_API_KEY is passed to the docker container via -e flag
+	assert.Contains(t, yamlStr, "-e TAVILY_API_KEY",
+		"TAVILY_API_KEY should be passed to gateway container via -e flag")
+
+	// Verify the docker command includes the -e flag before the container image
+	// This ensures proper docker run command structure
+	dockerCmdPattern := `docker run.*-e TAVILY_API_KEY.*ghcr\.io/githubnext/gh-aw-mcpg`
+	assert.Regexp(t, dockerCmdPattern, yamlStr,
+		"Docker command should include -e TAVILY_API_KEY before the container image")
+}
+
+// TestMultipleHTTPMCPSecretsPassedToGatewayContainer verifies that multiple HTTP MCP servers
+// with different secrets all get their environment variables passed to the gateway container
+func TestMultipleHTTPMCPSecretsPassedToGatewayContainer(t *testing.T) {
+	frontmatter := `---
+on: workflow_dispatch
+engine: copilot
+tools:
+  github:
+    mode: remote
+    toolsets: [repos]
+  tavily:
+    type: http
+    url: "https://mcp.tavily.com/mcp/"
+    headers:
+      Authorization: "Bearer ${{ secrets.TAVILY_API_KEY }}"
+  datadog:
+    type: http
+    url: "https://api.datadoghq.com/mcp"
+    headers:
+      DD-API-KEY: "${{ secrets.DD_API_KEY }}"
+      DD-APPLICATION-KEY: "${{ secrets.DD_APP_KEY }}"
+---
+
+# Test Multiple HTTP MCP Secrets
+
+Test that multiple secrets are passed to gateway container.
+`
+
+	compiler := NewCompiler(false, "", "test-version")
+
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "test.md")
+
+	err := os.WriteFile(inputFile, []byte(frontmatter), 0644)
+	require.NoError(t, err, "Failed to write test input file")
+
+	err = compiler.CompileWorkflow(inputFile)
+	require.NoError(t, err, "Compilation should succeed")
+
+	outputFile := stringutil.MarkdownToLockFile(inputFile)
+	content, err := os.ReadFile(outputFile)
+	require.NoError(t, err, "Failed to read output file")
+	yamlStr := string(content)
+
+	// Verify all secrets are in the step's env block
+	assert.Contains(t, yamlStr, "TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}",
+		"TAVILY_API_KEY should be in env block")
+	assert.Contains(t, yamlStr, "DD_API_KEY: ${{ secrets.DD_API_KEY }}",
+		"DD_API_KEY should be in env block")
+	assert.Contains(t, yamlStr, "DD_APP_KEY: ${{ secrets.DD_APP_KEY }}",
+		"DD_APP_KEY should be in env block")
+
+	// Verify all secrets are passed to docker container
+	assert.Contains(t, yamlStr, "-e TAVILY_API_KEY",
+		"TAVILY_API_KEY should be passed to container")
+	assert.Contains(t, yamlStr, "-e DD_API_KEY",
+		"DD_API_KEY should be passed to container")
+	assert.Contains(t, yamlStr, "-e DD_APP_KEY",
+		"DD_APP_KEY should be passed to container")
+}
