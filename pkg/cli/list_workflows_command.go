@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -102,8 +101,7 @@ func RunListWorkflows(pattern string, verbose bool, jsonOutput bool, labelFilter
 	var workflows []WorkflowListItem
 
 	for _, file := range mdFiles {
-		base := filepath.Base(file)
-		name := stringutil.NormalizeWorkflowName(base)
+		name := extractWorkflowNameFromPath(file)
 
 		// Skip if pattern specified and doesn't match
 		if pattern != "" && !strings.Contains(strings.ToLower(name), strings.ToLower(pattern)) {
