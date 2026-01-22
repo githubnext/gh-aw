@@ -131,24 +131,22 @@ func buildGeneratorSafeOutputs() *workflow.SafeOutputsConfig {
 			AppendOnlyComments: true,
 			RunStarted: "### :rocket: Campaign setup started\n\n" +
 				"Creating a tracking Project and generating campaign files + orchestrator workflow.\n\n" +
-				"No action needed right now — the [{workflow_name}]({run_url}) will open a pull request and post the link + checklist back on this issue when ready.\n\n" +
-				"> To stop this run: remove the label that started it.\n" +
-				"> Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/",
+				"No action needed — the [{workflow_name}]({run_url}) will open a pull request and post the link + checklist back on this issue when ready.\n\n" +
+				"> To stop this run: remove the label that started it.\n\n" +
+				"> **Docs**: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/",
 			RunSuccess: "### :white_check_mark: Campaign setup complete\n\n" +
 				"Tracking Project created and pull request with generated campaign files is ready.\n\n" +
-				"Next steps:\n" +
-				"- Review + merge the PR\n" +
-				"- Run the campaign from the Actions tab\n\n" +
-				"> Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/",
+				"**Next steps**: Review + merge the PR, then run the campaign from the Actions tab.\n\n" +
+				"> **Docs**: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/",
 			RunFailure: "### :x: Campaign setup {status}\n\n" +
-				"Common causes:\n" +
-				"- `GH_AW_PROJECT_GITHUB_TOKEN` is missing or invalid\n" +
+				"**Common causes**:\n\n" +
+				"- `GH_AW_PROJECT_GITHUB_TOKEN` is missing or invalid\n\n" +
 				"- Token lacks access to GitHub Projects\n\n" +
-				"Action required:\n" +
-				"- Fix the first error in the logs\n" +
+				"**Action required**:\n\n" +
+				"- Fix the first error in the logs\n\n" +
 				"- Re-apply the label to re-run\n\n" +
-				"> Troubleshooting: https://githubnext.github.io/gh-aw/guides/campaigns/flow/#when-something-goes-wrong\n" +
-				"> Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/",
+				"> **Troubleshooting**: https://githubnext.github.io/gh-aw/guides/campaigns/flow/#when-something-goes-wrong\n\n" +
+				"> **Docs**: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/",
 		},
 	}
 }
