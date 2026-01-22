@@ -3,6 +3,8 @@ package cli
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -17,11 +19,12 @@ type UpgradeConfig struct {
 	Verbose     bool
 	WorkflowDir string
 	NoFix       bool
+	Push        bool
 }
 
 // RunUpgrade runs the upgrade command with the given configuration
 func RunUpgrade(config UpgradeConfig) error {
-	return runUpgradeCommand(config.Verbose, config.WorkflowDir, config.NoFix, false)
+	return runUpgradeCommand(config.Verbose, config.WorkflowDir, config.NoFix, false, config.Push)
 }
 
 // NewUpgradeCommand creates the upgrade command
@@ -49,19 +52,22 @@ This command always upgrades all Markdown files in .github/workflows.
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` upgrade                    # Upgrade all workflows
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-fix          # Update agent files only (skip codemods and compilation)
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --push            # Upgrade and automatically commit/push changes
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --dir custom/workflows  # Upgrade workflows in custom directory`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			dir, _ := cmd.Flags().GetString("dir")
 			noFix, _ := cmd.Flags().GetBool("no-fix")
+			push, _ := cmd.Flags().GetBool("push")
 
-			return runUpgradeCommand(verbose, dir, noFix, false)
+			return runUpgradeCommand(verbose, dir, noFix, false, push)
 		},
 	}
 
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
 	cmd.Flags().Bool("no-fix", false, "Skip applying codemods and compiling workflows (only update agent files)")
+	cmd.Flags().Bool("push", false, "Automatically commit and push changes after successful upgrade")
 
 	// Register completions
 	RegisterDirFlagCompletion(cmd, "dir")
@@ -70,11 +76,24 @@ Examples:
 }
 
 // runUpgradeCommand executes the upgrade process
-func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile bool) error {
-	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v",
-		verbose, workflowDir, noFix, noCompile)
+func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile bool, push bool) error {
+	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, push=%v",
+		verbose, workflowDir, noFix, noCompile, push)
 
-	// Step 0: Ensure gh-aw extension is on the latest version
+	// Step 0a: If --push is enabled, ensure git status is clean before starting
+	if push {
+		upgradeLog.Print("Checking for clean working directory (--push enabled)")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking git status..."))
+		if err := checkCleanWorkingDirectory(verbose); err != nil {
+			upgradeLog.Printf("Git status check failed: %v", err)
+			return fmt.Errorf("--push requires a clean working directory: %w", err)
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Working directory is clean"))
+		}
+	}
+
+	// Step 0b: Ensure gh-aw extension is on the latest version
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking gh-aw extension version..."))
 	if err := ensureLatestExtensionVersion(verbose); err != nil {
 		upgradeLog.Printf("Extension version check failed: %v", err)
@@ -160,6 +179,102 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 	// Print success message
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Upgrade complete"))
+
+	// Step 4: If --push is enabled, commit and push changes
+	if push {
+		upgradeLog.Print("Push enabled - preparing to commit and push changes")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Preparing to commit and push changes..."))
+
+		// Check if there are any changes to commit
+		upgradeLog.Print("Checking for modified files")
+		cmd := exec.Command("git", "status", "--porcelain")
+		output, err := cmd.Output()
+		if err != nil {
+			upgradeLog.Printf("Failed to check git status: %v", err)
+			return fmt.Errorf("failed to check git status: %w", err)
+		}
+
+		if len(strings.TrimSpace(string(output))) == 0 {
+			upgradeLog.Print("No changes to commit")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No changes to commit"))
+			return nil
+		}
+
+		// Pull latest changes from remote before committing (if remote exists)
+		upgradeLog.Print("Checking for remote repository")
+		checkRemoteCmd := exec.Command("git", "remote", "get-url", "origin")
+		if err := checkRemoteCmd.Run(); err == nil {
+			// Remote exists, pull changes
+			upgradeLog.Print("Pulling latest changes from remote")
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pulling latest changes from remote..."))
+			}
+			pullCmd := exec.Command("git", "pull", "--rebase")
+			if output, err := pullCmd.CombinedOutput(); err != nil {
+				upgradeLog.Printf("Failed to pull changes: %v, output: %s", err, string(output))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to pull changes: %v", err)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("You may need to manually resolve conflicts and push"))
+				return fmt.Errorf("failed to pull changes: %w", err)
+			}
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Pulled latest changes"))
+			}
+		} else {
+			upgradeLog.Print("No remote repository configured, skipping pull")
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No remote repository configured, skipping pull"))
+			}
+		}
+
+		// Stage all modified files
+		upgradeLog.Print("Staging all changes")
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Staging changes..."))
+		}
+		addCmd := exec.Command("git", "add", "-A")
+		if output, err := addCmd.CombinedOutput(); err != nil {
+			upgradeLog.Printf("Failed to stage changes: %v, output: %s", err, string(output))
+			return fmt.Errorf("failed to stage changes: %w", err)
+		}
+
+		// Commit the changes
+		upgradeLog.Print("Committing changes")
+		commitMessage := "chore: upgrade agentic workflows"
+		if err := commitChanges(commitMessage, verbose); err != nil {
+			upgradeLog.Printf("Failed to commit changes: %v", err)
+			return fmt.Errorf("failed to commit changes: %w", err)
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes committed"))
+		}
+
+		// Push the changes (only if remote exists)
+		upgradeLog.Print("Checking if remote repository exists for push")
+		checkRemoteCmd = exec.Command("git", "remote", "get-url", "origin")
+		if err := checkRemoteCmd.Run(); err == nil {
+			// Remote exists, push changes
+			upgradeLog.Print("Pushing changes to remote")
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pushing to remote..."))
+			}
+			pushCmd := exec.Command("git", "push")
+			if output, err := pushCmd.CombinedOutput(); err != nil {
+				upgradeLog.Printf("Failed to push changes: %v, output: %s", err, string(output))
+				return fmt.Errorf("failed to push changes: %w\nOutput: %s", err, string(output))
+			}
+
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes pushed to remote"))
+		} else {
+			upgradeLog.Print("No remote repository configured, skipping push")
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No remote repository configured, changes committed locally"))
+			}
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes committed locally (no remote configured)"))
+		}
+	}
 
 	return nil
 }
