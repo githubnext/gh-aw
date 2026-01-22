@@ -48,6 +48,8 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    env:
+      NODE_OPTIONS: --no-deprecation
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -93,6 +95,7 @@ jobs:
       GH_AW_SAFE_OUTPUTS: /opt/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /opt/gh-aw/safeoutputs/config.json
       GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /opt/gh-aw/safeoutputs/tools.json
+      NODE_OPTIONS: --no-deprecation
     outputs:
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
       model: ${{ steps.generate_aw_info.outputs.model }}
@@ -974,6 +977,8 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
+    env:
+      NODE_OPTIONS: --no-deprecation
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1085,6 +1090,8 @@ jobs:
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
+    env:
+      NODE_OPTIONS: --no-deprecation
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
     steps:
@@ -1311,6 +1318,7 @@ jobs:
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🍪 *Om nom nom by [{workflow_name}]({run_url})*\",\"runStarted\":\"🍪 ISSUE! ISSUE! [{workflow_name}]({run_url}) hungry for issues on this {event_type}! Om nom nom...\",\"runSuccess\":\"🍪 YUMMY! [{workflow_name}]({run_url}) ate the issues! That was DELICIOUS! Me want MORE! 😋\",\"runFailure\":\"🍪 Aww... [{workflow_name}]({run_url}) {status}. No cookie for monster today... 😢\"}"
       GH_AW_WORKFLOW_ID: "issue-monster"
       GH_AW_WORKFLOW_NAME: "Issue Monster"
+      NODE_OPTIONS: --no-deprecation
     outputs:
       assign_to_agent_assigned: ${{ steps.assign_to_agent.outputs.assigned }}
       assign_to_agent_assignment_error_count: ${{ steps.assign_to_agent.outputs.assignment_error_count }}

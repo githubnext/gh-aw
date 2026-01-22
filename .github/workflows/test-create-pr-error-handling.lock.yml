@@ -37,6 +37,8 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    env:
+      NODE_OPTIONS: --no-deprecation
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -78,6 +80,7 @@ jobs:
       GH_AW_SAFE_OUTPUTS: /opt/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /opt/gh-aw/safeoutputs/config.json
       GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /opt/gh-aw/safeoutputs/tools.json
+      NODE_OPTIONS: --no-deprecation
     outputs:
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
       model: ${{ steps.generate_aw_info.outputs.model }}
@@ -855,6 +858,8 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
+    env:
+      NODE_OPTIONS: --no-deprecation
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -962,6 +967,8 @@ jobs:
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
     timeout-minutes: 10
+    env:
+      NODE_OPTIONS: --no-deprecation
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
     steps:
@@ -1134,6 +1141,7 @@ jobs:
       GH_AW_ENGINE_ID: "claude"
       GH_AW_WORKFLOW_ID: "test-create-pr-error-handling"
       GH_AW_WORKFLOW_NAME: "Test Create PR Error Handling"
+      NODE_OPTIONS: --no-deprecation
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}

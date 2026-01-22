@@ -42,6 +42,8 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    env:
+      NODE_OPTIONS: --no-deprecation
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -78,6 +80,8 @@ jobs:
       pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
+    env:
+      NODE_OPTIONS: --no-deprecation
     outputs:
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
@@ -819,6 +823,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      NODE_OPTIONS: --no-deprecation
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1

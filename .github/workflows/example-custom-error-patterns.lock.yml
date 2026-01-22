@@ -40,6 +40,8 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    env:
+      NODE_OPTIONS: --no-deprecation
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -72,6 +74,8 @@ jobs:
       contents: read
       issues: read
       pull-requests: read
+    env:
+      NODE_OPTIONS: --no-deprecation
     outputs:
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}

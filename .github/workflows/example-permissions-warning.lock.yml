@@ -37,6 +37,8 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    env:
+      NODE_OPTIONS: --no-deprecation
     outputs:
       comment_id: ""
       comment_repo: ""
@@ -71,6 +73,8 @@ jobs:
       pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
+    env:
+      NODE_OPTIONS: --no-deprecation
     outputs:
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}

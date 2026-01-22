@@ -59,6 +59,8 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
+    env:
+      NODE_OPTIONS: --no-deprecation
     outputs:
       comment_id: ${{ steps.add-comment.outputs.comment-id }}
       comment_repo: ${{ steps.add-comment.outputs.comment-repo }}
@@ -123,6 +125,7 @@ jobs:
       GH_AW_SAFE_OUTPUTS: /opt/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /opt/gh-aw/safeoutputs/config.json
       GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /opt/gh-aw/safeoutputs/tools.json
+      NODE_OPTIONS: --no-deprecation
     outputs:
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
       model: ${{ steps.generate_aw_info.outputs.model }}
@@ -1066,6 +1069,8 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
+    env:
+      NODE_OPTIONS: --no-deprecation
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1197,6 +1202,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     timeout-minutes: 10
+    env:
+      NODE_OPTIONS: --no-deprecation
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
     steps:
@@ -1369,6 +1376,7 @@ jobs:
       GH_AW_ENGINE_MODEL: "gpt-5-mini"
       GH_AW_WORKFLOW_ID: "changeset"
       GH_AW_WORKFLOW_NAME: "Changeset Generator"
+      NODE_OPTIONS: --no-deprecation
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}

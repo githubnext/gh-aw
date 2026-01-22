@@ -433,6 +433,11 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID string) map[string]string {
 	envVars := make(map[string]string)
 
+	// Suppress Node.js deprecation warnings from npm dependencies
+	// These warnings (DEP0005 for Buffer(), DEP0040 for punycode) come from
+	// third-party packages and don't affect functionality
+	envVars["NODE_OPTIONS"] = "--no-deprecation"
+
 	// Set GH_AW_WORKFLOW_ID to the workflow ID (filename without extension)
 	// This is used for branch naming in create_pull_request and other operations
 	envVars["GH_AW_WORKFLOW_ID"] = fmt.Sprintf("%q", workflowID)

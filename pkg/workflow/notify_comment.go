@@ -336,11 +336,17 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		outputs["total_count"] = "${{ steps.missing_tool.outputs.total_count }}"
 	}
 
+	// Build environment variables for the conclusion job
+	env := make(map[string]string)
+	// Suppress Node.js deprecation warnings from npm dependencies
+	env["NODE_OPTIONS"] = "--no-deprecation"
+
 	job := &Job{
 		Name:        "conclusion",
 		If:          condition.Render(),
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite().RenderToYAML(),
+		Env:         env,
 		Steps:       steps,
 		Needs:       needs,
 		Outputs:     outputs,

@@ -584,6 +584,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		environment = fmt.Sprintf("environment: %s", cleanManualApproval)
 	}
 
+	// Build environment variables for the activation job
+	env := make(map[string]string)
+	// Suppress Node.js deprecation warnings from npm dependencies
+	env["NODE_OPTIONS"] = "--no-deprecation"
+
 	job := &Job{
 		Name:                       string(constants.ActivationJobName),
 		If:                         activationCondition,
@@ -591,6 +596,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		RunsOn:                     c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:                permissions,
 		Environment:                environment,
+		Env:                        env,
 		Steps:                      steps,
 		Outputs:                    outputs,
 		Needs:                      activationNeeds, // Depend on pre-activation job if it exists
@@ -716,11 +722,17 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		outputs["has_patch"] = "${{ steps.collect_output.outputs.has_patch }}"
 	}
 
-	// Build job-level environment variables for safe outputs
-	var env map[string]string
-	if data.SafeOutputs != nil {
-		env = make(map[string]string)
+	// Build job-level environment variables
+	// Always initialize env map to ensure NODE_OPTIONS is set
+	env := make(map[string]string)
 
+	// Suppress Node.js deprecation warnings from npm dependencies
+	// These warnings (DEP0005 for Buffer(), DEP0040 for punycode) come from
+	// third-party packages like Claude Code CLI and don't affect functionality
+	env["NODE_OPTIONS"] = "--no-deprecation"
+
+	// Add safe outputs environment variables if configured
+	if data.SafeOutputs != nil {
 		// Set GH_AW_SAFE_OUTPUTS to path in /opt (read-only mount for agent container)
 		// The MCP server writes agent outputs to this file during execution
 		// This file is in /opt to prevent the agent container from having write access

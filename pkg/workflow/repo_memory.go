@@ -657,12 +657,18 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		jobCondition = "always() && needs.detection.outputs.success == 'true'"
 	}
 
+	// Build environment variables for the push_repo_memory job
+	env := make(map[string]string)
+	// Suppress Node.js deprecation warnings from npm dependencies
+	env["NODE_OPTIONS"] = "--no-deprecation"
+
 	job := &Job{
 		Name:        "push_repo_memory",
 		DisplayName: "", // No display name - job ID is sufficient
 		RunsOn:      "runs-on: ubuntu-latest",
 		If:          jobCondition,
 		Permissions: "permissions:\n      contents: write",
+		Env:         env,
 		Needs:       []string{"agent"}, // Detection dependency added by caller if needed
 		Steps:       steps,
 	}

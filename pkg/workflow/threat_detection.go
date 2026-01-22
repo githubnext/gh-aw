@@ -128,6 +128,11 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 	)
 	condition := BuildDisjunction(false, hasOutputTypes, hasPatch)
 
+	// Build environment variables for the detection job
+	env := make(map[string]string)
+	// Suppress Node.js deprecation warnings from npm dependencies
+	env["NODE_OPTIONS"] = "--no-deprecation"
+
 	job := &Job{
 		Name:           string(constants.DetectionJobName),
 		If:             condition.Render(),
@@ -135,6 +140,7 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 		Permissions:    NewPermissionsEmpty().RenderToYAML(),
 		Concurrency:    c.indentYAMLLines(agentConcurrency, "    "),
 		TimeoutMinutes: 10,
+		Env:            env,
 		Steps:          steps,
 		Needs:          []string{mainJobName},
 		Outputs: map[string]string{
