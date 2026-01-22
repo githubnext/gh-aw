@@ -22,6 +22,10 @@ permissions:
 
 network: defaults
 
+engine:
+  id: copilot
+  model: gpt-5-mini
+
 safe-outputs:
   create-issue:
     title-prefix: "[CI Failure Doctor] "
