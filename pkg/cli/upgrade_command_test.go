@@ -433,7 +433,7 @@ This workflow is already up to date.
 		exec.Command("git", "commit", "-m", "Add agent files").Run()
 	}
 
-	// Run upgrade command with --push (should succeed but not create a new commit)
+	// Run upgrade command with --push (should fail because no remote is configured)
 	config := UpgradeConfig{
 		Verbose:     false,
 		NoFix:       true, // Skip codemods to avoid changes
@@ -442,6 +442,7 @@ This workflow is already up to date.
 	}
 
 	err = RunUpgrade(config)
-	// Should succeed even if no changes to commit
-	require.NoError(t, err, "Upgrade with --push should succeed when working directory is clean")
+	// Should fail because no remote is configured
+	require.Error(t, err, "Upgrade with --push should fail when no remote is configured")
+	assert.Contains(t, err.Error(), "--push requires a remote repository to be configured")
 }
