@@ -34,6 +34,7 @@ func NewUpgradeCommand() *cobra.Command {
 This command:
   1. Updates all agent and prompt files to the latest templates (like 'init' command)
   2. Applies automatic codemods to fix deprecated fields in all workflows (like 'fix --write')
+  3. Compiles all workflows to generate lock files (like 'compile' command)
 
 The upgrade process ensures:
 - GitHub Copilot instructions are up-to-date (.github/aw/github-agentic-workflows.md)
@@ -41,16 +42,14 @@ The upgrade process ensures:
 - All workflow prompts are updated (create, update, debug, upgrade)
 - All workflows use the latest syntax and configuration options
 - Deprecated fields are automatically migrated across all workflows
+- All workflows are compiled and lock files are up-to-date
 
 This command always upgrades all Markdown files in .github/workflows.
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` upgrade                    # Upgrade all workflows
-  ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-fix          # Update agent files only (skip codemods)
-  ` + string(constants.CLIExtensionPrefix) + ` upgrade --dir custom/workflows  # Upgrade workflows in custom directory
-
-After upgrading, compile workflows manually with:
-  ` + string(constants.CLIExtensionPrefix) + ` compile`,
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-fix          # Update agent files only (skip codemods and compilation)
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --dir custom/workflows  # Upgrade workflows in custom directory`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -62,7 +61,7 @@ After upgrading, compile workflows manually with:
 	}
 
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
-	cmd.Flags().Bool("no-fix", false, "Skip applying codemods to workflows (only update agent files)")
+	cmd.Flags().Bool("no-fix", false, "Skip applying codemods and compiling workflows (only update agent files)")
 
 	// Register completions
 	RegisterDirFlagCompletion(cmd, "dir")
@@ -112,12 +111,43 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 		}
 	}
 
-	// Step 3: Compile workflows (only if explicitly requested - compilation is optional)
-	// Skipping compilation by default avoids issues when workflows might have other errors
-	if !noCompile && !noFix {
-		upgradeLog.Print("Skipping compilation (can be enabled with future --compile flag)")
-		// Note: We skip compilation by default to avoid crashing on workflows that might have
-		// validation errors. Users can compile manually after upgrade with: gh aw compile
+	// Step 3: Compile all workflows (unless --no-fix is specified)
+	if !noFix {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling all workflows..."))
+		upgradeLog.Print("Compiling all workflows")
+
+		// Create and configure compiler
+		compiler := createAndConfigureCompiler(CompileConfig{
+			Verbose:     verbose,
+			WorkflowDir: workflowDir,
+		})
+
+		// Determine workflow directory
+		workflowsDir := workflowDir
+		if workflowsDir == "" {
+			workflowsDir = ".github/workflows"
+		}
+
+		// Compile all workflow files
+		stats, compileErr := compileAllWorkflowFiles(compiler, workflowsDir, verbose)
+		if compileErr != nil {
+			upgradeLog.Printf("Failed to compile workflows: %v", compileErr)
+			// Don't fail the upgrade if compilation fails - this is non-critical
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to compile workflows: %v", compileErr)))
+		} else if stats != nil {
+			// Print compilation summary
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Compiled %d workflow(s)", stats.Total-stats.Errors)))
+			}
+			if stats.Errors > 0 {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: %d workflow(s) failed to compile", stats.Errors)))
+			}
+		}
+	} else {
+		upgradeLog.Print("Skipping compilation (--no-fix specified)")
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping compilation (--no-fix specified)"))
+		}
 	}
 
 	// Print success message
