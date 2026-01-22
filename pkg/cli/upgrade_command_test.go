@@ -222,3 +222,107 @@ func TestUpgradeCommand_NonGitRepo(t *testing.T) {
 	require.Error(t, err, "Upgrade should fail in non-git repository")
 	assert.Contains(t, strings.ToLower(err.Error()), "git", "Error message should mention git")
 }
+
+func TestUpgradeCommand_CompilesWorkflows(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+
+	// Initialize git repository
+	os.Chdir(tmpDir)
+	exec.Command("git", "init").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "config", "user.name", "Test User").Run()
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a simple workflow that should compile successfully
+	workflowFile := filepath.Join(workflowsDir, "test-workflow.md")
+	content := `---
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This is a test workflow that should be compiled during upgrade.
+`
+	err = os.WriteFile(workflowFile, []byte(content), 0644)
+	require.NoError(t, err, "Failed to create test workflow file")
+
+	// Run upgrade command (should compile workflows)
+	config := UpgradeConfig{
+		Verbose:     false,
+		NoFix:       false, // Apply codemods and compile
+		WorkflowDir: "",
+	}
+
+	err = RunUpgrade(config)
+	require.NoError(t, err, "Upgrade command should succeed")
+
+	// Verify that the lock file was created
+	lockFile := filepath.Join(workflowsDir, "test-workflow.lock.yml")
+	assert.FileExists(t, lockFile, "Lock file should be created after upgrade")
+
+	// Read lock file content and verify it's valid YAML
+	lockContent, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Failed to read lock file")
+	assert.NotEmpty(t, lockContent, "Lock file should not be empty")
+	assert.Contains(t, string(lockContent), "name:", "Lock file should contain workflow name")
+}
+
+func TestUpgradeCommand_NoFixSkipsCompilation(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+
+	// Initialize git repository
+	os.Chdir(tmpDir)
+	exec.Command("git", "init").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "config", "user.name", "Test User").Run()
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a simple workflow
+	workflowFile := filepath.Join(workflowsDir, "test-workflow.md")
+	content := `---
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This workflow should not be compiled with --no-fix.
+`
+	err = os.WriteFile(workflowFile, []byte(content), 0644)
+	require.NoError(t, err, "Failed to create test workflow file")
+
+	// Run upgrade command with --no-fix
+	config := UpgradeConfig{
+		Verbose:     false,
+		NoFix:       true, // Skip codemods and compilation
+		WorkflowDir: "",
+	}
+
+	err = RunUpgrade(config)
+	require.NoError(t, err, "Upgrade command should succeed")
+
+	// Verify that the lock file was NOT created
+	lockFile := filepath.Join(workflowsDir, "test-workflow.lock.yml")
+	assert.NoFileExists(t, lockFile, "Lock file should not be created with --no-fix")
+}

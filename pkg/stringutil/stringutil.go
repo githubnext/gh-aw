@@ -4,6 +4,7 @@ package stringutil
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -56,6 +57,30 @@ func ParseVersionValue(version any) string {
 	default:
 		return ""
 	}
+}
+
+// IsPositiveInteger checks if a string is a positive integer.
+// Returns true for strings like "1", "123", "999" but false for:
+//   - Zero ("0")
+//   - Negative numbers ("-5")
+//   - Numbers with leading zeros ("007")
+//   - Floating point numbers ("3.14")
+//   - Non-numeric strings ("abc")
+//   - Empty strings ("")
+func IsPositiveInteger(s string) bool {
+	// Must not be empty
+	if s == "" {
+		return false
+	}
+
+	// Must not have leading zeros (except "0" itself, but that's not positive)
+	if len(s) > 1 && s[0] == '0' {
+		return false
+	}
+
+	// Must be numeric and > 0
+	num, err := strconv.ParseInt(s, 10, 64)
+	return err == nil && num > 0
 }
 
 // ansiEscapePattern matches ANSI escape sequences
