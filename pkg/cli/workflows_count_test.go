@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestWorkflowCounting tests that user and internal workflows are counted correctly
@@ -16,12 +17,12 @@ func TestWorkflowCounting(t *testing.T) {
 
 	// Save current directory
 	originalDir, err := os.Getwd()
-	assert.NoError(t, err, "Should get current directory")
+	require.NoError(t, err, "Should get current directory")
 
 	// Change to repository root
 	repoRoot := filepath.Join(originalDir, "..", "..")
 	err = os.Chdir(repoRoot)
-	assert.NoError(t, err, "Should change to repository root")
+	require.NoError(t, err, "Should change to repository root")
 	defer os.Chdir(originalDir)
 
 	// Get markdown workflow files (simulating what fetchGitHubWorkflows does)
