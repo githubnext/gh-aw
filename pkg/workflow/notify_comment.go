@@ -152,6 +152,12 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.%s.outputs.secret_verification_result }}\n", mainJobName))
 
+	// Pass assignment error outputs from safe_outputs job if assign-to-agent is configured
+	if data.SafeOutputs != nil && data.SafeOutputs.AssignToAgent != nil {
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_ASSIGNMENT_ERRORS: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_errors }}\n")
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_ASSIGNMENT_ERROR_COUNT: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_error_count }}\n")
+	}
+
 	// Pass custom messages config if present
 	if data.SafeOutputs != nil && data.SafeOutputs.Messages != nil {
 		messagesJSON, err := serializeMessagesConfig(data.SafeOutputs.Messages)
