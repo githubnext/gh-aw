@@ -583,7 +583,7 @@ When developing a new command:
 
 **Primary YAML Library**: `goccy/go-yaml` v1.19.1
 
-gh-aw uses `goccy/go-yaml` for YAML 1.1/1.2 compatibility with GitHub Actions. See <a>specs/yaml-version-gotchas.md</a> for details on YAML version differences.
+gh-aw uses `goccy/go-yaml` for YAML 1.1/1.2 compatibility with GitHub Actions. See [specs/yaml-version-gotchas.md](specs/yaml-version-gotchas.md) for details on YAML version differences.
 
 **Standard YAML Library**: `go.yaml.in/yaml/v3` v3.0.4
 
@@ -724,7 +724,7 @@ func ValidatePermissions(permissions *Permissions, githubTool any)
 - Large "god" interfaces with many methods
 - Type name collisions (use descriptive, domain-qualified names)
 
-**See**: <a>specs/go-type-patterns.md</a> for detailed guidance and examples
+**See**: [specs/go-type-patterns.md](specs/go-type-patterns.md) for detailed guidance and examples
 
 ### Frontmatter Configuration Types
 
