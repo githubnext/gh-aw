@@ -36,6 +36,16 @@ Upgrade the `gh-aw` extension to get the latest features and codemods:
 gh extension upgrade gh-aw
 ```
 
+> [!TIP]
+> Working in GitHub Codespaces?
+>
+> If the extension upgrade fails due to restricted permissions that prevent global npm installs, use the standalone installer instead:
+>
+> ```bash wrap
+> curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
+> ```
+>
+
 Check your version with `gh aw version` and compare against the [latest release](https://github.com/githubnext/gh-aw/releases). If you encounter issues, try a clean reinstall with `gh extension remove gh-aw` followed by `gh extension install githubnext/gh-aw`.
 
 ## Step 2: Backup Your Workflows
