@@ -336,6 +336,34 @@ func TestBuildOrchestrator_GovernanceOverridesSafeOutputMaxima(t *testing.T) {
 	})
 }
 
+func TestBuildOrchestrator_AppendOnlyCommentsEnabled(t *testing.T) {
+	withTempGitRepoWithInstalledCampaignPrompts(t, func(_ string) {
+		spec := &CampaignSpec{
+			ID:         "test-campaign",
+			Name:       "Test Campaign",
+			ProjectURL: "https://github.com/orgs/test/projects/1",
+			Workflows:  []string{"test-workflow"},
+		}
+
+		mdPath := ".github/workflows/test-campaign.campaign.md"
+		data, _ := BuildOrchestrator(spec, mdPath)
+		if data == nil {
+			t.Fatalf("expected non-nil WorkflowData")
+		}
+
+		// Verify that Messages configuration is present
+		if data.SafeOutputs == nil || data.SafeOutputs.Messages == nil {
+			t.Fatalf("expected SafeOutputs.Messages to be configured")
+		}
+
+		// Verify that AppendOnlyComments is enabled for campaigns
+		// This ensures campaign run updates create new comments instead of updating existing ones
+		if !data.SafeOutputs.Messages.AppendOnlyComments {
+			t.Errorf("expected AppendOnlyComments to be true for campaign orchestrator, got false")
+		}
+	})
+}
+
 func TestExtractFileGlobPatterns(t *testing.T) {
 	tests := []struct {
 		name           string
