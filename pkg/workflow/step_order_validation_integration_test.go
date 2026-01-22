@@ -169,9 +169,9 @@ This workflow uploads artifacts.
 
 	contentStr := string(content)
 
-	// Verify common upload paths are present and under /tmp/gh-aw/
+	// Verify common upload paths are present and under /tmp/gh-aw/ or /opt/gh-aw/
 	uploadPaths := []string{
-		"/tmp/gh-aw/safeoutputs/outputs.jsonl",
+		"/opt/gh-aw/safeoutputs/outputs.jsonl",
 		"/tmp/gh-aw/agent-stdio.log",
 		"/tmp/gh-aw/mcp-logs/",
 	}
