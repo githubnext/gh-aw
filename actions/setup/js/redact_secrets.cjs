@@ -63,6 +63,13 @@ const BUILT_IN_PATTERNS = [
 
   // AWS tokens
   { name: "AWS Access Key ID", pattern: /AKIA[0-9A-Z]{16}/g },
+
+  // OpenAI tokens
+  { name: "OpenAI API Key", pattern: /sk-[a-zA-Z0-9]{48}/g },
+  { name: "OpenAI Project API Key", pattern: /sk-proj-[a-zA-Z0-9]{48,64}/g },
+
+  // Anthropic tokens
+  { name: "Anthropic API Key", pattern: /sk-ant-api03-[a-zA-Z0-9_-]{95}/g },
 ];
 
 /**

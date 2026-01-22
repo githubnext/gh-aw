@@ -291,6 +291,46 @@ describe("redact_secrets.cjs", () => {
         });
       });
 
+      describe("OpenAI tokens", () => {
+        it("should redact OpenAI API Key", async () => {
+          const testFile = path.join(tempDir, "test.txt");
+          const openaiKey = "sk-" + "0".repeat(48);
+          fs.writeFileSync(testFile, `OpenAI Key: ${openaiKey}`);
+          process.env.GH_AW_SECRET_NAMES = "";
+          const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
+          await eval(`(async () => { ${modifiedScript}; await main(); })()`);
+          const redacted = fs.readFileSync(testFile, "utf8");
+          expect(redacted).toBe("OpenAI Key: sk-************************************************");
+          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("OpenAI API Key"));
+        });
+
+        it("should redact OpenAI Project API Key", async () => {
+          const testFile = path.join(tempDir, "test.txt");
+          const openaiProjectKey = "sk-proj-" + "A".repeat(55);
+          fs.writeFileSync(testFile, `OpenAI Project Key: ${openaiProjectKey}`);
+          process.env.GH_AW_SECRET_NAMES = "";
+          const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
+          await eval(`(async () => { ${modifiedScript}; await main(); })()`);
+          const redacted = fs.readFileSync(testFile, "utf8");
+          expect(redacted).toBe("OpenAI Project Key: sk-************************************************************");
+          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("OpenAI Project API Key"));
+        });
+      });
+
+      describe("Anthropic tokens", () => {
+        it("should redact Anthropic API Key", async () => {
+          const testFile = path.join(tempDir, "test.txt");
+          const anthropicKey = "sk-ant-api03-" + "B".repeat(95);
+          fs.writeFileSync(testFile, `Anthropic Key: ${anthropicKey}`);
+          process.env.GH_AW_SECRET_NAMES = "";
+          const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
+          await eval(`(async () => { ${modifiedScript}; await main(); })()`);
+          const redacted = fs.readFileSync(testFile, "utf8");
+          expect(redacted).toBe("Anthropic Key: sk-*********************************************************************************************************");
+          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Anthropic API Key"));
+        });
+      });
+
       describe("combined built-in and custom secrets", () => {
         it("should redact both built-in patterns and custom secrets", async () => {
           const testFile = path.join(tempDir, "test.txt");
