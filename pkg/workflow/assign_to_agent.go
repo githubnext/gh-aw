@@ -10,8 +10,9 @@ var assignToAgentLog = logger.New("workflow:assign_to_agent")
 type AssignToAgentConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
-	DefaultAgent           string   `yaml:"name,omitempty"`    // Default agent to assign (e.g., "copilot")
-	Allowed                []string `yaml:"allowed,omitempty"` // Optional list of allowed agent names. If omitted, any agents are allowed.
+	DefaultAgent           string   `yaml:"name,omitempty"`              // Default agent to assign (e.g., "copilot")
+	Allowed                []string `yaml:"allowed,omitempty"`           // Optional list of allowed agent names. If omitted, any agents are allowed.
+	IgnoreIfMissing        bool     `yaml:"ignore-if-missing,omitempty"` // If true, workflow continues when agent token is not available
 }
 
 // parseAssignToAgentConfig handles assign-to-agent configuration

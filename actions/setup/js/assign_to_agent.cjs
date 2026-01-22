@@ -50,6 +50,12 @@ async function main() {
   const targetConfig = process.env.GH_AW_AGENT_TARGET?.trim() || "triggering";
   core.info(`Target configuration: ${targetConfig}`);
 
+  // Get ignore-if-missing flag (defaults to false)
+  const ignoreIfMissing = process.env.GH_AW_AGENT_IGNORE_IF_MISSING === "true";
+  if (ignoreIfMissing) {
+    core.info("Ignore-if-missing mode enabled: Will not fail if agent token is unavailable");
+  }
+
   // Get allowed agents list (comma-separated)
   const allowedAgentsEnv = process.env.GH_AW_AGENT_ALLOWED?.trim();
   const allowedAgents = allowedAgentsEnv
@@ -264,6 +270,29 @@ async function main() {
       });
     } catch (error) {
       let errorMessage = getErrorMessage(error);
+
+      // Check if this is a token authentication error
+      const isAuthError =
+        errorMessage.includes("Bad credentials") ||
+        errorMessage.includes("Not Authenticated") ||
+        errorMessage.includes("Resource not accessible") ||
+        errorMessage.includes("Insufficient permissions") ||
+        errorMessage.includes("requires authentication");
+
+      // If ignore-if-missing is enabled and this is an auth error, log warning and skip
+      if (ignoreIfMissing && isAuthError) {
+        core.warning(`Agent token not available or insufficient permissions for assigning ${agentName} to ${type} #${number}. Skipping due to ignore-if-missing=true.`);
+        core.info(`Error details: ${errorMessage}`);
+        results.push({
+          issue_number: issueNumber,
+          pull_number: pullNumber,
+          agent: agentName,
+          success: true, // Treat as success when ignored
+          skipped: true,
+        });
+        continue;
+      }
+
       if (errorMessage.includes("coding agent is not available for this repository")) {
         // Enrich with available agent logins to aid troubleshooting - uses built-in github object
         try {
@@ -287,15 +316,16 @@ async function main() {
   }
 
   // Generate step summary
-  const successCount = results.filter(r => r.success).length;
-  const failureCount = results.length - successCount;
+  const successCount = results.filter(r => r.success && !r.skipped).length;
+  const skippedCount = results.filter(r => r.skipped).length;
+  const failureCount = results.length - successCount - skippedCount;
 
   let summaryContent = "## Agent Assignment\n\n";
 
   if (successCount > 0) {
     summaryContent += `✅ Successfully assigned ${successCount} agent(s):\n\n`;
     summaryContent += results
-      .filter(r => r.success)
+      .filter(r => r.success && !r.skipped)
       .map(r => {
         const itemType = r.issue_number ? `Issue #${r.issue_number}` : `Pull Request #${r.pull_number}`;
         return `- ${itemType} → Agent: ${r.agent}`;
@@ -304,10 +334,22 @@ async function main() {
     summaryContent += "\n\n";
   }
 
+  if (skippedCount > 0) {
+    summaryContent += `⏭️ Skipped ${skippedCount} agent assignment(s) (ignore-if-missing enabled):\n\n`;
+    summaryContent += results
+      .filter(r => r.skipped)
+      .map(r => {
+        const itemType = r.issue_number ? `Issue #${r.issue_number}` : `Pull Request #${r.pull_number}`;
+        return `- ${itemType} → Agent: ${r.agent} (agent token not available)`;
+      })
+      .join("\n");
+    summaryContent += "\n\n";
+  }
+
   if (failureCount > 0) {
     summaryContent += `❌ Failed to assign ${failureCount} agent(s):\n\n`;
     summaryContent += results
-      .filter(r => !r.success)
+      .filter(r => !r.success && !r.skipped)
       .map(r => {
         const itemType = r.issue_number ? `Issue #${r.issue_number}` : `Pull Request #${r.pull_number}`;
         return `- ${itemType} → Agent: ${r.agent}: ${r.error}`;
@@ -315,7 +357,7 @@ async function main() {
       .join("\n");
 
     // Check if any failures were permission-related
-    const hasPermissionError = results.some(r => (!r.success && r.error?.includes("Resource not accessible")) || r.error?.includes("Insufficient permissions"));
+    const hasPermissionError = results.some(r => (!r.success && !r.skipped && r.error?.includes("Resource not accessible")) || r.error?.includes("Insufficient permissions"));
 
     if (hasPermissionError) {
       summaryContent += generatePermissionErrorSummary();
@@ -326,7 +368,7 @@ async function main() {
 
   // Set outputs
   const assignedAgents = results
-    .filter(r => r.success)
+    .filter(r => r.success && !r.skipped)
     .map(r => {
       const number = r.issue_number || r.pull_number;
       const prefix = r.issue_number ? "issue" : "pr";
@@ -337,7 +379,7 @@ async function main() {
 
   // Set assignment error output for failed assignments
   const assignmentErrors = results
-    .filter(r => !r.success)
+    .filter(r => !r.success && !r.skipped)
     .map(r => {
       const number = r.issue_number || r.pull_number;
       const prefix = r.issue_number ? "issue" : "pr";
@@ -347,7 +389,7 @@ async function main() {
   core.setOutput("assignment_errors", assignmentErrors);
   core.setOutput("assignment_error_count", failureCount.toString());
 
-  // Fail if any assignments failed
+  // Fail if any assignments failed (but not if they were skipped)
   if (failureCount > 0) {
     core.setFailed(`Failed to assign ${failureCount} agent(s)`);
   }

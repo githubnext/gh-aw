@@ -38,6 +38,11 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_ALLOWED: %q\n", allowedStr))
 	}
 
+	// Add ignore-if-missing flag if set
+	if cfg.IgnoreIfMissing {
+		customEnvVars = append(customEnvVars, "          GH_AW_AGENT_IGNORE_IF_MISSING: \"true\"\n")
+	}
+
 	condition := BuildSafeOutputType("assign_to_agent")
 
 	return SafeOutputStepConfig{

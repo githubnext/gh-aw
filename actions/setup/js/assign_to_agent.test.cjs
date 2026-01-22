@@ -43,6 +43,10 @@ describe("assign_to_agent", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Reset mockGithub.graphql to ensure no lingering mock implementations
+    mockGithub.graphql = vi.fn();
+
     delete process.env.GH_AW_AGENT_OUTPUT;
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
     delete process.env.GH_AW_AGENT_DEFAULT;
@@ -50,6 +54,7 @@ describe("assign_to_agent", () => {
     delete process.env.GH_AW_AGENT_TARGET;
     delete process.env.GH_AW_AGENT_ALLOWED;
     delete process.env.GH_AW_TARGET_REPO;
+    delete process.env.GH_AW_AGENT_IGNORE_IF_MISSING;
 
     // Reset context to default
     mockContext.eventName = "issues";
@@ -805,5 +810,116 @@ describe("assign_to_agent", () => {
     expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Allowed agents:"));
     expect(mockCore.error).not.toHaveBeenCalled();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("should skip assignment and not fail when ignore-if-missing is true and token is missing", async () => {
+    process.env.GH_AW_AGENT_IGNORE_IF_MISSING = "true";
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    // Simulate authentication error - use mockRejectedValueOnce to avoid affecting other tests
+    const authError = new Error("Bad credentials");
+    mockGithub.graphql.mockRejectedValueOnce(authError);
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // Should log that ignore-if-missing is enabled
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Ignore-if-missing mode enabled"));
+
+    // Should warn about skipping but not fail
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Agent token not available"));
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("ignore-if-missing=true"));
+
+    // Should not fail the workflow
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+    // Summary should show skipped assignments
+    expect(mockCore.summary.addRaw).toHaveBeenCalled();
+    const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summaryCall).toContain("⏭️ Skipped");
+    expect(summaryCall).toContain("agent token not available");
+  });
+
+  it("should fail when ignore-if-missing is false (default) and token is missing", async () => {
+    // Don't set GH_AW_AGENT_IGNORE_IF_MISSING (defaults to false)
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    // Simulate authentication error
+    const authError = new Error("Bad credentials");
+    mockGithub.graphql.mockRejectedValue(authError);
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // Should NOT log ignore-if-missing mode
+    expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Ignore-if-missing mode enabled"));
+
+    // Should error and fail
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to assign agent"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to assign 1 agent(s)"));
+  });
+
+  it("should handle ignore-if-missing with 'Resource not accessible' error", async () => {
+    process.env.GH_AW_AGENT_IGNORE_IF_MISSING = "true";
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    // Simulate permission error
+    const permError = new Error("Resource not accessible by integration");
+    mockGithub.graphql.mockRejectedValue(permError);
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // Should skip and not fail
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Agent token not available"));
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("should still fail on non-auth errors even with ignore-if-missing enabled", async () => {
+    process.env.GH_AW_AGENT_IGNORE_IF_MISSING = "true";
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    // Simulate a different error (not auth-related)
+    const otherError = new Error("Network timeout");
+    mockGithub.graphql.mockRejectedValue(otherError);
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // Should error and fail (not skipped because it's not an auth error)
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to assign agent"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to assign 1 agent(s)"));
   });
 });
