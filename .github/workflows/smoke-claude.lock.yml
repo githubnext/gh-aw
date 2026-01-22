@@ -670,15 +670,75 @@ jobs:
           LIMIT="${INPUT_LIMIT:-30}"
           JQ_FILTER="${INPUT_JQ:-}"
           
-          # JSON fields to fetch
-          JSON_FIELDS="number,title,author,createdAt,updatedAt,body,category,labels,comments,answer,url"
-          
-          # Build and execute gh command
+          # Parse repository owner and name
           if [[ -n "$REPO" ]]; then
-            OUTPUT=$(gh discussion list --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
+            OWNER=$(echo "$REPO" | cut -d'/' -f1)
+            NAME=$(echo "$REPO" | cut -d'/' -f2)
           else
-            OUTPUT=$(gh discussion list --limit "$LIMIT" --json "$JSON_FIELDS")
+            # Get current repository from GitHub context
+            OWNER="${GITHUB_REPOSITORY_OWNER:-}"
+            NAME=$(echo "${GITHUB_REPOSITORY:-}" | cut -d'/' -f2)
           fi
+          
+          # Validate owner and name
+          if [[ -z "$OWNER" || -z "$NAME" ]]; then
+            echo "Error: Could not determine repository owner and name" >&2
+            exit 1
+          fi
+          
+          # Build GraphQL query for discussions
+          GRAPHQL_QUERY=$(cat <<QUERY
+          {
+            repository(owner: "$OWNER", name: "$NAME") {
+              discussions(first: $LIMIT, orderBy: {field: CREATED_AT, direction: DESC}) {
+                nodes {
+                  number
+                  title
+                  author {
+                    login
+                  }
+                  createdAt
+                  updatedAt
+                  body
+                  category {
+                    name
+                  }
+                  labels(first: 10) {
+                    nodes {
+                      name
+                    }
+                  }
+                  comments {
+                    totalCount
+                  }
+                  answer {
+                    id
+                  }
+                  url
+                }
+              }
+            }
+          }
+          QUERY
+          )
+          
+          # Execute GraphQL query via gh api
+          GRAPHQL_OUTPUT=$(gh api graphql -f query="$GRAPHQL_QUERY")
+          
+          # Transform GraphQL output to match gh discussion list format
+          OUTPUT=$(echo "$GRAPHQL_OUTPUT" | jq '[.data.repository.discussions.nodes[] | {
+            number: .number,
+            title: .title,
+            author: .author,
+            createdAt: .createdAt,
+            updatedAt: .updatedAt,
+            body: .body,
+            category: .category,
+            labels: .labels.nodes,
+            comments: .comments,
+            answer: .answer,
+            url: .url
+          }]')
           
           # Apply jq filter if specified
           if [[ -n "$JQ_FILTER" ]]; then
