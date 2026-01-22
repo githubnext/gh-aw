@@ -69,7 +69,6 @@ type FrontmatterConfig struct {
 	Runtimes         map[string]any     `json:"runtimes,omitempty"`    // Deprecated: use RuntimesTyped
 	Jobs             map[string]any     `json:"jobs,omitempty"`        // Custom workflow jobs (too dynamic to type)
 	SafeOutputs      *SafeOutputsConfig `json:"safe-outputs,omitempty"`
-	SafeJobs         map[string]any     `json:"safe-jobs,omitempty"` // Deprecated, use SafeOutputs.Jobs
 	SafeInputs       *SafeInputsConfig  `json:"safe-inputs,omitempty"`
 	PermissionsTyped *PermissionsConfig `json:"-"` // New typed field (not in JSON to avoid conflict)
 
@@ -434,9 +433,6 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	if fc.SafeOutputs != nil {
 		// Convert SafeOutputsConfig to map - would need a ToMap method
 		result["safe-outputs"] = fc.SafeOutputs
-	}
-	if fc.SafeJobs != nil {
-		result["safe-jobs"] = fc.SafeJobs
 	}
 	if fc.SafeInputs != nil {
 		// Convert SafeInputsConfig to map - would need a ToMap method
