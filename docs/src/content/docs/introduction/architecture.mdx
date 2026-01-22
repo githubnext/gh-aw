@@ -1,17 +1,55 @@
 ---
 title: Security Architecture
-description: Comprehensive security architecture overview for GitHub Agentic Workflows, including defense-in-depth mechanisms against prompt injection, rogue MCP servers, and malicious agents.
+description: Comprehensive security architecture overview for GitHub Agentic Workflows, including defense-in-depth mechanisms against rogue MCP servers and malicious agents.
 sidebar:
   order: 3
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 
-GitHub Agentic Workflows implements a defense-in-depth security architecture that protects against prompt injection, rogue Model Context Protocol (MCP) servers, and malicious agents. This document provides visual diagrams of the key security mechanisms.
+GitHub Agentic Workflows implements a defense-in-depth security architecture that protects against untrusted Model Context Protocol (MCP) servers and compromised agents. This document provides an overview of our security model and visual diagrams of the key components.
 
-## Overview
+## Security Model
 
-The security architecture operates across multiple layers: compilation-time validation, runtime isolation, permission separation, network controls, and output sanitization.
+Agentic Workflows (AW) adopts a layered approach that combines substrate-enforced isolation, declarative specification, and staged execution. Each layer enforces distinct security properties under different assumptions and constrains the impact of failures above it.
+
+### Threat Model
+
+We consider an adversary that may compromise untrusted user-level components, e.g., containers, and may cause them to behave arbitrarily within the privileges granted to them. The adversary may attempt to:
+
+- Access or corrupt the memory or state of other components
+- Communicate over unintended channels
+- Abuse legitimate channels to perform unintended actions
+- Confuse higher-level control logic by deviating from expected workflows
+
+We assume the adversary does not compromise the underlying hardware or cryptographic primitives. Attacks exploiting side channels and covert channels are also out of scope.
+
+---
+
+### Layer 1: Substrate-Level Trust
+
+AWs run on a GitHub Actions runner virtual machine (VM) and trust Actions' hardware and kernel-level enforcement mechanisms, including the CPU, MMU, kernel, and container runtime. AW also relies on two privileged containers: (1) a network firewall that is trusted to configure connectivity for other components via `iptables`, and (2) an MCP Gateway that is trusted to configure and spawn isolated containers, e.g., local MCP servers. Collectively, the substrate level ensures memory isolation between components, CPU and resource isolation, mediation of privileged operations and system calls, and explicit, kernel-enforced communication boundaries. These guarantees hold even if an untrusted user-level component is fully compromised and executes arbitrary code. Trust violations at the substrate level require vulnerabilities in the firewall, MCP Gateway, container runtime, kernel, hypervisor, or hardware. If this layer fails, higher-level security guarantees may not hold.
+
+---
+
+### Layer 2: Configuration-Level Trust
+
+AW trusts declarative configuration artifacts, e.g., Action steps, network-firewall policies, MCP server configurations, and the toolchains that interpret them to correctly instantiate system structure and connectivity. The configuration level constrains which components are loaded, how components are connected, which communication channels are permitted, and what component privileges are assigned. Externally minted authentication tokens, e.g., agent API keys and GitHub access tokens, are a critical configuration input and are treated as imported capabilities that bound components' external effects; declarative configuration controls their distribution, e.g., which tokens are loaded into which containers. Security violations arise due to misconfigurations, overly permissive specifications, and limitations of the declarative model. This layer defines what components exist and how they communicate, but it does not constrain how components use those channels over time.
+
+---
+
+### Layer 3: Plan-Level Trust
+
+AW additionally relies on plan-level trust to constrain component behavior over time. At this layer, the trusted compiler decomposes a workflow into stages. For each stage, the plan specifies (1) which components are active and their permissions, (2) the data produced by the stage, and (3) how that data may be consumed by subsequent stages. In particular, plan-level trust ensures that important external side effects are explicit and undergo thorough vetting.
+
+A primary instantiation of plan-level trust is the **SafeOutputs** subsystem. SafeOutputs is a set of trusted components that operate on external state. An agent can interact with read-only MCP servers, e.g., the GitHub MCP server, but externalized writes, such as creating GitHub pull requests, are buffered as artifacts by SafeOutputs rather than applied immediately. When the agent finishes, SafeOutputs' buffered artifacts can be processed by a deterministic sequence of filters and analyses defined by configuration. These checks can include structural constraints, e.g., limiting the number of pull requests, policy enforcement, and automated sanitization to ensure that sensitive information such as authentication tokens are not exported. These filtered and transformed artifacts are passed to a subsequent stage in which they are externalized.
+
+Security violations at the planning layer arise from incorrect plan construction, incomplete or overly permissive stage definitions, or errors in the enforcement of plan transitions. This layer does not protect against failures of substrate-level isolation or mis-allocation of permissions at credential-minting or configuration time. However, it limits the blast radius of a compromised component to the stage in which it is active and its influence on the artifacts passed to the next stage.
+
+
+## Component Overview
+
+The security architecture operates across multiple layers: compilation-time validation, runtime isolation, permission separation, network controls, and output sanitization. The following diagram illustrates the relationships between these components and the flow of data through the system.
 
 ```mermaid
 flowchart TB
@@ -80,7 +118,7 @@ flowchart TB
 
 ## Safe Outputs: Permission Isolation
 
-The safe outputs system ensures AI agents never have direct write access to your repository. The [agentic](/gh-aw/reference/glossary/#agentic) portion runs with minimal read-only permissions, while separate jobs handle validated GitHub API operations.
+The SafeOutputs subsystem enforces permission isolation by ensuring that agent execution never has direct write access to external state. The agent job runs with minimal read-only permissions, while write operations are deferred to separate jobs that execute only after the agent completes. This separation ensures that even a fully compromised agent cannot directly modify repository state.
 
 ```mermaid
 flowchart LR
@@ -91,7 +129,7 @@ flowchart LR
     end
 
     subgraph Detection["Threat Detection Job"]
-        ANALYZE["Analyze for:<br/>• Prompt Injection<br/>• Secret Leaks<br/>• Malicious Patches"]
+        ANALYZE["Analyze for:<br/>• Secret Leaks<br/>• Malicious Patches"]
     end
 
     subgraph SafeJobs["Safe Output Jobs<br/>🔓 Write Permissions (Scoped)"]
@@ -117,12 +155,12 @@ flowchart LR
 ```
 
 <Aside type="tip">
-Safe outputs provide security by design: the AI never needs write permissions because all write operations are performed by separate, validated jobs with minimal scoped permissions.
+The SafeOutputs subsystem provides security by design: the agent never requires write permissions because all write operations are performed by separate, validated jobs with minimal scoped permissions.
 </Aside>
 
 ## Agent Workflow Firewall (AWF)
 
-The AWF provides network egress control for the Copilot engine, preventing unauthorized data exfiltration and limiting access to only explicitly allowed domains.
+The Agent Workflow Firewall (AWF) provides network egress control at the substrate level. AWF mediates all outbound network requests from the agent, enforcing a domain allowlist that constrains which external endpoints the agent may contact. This mechanism prevents unauthorized data exfiltration and limits the blast radius of a compromised agent to only those domains explicitly permitted by configuration.
 
 ```mermaid
 flowchart TB
@@ -185,9 +223,9 @@ network:
     - "api.example.com"  # Custom domain
 ```
 
-## MCP Gateway + Firewall Flow
+## MCP Gateway and Firewall Integration
 
-When the MCP gateway is enabled, the firewall and gateway work together to keep MCP traffic contained while still allowing the agent to reach the GitHub MCP server.
+When the MCP gateway is enabled, it operates in conjunction with AWF to ensure that MCP traffic remains contained within trusted boundaries. The gateway spawns isolated containers for MCP servers while AWF mediates all network egress, ensuring that agent-to-server communication traverses only approved channels.
 
 ```mermaid
 flowchart LR
@@ -207,16 +245,16 @@ flowchart LR
     GATEWAY -->|"forwards to"| GH_MCP
 ```
 
-**How the pieces fit together**
+**Architecture Summary**
 
-1. AWF starts an isolated network with a Squid proxy that enforces the workflow `network.allowed` list.
-2. The agent container can only egress through Squid. To reach the gateway, it uses `host.docker.internal:80` (Docker's host alias). That hostname must be allowed by the firewall.
-3. The `gh-aw-mcpg` container publishes host port 80 mapped to container port 8000. It then uses the Docker socket to spawn the GitHub MCP server container.
-4. All MCP traffic stays inside the host boundary: the firewall restricts egress, and the gateway routes requests to the sandboxed GitHub MCP server.
+1. AWF establishes an isolated network with a Squid proxy that enforces the workflow `network.allowed` list.
+2. The agent container can only egress through Squid. To reach the gateway, it uses `host.docker.internal:80` (Docker's host alias). This hostname must be included in the firewall's allowed list.
+3. The `gh-aw-mcpg` container publishes host port 80 mapped to container port 8000. It uses the Docker socket to spawn MCP server containers.
+4. All MCP traffic remains within the host boundary: AWF restricts egress, and the gateway routes requests to sandboxed MCP servers.
 
 ## MCP Server Sandboxing
 
-Model Context Protocol (MCP) servers run in isolated containers with explicit tool filtering, preventing unauthorized access and limiting the attack surface.
+MCP servers execute within isolated containers, enforcing substrate-level separation between the agent and each server instance. Tool filtering at the configuration level restricts which operations each server may expose, limiting the attack surface available to a compromised agent. This isolation ensures that even if an MCP server is compromised, it cannot access the memory or state of other components.
 
 ```mermaid
 flowchart TB
@@ -260,51 +298,56 @@ flowchart TB
     ENDPOINT --> HEADERS
 ```
 
-**Security Features:**
+**Isolation Properties:**
 
 - **Container Isolation**: Custom MCP servers run in Docker containers with no shared state
-- **Network Controls**: Per-container domain allowlists via Squid proxy
+- **Network Controls**: Per-container domain allowlists enforced via Squid proxy
 - **Tool Allowlisting**: Explicit `allowed:` lists restrict available operations
-- **Secret Injection**: Secrets passed via environment variables, never in config files
+- **Secret Injection**: Secrets are passed via environment variables, never in configuration files
 
 ## Threat Detection Pipeline
 
-The threat detection system analyzes agent output before any GitHub API operations are performed, blocking malicious content, secret leaks, and prompt injection attempts.
+The threat detection job is a sub-stage within the SafeOutputs subsystem. After the agent job completes and its outputs are buffered as artifacts, a separate detection job downloads these artifacts and invokes a prompted AI agent to analyze them for suspicious content. This detection agent operates with a security-focused system prompt and examines the agent's outputs, patches, and execution context. The detection job runs in isolation from the original agent and has no access to write permissions; its sole responsibility is to emit a pass/fail verdict that gates the subsequent safe output jobs.
+
+Detection checks include identification of secret leakage, malicious code patterns, and policy violations. If the detection agent identifies threats, the workflow terminates before any writes are externalized. Workflow authors can customize detection behavior by providing additional detection prompts or integrating external security scanners.
 
 ```mermaid
 flowchart TB
-    subgraph Input["Agent Output"]
-        JSON[/"agent_output.json"/]
-        PATCH[/"aw.patch<br/>(Git Diff)"/]
-        PROMPT[/"prompt.txt<br/>(Workflow Context)"/]
+    subgraph Input["SafeOutputs Artifacts"]
+        JSON[/"agent_output.json<br/>(Buffered actions)"/]
+        PATCH[/"aw.patch<br/>(Git diff from agent)"/]
+        PROMPT[/"prompt.txt<br/>(Original workflow context)"/]
     end
 
-    subgraph Analysis["Threat Analysis"]
+    subgraph DetectionJob["Threat Detection Job"]
         direction TB
-        AI["AI-Powered Detection"]
-        CUSTOM["Custom Security Steps"]
-
-        subgraph Checks["Detection Checks"]
-            INJECT["Prompt Injection<br/>Hidden instructions<br/>Jailbreak attempts"]
-            SECRETS["Secret Leaks<br/>API keys, tokens<br/>Credentials"]
-            MALICIOUS["Malicious Patches<br/>Backdoors<br/>Vulnerabilities"]
+        DOWNLOAD["Download artifacts"]
+        AGENT["Detection Agent<br/>(Security-focused prompt)"]
+        
+        subgraph Checks["Analysis Targets"]
+            SECRETS["Secret Leaks<br/>API keys, tokens<br/>Credentials in outputs"]
+            MALICIOUS["Malicious Patches<br/>Backdoors, vulnerabilities<br/>Suspicious modifications"]
+            POLICY["Policy Violations<br/>Scope violations<br/>Unauthorized operations"]
         end
+        
+        CUSTOM["Custom Detection Steps"]
     end
 
-    subgraph Decision["Decision"]
+    subgraph Verdict["Verdict"]
         SAFE_CHECK{{"Threats<br/>Detected?"}}
     end
 
     subgraph Outcome["Outcome"]
-        PROCEED["✅ Proceed to Safe Outputs"]
-        BLOCK["❌ Block & Fail Workflow"]
+        PROCEED["✅ Safe output jobs proceed"]
+        BLOCK["❌ Workflow fails<br/>No writes externalized"]
     end
 
-    JSON --> AI
-    PATCH --> AI
-    PROMPT --> AI
-
-    AI --> Checks
+    JSON --> DOWNLOAD
+    PATCH --> DOWNLOAD
+    PROMPT --> DOWNLOAD
+    
+    DOWNLOAD --> AGENT
+    AGENT --> Checks
     Checks --> CUSTOM
     CUSTOM --> SAFE_CHECK
 
@@ -312,15 +355,38 @@ flowchart TB
     SAFE_CHECK -->|"Yes"| BLOCK
 ```
 
-**Defense-in-Depth Options:**
+**Detection Job Properties:**
 
-- **AI Detection**: Default AI-powered analysis using the workflow engine
-- **Custom Steps**: Integration with security scanners (Semgrep, TruffleHog, LlamaGuard)
-- **Custom Prompts**: Domain-specific detection instructions
+- **Isolated Execution**: The detection agent runs in a separate job with no write permissions and no access to the original agent's runtime state
+- **Prompted Analysis**: Detection uses the same AI engine as the workflow, but with a security-focused system prompt that instructs the agent to identify threats
+- **Artifact-Based**: The detection agent only sees the buffered artifacts (outputs, patches, context), not live repository state
+- **Blocking Verdict**: The detection job must complete successfully and emit a "safe" verdict before any safe output jobs execute
+
+**Detection Mechanisms:**
+
+- **AI Detection**: Default AI-powered analysis using the workflow engine with a security-focused detection prompt
+- **Custom Steps**: Integration with security scanners (Semgrep, TruffleHog, LlamaGuard) via `threat-detection.steps` configuration
+- **Custom Prompts**: Domain-specific detection instructions for specialized threat models via `threat-detection.prompt` configuration
+
+**Configuration Example:**
+
+```yaml wrap
+threat-detection:
+  prompt: |
+    Additionally check for:
+    - References to internal infrastructure URLs
+    - Attempts to modify CI/CD configuration files
+    - Changes to security-sensitive files (.github/workflows, package.json scripts)
+  steps:
+    - name: Run TruffleHog
+      run: trufflehog filesystem /tmp/gh-aw --only-verified
+    - name: Run Semgrep
+      run: semgrep scan /tmp/gh-aw/aw.patch --config=auto
+```
 
 ## Compilation-Time Security
 
-Security validation happens at compile time, before workflows ever run, catching misconfigurations and enforcing best practices.
+AW enforces security constraints at compilation time through schema validation, expression allowlisting, and action pinning. The trusted compiler validates declarative configuration artifacts before they are deployed, rejecting misconfigurations and overly permissive specifications. This layer constrains what components may be loaded and how they may be connected, but it does not constrain runtime behavior.
 
 ```mermaid
 flowchart TB
@@ -378,16 +444,16 @@ flowchart TB
 # Standard compilation
 gh aw compile
 
-# Strict mode enforces security constraints (no write permissions, explicit network config)
+# Strict mode enforces additional security constraints (no write permissions, explicit network configuration)
 gh aw compile --strict
 
-# Add security scanners for additional validation (optional, not included by default)
+# Enable security scanners for additional validation
 gh aw compile --strict --actionlint --zizmor --poutine
 ```
 
 ## Content Sanitization
 
-All user-generated content is sanitized before being processed by AI agents, preventing prompt injection and other attacks. The sanitization pipeline applies multiple transformations to neutralize potentially malicious content.
+User-generated content is sanitized before being passed to the agent. The sanitization pipeline applies a series of transformations to normalize potentially problematic content. This mechanism operates at the activation stage boundary, ensuring that untrusted input is processed before it is passed to the agent.
 
 ```mermaid
 flowchart LR
@@ -425,36 +491,36 @@ flowchart LR
     CONTROL --> SAFE_TEXT
 ```
 
-**Sanitization Mechanisms:**
+**Sanitization Properties:**
 
 | Mechanism | Input | Output | Protection |
 |-----------|-------|--------|------------|
 | **@mention Neutralization** | `@user` | `` `@user` `` | Prevents unintended user notifications |
 | **Bot Trigger Protection** | `fixes #123` | `` `fixes #123` `` | Prevents automatic issue linking |
 | **XML/HTML Tag Conversion** | `<script>` | `(script)` | Prevents injection via XML tags |
-| **URI Filtering** | `http://evil.com` | `(redacted)` | Only HTTPS from trusted domains allowed |
+| **URI Filtering** | `http://evil.com` | `(redacted)` | Restricts to HTTPS from trusted domains |
 | **Special Characters** | Unicode homoglyphs | Normalized | Prevents visual spoofing attacks |
-| **Content Limits** | Large payloads | Truncated | 0.5MB max size, 65k lines max |
+| **Content Limits** | Large payloads | Truncated | Enforces 0.5MB max size, 65k lines max |
 | **Control Characters** | ANSI escapes | Stripped | Removes terminal manipulation codes |
 
-**URL Filtering Details:**
+**URI Filtering Behavior:**
 
 The URI filtering mechanism applies strict validation:
 
 - ✅ **Allowed**: `https://github.com/...`, `https://api.github.com/...`
-- ✅ **Allowed**: URLs from explicitly trusted domains
+- ✅ **Allowed**: URLs from explicitly trusted domains in configuration
 - ❌ **Blocked**: `http://` URLs (non-HTTPS)
 - ❌ **Blocked**: URLs with suspicious patterns
 - ❌ **Blocked**: Data URLs, javascript: URLs
 - ❌ **Blocked**: URLs from untrusted domains → replaced with `(redacted)`
 
 <Aside type="note" title="Why URLs are redacted">
-URLs appearing as `(redacted)` indicate the domain was not in the allowed list. This prevents potential data exfiltration through untrusted domains. The allowed domains list is automatically derived from your workflow's `network:` configuration and includes GitHub domains by default.
+URLs appearing as `(redacted)` indicate the domain was not in the allowed list. This prevents potential data exfiltration through untrusted domains. The allowed domains list is derived from the workflow's `network:` configuration and includes GitHub domains by default.
 </Aside>
 
-**Allowing Additional Domains:**
+**Configuring Additional Domains:**
 
-To allow URLs from additional domains in sanitized content, configure the `network:` field in your workflow frontmatter:
+To permit URLs from additional domains in sanitized content, configure the `network:` field in the workflow frontmatter:
 
 ```yaml wrap
 network:
@@ -477,12 +543,12 @@ XML and HTML tags are converted to a safe parentheses format to prevent injectio
 ```
 
 <Aside type="caution">
-Always use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields to ensure proper sanitization of user-provided content.
+Workflows should use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields to ensure proper sanitization of user-provided content.
 </Aside>
 
 ## Secret Redaction
 
-Before workflow artifacts are uploaded, all files in the `/tmp/gh-aw` directory are automatically scanned and any secret values are redacted. This prevents accidental secret leakage through logs, outputs, or artifacts.
+Before workflow artifacts are uploaded, all files in the `/tmp/gh-aw` directory are scanned for secret values and redacted. This mechanism prevents accidental credential leakage through logs, outputs, or artifacts. Secret redaction executes unconditionally (with `if: always()`), ensuring that secrets are protected even if the workflow fails at an earlier stage.
 
 ```mermaid
 flowchart LR
@@ -525,10 +591,10 @@ flowchart LR
     REPLACE --> PROMPT
 ```
 
-**Key Features:**
+**Redaction Properties:**
 - **Automatic Detection**: Scans workflow YAML for `secrets.*` patterns and collects all secret references
 - **Exact String Matching**: Uses safe string matching (not regex) to prevent injection attacks
-- **Partial Visibility**: Shows first 3 characters followed by asterisks for debugging without exposing full secrets
+- **Partial Visibility**: Displays first 3 characters followed by asterisks for debugging without exposing full secrets
 - **Custom Masking**: Supports additional custom secret masking steps via `secret-masking:` configuration
 
 **Configuration Example:**
@@ -542,12 +608,12 @@ secret-masking:
 ```
 
 <Aside type="tip">
-Secret redaction runs with `if: always()` to ensure secrets are never leaked even if the workflow fails.
+Secret redaction executes with `if: always()` to ensure secrets are never leaked, even if the workflow fails at an earlier stage.
 </Aside>
 
 ## Job Execution Flow
 
-The complete workflow execution follows a strict dependency order, ensuring security checks happen at each stage.
+Workflow execution follows a strict dependency order that enforces security checks at each stage boundary. The plan-level decomposition ensures that each stage has explicit inputs and outputs, and that transitions between stages are mediated by validation steps.
 
 ```mermaid
 flowchart TB
@@ -629,7 +695,7 @@ flowchart TB
 
 ## Observability
 
-GitHub Agentic Workflows provide comprehensive observability through GitHub Actions runs and artifacts, enabling debugging, auditing, and cost monitoring.
+AW provides comprehensive observability through GitHub Actions runs and artifacts. Workflow artifacts preserve prompts, outputs, patches, and logs for post-hoc analysis. This observability layer supports debugging, security auditing, and cost monitoring without compromising runtime isolation.
 
 ```mermaid
 flowchart TB
@@ -677,15 +743,15 @@ flowchart TB
     AW_STATUS --> DEBUG
 ```
 
-**Key Observability Features:**
+**Observability Properties:**
 
 - **Artifact Preservation**: All workflow outputs (prompts, patches, logs) are saved as downloadable artifacts
-- **Cost Monitoring**: Track token usage and costs across workflow runs with `gh aw logs`
-- **Failure Analysis**: Investigate failed runs with `gh aw audit` to see prompts, errors, and network activity
-- **Firewall Logs**: Review all network requests made by the agent for security auditing
-- **Step Summaries**: Rich markdown summaries in GitHub Actions showing AI decisions and outputs
+- **Cost Monitoring**: Token usage and costs across workflow runs are tracked via `gh aw logs`
+- **Failure Analysis**: Failed runs can be investigated with `gh aw audit` to examine prompts, errors, and network activity
+- **Firewall Logs**: All network requests made by the agent are logged for security auditing
+- **Step Summaries**: Rich markdown summaries in GitHub Actions display agent decisions and outputs
 
-**CLI Commands:**
+**CLI Commands for Observability:**
 
 ```bash wrap
 # Download and analyze workflow run logs
@@ -698,22 +764,24 @@ gh aw audit <run-id>
 gh aw status
 ```
 
-## Security Principles Summary
+## Security Layers Summary
 
 | Layer | Mechanism | Protection Against |
 |-------|-----------|-------------------|
-| **Compilation** | Schema validation, expression allowlist | Invalid configurations, unauthorized expressions |
-| **Compilation** | Action SHA pinning | Supply chain attacks, tag hijacking |
-| **Compilation** | Security scanners (actionlint, zizmor, poutine) | Privilege escalation, misconfigurations, supply chain risks |
-| **Runtime** | Pre-activation checks | Unauthorized users, expired workflows |
-| **Runtime** | Content sanitization | Prompt injection, @mention abuse |
-| **Runtime** | AWF network controls | Data exfiltration, unauthorized API calls |
-| **Runtime** | MCP sandboxing | Container escape, unauthorized tool access |
-| **Runtime** | Secret redaction | Credential leakage in logs/artifacts |
-| **Output** | Threat detection | Malicious patches, secret leaks |
-| **Output** | Permission separation | Direct write access abuse |
-| **Output** | Output sanitization | Content injection, XSS |
-| **Observability** | Artifact preservation, CLI tools | Debugging failures, auditing security, cost tracking |
+| **Substrate** | GitHub Actions runner (VM, kernel, hypervisor) | Memory corruption, privilege escalation, host escape |
+| **Substrate** | Docker container runtime | Process isolation bypass, shared state access |
+| **Substrate** | AWF network controls (iptables) | Data exfiltration, unauthorized API calls |
+| **Substrate** | MCP sandboxing (container isolation) | Container escape, unauthorized tool access |
+| **Configuration** | Schema validation, expression allowlist | Invalid configurations, unauthorized expressions |
+| **Configuration** | Action SHA pinning | Supply chain attacks, tag hijacking |
+| **Configuration** | Security scanners (actionlint, zizmor, poutine) | Privilege escalation, misconfigurations, supply chain risks |
+| **Configuration** | Pre-activation checks (role/permission) | Unauthorized users, expired workflows |
+| **Plan** | Content sanitization | @mention abuse, bot triggers |
+| **Plan** | Secret redaction | Credential leakage in logs/artifacts |
+| **Plan** | Threat detection | Malicious patches, secret leaks |
+| **Plan** | Permission separation (SafeOutputs) | Direct write access abuse |
+| **Plan** | Output sanitization | Content injection, XSS |
+| **Plan** | Artifact preservation, CLI tools | Debugging failures, auditing security, cost tracking |
 
 ## Related Documentation
 
