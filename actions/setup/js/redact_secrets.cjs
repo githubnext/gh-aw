@@ -58,7 +58,7 @@ const BUILT_IN_PATTERNS = [
   { name: "Azure SAS Token", pattern: /\?sv=[0-9-]+&s[rts]=[\w\-]+&sig=[A-Za-z0-9%+/=]+/g },
 
   // Google/GCP tokens
-  { name: "Google API Key", pattern: /AIza[0-9A-Za-z_-]{35}/g },
+  { name: "Google API Key", pattern: /AIzaSy[0-9A-Za-z_-]{33}/g },
   { name: "Google OAuth Access Token", pattern: /ya29\.[0-9A-Za-z_-]+/g },
 
   // AWS tokens
@@ -165,7 +165,7 @@ function processFile(filePath, secretValues) {
 async function main() {
   // Get the list of secret names from environment variable
   const secretNames = process.env.GH_AW_SECRET_NAMES;
-  
+
   core.info("Starting secret redaction in /tmp/gh-aw directory");
   try {
     // Collect custom secret values from environment variables
@@ -183,14 +183,14 @@ async function main() {
         secretValues.push(secretValue.trim());
       }
     }
-    
+
     if (secretValues.length > 0) {
       core.info(`Found ${secretValues.length} custom secret(s) to redact`);
     }
-    
+
     // Always scan for built-in patterns, even if there are no custom secrets
     core.info("Scanning for built-in credential patterns and custom secrets");
-    
+
     // Find all target files in /tmp/gh-aw directory
     const targetExtensions = [".txt", ".json", ".log", ".md", ".mdx", ".yml", ".jsonl"];
     const files = findFiles("/tmp/gh-aw", targetExtensions);
