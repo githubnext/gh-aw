@@ -181,6 +181,14 @@ func RunListWorkflows(pattern string, verbose bool, jsonOutput bool, labelFilter
 		return nil
 	}
 
+	// Print workflow count message for text output
+	workflowCount := len(workflows)
+	if workflowCount == 1 {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Found 1 workflow"))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %d workflows", workflowCount)))
+	}
+
 	// Render the table using struct-based rendering
 	fmt.Fprint(os.Stderr, console.RenderStruct(workflows))
 
