@@ -732,7 +732,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["api.github.com","defaults","github","playwright"],
+              allowed_domains: ["defaults","github","playwright"],
               firewall_enabled: true,
               awf_version: "v0.10.0",
               awmg_version: "v0.0.76",
