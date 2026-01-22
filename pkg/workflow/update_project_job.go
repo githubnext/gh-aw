@@ -3,7 +3,6 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 )
 
 // buildUpdateProjectJob creates the update_project job
@@ -45,11 +44,8 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal views configuration: %w", err)
 		}
-		// Escape single quotes in JSON to prevent shell injection
-		// Replace backslashes first, then single quotes
-		escapedJSON := strings.ReplaceAll(string(viewsJSON), `\`, `\\`)
-		escapedJSON = strings.ReplaceAll(escapedJSON, `'`, `'\''`)
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PROJECT_VIEWS: '%s'\n", escapedJSON))
+		// Use %q to properly quote and escape the JSON for YAML
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PROJECT_VIEWS: %q\n", string(viewsJSON)))
 	}
 
 	jobCondition := BuildSafeOutputType("update_project")
