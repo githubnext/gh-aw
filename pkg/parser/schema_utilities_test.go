@@ -193,12 +193,13 @@ func TestValidateIncludedFileWithIgnoredFields(t *testing.T) {
 		errContains string
 	}{
 		{
-			name: "valid included file with applyTo - should pass",
+			name: "valid included file with applyTo - should fail (not in schema yet)",
 			frontmatter: map[string]any{
 				"applyTo": "some-target",
 				"engine":  "claude",
 			},
-			wantErr: false,
+			wantErr:     true,
+			errContains: "applyTo",
 		},
 		{
 			name: "valid included file with description - should pass",
