@@ -49,250 +49,84 @@ on:
   schedule: daily
 ```
 
-**Output**: Each workflow gets a unique time like `43 5 * * *` (5:43 AM)
-
-**Use cases**:
-- Daily reports
-- Nightly maintenance
-- Status updates
+Each workflow gets a unique time like `43 5 * * *` (5:43 AM).
 
 ### Daily with Time Constraints
 
-Scatter within a specific time window using `around` or `between`:
-
-#### Around (±1 hour window)
+Use `around` for a ±1 hour window or `between` for custom ranges:
 
 ```yaml
 on:
-  schedule: daily around 14:00
+  schedule: daily around 14:00     # 13:00-15:00
+  schedule: daily around 3pm       # 2pm-4pm
+  schedule: daily around noon      # 11am-1pm
+  schedule: daily between 9:00 and 17:00    # Business hours (9am-5pm)
+  schedule: daily between 22:00 and 02:00   # Crossing midnight (10pm-2am)
 ```
 
-Scatters within 13:00-15:00 (±1 hour window)
-
-```yaml
-on:
-  schedule: daily around 3pm
-```
-
-Scatters within 2pm-4pm
-
-```yaml
-on:
-  schedule: daily around noon
-```
-
-Scatters within 11am-1pm
-
-**Special time keywords**: `midnight` (00:00), `noon` (12:00)
-
-#### Between (Custom time range)
-
-```yaml
-on:
-  schedule: daily between 9:00 and 17:00
-```
-
-Scatters within business hours (9am-5pm)
-
-```yaml
-on:
-  schedule: daily between 9am and 5pm
-```
-
-Same as above using 12-hour format
-
-```yaml
-on:
-  schedule: daily between 22:00 and 02:00
-```
-
-Handles ranges that cross midnight (10pm-2am)
-
-```yaml
-on:
-  schedule: daily between midnight and 6am
-```
-
-Early morning window (12am-6am)
-
-**Use cases**:
-- Business hours only execution
-- Regional time windows
-- Off-hours maintenance (crossing midnight)
+Special time keywords: `midnight` (00:00), `noon` (12:00)
 
 ### Hourly Schedules
 
-Run every hour with scattered minute offset:
-
 ```yaml
 on:
-  schedule: hourly
+  schedule: hourly    # Runs every hour with scattered minute (e.g., 58 */1 * * *)
 ```
 
-**Output**: `58 */1 * * *` (minute offset is scattered, e.g., minute 58)
-
-Each workflow gets a consistent minute offset (0-59) to prevent all hourly workflows from running at the same minute.
+Each workflow gets a consistent minute offset (0-59) to prevent simultaneous execution.
 
 ### Interval Schedules
 
-Run every N hours with scattered minute offset:
-
 ```yaml
 on:
-  schedule: every 2h
+  schedule: every 2h    # Every 2 hours at scattered minute (e.g., 53 */2 * * *)
+  schedule: every 6h    # Every 6 hours at scattered minute (e.g., 12 */6 * * *)
 ```
 
-**Output**: `53 */2 * * *` (every 2 hours at scattered minute)
-
-```yaml
-on:
-  schedule: every 6h
-```
-
-**Output**: `12 */6 * * *` (every 6 hours at scattered minute)
-
-**Supported intervals**: `1h`, `2h`, `3h`, `4h`, `6h`, `8h`, `12h`
+Supported intervals: `1h`, `2h`, `3h`, `4h`, `6h`, `8h`, `12h`
 
 ### Weekly Schedules
 
-Run once per week at scattered day and time:
-
 ```yaml
 on:
-  schedule: weekly
+  schedule: weekly              # Scattered day/time (e.g., 43 5 * * 1)
+  schedule: weekly on monday    # Monday at scattered time (e.g., 43 5 * * 1)
+  schedule: weekly on friday    # Friday at scattered time (e.g., 18 14 * * 5)
 ```
 
-**Output**: Scattered to a random day and time like `43 5 * * 1` (Monday 5:43 AM)
-
-Run on specific weekday at scattered time:
-
-```yaml
-on:
-  schedule: weekly on monday
-```
-
-**Output**: `43 5 * * 1` (Monday at scattered time)
-
-```yaml
-on:
-  schedule: weekly on friday
-```
-
-**Output**: `18 14 * * 5` (Friday at scattered time)
-
-**Supported weekdays**: `sunday`, `monday`, `tuesday`, `wednesday`, `thursday`, `friday`, `saturday`
+Supported weekdays: `sunday`, `monday`, `tuesday`, `wednesday`, `thursday`, `friday`, `saturday`
 
 ### Weekly with Time Constraints
 
-Add `around` to scatter within ±1 hour of target time:
+```yaml
+on:
+  schedule: weekly on monday around 09:00   # Monday 8am-10am
+  schedule: weekly on friday around 5pm     # Friday 4pm-6pm
+```
+
+### Bi-weekly and Tri-weekly Schedules
 
 ```yaml
 on:
-  schedule: weekly on monday around 09:00
+  schedule: bi-weekly     # Every 14 days at scattered time (e.g., 43 5 */14 * *)
+  schedule: tri-weekly    # Every 21 days at scattered time (e.g., 18 14 */21 * *)
 ```
 
-Scatters Monday 8am-10am
-
-```yaml
-on:
-  schedule: weekly on friday around 5pm
-```
-
-Scatters Friday 4pm-6pm
-
-### Bi-weekly Schedules
-
-Run once every two weeks at scattered day and time:
-
-```yaml
-on:
-  schedule: bi-weekly
-```
-
-**Output**: Scattered across 2 weeks like `43 5 */14 * *` (every 14 days at scattered time)
-
-**Use cases**:
-- Bi-weekly reports
-- Fortnightly maintenance
-- Regular check-ins on a two-week cadence
-
-**How it works**:
-- Uses fuzzy scattering across 14 days (2 weeks)
-- Each workflow gets a deterministic time that repeats every 14 days
-- Time is scattered across the full 2-week period to distribute load
-
-### Tri-weekly Schedules
-
-Run once every three weeks at scattered day and time:
-
-```yaml
-on:
-  schedule: tri-weekly
-```
-
-**Output**: Scattered across 3 weeks like `18 14 */21 * *` (every 21 days at scattered time)
-
-**Use cases**:
-- Three-week cycle reports
-- Periodic maintenance on 21-day intervals
-- Regular reviews on a three-week cadence
-
-**How it works**:
-- Uses fuzzy scattering across 21 days (3 weeks)
-- Each workflow gets a deterministic time that repeats every 21 days
-- Time is scattered across the full 3-week period to distribute load
+Each workflow gets a deterministic time that repeats every 14 or 21 days, scattered across the full period to distribute load.
 
 ## UTC Offset Support
 
-All time specifications support UTC offset notation to convert times to UTC:
-
-### Syntax
-
-- **Plus offset**: `utc+N` or `utc+HH:MM`
-- **Minus offset**: `utc-N` or `utc-HH:MM`
-
-### Examples
+Use `utc+N` or `utc-N` (or `utc+HH:MM`) to convert local times to UTC:
 
 ```yaml
 on:
-  schedule: daily around 14:00 utc+9
+  schedule: daily around 14:00 utc+9                  # 2:00 PM JST
+  schedule: daily around 9am utc-5                    # 9:00 AM EST
+  schedule: daily between 9am utc-5 and 5pm utc-5     # Business hours EST
+  schedule: weekly on monday around 08:00 utc+05:30   # Monday 8:00 AM IST
 ```
 
-Converts 2:00 PM JST (±1 hour) to UTC
-
-```yaml
-on:
-  schedule: daily around 9am utc-5
-```
-
-Converts 9:00 AM EST (±1 hour) to UTC
-
-```yaml
-on:
-  schedule: daily around 3pm utc-8
-```
-
-Converts 3:00 PM PST (±1 hour) to UTC
-
-```yaml
-on:
-  schedule: daily between 9am utc-5 and 5pm utc-5
-```
-
-Business hours EST (9am-5pm EST → 2pm-10pm UTC)
-
-```yaml
-on:
-  schedule: weekly on monday around 08:00 utc+05:30
-```
-
-Monday around 8:00 AM IST (±1 hour) to UTC
-
-**Common offsets**:
-- PST/PDT: `utc-8` / `utc-7`
-- EST/EDT: `utc-5` / `utc-4`
-- JST: `utc+9`
-- IST: `utc+05:30`
+Common offsets: PST/PDT (`utc-8`/`utc-7`), EST/EDT (`utc-5`/`utc-4`), JST (`utc+9`), IST (`utc+05:30`)
 
 ## Fixed Schedules
 
@@ -301,354 +135,148 @@ For fixed-time schedules, use standard cron syntax:
 ```yaml
 on:
   schedule:
-    - cron: "0 2 * * *"  # Daily at 2:00 AM UTC
-```
-
-```yaml
-on:
-  schedule:
-    - cron: "30 6 * * 1"  # Monday at 6:30 AM UTC
-```
-
-```yaml
-on:
-  schedule:
-    - cron: "0 9 15 * *"  # 15th of each month at 9:00 AM UTC
+    - cron: "0 2 * * *"    # Daily at 2:00 AM UTC
+    - cron: "30 6 * * 1"   # Monday at 6:30 AM UTC
+    - cron: "0 9 15 * *"   # 15th of month at 9:00 AM UTC
 ```
 
 > [!TIP]
-> Use Fuzzy Schedules
-> Fixed schedules cause all workflows to run simultaneously, creating server load spikes. Use fuzzy schedules like `daily`, `daily around 14:00`, or `daily between 9:00 and 17:00` to automatically distribute execution times.
+> Fixed schedules create load spikes. Use fuzzy schedules like `daily` or `daily around 14:00` to distribute execution times.
 
 ## Interval Schedules
 
-### Minute Intervals
-
-Run every N minutes (minimum 5 minutes):
+Use `every N [unit]` syntax for various intervals:
 
 ```yaml
 on:
-  schedule: every 5 minutes
+  # Minutes (minimum 5 minutes, fixed time)
+  schedule: every 5 minutes    # */5 * * * *
+  schedule: every 10m          # */10 * * * * (short format)
+
+  # Hours (fuzzy - scattered minute)
+  schedule: every 1h           # 58 */1 * * * (minute 58)
+  schedule: every 2 hours      # 53 */2 * * * (minute 53)
+
+  # Days (fixed time)
+  schedule: every 1d           # 0 0 * * * (midnight UTC)
+  schedule: every 2 days       # 0 0 */2 * *
+
+  # Weeks (fixed time)
+  schedule: every 1w           # 0 0 * * 0 (Sunday midnight)
+  schedule: every 2w           # 0 0 */14 * *
+
+  # Months (fixed time)
+  schedule: every 1mo          # 0 0 1 * * (1st of month)
+  schedule: every 2mo          # 0 0 1 */2 *
 ```
 
-**Output**: `*/5 * * * *`
-
-```yaml
-on:
-  schedule: every 10 minutes
-```
-
-**Output**: `*/10 * * * *`
-
-```yaml
-on:
-  schedule: every 30 minutes
-```
-
-**Output**: `*/30 * * * *`
-
-**Short format**: `every 5m`, `every 10m`, `every 30m`
-
-**Valid intervals**: `5m`, `10m`, `15m`, `20m`, `30m` (minimum 5 minutes)
+Valid minute intervals: `5m`, `10m`, `15m`, `20m`, `30m`
+Valid hour intervals: `1h`, `2h`, `3h`, `4h`, `6h`, `8h`, `12h`
 
 > [!NOTE]
-> Minimum Interval
 > GitHub Actions enforces a minimum schedule interval of 5 minutes.
-
-### Hour Intervals
-
-Fuzzy hour intervals (recommended):
-
-```yaml
-on:
-  schedule: every 1h
-```
-
-**Output**: `FUZZY:HOURLY/1 * * *` → scatters to `58 */1 * * *`
-
-```yaml
-on:
-  schedule: every 2 hours
-```
-
-**Output**: `FUZZY:HOURLY/2 * * *` → scatters to `53 */2 * * *`
-
-Fixed hour intervals (creates load spikes):
-
-```yaml
-on:
-  schedule:
-    - cron: "0 */2 * * *"
-```
-
-**Output**: `0 */2 * * *` (every 2 hours at minute 0)
-
-> [!CAUTION]
-> Using fixed minute offsets (e.g., `0 */2 * * *`) causes all workflows to run at the same minute of each hour. Use `every 2h` instead for scattered minute offsets.
-
-### Day Intervals
-
-```yaml
-on:
-  schedule: every 2 days
-```
-
-**Output**: `0 0 */2 * *` (every 2 days at midnight)
-
-```yaml
-on:
-  schedule: every 1d
-```
-
-**Output**: `0 0 * * *` (midnight UTC daily)
-
-**Short format**: `every 1d`, `every 2d`, `every 3d`
-
-### Week Intervals
-
-```yaml
-on:
-  schedule: every 1w
-```
-
-**Output**: `0 0 * * 0` (every Sunday at midnight)
-
-```yaml
-on:
-  schedule: every 2w
-```
-
-**Output**: `0 0 */14 * *` (every 14 days)
-
-### Month Intervals
-
-```yaml
-on:
-  schedule: every 1mo
-```
-
-**Output**: `0 0 1 * *` (1st of every month at midnight)
-
-```yaml
-on:
-  schedule: every 2mo
-```
-
-**Output**: `0 0 1 */2 *` (1st of every other month)
 
 ## Time Formats
 
-### 24-Hour Format
+Supports 24-hour (`HH:MM`), 12-hour (`Ham`, `Hpm`), and keywords (`midnight`, `noon`):
 
 ```yaml
-HH:MM
-```
-
-Examples: `00:00`, `09:30`, `14:00`, `23:59`
-
-### 12-Hour Format
-
-```yaml
-Ham, Hpm
-```
-
 Examples:
-- `1am` → 01:00
-- `3pm` → 15:00
-- `12am` → 00:00 (midnight)
-- `12pm` → 12:00 (noon)
-- `11pm` → 23:00
+  00:00, 09:30, 14:00    # 24-hour format
+  1am, 3pm, 11pm         # 12-hour format
+  midnight, noon         # Keywords
 
-### Special Keywords
-
-- `midnight` → `00:00`
-- `noon` → `12:00`
-
-### With UTC Offset
-
-```yaml
-TIME utc+N
-TIME utc-N
-TIME utc+HH:MM
+With UTC offset:
+  14:00 utc+9            # JST to UTC
+  3pm utc-5              # EST to UTC
+  9am utc+05:30          # IST to UTC
 ```
-
-Examples:
-- `14:00 utc+9` → Converts JST to UTC
-- `3pm utc-5` → Converts EST to UTC
-- `9am utc+05:30` → Converts IST to UTC
-- `midnight utc-8` → Converts PST to UTC
 
 ## Standard Cron Expressions
 
-You can use standard 5-field cron expressions directly:
+Format: `minute hour day-of-month month day-of-week`
 
 ```yaml
 on:
   schedule:
-    - cron: "0 9 * * 1"
+    - cron: "0 9 * * 1"       # Monday at 9:00 AM
+    - cron: "*/15 * * * *"    # Every 15 minutes
+    - cron: "0 0 * * *"       # Daily at midnight
+    - cron: "0 14 * * 1-5"    # Weekdays at 2:00 PM
 ```
 
-**Format**: `minute hour day-of-month month day-of-week`
-
-**Examples**:
-- `0 9 * * 1` - Every Monday at 9:00 AM
-- `*/15 * * * *` - Every 15 minutes
-- `0 0 * * *` - Daily at midnight
-- `0 14 * * 1-5` - Weekdays at 2:00 PM
-
-See [GitHub's cron syntax documentation](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule) for complete cron format details.
+See [GitHub's cron syntax documentation](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule).
 
 ## Multiple Schedules
-
-You can specify multiple schedule triggers:
 
 ```yaml
 on:
   schedule:
     - cron: daily
     - cron: weekly on monday
-    - cron: "0 0 15 * *"  # Monthly on 15th
-```
-
-or
-
-```yaml
-on:
-  schedule:
-    - cron: "0 9 * * 1"
-    - cron: "0 14 * * 5"
+    - cron: "0 0 15 * *"      # Monthly on 15th
 ```
 
 ## Shorthand Format
 
-Use the ultra-short format in the `on:` field:
+Use `on: daily` as shorthand, which automatically expands to include both schedule and `workflow_dispatch`:
 
 ```yaml
 on: daily
-```
 
-Automatically expands to:
-
-```yaml
+# Expands to:
 on:
   schedule:
     - cron: "FUZZY:DAILY * * *"
   workflow_dispatch:
 ```
 
-This shorthand adds `workflow_dispatch` for manual triggering alongside the schedule.
-
 ## Best Practices
 
-### Recommended
-
-✅ Use fuzzy schedules to prevent load spikes:
+**Recommended:** Use fuzzy schedules to prevent load spikes
 ```yaml
-on: daily
-on: hourly
-on: weekly on monday
-on: bi-weekly
-on: tri-weekly
-on: every 2h
+on: daily                                   # ✅ Scattered time
+on: daily between 9:00 and 17:00            # ✅ Business hours
+on: daily between 9am utc-5 and 5pm utc-5   # ✅ Regional times
+on: weekly on monday                        # ✅ Scattered time
+on: every 2h                                # ✅ Scattered minute
 ```
 
-✅ Use time constraints for business hours:
-```yaml
-on: daily between 9:00 and 17:00
-on: daily around 14:00
-```
-
-✅ Use UTC offsets for regional times:
-```yaml
-on: daily between 9am utc-5 and 5pm utc-5
-```
-
-### Avoid
-
-❌ Fixed times using cron (creates load spikes):
+**Avoid:** Fixed times that create load spikes
 ```yaml
 on:
   schedule:
-    - cron: "0 0 * * *"       # All workflows run at same time
-    - cron: "0 */2 * * *"     # All workflows run at minute 0
-```
-
-✅ Use fuzzy alternatives instead:
-```yaml
-on: daily                    # Scattered time
-on: daily around midnight    # ±1 hour window
-on: weekly on monday         # Scattered time on Mondays
-on: every 2h                 # Scattered minute offset
+    - cron: "0 0 * * *"     # ❌ All workflows run at same time
+    - cron: "0 */2 * * *"   # ❌ All workflows run at minute 0
 ```
 
 ## How Scattering Works
 
-Fuzzy schedules use a deterministic hash of the workflow identifier to assign each workflow a unique execution time:
+Fuzzy schedules use a deterministic FNV-1a hash of the workflow identifier (repository slug + file path) to assign unique execution times. The same workflow always gets the same time across recompiles.
 
-1. **Workflow identifier**: Repository slug + workflow file path (e.g., `githubnext/gh-aw/.github/workflows/daily-report.md`)
-2. **Stable hash**: FNV-1a hash algorithm (consistent across platforms)
-3. **Deterministic offset**: Hash modulo time range gives consistent offset
-4. **Same across recompiles**: Same workflow path always gets same scattered time
-
-**Example**:
 ```yaml
-on: daily
+# Example: on: daily
+Workflow A: 43 5 * * *   (5:43 AM)
+Workflow B: 17 14 * * *  (2:17 PM)
+Workflow C: 8 20 * * *   (8:08 PM)
 ```
 
-Workflow A: `43 5 * * *` (5:43 AM)
-Workflow B: `17 14 * * *` (2:17 PM)
-Workflow C: `8 20 * * *` (8:08 PM)
-
-Each workflow gets a different time, but the same workflow always gets the same time.
-
-### Organization-Wide Scattering
-
-The scattering algorithm includes the repository slug (org/repo) in the hash computation, ensuring that:
-
-- Workflows with the same name in different repositories get different execution times
-- Load is distributed across an entire organization, not just within a single repository
-- Multiple repositories using the same workflow names don't create load spikes
-
-**Example**: Same workflow name in different repositories
-```yaml
-# githubnext/repo-1/.github/workflows/ci.md
-on: daily
-# Result: 22 10 * * * (10:22 AM)
-
-# githubnext/repo-2/.github/workflows/ci.md
-on: daily
-# Result: 51 7 * * * (7:51 AM)
-
-# githubnext/repo-3/.github/workflows/ci.md
-on: daily
-# Result: 12 2 * * * (2:12 AM)
-```
-
-Each repository's CI workflow runs at a different time, preventing simultaneous execution across the organization.
+The algorithm includes the repository slug, so workflows with the same name in different repositories get different execution times, distributing load across an entire organization.
 
 ## Validation & Warnings
 
-The compiler validates schedule expressions and emits warnings for patterns that create load spikes:
+The compiler warns about patterns that create load spikes:
 
 ```text
 ⚠ Schedule uses fixed daily time (0:0 UTC). Consider using fuzzy
-  schedule 'daily' instead to distribute workflow execution times
-  and reduce load spikes.
-```
+  schedule 'daily' instead to distribute workflow execution times.
 
-```text
 ⚠ Schedule uses hourly interval with fixed minute offset (0).
-  Consider using fuzzy schedule 'every 2h' instead to distribute
-  workflow execution times and reduce load spikes.
-```
+  Consider using fuzzy schedule 'every 2h' instead.
 
-```text
 ⚠ Schedule uses fixed weekly time (Monday 6:30 UTC). Consider using
-  fuzzy schedule 'weekly on monday' instead to distribute workflow
-  execution times and reduce load spikes.
+  fuzzy schedule 'weekly on monday' instead.
 ```
-
-Fix these by using the suggested fuzzy schedules.
 
 ## Related Documentation
 
