@@ -401,4 +401,67 @@ describe("temporary_id.cjs", () => {
       expect(hasUnresolvedTemporaryIds(text, map)).toBe(true);
     });
   });
+
+  describe("replaceTemporaryProjectReferences", () => {
+    it("should replace #aw_ID with project URLs", async () => {
+      const { replaceTemporaryProjectReferences } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_abc123def456", "https://github.com/orgs/myorg/projects/123"]]);
+      const text = "Project created: #aw_abc123def456";
+      expect(replaceTemporaryProjectReferences(text, map)).toBe("Project created: https://github.com/orgs/myorg/projects/123");
+    });
+
+    it("should handle multiple project references", async () => {
+      const { replaceTemporaryProjectReferences } = await import("./temporary_id.cjs");
+      const map = new Map([
+        ["aw_abc123def456", "https://github.com/orgs/myorg/projects/123"],
+        ["aw_111222333444", "https://github.com/orgs/myorg/projects/456"],
+      ]);
+      const text = "See #aw_abc123def456 and #aw_111222333444";
+      expect(replaceTemporaryProjectReferences(text, map)).toBe("See https://github.com/orgs/myorg/projects/123 and https://github.com/orgs/myorg/projects/456");
+    });
+
+    it("should leave unresolved project references unchanged", async () => {
+      const { replaceTemporaryProjectReferences } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_abc123def456", "https://github.com/orgs/myorg/projects/123"]]);
+      const text = "See #aw_unresolved";
+      expect(replaceTemporaryProjectReferences(text, map)).toBe("See #aw_unresolved");
+    });
+
+    it("should be case insensitive", async () => {
+      const { replaceTemporaryProjectReferences } = await import("./temporary_id.cjs");
+      const map = new Map([["aw_abc123def456", "https://github.com/orgs/myorg/projects/123"]]);
+      const text = "Project: #AW_ABC123DEF456";
+      expect(replaceTemporaryProjectReferences(text, map)).toBe("Project: https://github.com/orgs/myorg/projects/123");
+    });
+  });
+
+  describe("loadTemporaryProjectMap", () => {
+    it("should return empty map when env var is not set", async () => {
+      delete process.env.GH_AW_TEMPORARY_PROJECT_MAP;
+      const { loadTemporaryProjectMap } = await import("./temporary_id.cjs");
+      const map = loadTemporaryProjectMap();
+      expect(map.size).toBe(0);
+    });
+
+    it("should load project map from environment", async () => {
+      process.env.GH_AW_TEMPORARY_PROJECT_MAP = JSON.stringify({
+        aw_abc123def456: "https://github.com/orgs/myorg/projects/123",
+        aw_111222333444: "https://github.com/users/jdoe/projects/456",
+      });
+      const { loadTemporaryProjectMap } = await import("./temporary_id.cjs");
+      const map = loadTemporaryProjectMap();
+      expect(map.size).toBe(2);
+      expect(map.get("aw_abc123def456")).toBe("https://github.com/orgs/myorg/projects/123");
+      expect(map.get("aw_111222333444")).toBe("https://github.com/users/jdoe/projects/456");
+    });
+
+    it("should normalize keys to lowercase", async () => {
+      process.env.GH_AW_TEMPORARY_PROJECT_MAP = JSON.stringify({
+        AW_ABC123DEF456: "https://github.com/orgs/myorg/projects/123",
+      });
+      const { loadTemporaryProjectMap } = await import("./temporary_id.cjs");
+      const map = loadTemporaryProjectMap();
+      expect(map.get("aw_abc123def456")).toBe("https://github.com/orgs/myorg/projects/123");
+    });
+  });
 });

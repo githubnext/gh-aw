@@ -105,7 +105,7 @@ async function loadHandlers(config) {
  * Process project-related safe output messages
  * @param {Map<string, Function>} messageHandlers - Map of type to handler function
  * @param {Array<Object>} messages - Array of safe output messages
- * @returns {Promise<{results: Array<Object>, processedCount: number}>} Processing results
+ * @returns {Promise<{results: Array<Object>, processedCount: number, temporaryProjectMap: Object}>} Processing results
  */
 async function processMessages(messageHandlers, messages) {
   const results = [];
