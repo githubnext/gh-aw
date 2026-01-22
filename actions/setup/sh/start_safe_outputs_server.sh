@@ -9,16 +9,21 @@ cd /opt/gh-aw/safeoutputs || exit 1
 # Verify required files exist
 echo "Verifying safe-outputs setup..."
 
-# Check core configuration files
+# Check core files (mcp-server.cjs and tools.json are required)
 if [ ! -f mcp-server.cjs ]; then
   echo "ERROR: mcp-server.cjs not found in /opt/gh-aw/safeoutputs"
   ls -la /opt/gh-aw/safeoutputs/
   exit 1
 fi
-if [ ! -f config.json ]; then
-  echo "ERROR: config.json not found in /opt/gh-aw/safeoutputs"
+if [ ! -f tools.json ]; then
+  echo "ERROR: tools.json not found in /opt/gh-aw/safeoutputs"
   ls -la /opt/gh-aw/safeoutputs/
   exit 1
+fi
+
+# config.json is optional - the server will create a default config if missing
+if [ ! -f config.json ]; then
+  echo "Note: config.json not found, server will use default configuration"
 fi
 
 # Check required dependency files for the MCP server
