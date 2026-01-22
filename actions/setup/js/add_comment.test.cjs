@@ -389,4 +389,143 @@ describe("add_comment", () => {
       expect(capturedIssueNumber).not.toBe(21);
     });
   });
+
+  describe("append-only-comments integration", () => {
+    it("should not hide older comments when append-only-comments is enabled", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      // Set up environment variable for append-only-comments
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        appendOnlyComments: true,
+      });
+      process.env.GITHUB_WORKFLOW = "test-workflow";
+
+      let hideCommentsWasCalled = false;
+      let listCommentsCalls = 0;
+
+      mockGithub.rest.issues.listComments = async () => {
+        listCommentsCalls++;
+        return {
+          data: [
+            {
+              id: 999,
+              node_id: "IC_kwDOTest999",
+              body: "Old comment <!-- gh-aw-workflow-id: test-workflow -->",
+            },
+          ],
+        };
+      };
+
+      mockGithub.graphql = async (query, variables) => {
+        if (query.includes("minimizeComment")) {
+          hideCommentsWasCalled = true;
+        }
+        return {
+          minimizeComment: {
+            minimizedComment: {
+              isMinimized: true,
+            },
+          },
+        };
+      };
+
+      let capturedComment = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedComment = params;
+        return {
+          data: {
+            id: 12345,
+            html_url: `https://github.com/owner/repo/issues/${params.issue_number}#issuecomment-12345`,
+          },
+        };
+      };
+
+      // Execute with hide-older-comments enabled
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ hide_older_comments: true }); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "New comment - should not hide old ones",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(hideCommentsWasCalled).toBe(false);
+      expect(listCommentsCalls).toBe(0);
+      expect(capturedComment).toBeTruthy();
+      expect(capturedComment.body).toContain("New comment - should not hide old ones");
+
+      // Clean up
+      delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+      delete process.env.GITHUB_WORKFLOW;
+    });
+
+    it("should hide older comments when append-only-comments is not enabled", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      // Set up environment variable WITHOUT append-only-comments
+      delete process.env.GH_AW_SAFE_OUTPUT_MESSAGES;
+      process.env.GITHUB_WORKFLOW = "test-workflow";
+
+      let hideCommentsWasCalled = false;
+      let listCommentsCalls = 0;
+
+      mockGithub.rest.issues.listComments = async () => {
+        listCommentsCalls++;
+        return {
+          data: [
+            {
+              id: 999,
+              node_id: "IC_kwDOTest999",
+              body: "Old comment <!-- gh-aw-workflow-id: test-workflow -->",
+            },
+          ],
+        };
+      };
+
+      mockGithub.graphql = async (query, variables) => {
+        if (query.includes("minimizeComment")) {
+          hideCommentsWasCalled = true;
+        }
+        return {
+          minimizeComment: {
+            minimizedComment: {
+              isMinimized: true,
+            },
+          },
+        };
+      };
+
+      let capturedComment = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedComment = params;
+        return {
+          data: {
+            id: 12345,
+            html_url: `https://github.com/owner/repo/issues/${params.issue_number}#issuecomment-12345`,
+          },
+        };
+      };
+
+      // Execute with hide-older-comments enabled
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({ hide_older_comments: true }); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "New comment - should hide old ones",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(hideCommentsWasCalled).toBe(true);
+      expect(listCommentsCalls).toBeGreaterThan(0);
+      expect(capturedComment).toBeTruthy();
+      expect(capturedComment.body).toContain("New comment - should hide old ones");
+
+      // Clean up
+      delete process.env.GITHUB_WORKFLOW;
+    });
+  });
 });
