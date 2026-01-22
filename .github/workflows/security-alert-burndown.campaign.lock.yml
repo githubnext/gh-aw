@@ -915,6 +915,132 @@ jobs:
           - Governance: max comments per run: 3
           
           ---
+          # BOOTSTRAP INSTRUCTIONS (PHASE 0)
+          ---
+          # Bootstrap Instructions (Phase 0)
+          
+          This phase runs when discovery returns zero work items, providing initial work for the campaign to begin.
+          
+          
+          ## Bootstrap Strategy: seeder-worker
+          
+          
+          ### Seeder Worker Dispatch
+          
+          When no work items are discovered, dispatch a seeder/scanner worker to discover initial work:
+          
+          **Worker ID**: `code-scanning-fixer`
+          
+          **Payload**:
+          ```json
+          repository: githubnext/gh-aw
+          severity: high
+          
+          ```
+          
+          
+          **Max Items**: 10 (limit how many items the seeder returns)
+          
+          
+          **Implementation Steps**:
+          
+          1. Check if discovery returned zero items (no worker outputs found)
+          2. If zero items:
+             - Use the `dispatch_workflow` safe output to trigger the seeder worker
+             - Pass the campaign_id and configured payload
+             - Wait for the seeder worker to complete and create initial work items
+          3. On next orchestrator run, the discovery step will find the seeder's outputs
+          
+          **Seeder Worker Contract**:
+          - MUST accept `campaign_id` and `payload` inputs (standard worker contract)
+          - MUST create discoverable outputs (issues, PRs, or discussions)
+          - MUST apply the tracker label: `campaign:security-alert-burndown`
+          - SHOULD limit output count to configured max-items if provided
+          - SHOULD use deterministic work item keys for idempotency
+          
+          
+          
+          
+          ---
+          
+          ## Worker Selection
+          
+          
+          When dispatching workers during bootstrap, use deterministic selection:
+          
+          
+          ### Worker 1: code-scanning-fixer
+          
+          **Capabilities**: `fix-code-scanning-alerts`, `create-pull-requests`, `cache-tracking`
+          
+          **Payload Schema**:
+          - `alert_number` (number): Code scanning alert number to fix
+          - `repository` (string, required): Target repository in owner/repo format
+          - `severity` (string): Alert severity filter (high, critical)
+          
+          
+          **Output Labeling**:
+          - Labels: `security`, `automated-fix`
+          - Key in Title: true
+          - Key Format: `[code-scanning-fix]`
+          
+          - Campaign tracker label applied automatically: `campaign:security-alert-burndown`
+          
+          **Idempotency Strategy**: pr-title-based
+          
+          **Priority**: 10 (higher = preferred when multiple workers match)
+          
+          
+          
+          ### Worker 2: security-fix-pr
+          
+          **Capabilities**: `autofix-code-scanning-alerts`, `targeted-alert-fixing`
+          
+          **Payload Schema**:
+          - `alert_number` (number): Code scanning alert number to fix
+          - `repository` (string, required): Target repository in owner/repo format
+          - `security_url` (string): Optional security alert URL for targeted fixing
+          
+          
+          **Output Labeling**:
+          - Labels: `security`, `autofix`
+          - Key in Title: false
+          
+          - Campaign tracker label applied automatically: `campaign:security-alert-burndown`
+          
+          **Idempotency Strategy**: branch-based
+          
+          **Priority**: 5 (higher = preferred when multiple workers match)
+          
+          
+          
+          
+          **Selection Algorithm**:
+          
+          1. For each work item, check which workers can handle it:
+             - Match work item type/metadata to worker capabilities
+             - Check if worker's payload schema requirements can be satisfied
+          2. If multiple workers match:
+             - Select the worker with highest priority
+             - If priorities are equal, select first alphabetically by ID
+          3. Build payload from work item metadata according to worker's payload schema
+          4. Dispatch worker with campaign_id and constructed payload
+          
+          
+          
+          ---
+          
+          ## Bootstrap Success Criteria
+          
+          After bootstrap completes:
+          
+          1. ✅ At least one worker workflow dispatched (or manual items created)
+          2. ✅ All dispatched items will have proper tracker labels
+          3. ✅ Next orchestrator run will discover >= 1 work item
+          4. ✅ Campaign transitions from bootstrap phase to normal operation
+          
+          **Idempotency**: Bootstrap only runs when discovery = 0. Once work items exist, normal orchestration takes over.
+          ---
           # WORKFLOW EXECUTION (PHASE 0)
           ---
           # Workflow Execution
@@ -1276,6 +1402,8 @@ jobs:
           3. Correlation is explicit (tracker-id AND labels)
           4. Reads and writes are separate steps (never interleave)
           5. Idempotent operation is mandatory (safe to re-run)
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           6. Only predefined project fields may be updated
           7. **Project Update Instructions take precedence for all project writes**
           8. **Campaign items MUST be labeled** for discovery and isolation
@@ -1380,8 +1508,6 @@ jobs:
           
           ### Step 1 — Read State (Discovery) [NO WRITES]
           
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           **IMPORTANT**: Discovery has been precomputed. Read the discovery manifest instead of performing GitHub-wide searches.
           
           1) Read the precomputed discovery manifest: `./.gh-aw/campaign.discovery.json`
@@ -1722,6 +1848,8 @@ jobs:
             - Use `worker_workflow: "unknown"`
           
           - All campaign work issues (non-epic) MUST be created as **sub-issues of the Epic**.
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           - Issues MUST NOT be re-parented based on worker assignment.
           
           - Pull requests cannot be sub-issues:

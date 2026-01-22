@@ -53,6 +53,82 @@ tags:
   - security
   - automated-fixes
   - code-scanning
+workers:
+  - id: code-scanning-fixer
+    name: Code Scanning Fixer
+    description: Automatically fixes high severity code scanning alerts by creating pull requests with remediation
+    capabilities:
+      - fix-code-scanning-alerts
+      - create-pull-requests
+      - cache-tracking
+    payload-schema:
+      repository:
+        type: string
+        description: Target repository in owner/repo format
+        required: true
+        example: githubnext/gh-aw
+      alert_number:
+        type: number
+        description: Code scanning alert number to fix
+        required: false
+        example: 123
+      severity:
+        type: string
+        description: Alert severity filter (high, critical)
+        required: false
+        example: high
+    output-labeling:
+      labels:
+        - security
+        - automated-fix
+      key-in-title: true
+      key-format: "[code-scanning-fix]"
+      metadata-fields:
+        - Campaign Id
+        - Alert Number
+        - Severity
+    idempotency-strategy: pr-title-based
+    priority: 10
+  - id: security-fix-pr
+    name: Security Fix PR
+    description: Creates autofixes for code security issues via GitHub Code Scanning API
+    capabilities:
+      - autofix-code-scanning-alerts
+      - targeted-alert-fixing
+    payload-schema:
+      repository:
+        type: string
+        description: Target repository in owner/repo format
+        required: true
+        example: githubnext/gh-aw
+      security_url:
+        type: string
+        description: Optional security alert URL for targeted fixing
+        required: false
+        example: https://github.com/owner/repo/security/code-scanning/123
+      alert_number:
+        type: number
+        description: Code scanning alert number to fix
+        required: false
+        example: 123
+    output-labeling:
+      labels:
+        - security
+        - autofix
+      key-in-title: false
+      metadata-fields:
+        - Campaign Id
+        - Alert Number
+    idempotency-strategy: branch-based
+    priority: 5
+bootstrap:
+  mode: seeder-worker
+  seeder-worker:
+    workflow-id: code-scanning-fixer
+    payload:
+      repository: githubnext/gh-aw
+      severity: high
+    max-items: 10
 ---
 
 # Security Alert Burndown Campaign
