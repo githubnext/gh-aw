@@ -8,10 +8,10 @@ var createProjectLog = logger.New("workflow:create_project")
 type CreateProjectsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	GitHubToken          string                   `yaml:"github-token,omitempty"`
-	TargetOwner          string                   `yaml:"target-owner,omitempty"`        // Default target owner (org/user) for the new project
-	TitlePrefix          string                   `yaml:"title-prefix,omitempty"`        // Default prefix for auto-generated project titles
-	Views                []ProjectView            `yaml:"views,omitempty"`               // Project views to create automatically after project creation
-	FieldDefinitions     []ProjectFieldDefinition `yaml:"field-definitions,omitempty"`   // Project field definitions to create automatically after project creation
+	TargetOwner          string                   `yaml:"target-owner,omitempty"`      // Default target owner (org/user) for the new project
+	TitlePrefix          string                   `yaml:"title-prefix,omitempty"`      // Default prefix for auto-generated project titles
+	Views                []ProjectView            `yaml:"views,omitempty"`             // Project views to create automatically after project creation
+	FieldDefinitions     []ProjectFieldDefinition `yaml:"field-definitions,omitempty"` // Project field definitions to create automatically after project creation
 }
 
 // parseCreateProjectsConfig handles create-project configuration
