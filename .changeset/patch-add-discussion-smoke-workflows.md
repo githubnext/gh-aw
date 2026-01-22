@@ -2,7 +2,9 @@
 "gh-aw": patch
 ---
 
-Add discussion creation and commenting to smoke workflows; deprecate the `discussion` flag and add a codemod to remove it.
+Add discussion interaction to smoke workflows; deprecate `discussion` flag and add a codemod to remove it.
 
-This change updates smoke workflows to create discussions and post themed comments, adds safe-output tooling for creating discussions, and includes a compiler change and codemod to migrate away from the deprecated `discussion` field.
+Smoke workflows now query the latest discussion and post comments to both the discussion and PR to validate discussion functionality. The compiler now serializes the legacy `discussion` boolean into safe-outputs handler configs for compatibility. A codemod was added to automatically remove the deprecated `safe-outputs.add-comment.discussion: true` field from workflows.
+
+---
 
