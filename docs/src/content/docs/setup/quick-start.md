@@ -41,7 +41,7 @@ gh aw init
 
 This command installs agents and tools for GitHub Copilot.
 
-Commit and push the changes in git
+Commit and push the changes in Git.
 
 ```bash wrap
 git add .
