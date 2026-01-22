@@ -2,8 +2,14 @@
 "gh-aw": patch
 ---
 
-Convert the `safe-outputs` MCP server from stdio transport to an HTTP transport.
+Convert the safe-outputs MCP server from stdio transport to HTTP transport. This change
+follows the safe-inputs pattern and includes:
 
-This change updates the MCP server implementation, startup steps, and generated
-MCP configuration to use an HTTP server with an Authorization header instead of
-stdio. Tests and workflow lock files were updated accordingly.
+- HTTP server implementation and startup scripts for safe-outputs
+- Updated MCP configuration rendering to use HTTP transport and Authorization header
+- Added environment variables and startup steps for the safe-outputs server
+- Tests and TOML rendering updated to match HTTP transport
+
+This is an internal implementation change; there are no user-facing CLI breaking
+changes.
+
