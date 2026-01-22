@@ -688,7 +688,7 @@ func getDefaultBranch() (string, error) {
 }
 
 // checkOnDefaultBranch checks if the current branch is the default branch
-// Returns nil if no remote is configured (local-only repository)
+// Returns an error if no remote is configured or if not on the default branch
 func checkOnDefaultBranch(verbose bool) error {
 	gitLog.Print("Checking if on default branch")
 
@@ -701,13 +701,10 @@ func checkOnDefaultBranch(verbose bool) error {
 	// Get default branch
 	defaultBranch, err := getDefaultBranch()
 	if err != nil {
-		// If no remote is configured, skip the check
+		// If no remote is configured, fail the push operation
 		if strings.Contains(err.Error(), "no remote repository configured") {
-			gitLog.Print("No remote configured, skipping default branch check")
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No remote configured - skipping default branch check"))
-			}
-			return nil
+			gitLog.Print("No remote configured, cannot push")
+			return fmt.Errorf("--push requires a remote repository to be configured")
 		}
 		return fmt.Errorf("failed to get default branch: %w", err)
 	}

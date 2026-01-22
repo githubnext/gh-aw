@@ -33,7 +33,7 @@ func TestGetDefaultBranch(t *testing.T) {
 
 // TestCheckOnDefaultBranch tests the checkOnDefaultBranch function
 func TestCheckOnDefaultBranch(t *testing.T) {
-	t.Run("no remote configured - skips check", func(t *testing.T) {
+	t.Run("no remote configured - should fail", func(t *testing.T) {
 		// Create a temporary directory for test
 		tmpDir := t.TempDir()
 		originalDir, _ := os.Getwd()
@@ -52,9 +52,10 @@ func TestCheckOnDefaultBranch(t *testing.T) {
 		exec.Command("git", "add", "test.txt").Run()
 		exec.Command("git", "commit", "-m", "initial commit").Run()
 
-		// Should succeed (skip check) when no remote is configured
+		// Should fail when no remote is configured
 		err = checkOnDefaultBranch(false)
-		assert.NoError(t, err, "Should skip check when no remote is configured")
+		require.Error(t, err, "Should fail when no remote is configured")
+		assert.Contains(t, err.Error(), "--push requires a remote repository to be configured")
 	})
 }
 
