@@ -58,6 +58,7 @@ safe-outputs:
       - name: "End Date"
         data-type: "DATE"
   messages:
+    append-only-comments: true
     run-started: "### :rocket: Campaign setup started
 
 Creating a tracking Project and generating campaign files + orchestrator workflow.
