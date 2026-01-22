@@ -1,0 +1,16 @@
+{
+  "campaign_id": "security-alert-burndown",
+  "date": "2026-01-22",
+  "tasks_total": 0,
+  "tasks_completed": 0,
+  "tasks_in_progress": 0,
+  "tasks_blocked": 0,
+  "run_summary": {
+    "discovered_items": 0,
+    "items_added": 0,
+    "items_updated": 0,
+    "items_failed": 0,
+    "epic_created": true
+  },
+  "notes": "Campaign initialization run. Epic issue created. Awaiting worker outputs from code-scanning-fixer and security-fix-pr."
+}
