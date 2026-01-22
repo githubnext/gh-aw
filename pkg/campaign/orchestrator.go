@@ -116,7 +116,7 @@ func buildDiscoverySteps(spec *CampaignSpec) []map[string]any {
 			"uses": "actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd", // v8.0.0
 			"env":  envVars,
 			"with": map[string]any{
-				"github-token": "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+				"github-token": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN || secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}",
 				"script": `
 const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
 setupGlobals(core, github, context, exec, io);

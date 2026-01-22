@@ -10,6 +10,22 @@ import (
 
 var safeOutputsEnvLog = logger.New("workflow:safe_outputs_env")
 
+// getCampaignIDFromRepoMemory returns the first configured campaign-id from repo-memory (if any).
+// Campaign worker workflows typically carry campaign context via tools.repo-memory.*.campaign-id.
+func getCampaignIDFromRepoMemory(data *WorkflowData) string {
+	if data == nil || data.RepoMemoryConfig == nil {
+		return ""
+	}
+
+	for _, memory := range data.RepoMemoryConfig.Memories {
+		if strings.TrimSpace(memory.CampaignID) != "" {
+			return strings.TrimSpace(memory.CampaignID)
+		}
+	}
+
+	return ""
+}
+
 // ========================================
 // Safe Output Environment Variables
 // ========================================
@@ -135,6 +151,11 @@ func (c *Compiler) buildStandardSafeOutputEnvVars(data *WorkflowData, targetRepo
 		data.SafeOutputs.Staged,
 		targetRepoSlug,
 	)...)
+
+	// Campaign context (optional): used by safe output pipeline to label outputs for discovery.
+	if campaignID := getCampaignIDFromRepoMemory(data); campaignID != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CAMPAIGN_ID: %q\n", campaignID))
+	}
 
 	// Add messages config if present
 	if data.SafeOutputs.Messages != nil {
