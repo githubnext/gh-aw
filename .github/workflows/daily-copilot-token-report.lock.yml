@@ -199,19 +199,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: |
-          # Download official Copilot CLI installer script
-          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
-          
-          # Execute the installer with the specified version
-          # Pass VERSION directly to sudo to ensure it's available to the installer script
-          sudo VERSION=0.0.389 bash /tmp/copilot-install.sh
-          
-          # Cleanup
-          rm -f /tmp/copilot-install.sh
-          
-          # Verify installation
-          copilot --version
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.389
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.10.0
       - name: Determine automatic lockdown mode for GitHub MCP server
@@ -2056,19 +2044,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: |
-          # Download official Copilot CLI installer script
-          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh
-          
-          # Execute the installer with the specified version
-          # Pass VERSION directly to sudo to ensure it's available to the installer script
-          sudo VERSION=0.0.389 bash /tmp/copilot-install.sh
-          
-          # Cleanup
-          rm -f /tmp/copilot-install.sh
-          
-          # Verify installation
-          copilot --version
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.389
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
