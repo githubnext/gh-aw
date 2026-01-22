@@ -1200,6 +1200,8 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
+          GH_AW_ASSIGNMENT_ERRORS: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_errors }}
+          GH_AW_ASSIGNMENT_ERROR_COUNT: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_error_count }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"### :rocket: Campaign setup started\\nCreating a tracking Project and generating campaign files + orchestrator workflow.\\nNo action needed — the [{workflow_name}]({run_url}) will open a pull request and post the link + checklist back on this issue when ready.\\n\\u003e To stop this run: remove the label that started it.\\n\\u003e **Docs**: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/\",\"runSuccess\":\"### :white_check_mark: Campaign setup complete\\nTracking Project created and pull request with generated campaign files is ready.\\n**Next steps**: Review + merge the PR, then run the campaign from the Actions tab.\\n\\u003e **Docs**: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/\",\"runFailure\":\"### :x: Campaign setup {status}\\n**Common causes**:\\n- `GH_AW_PROJECT_GITHUB_TOKEN` is missing or invalid\\n- Token lacks access to GitHub Projects\\n**Action required**:\\n- Fix the first error in the logs\\n- Re-apply the label to re-run\\n\\u003e **Troubleshooting**: https://githubnext.github.io/gh-aw/guides/campaigns/flow/#when-something-goes-wrong\\n\\u003e **Docs**: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1465,6 +1467,8 @@ jobs:
       GH_AW_WORKFLOW_NAME: "Agentic Campaign Generator"
     outputs:
       assign_to_agent_assigned: ${{ steps.assign_to_agent.outputs.assigned }}
+      assign_to_agent_assignment_error_count: ${{ steps.assign_to_agent.outputs.assignment_error_count }}
+      assign_to_agent_assignment_errors: ${{ steps.assign_to_agent.outputs.assignment_errors }}
       process_project_safe_outputs_processed_count: ${{ steps.process_project_safe_outputs.outputs.processed_count }}
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
