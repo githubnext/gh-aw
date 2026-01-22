@@ -1,8 +1,11 @@
 package workflow
 
 import (
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/types"
 )
+
+var toolsTypesLog = logger.New("workflow:tools_types")
 
 // ToolsConfig represents the unified configuration for all tools in a workflow.
 // This type provides a structured alternative to the pervasive map[string]any pattern.
@@ -91,7 +94,10 @@ type Tools = ToolsConfig
 // It parses all known tool types into their strongly-typed equivalents and stores
 // unknown tools in the Custom map.
 func ParseToolsConfig(toolsMap map[string]any) (*ToolsConfig, error) {
+	toolsTypesLog.Printf("Parsing tools configuration: tool_count=%d", len(toolsMap))
 	config := NewTools(toolsMap)
+	toolNames := config.GetToolNames()
+	toolsTypesLog.Printf("Parsed tools configuration: result_count=%d, tools=%v", len(toolNames), toolNames)
 	return config, nil
 }
 
@@ -156,15 +162,18 @@ func mcpServerConfigToMap(config MCPServerConfig) map[string]any {
 // This is useful when interfacing with legacy code that expects map[string]any.
 func (t *ToolsConfig) ToMap() map[string]any {
 	if t == nil {
+		toolsTypesLog.Print("Converting nil ToolsConfig to empty map")
 		return make(map[string]any)
 	}
 
 	// Return the raw map if it exists
 	if t.raw != nil {
+		toolsTypesLog.Printf("Returning cached raw map with %d entries", len(t.raw))
 		return t.raw
 	}
 
 	// Otherwise construct a new map from the fields
+	toolsTypesLog.Print("Constructing map from ToolsConfig fields")
 	result := make(map[string]any)
 
 	if t.GitHub != nil {
@@ -214,6 +223,7 @@ func (t *ToolsConfig) ToMap() map[string]any {
 		result[name] = mcpServerConfigToMap(config)
 	}
 
+	toolsTypesLog.Printf("Constructed map with %d entries from ToolsConfig", len(result))
 	return result
 }
 
@@ -371,6 +381,8 @@ func (t *Tools) HasTool(name string) bool {
 		return false
 	}
 
+	toolsTypesLog.Printf("Checking if tool exists: name=%s", name)
+
 	switch name {
 	case "github":
 		return t.GitHub != nil
@@ -408,6 +420,7 @@ func (t *Tools) GetToolNames() []string {
 		return []string{}
 	}
 
+	toolsTypesLog.Print("Collecting configured tool names")
 	names := []string{}
 
 	if t.GitHub != nil {
@@ -452,5 +465,6 @@ func (t *Tools) GetToolNames() []string {
 		names = append(names, name)
 	}
 
+	toolsTypesLog.Printf("Found %d configured tools: %v", len(names), names)
 	return names
 }

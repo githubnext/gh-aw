@@ -8,10 +8,13 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/repoutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
+
+var tokensBootstrapLog = logger.New("cli:tokens_bootstrap")
 
 // tokenSpec describes a recommended token secret for gh-aw
 type tokenSpec struct {
@@ -23,6 +26,7 @@ type tokenSpec struct {
 
 // getRecommendedTokensForEngine returns token specs based on the workflow engine
 func getRecommendedTokensForEngine(engine string) []tokenSpec {
+	tokensBootstrapLog.Printf("Getting recommended tokens for engine: %s", engine)
 	// Base tokens needed for most workflows
 	tokens := []tokenSpec{
 		{
@@ -58,6 +62,8 @@ func getRecommendedTokensForEngine(engine string) []tokenSpec {
 		})
 	}
 
+	tokensBootstrapLog.Printf("Collected engine-specific tokens: engine=%s, count=%d", engine, len(tokens))
+
 	// Optional tokens for advanced use cases
 	tokens = append(tokens,
 		tokenSpec{
@@ -74,6 +80,7 @@ func getRecommendedTokensForEngine(engine string) []tokenSpec {
 		},
 	)
 
+	tokensBootstrapLog.Printf("Returning %d total token specs for engine %s", len(tokens), engine)
 	return tokens
 }
 
