@@ -341,11 +341,43 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     };
   };
 
+  /**
+   * Handler for create_project tool
+   * Auto-generates a temporary ID if not provided and returns it to the agent
+   */
+  const createProjectHandler = args => {
+    const entry = { ...(args || {}), type: "create_project" };
+
+    // Generate temporary_id if not provided
+    if (!entry.temporary_id) {
+      entry.temporary_id = "aw_" + crypto.randomBytes(6).toString("hex");
+      server.debug(`Auto-generated temporary_id for create_project: ${entry.temporary_id}`);
+    }
+
+    // Append to safe outputs
+    appendSafeOutput(entry);
+
+    // Return the temporary_id to the agent so it can reference this project
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            result: "success",
+            temporary_id: entry.temporary_id,
+            project: `#${entry.temporary_id}`,
+          }),
+        },
+      ],
+    };
+  };
+
   return {
     defaultHandler,
     uploadAssetHandler,
     createPullRequestHandler,
     pushToPullRequestBranchHandler,
+    createProjectHandler,
   };
 }
 

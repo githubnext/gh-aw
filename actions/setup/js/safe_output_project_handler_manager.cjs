@@ -111,6 +111,9 @@ async function processMessages(messageHandlers, messages) {
   const results = [];
   let processedCount = 0;
 
+  // Build a temporary project ID map as we process create_project messages
+  const temporaryProjectMap = new Map();
+
   core.info(`Processing ${messages.length} project-related message(s)...`);
 
   // Process messages in order of appearance
@@ -136,8 +139,8 @@ async function processMessages(messageHandlers, messages) {
       core.info(`Processing message ${i + 1}/${messages.length}: ${messageType}`);
 
       // Call the message handler with the individual message
-      // Note: Project handlers don't use temporary ID resolution
-      const result = await messageHandler(message, {});
+      // Pass the temporary project map for resolution
+      const result = await messageHandler(message, temporaryProjectMap);
 
       // Check if the handler explicitly returned a failure
       if (result && result.success === false) {
@@ -150,6 +153,12 @@ async function processMessages(messageHandlers, messages) {
           error: errorMsg,
         });
         continue;
+      }
+
+      // If this was a create_project, store the mapping
+      if (messageType === "create_project" && result && result.projectUrl && message.temporary_id) {
+        temporaryProjectMap.set(message.temporary_id.toLowerCase(), result.projectUrl);
+        core.info(`✓ Stored project mapping: ${message.temporary_id} -> ${result.projectUrl}`);
       }
 
       results.push({

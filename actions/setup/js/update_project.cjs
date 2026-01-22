@@ -978,10 +978,10 @@ async function main(config = {}) {
   /**
    * Message handler function that processes a single update_project message
    * @param {Object} message - The update_project message to process
-   * @param {Object} resolvedTemporaryIds - Map of temporary IDs (unused for update_project)
+   * @param {Map<string, string>} temporaryProjectMap - Map of temporary project IDs to actual URLs
    * @returns {Promise<Object>} Result with success/error status
    */
-  return async function handleUpdateProject(message, resolvedTemporaryIds) {
+  return async function handleUpdateProject(message, temporaryProjectMap) {
     // Check max limit
     if (processedCount >= maxCount) {
       core.warning(`Skipping update_project: max count of ${maxCount} reached`);
@@ -994,15 +994,38 @@ async function main(config = {}) {
     processedCount++;
 
     try {
+      // Resolve temporary project ID if present
+      let effectiveProjectUrl = message.project;
+
+      if (effectiveProjectUrl && typeof effectiveProjectUrl === "string") {
+        // Strip # prefix if present
+        const projectStr = effectiveProjectUrl.trim();
+        const projectWithoutHash = projectStr.startsWith("#") ? projectStr.substring(1) : projectStr;
+
+        // Check if it's a temporary ID (aw_XXXXXXXXXXXX)
+        if (/^aw_[0-9a-f]{12}$/i.test(projectWithoutHash)) {
+          const resolved = temporaryProjectMap.get(projectWithoutHash.toLowerCase());
+          if (resolved) {
+            core.info(`Resolved temporary project ID ${projectStr} to ${resolved}`);
+            effectiveProjectUrl = resolved;
+          } else {
+            throw new Error(`Temporary project ID '${projectStr}' not found. Ensure create_project was called before update_project.`);
+          }
+        }
+      }
+
+      // Create effective message with resolved project URL
+      const resolvedMessage = { ...message, project: effectiveProjectUrl };
+
       // Store the first project URL for view creation
-      if (!firstProjectUrl && message.project) {
-        firstProjectUrl = message.project;
+      if (!firstProjectUrl && effectiveProjectUrl) {
+        firstProjectUrl = effectiveProjectUrl;
       }
 
       // Create configured fields once before processing the first message
       // This ensures campaign-required fields exist even if the agent doesn't explicitly emit operation=create_fields.
       if (!fieldsCreated && configuredFieldDefinitions.length > 0 && firstProjectUrl) {
-        const operation = typeof message?.operation === "string" ? message.operation : "";
+        const operation = typeof resolvedMessage?.operation === "string" ? resolvedMessage.operation : "";
         if (operation !== "create_fields") {
           fieldsCreated = true;
           core.info(`Creating ${configuredFieldDefinitions.length} configured field(s) on project: ${firstProjectUrl}`);
@@ -1027,7 +1050,7 @@ async function main(config = {}) {
       }
 
       // If the agent requests create_fields but omitted field_definitions, fall back to configured definitions.
-      const effectiveMessage = { ...message };
+      const effectiveMessage = { ...resolvedMessage };
       if (effectiveMessage?.operation === "create_fields" && !effectiveMessage.field_definitions && configuredFieldDefinitions.length > 0) {
         effectiveMessage.field_definitions = configuredFieldDefinitions;
       }
