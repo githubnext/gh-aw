@@ -1061,10 +1061,11 @@ jobs:
           4. **Playwright Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
           5. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item
           6. **Runtime Mount Testing - npm**: Execute `npm ls` command to verify that npm is available in the container (this tests that the runtime manager properly mounted Node.js folders)
-          7. **Runtime Mount Testing - Docs Build**: Build the documentation by running `cd docs && npm ci && npm run build` to verify Node.js runtime is fully functional with all dependencies and build tools
-          8. **Runtime Mount Testing - JS Tests**: Run JavaScript tests with `make test-js` to verify Node.js can execute tests and all mounts are working correctly
-          9. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-claude-__GH_AW_GITHUB_RUN_ID__.txt` with content "Smoke test passed for Claude at $(date)" (create the directory if it doesn't exist)
-          10. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+          7. **Runtime Mount Testing - Docs Dependencies**: Install documentation dependencies by running `cd docs && npm ci` to verify npm can install packages using the cache
+          8. **Runtime Mount Testing - Docs Build**: Build the documentation by running `cd docs && npm run build` to verify Node.js runtime is fully functional with build tools
+          9. **Runtime Mount Testing - JS Tests**: Run JavaScript tests with `make test-js` to verify Node.js can execute tests and all mounts are working correctly
+          10. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-claude-__GH_AW_GITHUB_RUN_ID__.txt` with content "Smoke test passed for Claude at $(date)" (create the directory if it doesn't exist)
+          11. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
           
           ## Output
           
