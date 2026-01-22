@@ -58,7 +58,6 @@ safe-outputs:
     max: 10
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
   messages:
-    append-only-comments: true
     run-started: "### :rocket: Campaign setup started
 
 Creating a tracking Project and generating campaign files + orchestrator workflow.
