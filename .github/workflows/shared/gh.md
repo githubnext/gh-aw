@@ -1,7 +1,4 @@
 ---
-network:
-  allowed:
-    - api.github.com
 safe-inputs:
   gh:
     description: "Execute any gh CLI command. This tool is accessible as 'safeinputs-gh'. Provide the full command after 'gh' (e.g., args: 'pr list --limit 5'). The tool will run: gh <args>. Use single quotes ' for complex args to avoid shell interpretation issues."
