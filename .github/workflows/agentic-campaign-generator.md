@@ -68,33 +68,35 @@ safe-outputs:
       - name: "end_date"
         data-type: "DATE"
   messages:
-    footer: "> *Managed by [{workflow_name}]({run_url})*
-Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/"
     run-started: "### :rocket: Campaign setup started
 
-I’m creating a tracking Project and generating the campaign files + orchestrator workflow.
+Creating a tracking Project and generating campaign files + orchestrator workflow.
 
-Next, I’ll open a pull request and post the link + checklist in this issue.
+No action needed right now — the [{workflow_name}]({run_url}) will open a pull request and post the link + checklist back on this issue when ready.
 
 > To stop this run: remove the label that started it.
-
-> To learn more about campaigns, visit: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/"
+> Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/"
     run-success: "### :white_check_mark: Campaign setup complete
 
-All set — the tracking Project is created and the pull request with the generated campaign files is ready.
+Tracking Project created and pull request with generated campaign files is ready.
 
-Next: review + merge the PR, then run the orchestrator from the Actions tab.
+Next steps:
+- Review + merge the PR
+- Run the campaign from the Actions tab
 
-> To learn more about campaigns, visit: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/"
+> Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/"
     run-failure: "### :x: Campaign setup {status}
 
-This is usually a quick fix. First check that `GH_AW_PROJECT_GITHUB_TOKEN` is set and has access to GitHub Projects.
+Common causes:
+- `GH_AW_PROJECT_GITHUB_TOKEN` is missing or invalid
+- Token lacks access to GitHub Projects
 
-Retry: fix the first error in the logs, then re-apply the label to re-run
+Action required:
+- Fix the first error in the logs
+- Re-apply the label to re-run
 
 > Troubleshooting: https://githubnext.github.io/gh-aw/guides/campaigns/flow/#when-something-goes-wrong
-
-> To learn more about campaigns, visit: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/"
+> Docs: https://githubnext.github.io/gh-aw/guides/campaigns/getting-started/"
 timeout-minutes: 10
 ---
 

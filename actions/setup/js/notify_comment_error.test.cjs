@@ -42,6 +42,8 @@ const mockCore = {
     let notifyCommentScript, originalEnv;
     (beforeEach(() => {
       (vi.clearAllMocks(),
+        (mockContext.eventName = void 0),
+        (mockContext.payload = void 0),
         (originalEnv = {
           GH_AW_COMMENT_ID: process.env.GH_AW_COMMENT_ID,
           GH_AW_COMMENT_REPO: process.env.GH_AW_COMMENT_REPO,
@@ -49,6 +51,7 @@ const mockCore = {
           GH_AW_WORKFLOW_NAME: process.env.GH_AW_WORKFLOW_NAME,
           GH_AW_AGENT_CONCLUSION: process.env.GH_AW_AGENT_CONCLUSION,
           GH_AW_DETECTION_CONCLUSION: process.env.GH_AW_DETECTION_CONCLUSION,
+          GH_AW_SAFE_OUTPUT_MESSAGES: process.env.GH_AW_SAFE_OUTPUT_MESSAGES,
           GH_AW_SAFE_OUTPUT_JOBS: process.env.GH_AW_SAFE_OUTPUT_JOBS,
           GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL: process.env.GH_AW_OUTPUT_CREATE_ISSUE_ISSUE_URL,
           GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL: process.env.GH_AW_OUTPUT_ADD_COMMENT_COMMENT_URL,
@@ -72,6 +75,35 @@ const mockCore = {
             expect(mockCore.info).toHaveBeenCalledWith("No comment ID found and no noop messages to process, skipping comment update"),
             expect(mockGithub.request).not.toHaveBeenCalled(),
             expect(mockGithub.graphql).not.toHaveBeenCalled());
+        });
+      }),
+      describe("when append-only comments are enabled", () => {
+        it("should create a new issue comment even when GH_AW_COMMENT_ID is not set", async () => {
+          (delete process.env.GH_AW_COMMENT_ID,
+            (process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({ appendOnlyComments: !0 })),
+            (process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123"),
+            (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
+            (process.env.GH_AW_AGENT_CONCLUSION = "success"),
+            (mockContext.eventName = "issues"),
+            (mockContext.payload = { issue: { number: 1 } }),
+            await eval(`(async () => { ${notifyCommentScript}; await main(); })()`),
+            expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", expect.objectContaining({ owner: "testowner", repo: "testrepo", issue_number: 1, body: expect.any(String) })),
+            expect(mockCore.info).toHaveBeenCalledWith("Successfully created append-only comment"));
+        });
+
+        it("should create a new comment instead of updating an existing comment", async () => {
+          ((process.env.GH_AW_COMMENT_ID = "123456"),
+            (process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({ appendOnlyComments: !0 })),
+            (process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123"),
+            (process.env.GH_AW_WORKFLOW_NAME = "test-workflow"),
+            (process.env.GH_AW_AGENT_CONCLUSION = "success"),
+            (mockContext.eventName = "issues"),
+            (mockContext.payload = { issue: { number: 1 } }),
+            await eval(`(async () => { ${notifyCommentScript}; await main(); })()`),
+            expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", expect.objectContaining({ owner: "testowner", repo: "testrepo", issue_number: 1, body: expect.any(String) })));
+
+          const endpoints = mockGithub.request.mock.calls.map(call => call[0]);
+          expect(endpoints).not.toContain("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}");
         });
       }),
       describe("when run URL is not provided", () => {

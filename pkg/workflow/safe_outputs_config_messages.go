@@ -13,6 +13,12 @@ import (
 func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 	config := &SafeOutputMessagesConfig{}
 
+	if appendOnly, exists := messagesMap["append-only-comments"]; exists {
+		if appendOnlyBool, ok := appendOnly.(bool); ok {
+			config.AppendOnlyComments = appendOnlyBool
+		}
+	}
+
 	if footer, exists := messagesMap["footer"]; exists {
 		if footerStr, ok := footer.(string); ok {
 			config.Footer = footerStr

@@ -7,6 +7,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getRunSuccessMessage, getRunFailureMessage, getDetectionFailureMessage } = require("./messages_run_status.cjs");
+const { getMessages } = require("./messages_core.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
@@ -54,6 +55,9 @@ async function main() {
   const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
   const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
 
+  const messagesConfig = getMessages();
+  const appendOnlyComments = messagesConfig?.appendOnlyComments === true;
+
   core.info(`Comment ID: ${commentId}`);
   core.info(`Comment Repo: ${commentRepo}`);
   core.info(`Run URL: ${runUrl}`);
@@ -74,8 +78,9 @@ async function main() {
     }
   }
 
-  // If there's no comment to update but we have noop messages, write to step summary
-  if (!commentId && noopMessages.length > 0) {
+  // If append-only is enabled, we do NOT require an activation comment ID.
+  // If it's disabled, and there's no comment to update but we have noop messages, write to step summary.
+  if (!appendOnlyComments && !commentId && noopMessages.length > 0) {
     core.info("No comment ID found, writing noop messages to step summary");
 
     let summaryContent = "## No-Op Messages\n\n";
@@ -92,7 +97,7 @@ async function main() {
     return;
   }
 
-  if (!commentId) {
+  if (!appendOnlyComments && !commentId) {
     core.info("No comment ID found and no noop messages to process, skipping comment update");
     return;
   }
@@ -161,6 +166,87 @@ async function main() {
     generatedAssets.forEach(url => {
       message += `${url}\n`;
     });
+  }
+
+  // Append-only mode: create a new comment instead of updating the activation comment.
+  if (appendOnlyComments) {
+    try {
+      const eventName = context.eventName;
+
+      // Discussions: create a new discussion comment (threaded reply for discussion_comment)
+      if (eventName === "discussion" || eventName === "discussion_comment") {
+        const discussionNumber = context.payload?.discussion?.number;
+        if (!discussionNumber) {
+          core.warning("Unable to determine discussion number for append-only comment; skipping");
+          return;
+        }
+
+        const { repository } = await github.graphql(
+          `
+          query($owner: String!, $repo: String!, $num: Int!) {
+            repository(owner: $owner, name: $repo) {
+              discussion(number: $num) {
+                id
+              }
+            }
+          }`,
+          { owner: repoOwner, repo: repoName, num: discussionNumber }
+        );
+
+        const discussionId = repository?.discussion?.id;
+        if (!discussionId) {
+          core.warning("Unable to resolve discussion id for append-only comment; skipping");
+          return;
+        }
+
+        const replyToId = eventName === "discussion_comment" ? context.payload?.comment?.node_id : null;
+        const mutation = replyToId
+          ? `mutation($dId: ID!, $body: String!, $replyToId: ID!) {
+              addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
+                comment { id url }
+              }
+            }`
+          : `mutation($dId: ID!, $body: String!) {
+              addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                comment { id url }
+              }
+            }`;
+
+        const variables = replyToId ? { dId: discussionId, body: message, replyToId } : { dId: discussionId, body: message };
+        const result = await github.graphql(mutation, variables);
+        const created = result?.addDiscussionComment?.comment;
+        core.info("Successfully created append-only discussion comment");
+        if (created?.id) core.info(`Comment ID: ${created.id}`);
+        if (created?.url) core.info(`Comment URL: ${created.url}`);
+        return;
+      }
+
+      // Issues/PRs: determine issue number from event payload and create a new issue comment
+      const issueNumber = context.payload?.issue?.number || context.payload?.pull_request?.number;
+      if (!issueNumber) {
+        core.warning("Unable to determine issue/PR number for append-only comment; skipping");
+        return;
+      }
+
+      const response = await github.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
+        owner: repoOwner,
+        repo: repoName,
+        issue_number: issueNumber,
+        body: message,
+        headers: {
+          Accept: "application/vnd.github+json",
+        },
+      });
+
+      core.info("Successfully created append-only comment");
+      if (response?.data?.id) core.info(`Comment ID: ${response.data.id}`);
+      if (response?.data?.html_url) core.info(`Comment URL: ${response.data.html_url}`);
+      return;
+    } catch (error) {
+      // Don't fail the workflow if we can't create the comment
+      core.warning(`Failed to create append-only comment: ${getErrorMessage(error)}`);
+      return;
+    }
   }
 
   // Check if this is a discussion comment (GraphQL node ID format)
