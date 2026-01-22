@@ -374,14 +374,9 @@
             "type": "object",
             "description": "Labeling and metadata contract for worker outputs",
             "properties": {
-              "tracker-label": {
-                "type": "string",
-                "description": "Label applied to all worker-created items (format: campaign:{campaign_id})",
-                "minLength": 1
-              },
-              "additional-labels": {
+              "labels": {
                 "type": "array",
-                "description": "Other labels the worker applies",
+                "description": "Labels the worker applies to created items (in addition to the campaign's tracker-label)",
                 "items": {
                   "type": "string",
                   "minLength": 1
@@ -405,7 +400,7 @@
                 }
               }
             },
-            "required": ["tracker-label", "key-in-title"],
+            "required": ["key-in-title"],
             "additionalProperties": false
           },
           "idempotency-strategy": {

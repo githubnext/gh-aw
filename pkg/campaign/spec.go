@@ -370,13 +370,11 @@ type WorkerPayloadField struct {
 
 // WorkerOutputLabeling defines the labeling and metadata contract for worker outputs.
 type WorkerOutputLabeling struct {
-	// TrackerLabel is the label applied to all worker-created items for campaign tracking.
-	// Format: "campaign:{campaign_id}" (e.g., "campaign:security-q1-2025")
-	TrackerLabel string `yaml:"tracker-label" json:"tracker_label"`
-
-	// AdditionalLabels are other labels the worker applies to created items.
+	// Labels are the labels the worker applies to created items.
+	// The campaign's tracker-label is automatically applied by the worker
+	// in addition to these labels.
 	// Examples: "security", "automated", "dependencies"
-	AdditionalLabels []string `yaml:"additional-labels,omitempty" json:"additional_labels,omitempty"`
+	Labels []string `yaml:"labels,omitempty" json:"labels,omitempty"`
 
 	// KeyInTitle indicates whether the worker includes a deterministic key in
 	// the title of created items (format: "[{key}] {title}").

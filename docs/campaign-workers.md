@@ -103,8 +103,7 @@ workers:
         required: false
         example: high
     output-labeling:
-      tracker-label: campaign:security-q1-2025
-      additional-labels:
+      labels:
         - security
         - automated
       key-in-title: true
@@ -143,13 +142,12 @@ When the orchestrator needs to dispatch a worker (e.g., during bootstrap from Pr
 
 The `output-labeling` section guarantees how worker outputs are labeled and formatted:
 
-- **tracker-label**: Label applied to all worker-created items (format: `campaign:{campaign_id}`)
-- **additional-labels**: Other labels the worker applies
+- **labels**: Labels the worker applies to created items (in addition to the campaign's tracker-label)
 - **key-in-title**: Whether worker includes a deterministic key in item titles
 - **key-format**: Format of the key when `key-in-title` is true
 - **metadata-fields**: Project fields the worker populates
 
-This contract ensures worker outputs are:
+Workers automatically apply the campaign's tracker label (defined at the campaign level) to all created items, ensuring:
 - **Discoverable**: Can be found via tracker label searches
 - **Attributable**: Can be traced back to the campaign and worker
 - **Idempotent**: Can be checked for duplicates via deterministic keys

@@ -113,8 +113,7 @@ workers:
     
     # Output labeling contract
     output-labeling:
-      tracker-label: campaign:security-q1-2025
-      additional-labels: [security, automated]
+      labels: [security, automated]
       key-in-title: true
       key-format: "campaign-{campaign_id}-{repository}-{alert_id}"
       metadata-fields: [Campaign Id, Worker Workflow, Alert ID]
@@ -125,6 +124,8 @@ workers:
     # Selection priority (higher = preferred)
     priority: 10
 ```
+
+Note: The campaign's tracker-label (defined at the campaign level) is automatically applied to all worker outputs.
 
 ### 3. Deterministic Worker Selection
 
@@ -215,7 +216,6 @@ workers:
       severity: {type: string, required: true}
       max-alerts: {type: number, required: false}
     output-labeling:
-      tracker-label: campaign:security-q1-2025
       key-in-title: true
       key-format: "scan-{repository}"
     idempotency-strategy: issue-title-based
@@ -227,12 +227,15 @@ workers:
       repository: {type: string, required: true}
       alert_id: {type: string, required: true}
     output-labeling:
-      tracker-label: campaign:security-q1-2025
       key-in-title: true
       key-format: "campaign-{campaign_id}-{repository}-{alert_id}"
     idempotency-strategy: pr-title-based
     priority: 10
+
+tracker-label: campaign:security-q1-2025
 ```
+
+Note: The tracker-label is defined once at the campaign level and automatically applied by all workers.
 
 **Execution Flow**:
 
@@ -304,11 +307,10 @@ type WorkerMetadata struct {
 }
 
 type WorkerOutputLabeling struct {
-    TrackerLabel      string
-    AdditionalLabels  []string
-    KeyInTitle        bool
-    KeyFormat         string
-    MetadataFields    []string
+    Labels          []string
+    KeyInTitle      bool
+    KeyFormat       string
+    MetadataFields  []string
 }
 ```
 

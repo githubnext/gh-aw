@@ -112,11 +112,11 @@ When dispatching workers during bootstrap, use deterministic selection:
 {{ end }}
 
 **Output Labeling**:
-- Tracker Label: `{{ .OutputLabeling.TrackerLabel }}`
-{{ if .OutputLabeling.AdditionalLabels }}- Additional Labels: {{ range $labelIndex, $label := .OutputLabeling.AdditionalLabels }}{{ if $labelIndex }}, {{ end }}`{{ $label }}`{{ end }}
+{{ if .OutputLabeling.Labels }}- Labels: {{ range $labelIndex, $label := .OutputLabeling.Labels }}{{ if $labelIndex }}, {{ end }}`{{ $label }}`{{ end }}
 {{ end }}- Key in Title: {{ .OutputLabeling.KeyInTitle }}
 {{ if .OutputLabeling.KeyFormat }}- Key Format: `{{ .OutputLabeling.KeyFormat }}`
 {{ end }}
+- Campaign tracker label applied automatically: `campaign:{{ $.CampaignID }}`
 
 **Idempotency Strategy**: {{ .IdempotencyStrategy }}
 

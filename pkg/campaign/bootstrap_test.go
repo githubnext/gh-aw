@@ -155,8 +155,7 @@ workers:
         required: false
         example: high
     output-labeling:
-      tracker-label: campaign:test-workers
-      additional-labels:
+      labels:
         - security
         - automated
       key-in-title: true
@@ -207,14 +206,11 @@ workers:
 	}
 
 	// Check output labeling
-	if worker.OutputLabeling.TrackerLabel != "campaign:test-workers" {
-		t.Errorf("Expected tracker label 'campaign:test-workers', got '%s'", worker.OutputLabeling.TrackerLabel)
-	}
 	if !worker.OutputLabeling.KeyInTitle {
 		t.Error("Expected key-in-title to be true")
 	}
-	if len(worker.OutputLabeling.AdditionalLabels) != 2 {
-		t.Errorf("Expected 2 additional labels, got %d", len(worker.OutputLabeling.AdditionalLabels))
+	if len(worker.OutputLabeling.Labels) != 2 {
+		t.Errorf("Expected 2 labels, got %d", len(worker.OutputLabeling.Labels))
 	}
 	if len(worker.OutputLabeling.MetadataFields) != 2 {
 		t.Errorf("Expected 2 metadata fields, got %d", len(worker.OutputLabeling.MetadataFields))
@@ -246,7 +242,6 @@ workers:
         description: Target to scan
         required: true
     output-labeling:
-      tracker-label: campaign:test
       key-in-title: false
     idempotency-strategy: branch-based
   - id: worker-two
@@ -257,7 +252,6 @@ workers:
         description: Issue number
         required: true
     output-labeling:
-      tracker-label: campaign:test
       key-in-title: true
       key-format: "fix-{issue}"
     idempotency-strategy: issue-title-based
@@ -314,7 +308,6 @@ workers:
         description: Scan mode
         required: true
     output-labeling:
-      tracker-label: campaign:test-combined
       key-in-title: true
     idempotency-strategy: cursor-based
   - id: fixer
@@ -325,7 +318,6 @@ workers:
         description: Alert ID
         required: true
     output-labeling:
-      tracker-label: campaign:test-combined
       key-in-title: true
     idempotency-strategy: pr-title-based
     priority: 10
@@ -399,8 +391,7 @@ func TestBootstrapConfig_JSONSerialization(t *testing.T) {
 					},
 				},
 				OutputLabeling: WorkerOutputLabeling{
-					TrackerLabel: "campaign:test-json",
-					KeyInTitle:   true,
+					KeyInTitle: true,
 				},
 				IdempotencyStrategy: "branch-based",
 			},
@@ -446,7 +437,6 @@ workers:
         type: string
         description: Optional field without explicit required
     output-labeling:
-      tracker-label: campaign:test
       key-in-title: false
     idempotency-strategy: branch-based
 ---

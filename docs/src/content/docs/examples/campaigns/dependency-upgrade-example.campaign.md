@@ -45,8 +45,7 @@ workers:
         required: false
         example: medium
     output-labeling:
-      tracker-label: campaign:dependency-upgrade-example
-      additional-labels:
+      labels:
         - dependencies
         - automated-scan
       key-in-title: true
@@ -91,8 +90,7 @@ workers:
         required: true
         example: npm
     output-labeling:
-      tracker-label: campaign:dependency-upgrade-example
-      additional-labels:
+      labels:
         - dependencies
         - automated-pr
       key-in-title: true
