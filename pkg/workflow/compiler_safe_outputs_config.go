@@ -3,13 +3,12 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
-<<<<<<< HEAD
-=======
 var compilerSafeOutputsConfigLog = logger.New("workflow:compiler_safe_outputs_config")
 
->>>>>>> 55f41a0837dd54c78627c9eccf30d1db923de42a
 func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *WorkflowData) {
 	if data.SafeOutputs == nil {
 		compilerSafeOutputsConfigLog.Print("No safe-outputs configuration, skipping handler manager config")
