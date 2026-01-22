@@ -1256,7 +1256,7 @@ func TestFriendlyFormatDeterminism(t *testing.T) {
 	}
 
 	// Verify friendly format was stored
-	if compiler.scheduleFriendlyFormats == nil || len(compiler.scheduleFriendlyFormats) == 0 {
+	if len(compiler.scheduleFriendlyFormats) == 0 {
 		t.Fatalf("expected friendly formats to be stored after preprocessing")
 	}
 
@@ -1292,7 +1292,7 @@ func TestFriendlyFormatDeterminism(t *testing.T) {
 	}
 
 	// Verify friendly format was replaced, not appended
-	if compiler.scheduleFriendlyFormats == nil || len(compiler.scheduleFriendlyFormats) == 0 {
+	if len(compiler.scheduleFriendlyFormats) == 0 {
 		t.Fatalf("expected friendly formats to be stored after second preprocessing")
 	}
 

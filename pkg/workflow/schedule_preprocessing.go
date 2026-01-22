@@ -368,7 +368,7 @@ func (c *Compiler) createTriggerParseError(filePath, content, triggerStr string,
 // This function is called after the YAML has been generated from the frontmatter
 func (c *Compiler) addFriendlyScheduleComments(yamlStr string, frontmatter map[string]any) string {
 	// Retrieve the friendly formats for this compilation
-	if c.scheduleFriendlyFormats == nil || len(c.scheduleFriendlyFormats) == 0 {
+	if len(c.scheduleFriendlyFormats) == 0 {
 		return yamlStr
 	}
 
