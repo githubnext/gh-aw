@@ -242,6 +242,182 @@
       },
       "additionalProperties": false
     },
+    "engine": {
+      "type": "string",
+      "description": "AI engine to use for the campaign orchestrator",
+      "enum": ["copilot", "claude", "codex", "custom"]
+    },
+    "bootstrap": {
+      "type": "object",
+      "description": "Initial work item creation strategy when discovery returns zero items",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "description": "Bootstrap strategy: seeder-worker (dispatch scanner), project-todos (read from Project board), manual (skip bootstrap)",
+          "enum": ["seeder-worker", "project-todos", "manual"]
+        },
+        "seeder-worker": {
+          "type": "object",
+          "description": "Configuration for dispatching a seeder/scanner worker. Only used when mode is 'seeder-worker'.",
+          "properties": {
+            "workflow-id": {
+              "type": "string",
+              "description": "Workflow identifier (basename without .md) to dispatch",
+              "minLength": 1
+            },
+            "payload": {
+              "type": "object",
+              "description": "JSON payload to send to the seeder worker"
+            },
+            "max-items": {
+              "type": "integer",
+              "description": "Maximum number of work items the seeder should return (0 = worker default)",
+              "minimum": 0
+            }
+          },
+          "required": ["workflow-id", "payload"],
+          "additionalProperties": false
+        },
+        "project-todos": {
+          "type": "object",
+          "description": "Configuration for reading from Project board's Todo column. Only used when mode is 'project-todos'.",
+          "properties": {
+            "status-field": {
+              "type": "string",
+              "description": "Name of the Project status field to filter on (default: 'Status')",
+              "minLength": 1
+            },
+            "todo-value": {
+              "type": "string",
+              "description": "Status value indicating a work item is ready to start (default: 'Todo')",
+              "minLength": 1
+            },
+            "max-items": {
+              "type": "integer",
+              "description": "Maximum number of Todo items to process per run (0 = governance default)",
+              "minimum": 0
+            },
+            "require-fields": {
+              "type": "array",
+              "description": "Project field names that must be populated for an item to be valid work",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["mode"],
+      "additionalProperties": false
+    },
+    "workers": {
+      "type": "array",
+      "description": "Worker workflow metadata including capabilities, payload schemas, and output labeling contracts",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Workflow identifier (basename without .md)",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable worker name",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of what the worker does",
+            "minLength": 1
+          },
+          "capabilities": {
+            "type": "array",
+            "description": "Types of work this worker can perform",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "payload-schema": {
+            "type": "object",
+            "description": "Expected structure of the JSON payload",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "description": "Field data type",
+                  "enum": ["string", "number", "boolean", "array", "object"]
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Field description",
+                  "minLength": 1
+                },
+                "required": {
+                  "type": "boolean",
+                  "description": "Whether this field is required"
+                },
+                "example": {
+                  "description": "Sample value for this field"
+                }
+              },
+              "required": ["type", "description"],
+              "additionalProperties": false
+            }
+          },
+          "output-labeling": {
+            "type": "object",
+            "description": "Labeling and metadata contract for worker outputs",
+            "properties": {
+              "labels": {
+                "type": "array",
+                "description": "Labels the worker applies to created items (in addition to the campaign's tracker-label)",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "key-in-title": {
+                "type": "boolean",
+                "description": "Whether worker includes deterministic key in title"
+              },
+              "key-format": {
+                "type": "string",
+                "description": "Key format when key-in-title is true",
+                "minLength": 1
+              },
+              "metadata-fields": {
+                "type": "array",
+                "description": "Project fields the worker populates",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "required": ["key-in-title"],
+            "additionalProperties": false
+          },
+          "idempotency-strategy": {
+            "type": "string",
+            "description": "How the worker ensures idempotent execution",
+            "enum": ["branch-based", "pr-title-based", "issue-title-based", "cursor-based"]
+          },
+          "priority": {
+            "type": "integer",
+            "description": "Worker priority for deterministic selection (higher = higher priority)",
+            "minimum": 0
+          }
+        },
+        "required": ["id", "capabilities", "payload-schema", "output-labeling", "idempotency-strategy"],
+        "additionalProperties": false
+      }
+    },
     "governance": {
       "type": "object",
       "description": "Lightweight pacing and opt-out policies for campaign coordinator workflows (launcher/orchestrator)",
