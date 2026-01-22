@@ -4491,7 +4491,8 @@
                 "discussion": {
                   "type": "boolean",
                   "const": true,
-                  "description": "Target discussion comments instead of issue/PR comments. Must be true if present."
+                  "description": "DEPRECATED: This field is deprecated and will be removed in a future version. The add_comment handler now automatically detects whether to target discussions based on context (discussion/discussion_comment events) or the item_number field provided by the agent. Remove this field from your workflow configuration.",
+                  "deprecated": true
                 },
                 "hide-older-comments": {
                   "type": "boolean",
