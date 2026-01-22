@@ -89,11 +89,6 @@ function createMCPServer(options = {}) {
 
   // Register predefined tools
   for (const tool of toolsWithHandlers) {
-    if (!tool.handler) {
-      logger.debug(`Skipping tool ${tool.name} - no handler loaded`);
-      continue;
-    }
-
     // Check if tool is enabled in configuration
     if (!enabledTools.has(tool.name)) {
       logger.debug(`Skipping tool ${tool.name} - not enabled in config`);
@@ -102,12 +97,15 @@ function createMCPServer(options = {}) {
 
     logger.debug(`Registering tool: ${tool.name}`);
 
+    // Use tool-specific handler if available, otherwise use defaultHandler with tool name
+    const toolHandler = tool.handler || defaultHandler(tool.name);
+
     // Register the tool with the MCP SDK using the high-level API
     server.tool(tool.name, tool.description || "", tool.inputSchema || { type: "object", properties: {} }, async args => {
       logger.debug(`Calling handler for tool: ${tool.name}`);
 
       // Call the handler
-      const result = await Promise.resolve(tool.handler(args));
+      const result = await Promise.resolve(toolHandler(args));
       logger.debug(`Handler returned for tool: ${tool.name}`);
 
       // Normalize result to MCP format
