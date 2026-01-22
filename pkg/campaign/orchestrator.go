@@ -377,11 +377,6 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	safeOutputs.AddComments = &workflow.AddCommentsConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: maxComments}}
 	// Allow updating the campaign's GitHub Project dashboard.
 	updateProjectConfig := &workflow.UpdateProjectConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: maxProjectUpdates}}
-	// Enable append-only comments for campaigns - create new comments instead of updating existing ones
-	// This ensures full history of campaign run updates is preserved
-	safeOutputs.Messages = &workflow.SafeOutputMessagesConfig{
-		AppendOnlyComments: true,
-	}
 	// If the campaign spec specifies a custom GitHub token for Projects v2 operations,
 	// pass it to the update-project configuration.
 	if strings.TrimSpace(spec.ProjectGitHubToken) != "" {
@@ -408,6 +403,12 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		}
 		safeOutputs.DispatchWorkflow = dispatchWorkflowConfig
 		orchestratorLog.Printf("Campaign orchestrator '%s' configured with dispatch_workflow for %d workflows", spec.ID, len(spec.Workflows))
+	}
+
+	// Enable append-only comments for campaigns - create new comments instead of updating existing ones
+	// This ensures full history of campaign run updates is preserved
+	safeOutputs.Messages = &workflow.SafeOutputMessagesConfig{
+		AppendOnlyComments: true,
 	}
 
 	orchestratorLog.Printf("Campaign orchestrator '%s' built successfully with safe outputs enabled", spec.ID)
