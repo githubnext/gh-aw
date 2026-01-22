@@ -182,6 +182,7 @@ interface AssignToAgentConfig extends SafeOutputConfig {
   "default-agent"?: string;
   target?: string;
   "target-repo"?: string;
+  "ignore-if-error"?: boolean;
 }
 
 /**

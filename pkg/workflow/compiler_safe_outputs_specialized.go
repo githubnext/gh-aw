@@ -38,6 +38,11 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_ALLOWED: %q\n", allowedStr))
 	}
 
+	// Add ignore-if-error flag if set
+	if cfg.IgnoreIfError {
+		customEnvVars = append(customEnvVars, "          GH_AW_AGENT_IGNORE_IF_ERROR: \"true\"\n")
+	}
+
 	condition := BuildSafeOutputType("assign_to_agent")
 
 	return SafeOutputStepConfig{
