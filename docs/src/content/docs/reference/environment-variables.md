@@ -197,7 +197,7 @@ env:
 jobs:
   agent:
     env:
-      GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
+      GH_AW_SAFE_OUTPUTS: /opt/gh-aw/safeoutputs/outputs.jsonl
       CUSTOM_VAR: ${{ secrets.CUSTOM_SECRET }}
     steps:
       - name: Execute

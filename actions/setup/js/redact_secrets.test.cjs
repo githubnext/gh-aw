@@ -46,7 +46,7 @@ describe("redact_secrets.cjs", () => {
     describe("main function integration", () => {
       (it("should scan for built-in patterns even when GH_AW_SECRET_NAMES is not set", async () => {
         (await eval(`(async () => { ${redactScript}; await main(); })()`),
-          expect(mockCore.info).toHaveBeenCalledWith("Starting secret redaction in /tmp/gh-aw directory"),
+          expect(mockCore.info).toHaveBeenCalledWith("Starting secret redaction in /tmp/gh-aw and /opt/gh-aw directories"),
           expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Scanning for built-in credential patterns")));
       }),
         it("should redact secrets from files in /tmp using exact matching", async () => {
@@ -57,7 +57,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redactedContent = fs.readFileSync(testFile, "utf8");
           (expect(redactedContent).toBe("Secret: ghp************************************* and another ghp*************************************"),
-            expect(mockCore.info).toHaveBeenCalledWith("Starting secret redaction in /tmp/gh-aw directory"),
+            expect(mockCore.info).toHaveBeenCalledWith("Starting secret redaction in /tmp/gh-aw and /opt/gh-aw directories"),
             expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Secret redaction complete")));
         }),
         it("should handle multiple file types", async () => {
@@ -116,7 +116,7 @@ describe("redact_secrets.cjs", () => {
           (fs.writeFileSync(testFile, "No secrets here"), (process.env.GH_AW_SECRET_NAMES = "EMPTY_SECRET"), (process.env.SECRET_EMPTY_SECRET = ""));
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
           (await eval(`(async () => { ${modifiedScript}; await main(); })()`),
-            expect(mockCore.info).toHaveBeenCalledWith("Starting secret redaction in /tmp/gh-aw directory"),
+            expect(mockCore.info).toHaveBeenCalledWith("Starting secret redaction in /tmp/gh-aw and /opt/gh-aw directories"),
             expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("no secrets found")));
         }),
         it("should handle new file extensions (.md, .mdx, .yml, .jsonl)", async () => {

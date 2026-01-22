@@ -3,18 +3,25 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var compilerSafeOutputsConfigLog = logger.New("workflow:compiler_safe_outputs_config")
 
 func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *WorkflowData) {
 	if data.SafeOutputs == nil {
+		compilerSafeOutputsConfigLog.Print("No safe-outputs configuration, skipping handler manager config")
 		return
 	}
 
+	compilerSafeOutputsConfigLog.Print("Building handler manager configuration for safe-outputs")
 	config := make(map[string]map[string]any)
 
 	// Add config for each enabled safe output type with their options
 	// Presence in config = enabled, so no need for "enabled": true field
 	if data.SafeOutputs.CreateIssues != nil {
+		compilerSafeOutputsConfigLog.Print("Adding create_issue handler configuration")
 		cfg := data.SafeOutputs.CreateIssues
 		handlerConfig := make(map[string]any)
 		if cfg.Max > 0 {
@@ -519,6 +526,7 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 
 	// Only add the env var if there are handlers to configure
 	if len(config) > 0 {
+		compilerSafeOutputsConfigLog.Printf("Marshaling handler config with %d handlers", len(config))
 		configJSON, err := json.Marshal(config)
 		if err != nil {
 			consolidatedSafeOutputsLog.Printf("Failed to marshal handler config: %v", err)
@@ -527,6 +535,9 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		// Escape the JSON for YAML (handle quotes and special chars)
 		configStr := string(configJSON)
 		*steps = append(*steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: %q\n", configStr))
+		compilerSafeOutputsConfigLog.Printf("Added handler config env var: size=%d bytes", len(configStr))
+	} else {
+		compilerSafeOutputsConfigLog.Print("No handlers configured, skipping config env var")
 	}
 }
 
@@ -535,9 +546,11 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 // These handlers require GH_AW_PROJECT_GITHUB_TOKEN and are processed separately from the main handler manager.
 func (c *Compiler) addProjectHandlerManagerConfigEnvVar(steps *[]string, data *WorkflowData) {
 	if data.SafeOutputs == nil {
+		compilerSafeOutputsConfigLog.Print("No safe-outputs configuration, skipping project handler config")
 		return
 	}
 
+	compilerSafeOutputsConfigLog.Print("Building project handler manager configuration")
 	config := make(map[string]map[string]any)
 
 	// Add config for project-related safe output types

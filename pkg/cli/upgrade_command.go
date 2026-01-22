@@ -74,6 +74,13 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v",
 		verbose, workflowDir, noFix, noCompile)
 
+	// Step 0: Ensure gh-aw extension is on the latest version
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking gh-aw extension version..."))
+	if err := ensureLatestExtensionVersion(verbose); err != nil {
+		upgradeLog.Printf("Extension version check failed: %v", err)
+		return err
+	}
+
 	// Step 1: Update all agent and prompt files (like init command)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating agent and prompt files..."))
 	upgradeLog.Print("Updating agent and prompt files")

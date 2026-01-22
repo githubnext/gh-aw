@@ -10,7 +10,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * @returns {object} The parsed configuration object
  */
 function loadSafeOutputsConfig() {
-  const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+  const configPath = "/opt/gh-aw/safeoutputs/config.json";
   try {
     if (!fs.existsSync(configPath)) {
       core.warning(`Config file not found at ${configPath}, using defaults`);

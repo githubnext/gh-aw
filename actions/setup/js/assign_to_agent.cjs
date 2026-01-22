@@ -335,6 +335,18 @@ async function main() {
     .join("\n");
   core.setOutput("assigned_agents", assignedAgents);
 
+  // Set assignment error output for failed assignments
+  const assignmentErrors = results
+    .filter(r => !r.success)
+    .map(r => {
+      const number = r.issue_number || r.pull_number;
+      const prefix = r.issue_number ? "issue" : "pr";
+      return `${prefix}:${number}:${r.agent}:${r.error}`;
+    })
+    .join("\n");
+  core.setOutput("assignment_errors", assignmentErrors);
+  core.setOutput("assignment_error_count", failureCount.toString());
+
   // Fail if any assignments failed
   if (failureCount > 0) {
     core.setFailed(`Failed to assign ${failureCount} agent(s)`);

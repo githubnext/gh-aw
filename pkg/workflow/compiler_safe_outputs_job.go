@@ -261,6 +261,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		safeOutputStepNames = append(safeOutputStepNames, stepConfig.StepID)
 
 		outputs["assign_to_agent_assigned"] = "${{ steps.assign_to_agent.outputs.assigned }}"
+		outputs["assign_to_agent_assignment_errors"] = "${{ steps.assign_to_agent.outputs.assignment_errors }}"
+		outputs["assign_to_agent_assignment_error_count"] = "${{ steps.assign_to_agent.outputs.assignment_error_count }}"
 
 		permissions.Merge(NewPermissionsContentsReadIssuesWrite())
 	}

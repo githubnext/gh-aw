@@ -12,7 +12,7 @@ These environment variables are present in all safe output jobs:
 
 | Variable | Description | Required | Example |
 |----------|-------------|----------|---------|
-| `GH_AW_AGENT_OUTPUT` | Path to agent output file containing safe output requests | Yes | `/tmp/gh-aw/safeoutputs/outputs.jsonl` |
+| `GH_AW_AGENT_OUTPUT` | Path to agent output file containing safe output requests | Yes | `/opt/gh-aw/safeoutputs/outputs.jsonl` |
 | `GH_AW_WORKFLOW_NAME` | Workflow name for attribution in footers and messages | Yes | `"Issue Triage"` |
 | `GH_AW_WORKFLOW_SOURCE` | Source location in format `owner/repo/path@ref` | No | `"owner/repo/workflows/triage.md@main"` |
 | `GH_AW_WORKFLOW_SOURCE_URL` | GitHub URL to workflow source file | No | Auto-generated from source |

@@ -51,7 +51,7 @@ describe("safe_output_validator.cjs", () => {
       const config = validator.loadSafeOutputsConfig();
 
       expect(config).toEqual({ add_labels: { max: 5 } });
-      expect(mockReadFileSync).toHaveBeenCalledWith("/tmp/gh-aw/safeoutputs/config.json", "utf8");
+      expect(mockReadFileSync).toHaveBeenCalledWith("/opt/gh-aw/safeoutputs/config.json", "utf8");
     });
 
     it("should return empty object if config file does not exist", () => {

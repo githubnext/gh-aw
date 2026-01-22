@@ -40,9 +40,9 @@ describe("collect_ndjson_output.cjs", () => {
     const scriptPath = path.join(__dirname, "collect_ndjson_output.cjs");
     ((collectScript = fs.readFileSync(scriptPath, "utf8")),
       (global.fs = fs),
-      fs.existsSync("/tmp/gh-aw/safeoutputs") || fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }),
+      fs.existsSync("/opt/gh-aw/safeoutputs") || fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }),
       fs.writeFileSync(
-        path.join("/tmp/gh-aw/safeoutputs", "validation.json"),
+        path.join("/opt/gh-aw/safeoutputs", "validation.json"),
         JSON.stringify({
           create_issue: {
             defaultMax: 1,
@@ -150,8 +150,8 @@ describe("collect_ndjson_output.cjs", () => {
         ndjsonContent = '{"type": "create_issue", "title": "Test Issue", "body": "Test body"}\n{"type": "add_comment", "body": "Test comment"}';
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"create_issue": true, "add_comment": true}',
-        configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+        configPath = "/opt/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
       const setOutputCalls = mockCore.setOutput.mock.calls,
         outputCall = setOutputCalls.find(call => "output" === call[0]);
       expect(outputCall).toBeDefined();
@@ -163,8 +163,8 @@ describe("collect_ndjson_output.cjs", () => {
         ndjsonContent = '{"type": "create_issue", "title": "Test Issue", "body": "Test body"}\n{"type": "unexpected-type", "data": "some data"}';
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"create_issue": true}',
-        configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+        configPath = "/opt/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
       const setOutputCalls = mockCore.setOutput.mock.calls,
         outputCall = setOutputCalls.find(call => "output" === call[0]);
       expect(outputCall).toBeDefined();
@@ -176,8 +176,8 @@ describe("collect_ndjson_output.cjs", () => {
         ndjsonContent = '{"type": "create_issue", "title": "Test Issue"}\n{"type": "create_issue", "body": "Test body"}';
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"create_issue": true}',
-        configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }),
+        configPath = "/opt/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }),
         fs.writeFileSync(configPath, __config),
         await eval(`(async () => { ${collectScript}; await main(); })()`),
         expect(mockCore.warning).toHaveBeenCalled(),
@@ -196,8 +196,8 @@ describe("collect_ndjson_output.cjs", () => {
         ndjsonContent = '{"type": "add_labels", "labels": ["bug", "enhancement"]}\n{"type": "add_labels", "labels": "not-an-array"}\n{"type": "add_labels", "labels": [1, 2, 3]}';
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"add_labels": true}',
-        configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+        configPath = "/opt/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
       const setOutputCalls = mockCore.setOutput.mock.calls,
         outputCall = setOutputCalls.find(call => "output" === call[0]);
       expect(outputCall).toBeDefined();
@@ -210,8 +210,8 @@ describe("collect_ndjson_output.cjs", () => {
           '{"type": "create_pull_request", "title": "Test PR"}\n{"type": "create_pull_request", "body": "Test body"}\n{"type": "create_pull_request", "branch": "test-branch"}\n{"type": "create_pull_request", "title": "Complete PR", "body": "Test body", "branch": "feature-branch"}';
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"create_pull_request": true}',
-        configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+        configPath = "/opt/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
       const setOutputCalls = mockCore.setOutput.mock.calls,
         outputCall = setOutputCalls.find(call => "output" === call[0]);
       expect(outputCall).toBeDefined();
@@ -230,8 +230,8 @@ describe("collect_ndjson_output.cjs", () => {
         ndjsonContent = '{"type": "create_issue", "title": "Test Issue", "body": "Test body"}\n{invalid json}\n{"type": "add_comment", "body": "Test comment"}';
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"create_issue": true, "add_comment": true}',
-        configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+        configPath = "/opt/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
       const setOutputCalls = mockCore.setOutput.mock.calls,
         outputCall = setOutputCalls.find(call => "output" === call[0]);
       expect(outputCall).toBeDefined();
@@ -243,8 +243,8 @@ describe("collect_ndjson_output.cjs", () => {
         ndjsonContent = '{"type": "create_issue", "title": "First Issue", "body": "First body"}';
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"create_issue": true}',
-        configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+        configPath = "/opt/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
       const setOutputCalls = mockCore.setOutput.mock.calls,
         outputCall = setOutputCalls.find(call => "output" === call[0]);
       expect(outputCall).toBeDefined();
@@ -257,8 +257,8 @@ describe("collect_ndjson_output.cjs", () => {
           '{"type": "create_issue", "title": "First Issue", "body": "First body"}\n{"type": "create_issue", "title": "Second Issue", "body": "Second body"}\n{"type": "create_issue", "title": "Third Issue", "body": "Third body"}';
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"create_issue": {"max": 2}}',
-        configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+        configPath = "/opt/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
       const setOutputCalls = mockCore.setOutput.mock.calls,
         outputCall = setOutputCalls.find(call => "output" === call[0]);
       expect(outputCall).toBeDefined();
@@ -274,8 +274,8 @@ describe("collect_ndjson_output.cjs", () => {
         ndjsonContent = '{"type": "create_discussion", "title": "Test Discussion"}\n{"type": "create_discussion", "body": "Test body"}\n{"type": "create_discussion", "title": "Valid Discussion", "body": "Valid body"}';
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"create_discussion": true}',
-        configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+        configPath = "/opt/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
       const setOutputCalls = mockCore.setOutput.mock.calls,
         outputCall = setOutputCalls.find(call => "output" === call[0]);
       expect(outputCall).toBeDefined();
@@ -292,8 +292,8 @@ describe("collect_ndjson_output.cjs", () => {
         ndjsonContent = '{"type": "create_issue", "title": "Test Issue", "body": "Test body"}\n\n{"type": "add_comment", "body": "Test comment"}\n';
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"create_issue": true, "add_comment": true}',
-        configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+        configPath = "/opt/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
       const setOutputCalls = mockCore.setOutput.mock.calls,
         outputCall = setOutputCalls.find(call => "output" === call[0]);
       expect(outputCall).toBeDefined();
@@ -306,8 +306,8 @@ describe("collect_ndjson_output.cjs", () => {
           '{"type": "create_pull_request_review_comment", "path": "src/file.js", "line": 10, "body": "Good code"}\n{"type": "create_pull_request_review_comment", "path": "src/file.js", "line": "invalid", "body": "Comment"}\n{"type": "create_pull_request_review_comment", "path": "src/file.js", "body": "Missing line"}\n{"type": "create_pull_request_review_comment", "line": 15}\n{"type": "create_pull_request_review_comment", "path": "src/file.js", "line": 20, "start_line": 25, "body": "Invalid range"}';
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"create_pull_request_review_comment": {"max": 10}}',
-        configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+        configPath = "/opt/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
       const setOutputCalls = mockCore.setOutput.mock.calls,
         outputCall = setOutputCalls.find(call => "output" === call[0]);
       expect(outputCall).toBeDefined();
@@ -328,8 +328,8 @@ describe("collect_ndjson_output.cjs", () => {
           '{"type": "create_pull_request_review_comment", "path": "src/file.js", "line": 20, "start_line": 15, "side": "LEFT", "body": "Multi-line comment"}\n{"type": "create_pull_request_review_comment", "path": "src/file.js", "line": 25, "side": "INVALID", "body": "Invalid side"}';
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"create_pull_request_review_comment": {"max": 10}}',
-        configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+        configPath = "/opt/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
       const setOutputCalls = mockCore.setOutput.mock.calls,
         outputCall = setOutputCalls.find(call => "output" === call[0]);
       expect(outputCall).toBeDefined();
@@ -346,8 +346,8 @@ describe("collect_ndjson_output.cjs", () => {
           '{"type": "update_release", "tag": "v1.0.0", "operation": "replace", "body": "New release notes"}\n{"type": "update_release", "tag": "v1.0.0", "operation": "prepend", "body": "Prepended notes"}\n{"type": "update_release", "operation": "replace", "body": "Tag omitted - will be inferred"}\n{"type": "update_release", "tag": "v1.0.0", "operation": "invalid", "body": "Notes"}\n{"type": "update_release", "tag": "v1.0.0", "body": "Missing operation"}\n{"type": "update_release", "tag": "v1.0.0", "operation": "append"}';
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"update_release": {"max": 10}}',
-        configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+        configPath = "/opt/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
       const setOutputCalls = mockCore.setOutput.mock.calls,
         outputCall = setOutputCalls.find(call => "output" === call[0]);
       expect(outputCall).toBeDefined();
@@ -371,8 +371,8 @@ describe("collect_ndjson_output.cjs", () => {
       const ndjsonContent = items.join("\n");
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"create_pull_request_review_comment": {"max": 5}}',
-        configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+        configPath = "/opt/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
       const setOutputCalls = mockCore.setOutput.mock.calls,
         outputCall = setOutputCalls.find(call => "output" === call[0]);
       expect(outputCall).toBeDefined();
@@ -385,8 +385,8 @@ describe("collect_ndjson_output.cjs", () => {
           ndjsonContent = '{"type": "create_issue", "title": "Issue with "quotes" inside", "body": "Test body"}';
         (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
         const __config = '{"create_issue": true}',
-          configPath = "/tmp/gh-aw/safeoutputs/config.json";
-        (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+          configPath = "/opt/gh-aw/safeoutputs/config.json";
+        (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
         const setOutputCalls = mockCore.setOutput.mock.calls,
           outputCall = setOutputCalls.find(call => "output" === call[0]);
         expect(outputCall).toBeDefined();
@@ -398,8 +398,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{type: "create_issue", title: "Test Issue", body: "Test body"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -411,8 +411,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Test Issue", "body": "Test body",}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -424,8 +424,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = "{'type': 'create_issue', 'title': 'Test Issue', 'body': 'Test body'}";
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -437,8 +437,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Test Issue", "body": "Test body"';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -450,8 +450,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '"type": "create_issue", "title": "Test Issue", "body": "Test body"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -463,8 +463,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Test Issue", "body": "Line 1\\nLine 2\\nLine 3"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -476,8 +476,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Test\tIssue", "body": "Test\tbody"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -489,8 +489,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "add_labels", "labels": ["bug", "enhancement",}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"add_labels": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -502,8 +502,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = "{type: 'create_issue', title: 'Issue with \"quotes\" and trailing,', body: 'Multi\\nline\\ntext',";
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -515,8 +515,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Test Issue", "body": "Line 1\nLine 2\nLine 3"}\n{"type": "add_comment", "body": "This is a valid line"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true, "add_comment": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -531,8 +531,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = "{completely broken json with no hope: of repair [[[}}}";
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }),
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }),
             fs.writeFileSync(configPath, __config),
             await eval(`(async () => { ${collectScript}; await main(); })()`),
             expect(mockCore.warning).toHaveBeenCalled(),
@@ -548,8 +548,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Perfect JSON", "body": "This should not be modified"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -561,8 +561,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = "{\"type\": 'create_issue', \"title\": 'Mixed quotes', 'body': \"Test body\"}";
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -574,8 +574,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "add_labels", "labels": ["bug", "feature", "enhancement"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"add_labels": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -587,8 +587,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "add_labels", "labels": ["bug", "feature"';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"add_labels": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -602,8 +602,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = "{type: 'create_issue', title: 'Nested test', body: 'Body text', labels: ['bug', 'priority',}";
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -615,8 +615,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = "{type: 'create_issue', title: 'Unicode test éñ', body: 'Body with \\u0040 symbols',";
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -628,8 +628,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Test\0Issue", "body": "Body\bwith\fcontrolchars"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -645,8 +645,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "DeviceControlTest", "body": "Texthere"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -662,8 +662,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Valid\\tTab", "body": "Line1\\nLine2\\rCarriage"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -679,8 +679,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Mixed\0test\\nwith text", "body": "Bodywith\\ttabend"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -696,8 +696,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "TestDel", "body": "Bodywithcontrol"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -713,8 +713,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Control test\0\\t\\n", "body": "End of test"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -728,8 +728,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = "{type: \"create_issue\", title: 'Test\0with\bcontrol\fchars', body: 'Bodytext',}";
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -745,8 +745,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Control\0", "body": "Test\bend"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -762,8 +762,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = "{type: 'create_issue', title: 'Complex types test', body: 'Body text', priority: 5, urgent: true, assignee: null,}";
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -780,8 +780,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = "{,type: 'create_issue',, title: 'Extra commas', body: 'Test',, labels: ['bug',,],}";
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }),
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }),
             fs.writeFileSync(configPath, __config),
             await eval(`(async () => { ${collectScript}; await main(); })()`),
             expect(mockCore.warning).toHaveBeenCalled(),
@@ -798,8 +798,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = `{type: 'create_issue', title: 'Long string test', body: '${longBody}',}`;
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -811,8 +811,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = "{type: 'create_issue', title: 'Nested test', body: 'Body', metadata: {project: 'test', tags: ['important', 'urgent',}, version: 1.0,}";
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -829,8 +829,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = "{type: 'create_issue', title: 'Escape test with \"quotes\" and \\\\backslashes', body: 'Test body',}";
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -844,8 +844,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = "{type: 'create_issue', title: 'Special chars', body: 'Text with\\rcarriage\\fform feed',}";
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -857,8 +857,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = "{{{[[[type]]]}}} === \"broken\" &&& title ??? 'impossible to repair' @@@ body";
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }),
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }),
             fs.writeFileSync(configPath, __config),
             await eval(`(async () => { ${collectScript}; await main(); })()`),
             expect(mockCore.warning).toHaveBeenCalled(),
@@ -874,8 +874,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = "{type 'create_issue', title 'Missing colons', body 'Test body'}";
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }),
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }),
             fs.writeFileSync(configPath, __config),
             await eval(`(async () => { ${collectScript}; await main(); })()`),
             expect(mockCore.warning).toHaveBeenCalled(),
@@ -891,8 +891,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = "{type: 'add-labels', labels: ['priority', 'bug', 'urgent'}, extra: ['data', 'here'}";
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"add_labels": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -904,8 +904,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Test", "body": "Test body",,,}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -919,8 +919,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "add_labels", "labels": ["bug", "feature"]}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"add_labels": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -932,8 +932,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{type: "create_issue", title: "Combined issues", body: "Test body", priority: 1,}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -950,8 +950,8 @@ describe("collect_ndjson_output.cjs", () => {
         ndjsonContent = '{"type": "create_issue", "title": "Test Issue", "body": "Test body"}\n{"type": "add_comment", "body": "Test comment"}';
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"create_issue": true, "add_comment": true}',
-        configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`), expect(fs.existsSync("/tmp/gh-aw/agent_output.json")).toBe(!0));
+        configPath = "/opt/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`), expect(fs.existsSync("/tmp/gh-aw/agent_output.json")).toBe(!0));
       const agentOutputContent = fs.readFileSync("/tmp/gh-aw/agent_output.json", "utf8"),
         agentOutputJson = JSON.parse(agentOutputContent);
       (expect(agentOutputJson.items).toHaveLength(2),
@@ -970,8 +970,8 @@ describe("collect_ndjson_output.cjs", () => {
         ndjsonContent = '{"type": "create_issue", "title": "Test Issue", "body": "Test body"}';
       (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
       const __config = '{"create_issue": true}',
-        configPath = "/tmp/gh-aw/safeoutputs/config.json";
-      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config));
+        configPath = "/opt/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config));
       const originalWriteFileSync = fs.writeFileSync;
       ((fs.writeFileSync = vi.fn((filePath, content, options) => {
         if ("/tmp/gh-aw/agent_output.json" === filePath) throw new Error("Permission denied");
@@ -993,8 +993,8 @@ describe("collect_ndjson_output.cjs", () => {
             '{"type": "create_code_scanning_alert", "file": "src/auth.js", "line": 42, "severity": "error", "message": "SQL injection vulnerability"}\n{"type": "create_code_scanning_alert", "file": "src/utils.js", "line": 25, "severity": "warning", "message": "XSS vulnerability", "column": 10, "ruleIdSuffix": "xss-check"}\n{"type": "create_code_scanning_alert", "file": "src/complete.js", "line": "30", "severity": "NOTE", "message": "Complete example", "column": "5", "ruleIdSuffix": "complete-rule"}';
         (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
         const __config = '{"create_code_scanning_alert": true}',
-          configPath = "/tmp/gh-aw/safeoutputs/config.json";
-        (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+          configPath = "/opt/gh-aw/safeoutputs/config.json";
+        (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
         const setOutputCalls = mockCore.setOutput.mock.calls,
           outputCall = setOutputCalls.find(call => "output" === call[0]);
         expect(outputCall).toBeDefined();
@@ -1011,8 +1011,8 @@ describe("collect_ndjson_output.cjs", () => {
               '{"type": "create_code_scanning_alert", "severity": "error", "message": "Missing file field"}\n{"type": "create_code_scanning_alert", "file": "src/missing.js", "severity": "error", "message": "Missing line field"}\n{"type": "create_code_scanning_alert", "file": "src/missing2.js", "line": 10, "message": "Missing severity field"}\n{"type": "create_code_scanning_alert", "file": "src/missing3.js", "line": 10, "severity": "error"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_code_scanning_alert": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }),
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }),
             fs.writeFileSync(configPath, __config),
             await eval(`(async () => { ${collectScript}; await main(); })()`),
             expect(mockCore.warning).toHaveBeenCalled(),
@@ -1034,8 +1034,8 @@ describe("collect_ndjson_output.cjs", () => {
               '{"type": "create_code_scanning_alert", "file": 123, "line": 10, "severity": "error", "message": "File should be string"}\n{"type": "create_code_scanning_alert", "file": "src/test.js", "line": null, "severity": "error", "message": "Line should be number or string"}\n{"type": "create_code_scanning_alert", "file": "src/test.js", "line": 10, "severity": 123, "message": "Severity should be string"}\n{"type": "create_code_scanning_alert", "file": "src/test.js", "line": 10, "severity": "error", "message": 123}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_code_scanning_alert": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }),
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }),
             fs.writeFileSync(configPath, __config),
             await eval(`(async () => { ${collectScript}; await main(); })()`),
             expect(mockCore.warning).toHaveBeenCalled(),
@@ -1057,8 +1057,8 @@ describe("collect_ndjson_output.cjs", () => {
               '{"type": "create_code_scanning_alert", "file": "src/test.js", "line": 10, "severity": "invalid-level", "message": "Invalid severity"}\n{"type": "create_code_scanning_alert", "file": "src/test2.js", "line": 15, "severity": "critical", "message": "Unsupported severity"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_code_scanning_alert": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }),
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }),
             fs.writeFileSync(configPath, __config),
             await eval(`(async () => { ${collectScript}; await main(); })()`),
             expect(mockCore.warning).toHaveBeenCalled(),
@@ -1077,8 +1077,8 @@ describe("collect_ndjson_output.cjs", () => {
               '{"type": "create_code_scanning_alert", "file": "src/test.js", "line": 10, "severity": "error", "message": "Test", "column": "invalid"}\n{"type": "create_code_scanning_alert", "file": "src/test2.js", "line": 15, "severity": "error", "message": "Test", "ruleIdSuffix": 123}\n{"type": "create_code_scanning_alert", "file": "src/test3.js", "line": 20, "severity": "error", "message": "Test", "ruleIdSuffix": "bad rule!@#"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_code_scanning_alert": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }),
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }),
             fs.writeFileSync(configPath, __config),
             await eval(`(async () => { ${collectScript}; await main(); })()`),
             expect(mockCore.warning).toHaveBeenCalled(),
@@ -1099,8 +1099,8 @@ describe("collect_ndjson_output.cjs", () => {
               '{"type": "create_code_scanning_alert", "file": "src/valid.js", "line": 10, "severity": "error", "message": "Valid entry"}\n{"type": "create_code_scanning_alert", "file": "src/missing.js", "severity": "error", "message": "Missing line field"}\n{"type": "create_code_scanning_alert", "file": "src/valid2.js", "line": 20, "severity": "warning", "message": "Another valid entry", "column": 5}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_code_scanning_alert": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -1117,8 +1117,8 @@ describe("collect_ndjson_output.cjs", () => {
               '{"type": "create_code_scanning_alert", "file": "src/test.js", "line": "invalid", "severity": "error", "message": "Invalid line string"}\n{"type": "create_code_scanning_alert", "file": "src/test2.js", "line": 0, "severity": "error", "message": "Zero line number"}\n{"type": "create_code_scanning_alert", "file": "src/test3.js", "line": -5, "severity": "error", "message": "Negative line number"}\n{"type": "create_code_scanning_alert", "file": "src/test4.js", "line": 10, "column": "abc", "severity": "error", "message": "Invalid column string"}\n{"type": "create_code_scanning_alert", "file": "src/test5.js", "line": 10, "column": 0, "severity": "error", "message": "Zero column number"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_code_scanning_alert": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }),
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }),
             fs.writeFileSync(configPath, __config),
             await eval(`(async () => { ${collectScript}; await main(); })()`),
             expect(mockCore.warning).toHaveBeenCalled(),
@@ -1142,8 +1142,8 @@ describe("collect_ndjson_output.cjs", () => {
           ndjsonContent = '{"type": "create_issue", "title": "Test issue", "body": "Use z3 -v:10 and z3 -memory:high for performance monitoring"}';
         (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
         const __config = '{"create_issue": true}',
-          configPath = "/tmp/gh-aw/safeoutputs/config.json";
-        (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }),
+          configPath = "/opt/gh-aw/safeoutputs/config.json";
+        (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }),
           fs.writeFileSync(configPath, __config),
           await eval(`(async () => { ${collectScript}; await main(); })()`),
           expect(mockCore.setOutput).toHaveBeenCalledWith("output", expect.any(String)));
@@ -1156,8 +1156,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "CLI Flags Test", "body": "Various flags: gcc -std:c++20, clang -target:x86_64, rustc -C:opt-level=3, javac -cp:lib/*, python -W:ignore, node --max-old-space-size:8192"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]),
             parsedOutput = JSON.parse(outputCall[1]);
           expect(parsedOutput.items[0].body).toBe("Various flags: gcc -std:c++20, clang -target:x86_64, rustc -C:opt-level=3, javac -cp:lib/*, python -W:ignore, node --max-old-space-size:8192");
@@ -1167,8 +1167,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Protocol Test", "body": "Use https://github.com/repo for code, avoid ftp://example.com/file and git://example.com/repo, but z3 -v:10 should work"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]),
             parsedOutput = JSON.parse(outputCall[1]);
           expect(parsedOutput.items[0].body).toBe("Use https://github.com/repo for code, avoid (redacted) and (redacted) but z3 -v:10 should work");
@@ -1179,8 +1179,8 @@ describe("collect_ndjson_output.cjs", () => {
               '{"type": "create_issue", "title": "Complex Test", "body": "Install from https://github.com/z3prover/z3, then run: z3 -v:10 -memory:high -timeout:30000. Avoid ssh://git.example.com/repo.git or file://localhost/path"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]),
             parsedOutput = JSON.parse(outputCall[1]);
           expect(parsedOutput.items[0].body).toBe("Install from https://github.com/z3prover/z3, then run: z3 -v:10 -memory:high -timeout:30000. Avoid (redacted) or (redacted)");
@@ -1190,8 +1190,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Domain Test", "body": "GitHub URLs: https://github.com/repo, https://api.github.com/users, https://githubusercontent.com/file. External: https://example.com/page"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]),
             parsedOutput = JSON.parse(outputCall[1]);
           expect(parsedOutput.items[0].body).toBe("GitHub URLs: https://github.com/repo, https://api.github.com/users, https://githubusercontent.com/file. External: (redacted)");
@@ -1201,8 +1201,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "@mention Test", "body": "Hey @username and @org/team, check this out! But preserve email@domain.com"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]),
             parsedOutput = JSON.parse(outputCall[1]);
           expect(parsedOutput.items[0].body).toBe("Hey `@username` and `@org/team`, check this out! But preserve email@domain.com");
@@ -1212,8 +1212,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Bot Trigger Test", "body": "This fixes #123 and closes #456, also resolves #789"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]),
             parsedOutput = JSON.parse(outputCall[1]);
           expect(parsedOutput.items[0].body).toBe("This `fixes #123` and `closes #456`, also `resolves #789`");
@@ -1224,8 +1224,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = JSON.stringify({ type: "create_issue", title: "ANSI Test", body: bodyWithAnsi });
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]),
             parsedOutput = JSON.parse(outputCall[1]);
           expect(parsedOutput.items[0].body).toBe("Red text and Bold text");
@@ -1238,8 +1238,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Custom Domains", "body": "Allowed: https://example.com/page, https://sub.example.com/file, https://test.org/doc. Blocked: https://github.com/repo, https://blocked.com/page"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]),
             parsedOutput = JSON.parse(outputCall[1]);
           (expect(parsedOutput.items[0].body).toBe("Allowed: https://example.com/page, https://sub.example.com/file, https://test.org/doc. Blocked: (redacted), (redacted)"),
@@ -1252,8 +1252,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Colon Edge Cases", "body": "Time 12:30 PM, ratio 3:1, IPv6 ::1, URL path/file:with:colons, command -flag:value, namespace::function"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]),
             parsedOutput = JSON.parse(outputCall[1]);
           expect(parsedOutput.items[0].body).toBe("Time 12:30 PM, ratio 3:1, IPv6 ::1, URL path/file:with:colons, command -flag:value, namespace::function");
@@ -1264,8 +1264,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = `{"type": "create_issue", "title": "Long Content Test", "body": "${longBody}"}`;
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]),
             parsedOutput = JSON.parse(outputCall[1]);
           (expect(parsedOutput.items[0].body).toMatch(/\[Content truncated due to length\]$/), expect(parsedOutput.items[0].body.length).toBeLessThan(6e5));
@@ -1276,8 +1276,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = JSON.stringify({ type: "create_issue", title: "Many Lines Test", body: manyLines });
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
           const parsedOutput = JSON.parse(outputCall[1]);
@@ -1290,8 +1290,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Code Test", "body": "Use `z3 -v:10` in terminal. Code block:\\n```\\nz3 -memory:high input.smt2\\nftp://should-not-be-redacted-in-code\\n```"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]),
             parsedOutput = JSON.parse(outputCall[1]);
           (expect(parsedOutput.items[0].body).toContain("z3 -v:10"), expect(parsedOutput.items[0].body).toContain("z3 -memory:high"));
@@ -1301,8 +1301,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_pull_request", "title": "PR with z3 -v:10 flag", "body": "Testing https://github.com/repo and ftp://example.com", "branch": "feature/z3-timeout:5000", "labels": ["bug", "z3:solver"]}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_pull_request": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]),
             parsedOutput = JSON.parse(outputCall[1]);
           (expect(parsedOutput.items[0].title).toBe("PR with z3 -v:10 flag"),
@@ -1316,8 +1316,8 @@ describe("collect_ndjson_output.cjs", () => {
               '{"type": "create_issue", "title": "XML Comment Test", "body": "This is visible \x3c!-- This is hidden content --\x3e more visible text \x3c!--- This is also hidden ---\x3e and more text \x3c!--- malformed comment --!> final text"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const outputCall = mockCore.setOutput.mock.calls.find(call => "output" === call[0]),
             parsedOutput = JSON.parse(outputCall[1]);
           expect(parsedOutput.items[0].body).toBe("This is visible  more visible text  and more text  final text");
@@ -1330,8 +1330,8 @@ describe("collect_ndjson_output.cjs", () => {
             '{"type": "create_issue", "title": "First Issue", "body": "First body"}\n{"type": "create_issue", "title": "Second Issue", "body": "Second body"}\n{"type": "create_issue", "title": "Third Issue", "body": "Third body"}';
         (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
         const __config = '{"create_issue": {"min": 2, "max": 5}}',
-          configPath = "/tmp/gh-aw/safeoutputs/config.json";
-        (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+          configPath = "/opt/gh-aw/safeoutputs/config.json";
+        (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
         const setOutputCalls = mockCore.setOutput.mock.calls,
           outputCall = setOutputCalls.find(call => "output" === call[0]);
         expect(outputCall).toBeDefined();
@@ -1343,8 +1343,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Only Issue", "body": "Only body"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": {"min": 3, "max": 5}}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -1356,8 +1356,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Issue 1", "body": "Body 1"}\n{"type": "create_issue", "title": "Issue 2", "body": "Body 2"}\n{"type": "add_comment", "body": "Comment 1"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": {"min": 1, "max": 5}, "add_comment": {"min": 2, "max": 5}}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -1369,8 +1369,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Issue", "body": "Body"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": {"min": 0, "max": 5}}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -1382,8 +1382,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "create_issue", "title": "Issue", "body": "Body"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": {"max": 5}}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -1395,8 +1395,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = "";
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"create_issue": {"min": 1, "max": 5}}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -1408,8 +1408,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "add_comment", "body": "Comment"}\n{"type": "create_discussion", "title": "Discussion", "body": "Discussion body"}\n{"type": "create_discussion", "title": "Discussion 2", "body": "Discussion body 2"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"add_comment": {"min": 2, "max": 5}, "create_discussion": {"min": 1, "max": 5}}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -1423,8 +1423,8 @@ describe("collect_ndjson_output.cjs", () => {
           ndjsonContent = '{"type": "noop", "message": "No issues found in this review"}';
         (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
         const config = '{"noop": true}',
-          configPath = "/tmp/gh-aw/safeoutputs/config.json";
-        (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+          configPath = "/opt/gh-aw/safeoutputs/config.json";
+        (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, config), await eval(`(async () => { ${collectScript}; await main(); })()`));
         const setOutputCalls = mockCore.setOutput.mock.calls,
           outputCall = setOutputCalls.find(call => "output" === call[0]);
         expect(outputCall).toBeDefined();
@@ -1436,8 +1436,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "noop"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const config = '{"noop": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }),
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }),
             fs.writeFileSync(configPath, config),
             await eval(`(async () => { ${collectScript}; await main(); })()`),
             expect(mockCore.warning).toHaveBeenCalled(),
@@ -1453,8 +1453,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "noop", "message": 123}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const config = '{"noop": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }),
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }),
             fs.writeFileSync(configPath, config),
             await eval(`(async () => { ${collectScript}; await main(); })()`),
             expect(mockCore.warning).toHaveBeenCalled(),
@@ -1470,8 +1470,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "noop", "message": "Test @mention and fixes #123"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const config = '{"noop": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -1483,8 +1483,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "noop", "message": "First message"}\n{"type": "noop", "message": "Second message"}\n{"type": "noop", "message": "Third message"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const config = '{"noop": {"max": 3}}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -1500,8 +1500,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "assign_milestone", "issue_number": 42, "milestone_number": 5}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"assign_milestone": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -1513,8 +1513,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "assign_to_agent", "issue_number": 42}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"assign_to_agent": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -1526,8 +1526,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "assign_to_agent", "issue_number": 42, "agent": "my-agent"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"assign_to_agent": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
           const setOutputCalls = mockCore.setOutput.mock.calls,
             outputCall = setOutputCalls.find(call => "output" === call[0]);
           expect(outputCall).toBeDefined();
@@ -1539,8 +1539,8 @@ describe("collect_ndjson_output.cjs", () => {
             ndjsonContent = '{"type": "assign_to_agent"}';
           (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
           const __config = '{"assign_to_agent": true}',
-            configPath = "/tmp/gh-aw/safeoutputs/config.json";
-          (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }),
+            configPath = "/opt/gh-aw/safeoutputs/config.json";
+          (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }),
             fs.writeFileSync(configPath, __config),
             await eval(`(async () => { ${collectScript}; await main(); })()`),
             expect(mockCore.warning).toHaveBeenCalled(),
@@ -1553,9 +1553,9 @@ describe("collect_ndjson_output.cjs", () => {
         }));
     }),
     describe("link_sub_issue temporary ID validation", () => {
-      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      const configPath = "/opt/gh-aw/safeoutputs/config.json";
       (beforeEach(() => {
-        (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, JSON.stringify({ link_sub_issue: {} })));
+        (fs.mkdirSync("/opt/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, JSON.stringify({ link_sub_issue: {} })));
       }),
         it("should accept valid positive integer for parent_issue_number", async () => {
           const testInput = JSON.stringify({ type: "link_sub_issue", parent_issue_number: 100, sub_issue_number: 50 }),
