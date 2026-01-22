@@ -11,6 +11,7 @@ const HANDLER_TYPE = "update_issue";
 const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { createUpdateHandlerFactory } = require("./update_handler_factory.cjs");
 const { updateBody } = require("./update_pr_description_helpers.cjs");
+const { loadTemporaryProjectMap, replaceTemporaryProjectReferences } = require("./temporary_id.cjs");
 
 /**
  * Execute the issue update API call
@@ -24,13 +25,21 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
   // Handle body operation (append/prepend/replace/replace-island)
   // Default to "append" to add footer with AI attribution
   const operation = updateData._operation || "append";
-  const rawBody = updateData._rawBody;
+  let rawBody = updateData._rawBody;
 
   // Remove internal fields
   const { _operation, _rawBody, ...apiData } = updateData;
 
   // If we have a body, process it with the appropriate operation
   if (rawBody !== undefined) {
+    // Load and apply temporary project URL replacements FIRST
+    // This resolves any temporary project IDs (e.g., #aw_abc123def456) to actual project URLs
+    const temporaryProjectMap = loadTemporaryProjectMap();
+    if (temporaryProjectMap.size > 0) {
+      rawBody = replaceTemporaryProjectReferences(rawBody, temporaryProjectMap);
+      core.debug(`Applied ${temporaryProjectMap.size} temporary project URL replacement(s)`);
+    }
+
     // Fetch current issue body for all operations (needed for append/prepend/replace-island/replace)
     const { data: currentIssue } = await github.rest.issues.get({
       owner: context.repo.owner,

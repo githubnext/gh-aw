@@ -213,6 +213,53 @@ function serializeTemporaryIdMap(tempIdMap) {
   return JSON.stringify(obj);
 }
 
+/**
+ * Load the temporary project map from environment variable
+ * @returns {Map<string, string>} Map of temporary_project_id to project URL
+ */
+function loadTemporaryProjectMap() {
+  const mapJson = process.env.GH_AW_TEMPORARY_PROJECT_MAP;
+  if (!mapJson || mapJson === "{}") {
+    return new Map();
+  }
+  try {
+    const mapObject = JSON.parse(mapJson);
+    /** @type {Map<string, string>} */
+    const result = new Map();
+
+    for (const [key, value] of Object.entries(mapObject)) {
+      const normalizedKey = normalizeTemporaryId(key);
+      if (typeof value === "string") {
+        result.set(normalizedKey, value);
+      }
+    }
+    return result;
+  } catch (error) {
+    if (typeof core !== "undefined") {
+      core.warning(`Failed to parse temporary project map: ${getErrorMessage(error)}`);
+    }
+    return new Map();
+  }
+}
+
+/**
+ * Replace temporary project ID references in text with actual project URLs
+ * Format: #aw_XXXXXXXXXXXX -> https://github.com/orgs/myorg/projects/123
+ * @param {string} text - The text to process
+ * @param {Map<string, string>} tempProjectMap - Map of temporary_project_id to project URL
+ * @returns {string} Text with temporary project IDs replaced with project URLs
+ */
+function replaceTemporaryProjectReferences(text, tempProjectMap) {
+  return text.replace(TEMPORARY_ID_PATTERN, (match, tempId) => {
+    const resolved = tempProjectMap.get(normalizeTemporaryId(tempId));
+    if (resolved !== undefined) {
+      return resolved;
+    }
+    // Return original if not found (it may be an issue ID)
+    return match;
+  });
+}
+
 module.exports = {
   TEMPORARY_ID_PATTERN,
   generateTemporaryId,
@@ -224,4 +271,6 @@ module.exports = {
   resolveIssueNumber,
   hasUnresolvedTemporaryIds,
   serializeTemporaryIdMap,
+  loadTemporaryProjectMap,
+  replaceTemporaryProjectReferences,
 };

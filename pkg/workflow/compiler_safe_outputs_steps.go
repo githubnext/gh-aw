@@ -159,6 +159,10 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// Environment variables
 	steps = append(steps, "        env:\n")
 	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
+	
+	// If project handler ran before this, pass its temporary project map
+	// This allows update_issue and other text-based handlers to resolve project temporary IDs
+	steps = append(steps, "          GH_AW_TEMPORARY_PROJECT_MAP: ${{ steps.process_project_safe_outputs.outputs.temporary_project_map }}\n")
 
 	// Add custom safe output env vars
 	c.addCustomSafeOutputEnvVars(&steps, data)
