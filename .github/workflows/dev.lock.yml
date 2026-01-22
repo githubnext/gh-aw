@@ -315,6 +315,37 @@ jobs:
             }
           }
           EOF
+      - name: Generate Safe Outputs MCP Server Config
+        id: safe-outputs-config
+        run: |
+          # Generate a secure random API key (360 bits of entropy, 40+ chars)
+          API_KEY=""
+          API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          PORT=3001
+          
+          # Register API key as secret to mask it from logs
+          echo "::add-mask::${API_KEY}"
+          
+          # Set outputs for next steps
+          {
+            echo "safe_outputs_api_key=${API_KEY}"
+            echo "safe_outputs_port=${PORT}"
+          } >> "$GITHUB_OUTPUT"
+          
+          echo "Safe Outputs MCP server will run on port ${PORT}"
+          
+      - name: Start Safe Outputs MCP HTTP Server
+        id: safe-outputs-start
+        env:
+          GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-config.outputs.safe_outputs_port }}
+          GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-config.outputs.safe_outputs_api_key }}
+        run: |
+          # Environment variables are set above to prevent template injection
+          export GH_AW_SAFE_OUTPUTS_PORT
+          export GH_AW_SAFE_OUTPUTS_API_KEY
+          
+          bash /opt/gh-aw/actions/start_safe_outputs_server.sh
+          
       - name: Generate agentic run info
         id: generate_aw_info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0

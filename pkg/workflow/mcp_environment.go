@@ -69,7 +69,7 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 	// Check for safe-outputs env vars
 	// Only add env vars if safe-outputs is actually enabled
 	// This prevents referencing step outputs that don't exist when safe-outputs isn't used
-	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+	if workflowData != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		// Add server configuration env vars from step outputs
 		envVars["GH_AW_SAFE_OUTPUTS_PORT"] = "${{ steps.safe-outputs-start.outputs.port }}"
 		envVars["GH_AW_SAFE_OUTPUTS_API_KEY"] = "${{ steps.safe-outputs-start.outputs.api_key }}"
