@@ -24,6 +24,7 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/gh.md
+#     - shared/github-queries-safe-input.md
 #     - shared/opencode.md
 
 name: "Smoke OpenCode"
@@ -183,7 +184,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":2},"add_labels":{"allowed":["smoke-opencode"],"max":3},"create_discussion":{"max":1},"create_issue":{"group":true,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"add_comment":{"max":2},"add_labels":{"allowed":["smoke-opencode"],"max":3},"create_issue":{"group":true,"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -226,32 +227,6 @@ jobs:
                 "type": "object"
               },
               "name": "create_issue"
-            },
-            {
-              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions.",
-                    "type": "string"
-                  },
-                  "category": {
-                    "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.",
-                    "type": "string"
-                  },
-                  "title": {
-                    "description": "Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "title",
-                  "body"
-                ],
-                "type": "object"
-              },
-              "name": "create_discussion"
             },
             {
               "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 2 comment(s) can be added.",
@@ -397,32 +372,6 @@ jobs:
                 }
               }
             },
-            "create_discussion": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "category": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                },
-                "repo": {
-                  "type": "string",
-                  "maxLength": 256
-                },
-                "title": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                }
-              }
-            },
             "create_issue": {
               "defaultMax": 1,
               "fields": {
@@ -558,6 +507,92 @@ jobs:
                   "GH_DEBUG": "GH_DEBUG"
                 },
                 "timeout": 60
+              },
+              {
+                "name": "github-discussion-query",
+                "description": "Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.",
+                "inputSchema": {
+                  "properties": {
+                    "jq": {
+                      "description": "jq filter expression to apply to output. If not provided, returns schema info instead of full data.",
+                      "type": "string"
+                    },
+                    "limit": {
+                      "description": "Maximum number of discussions to fetch (default: 30)",
+                      "type": "number"
+                    },
+                    "repo": {
+                      "description": "Repository in owner/repo format (defaults to current repository)",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "handler": "github-discussion-query.sh",
+                "env": {
+                  "GH_TOKEN": "GH_TOKEN"
+                },
+                "timeout": 60
+              },
+              {
+                "name": "github-issue-query",
+                "description": "Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.",
+                "inputSchema": {
+                  "properties": {
+                    "jq": {
+                      "description": "jq filter expression to apply to output. If not provided, returns schema info instead of full data.",
+                      "type": "string"
+                    },
+                    "limit": {
+                      "description": "Maximum number of issues to fetch (default: 30)",
+                      "type": "number"
+                    },
+                    "repo": {
+                      "description": "Repository in owner/repo format (defaults to current repository)",
+                      "type": "string"
+                    },
+                    "state": {
+                      "description": "Issue state: open, closed, all (default: open)",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "handler": "github-issue-query.sh",
+                "env": {
+                  "GH_TOKEN": "GH_TOKEN"
+                },
+                "timeout": 60
+              },
+              {
+                "name": "github-pr-query",
+                "description": "Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.",
+                "inputSchema": {
+                  "properties": {
+                    "jq": {
+                      "description": "jq filter expression to apply to output. If not provided, returns schema info instead of full data.",
+                      "type": "string"
+                    },
+                    "limit": {
+                      "description": "Maximum number of PRs to fetch (default: 30)",
+                      "type": "number"
+                    },
+                    "repo": {
+                      "description": "Repository in owner/repo format (defaults to current repository)",
+                      "type": "string"
+                    },
+                    "state": {
+                      "description": "PR state: open, closed, merged, all (default: open)",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "handler": "github-pr-query.sh",
+                "env": {
+                  "GH_TOKEN": "GH_TOKEN"
+                },
+                "timeout": 60
               }
             ]
           }
@@ -594,6 +629,311 @@ jobs:
           
           EOFSH_gh
           chmod +x /opt/gh-aw/safe-inputs/gh.sh
+          cat > /opt/gh-aw/safe-inputs/github-discussion-query.sh << 'EOFSH_github-discussion-query'
+          #!/bin/bash
+          # Auto-generated safe-input tool: github-discussion-query
+          # Query GitHub discussions with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
+          
+          set -euo pipefail
+          
+          set -e
+          
+          # Default values
+          REPO="${INPUT_REPO:-}"
+          LIMIT="${INPUT_LIMIT:-30}"
+          JQ_FILTER="${INPUT_JQ:-}"
+          
+          # Parse repository owner and name
+          if [[ -n "$REPO" ]]; then
+            OWNER=$(echo "$REPO" | cut -d'/' -f1)
+            NAME=$(echo "$REPO" | cut -d'/' -f2)
+          else
+            # Get current repository from GitHub context
+            OWNER="${GITHUB_REPOSITORY_OWNER:-}"
+            NAME=$(echo "${GITHUB_REPOSITORY:-}" | cut -d'/' -f2)
+          fi
+          
+          # Validate owner and name
+          if [[ -z "$OWNER" || -z "$NAME" ]]; then
+            echo "Error: Could not determine repository owner and name" >&2
+            exit 1
+          fi
+          
+          # Build GraphQL query for discussions
+          GRAPHQL_QUERY=$(cat <<QUERY
+          {
+            repository(owner: "$OWNER", name: "$NAME") {
+              discussions(first: $LIMIT, orderBy: {field: CREATED_AT, direction: DESC}) {
+                nodes {
+                  number
+                  title
+                  author {
+                    login
+                  }
+                  createdAt
+                  updatedAt
+                  body
+                  category {
+                    name
+                  }
+                  labels(first: 10) {
+                    nodes {
+                      name
+                    }
+                  }
+                  comments {
+                    totalCount
+                  }
+                  answer {
+                    id
+                  }
+                  url
+                }
+              }
+            }
+          }
+          QUERY
+          )
+          
+          # Execute GraphQL query via gh api
+          GRAPHQL_OUTPUT=$(gh api graphql -f query="$GRAPHQL_QUERY")
+          
+          # Transform GraphQL output to match gh discussion list format
+          OUTPUT=$(echo "$GRAPHQL_OUTPUT" | jq '[.data.repository.discussions.nodes[] | {
+            number: .number,
+            title: .title,
+            author: .author,
+            createdAt: .createdAt,
+            updatedAt: .updatedAt,
+            body: .body,
+            category: .category,
+            labels: .labels.nodes,
+            comments: .comments,
+            answer: .answer,
+            url: .url
+          }]')
+          
+          # Apply jq filter if specified
+          if [[ -n "$JQ_FILTER" ]]; then
+            jq "$JQ_FILTER" <<< "$OUTPUT"
+          else
+            # Return schema and size instead of full data
+            ITEM_COUNT=$(jq 'length' <<< "$OUTPUT")
+            DATA_SIZE=${#OUTPUT}
+            
+            # Validate values are numeric
+            if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
+              ITEM_COUNT=0
+            fi
+            if ! [[ "$DATA_SIZE" =~ ^[0-9]+$ ]]; then
+              DATA_SIZE=0
+            fi
+            
+            cat << EOF
+          {
+            "message": "No --jq filter provided. Use --jq to filter and retrieve data.",
+            "item_count": $ITEM_COUNT,
+            "data_size_bytes": $DATA_SIZE,
+            "schema": {
+              "type": "array",
+              "description": "Array of discussion objects",
+              "item_fields": {
+                "number": "integer - Discussion number",
+                "title": "string - Discussion title",
+                "author": "object - Author info with login field",
+                "createdAt": "string - ISO timestamp of creation",
+                "updatedAt": "string - ISO timestamp of last update",
+                "body": "string - Discussion body content",
+                "category": "object - Category info with name field",
+                "labels": "array - Array of label objects with name field",
+                "comments": "object - Comments info with totalCount field",
+                "answer": "object|null - Accepted answer if exists",
+                "url": "string - Discussion URL"
+              }
+            },
+            "suggested_queries": [
+              {"description": "Get all data", "query": "."},
+              {"description": "Get discussion numbers and titles", "query": ".[] | {number, title}"},
+              {"description": "Get discussions by author", "query": ".[] | select(.author.login == \"USERNAME\")"},
+              {"description": "Get discussions in category", "query": ".[] | select(.category.name == \"Ideas\")"},
+              {"description": "Get answered discussions", "query": ".[] | select(.answer != null)"},
+              {"description": "Get unanswered discussions", "query": ".[] | select(.answer == null) | {number, title, category: .category.name}"},
+              {"description": "Count by category", "query": "group_by(.category.name) | map({category: .[0].category.name, count: length})"}
+            ]
+          }
+          EOF
+          fi
+          
+          EOFSH_github-discussion-query
+          chmod +x /opt/gh-aw/safe-inputs/github-discussion-query.sh
+          cat > /opt/gh-aw/safe-inputs/github-issue-query.sh << 'EOFSH_github-issue-query'
+          #!/bin/bash
+          # Auto-generated safe-input tool: github-issue-query
+          # Query GitHub issues with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
+          
+          set -euo pipefail
+          
+          set -e
+          
+          # Default values
+          REPO="${INPUT_REPO:-}"
+          STATE="${INPUT_STATE:-open}"
+          LIMIT="${INPUT_LIMIT:-30}"
+          JQ_FILTER="${INPUT_JQ:-}"
+          
+          # JSON fields to fetch
+          JSON_FIELDS="number,title,state,author,createdAt,updatedAt,closedAt,body,labels,assignees,comments,milestone,url"
+          
+          # Build and execute gh command
+          if [[ -n "$REPO" ]]; then
+            OUTPUT=$(gh issue list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
+          else
+            OUTPUT=$(gh issue list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS")
+          fi
+          
+          # Apply jq filter if specified
+          if [[ -n "$JQ_FILTER" ]]; then
+            jq "$JQ_FILTER" <<< "$OUTPUT"
+          else
+            # Return schema and size instead of full data
+            ITEM_COUNT=$(jq 'length' <<< "$OUTPUT")
+            DATA_SIZE=${#OUTPUT}
+            
+            # Validate values are numeric
+            if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
+              ITEM_COUNT=0
+            fi
+            if ! [[ "$DATA_SIZE" =~ ^[0-9]+$ ]]; then
+              DATA_SIZE=0
+            fi
+            
+            cat << EOF
+          {
+            "message": "No --jq filter provided. Use --jq to filter and retrieve data.",
+            "item_count": $ITEM_COUNT,
+            "data_size_bytes": $DATA_SIZE,
+            "schema": {
+              "type": "array",
+              "description": "Array of issue objects",
+              "item_fields": {
+                "number": "integer - Issue number",
+                "title": "string - Issue title",
+                "state": "string - Issue state (OPEN, CLOSED)",
+                "author": "object - Author info with login field",
+                "createdAt": "string - ISO timestamp of creation",
+                "updatedAt": "string - ISO timestamp of last update",
+                "closedAt": "string|null - ISO timestamp of close",
+                "body": "string - Issue body content",
+                "labels": "array - Array of label objects with name field",
+                "assignees": "array - Array of assignee objects with login field",
+                "comments": "object - Comments info with totalCount field",
+                "milestone": "object|null - Milestone info with title field",
+                "url": "string - Issue URL"
+              }
+            },
+            "suggested_queries": [
+              {"description": "Get all data", "query": "."},
+              {"description": "Get issue numbers and titles", "query": ".[] | {number, title}"},
+              {"description": "Get open issues only", "query": ".[] | select(.state == \"OPEN\")"},
+              {"description": "Get issues by author", "query": ".[] | select(.author.login == \"USERNAME\")"},
+              {"description": "Get issues with label", "query": ".[] | select(.labels | map(.name) | index(\"bug\"))"},
+              {"description": "Get issues with many comments", "query": ".[] | select(.comments.totalCount > 5) | {number, title, comments: .comments.totalCount}"},
+              {"description": "Count by state", "query": "group_by(.state) | map({state: .[0].state, count: length})"}
+            ]
+          }
+          EOF
+          fi
+          
+          
+          EOFSH_github-issue-query
+          chmod +x /opt/gh-aw/safe-inputs/github-issue-query.sh
+          cat > /opt/gh-aw/safe-inputs/github-pr-query.sh << 'EOFSH_github-pr-query'
+          #!/bin/bash
+          # Auto-generated safe-input tool: github-pr-query
+          # Query GitHub pull requests with jq filtering support. Without --jq, returns schema and data size info. Use --jq '.' to get all data, or specific jq expressions to filter.
+          
+          set -euo pipefail
+          
+          set -e
+          
+          # Default values
+          REPO="${INPUT_REPO:-}"
+          STATE="${INPUT_STATE:-open}"
+          LIMIT="${INPUT_LIMIT:-30}"
+          JQ_FILTER="${INPUT_JQ:-}"
+          
+          # JSON fields to fetch
+          JSON_FIELDS="number,title,state,author,createdAt,updatedAt,mergedAt,closedAt,headRefName,baseRefName,isDraft,reviewDecision,additions,deletions,changedFiles,labels,assignees,reviewRequests,url"
+          
+          # Build and execute gh command
+          if [[ -n "$REPO" ]]; then
+            OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS" --repo "$REPO")
+          else
+            OUTPUT=$(gh pr list --state "$STATE" --limit "$LIMIT" --json "$JSON_FIELDS")
+          fi
+          
+          # Apply jq filter if specified
+          if [[ -n "$JQ_FILTER" ]]; then
+            jq "$JQ_FILTER" <<< "$OUTPUT"
+          else
+            # Return schema and size instead of full data
+            ITEM_COUNT=$(jq 'length' <<< "$OUTPUT")
+            DATA_SIZE=${#OUTPUT}
+            
+            # Validate values are numeric
+            if ! [[ "$ITEM_COUNT" =~ ^[0-9]+$ ]]; then
+              ITEM_COUNT=0
+            fi
+            if ! [[ "$DATA_SIZE" =~ ^[0-9]+$ ]]; then
+              DATA_SIZE=0
+            fi
+            
+            cat << EOF
+          {
+            "message": "No --jq filter provided. Use --jq to filter and retrieve data.",
+            "item_count": $ITEM_COUNT,
+            "data_size_bytes": $DATA_SIZE,
+            "schema": {
+              "type": "array",
+              "description": "Array of pull request objects",
+              "item_fields": {
+                "number": "integer - PR number",
+                "title": "string - PR title",
+                "state": "string - PR state (OPEN, CLOSED, MERGED)",
+                "author": "object - Author info with login field",
+                "createdAt": "string - ISO timestamp of creation",
+                "updatedAt": "string - ISO timestamp of last update",
+                "mergedAt": "string|null - ISO timestamp of merge",
+                "closedAt": "string|null - ISO timestamp of close",
+                "headRefName": "string - Source branch name",
+                "baseRefName": "string - Target branch name",
+                "isDraft": "boolean - Whether PR is a draft",
+                "reviewDecision": "string|null - Review decision (APPROVED, CHANGES_REQUESTED, REVIEW_REQUIRED)",
+                "additions": "integer - Lines added",
+                "deletions": "integer - Lines deleted",
+                "changedFiles": "integer - Number of files changed",
+                "labels": "array - Array of label objects with name field",
+                "assignees": "array - Array of assignee objects with login field",
+                "reviewRequests": "array - Array of review request objects",
+                "url": "string - PR URL"
+              }
+            },
+            "suggested_queries": [
+              {"description": "Get all data", "query": "."},
+              {"description": "Get PR numbers and titles", "query": ".[] | {number, title}"},
+              {"description": "Get open PRs only", "query": ".[] | select(.state == \"OPEN\")"},
+              {"description": "Get merged PRs", "query": ".[] | select(.mergedAt != null)"},
+              {"description": "Get PRs by author", "query": ".[] | select(.author.login == \"USERNAME\")"},
+              {"description": "Get large PRs", "query": ".[] | select(.changedFiles > 10) | {number, title, changedFiles}"},
+              {"description": "Count by state", "query": "group_by(.state) | map({state: .[0].state, count: length})"}
+            ]
+          }
+          EOF
+          fi
+          
+          
+          EOFSH_github-pr-query
+          chmod +x /opt/gh-aw/safe-inputs/github-pr-query.sh
           
       - name: Generate Safe Inputs MCP Server Config
         id: safe-inputs-config
@@ -621,6 +961,7 @@ jobs:
           GH_AW_SAFE_INPUTS_API_KEY: ${{ steps.safe-inputs-config.outputs.safe_inputs_api_key }}
           GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_DEBUG: 1
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Environment variables are set above to prevent template injection
           export GH_AW_SAFE_INPUTS_PORT
@@ -638,6 +979,7 @@ jobs:
           GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-start.outputs.api_key }}
           GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-start.outputs.port }}
           GH_DEBUG: 1
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
@@ -654,7 +996,7 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="custom"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_INPUTS_PORT -e GH_AW_SAFE_INPUTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GH_AW_GH_TOKEN -e GH_DEBUG -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.76'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_INPUTS_PORT -e GH_AW_SAFE_INPUTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e GH_AW_GH_TOKEN -e GH_DEBUG -e GH_TOKEN -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.76'
           
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
@@ -770,7 +1112,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, add_labels, create_discussion, create_issue, missing_tool, noop
+          **Available tools**: add_comment, add_labels, create_issue, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -827,6 +1169,8 @@ jobs:
           
           
           
+          
+          
           # Smoke Test: OpenCode Custom Engine Validation
           
           **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
@@ -839,7 +1183,7 @@ jobs:
           4. **Playwright Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
           5. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-opencode-__GH_AW_GITHUB_RUN_ID__.txt` with content "Smoke test passed for OpenCode at $(date)" (create the directory if it doesn't exist)
           6. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-          7. **Discussion Creation Testing**: Create a new discussion in __GH_AW_GITHUB_REPOSITORY__ with a space/rocket-themed title about the smoke test (be creative and use space mission language)
+          7. **Discussion Interaction Testing**: Use the `github-discussion-query` safe-input tool to get the latest discussion from __GH_AW_GITHUB_REPOSITORY__ (use params: limit=1, jq=".[0]") and add a space/rocket-themed comment to it stating that the smoke test agent was here (be creative and use space mission language)
           
           ## Output
           
@@ -856,7 +1200,7 @@ jobs:
              - ✅ or ❌ for each test result
              - Overall status: PASS or FAIL
           
-          3. Add a **space/rocket-themed comment** to the created discussion mentioning that this is a smoke test validation (be creative and use space mission language)
+          3. Add a **space/rocket-themed comment** to the latest discussion mentioning that the smoke test was here (be creative and use space mission language)
           
           If all tests pass, add the label `smoke-opencode` to the pull request.
           
@@ -1499,7 +1843,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-opencode\"]},\"create_discussion\":{\"close_older_discussions\":true,\"expires\":2,\"max\":1},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"group\":true,\"max\":1},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-opencode\"]},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"group\":true,\"max\":1},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

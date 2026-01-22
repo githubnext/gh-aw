@@ -18,6 +18,7 @@ engine: copilot
 imports:
   - shared/gh.md
   - shared/reporting.md
+  - shared/github-queries-safe-input.md
 network:
   allowed:
     - defaults
@@ -52,9 +53,6 @@ safe-outputs:
       expires: 2h
       group: true
       close-older-issues: true
-    create-discussion:
-      expires: 2h
-      close-older-discussions: true
     add-labels:
       allowed: [smoke-copilot]
     remove-labels:
@@ -81,7 +79,7 @@ strict: true
 4. **Playwright Testing**: Use playwright to navigate to <https://github.com> and verify the page title contains "GitHub"
 5. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
 6. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-7. **Discussion Creation Testing**: Create a new discussion in ${{ github.repository }} with a fun title about the smoke test (be creative and playful)
+7. **Discussion Interaction Testing**: Use the `github-discussion-query` safe-input tool to get the latest discussion from ${{ github.repository }} (use params: limit=1, jq=".[0]") and add a fun comment to it stating that the smoke test agent was here (be creative and playful with the comment)
 
 ## Output
 
@@ -100,7 +98,7 @@ strict: true
    - Overall status: PASS or FAIL
    - Mention the pull request author and any assignees
 
-3. Add a **fun and creative comment** to the created discussion mentioning that this is a smoke test validation (be playful and entertaining)
+3. Add a **fun and creative comment** to the latest discussion mentioning that the smoke test was here (be playful and entertaining)
 
 If all tests pass:
 - Add the label `smoke-copilot` to the pull request
