@@ -186,7 +186,7 @@ func TestSandboxConfigWithMounts(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errMsg:  "invalid mount syntax",
+			errMsg:  "mount syntax must follow 'source:destination:mode' format",
 		},
 		{
 			name: "invalid mode in mount",

@@ -39,6 +39,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// This detects runtimes from custom steps and MCP configs
 	runtimeRequirements := DetectRuntimeRequirements(data)
 
+	// Contribute runtime-specific mounts to sandbox agent configuration
+	// This ensures runtime binaries, caches, and supporting folders are available in the container
+	if data.SandboxConfig != nil && data.SandboxConfig.Agent != nil && len(runtimeRequirements) > 0 {
+		ContributeRuntimeMounts(data.SandboxConfig.Agent, runtimeRequirements)
+		compilerYamlLog.Printf("Contributed runtime mounts to sandbox agent configuration")
+	}
+
 	// Deduplicate runtime setup steps from custom steps
 	// This removes any runtime setup action steps (like actions/setup-go) from custom steps
 	// since we're adding them. It also preserves user-customized setup actions and
