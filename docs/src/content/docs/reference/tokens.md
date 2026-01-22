@@ -314,7 +314,7 @@ gh aw secrets set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
 
 **Type**: Personal Access Token (user must configure)
 
-Specialized token for `assign-to-agent:` safe outputs that assign GitHub Copilot agents to issues or pull requests.
+Specialized token for `assign-to-agent:` safe outputs that programmatically assign GitHub Copilot agents to issues or pull requests. This is distinct from the standard GitHub UI workflow for [assigning issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot)—this token is used for automated agent assignment through workflow safe outputs.
 
 **Required for**:
 
@@ -363,7 +363,7 @@ gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
 > 
 > There are two different methods for assigning GitHub Copilot agents to issues or pull requests:
 > 
-> 1. **Via `assign-to-agent` safe output** (uses `GH_AW_AGENT_TOKEN`): Use when you need to assign agents to **existing** issues or PRs after they've been created. This is a standalone operation that requires the token documented on this page.
+> 1. **Via `assign-to-agent` safe output** (uses `GH_AW_AGENT_TOKEN`): Use when you need to programmatically assign agents to **existing** issues or PRs through workflow automation. This is a standalone operation that requires the token documented on this page.
 > 
 >    ```yaml
 >    safe-outputs:
@@ -372,7 +372,7 @@ gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
 >        allowed: [copilot]
 >    ```
 > 
-> 2. **Via `assignees` or `reviewers` fields** (uses `COPILOT_GITHUB_TOKEN`): Use when creating new issues or PRs and want to assign the agent immediately. This is configured as part of `create-issue` or `create-pull-request` safe outputs.
+> 2. **Via `assignees` or `reviewers` fields** (uses `COPILOT_GITHUB_TOKEN`): Use when creating new issues or PRs through workflows and want to assign the agent immediately. This is configured as part of `create-issue` or `create-pull-request` safe outputs and mirrors the [standard GitHub UI flow for assigning issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot).
 > 
 >    ```yaml
 >    safe-outputs:
@@ -382,7 +382,9 @@ gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
 >        reviewers: copilot  # or reviewers: [copilot, user1]
 >    ```
 > 
-> For most workflows that create issues with agent assignments, use method 2 (`assignees: copilot`) as it's simpler and uses the existing `COPILOT_GITHUB_TOKEN`. Use method 1 (`assign-to-agent`) when you need to assign agents to issues that already exist or when you need fine-grained control over agent assignment operations.
+> For most workflows that create issues with agent assignments, use method 2 (`assignees: copilot`) as it's simpler and uses the existing `COPILOT_GITHUB_TOKEN`. Use method 1 (`assign-to-agent`) when you need to programmatically assign agents to issues that already exist or when you need fine-grained control over agent assignment operations.
+> 
+> See [GitHub's official documentation on assigning issues to Copilot](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) for more details on the Copilot coding agent.
 
 > [!NOTE]
 > Resource owner requirements

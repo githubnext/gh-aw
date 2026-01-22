@@ -779,7 +779,7 @@ Creates Copilot agent sessions. Requires `COPILOT_GITHUB_TOKEN` or `GH_AW_GITHUB
 
 ### Assign to Agent (`assign-to-agent:`)
 
-Assigns GitHub Copilot agents to **existing** issues or pull requests programmatically. Requires fine-grained PAT with actions, contents, issues, pull requests write access stored as `GH_AW_AGENT_TOKEN`, or GitHub App token. Supported agents: `copilot` (`copilot-swe-agent`).
+Programmatically assigns GitHub Copilot agents to **existing** issues or pull requests through workflow automation. This safe output automates the [standard GitHub workflow for assigning issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot). Requires fine-grained PAT with actions, contents, issues, pull requests write access stored as `GH_AW_AGENT_TOKEN`, or GitHub App token. Supported agents: `copilot` (`copilot-swe-agent`).
 
 Auto-resolves target from workflow context (issue/PR events) when `issue_number` or `pull_number` not explicitly provided. Restrict with `allowed` list. Target: `"triggering"` (default), `"*"` (any), or number.
 
@@ -804,7 +804,7 @@ When `allowed` list is configured, existing agent assignees not in the list are 
 > [!TIP]
 > Assignment methods
 > 
-> Use `assign-to-agent` when you need to assign agents to **existing** issues or PRs. If you're creating new issues and want to assign an agent immediately, use `assignees: copilot` in your [`create-issue`](#issue-creation-create-issue) configuration instead, which is simpler and uses `COPILOT_GITHUB_TOKEN`:
+> Use `assign-to-agent` when you need to programmatically assign agents to **existing** issues or PRs through workflow automation. If you're creating new issues and want to assign an agent immediately, use `assignees: copilot` in your [`create-issue`](#issue-creation-create-issue) configuration instead, which is simpler and uses `COPILOT_GITHUB_TOKEN`:
 > 
 > ```yaml
 > safe-outputs:
@@ -812,7 +812,7 @@ When `allowed` list is configured, existing agent assignees not in the list are 
 >     assignees: copilot  # Assigns agent when creating issue
 > ```
 > 
-> See [GitHub Tokens reference](/gh-aw/reference/tokens/#gh_aw_agent_token-agent-assignment) for token configuration details.
+> Both methods result in the same outcome as [manually assigning issues to Copilot through the GitHub UI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot), but are automated through workflow safe outputs. See [GitHub Tokens reference](/gh-aw/reference/tokens/#gh_aw_agent_token-agent-assignment) for token configuration details and [GitHub's official Copilot coding agent documentation](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) for more about the Copilot agent.
 
 ### Assign to User (`assign-to-user:`)
 

@@ -318,7 +318,7 @@ The [`duplicate-code-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a
 
 **Research**: Uses Serena MCP for semantic analysis, creates report
 **Plan**: Creates well-scoped issues (max 3 per run) with refactoring strategies
-**Assign**: Creates issues with `assignees: copilot` since fixes are straightforward
+**Assign**: Creates issues and [assigns to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot) (via `assignees: copilot`) since fixes are straightforward
 
 The key benefits are:
 
