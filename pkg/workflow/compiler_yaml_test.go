@@ -800,3 +800,312 @@ Test content.`
 		t.Error("Expected concurrency in generated YAML")
 	}
 }
+
+// TestGenerateYAMLStripsANSIEscapeCodes tests that ANSI escape sequences are removed from YAML comments
+func TestGenerateYAMLStripsANSIEscapeCodes(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "yaml-ansi-test")
+
+	// Test with ANSI codes in description, source, and other comments
+	frontmatter := `---
+name: Test Workflow
+description: "This workflow \x1b[31mdoes important\x1b[0m things\x1b[m"
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+---
+
+# Test Workflow
+
+Test content.`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("CompileWorkflow() error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(content)
+
+	// Verify ANSI codes are stripped from description
+	if !strings.Contains(yamlStr, "# This workflow does important things") {
+		t.Error("Expected clean description without ANSI codes in comments")
+	}
+
+	// Verify no ANSI escape sequences remain in the file
+	if strings.Contains(yamlStr, "\x1b[") {
+		t.Error("Found ANSI escape sequences in generated YAML file")
+	}
+
+	// Verify the [m pattern (without ESC) is also not present
+	// This catches cases where only the trailing part of an ANSI code remains
+	if strings.Contains(yamlStr, "[31m") || strings.Contains(yamlStr, "[0m") || strings.Contains(yamlStr, "[m") {
+		// Check if it's actually an ANSI code pattern (after ESC character removal)
+		// We want to allow normal brackets like [something] but catch ANSI patterns
+		lines := strings.Split(yamlStr, "\n")
+		for i, line := range lines {
+			if strings.Contains(line, "[m") || strings.Contains(line, "[0m") || strings.Contains(line, "[31m") {
+				t.Errorf("Found ANSI code remnant in generated YAML at line %d: %q", i+1, line)
+			}
+		}
+	}
+}
+
+// TestGenerateYAMLStripsANSIFromAllFields tests ANSI stripping from all workflow metadata fields
+func TestGenerateYAMLStripsANSIFromAllFields(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "yaml-ansi-all-fields-test")
+
+	// Test with ANSI codes in multiple fields: description, source, imports, stop-time, manual-approval
+	frontmatter := `---
+name: Test Workflow
+description: "Workflow with \x1b[1mANSI\x1b[0m codes"
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+---
+
+# Test Workflow
+
+Test content.`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("CompileWorkflow() error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(content)
+
+	// Verify description has ANSI codes stripped
+	if !strings.Contains(yamlStr, "# Workflow with ANSI codes") {
+		t.Error("Expected clean description without ANSI codes")
+	}
+
+	// Verify no ANSI escape sequences anywhere
+	if strings.Contains(yamlStr, "\x1b[") {
+		t.Error("Found ANSI escape sequences in generated YAML file")
+	}
+}
+
+// TestGenerateYAMLStripsANSIFromImportedFiles tests ANSI stripping from imported file paths
+func TestGenerateYAMLStripsANSIFromImportedFiles(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "yaml-ansi-imports-test")
+
+	// Create a workflow that will have imported files
+	// We'll create it manually by modifying WorkflowData
+	compiler := NewCompiler(false, "", "test")
+
+	// Create a simple workflow file first
+	frontmatter := `---
+name: Test Workflow
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+---
+
+# Test Workflow
+
+Test content.`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Parse the workflow
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("ParseWorkflowFile() error: %v", err)
+	}
+
+	// Add ANSI codes to imported/included files
+	workflowData.ImportedFiles = []string{
+		"path/to/\x1b[32mfile1.md\x1b[0m",
+		"path/to/\x1b[31mfile2.md\x1b[m",
+	}
+	workflowData.IncludedFiles = []string{
+		"path/to/\x1b[1minclude1.md\x1b[0m",
+	}
+
+	// Compile with the modified data
+	if err := compiler.CompileWorkflowData(workflowData, testFile); err != nil {
+		t.Fatalf("CompileWorkflowData() error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(content)
+
+	// Verify imported files have ANSI codes stripped
+	if !strings.Contains(yamlStr, "path/to/file1.md") {
+		t.Error("Expected clean imported file path without ANSI codes")
+	}
+	if !strings.Contains(yamlStr, "path/to/file2.md") {
+		t.Error("Expected clean imported file path without ANSI codes")
+	}
+	if !strings.Contains(yamlStr, "path/to/include1.md") {
+		t.Error("Expected clean included file path without ANSI codes")
+	}
+
+	// Verify no ANSI escape sequences remain
+	if strings.Contains(yamlStr, "\x1b[") {
+		t.Error("Found ANSI escape sequences in generated YAML file")
+	}
+}
+
+// TestGenerateYAMLStripsANSIFromStopTimeAndManualApproval tests ANSI stripping from stop-time and manual-approval
+func TestGenerateYAMLStripsANSIFromStopTimeAndManualApproval(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "yaml-ansi-stoptime-test")
+
+	// Create workflow with stop-time and manual-approval containing ANSI codes
+	compiler := NewCompiler(false, "", "test")
+
+	frontmatter := `---
+name: Test Workflow
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+---
+
+# Test Workflow
+
+Test content.`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Parse the workflow
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("ParseWorkflowFile() error: %v", err)
+	}
+
+	// Add ANSI codes to stop-time and manual-approval
+	workflowData.StopTime = "2026-12-31\x1b[31mT23:59:59Z\x1b[0m"
+	workflowData.ManualApproval = "production-\x1b[1menv\x1b[0m"
+
+	// Compile with the modified data
+	if err := compiler.CompileWorkflowData(workflowData, testFile); err != nil {
+		t.Fatalf("CompileWorkflowData() error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(content)
+
+	// Verify stop-time has ANSI codes stripped
+	if !strings.Contains(yamlStr, "# Effective stop-time: 2026-12-31T23:59:59Z") {
+		t.Error("Expected clean stop-time without ANSI codes")
+	}
+
+	// Verify manual-approval has ANSI codes stripped
+	if !strings.Contains(yamlStr, "# Manual approval required: environment 'production-env'") {
+		t.Error("Expected clean manual-approval without ANSI codes")
+	}
+
+	// Verify no ANSI escape sequences remain
+	if strings.Contains(yamlStr, "\x1b[") {
+		t.Error("Found ANSI escape sequences in generated YAML file")
+	}
+}
+
+// TestGenerateYAMLStripsANSIMultilineDescription tests ANSI stripping from multiline descriptions
+func TestGenerateYAMLStripsANSIMultilineDescription(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "yaml-ansi-multiline-test")
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Create workflow with simple description first
+	frontmatter := `---
+name: Test Workflow
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+---
+
+# Test Workflow
+
+Test content.`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Parse the workflow
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("ParseWorkflowFile() error: %v", err)
+	}
+
+	// Set a multiline description with ANSI codes
+	workflowData.Description = "Line 1 with \x1b[32mgreen\x1b[0m text\nLine 2 with \x1b[31mred\x1b[0m text\nLine 3 with \x1b[1mbold\x1b[0m text"
+
+	// Compile with the modified data
+	if err := compiler.CompileWorkflowData(workflowData, testFile); err != nil {
+		t.Fatalf("CompileWorkflowData() error: %v", err)
+	}
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(content)
+
+	// Verify all lines have ANSI codes stripped
+	if !strings.Contains(yamlStr, "# Line 1 with green text") {
+		t.Error("Expected clean line 1 without ANSI codes")
+	}
+	if !strings.Contains(yamlStr, "# Line 2 with red text") {
+		t.Error("Expected clean line 2 without ANSI codes")
+	}
+	if !strings.Contains(yamlStr, "# Line 3 with bold text") {
+		t.Error("Expected clean line 3 without ANSI codes")
+	}
+
+	// Verify no ANSI escape sequences remain
+	if strings.Contains(yamlStr, "\x1b[") {
+		t.Error("Found ANSI escape sequences in generated YAML file")
+	}
+}

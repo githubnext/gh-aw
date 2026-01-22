@@ -412,70 +412,227 @@ func TestParseVersionValue(t *testing.T) {
 	}
 }
 
-func TestIsPositiveInteger(t *testing.T) {
+func TestStripANSIEscapeCodes(t *testing.T) {
 	tests := []struct {
-		name string
-		s    string
-		want bool
+		name     string
+		input    string
+		expected string
 	}{
 		{
-			name: "positive integer",
-			s:    "123",
-			want: true,
+			name:     "no ANSI codes",
+			input:    "Hello World",
+			expected: "Hello World",
 		},
 		{
-			name: "one",
-			s:    "1",
-			want: true,
+			name:     "simple color reset",
+			input:    "Hello World[m",
+			expected: "Hello World[m", // [m without ESC is not an ANSI code
 		},
 		{
-			name: "large number",
-			s:    "999999999",
-			want: true,
+			name:     "ANSI color reset",
+			input:    "Hello World\x1b[m",
+			expected: "Hello World",
 		},
 		{
-			name: "zero",
-			s:    "0",
-			want: false,
+			name:     "ANSI color code with reset",
+			input:    "Hello \x1b[31mWorld\x1b[0m",
+			expected: "Hello World",
 		},
 		{
-			name: "negative",
-			s:    "-5",
-			want: false,
+			name:     "ANSI bold text",
+			input:    "\x1b[1mBold text\x1b[0m",
+			expected: "Bold text",
 		},
 		{
-			name: "leading zeros",
-			s:    "007",
-			want: false,
+			name:     "multiple ANSI codes",
+			input:    "\x1b[1m\x1b[31mRed Bold\x1b[0m",
+			expected: "Red Bold",
 		},
 		{
-			name: "float",
-			s:    "3.14",
-			want: false,
+			name:     "ANSI with parameters",
+			input:    "Text \x1b[1;32mgreen bold\x1b[0m more text",
+			expected: "Text green bold more text",
 		},
 		{
-			name: "not a number",
-			s:    "abc",
-			want: false,
+			name:     "ANSI clear screen",
+			input:    "\x1b[2JCleared",
+			expected: "Cleared",
 		},
 		{
-			name: "empty string",
-			s:    "",
-			want: false,
+			name:     "empty string",
+			input:    "",
+			expected: "",
 		},
 		{
-			name: "spaces",
-			s:    " 123 ",
-			want: false,
+			name:     "only ANSI codes",
+			input:    "\x1b[0m\x1b[31m\x1b[1m",
+			expected: "",
+		},
+		{
+			name:     "real-world example from issue",
+			input:    "2. **REQUIRED**: Run 'make recompile' to update workflows (MUST be run after any constant changes)\x1b[m",
+			expected: "2. **REQUIRED**: Run 'make recompile' to update workflows (MUST be run after any constant changes)",
+		},
+		{
+			name:     "another real-world example",
+			input:    "- **SAVE TO CACHE**: Store help outputs (main and all subcommands) and version check results in cache-memory\x1b[m",
+			expected: "- **SAVE TO CACHE**: Store help outputs (main and all subcommands) and version check results in cache-memory",
+		},
+		{
+			name:     "ANSI underline",
+			input:    "\x1b[4mUnderlined\x1b[0m text",
+			expected: "Underlined text",
+		},
+		{
+			name:     "ANSI 256 color",
+			input:    "\x1b[38;5;214mOrange\x1b[0m",
+			expected: "Orange",
+		},
+		{
+			name:     "mixed content with newlines",
+			input:    "Line 1\x1b[31m\nLine 2\x1b[0m\nLine 3",
+			expected: "Line 1\nLine 2\nLine 3",
+		},
+		{
+			name:     "ANSI cursor movement",
+			input:    "\x1b[2AMove up\x1b[3BMove down",
+			expected: "Move upMove down",
+		},
+		{
+			name:     "ANSI erase in line",
+			input:    "Start\x1b[KEnd",
+			expected: "StartEnd",
+		},
+		{
+			name:     "consecutive ANSI codes",
+			input:    "\x1b[1m\x1b[31m\x1b[4mRed Bold Underline\x1b[0m\x1b[0m\x1b[0m",
+			expected: "Red Bold Underline",
+		},
+		{
+			name:     "ANSI with large parameter",
+			input:    "\x1b[38;5;255mWhite\x1b[0m",
+			expected: "White",
+		},
+		{
+			name:     "ANSI RGB color (24-bit)",
+			input:    "\x1b[38;2;255;128;0mOrange RGB\x1b[0m",
+			expected: "Orange RGB",
+		},
+		{
+			name:     "ANSI codes in the middle of words",
+			input:    "hel\x1b[31mlo\x1b[0m wor\x1b[32mld\x1b[0m",
+			expected: "hello world",
+		},
+		{
+			name:     "ANSI save/restore cursor",
+			input:    "Text\x1b[s more text\x1b[u end",
+			expected: "Text more text end",
+		},
+		{
+			name:     "ANSI cursor position",
+			input:    "\x1b[H\x1b[2JClear and home",
+			expected: "Clear and home",
+		},
+		{
+			name:     "long string with multiple ANSI codes",
+			input:    "\x1b[1mThis\x1b[0m \x1b[31mis\x1b[0m \x1b[32ma\x1b[0m \x1b[33mvery\x1b[0m \x1b[34mlong\x1b[0m \x1b[35mstring\x1b[0m \x1b[36mwith\x1b[0m \x1b[37mmany\x1b[0m \x1b[1mANSI\x1b[0m \x1b[4mcodes\x1b[0m",
+			expected: "This is a very long string with many ANSI codes",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := IsPositiveInteger(tt.s)
-			if got != tt.want {
-				t.Errorf("IsPositiveInteger(%q) = %v, want %v", tt.s, got, tt.want)
+			result := StripANSIEscapeCodes(tt.input)
+			if result != tt.expected {
+				t.Errorf("StripANSIEscapeCodes(%q) = %q, expected %q", tt.input, result, tt.expected)
+			}
+
+			// Verify no ANSI escape sequences remain
+			if result != "" && strings.Contains(result, "\x1b[") {
+				t.Errorf("Result still contains ANSI escape sequences: %q", result)
 			}
 		})
 	}
+}
+
+func BenchmarkStripANSIEscapeCodes_Clean(b *testing.B) {
+	s := "This is a clean string without any ANSI codes"
+	for i := 0; i < b.N; i++ {
+		StripANSIEscapeCodes(s)
+	}
+}
+
+func BenchmarkStripANSIEscapeCodes_WithCodes(b *testing.B) {
+	s := "This \x1b[31mhas\x1b[0m some \x1b[1mANSI\x1b[0m codes"
+	for i := 0; i < b.N; i++ {
+		StripANSIEscapeCodes(s)
+	}
+}
+
+func TestIsPositiveInteger(t *testing.T) {
+tests := []struct {
+name string
+s    string
+want bool
+}{
+{
+name: "positive integer",
+s:    "123",
+want: true,
+},
+{
+name: "one",
+s:    "1",
+want: true,
+},
+{
+name: "large number",
+s:    "999999999",
+want: true,
+},
+{
+name: "zero",
+s:    "0",
+want: false,
+},
+{
+name: "negative",
+s:    "-5",
+want: false,
+},
+{
+name: "leading zeros",
+s:    "007",
+want: false,
+},
+{
+name: "float",
+s:    "3.14",
+want: false,
+},
+{
+name: "not a number",
+s:    "abc",
+want: false,
+},
+{
+name: "empty string",
+s:    "",
+want: false,
+},
+{
+name: "spaces",
+s:    " 123 ",
+want: false,
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+got := IsPositiveInteger(tt.s)
+if got != tt.want {
+t.Errorf("IsPositiveInteger(%q) = %v, want %v", tt.s, got, tt.want)
+}
+})
+}
 }

@@ -22,7 +22,7 @@ safe-outputs:
     max: 10
   create-issue:
     title-prefix: "[refactor] "
-    labels: [refactoring, code-quality, automated-analysis]
+    labels: [refactoring, code-quality, automated-analysis, cookie]
     max: 1
 
 tools:

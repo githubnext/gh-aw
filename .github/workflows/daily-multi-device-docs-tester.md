@@ -36,6 +36,7 @@ tools:
 safe-outputs:
   upload-asset:
   create-issue:
+    labels: [cookie]
 
 network:
   allowed:

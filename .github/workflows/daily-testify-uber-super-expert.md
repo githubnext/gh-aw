@@ -21,7 +21,7 @@ imports:
 safe-outputs:
   create-issue:
     title-prefix: "[testify-expert] "
-    labels: [testing, code-quality, automated-analysis]
+    labels: [testing, code-quality, automated-analysis, cookie]
     max: 1
 
 tools:

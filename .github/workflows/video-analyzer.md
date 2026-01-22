@@ -24,7 +24,7 @@ tools:
 safe-outputs:
   create-issue:
     title-prefix: "[video-analysis] "
-    labels: [automation, video-processing]
+    labels: [automation, video-processing, cookie]
     max: 1
 
 timeout-minutes: 15

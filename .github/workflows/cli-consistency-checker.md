@@ -20,7 +20,7 @@ tools:
 safe-outputs:
   create-issue:
     title-prefix: "[cli-consistency] "
-    labels: [automation, cli, documentation]
+    labels: [automation, cli, documentation, cookie]
     max: 6  # 1 parent + 5 sub-issues
     group: true
 timeout-minutes: 20

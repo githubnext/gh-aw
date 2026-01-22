@@ -24,7 +24,7 @@ network:
 safe-outputs:
   create-issue:
     title-prefix: "[Code Quality] "
-    labels: [code-quality, automation, task-mining]
+    labels: [code-quality, automation, task-mining, cookie]
     max: 5
     group: true
     expires: 14d

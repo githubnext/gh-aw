@@ -190,7 +190,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"create_missing_tool_issue":{"max":1,"title_prefix":"[missing tool]"},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"create_discussion":{"max":1},"create_missing_tool_issue":{"labels":["cookie"],"max":1,"title_prefix":"[missing tool]"},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -917,6 +917,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
           GH_AW_MISSING_TOOL_TITLE_PREFIX: "[missing tool]"
+          GH_AW_MISSING_TOOL_LABELS: "[\"cookie\"]"
           GH_AW_WORKFLOW_NAME: "Repo Audit Analyzer"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

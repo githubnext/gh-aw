@@ -12,7 +12,7 @@ permissions:
 safe-outputs:
   create-issue:
     title-prefix: "[linter] "
-    labels: [automation, code-quality]
+    labels: [automation, code-quality, cookie]
 engine: copilot
 name: Super Linter Report
 timeout-minutes: 15

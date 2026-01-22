@@ -3,6 +3,7 @@ package stringutil
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -80,4 +81,31 @@ func IsPositiveInteger(s string) bool {
 	// Must be numeric and > 0
 	num, err := strconv.ParseInt(s, 10, 64)
 	return err == nil && num > 0
+}
+
+// ansiEscapePattern matches ANSI escape sequences
+// Pattern matches: ESC [ <optional params> <command letter>
+// Examples: \x1b[0m, \x1b[31m, \x1b[1;32m
+var ansiEscapePattern = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+
+// StripANSIEscapeCodes removes ANSI escape sequences from a string.
+// This prevents terminal color codes and other control sequences from
+// being accidentally included in generated files (e.g., YAML workflows).
+//
+// Common ANSI escape sequences that are removed:
+//   - Color codes: \x1b[31m (red), \x1b[0m (reset)
+//   - Text formatting: \x1b[1m (bold), \x1b[4m (underline)
+//   - Cursor control: \x1b[2J (clear screen)
+//
+// Example:
+//
+//	input := "Hello \x1b[31mWorld\x1b[0m"  // "Hello [red]World[reset]"
+//	output := StripANSIEscapeCodes(input)  // "Hello World"
+//
+// This function is particularly important for:
+//   - Workflow descriptions copied from terminal output
+//   - Comments in generated YAML files
+//   - Any text that should be plain ASCII
+func StripANSIEscapeCodes(s string) string {
+	return ansiEscapePattern.ReplaceAllString(s, "")
 }

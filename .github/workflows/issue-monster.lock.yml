@@ -596,7 +596,7 @@ jobs:
           The issue search has already been performed in a previous job with smart filtering and prioritization:
           
           **Filtering Applied:**
-          - ✅ Only open issues
+          - ✅ Only open issues **with "cookie" label** (indicating approved work queue items from automated workflows)
           - ✅ Excluded issues with labels: wontfix, duplicate, invalid, question, discussion, needs-discussion, blocked, on-hold, waiting-for-feedback, needs-more-info, no-bot, no-campaign
           - ✅ Excluded issues with campaign labels (campaign:*) - these are managed by campaign orchestrators
           - ✅ Excluded issues that already have assignees
@@ -1409,8 +1409,9 @@ jobs:
                 'security'
               ];
 
-              // Search for open issues without excluded labels
-              const query = `is:issue is:open repo:${owner}/${repo} -label:"${excludeLabels.join('" -label:"')}"`;
+              // Search for open issues with "cookie" label and without excluded labels
+              // The "cookie" label indicates issues that are approved work queue items from automated workflows
+              const query = `is:issue is:open repo:${owner}/${repo} label:cookie -label:"${excludeLabels.join('" -label:"')}"`;
               core.info(`Searching: ${query}`);
               const response = await github.rest.search.issuesAndPullRequests({
                 q: query,
