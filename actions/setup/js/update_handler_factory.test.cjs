@@ -233,6 +233,35 @@ describe("update_handler_factory.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('["title"]'));
     });
 
+    it("should NOT skip when _rawBody is present (body updates)", async () => {
+      const mockResolveItemNumber = vi.fn().mockReturnValue({ success: true, number: 42 });
+      const mockBuildUpdateData = vi.fn().mockReturnValue({
+        success: true,
+        data: { _rawBody: "New body content", _operation: "append" },
+      });
+      const mockExecuteUpdate = vi.fn().mockResolvedValue({ html_url: "https://example.com" });
+      const mockFormatSuccessResult = vi.fn().mockReturnValue({ success: true });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_issue",
+        itemTypeName: "issue",
+        supportsPR: false,
+        resolveItemNumber: mockResolveItemNumber,
+        buildUpdateData: mockBuildUpdateData,
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: mockFormatSuccessResult,
+      });
+
+      const handler = await handlerFactory({});
+      const result = await handler({ body: "New body content" });
+
+      // Should NOT skip - _rawBody indicates a body update
+      expect(result.success).toBe(true);
+      expect(result.skipped).toBeUndefined();
+      // Should proceed to execute the update
+      expect(mockExecuteUpdate).toHaveBeenCalled();
+    });
+
     it("should handle execution errors gracefully", async () => {
       const mockResolveItemNumber = vi.fn().mockReturnValue({ success: true, number: 42 });
       const mockBuildUpdateData = vi.fn().mockReturnValue({ success: true, data: { title: "Test" } });

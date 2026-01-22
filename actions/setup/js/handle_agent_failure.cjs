@@ -249,14 +249,20 @@ async function main() {
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
     const secretVerificationResult = process.env.GH_AW_SECRET_VERIFICATION_RESULT || "";
+    const assignmentErrors = process.env.GH_AW_ASSIGNMENT_ERRORS || "";
+    const assignmentErrorCount = process.env.GH_AW_ASSIGNMENT_ERROR_COUNT || "0";
 
     core.info(`Agent conclusion: ${agentConclusion}`);
     core.info(`Workflow name: ${workflowName}`);
     core.info(`Secret verification result: ${secretVerificationResult}`);
+    core.info(`Assignment error count: ${assignmentErrorCount}`);
 
-    // Only proceed if the agent job actually failed
-    if (agentConclusion !== "failure") {
-      core.info(`Agent job did not fail (conclusion: ${agentConclusion}), skipping failure handling`);
+    // Check if there are assignment errors (regardless of agent job status)
+    const hasAssignmentErrors = parseInt(assignmentErrorCount, 10) > 0;
+
+    // Only proceed if the agent job actually failed OR there are assignment errors
+    if (agentConclusion !== "failure" && !hasAssignmentErrors) {
+      core.info(`Agent job did not fail and no assignment errors (conclusion: ${agentConclusion}), skipping failure handling`);
       return;
     }
 
@@ -305,6 +311,24 @@ async function main() {
           runId = runIdMatch[1];
         }
 
+        // Build assignment errors context
+        let assignmentErrorsContext = "";
+        if (hasAssignmentErrors && assignmentErrors) {
+          assignmentErrorsContext = "\n**⚠️ Agent Assignment Failed**: Failed to assign agent to issues due to insufficient permissions or missing token.\n\n**Assignment Errors:**\n";
+          const errorLines = assignmentErrors.split("\n").filter(line => line.trim());
+          for (const errorLine of errorLines) {
+            const parts = errorLine.split(":");
+            if (parts.length >= 4) {
+              const type = parts[0]; // "issue" or "pr"
+              const number = parts[1];
+              const agent = parts[2];
+              const error = parts.slice(3).join(":"); // Rest is the error message
+              assignmentErrorsContext += `- ${type === "issue" ? "Issue" : "PR"} #${number} (agent: ${agent}): ${error}\n`;
+            }
+          }
+          assignmentErrorsContext += "\n";
+        }
+
         // Create template context
         const templateContext = {
           run_url: runUrl,
@@ -315,6 +339,7 @@ async function main() {
           secret_verification_failed: String(secretVerificationResult === "failed"),
           secret_verification_context:
             secretVerificationResult === "failed" ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n" : "",
+          assignment_errors_context: assignmentErrorsContext,
         };
 
         // Render the comment template
@@ -351,6 +376,24 @@ async function main() {
         // Get current branch information
         const currentBranch = getCurrentBranch();
 
+        // Build assignment errors context
+        let assignmentErrorsContext = "";
+        if (hasAssignmentErrors && assignmentErrors) {
+          assignmentErrorsContext = "\n**⚠️ Agent Assignment Failed**: Failed to assign agent to issues due to insufficient permissions or missing token.\n\n**Assignment Errors:**\n";
+          const errorLines = assignmentErrors.split("\n").filter(line => line.trim());
+          for (const errorLine of errorLines) {
+            const parts = errorLine.split(":");
+            if (parts.length >= 4) {
+              const type = parts[0]; // "issue" or "pr"
+              const number = parts[1];
+              const agent = parts[2];
+              const error = parts.slice(3).join(":"); // Rest is the error message
+              assignmentErrorsContext += `- ${type === "issue" ? "Issue" : "PR"} #${number} (agent: ${agent}): ${error}\n`;
+            }
+          }
+          assignmentErrorsContext += "\n";
+        }
+
         // Create template context with sanitized workflow name
         const templateContext = {
           workflow_name: sanitizedWorkflowName,
@@ -361,6 +404,7 @@ async function main() {
           secret_verification_failed: String(secretVerificationResult === "failed"),
           secret_verification_context:
             secretVerificationResult === "failed" ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n" : "",
+          assignment_errors_context: assignmentErrorsContext,
         };
 
         // Render the issue template
