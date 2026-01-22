@@ -19,25 +19,13 @@ func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep 
 		copilotSRTLog.Printf("No version specified, using default: %s", version)
 	}
 
-	copilotSRTLog.Printf("Generating Copilot installer steps using official install.sh: version=%s", version)
+	copilotSRTLog.Printf("Generating Copilot installer steps using install_copilot_cli.sh: version=%s", version)
 
-	// Use the official installer script from the Copilot CLI repository
-	// Download to a file first for better security than piping directly to bash
+	// Use the install_copilot_cli.sh script from actions/setup/sh
+	// This script includes retry logic for robustness against transient network failures
 	stepLines := []string{
 		fmt.Sprintf("      - name: %s", stepName),
-		"        run: |",
-		"          # Download official Copilot CLI installer script",
-		"          curl -fsSL https://raw.githubusercontent.com/github/copilot-cli/main/install.sh -o /tmp/copilot-install.sh",
-		"          ",
-		"          # Execute the installer with the specified version",
-		"          # Pass VERSION directly to sudo to ensure it's available to the installer script",
-		fmt.Sprintf("          sudo VERSION=%s bash /tmp/copilot-install.sh", version),
-		"          ",
-		"          # Cleanup",
-		"          rm -f /tmp/copilot-install.sh",
-		"          ",
-		"          # Verify installation",
-		"          copilot --version",
+		fmt.Sprintf("        run: /opt/gh-aw/actions/install_copilot_cli.sh %s", version),
 	}
 
 	return []GitHubActionStep{GitHubActionStep(stepLines)}
