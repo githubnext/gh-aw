@@ -40,13 +40,6 @@ tools:
 runtimes:
   go:
     version: "1.25"
-  node:
-    version: "22"
-steps:
-  - name: Setup Node.js
-    uses: actions/setup-node@v4
-    with:
-      node-version: "22"
 sandbox:
   mcp:
     container: "ghcr.io/githubnext/gh-aw-mcpg"
@@ -81,12 +74,10 @@ strict: true
 2. **Safe Inputs GH CLI Testing**: Use the `safeinputs-gh` tool to query 2 pull requests from ${{ github.repository }} (use args: "pr list --repo ${{ github.repository }} --limit 2 --json number,title,author")
 3. **Serena MCP Testing**: Use the Serena MCP server tool `activate_project` to initialize the workspace at `${{ github.workspace }}` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools)
 4. **Playwright Testing**: Use playwright to navigate to <https://github.com> and verify the page title contains "GitHub"
-5. **Runtime Mount Testing - npm**: Execute `npm ls` command to verify that npm is available in the container (this tests that the runtime manager properly mounted Node.js folders)
-6. **Runtime Mount Testing - Docs Dependencies**: Install documentation dependencies by running `cd docs && npm ci` to verify npm can install packages using the cache
-7. **Runtime Mount Testing - Docs Build**: Build the documentation by running `cd docs && npm run build` to verify Node.js runtime is fully functional with build tools
-8. **Runtime Mount Testing - JS Tests**: Run JavaScript tests with `cd actions/setup/js && npm ci && npm run test:js -- --no-file-parallelism` to verify Node.js can execute tests and all mounts are working correctly
-9. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
-10. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+5. **Runtime Mount Testing - Go Build**: Build the gh-aw binary by running `go build -o /tmp/gh-aw-test ./cmd/gh-aw` to verify that Go runtime is fully functional with all dependencies and build tools (this tests that the runtime manager properly mounted Go folders including toolcache, GOPATH, and build cache)
+6. **Runtime Mount Testing - Go Test**: Run Go unit tests by executing `go test ./pkg/console -v -run TestFormatSuccess` to verify Go can compile and run tests with all mounts working correctly
+7. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with content "Smoke test passed for Copilot at $(date)" (create the directory if it doesn't exist)
+8. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 
 ## Output
 

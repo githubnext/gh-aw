@@ -38,13 +38,6 @@ tools:
 runtimes:
   go:
     version: "1.25"
-  node:
-    version: "22"
-steps:
-  - name: Setup Node.js
-    uses: actions/setup-node@v4
-    with:
-      node-version: "22"
 sandbox:
   mcp:
     container: "ghcr.io/githubnext/gh-aw-mcpg"
@@ -78,12 +71,10 @@ timeout-minutes: 10
 3. **Serena MCP Testing**: Use the Serena MCP server tool `activate_project` to initialize the workspace at `${{ github.workspace }}` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools)
 4. **Playwright Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
 5. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item
-6. **Runtime Mount Testing - npm**: Execute `npm ls` command to verify that npm is available in the container (this tests that the runtime manager properly mounted Node.js folders)
-7. **Runtime Mount Testing - Docs Dependencies**: Install documentation dependencies by running `cd docs && npm ci` to verify npm can install packages using the cache
-8. **Runtime Mount Testing - Docs Build**: Build the documentation by running `cd docs && npm run build` to verify Node.js runtime is fully functional with build tools
-9. **Runtime Mount Testing - JS Tests**: Run JavaScript tests with `cd actions/setup/js && npm ci && npm run test:js -- --no-file-parallelism` to verify Node.js can execute tests and all mounts are working correctly
-10. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-codex-${{ github.run_id }}.txt` with content "Smoke test passed for Codex at $(date)" (create the directory if it doesn't exist)
-11. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+6. **Runtime Mount Testing - Go Build**: Build the gh-aw binary by running `go build -o /tmp/gh-aw-test ./cmd/gh-aw` to verify that Go runtime is fully functional with all dependencies and build tools (this tests that the runtime manager properly mounted Go folders including toolcache, GOPATH, and build cache)
+7. **Runtime Mount Testing - Go Test**: Run Go unit tests by executing `go test ./pkg/console -v -run TestFormatSuccess` to verify Go can compile and run tests with all mounts working correctly
+8. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-codex-${{ github.run_id }}.txt` with content "Smoke test passed for Codex at $(date)" (create the directory if it doesn't exist)
+9. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 
 ## Output
 
