@@ -37,7 +37,7 @@ This workflow is particularly valuable after rapid development sessions. When yo
 
 The kinds of simplifications it proposes range from extracting repeated logic into helper functions to converting nested if-statements to early returns. It spots opportunities to simplify boolean expressions, use standard library functions instead of custom implementations, and consolidate similar error handling patterns.
 
-The **Duplicate Code Detector** uses traditional, road-tested semantic code analysis in conjunction with agentic reasoning to find duplicated patterns. It understands code *meaning* rather than just textual similarity, catching patterns where:
+The **Duplicate Code Detector** uses traditional, road-tested semantic code analysis in conjunction with agentic reasoning to find duplicate patterns. It understands code *meaning* rather than just textual similarity, catching patterns where:
 
 - The same logic appears with different variable names
 - Similar functions exist across different files
