@@ -395,7 +395,7 @@ jobs:
             const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
             startHttpServer(configPath, {
               port: port,
-              stateless: false,
+              stateless: true,
               logDir: "/opt/gh-aw/safe-inputs/logs"
             }).catch(error => {
               console.error("Failed to start safe-inputs HTTP server:", error);
@@ -532,7 +532,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["api.github.com","defaults","github"],
+              allowed_domains: ["defaults","github","api.github.com"],
               firewall_enabled: true,
               awf_version: "v0.10.0",
               awmg_version: "v0.0.76",

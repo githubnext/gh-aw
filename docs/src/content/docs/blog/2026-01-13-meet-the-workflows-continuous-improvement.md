@@ -26,9 +26,9 @@ In our [previous posts](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-sim
 
 Today's agents analyze higher-level concerns and long-term health:
 
-- **[Go Fan](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/go-fan.md?plain=1)** - Daily Go module usage reviewer that analyzes direct dependencies  
-- **[Typist](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/typist.md?plain=1)** - Analyzes Go type usage patterns to improve type safety  
-- **[Repository Quality Improver](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/repository-quality-improver.md?plain=1)** - Takes a holistic view of code quality and suggests improvements  
+- **[Go Fan](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/go-fan.md?plain=1)** - Daily Go module usage reviewer that analyzes direct dependencies  
+- **[Typist](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/typist.md?plain=1)** - Analyzes Go type usage patterns to improve type safety  
+- **[Repository Quality Improver](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/repository-quality-improver.md?plain=1)** - Takes a holistic view of code quality and suggests improvements  
 
 ### Go Fan: The Dependency Enthusiast 🐹
 
@@ -83,6 +83,30 @@ Together, these workflows complete the autonomous improvement picture. Go Fan en
 Combined with our earlier workflows covering simplicity, refactoring, and style, we now have agents that continuously improve code at every level: the Terminal Stylist ensures beautiful output at the line level, Code Simplifier removes complexity at the function level, Semantic Function Refactor improves organization at the file level, Go Pattern Detector enforces consistency at the pattern level, Typist strengthens type safety at the type level, Go Fan optimizes dependencies at the module level, and Repository Quality Improver maintains coherence at the repository level.
 
 This is the future of code quality: not periodic cleanup sprints, but continuous autonomous improvement across every dimension simultaneously.
+
+## Using These Workflows
+
+You can add these workflows to your own repository and remix them. Get going with our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/), then run one of the following:
+
+**Go Fan:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/go-fan.md
+```
+
+**Typist:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/typist.md
+```
+
+**Repository Quality Improver:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/repository-quality-improver.md
+```
+
+Then edit and remix the workflow specifications to meet your needs, recompile using `gh aw compile`, and push to your repository. See our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/) for further installation and setup instructions.
 
 ## Next Up: Continuous Documentation
 

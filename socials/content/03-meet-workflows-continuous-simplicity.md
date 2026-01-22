@@ -5,41 +5,47 @@ Social Publish Date: 2026-01-23
 
 ## X (Twitter)
 
-Day 3 in Peli’s Agent Factory 🍫✨: Continuous Simplicity.
+Ever notice how code gets messier over time, even in well-maintained projects? 🧹
 
-Two agents that run continuously to keep code simple 🧹🤖
-- Automatic Code Simplifier
-- Duplicate Code Detector
+Learn about two agents that continuously combat code complexity. The Code Simplifier watches your recent changes and suggests ways to make them clearer. The Duplicate Detector uses semantic analysis to spot hidden duplication that textual search misses.
 
-Tour + source links: https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/ #GitHubNext #AI #DevOps
+You'll learn how these workflows prevent technical debt from accumulating instead of fighting it after the fact. We're sharing both workflows so you can see how continuous simplification works in practice.
+
+Tour + source code: https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/
+
+#GitHubNext #AI #DevOps #PelisFactory
 
 ## Bluesky
 
-Day 3 in Peli’s Agent Factory 🍫✨: Continuous Simplicity.
+What if your codebase could stay simple instead of gradually becoming more complex? 🧹
 
-While humans sprint ahead, these agents trail along simplifying recently-changed code and spotting semantic duplication (with Serena). Tour + source links: https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/
+These two GitHub Agentic Workflows run continuously: one simplifies recently changed code, the other uses semantic analysis to spot hidden duplication. You'll see how they prevent technical debt before it accumulates.
+
+https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/
 
 ## Mastodon
 
-Day 3 in Peli’s Agent Factory 🍫🔧: Continuous Simplicity 🧹🤖
+Struggling with growing code complexity? 🧹
 
-Two quiet maintainers:
-- Automatic Code Simplifier
-- Duplicate Code Detector
+Discover two GitHub Agentic Workflows that continuously simplify your codebase: one targets recent changes for clarity improvements, the other uses semantic analysis to detect hidden duplication. Source code included.
 
-Tour + source links: https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/ #Automation #GitHub
+https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/ #Automation #GitHub #PelisFactory
 
 ## LinkedIn
 
-Day 3 in Peli’s Agent Factory: Continuous Simplicity 🍫✨
+How do you prevent technical debt instead of just managing it? 🧹
 
-After issue triage, the next stop on our tour are agents that continuously simplify code!
+In this post, you'll discover two workflows built with GitHub Agentic Workflows that continuously simplify code:
 
-Two workflows:
-- Automatic Code Simplifier 🧹 
-- Duplicate Code Detector 🤖
+**Automatic Code Simplifier**
+This agent watches your recent changes and suggests improvements for clarity and maintainability. Instead of waiting for quarterly refactoring sprints, it keeps code simple as you write it.
 
-Tour + workflow source links:
+**Duplicate Code Detector**
+Using semantic analysis (powered by Serena embeddings), this workflow spots conceptual duplication that traditional textual search misses. It finds functions that do the same thing even when they look different.
+
+You'll learn why continuous simplification is more effective than periodic cleanup, see the techniques that make these agents reliable, and get the complete workflow source code.
+
+Read the tour + get the workflows:
 https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/
 
-#GitHubNext #AI #DevOps #Automation
+#GitHubNext #AI #DevOps #Automation #PelisFactory

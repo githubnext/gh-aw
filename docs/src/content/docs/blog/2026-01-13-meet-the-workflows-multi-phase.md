@@ -38,6 +38,42 @@ This is where we got experimental with agent persistence and multi-day workflows
 
 These workflows prove that AI agents can handle complex, long-running projects when given the right architecture.
 
+## Using These Workflows
+
+You can add these workflows to your own repository and remix them. Get going with our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/), then run one of the following:
+
+**Daily Backlog Burner:**
+
+```bash
+gh aw add githubnext/agentics/workflows/daily-backlog-burner.md
+```
+
+**Daily Perf Improver:**
+
+```bash
+gh aw add githubnext/agentics/workflows/daily-perf-improver.md
+```
+
+**Daily QA:**
+
+```bash
+gh aw add githubnext/agentics/workflows/daily-qa.md
+```
+
+**Daily Accessibility Review:**
+
+```bash
+gh aw add githubnext/agentics/workflows/daily-accessibility-review.md
+```
+
+**PR Fix:**
+
+```bash
+gh aw add githubnext/agentics/workflows/pr-fix.md
+```
+
+Then edit and remix the workflow specifications to meet your needs, recompile using `gh aw compile`, and push to your repository. See our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/) for further installation and setup instructions.
+
 ## Learn More
 
 - **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows

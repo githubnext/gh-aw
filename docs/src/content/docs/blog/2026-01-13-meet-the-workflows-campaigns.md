@@ -39,6 +39,24 @@ We learned that individual agents are great at focused tasks, but orchestrating 
 
 These workflows implement patterns like epic issues, progress tracking, and deadline management. They prove that AI agents can handle not just individual tasks, but entire projects when given proper coordination infrastructure.
 
+## Using These Workflows
+
+You can add these workflows to your own repository and remix them. Get going with our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/), then run one of the following:
+
+**Plan Command:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/plan.md
+```
+
+**Discussion Task Miner:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/discussion-task-miner.md
+```
+
+Then edit and remix the workflow specifications to meet your needs, recompile using `gh aw compile`, and push to your repository. See our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/) for further installation and setup instructions.
+
 ## Learn More
 
 - **[GitHub Agentic Workflows](https://githubnext.github.io/gh-aw/)** - The technology behind the workflows

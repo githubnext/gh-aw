@@ -28,8 +28,8 @@ Now let's meet the agents that work quietly in the background to keep code simpl
 
 The next two agents represent different aspects of  code simplicity: detecting *overcomplicated code* and *duplicated logic*:
 
-- **[Automatic Code Simplifier](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/code-simplifier.md?plain=1)** - Analyzes recently modified code and creates PRs with simplifications  
-- **[Duplicate Code Detector](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/duplicate-code-detector.md?plain=1)** - Uses Serena's semantic analysis to identify duplicate code patterns  
+- **[Automatic Code Simplifier](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/code-simplifier.md?plain=1)** - Analyzes recently modified code and creates PRs with simplifications  
+- **[Duplicate Code Detector](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/duplicate-code-detector.md?plain=1)** - Uses Serena's semantic analysis to identify duplicate code patterns  
 
 The **Automatic Code Simplifier** runs daily, analyzing recently modified code for opportunities to simplify without changing functionality. It looks at what changed in the last few commits and asks: "Could this be clearer? Could it be shorter? Could it be more idiomatic?"
 
@@ -46,13 +46,31 @@ The **Duplicate Code Detector** uses traditional, road-tested semantic code anal
 
 What makes this workflow special is its use of semantic analysis through [Serena](https://oraios.github.io/serena/) - a powerful coding agent toolkit capable of turning an LLM into a fully-featured agent that works directly on your codebase. When we use Serena, we understand code at the compiler-resolved level, not just syntax.
 
-The workflow focuses on recent changes in the latest commits, intelligently filtering out test files, workflows, and non-code files. It creates issues only for significant duplication: patterns spanning more than 10 lines or appearing in 3 or more locations. It performs multi-phase analysis. It starts by setting up Serena's semantic environment for the repository, then finds changed `.go` and `.cjs` files while excluding tests and workflows. Using `get_symbols_overview` and `find_symbol`, it understands structure, identifies similar function signatures and logic blocks, and compares symbol overviews across files for deeper similarities. It creates issues with the `[duplicate-code]` prefix and limits itself to 3 issues per run, preventing overwhelm. Issues include specific file references, code snippets, and refactoring suggestions.
+The workflow focuses on recent changes in the latest commits, intelligently filtering out test files, workflows, and non-code files. It creates issues only for significant duplication: patterns spanning more than 10 lines or appearing in 3 or more locations. It performs a multi-phase analysis. It starts by setting up Serena's semantic environment for the repository, then finds changed `.go` and `.cjs` files while excluding tests and workflows. Using `get_symbols_overview` and `find_symbol`, it understands structure, identifies similar function signatures and logic blocks, and compares symbol overviews across files for deeper similarities. It creates issues with the `[duplicate-code]` prefix and limits itself to 3 issues per run, preventing overwhelm. Issues include specific file references, code snippets, and refactoring suggestions.
 
 ## Continuous AI for Simplicity - A New Paradigm
 
 Together, these workflows point towards an emerging shift in how we maintain code quality. Instead of periodic "cleanup sprints" or waiting for code reviews to catch complexity, we have agents that clean up after us and continuously monitor and propose improvements. This is especially valuable in AI-assisted development. When developers use AI to write code faster, these cleanup agents ensure speed doesn't sacrifice simplicity. They understand the same patterns that humans recognize but apply them consistently across the entire codebase, every day.
 
 The workflows never take a day off, never get tired, and never let technical debt accumulate. They embody the principle that *good enough* can always become *better*, and that incremental improvements compound over time.
+
+## Using These Workflows
+
+You can add these workflows to your own repository and remix them. Get going with our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/), then run one of the following:
+
+**Automatic Code Simplifier:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/code-simplifier.md
+```
+
+**Duplicate Code Detector:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/duplicate-code-detector.md
+```
+
+Then edit and remix the workflow specifications to meet your needs, recompile using `gh aw compile`, and push to your repository. See our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/) for further installation and setup instructions.
 
 ## Next Up: Continuous Refactoring
 

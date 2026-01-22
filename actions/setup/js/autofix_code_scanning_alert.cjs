@@ -39,89 +39,64 @@ async function main(config = {}) {
     // Check if we've hit the max limit
     if (processedCount >= maxCount) {
       core.warning(`Skipping autofix_code_scanning_alert: max count of ${maxCount} reached`);
-      return {
-        success: false,
-        error: `Max count of ${maxCount} reached`,
-      };
+      return { success: false, error: `Max count of ${maxCount} reached` };
     }
 
     processedCount++;
 
-    const autofixItem = message;
-
     // Validate required fields
-    if (autofixItem.alert_number === undefined || autofixItem.alert_number === null) {
+    if (message.alert_number === undefined || message.alert_number === null) {
       core.warning("Skipping autofix_code_scanning_alert: alert_number is missing");
-      return {
-        success: false,
-        error: "alert_number is required",
-      };
+      return { success: false, error: "alert_number is required" };
     }
 
-    if (!autofixItem.fix_description) {
+    if (!message.fix_description) {
       core.warning("Skipping autofix_code_scanning_alert: fix_description is missing");
-      return {
-        success: false,
-        error: "fix_description is required",
-      };
+      return { success: false, error: "fix_description is required" };
     }
 
-    if (!autofixItem.fix_code) {
+    if (!message.fix_code) {
       core.warning("Skipping autofix_code_scanning_alert: fix_code is missing");
-      return {
-        success: false,
-        error: "fix_code is required",
-      };
+      return { success: false, error: "fix_code is required" };
     }
 
     // Parse alert number
-    const alertNumber = parseInt(String(autofixItem.alert_number), 10);
+    const alertNumber = parseInt(String(message.alert_number), 10);
     if (isNaN(alertNumber) || alertNumber <= 0) {
-      core.warning(`Invalid alert_number: ${autofixItem.alert_number}`);
-      return {
-        success: false,
-        error: `Invalid alert_number: ${autofixItem.alert_number}`,
-      };
+      core.warning(`Invalid alert_number: ${message.alert_number}`);
+      return { success: false, error: `Invalid alert_number: ${message.alert_number}` };
     }
 
-    core.info(`Processing autofix_code_scanning_alert: alert_number=${alertNumber}, fix_description="${autofixItem.fix_description.substring(0, 50)}..."`);
+    core.info(`Processing autofix_code_scanning_alert: alert_number=${alertNumber}, fix_description="${message.fix_description.substring(0, 50)}..."`);
 
     // Staged mode: collect for preview
     if (isStaged) {
       processedAutofixes.push({
         alert_number: alertNumber,
-        fix_description: autofixItem.fix_description,
-        fix_code_length: autofixItem.fix_code.length,
+        fix_description: message.fix_description,
+        fix_code_length: message.fix_code.length,
       });
 
-      return {
-        success: true,
-        staged: true,
-        alertNumber,
-      };
+      return { success: true, staged: true, alertNumber };
     }
 
     // Create autofix via GitHub REST API
     try {
       core.info(`Creating autofix for code scanning alert ${alertNumber}`);
-      core.info(`Fix description: ${autofixItem.fix_description}`);
-      core.info(`Fix code length: ${autofixItem.fix_code.length} characters`);
+      core.info(`Fix description: ${message.fix_description}`);
+      core.info(`Fix code length: ${message.fix_code.length} characters`);
 
       // Call the GitHub REST API to create the autofix
       // Reference: https://docs.github.com/en/rest/code-scanning/code-scanning?apiVersion=2022-11-28#create-an-autofix-for-a-code-scanning-alert
       // Note: As of the time of writing, the createAutofix method may not be available in @actions/github
-      // We'll use the generic request method to call the API endpoint directly
-      const result = await github.request("POST /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/fixes", {
-        owner: context.repo.owner,
-        repo: context.repo.repo,
+      await github.request("POST /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/fixes", {
+        ...context.repo,
         alert_number: alertNumber,
         fix: {
-          description: autofixItem.fix_description,
-          code: autofixItem.fix_code,
+          description: message.fix_description,
+          code: message.fix_code,
         },
-        headers: {
-          "X-GitHub-Api-Version": "2022-11-28",
-        },
+        headers: { "X-GitHub-Api-Version": "2022-11-28" },
       });
 
       const autofixUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/security/code-scanning/${alertNumber}`;
@@ -129,15 +104,11 @@ async function main(config = {}) {
 
       processedAutofixes.push({
         alert_number: alertNumber,
-        fix_description: autofixItem.fix_description,
+        fix_description: message.fix_description,
         url: autofixUrl,
       });
 
-      return {
-        success: true,
-        alertNumber,
-        autofixUrl,
-      };
+      return { success: true, alertNumber, autofixUrl };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.error(`✗ Failed to create autofix for alert ${alertNumber}: ${errorMessage}`);
@@ -151,10 +122,7 @@ async function main(config = {}) {
         core.error("Invalid request. Check that the fix_description and fix_code are valid.");
       }
 
-      return {
-        success: false,
-        error: errorMessage,
-      };
+      return { success: false, error: errorMessage };
     }
   };
 }

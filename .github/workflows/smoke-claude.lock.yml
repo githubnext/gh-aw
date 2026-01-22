@@ -544,7 +544,7 @@ jobs:
             const apiKey = process.env.GH_AW_SAFE_INPUTS_API_KEY || "";
             startHttpServer(configPath, {
               port: port,
-              stateless: false,
+              stateless: true,
               logDir: "/opt/gh-aw/safe-inputs/logs"
             }).catch(error => {
               console.error("Failed to start safe-inputs HTTP server:", error);
@@ -732,7 +732,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["api.github.com","defaults","github","playwright"],
+              allowed_domains: ["defaults","github","playwright"],
               firewall_enabled: true,
               awf_version: "v0.10.0",
               awmg_version: "v0.0.76",
@@ -1051,11 +1051,12 @@ jobs:
           ## Test Requirements
           
           1. **GitHub MCP Testing**: Review the last 2 merged pull requests in __GH_AW_GITHUB_REPOSITORY__
-          2. **Serena MCP Testing**: Use the Serena MCP server tool `activate_project` to initialize the workspace at `__GH_AW_GITHUB_WORKSPACE__` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools)
-          3. **Playwright Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
-          4. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item
-          5. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-claude-__GH_AW_GITHUB_RUN_ID__.txt` with content "Smoke test passed for Claude at $(date)" (create the directory if it doesn't exist)
-          6. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+          2. **Safe Inputs GH CLI Testing**: Use the `safeinputs-gh` tool to query 2 pull requests from __GH_AW_GITHUB_REPOSITORY__ (use args: "pr list --repo __GH_AW_GITHUB_REPOSITORY__ --limit 2 --json number,title,author")
+          3. **Serena MCP Testing**: Use the Serena MCP server tool `activate_project` to initialize the workspace at `__GH_AW_GITHUB_WORKSPACE__` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools)
+          4. **Playwright Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
+          5. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item
+          6. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-claude-__GH_AW_GITHUB_RUN_ID__.txt` with content "Smoke test passed for Claude at $(date)" (create the directory if it doesn't exist)
+          7. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
           
           ## Output
           

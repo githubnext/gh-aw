@@ -5,43 +5,47 @@ Social Publish Date: 2026-01-24
 
 ## X (Twitter)
 
-Day 4 in Peli’s Agent Factory 🍫✨: Continuous Refactoring!
+Does your code work but live in the wrong place? 🏗️
 
-Two agents that keep codebases structurally tidy 🧠🔧
-- Semantic Function Refactor (whole-repo organization)
-- Go Pattern Detector (fast AST scan + deep agent review)
+Learn about two GitHub Agentic Workflows that automate the refactoring of your code. The Semantic Function Refactor uses whole-repo analysis to find functions that belong elsewhere. The Go Pattern Detector combines fast AST scanning with targeted agent review for efficiency.
 
-Tour + source links: https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-refactoring/ #GitHubNext #AI #DevOps
+You'll learn an important pattern: use cheap tools (like ast-grep) to find candidates, then escalate only the interesting cases to AI analysis. This makes continuous refactoring affordable at scale.
+
+See how it works: https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-refactoring/
+
+#GitHubNext #AI #DevOps #PelisFactory
 
 ## Bluesky
 
-Day 4 in Peli’s Agent Factory 🍫✨: Continuous Refactoring!
+How do you automate cleanup of AI code as your project grows? 🏗️
 
-These agents look past “does it work?” and ask “does it live in the right place?” One does whole-repo semantic grouping (with Serena) to spot misplaced/outlier functions; the other uses ast-grep to cheaply detect patterns, then escalates to an agent only when needed.
+These GitHub Agentic Workflows look beyond "does it work?" to ask "is it in the right place?" One uses semantic analysis to spot organizational issues. The other shows you how to combine cheap AST scanning with targeted agent review.
 
-Tour + source links: https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-refactoring/
+https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-refactoring/
 
 ## Mastodon
 
-Day 4 in Peli’s Agent Factory 🍫🔧: Continuous Refactoring 🧠🧹
+Wondering how to maintain good code organization at scale for AI-generated code? 🏗️
 
-Two maintainers with a structural view:
-- Semantic Function Refactor (whole-repo organization)
-- Go Pattern Detector (AST pattern scan → agent review)
+Discover two structural refactoring workflows built with GitHub Agentic Workflows: one uses semantic analysis to find misplaced code, the other combines AST pattern detection with agent review for cost-effective continuous improvement.
 
-Tour + source links: https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-refactoring/ #Automation #GitHub
+https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-refactoring/ #Automation #GitHub #PelisFactory
 
 ## LinkedIn
 
-Day 4 in Peli’s Agent Factory: Continuous Refactoring 🍫✨
+How do you maintain good code organization for AI-generated code as your project scales? 🏗️
 
-After continuous simplification, the next stop on our tour is structural refactoring: agents that scan the whole codebase and flag opportunities to improve organization and consistency.
+In this post, you'll discover two workflows built with GitHub Agentic Workflows that tackle structural problems:
 
-Two workflows:
-- Semantic Function Refactor 🧠 
-- Go Pattern Detector 🔍 
+**Semantic Function Refactor**
+This agent analyzes your entire repository using semantic embeddings to identify functions that conceptually belong in different modules. It spots organizational issues that even experienced developers miss because it sees patterns across the whole codebase.
 
-Tour + workflow source links:
+**Go Pattern Detector**
+This workflow demonstrates a critical cost-optimization pattern: it uses ast-grep for fast, cheap AST scanning to find potential issues, then escalates only the interesting cases to an AI agent for deep review. You'll learn how this hybrid approach makes continuous analysis affordable.
+
+These workflows show you how to maintain good architecture continuously rather than through painful quarterly refactoring efforts.
+
+Read the tour + get the workflows:
 https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-refactoring/
 
-#GitHubNext #AI #DevOps #Automation
+#GitHubNext #AI #DevOps #Automation #PelisFactory
