@@ -103,7 +103,7 @@ func RunListWorkflows(pattern string, verbose bool, jsonOutput bool, labelFilter
 
 	for _, file := range mdFiles {
 		base := filepath.Base(file)
-		name := strings.TrimSuffix(base, ".md")
+		name := stringutil.NormalizeWorkflowName(base)
 
 		// Skip if pattern specified and doesn't match
 		if pattern != "" && !strings.Contains(strings.ToLower(name), strings.ToLower(pattern)) {
