@@ -46,6 +46,13 @@ tools:
 runtimes:
   go:
     version: "1.25"
+  node:
+    version: "22"
+steps:
+  - name: Setup Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: "22"
 safe-outputs:
     add-comment:
       hide-older-comments: true
@@ -76,7 +83,7 @@ timeout-minutes: 10
 5. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item
 6. **Runtime Mount Testing - npm**: Execute `npm ls` command to verify that npm is available in the container (this tests that the runtime manager properly mounted Node.js folders)
 7. **Runtime Mount Testing - Docs Build**: Build the documentation by running `cd docs && npm ci && npm run build` to verify Node.js runtime is fully functional with all dependencies and build tools
-8. **Runtime Mount Testing - JS Tests**: Run JavaScript tests with `cd actions/setup/js && npm ci && npm run test:js` to verify Node.js can execute tests and all mounts are working correctly
+8. **Runtime Mount Testing - JS Tests**: Run JavaScript tests with `make test-js` to verify Node.js can execute tests and all mounts are working correctly
 9. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-claude-${{ github.run_id }}.txt` with content "Smoke test passed for Claude at $(date)" (create the directory if it doesn't exist)
 10. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 
