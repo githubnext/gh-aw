@@ -26,9 +26,9 @@ In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analyti
 
 The agents that help us actually ship software:
 
-- **[Release](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/release.md?plain=1)** - Orchestrates builds, tests, and release note generation
-- **[Changeset](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/changeset.md?plain=1)** - Manages version bumps and changelog entries for releases
-- **[Daily Workflow Updater](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-workflow-updater.md?plain=1)** - Keeps actions and dependencies current (because dependency updates never stop)  
+- **[Release](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/release.md?plain=1)** - Orchestrates builds, tests, and release note generation
+- **[Changeset](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/changeset.md?plain=1)** - Manages version bumps and changelog entries for releases
+- **[Daily Workflow Updater](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/daily-workflow-updater.md?plain=1)** - Keeps actions and dependencies current (because dependency updates never stop)  
 
 Shipping software is stressful enough without worrying about whether you formatted your release notes correctly.
 
@@ -37,6 +37,30 @@ The Release workflow handles the entire orchestration - building, testing, gener
 The Changeset workflow automates the tedious task of version bumps and changelog entries. It analyzes commits since the last release, determines the appropriate version bump (major, minor, patch), and updates the changelog accordingly.
 
 The Daily Workflow Updater taught us that maintenance is a perfect use case for agents - it's repetitive, necessary, and nobody enjoys doing it manually. These workflows handle the toil so we can focus on the interesting problems.
+
+## Using These Workflows
+
+You can add these workflows to your own repository and remix them as follows:
+
+**Release:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/release.md
+```
+
+**Changeset:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/changeset.md
+```
+
+**Daily Workflow Updater:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/daily-workflow-updater.md
+```
+
+Then edit and remix the workflow specifications to meet your needs, recompile using `gh aw compile`, and push to your repository. See our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/) for further installation and setup instructions.
 
 ## Learn More
 

@@ -26,10 +26,10 @@ In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simp
 
 Our next two agents continuously analyze code structure, suggesting systematic improvements:
 
-- **[Semantic Function Refactor](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/semantic-function-refactor.md?plain=1)** - Spots refactoring opportunities we might have missed  
-- **[Go Pattern Detector](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/go-pattern-detector.md?plain=1)** - Detects common Go patterns and anti-patterns for consistency  
+- **[Semantic Function Refactor](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/semantic-function-refactor.md?plain=1)** - Spots refactoring opportunities we might have missed  
+- **[Go Pattern Detector](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/go-pattern-detector.md?plain=1)** - Detects common Go patterns and anti-patterns for consistency  
 
-The **Semantic Function Refactor** workflow combines agentic AI with code analysis tools to analyze and address the structure of entire codebase. It analyzes all Go source files in the `pkg/` directory to identify functions that might be in the wrong place.
+The **Semantic Function Refactor** workflow combines agentic AI with code analysis tools to analyze and address the structure of the entire codebase. It analyzes all Go source files in the `pkg/` directory to identify functions that might be in the wrong place.
 
 As codebases evolve, functions sometimes end up in files where they don't quite belong. Humans struggle to notice these organizational issues because we work on one file at a time and focus on making code work rather than on where it lives.
 
@@ -40,13 +40,13 @@ The workflow performs comprehensive discovery by
 
 It then identifies functions that don't fit their current file's theme as outliers, uses Serena-powered semantic code analysis to detect potential duplicates, and creates issues recommending consolidated refactoring. These issues can then be reviewed and addressed by coding agents.
 
-The workflow follows a "one file per feature" principle: files should be named after their primary purpose, and functions within each file should align with that purposeIt closes existing open issues with the `[refactor]` prefix before creating new ones. This prevents issue accumulation and ensures recommendations stay current. 
+The workflow follows a "one file per feature" principle: files should be named after their primary purpose, and functions within each file should align with that purpose. It closes existing open issues with the `[refactor]` prefix before creating new ones. This prevents issue accumulation and ensures recommendations stay current. 
 
 ### Go Pattern Detector: The Consistency Enforcer
 
-The **Go Pattern Detector** uses another code analysis toole, `ast-grep`, to scan for specific code patterns and anti-patterns. This uses abstract syntax tree (AST) pattern matching to find exact structural patterns.
+The **Go Pattern Detector** uses another code analysis tool, `ast-grep`, to scan for specific code patterns and anti-patterns. This uses abstract syntax tree (AST) pattern matching to find exact structural patterns.
 
-Currently the workflow detects use of `json:"-"` tags in Go structs - a pattern that can indicate fields that should be private but aren't, serialization logic that could be cleaner, or potential API design issues.
+Currently, the workflow detects use of `json:"-"` tags in Go structs - a pattern that can indicate fields that should be private but aren't, serialization logic that could be cleaner, or potential API design issues.
 
 The workflow runs in two phases. First, AST scanning runs on a standard GitHub Actions runner:
 
@@ -58,13 +58,31 @@ cargo install ast-grep --locked
 sg --pattern 'json:"-"' --lang go .
 ```
 
-If patterns are found, it triggers the second phase where the coding agent analyzes the detected patterns, reviews context around each match, determines if patterns are problematic, and creates issues with specific recommendations. This architecture is efficient. Fast AST scanning uses minimal resources, expensive AI analysis only runs when needed, false positives don't consume AI budget, and the approach scales to frequent checks without cost concerns.
+If patterns are found, it triggers the second phase where the coding agent analyzes the detected patterns, reviews context around each match, determines if patterns are problematic, and creates issues with specific recommendations. This architecture is efficient: fast AST scanning uses minimal resources, expensive AI analysis only runs when needed, false positives don't consume AI budget, and the approach scales to frequent checks without cost concerns. This architecture is efficient: fast AST scanning uses minimal resources, expensive AI analysis only runs when needed, false positives don't consume AI budget, and the approach scales to frequent checks without cost concerns.
 
 The workflow is designed to be extended with additional pattern checks - common anti-patterns like ignored errors or global state, project-specific conventions, performance anti-patterns, and security-sensitive patterns.
 
 ## The Power of Continuous Refactoring
 
 These workflows demonstrate how AI agents can continuously maintain institutional knowledge about code organization. The benefits compound over time: better organization makes code easier to find, consistent patterns reduce cognitive load, reduced duplication improves maintainability, and clean structure attracts further cleanliness. They're particularly valuable in AI-assisted development, where code gets written quickly and organizational concerns can take a backseat to functionality.
+
+## Using These Workflows
+
+You can add these workflows to your own repository and remix them as follows:
+
+**Semantic Function Refactor:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/semantic-function-refactor.md
+```
+
+**Go Pattern Detector:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/go-pattern-detector.md
+```
+
+Then edit and remix the workflow specifications to meet your needs, recompile using `gh aw compile`, and push to your repository. See our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/) for further installation and setup instructions.
 
 ## Next Up: Continuous Style
 

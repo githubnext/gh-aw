@@ -28,13 +28,13 @@ Now let's address one of software development's eternal challenges: keeping docu
 
 These agents maintain high-quality documentation and content:
 
-- **[Daily Documentation Updater](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-doc-updater.md?plain=1)** - Reviews and updates documentation to ensure accuracy and completeness  
-- **[Glossary Maintainer](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/glossary-maintainer.md?plain=1)** - Keeps glossary synchronized with codebase  
-- **[Documentation Unbloat](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/unbloat-docs.md?plain=1)** - Reviews and simplifies documentation by reducing verbosity  
-- **[Documentation Noob Tester](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/docs-noob-tester.md?plain=1)** - Tests documentation as a new user would, identifying confusing steps  
-- **[Slide Deck Maintainer](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/slide-deck-maintainer.md?plain=1)** - Maintains presentation slide decks  
-- **[Multi-device Docs Tester](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/daily-multi-device-docs-tester.md?plain=1)** - Tests documentation site across mobile, tablet, and desktop devices  
-- **[Blog Auditor](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/blog-auditor.md?plain=1)** - Verifies blog posts are accessible and contain expected content  
+- **[Daily Documentation Updater](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/daily-doc-updater.md?plain=1)** - Reviews and updates documentation to ensure accuracy and completeness  
+- **[Glossary Maintainer](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/glossary-maintainer.md?plain=1)** - Keeps glossary synchronized with codebase  
+- **[Documentation Unbloat](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/unbloat-docs.md?plain=1)** - Reviews and simplifies documentation by reducing verbosity  
+- **[Documentation Noob Tester](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/docs-noob-tester.md?plain=1)** - Tests documentation as a new user would, identifying confusing steps  
+- **[Slide Deck Maintainer](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/slide-deck-maintainer.md?plain=1)** - Maintains presentation slide decks  
+- **[Multi-device Docs Tester](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/daily-multi-device-docs-tester.md?plain=1)** - Tests documentation site across mobile, tablet, and desktop devices  
+- **[Blog Auditor](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/blog-auditor.md?plain=1)** - Verifies blog posts are accessible and contain expected content  
   
 Documentation is where we challenged conventional wisdom. Can AI agents write *good* documentation?
 
@@ -49,6 +49,54 @@ The **Blog Auditor** ensures our blog posts stay accurate as the codebase evolve
 AI-generated docs need human/agent review, but they're dramatically better than *no* docs (which is often the alternative). Validation can be automated to a large extent, freeing writers to focus on content shaping, topic, clarity, tone, and accuracy.
 
 In this collection of agents, we took a heterogeneous approach - some workflows generate content, others maintain it, and still others validate it. Other approaches are possible - all tasks can be rolled into a single agent. We found that it's easier to explore the space by using multiple agents, to separate concerns, and that encouraged us to use agents for other communication outputs such as blogs and slides.
+
+## Using These Workflows
+
+You can add these workflows to your own repository and remix them as follows:
+
+**Daily Documentation Updater:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/daily-doc-updater.md
+```
+
+**Glossary Maintainer:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/glossary-maintainer.md
+```
+
+**Documentation Unbloat:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/unbloat-docs.md
+```
+
+**Documentation Noob Tester:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/docs-noob-tester.md
+```
+
+**Slide Deck Maintainer:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/slide-deck-maintainer.md
+```
+
+**Multi-device Docs Tester:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/daily-multi-device-docs-tester.md
+```
+
+**Blog Auditor:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/blog-auditor.md
+```
+
+Then edit and remix the workflow specifications to meet your needs, recompile using `gh aw compile`, and push to your repository. See our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/) for further installation and setup instructions.
 
 ## Learn More
 

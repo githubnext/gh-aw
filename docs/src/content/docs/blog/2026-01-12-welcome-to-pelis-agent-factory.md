@@ -1,6 +1,6 @@
 ---
 title: "Welcome to Peli's Agent Factory"
-description: "An exploration of automated agentic workflows at scale"
+description: "It's basically a candy shop chocolate factory of agentic workflows."
 authors:
   - dsyme
   - pelikhan
@@ -39,7 +39,7 @@ Peli's factory is a collection of [**automated agentic workflows**](https://gith
 - [Execute multi-day projects](/gh-aw/blog/2026-01-13-meet-the-workflows-multi-phase/)
 - Even [write poetry to boost team morale](/gh-aw/blog/2026-01-13-meet-the-workflows-creative-culture/)
 
-Some workflows are "read-only analysts". Others proactively propose changes through pull requests. Some are meta-agents that monitor and improve the health of other workflows.
+Some workflows are ["read-only analysts"](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/). Others [proactively propose changes through pull requests](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simplicity/). Some are [meta-agents that monitor and improve the health of other workflows](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analytics/).
 
 We know we're taking things to an extreme here. Most repositories won't need dozens of agentic workflows. No one can read all these outputs (except, of course, another workflow). But by pushing the boundaries, we learned valuable lessons about what works, what doesn't, and how to design safe, effective agentic workflows that teams can trust and use.
 
@@ -56,7 +56,7 @@ Rather than trying to build one "perfect" agent, we took a broad, heterogeneous 
 3. **Observe what works** - Find which patterns work and which fail
 4. **Share the knowledge** - Catalog the structures that make agents safe and effective
 
-The factory becomes both an experiment and a reference collection - a living library of patterns that others can study, adapt, and remix. Each workflow is written in natural language using Markdown, then converted into secure GitHub Actions that run with carefully scoped permissions with guardrails. Everything is observable, auditable, and remixable.
+The factory becomes both an experiment and a reference collection - a living library of patterns that others can study, adapt, and remix. Each workflow is written in natural language using Markdown, then converted into secure [GitHub Actions](https://github.com/features/actions) that run with carefully scoped permissions with guardrails. Everything is observable, auditable, and remixable.
 
 ## Meet the Workflows
 
@@ -84,12 +84,12 @@ In our first series, [Meet the Workflows](/gh-aw/blog/2026-01-13-meet-the-workfl
 
 ## What We're Learning
 
-Running this many agents in production is... quite the experience. We've watched agents succeed spectacularly and fail in interesting ways. Over the next few weeks, we'll also be sharing what we've learned through a series of detailed articles. We'll be looking at the design and operational patterns we've discovered, security lessons, and practical guides for building your own workflows.
+Running this many agents in production is a learning experience! We've watched agents succeed spectacularly and fail in instructive ways. Over the next few weeks, we'll also be sharing what we've learned through a series of detailed articles. We'll be looking at the design and operational patterns we've discovered, security lessons, and practical guides for building your own workflows.
 
 To give a taste, some key lessons are emerging:
 
-- **Repository-level automation is incredibly powerful** - Agents embedded in the development workflow can have outsized impact
-- **Diversity beats perfection** - A collection of focused agents works better than one universal assistant
+- **Repository-level automation is powerful** - Agents embedded in the development workflow can have outsized impact
+- **Specialization reveals possibilities** - Focused agents allowed us to find more useful applications of automation than a single monolithic coding agent
 - **Guardrails enable innovation** - Strict constraints actually make it easier to experiment safely
 - **Meta-agents are valuable** - Agents that watch other agents become incredibly valuable
 - **Cost-quality tradeoffs are real** - Longer analyses aren't always better

@@ -30,13 +30,37 @@ We learned that the right agent at the right moment with the right information i
 
 These agents respond to commands, providing on-demand assistance whenever you need it:
 
-- **[Q](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/q.md?plain=1)** - Workflow optimizer that investigates performance and creates PRs  
-- **[Grumpy Reviewer](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/grumpy-reviewer.md?plain=1)** - Performs critical code reviews with personality
-- **[Workflow Generator](https://github.com/githubnext/gh-aw/blob/bb7946527af340043f1ebb31fc21bd491dd0f42d/.github/workflows/workflow-generator.md?plain=1)** - Creates new workflows from issue requests
+- **[Q](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/q.md?plain=1)** - Workflow optimizer that investigates performance and creates PRs  
+- **[Grumpy Reviewer](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/grumpy-reviewer.md?plain=1)** - Performs critical code reviews with personality
+- **[Workflow Generator](https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/workflow-generator.md?plain=1)** - Creates new workflows from issue requests
 
 Interactive workflows changed how we think about agent invocation. Instead of everything running on a schedule, these respond to slash commands and reactions - `/q` summons the workflow optimizer, a 🚀 reaction triggers analysis. Q (yes, named after the James Bond quartermaster) became our go-to troubleshooter - it investigates workflow performance issues and opens PRs with optimizations.
 
 The Grumpy Reviewer gave us surprisingly valuable feedback with a side of sass ("This function is so nested it has its own ZIP code"). We learned that **context is king** - these agents work because they're invoked at the right moment with the right context, not because they run on a schedule.
+
+## Using These Workflows
+
+You can add these workflows to your own repository and remix them as follows:
+
+**Q:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/q.md
+```
+
+**Grumpy Reviewer:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/grumpy-reviewer.md
+```
+
+**Workflow Generator:**
+
+```bash
+gh aw add https://github.com/githubnext/gh-aw/blob/v0.37.7/.github/workflows/workflow-generator.md
+```
+
+Then edit and remix the workflow specifications to meet your needs, recompile using `gh aw compile`, and push to your repository. See our [Quick Start](https://githubnext.github.io/gh-aw/setup/quick-start/) for further installation and setup instructions.
 
 ## Learn More
 
