@@ -217,11 +217,17 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-config.outputs.safe_outputs_port }}\n")
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-config.outputs.safe_outputs_api_key }}\n")
+		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /opt/gh-aw/safeoutputs/tools.json\n")
+		yaml.WriteString("          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /opt/gh-aw/safeoutputs/config.json\n")
+		yaml.WriteString("          GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs\n")
 
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          # Environment variables are set above to prevent template injection\n")
 		yaml.WriteString("          export GH_AW_SAFE_OUTPUTS_PORT\n")
 		yaml.WriteString("          export GH_AW_SAFE_OUTPUTS_API_KEY\n")
+		yaml.WriteString("          export GH_AW_SAFE_OUTPUTS_TOOLS_PATH\n")
+		yaml.WriteString("          export GH_AW_SAFE_OUTPUTS_CONFIG_PATH\n")
+		yaml.WriteString("          export GH_AW_MCP_LOG_DIR\n")
 		yaml.WriteString("          \n")
 
 		// Call the bundled shell script to start the server
