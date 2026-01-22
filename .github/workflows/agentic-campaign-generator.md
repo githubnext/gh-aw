@@ -33,9 +33,6 @@ safe-outputs:
       - name: "Campaign Roadmap"
         layout: "roadmap"
         filter: "is:issue is:pr"
-  update-project:
-    max: 10
-    github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
     field-definitions:
       - name: "Campaign Id"
         data-type: "TEXT"
@@ -57,6 +54,9 @@ safe-outputs:
         data-type: "DATE"
       - name: "End Date"
         data-type: "DATE"
+  update-project:
+    max: 10
+    github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
   messages:
     append-only-comments: true
     run-started: "### :rocket: Campaign setup started
