@@ -28,7 +28,7 @@
 name: "Issue Arborist"
 "on":
   schedule:
-  - cron: "33 14 * * *"
+  - cron: "7 1 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

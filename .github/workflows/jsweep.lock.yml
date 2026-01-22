@@ -24,7 +24,7 @@
 name: "jsweep - JavaScript Unbloater"
 "on":
   schedule:
-  - cron: "47 14 * * *"
+  - cron: "45 15 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

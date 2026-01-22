@@ -24,7 +24,7 @@
 name: "Security Fix PR"
 "on":
   schedule:
-  - cron: "2 */4 * * *"
+  - cron: "44 */4 * * *"
     # Friendly format: every 4h (scattered)
   # skip-if-match: is:pr is:open in:title "[security-fix]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:

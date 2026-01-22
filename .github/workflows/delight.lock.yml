@@ -29,7 +29,7 @@
 name: "Delight"
 "on":
   schedule:
-  - cron: "22 8 * * *"
+  - cron: "28 18 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

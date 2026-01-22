@@ -467,16 +467,18 @@ func TestCreateCampaignLabel(t *testing.T) {
 
 	// This test verifies the function can handle both success and failure cases gracefully
 	t.Run("handles error gracefully when not in repository context", func(t *testing.T) {
-		// Create a temp directory that's not a git repo
-		tmpDir := testutil.TempDir(t, "test-*")
-
 		originalDir, err := os.Getwd()
 		if err != nil {
 			t.Fatalf("Failed to get current directory: %v", err)
 		}
-		defer func() {
+		
+		// Create a temp directory that's not a git repo
+		tmpDir := testutil.TempDir(t, "test-*")
+
+		// Ensure we change back before temp directory is cleaned up
+		t.Cleanup(func() {
 			_ = os.Chdir(originalDir)
-		}()
+		})
 
 		if err := os.Chdir(tmpDir); err != nil {
 			t.Fatalf("Failed to change to temp directory: %v", err)
@@ -491,16 +493,18 @@ func TestCreateCampaignLabel(t *testing.T) {
 	})
 
 	t.Run("handles error gracefully in verbose mode", func(t *testing.T) {
-		// Create a temp directory that's not a git repo
-		tmpDir := testutil.TempDir(t, "test-*")
-
 		originalDir, err := os.Getwd()
 		if err != nil {
 			t.Fatalf("Failed to get current directory: %v", err)
 		}
-		defer func() {
+		
+		// Create a temp directory that's not a git repo
+		tmpDir := testutil.TempDir(t, "test-*")
+
+		// Ensure we change back before temp directory is cleaned up
+		t.Cleanup(func() {
 			_ = os.Chdir(originalDir)
-		}()
+		})
 
 		if err := os.Chdir(tmpDir); err != nil {
 			t.Fatalf("Failed to change to temp directory: %v", err)

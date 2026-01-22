@@ -30,7 +30,7 @@
 name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
 "on":
   schedule:
-  - cron: "24 2 * * *"
+  - cron: "6 23 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

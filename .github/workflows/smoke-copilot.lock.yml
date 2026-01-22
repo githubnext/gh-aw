@@ -33,7 +33,7 @@ name: "Smoke Copilot"
     types:
     - labeled
   schedule:
-  - cron: "1 */12 * * *"
+  - cron: "55 */12 * * *"
   workflow_dispatch: null
 
 permissions: {}

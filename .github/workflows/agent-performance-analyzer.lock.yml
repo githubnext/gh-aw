@@ -24,7 +24,7 @@
 name: "Agent Performance Analyzer - Meta-Orchestrator"
 "on":
   schedule:
-  - cron: "48 4 * * *"
+  - cron: "54 5 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 
