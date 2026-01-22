@@ -50,6 +50,18 @@ func checkExtensionUpdate(verbose bool) error {
 	return nil
 }
 
+// isAuthenticationError checks if an error message indicates an authentication issue
+func isAuthenticationError(output string) bool {
+	lowerOutput := strings.ToLower(output)
+	return strings.Contains(lowerOutput, "authentication required") ||
+		strings.Contains(lowerOutput, "gh_token") ||
+		strings.Contains(lowerOutput, "github_token") ||
+		strings.Contains(output, "set the GH_TOKEN environment variable") ||
+		strings.Contains(lowerOutput, "permission") ||
+		strings.Contains(lowerOutput, "not authenticated") ||
+		strings.Contains(lowerOutput, "invalid token")
+}
+
 // ensureLatestExtensionVersion checks if a newer version of gh-aw is available
 // and returns an error if an update is needed. This is used by the upgrade command
 // to ensure users are on the latest version before upgrading workflows.
@@ -61,15 +73,21 @@ func ensureLatestExtensionVersion(verbose bool) error {
 	// Run gh extension upgrade --dry-run to check for updates
 	cmd := workflow.ExecGH("extension", "upgrade", "githubnext/gh-aw", "--dry-run")
 	output, err := cmd.CombinedOutput()
-	if err != nil {
+	outputStr := strings.TrimSpace(string(output))
+
+	// Check for authentication errors (missing or invalid token)
+	if err != nil || isAuthenticationError(outputStr) {
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check for extension updates: %v", err)))
+			if err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check for extension updates: %v", err)))
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Authentication required to check for updates"))
+			}
 		}
-		// If we can't check for updates, allow the upgrade to proceed
+		// If we can't check for updates due to auth issues, allow the upgrade to proceed
 		return nil
 	}
 
-	outputStr := strings.TrimSpace(string(output))
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Extension update check output: %s", outputStr)))
 	}
