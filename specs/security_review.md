@@ -97,7 +97,7 @@ graph LR
 ```mermaid
 graph TD
     A[Job-Level Environment] --> B[GH_AW_SAFE_OUTPUTS]
-    B --> C["/tmp/gh-aw/safeoutputs/outputs.jsonl"]
+    B --> C["/opt/gh-aw/safeoutputs/outputs.jsonl"]
     C --> D[Template Expansion]
 
     E[Workflow Config] --> F{upload-assets configured?}
@@ -123,7 +123,7 @@ graph TD
 2. **Origin**: Set at job level (line 184)
    ```yaml
    env:
-     GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
+     GH_AW_SAFE_OUTPUTS: /opt/gh-aw/safeoutputs/outputs.jsonl
    ```
 3. **Control**: Hardcoded path in workflow definition
 4. **User Input**: None - fixed string literal

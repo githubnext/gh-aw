@@ -166,11 +166,11 @@ All temporary paths use the `/tmp/gh-aw/` prefix:
 | `/tmp/gh-aw/safe-jobs/` | Safe job data | Safe output job artifacts |
 | `/tmp/gh-aw/safeoutputs/` | Safe outputs directory | Safe output execution data |
 | `/tmp/gh-aw/safeoutputs/assets/` | Safe output assets | Assets for safe outputs |
-| `/tmp/gh-aw/safeoutputs/config.json` | Safe outputs config | MCP server configuration |
-| `/tmp/gh-aw/safeoutputs/tools.json` | Safe outputs tools | Tool definitions for MCP |
-| `/tmp/gh-aw/safeoutputs/validation.json` | Safe outputs validation | Validation rules |
+| `/opt/gh-aw/safeoutputs/config.json` | Safe outputs config | MCP server configuration (read-only) |
+| `/opt/gh-aw/safeoutputs/tools.json` | Safe outputs tools | Tool definitions for MCP (read-only) |
+| `/opt/gh-aw/safeoutputs/validation.json` | Safe outputs validation | Validation rules (read-only) |
 | `/tmp/gh-aw/safeoutputs/mcp-server.cjs` | Safe outputs MCP server | MCP server implementation |
-| `/tmp/gh-aw/safeoutputs/outputs.jsonl` | Safe outputs log | JSONL output log |
+| `/opt/gh-aw/safeoutputs/outputs.jsonl` | Safe outputs log | JSONL output log (read-only for agent) |
 | `/tmp/gh-aw/sandbox/agent/logs/` | Agent sandbox logs | Sandboxed agent execution logs |
 | `/tmp/gh-aw/sandbox/firewall/logs/` | Firewall sandbox logs | Sandboxed firewall logs |
 | `/tmp/gh-aw/threat-detection/` | Threat detection data | Security analysis data |
