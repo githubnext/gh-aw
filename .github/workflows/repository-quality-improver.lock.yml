@@ -350,10 +350,49 @@ jobs:
             }
           }
           EOF
+      - name: Generate Safe Outputs MCP Server Config
+        id: safe-outputs-config
+        run: |
+          # Generate a secure random API key (360 bits of entropy, 40+ chars)
+          API_KEY=""
+          API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
+          PORT=3001
+          
+          # Register API key as secret to mask it from logs
+          echo "::add-mask::${API_KEY}"
+          
+          # Set outputs for next steps
+          {
+            echo "safe_outputs_api_key=${API_KEY}"
+            echo "safe_outputs_port=${PORT}"
+          } >> "$GITHUB_OUTPUT"
+          
+          echo "Safe Outputs MCP server will run on port ${PORT}"
+          
+      - name: Start Safe Outputs MCP HTTP Server
+        id: safe-outputs-start
+        env:
+          GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-config.outputs.safe_outputs_port }}
+          GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-config.outputs.safe_outputs_api_key }}
+          GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /opt/gh-aw/safeoutputs/tools.json
+          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /opt/gh-aw/safeoutputs/config.json
+          GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
+        run: |
+          # Environment variables are set above to prevent template injection
+          export GH_AW_SAFE_OUTPUTS_PORT
+          export GH_AW_SAFE_OUTPUTS_API_KEY
+          export GH_AW_SAFE_OUTPUTS_TOOLS_PATH
+          export GH_AW_SAFE_OUTPUTS_CONFIG_PATH
+          export GH_AW_MCP_LOG_DIR
+          
+          bash /opt/gh-aw/actions/start_safe_outputs_server.sh
+          
       - name: Start MCP gateway
         id: start-mcp-gateway
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-start.outputs.api_key }}
+          GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-start.outputs.port }}
           GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
@@ -370,7 +409,7 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.74'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.74'
           
           mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
@@ -387,42 +426,10 @@ jobs:
                 }
               },
               "safeoutputs": {
-                "type": "stdio",
-                "container": "node:lts-alpine",
-                "entrypoint": "node",
-                "entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"],
-                "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw:rw", "${{ github.workspace }}:${{ github.workspace }}:rw"],
-                "env": {
-                  "GH_AW_MCP_LOG_DIR": "\${GH_AW_MCP_LOG_DIR}",
-                  "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}",
-                  "GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "\${GH_AW_SAFE_OUTPUTS_TOOLS_PATH}",
-                  "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
-                  "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
-                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}",
-                  "GITHUB_SHA": "\${GITHUB_SHA}",
-                  "GITHUB_WORKSPACE": "\${GITHUB_WORKSPACE}",
-                  "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}",
-                  "GITHUB_RUN_ID": "\${GITHUB_RUN_ID}",
-                  "GITHUB_RUN_NUMBER": "\${GITHUB_RUN_NUMBER}",
-                  "GITHUB_RUN_ATTEMPT": "\${GITHUB_RUN_ATTEMPT}",
-                  "GITHUB_JOB": "\${GITHUB_JOB}",
-                  "GITHUB_ACTION": "\${GITHUB_ACTION}",
-                  "GITHUB_EVENT_NAME": "\${GITHUB_EVENT_NAME}",
-                  "GITHUB_EVENT_PATH": "\${GITHUB_EVENT_PATH}",
-                  "GITHUB_ACTOR": "\${GITHUB_ACTOR}",
-                  "GITHUB_ACTOR_ID": "\${GITHUB_ACTOR_ID}",
-                  "GITHUB_TRIGGERING_ACTOR": "\${GITHUB_TRIGGERING_ACTOR}",
-                  "GITHUB_WORKFLOW": "\${GITHUB_WORKFLOW}",
-                  "GITHUB_WORKFLOW_REF": "\${GITHUB_WORKFLOW_REF}",
-                  "GITHUB_WORKFLOW_SHA": "\${GITHUB_WORKFLOW_SHA}",
-                  "GITHUB_REF": "\${GITHUB_REF}",
-                  "GITHUB_REF_NAME": "\${GITHUB_REF_NAME}",
-                  "GITHUB_REF_TYPE": "\${GITHUB_REF_TYPE}",
-                  "GITHUB_HEAD_REF": "\${GITHUB_HEAD_REF}",
-                  "GITHUB_BASE_REF": "\${GITHUB_BASE_REF}"
+                "type": "http",
+                "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
+                "headers": {
+                  "Authorization": "\${GH_AW_SAFE_OUTPUTS_API_KEY}"
                 }
               },
               "serena": {

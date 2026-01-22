@@ -124,51 +124,44 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 		unexpectedContent    []string
 	}{
 		{
-			name:                 "Copilot with type/tools and escaped env vars",
+			name:                 "Copilot with HTTP transport and escaped API key",
 			isLast:               true,
 			includeCopilotFields: true,
 			expectedContent: []string{
 				`"safeoutputs": {`,
-				`"type": "stdio"`,
-				`"container": "node:lts-alpine"`,
-				`"entrypoint": "node"`,
-				`"entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
-				`"env": {`,
-				`"GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}"`,
-				`"GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "\${GH_AW_SAFE_OUTPUTS_CONFIG_PATH}"`,
-				`"GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "\${GH_AW_SAFE_OUTPUTS_TOOLS_PATH}"`,
+				`"type": "http"`,
+				`"url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT"`,
+				`"headers": {`,
+				`"Authorization": "\${GH_AW_SAFE_OUTPUTS_API_KEY}"`,
 				`              }`,
 			},
 			unexpectedContent: []string{
-				`"command": "node"`,
-				`"args": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
-				`${{ env.`,
+				`"container"`,
+				`"entrypoint"`,
+				`"entrypointArgs"`,
+				`"env": {`,
+				`"stdio"`,
 			},
 		},
 		{
-			name:                 "Claude/Custom without type/tools, with shell env vars",
+			name:                 "Claude/Custom with HTTP transport and shell variable",
 			isLast:               false,
 			includeCopilotFields: false,
 			expectedContent: []string{
 				`"safeoutputs": {`,
-				`"container": "node:lts-alpine"`,
-				`"entrypoint": "node"`,
-				`"entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
-				// Security fix: Now uses shell variables instead of GitHub expressions
-				`"GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS"`,
-				`"GH_AW_SAFE_OUTPUTS_CONFIG_PATH": "$GH_AW_SAFE_OUTPUTS_CONFIG_PATH"`,
-				`"GH_AW_SAFE_OUTPUTS_TOOLS_PATH": "$GH_AW_SAFE_OUTPUTS_TOOLS_PATH"`,
+				`"type": "http"`,
+				`"url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT"`,
+				`"headers": {`,
+				`"Authorization": "$GH_AW_SAFE_OUTPUTS_API_KEY"`,
 				`              },`,
 			},
 			unexpectedContent: []string{
-				`"type"`,
-				`"tools"`,
-				`"command": "node"`,
-				`"args": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
+				`"container"`,
+				`"entrypoint"`,
+				`"entrypointArgs"`,
+				`"env": {`,
+				`"stdio"`,
 				`\\${`,
-				// Verify GitHub expressions are NOT in the output (security fix)
-				`${{ env.`,
-				`${{ toJSON(`,
 			},
 		},
 	}
@@ -177,7 +170,7 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var output strings.Builder
 
-			renderSafeOutputsMCPConfigWithOptions(&output, tt.isLast, tt.includeCopilotFields)
+			renderSafeOutputsMCPConfigWithOptions(&output, tt.isLast, tt.includeCopilotFields, nil)
 
 			result := output.String()
 
@@ -346,19 +339,19 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 
 	expectedContent := []string{
 		`[mcp_servers.safeoutputs]`,
-		`container = "node:lts-alpine"`,
-		`entrypoint = "node"`,
-		`entrypointArgs = ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
-		`mounts = ["/opt/gh-aw:/opt/gh-aw:ro", "/tmp/gh-aw:/tmp/gh-aw:rw", "${{ github.workspace }}:${{ github.workspace }}:rw"]`,
-		`env_vars = ["GH_AW_SAFE_OUTPUTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE", "DEFAULT_BRANCH"]`,
+		`type = "http"`,
+		`url = "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT"`,
+		`[mcp_servers.safeoutputs.headers]`,
+		`Authorization = "$GH_AW_SAFE_OUTPUTS_API_KEY"`,
 	}
 
 	unexpectedContent := []string{
-		`command = "node"`,
-		`args = ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
-		`GH_AW_SAFE_OUTPUTS_CONFIG`, // Config is now in file, not env var
-		`${{ toJSON(`,
-		`env = {`, // Should use env_vars instead
+		`container = "node:lts-alpine"`,
+		`entrypoint = "node"`,
+		`entrypointArgs = ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
+		`mounts =`,
+		`env_vars =`,
+		`stdio`,
 	}
 
 	for _, expected := range expectedContent {

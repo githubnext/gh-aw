@@ -173,6 +173,7 @@ mkdir -p "${SAFE_OUTPUTS_DEST}"
 
 SAFE_OUTPUTS_FILES=(
   "safe_outputs_mcp_server.cjs"
+  "safe_outputs_mcp_server_http.cjs"
   "safe_outputs_bootstrap.cjs"
   "safe_outputs_tools_loader.cjs"
   "safe_outputs_config.cjs"
@@ -180,6 +181,7 @@ SAFE_OUTPUTS_FILES=(
   "safe_outputs_append.cjs"
   "mcp_server_core.cjs"
   "mcp_logger.cjs"
+  "mcp_http_transport.cjs"
   "mcp_handler_python.cjs"
   "mcp_handler_shell.cjs"
   "mcp_handler_go.cjs"
@@ -240,6 +242,23 @@ if [ -f "${JS_SOURCE_DIR}/safe-outputs-mcp-server.cjs" ]; then
   SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
 else
   echo "::warning::Safe-outputs MCP entry point not found: safe-outputs-mcp-server.cjs"
+fi
+
+# Copy safe_outputs_tools.json to tools.json (required by safe-outputs server)
+if [ -f "${JS_SOURCE_DIR}/safe_outputs_tools.json" ]; then
+  cp "${JS_SOURCE_DIR}/safe_outputs_tools.json" "${SAFE_OUTPUTS_DEST}/tools.json"
+  echo "Copied safe-outputs tools definition: tools.json"
+  SAFE_OUTPUTS_COUNT=$((SAFE_OUTPUTS_COUNT + 1))
+else
+  echo "::error::Safe-outputs tools definition not found: safe_outputs_tools.json"
+  exit 1
+fi
+
+# Create empty config.json if it doesn't exist (required by safe-outputs server check)
+# The actual config is optional and will be loaded from environment if provided
+if [ ! -f "${SAFE_OUTPUTS_DEST}/config.json" ]; then
+  echo "{}" > "${SAFE_OUTPUTS_DEST}/config.json"
+  echo "Created empty config.json for safe-outputs server"
 fi
 
 echo "Successfully copied ${SAFE_OUTPUTS_COUNT} safe-outputs files to ${SAFE_OUTPUTS_DEST}"

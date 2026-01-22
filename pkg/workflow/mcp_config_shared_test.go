@@ -104,13 +104,10 @@ func TestRenderSafeOutputsMCPConfigShared(t *testing.T) {
 			isLast: false,
 			wantContains: []string{
 				`"safeoutputs": {`,
-				`"container": "node:lts-alpine"`,
-				`"entrypoint": "node"`,
-				`"entrypointArgs": ["/opt/gh-aw/safeoutputs/mcp-server.cjs"]`,
-				`"GH_AW_SAFE_OUTPUTS"`,
-				`"GH_AW_ASSETS_BRANCH"`,
-				`"GH_AW_ASSETS_MAX_SIZE_KB"`,
-				`"GH_AW_ASSETS_ALLOWED_EXTS"`,
+				`"type": "http"`,
+				`"url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT"`,
+				`"headers": {`,
+				`"Authorization": "$GH_AW_SAFE_OUTPUTS_API_KEY"`,
 			},
 			wantEnding: "},\n",
 		},
@@ -119,9 +116,8 @@ func TestRenderSafeOutputsMCPConfigShared(t *testing.T) {
 			isLast: true,
 			wantContains: []string{
 				`"safeoutputs": {`,
-				`"container": "node:lts-alpine"`,
-				`"entrypoint": "node"`,
-				`"GH_AW_SAFE_OUTPUTS"`,
+				`"type": "http"`,
+				`"url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT"`,
 			},
 			wantEnding: "}\n",
 		},
@@ -130,7 +126,7 @@ func TestRenderSafeOutputsMCPConfigShared(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var yaml strings.Builder
-			renderSafeOutputsMCPConfig(&yaml, tt.isLast)
+			renderSafeOutputsMCPConfig(&yaml, tt.isLast, nil)
 
 			result := yaml.String()
 
