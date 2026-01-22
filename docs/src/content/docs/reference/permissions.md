@@ -32,6 +32,21 @@ This model prevents AI agents from accidentally or maliciously modifying reposit
 
 Key permissions include `contents` (code access), `issues` (issue management), `pull-requests` (PR management), `discussions`, `actions` (workflow control), `checks`, `deployments`, `packages`, `pages`, and `statuses`. Each has read and write levels. See [GitHub's permissions reference](https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs) for the complete list.
 
+#### Special Permission: `id-token`
+
+The `id-token: write` permission is a special case that is explicitly allowed in workflows, including strict mode. This permission enables [OpenID Connect (OIDC) authentication](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect) for cloud provider authentication (AWS, GCP, Azure) without storing long-lived credentials.
+
+Unlike other write permissions, `id-token: write` does not grant any ability to modify repository content. It only allows the workflow to request a short-lived OIDC token from GitHub's token service for authentication with external cloud providers.
+
+```yaml wrap
+# Example: Deploy to AWS using OIDC authentication
+permissions:
+  id-token: write      # Allowed for OIDC authentication
+  contents: read       # Read repository code
+```
+
+This permission is safe to use and does not require safe-outputs, even in strict mode.
+
 ## Configuration
 
 ### Basic Configuration
@@ -110,6 +125,8 @@ To fix this issue, change write permissions to read:
 permissions:
   contents: read
 ```
+
+**Exception:** The `id-token: write` permission is explicitly allowed as it is used for OIDC authentication with cloud providers and does not grant repository write access.
 
 #### Migrating Existing Workflows
 

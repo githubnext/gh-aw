@@ -127,11 +127,24 @@ gh aw init --codespaces                 # Configure devcontainer for current rep
 gh aw init --codespaces repo1,repo2     # Configure devcontainer for additional repos
 gh aw init --campaign                   # Enable campaign functionality
 gh aw init --completions                # Install shell completions
+gh aw init --push                       # Initialize and automatically commit/push changes
 ```
 
 **Interactive Mode:** When invoked without `--engine`, prompts you to select an engine and optionally configure repository secrets using the `gh` CLI.
 
-**Options:** `--engine` (copilot, claude, codex), `--no-mcp`, `--tokens`, `--codespaces`, `--campaign`, `--completions`
+**Options:** `--engine` (copilot, claude, codex), `--no-mcp`, `--tokens`, `--codespaces`, `--campaign`, `--completions`, `--push`
+
+##### `--push` Flag
+
+The `--push` flag automatically commits and pushes initialization changes to the remote repository:
+
+1. **Pre-check**: Validates working directory is clean before starting
+2. **Initialization**: Runs normal init process
+3. **Automatic commit**: Stages all changes with commit message "chore: initialize agentic workflows"
+4. **Pull and push**: Pulls latest changes with rebase, then pushes to remote
+5. **Graceful fallback**: If no remote is configured (local testing), commits locally only
+
+When used, requires a clean working directory (no uncommitted changes) before starting.
 
 #### `add`
 
@@ -380,6 +393,32 @@ gh aw update ci-doctor --major --force    # Allow major version updates
 ```
 
 **Options:** `--dir`, `--merge`, `--major`, `--force`
+
+#### `upgrade`
+
+Upgrade the gh-aw extension and update all workflow files to the latest version. Applies codemods to fix deprecated fields, updates agent instruction files, and recompiles workflows.
+
+```bash wrap
+gh aw upgrade                              # Upgrade extension and all workflows
+gh aw upgrade --no-fix                     # Update agent files only (skip codemods and compilation)
+gh aw upgrade --push                       # Upgrade and automatically commit/push changes
+gh aw upgrade --push --no-fix              # Update agent files and push
+```
+
+**Options:** `--dir`, `--no-fix`, `--push`
+
+##### `--push` Flag
+
+The `--push` flag automatically commits and pushes upgrade changes to the remote repository:
+
+1. **Pre-check**: Validates working directory is clean before starting
+2. **Version check**: Ensures gh-aw extension is on latest version
+3. **Upgrade process**: Updates agent files, applies codemods, and recompiles workflows
+4. **Automatic commit**: Stages all changes with commit message "chore: upgrade agentic workflows"
+5. **Pull and push**: Pulls latest changes with rebase, then pushes to remote
+6. **Graceful fallback**: If no remote is configured (local testing), commits locally only
+
+When used, requires a clean working directory (no uncommitted changes) before starting.
 
 ### Advanced
 
