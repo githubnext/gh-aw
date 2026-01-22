@@ -1,6 +1,6 @@
 # Campaign Workers
 
-Campaign workers are first-class workflows designed to be orchestrated by campaign orchestrators. This document describes the worker pattern, input contract, and idempotency requirements.
+Campaign workers are first-class workflows designed to be orchestrated by campaign orchestrators. This document describes the worker pattern, input contract, idempotency requirements, and the bootstrap + worker metadata system.
 
 ## Overview
 
@@ -10,6 +10,149 @@ Campaign workers follow these principles:
 2. **Standardized contract**: All workers accept `campaign_id` and `payload` inputs
 3. **Idempotent**: Workers use deterministic keys to avoid duplicate work
 4. **Orchestration-agnostic**: Workers don't encode orchestration policy
+5. **Discoverable**: Workers produce outputs with guaranteed labeling contracts
+
+## Bootstrap + Planning Model
+
+When a campaign starts with zero discovered work items (discovery = 0), the orchestrator needs a way to create initial work. The bootstrap configuration provides three strategies:
+
+### 1. Seeder Worker Mode
+
+Dispatch a specialized worker to discover and create initial work items:
+
+```yaml
+bootstrap:
+  mode: seeder-worker
+  seeder-worker:
+    workflow-id: security-scanner
+    payload:
+      scan-type: full
+      max-findings: 100
+    max-items: 50
+```
+
+**Flow**:
+1. Orchestrator detects discovery = 0
+2. Orchestrator dispatches the seeder worker with configured payload
+3. Seeder worker scans for work and creates issues/PRs with tracker labels
+4. Next orchestrator run discovers the seeder's outputs
+
+### 2. Project Todos Mode
+
+Read work items from the Project board's "Todo" column:
+
+```yaml
+bootstrap:
+  mode: project-todos
+  project-todos:
+    status-field: Status
+    todo-value: Backlog
+    max-items: 10
+    require-fields:
+      - Priority
+      - Assignee
+```
+
+**Flow**:
+1. Orchestrator detects discovery = 0
+2. Orchestrator queries Project board for items with Status = "Backlog"
+3. Orchestrator uses worker metadata to select appropriate worker for each item
+4. Orchestrator dispatches workers with payloads built from Project field values
+
+### 3. Manual Mode
+
+Wait for manual work item creation:
+
+```yaml
+bootstrap:
+  mode: manual
+```
+
+**Flow**:
+1. Orchestrator detects discovery = 0
+2. Orchestrator reports waiting for manual work item creation
+3. Users manually create issues/PRs with proper tracker labels
+4. Next orchestrator run discovers the manual items
+
+## Worker Metadata
+
+Worker metadata enables deterministic worker selection and ensures worker outputs are discoverable. Define worker metadata in your campaign spec:
+
+```yaml
+workers:
+  - id: security-fixer
+    name: Security Fix Worker
+    description: Fixes security vulnerabilities
+    capabilities:
+      - fix-security-alerts
+      - create-pull-requests
+    payload-schema:
+      repository:
+        type: string
+        description: Target repository in owner/repo format
+        required: true
+        example: owner/repo
+      alert_id:
+        type: string
+        description: Security alert identifier
+        required: true
+        example: alert-123
+      severity:
+        type: string
+        description: Alert severity level
+        required: false
+        example: high
+    output-labeling:
+      tracker-label: campaign:security-q1-2025
+      additional-labels:
+        - security
+        - automated
+      key-in-title: true
+      key-format: "campaign-{campaign_id}-{repository}-{alert_id}"
+      metadata-fields:
+        - Campaign Id
+        - Worker Workflow
+        - Alert ID
+        - Severity
+    idempotency-strategy: pr-title-based
+    priority: 10
+```
+
+### Worker Metadata Fields
+
+- **id**: Workflow identifier (basename without .md)
+- **name**: Human-readable worker name
+- **description**: What the worker does
+- **capabilities**: List of work types this worker can handle
+- **payload-schema**: Expected payload structure with types and descriptions
+- **output-labeling**: Guaranteed labeling contract for worker outputs
+- **idempotency-strategy**: How the worker ensures idempotent execution
+- **priority**: Worker selection priority (higher = preferred)
+
+### Deterministic Worker Selection
+
+When the orchestrator needs to dispatch a worker (e.g., during bootstrap from Project todos):
+
+1. **Match capabilities**: Find workers whose capabilities match the work item type
+2. **Validate payload**: Check if worker's payload schema can be satisfied from available data
+3. **Select by priority**: If multiple workers match, select the one with highest priority
+4. **Build payload**: Construct payload according to worker's payload schema
+5. **Dispatch**: Call worker with campaign_id and constructed payload
+
+### Output Labeling Contract
+
+The `output-labeling` section guarantees how worker outputs are labeled and formatted:
+
+- **tracker-label**: Label applied to all worker-created items (format: `campaign:{campaign_id}`)
+- **additional-labels**: Other labels the worker applies
+- **key-in-title**: Whether worker includes a deterministic key in item titles
+- **key-format**: Format of the key when `key-in-title` is true
+- **metadata-fields**: Project fields the worker populates
+
+This contract ensures worker outputs are:
+- **Discoverable**: Can be found via tracker label searches
+- **Attributable**: Can be traced back to the campaign and worker
+- **Idempotent**: Can be checked for duplicates via deterministic keys
 
 ## Why Dispatch-Only?
 
