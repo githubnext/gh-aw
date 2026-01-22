@@ -276,7 +276,6 @@ steps:
       find /tmp/gh-aw/daily-news-data/ -maxdepth 1 -ls
 
 imports:
-  - shared/mcp/tavily.md
   - shared/jqschema.md
   - shared/reporting.md
   - shared/trends.md

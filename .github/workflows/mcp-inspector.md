@@ -42,7 +42,6 @@ imports:
   - shared/mcp/sentry.md
   - shared/mcp/server-memory.md
   - shared/mcp/slack.md
-  - shared/mcp/tavily.md
   - shared/reporting.md
 tools:
   serena: ["go"]

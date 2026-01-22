@@ -20,7 +20,6 @@ strict: true
 imports:
   - shared/mcp-pagination.md
   - shared/gh.md
-  - shared/mcp/tavily.md
   - shared/reporting.md
 network:
   allowed:
