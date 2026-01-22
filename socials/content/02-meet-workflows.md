@@ -5,25 +5,48 @@ Social Publish Date: 2026-01-22
 
 ## X (Twitter)
 
-Next stop in Peli’s Agent Factory 🍫✨: Issue Triage 🍬🧠 — an agent that reads new issues, replies with context, and applies labels automatically. Tour + workflow source: https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows/ #GitHubNext #AI
+Tired of manually triaging every issue that lands in your repo? ✍️
+
+Using GitHub Agentic Workflows, our Issue Triage agent does the first pass for you: it reads the issue, analyzes context from your codebase, replies with relevant information, and applies consistent labels automatically.
+
+You'll learn how this workflow saves hours of maintainer time and why it's one of the highest-leverage agents we run. We're sharing the actual workflow source so you can see exactly how it works and adapt it for your repos.
+
+See the tour + workflow source: https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows/
+
+#GitHubNext #AI #PelisFactory
 
 ## Bluesky
 
-Day 2 on the tour of Peli's Agent Factory! 🍫✨: Issue Triage 🍬🛠️ — a practical “starter” for new issues: summarize, label, and suggest next steps. https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows/
+How much time do you spend manually labeling and triaging issues? ✍️
+
+Our Issue Triage workflow (built with GitHub Agentic Workflows) handles the first pass automatically — analyzing context, replying with helpful information, and applying consistent labels. You'll see how it works and get the source code.
+
+https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows/
 
 ## Mastodon
 
-Day 2 on the tour of Peli's Agent Factory! 🍫✨: Issue Triage 🍬🔍 — one of the simplest, highest-leverage agents. It analyzes new issues fast and applies consistent labels so maintainers can breathe. Tour + source: https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows/ #Automation #GitHub
+Want to automate your issue triage? ✍️
+
+Using GitHub Agentic Workflows, this is one of the simplest but highest-leverage agents we run. It analyzes new issues, applies consistent labels, and replies with context — giving you back hours of maintainer time. Source code included.
+
+https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows/ #Automation #GitHub #PelisFactory
 
 ## LinkedIn
 
-Meet the Workflows (1): Issue Triage 🍬✨
+How much time does your team spend manually triaging issues? ✍️
 
-Welcome back to the tour of Peli’s Agent Factory. Day 2 is our first stop on the factory floor: Issue Triage.
+In this post, you'll discover our Issue Triage workflow — built with GitHub Agentic Workflows and one of the most immediately useful agents we run. When a new issue lands, this agent:
 
-It’s one of the most immediately useful agentic workflows we run: when a new issue lands, the agent analyzes the report, replies with helpful context, and applies labels consistently — so maintainers can spend more time building and less time sorting.
+• Analyzes the report and searches relevant codebase context
+• Replies with helpful information and related issues
+• Applies consistent labels automatically
+• Suggests next steps for maintainers
 
-Tour + links to the workflow source:
+The result? Your team spends less time on repetitive triage and more time on actual development. This is one of those workflows that pays for itself in the first week.
+
+You'll see exactly how it works, learn the patterns that make it reliable, and get access to the complete workflow source code.
+
+Read the tour + get the source:
 https://githubnext.github.io/gh-aw/blog/2026-01-13-meet-the-workflows/
 
-#GitHubNext #AI #DevOps
+#GitHubNext #AI #DevOps #PelisFactory

@@ -5,33 +5,47 @@ Social Publish Date: 2026-01-21
 
 ## X (Twitter)
 
-Welcome to our blog series, about our new technology for automated agentics on GitHub - GitHub Agentic Workflows!
+What if you could use automated agentic workflows to maintain and improve your repository? 🎉
 
-Automated agentics are powerful, but what are they useful for in software repositories?
+We're launching a blog series that shows how to use GitHub Agentic Workflows to keep real codebases healthy. You'll see 50+ agentic workflows running in production — from triaging issues to refactoring code to catching security vulnerabilities before they ship.
 
-In this series we'd like to take you on a tour of ✨🍫 Peli’s Agent Factory 🍫✨ — where 100+ agentic workflows keep real repos humming. Take the tour: https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/ 
+This isn't about demos or toy examples. You'll learn practical patterns you can adapt for your own repos, see the actual workflow code, and understand when agents work (and when they don't).
 
-Automation isn't just about scripts—it's about creating intelligent agents that keep projects moving and achieve continuous improvement.
+Start your tour of Peli's Agent Factory: https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/
 
-#GitHubNext #AI #devops #continuousai
+#GitHubNext #AI #DevOps #ContinuousAI #PelisFactory
 
 ## Bluesky
 
-Welcome to ✨🍫 Peli’s Agent Factory 🍫✨ — a magical yet very practical tour of the agentic workflows we actually run in real repos. Start here: https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/
+What if you could use automated agentic workflows to maintain and improve your repository? 🎉
+
+In our new blog series, we'll take you inside Peli's Agent Factory — where 50+ GitHub Agentic Workflows handle everything from issue triage to code refactoring. You'll learn practical patterns and see the source code for workflows we run every day.
+
+https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/
 
 ## Mastodon
 
-Welcome to ✨🍫Peli’s Agent Factory 🍫✨ — not demos, but real agentic workflows doing real work to keep a repo moving. Come wander the assembly line: https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/ #GitHubNext #Automation
+What if you could use automated agents to maintain and improve your repository? 🎉
+
+Using GitHub Agentic Workflows, we'll introduce you to 50+ agents that triage issues, simplify code, detect patterns, and keep repos healthy. You'll see real examples with source code you can learn from.
+
+https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/ #GitHubNext #Automation #PelisFactory
 
 ## LinkedIn
 
-Welcome to our blog series from GitHub Next on GitHub Agentic Workflows — a practical look at “automated agentics” in software repos. 🍫✨
+What if your repository could maintain itself? 🎉
 
-Automated agentics are powerful… but what are they actually useful for day-to-day engineering?
+We're launching a blog series from GitHub Next that takes you inside our real-world use of GitHub Agentic Workflows for software development. You'll discover how 50+ agentic workflows keep our repositories healthy — handling tasks from issue triage to continuous refactoring.
 
-In this series, we’d like to take you on a tour of Peli’s Agent Factory: a slightly magical (but very real) place where 100+ agentic workflows help keep real repositories humming — from triage and maintenance to continuous improvement.
+This series isn't about theoretical possibilities. You'll learn:
+• Practical patterns for deploying automated AI agents in your repos
+• When agentic workflows excel (and when they don't)
+• How to design safe, effective agents your team can trust
+• Real workflows you can study and adapt
 
-Start the tour here:
+Whether you're exploring repository automation for the first time or looking to level up your existing practices, you'll find actionable insights you can apply immediately.
+
+Start your tour of Peli's Agent Factory:
 https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/
 
-#GitHubNext #AI #DevOps #ContinuousAI
+#GitHubNext #AI #DevOps #ContinuousAI #PelisFactory
