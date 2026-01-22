@@ -19,6 +19,7 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 |---------|-------------|---------|
 | **`gh aw init`** | Set up your repository for agentic workflows | [→ Documentation](#init) |
 | **`gh aw add (workflow)`** | Add workflows from The Agentics collection or other repositories | [→ Documentation](#add) |
+| **`gh aw list`** | Quick listing of all workflows without status checks | [→ Documentation](#list) |
 | **`gh aw status`** | Check current state of all workflows | [→ Documentation](#status) |
 | **`gh aw compile`** | Convert markdown to GitHub Actions YAML | [→ Documentation](#compile) |
 | **`gh aw run (workflow)`** | Execute workflows immediately in GitHub Actions | [→ Documentation](#run) |
@@ -272,6 +273,21 @@ When `--push` is not used, warnings are displayed for missing or outdated lock f
 > Requires `workflows:write` permission. In Codespaces, either configure custom permissions in `devcontainer.json` ([docs](https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces)) or authenticate manually: `unset GH_TOKEN && gh auth login`
 
 ### Monitoring
+
+#### `list`
+
+List workflows with basic information (name, engine, compilation status) without checking GitHub Actions state. Fast enumeration for discovering available workflows.
+
+```bash wrap
+gh aw list                                  # List all workflows
+gh aw list ci-                              # Filter by pattern (case-insensitive)
+gh aw list --json                           # Output in JSON format
+gh aw list --label automation               # Filter by label
+```
+
+**Options:** `--json`, `--label`
+
+Unlike `status`, this command does not query GitHub API for workflow state or execution history. Use this for quick discovery and filtering. For detailed status including enabled/disabled state and latest run information, use `status` instead.
 
 #### `status`
 
