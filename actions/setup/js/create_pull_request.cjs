@@ -705,7 +705,24 @@ ${patchPreview}`;
         repo: itemRepo,
       };
     } catch (prError) {
-      core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
+      const errorMessage = prError instanceof Error ? prError.message : String(prError);
+      core.warning(`Failed to create pull request: ${errorMessage}`);
+
+      // Check if the error is the specific "GitHub actions is not permitted to create or approve pull requests" error
+      if (errorMessage.includes("GitHub Actions is not permitted to create or approve pull requests")) {
+        core.error("Permission error: GitHub Actions is not permitted to create or approve pull requests");
+        // Set output variable for conclusion job to handle
+        core.setOutput(
+          "error_message",
+          "GitHub Actions is not permitted to create or approve pull requests. Please enable 'Allow GitHub Actions to create and approve pull requests' in repository settings: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#preventing-github-actions-from-creating-or-approving-pull-requests"
+        );
+        return {
+          success: false,
+          error: errorMessage,
+          error_type: "permission_denied",
+        };
+      }
+
       core.info("Falling back to creating an issue instead");
 
       // Create issue as fallback with enhanced body content
@@ -725,7 +742,7 @@ ${patchPreview}`;
 
 **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
 
-**Original error:** ${prError instanceof Error ? prError.message : String(prError)}
+**Original error:** ${errorMessage}
 
 You can manually create a pull request from the branch if needed.${patchPreview}`;
 
@@ -753,7 +770,7 @@ You can manually create a pull request from the branch if needed.${patchPreview}
           repo: itemRepo,
         };
       } catch (issueError) {
-        const error = `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
+        const error = `Failed to create both pull request and fallback issue. PR error: ${errorMessage}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`;
         core.error(error);
         return {
           success: false,
