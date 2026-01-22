@@ -19,6 +19,7 @@ tools:
 safe-outputs:
   update-issue:
   assign-to-agent:
+    github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
   create-project:
     max: 1
     github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
