@@ -33,12 +33,7 @@ tools:
   github:
     toolsets: [default, discussions]
   bash:
-    - "find docs -name '*.md' -o -name '*.mdx'"
-    - "find docs -type f"
-    - "cat README.md"
-    - "cat docs/**/*.md"
-    - "grep -r '*' docs"
-    - "ls -la docs"
+    - "*"
 
 timeout-minutes: 30
 
