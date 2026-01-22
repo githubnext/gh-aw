@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -323,4 +325,190 @@ func TestUpdateProjectJob_Permissions(t *testing.T) {
 	// update_project requires contents: read permission
 	require.NotEmpty(t, job.Permissions, "Job should have permissions")
 	assert.Contains(t, job.Permissions, "contents: read", "Should have contents: read permission")
+}
+
+func TestUpdateProjectJob_ViewsConfigurationBase64(t *testing.T) {
+	tests := []struct {
+		name         string
+		views        []map[string]any
+		expectViews  bool
+		description  string
+	}{
+		{
+			name:         "no views configured",
+			views:        nil,
+			expectViews:  false,
+			description:  "Should not set GH_AW_PROJECT_VIEWS when no views are configured",
+		},
+		{
+			name:         "empty views array",
+			views:        []map[string]any{},
+			expectViews:  false,
+			description:  "Should not set GH_AW_PROJECT_VIEWS when views array is empty",
+		},
+		{
+			name: "single view with simple name",
+			views: []map[string]any{
+				{"name": "My View", "id": "123"},
+			},
+			expectViews: true,
+			description: "Should base64 encode views configuration with simple names",
+		},
+		{
+			name: "view with special characters including single quotes",
+			views: []map[string]any{
+				{"name": "User's View", "id": "456", "description": "Contains 'quotes'"},
+			},
+			expectViews: true,
+			description: "Should safely handle views with single quotes via base64 encoding",
+		},
+		{
+			name: "view with double quotes and backslashes",
+			views: []map[string]any{
+				{"name": "Test\"View", "path": "\\path\\to\\view"},
+			},
+			expectViews: true,
+			description: "Should safely handle views with double quotes and backslashes via base64",
+		},
+		{
+			name: "multiple views with mixed special characters",
+			views: []map[string]any{
+				{"name": "View 1", "id": "1"},
+				{"name": "User's \"View\"", "id": "2"},
+				{"name": "Complex\\Path'View", "id": "3"},
+			},
+			expectViews: true,
+			description: "Should safely handle multiple views with various special characters",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "test")
+
+			workflowData := &WorkflowData{
+				Name: "test-workflow",
+				SafeOutputs: &SafeOutputsConfig{
+					UpdateProjects: &UpdateProjectConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{
+							Max: 10,
+						},
+						Views: tt.views,
+					},
+				},
+			}
+
+			job, err := compiler.buildUpdateProjectJob(workflowData, "main")
+			require.NoError(t, err, tt.description)
+			require.NotNil(t, job, tt.description)
+
+			// Join all steps to search for environment variable
+			allSteps := strings.Join(job.Steps, "\n")
+
+			if tt.expectViews {
+				// Should contain the GH_AW_PROJECT_VIEWS environment variable
+				assert.Contains(t, allSteps, "GH_AW_PROJECT_VIEWS:", "Should set GH_AW_PROJECT_VIEWS when views are configured")
+
+				// Extract the base64 value from the steps
+				lines := strings.Split(allSteps, "\n")
+				var viewsBase64 string
+				for _, line := range lines {
+					if strings.Contains(line, "GH_AW_PROJECT_VIEWS:") {
+						parts := strings.SplitN(line, ":", 2)
+						if len(parts) == 2 {
+							viewsBase64 = strings.TrimSpace(parts[1])
+							break
+						}
+					}
+				}
+
+				require.NotEmpty(t, viewsBase64, "Should have base64-encoded views value")
+
+				// Verify the base64 value can be decoded back to the original JSON
+				decodedBytes, err := base64.StdEncoding.DecodeString(viewsBase64)
+				require.NoError(t, err, "Base64 value should be valid")
+
+				var decodedViews []map[string]any
+				err = json.Unmarshal(decodedBytes, &decodedViews)
+				require.NoError(t, err, "Decoded value should be valid JSON")
+
+				// Verify the decoded views match the original
+				assert.Equal(t, tt.views, decodedViews, "Decoded views should match original configuration")
+
+				// Security check: Verify no raw single quotes in the environment variable value
+				// This ensures the base64 encoding prevents any quoting issues
+				assert.NotContains(t, viewsBase64, "'", "Base64 value should not contain single quotes")
+				assert.NotContains(t, viewsBase64, "\"", "Base64 value should not contain double quotes")
+			} else {
+				// Should not contain GH_AW_PROJECT_VIEWS when no views configured
+				assert.NotContains(t, allSteps, "GH_AW_PROJECT_VIEWS:", "Should not set GH_AW_PROJECT_VIEWS when no views are configured")
+			}
+		})
+	}
+}
+
+func TestUpdateProjectJob_Base64EncodingPreventsSQLInjection(t *testing.T) {
+	// Test that base64 encoding prevents potential injection attacks
+	compiler := NewCompiler(false, "", "test")
+
+	maliciousViews := []map[string]any{
+		{
+			"name": "'; DROP TABLE projects; --",
+			"id":   "injection-test",
+		},
+		{
+			"name": "${INJECTION}",
+			"id":   "var-expansion-test",
+		},
+		{
+			"name": "`rm -rf /`",
+			"id":   "command-injection-test",
+		},
+	}
+
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			UpdateProjects: &UpdateProjectConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: 10,
+				},
+				Views: maliciousViews,
+			},
+		},
+	}
+
+	job, err := compiler.buildUpdateProjectJob(workflowData, "main")
+	require.NoError(t, err, "Should handle malicious input without error")
+	require.NotNil(t, job)
+
+	allSteps := strings.Join(job.Steps, "\n")
+
+	// Verify malicious strings are not present in raw form
+	assert.NotContains(t, allSteps, "DROP TABLE", "SQL injection attempt should be encoded")
+	assert.NotContains(t, allSteps, "rm -rf", "Command injection attempt should be encoded")
+
+	// Verify the base64 value is present
+	assert.Contains(t, allSteps, "GH_AW_PROJECT_VIEWS:", "Environment variable should be set")
+
+	// Extract and verify the base64 value contains only safe characters
+	lines := strings.Split(allSteps, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "GH_AW_PROJECT_VIEWS:") {
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) == 2 {
+				viewsBase64 := strings.TrimSpace(parts[1])
+				// Base64 should only contain alphanumeric, +, /, and = characters
+				for _, char := range viewsBase64 {
+					assert.True(t,
+						(char >= 'A' && char <= 'Z') ||
+							(char >= 'a' && char <= 'z') ||
+							(char >= '0' && char <= '9') ||
+							char == '+' || char == '/' || char == '=',
+						"Base64 value should only contain safe characters")
+				}
+				break
+			}
+		}
+	}
 }

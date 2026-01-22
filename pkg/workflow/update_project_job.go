@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 )
@@ -44,11 +45,10 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal views configuration: %w", err)
 		}
-		// lgtm[go/unsafe-quoting] - This generates YAML environment variable declarations, not shell commands.
-		// The %q format specifier properly escapes the JSON string for YAML syntax. There is no shell injection
-		// risk because this value is set as an environment variable in the GitHub Actions YAML configuration,
-		// not executed as shell code.
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PROJECT_VIEWS: %q\n", string(viewsJSON)))
+		// Base64 encode the JSON to eliminate any quoting concerns
+		// This prevents potential injection even if the value is misused in shell contexts
+		viewsBase64 := base64.StdEncoding.EncodeToString(viewsJSON)
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PROJECT_VIEWS: %s\n", viewsBase64))
 	}
 
 	jobCondition := BuildSafeOutputType("update_project")
