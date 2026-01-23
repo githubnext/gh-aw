@@ -234,6 +234,17 @@ After generating charts:
 
 For each metric: current value, 7-day % change, 30-day % change, trend indicator (⬆️/➡️/⬇️)
 
+## Report Formatting Guidelines
+
+**IMPORTANT**: Use h3 (###) or lower for all headers in the discussion report to maintain proper document hierarchy. The discussion title serves as h1.
+
+**Structure**:
+- Main sections: h3 (###) - e.g., "### 📊 Visualizations"
+- Subsections: h4 (####) - e.g., "#### LOC Distribution by Language"
+- Detail sections inside `<details>`: h3/h4 as appropriate
+
+**Progressive Disclosure**: Keep executive summary and key visualizations visible. Use `<details>` tags for detailed metrics tables (as already shown in template).
+
 ## Report Format
 
 Use detailed template with embedded visualization charts:
@@ -247,34 +258,34 @@ Use detailed template with embedded visualization charts:
 ```markdown
 Brief 2-3 paragraph executive summary highlighting key findings, quality score, notable trends, and any concerns requiring attention.
 
-## 📊 Visualizations
+### 📊 Visualizations
 
-### LOC Distribution by Language
+#### LOC Distribution by Language
 ![LOC by Language](URL_FROM_UPLOAD_ASSET)
 
 [Analysis of language distribution and changes]
 
-### Top Directories by LOC
+#### Top Directories by LOC
 ![Top Directories](URL_FROM_UPLOAD_ASSET)
 
 [Analysis of directory sizes and organization]
 
-### Quality Score Breakdown
+#### Quality Score Breakdown
 ![Quality Score](URL_FROM_UPLOAD_ASSET)
 
 [Current quality score and component analysis]
 
-### Test Coverage Analysis
+#### Test Coverage Analysis
 ![Test Coverage](URL_FROM_UPLOAD_ASSET)
 
 [Test coverage metrics and recommendations]
 
-### Code Churn (Last 7 Days)
+#### Code Churn (Last 7 Days)
 ![Code Churn](URL_FROM_UPLOAD_ASSET)
 
 [Most changed files and activity patterns]
 
-### Historical Trends (30 Days)
+#### Historical Trends (30 Days)
 ![Historical Trends](URL_FROM_UPLOAD_ASSET)
 
 [Trend analysis and significant changes]
@@ -282,23 +293,23 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 <details>
 <summary><b>📈 Detailed Metrics</b></summary>
 
-## Size Metrics
+### Size Metrics
 
-### Lines of Code by Language
+#### Lines of Code by Language
 | Language | LOC | % of Total | Change (7d) |
 |----------|-----|------------|-------------|
 | Go | X,XXX | XX% | ⬆️ +X% |
 | JavaScript | X,XXX | XX% | ➡️ 0% |
 | ... | ... | ... | ... |
 
-### Lines of Code by Directory
+#### Lines of Code by Directory
 | Directory | LOC | % of Total | Files |
 |-----------|-----|------------|-------|
 | pkg/ | X,XXX | XX% | XXX |
 | cmd/ | X,XXX | XX% | XX |
 | ... | ... | ... | ... |
 
-## Quality Indicators
+### Quality Indicators
 
 - **Average File Size**: XXX lines
 - **Large Files (>500 LOC)**: XX files
@@ -306,7 +317,7 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 - **Comment Lines**: X,XXX lines (XX% ratio)
 - **Comment Density**: XX%
 
-## Test Coverage
+### Test Coverage
 
 - **Test Files**: XX files
 - **Test LOC** (`test_lines_of_code`): X,XXX lines
@@ -315,7 +326,7 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 - **Trend (7d)**: ⬆️ +X%
 - **Trend (30d)**: ⬆️ +X%
 
-## Code Churn (Last 7 Days)
+### Code Churn (Last 7 Days)
 
 - **Files Modified**: XXX files
 - **Commits**: XXX commits
@@ -323,28 +334,28 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 - **Lines Deleted**: -X,XXX lines
 - **Net Change**: +/-X,XXX lines
 
-### Most Active Files
+#### Most Active Files
 1. path/to/file.go: +XXX/-XXX lines
 2. path/to/file.js: +XXX/-XXX lines
 ...
 
-## Workflow Metrics
+### Workflow Metrics
 
 - **Total Workflow Files (.md)** (`total_workflows`): XXX files
 - **Compiled Workflows (.lock.yml)**: XXX files
 - **Average Workflow Size**: XXX lines
 - **Growth (7d)**: ⬆️ +X%
 
-## Documentation
+### Documentation
 
 - **Doc Files (docs/)**: XXX files
 - **Doc LOC**: X,XXX lines
 - **Code-to-Docs Ratio**: X.XX:1
 - **Documentation Coverage**: XX%
 
-## Quality Score: XX/100
+### Quality Score: XX/100
 
-### Component Breakdown
+#### Component Breakdown
 - **Test Coverage (30%)**: XX/30 points
 - **Code Organization (25%)**: XX/25 points
 - **Documentation (20%)**: XX/20 points
@@ -353,7 +364,7 @@ Brief 2-3 paragraph executive summary highlighting key findings, quality score, 
 
 </details>
 
-## 💡 Insights & Recommendations
+### 💡 Insights & Recommendations
 
 1. [Specific actionable recommendation based on metrics]
 2. [Another recommendation]
