@@ -13,7 +13,6 @@ permissions:
 tracker-id: code-simplifier
 
 imports:
-  - shared/mcp/semgrep.md
   - shared/reporting.md
 
 safe-outputs:
