@@ -79,9 +79,10 @@ function saveCursor(cursorPath, cursor) {
  * Normalize a discovered item to standard format
  * @param {any} item - Raw GitHub item (issue, PR, or discussion)
  * @param {string} contentType - Type: "issue", "pull_request", or "discussion"
+ * @param {string | undefined} workerWorkflow - Worker workflow identifier (optional)
  * @returns {any} Normalized item
  */
-function normalizeItem(item, contentType) {
+function normalizeItem(item, contentType, workerWorkflow) {
   const normalized = {
     url: item.html_url || item.url,
     content_type: contentType,
@@ -92,6 +93,11 @@ function normalizeItem(item, contentType) {
     state: item.state,
     title: item.title,
   };
+
+  // Add worker workflow if available
+  if (workerWorkflow) {
+    normalized.worker_workflow = workerWorkflow;
+  }
 
   // Add closed/merged dates
   if (item.closed_at) {
@@ -187,7 +193,7 @@ async function searchByTrackerId(octokit, trackerId, repos, orgs, maxItems, maxP
 
         // Determine if it's a PR or issue
         const contentType = item.pull_request ? "pull_request" : "issue";
-        const normalized = normalizeItem(item, contentType);
+        const normalized = normalizeItem(item, contentType, trackerId);
         items.push(normalized);
       }
 
@@ -277,7 +283,8 @@ async function searchByLabel(octokit, label, repos, orgs, maxItems, maxPages, cu
 
         // Determine if it's a PR or issue
         const contentType = item.pull_request ? "pull_request" : "issue";
-        const normalized = normalizeItem(item, contentType);
+        // Label-based discovery doesn't provide workflow information
+        const normalized = normalizeItem(item, contentType, undefined);
         items.push(normalized);
       }
 

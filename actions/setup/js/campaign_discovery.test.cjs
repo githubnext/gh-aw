@@ -25,7 +25,7 @@ describe("campaign_discovery", () => {
   });
 
   describe("normalizeItem", () => {
-    it("should normalize an issue", () => {
+    it("should normalize an issue without worker_workflow", () => {
       const issue = {
         html_url: "https://github.com/owner/repo/issues/1",
         number: 1,
@@ -47,6 +47,32 @@ describe("campaign_discovery", () => {
         updated_at: "2025-01-02T00:00:00Z",
         state: "open",
         title: "Test Issue",
+      });
+    });
+
+    it("should normalize an issue with worker_workflow", () => {
+      const issue = {
+        html_url: "https://github.com/owner/repo/issues/1",
+        number: 1,
+        repository: { full_name: "owner/repo" },
+        created_at: "2025-01-01T00:00:00Z",
+        updated_at: "2025-01-02T00:00:00Z",
+        state: "open",
+        title: "Test Issue",
+      };
+
+      const normalized = normalizeItem(issue, "issue", "security-scanner");
+
+      expect(normalized).toEqual({
+        url: "https://github.com/owner/repo/issues/1",
+        content_type: "issue",
+        number: 1,
+        repo: "owner/repo",
+        created_at: "2025-01-01T00:00:00Z",
+        updated_at: "2025-01-02T00:00:00Z",
+        state: "open",
+        title: "Test Issue",
+        worker_workflow: "security-scanner",
       });
     });
 
@@ -74,6 +100,34 @@ describe("campaign_discovery", () => {
         state: "closed",
         title: "Test PR",
         merged_at: "2025-01-03T00:00:00Z",
+      });
+    });
+
+    it("should normalize a pull request with worker_workflow", () => {
+      const pr = {
+        html_url: "https://github.com/owner/repo/pull/2",
+        number: 2,
+        repository: { full_name: "owner/repo" },
+        created_at: "2025-01-01T00:00:00Z",
+        updated_at: "2025-01-02T00:00:00Z",
+        state: "closed",
+        title: "Test PR",
+        merged_at: "2025-01-03T00:00:00Z",
+      };
+
+      const normalized = normalizeItem(pr, "pull_request", "fix-pr-worker");
+
+      expect(normalized).toEqual({
+        url: "https://github.com/owner/repo/pull/2",
+        content_type: "pull_request",
+        number: 2,
+        repo: "owner/repo",
+        created_at: "2025-01-01T00:00:00Z",
+        updated_at: "2025-01-02T00:00:00Z",
+        state: "closed",
+        title: "Test PR",
+        merged_at: "2025-01-03T00:00:00Z",
+        worker_workflow: "fix-pr-worker",
       });
     });
 
