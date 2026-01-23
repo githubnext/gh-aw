@@ -38,13 +38,18 @@ safe-outputs:
         - name: Send Slack message
           env:
             SLACK_WEBHOOK: "${{ secrets.SLACK_WEBHOOK }}"
-            MESSAGE: "${{ inputs.message }}"
           run: |
-            # Use jq to safely escape JSON content
-            PAYLOAD=$(jq -n --arg text "$MESSAGE" '{text: $text}')
-            curl -X POST "$SLACK_WEBHOOK" \
-              -H 'Content-Type: application/json' \
-              -d "$PAYLOAD"
+            if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
+              MESSAGE=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "slack_notify") | .message')
+              # Use jq to safely escape JSON content
+              PAYLOAD=$(jq -n --arg text "$MESSAGE" '{text: $text}')
+              curl -X POST "$SLACK_WEBHOOK" \
+                -H 'Content-Type: application/json' \
+                -d "$PAYLOAD"
+            else
+              echo "No agent output found"
+              exit 1
+            fi
 ---
 ```
 
@@ -150,49 +155,65 @@ safe-outputs:
           uses: actions/github-script@v8
           env:
             NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
-            PAGE_ID: "${{ inputs.page_id }}"
-            COMMENT: "${{ inputs.comment }}"
           with:
             script: |
+              const fs = require('fs');
               const notionToken = process.env.NOTION_TOKEN;
-              const pageId = process.env.PAGE_ID;
-              const comment = process.env.COMMENT;
+              const outputFile = process.env.GH_AW_AGENT_OUTPUT;
               
               if (!notionToken) {
                 core.setFailed('NOTION_TOKEN secret is not configured');
                 return;
               }
               
-              core.info(`Adding comment to Notion page: ${pageId}`);
+              if (!outputFile) {
+                core.info('No GH_AW_AGENT_OUTPUT environment variable found');
+                return;
+              }
               
-              try {
-                const response = await fetch('https://api.notion.com/v1/comments', {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${notionToken}`,
-                    'Notion-Version': '2022-06-28',
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    parent: { page_id: pageId },
-                    rich_text: [{
-                      type: 'text',
-                      text: { content: comment }
-                    }]
-                  })
-                });
+              // Read and parse agent output
+              const fileContent = fs.readFileSync(outputFile, 'utf8');
+              const agentOutput = JSON.parse(fileContent);
+              
+              // Filter for notion-add-comment items (job name with dashes → underscores)
+              const items = agentOutput.items.filter(item => item.type === 'notion_add_comment');
+              
+              for (const item of items) {
+                const pageId = item.page_id;
+                const comment = item.comment;
                 
-                if (!response.ok) {
-                  const errorData = await response.text();
-                  core.setFailed(`Notion API error (${response.status}): ${errorData}`);
+                core.info(`Adding comment to Notion page: ${pageId}`);
+                
+                try {
+                  const response = await fetch('https://api.notion.com/v1/comments', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${notionToken}`,
+                      'Notion-Version': '2022-06-28',
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      parent: { page_id: pageId },
+                      rich_text: [{
+                        type: 'text',
+                        text: { content: comment }
+                      }]
+                    })
+                  });
+                  
+                  if (!response.ok) {
+                    const errorData = await response.text();
+                    core.setFailed(`Notion API error (${response.status}): ${errorData}`);
+                    return;
+                  }
+                  
+                  const data = await response.json();
+                  core.info('Comment added successfully');
+                  core.info(`Comment ID: ${data.id}`);
+                } catch (error) {
+                  core.setFailed(`Failed to add comment: ${error.message}`);
                   return;
                 }
-                
-                const data = await response.json();
-                core.info('Comment added successfully');
-                core.info(`Comment ID: ${data.id}`);
-              } catch (error) {
-                core.setFailed(`Failed to add comment: ${error.message}`);
               }
 ---
 ```
@@ -271,45 +292,86 @@ inputs:
 
 ### Environment Variables
 
+Custom safe-output jobs have access to these environment variables:
+
 | Variable | Description |
 |----------|-------------|
-| `GH_AW_AGENT_OUTPUT` | Path to JSON file with agent output |
-| `GH_AW_SAFE_OUTPUTS_STAGED` | Set to `"true"` in staged mode |
-| `${{ inputs.NAME }}` | Each input as a variable |
+| `GH_AW_AGENT_OUTPUT` | Path to JSON file containing the agent's output data |
+| `GH_AW_SAFE_OUTPUTS_STAGED` | Set to `"true"` when running in staged/preview mode |
 
-Access inputs using `${{ inputs.name }}` in steps or via `process.env` in JavaScript.
+### Accessing Agent Output
 
-## Complete Example
+Custom safe-output jobs receive the agent's data through the `GH_AW_AGENT_OUTPUT` environment variable, which contains a path to a JSON file. This file has the structure:
 
-```yaml wrap title="Send a webhook notification"
-safe-outputs:
-  jobs:
-    webhook-notify:
-      description: "Send a notification to a webhook URL"
-      runs-on: ubuntu-latest
-      output: "Notification sent!"
-      inputs:
-        title:
-          description: "Notification title"
-          required: true
-          type: string
-        body:
-          description: "Notification body"
-          required: true
-          type: string
-      steps:
-        - name: Send webhook
-          env:
-            WEBHOOK_URL: "${{ secrets.WEBHOOK_URL }}"
-            TITLE: "${{ inputs.title }}"
-            BODY: "${{ inputs.body }}"
-          run: |
-            PAYLOAD=$(jq -n --arg title "$TITLE" --arg body "$BODY" \
-              '{title: $title, body: $body}')
-            curl -X POST "$WEBHOOK_URL" \
-              -H "Content-Type: application/json" \
-              -d "$PAYLOAD"
+```json
+{
+  "items": [
+    {
+      "type": "job_name_with_underscores",
+      "field1": "value1",
+      "field2": "value2"
+    }
+  ]
+}
 ```
+
+The `type` field matches your job name with dashes converted to underscores (e.g., job `webhook-notify` → type `webhook_notify`).
+
+#### Bash Example
+
+```yaml
+steps:
+  - name: Process output
+    run: |
+      if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
+        # Extract specific field from matching items
+        MESSAGE=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "my_job") | .message')
+        echo "Message: $MESSAGE"
+      else
+        echo "No agent output found"
+        exit 1
+      fi
+```
+
+#### JavaScript Example
+
+```yaml
+steps:
+  - name: Process output
+    uses: actions/github-script@v8
+    with:
+      script: |
+        const fs = require('fs');
+        const outputFile = process.env.GH_AW_AGENT_OUTPUT;
+        
+        if (!outputFile) {
+          core.info('No GH_AW_AGENT_OUTPUT environment variable found');
+          return;
+        }
+        
+        // Read and parse the JSON file
+        const fileContent = fs.readFileSync(outputFile, 'utf8');
+        const agentOutput = JSON.parse(fileContent);
+        
+        // Filter for items matching this job (job-name → job_name)
+        const items = agentOutput.items.filter(item => item.type === 'my_job');
+        
+        // Process each item
+        for (const item of items) {
+          const message = item.message;
+          core.info(`Processing: ${message}`);
+          // Your logic here
+        }
+```
+
+### Understanding `inputs:`
+
+The `inputs:` field in your job definition serves **two purposes**:
+
+1. **Tool Discovery**: Defines the MCP tool schema that the AI agent sees
+2. **Validation**: Describes what fields the agent should provide in its output
+
+The agent uses the `inputs:` schema to understand what parameters to include when calling your custom job. The actual values are written to the `GH_AW_AGENT_OUTPUT` JSON file, which your job must read and parse.
 
 ## Importing Custom Jobs
 
@@ -371,6 +433,94 @@ if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === 'true') {
   return;
 }
 // Actually send the notification
+```
+
+## Common Mistakes
+
+### ❌ Using `${{ inputs.* }}` Syntax
+
+**This does NOT work:**
+
+```yaml
+steps:
+  - name: Wrong approach
+    env:
+      MESSAGE: "${{ inputs.message }}"  # ❌ This will be empty!
+    run: |
+      echo "$MESSAGE"  # Empty - inputs.* is not available
+```
+
+**✅ Correct approach:**
+
+```yaml
+steps:
+  - name: Correct approach
+    run: |
+      if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
+        MESSAGE=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "my_job") | .message')
+        echo "$MESSAGE"
+      fi
+```
+
+### ❌ Wrong Job Type Name
+
+**This does NOT work:**
+
+```yaml
+safe-outputs:
+  jobs:
+    notify-user:  # Job name with dashes
+      # ...
+      steps:
+        - run: |
+            # Wrong: using dashes in type filter
+            jq '.items[] | select(.type == "notify-user")'  # ❌ Won't match!
+```
+
+**Why it fails**: Job names with dashes are converted to underscores in the `type` field.
+
+**✅ Correct approach:**
+
+```yaml
+safe-outputs:
+  jobs:
+    notify-user:  # Job name with dashes
+      # ...
+      steps:
+        - run: |
+            # Correct: use underscores in type filter
+            jq '.items[] | select(.type == "notify_user")'  # ✅ Matches!
+```
+
+### ❌ Not Checking for Agent Output
+
+**This does NOT work:**
+
+```yaml
+steps:
+  - run: |
+      # ❌ Assumes file exists without checking
+      MESSAGE=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[0].message')
+```
+
+**Why it fails**: If the agent doesn't call your tool, the file might not exist or be empty, causing errors.
+
+**✅ Correct approach:**
+
+```yaml
+steps:
+  - run: |
+      if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
+        ITEMS=$(cat "$GH_AW_AGENT_OUTPUT" | jq '.items[] | select(.type == "my_job")')
+        if [ -z "$ITEMS" ]; then
+          echo "No items found for this job"
+          exit 0
+        fi
+        # Process items...
+      else
+        echo "No agent output file found"
+        exit 1
+      fi
 ```
 
 ## Troubleshooting
