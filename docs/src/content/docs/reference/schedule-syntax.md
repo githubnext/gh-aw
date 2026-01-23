@@ -126,7 +126,7 @@ on:
   schedule: weekly on monday around 08:00 utc+05:30   # Monday 8:00 AM IST
 ```
 
-Common offsets: PST/PDT (`utc-8`/`utc-7`), EST/EDT (`utc-5`/`utc-4`), JST (`utc+9`), IST (`utc+05:30`)
+Common offsets: PT/PST/PDT (`utc-8`/`utc-7`), EST/EDT (`utc-5`/`utc-4`), JST (`utc+9`), IST (`utc+05:30`)
 
 ## Fixed Schedules
 

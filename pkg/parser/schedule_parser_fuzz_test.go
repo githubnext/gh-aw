@@ -46,6 +46,9 @@ func FuzzScheduleParser(f *testing.F) {
 	f.Add("daily around noon utc+2")
 	f.Add("daily around 2pm utc+1")
 	f.Add("daily around 11pm utc-3")
+	f.Add("daily around 8 am PT")
+	f.Add("daily around 8 am PST")
+	f.Add("daily around 8 am PDT")
 
 	// Daily between schedules (fuzzy with time range)
 	f.Add("daily between 9:00 and 17:00")
@@ -134,6 +137,9 @@ func FuzzScheduleParser(f *testing.F) {
 	f.Add("daily at 11pm utc+05:30")
 	f.Add("weekly on monday at 8am utc+9")
 	f.Add("weekly on friday at 6pm utc-7")
+	f.Add("weekly on friday around 8 am PT")
+	f.Add("weekly on friday around 8 am PST")
+	f.Add("weekly on friday around 8 am PDT")
 	f.Add("monthly on 15 at 10am utc+2")
 	f.Add("monthly on 1 at 7pm utc-3")
 

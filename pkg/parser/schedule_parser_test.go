@@ -549,6 +549,12 @@ func TestParseSchedule(t *testing.T) {
 			expectedOrig: "weekly on friday around 5pm utc-5",
 		},
 		{
+			name:         "weekly on friday around 8 am PT",
+			input:        "weekly on friday around 8 am PT",
+			expectedCron: "FUZZY:WEEKLY_AROUND:5:16:0 * * *",
+			expectedOrig: "weekly on friday around 8 am PT",
+		},
+		{
 			name:           "monthly on 15 at 10am utc+2",
 			input:          "monthly on 15 at 10am utc+2",
 			shouldError:    true,
@@ -983,6 +989,7 @@ func TestParseTime(t *testing.T) {
 		{"12pm", "0", "12"}, // noon
 		{"11pm", "0", "23"},
 		{"6am", "0", "6"},
+		{"8 am", "0", "8"},
 		{"9am", "0", "9"},
 		{"5pm", "0", "17"},
 		{"10pm", "0", "22"},
