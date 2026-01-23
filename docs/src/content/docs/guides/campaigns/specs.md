@@ -1,57 +1,27 @@
 ---
 title: Campaign specs
-description: Define and configure agentic campaigns with spec files, tracker labels, and recommended wiring
+description: Campaign specification format and configuration reference
 banner:
   content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
 ---
 
-Campaigns are defined as Markdown files under `.github/workflows/` with a `.campaign.md` suffix. The YAML frontmatter is the campaign “contract”; the body can contain optional narrative context.
+Campaign specs are YAML frontmatter configuration files at `.github/workflows/<id>.campaign.md`. The frontmatter defines campaign metadata, goals, workers, and governance. The body can contain narrative context.
 
-## What this file does
-
-The campaign spec is a reviewable configuration file that:
-
-- names the campaign
-- points to a GitHub Project for tracking
-- defines where to discover worker-created items
-- lists the workflows the orchestrator should dispatch
-- defines goals (objective + KPIs)
-
-Most users should create specs via the [Getting started flow](/gh-aw/guides/campaigns/getting-started/).
-
-## Complete spec example
-
-This example shows a complete, working campaign spec with all commonly-used fields:
+## Spec structure
 
 ```yaml
-# .github/workflows/framework-upgrade.campaign.md
 ---
 id: framework-upgrade
-version: "v1"
 name: "Framework Upgrade"
 description: "Move services to Framework vNext"
+state: active
 
 project-url: "https://github.com/orgs/ORG/projects/1"
 tracker-label: "campaign:framework-upgrade"
 
-# Discovery: Where to find worker-created issues/PRs
 discovery-repos:
   - "myorg/service-a"
   - "myorg/service-b"
-# Or use discovery-orgs for organization-wide discovery:
-# discovery-orgs:
-#   - "myorg"
-
-# Optional: Custom GitHub token for Projects v2 operations
-# project-github-token: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
-
-# Optional: Restrict which repos this campaign can operate on
-# If omitted, defaults to the repository where the campaign spec lives.
-# allowed-repos:
-#   - "myorg/service-a"
-#   - "myorg/service-b"
-# allowed-orgs:
-#   - "myorg"
 
 objective: "Upgrade all services to Framework vNext with zero downtime."
 kpis:
@@ -63,133 +33,269 @@ kpis:
     target: 50
     time-window-days: 30
     direction: "increase"
-  - id: incidents
-    name: "Incidents caused"
-    priority: supporting
+
+workflows:
+  - framework-upgrade-scanner
+
+governance:
+  max-project-updates-per-run: 10
+  max-discovery-items-per-run: 50
+
+owners:
+  - "platform-team"
+---
+
+Additional narrative context about the campaign...
+```
+
+## Required fields
+
+### Identity
+
+**id** - Stable identifier for file naming and reporting
+- Format: lowercase letters, digits, hyphens only
+- Example: `security-audit-2025`
+
+**name** - Human-friendly display name
+- Example: `"Security Audit 2025"`
+
+**project-url** - GitHub Project board URL for tracking
+- Format: `https://github.com/orgs/ORG/projects/N`
+- Example: `https://github.com/orgs/mycompany/projects/1`
+
+### Discovery scope
+
+At least one of these is required when using `workflows` or `tracker-label`:
+
+**discovery-repos** - Specific repositories to search
+- Format: List of `owner/repo` strings
+- Example: `["myorg/api", "myorg/web"]`
+
+**discovery-orgs** - Organizations to search (all repos)
+- Format: List of organization names
+- Example: `["myorg"]`
+
+## Common fields
+
+**objective** - One-sentence success definition
+- Example: `"Eliminate all critical security vulnerabilities"`
+
+**kpis** - Key performance indicators (1-3 maximum)
+- See [KPI specification](#kpi-specification) below
+
+**workflows** - Worker workflows to dispatch
+- Format: List of workflow IDs (file names without extension)
+- Example: `["security-scanner", "dependency-fixer"]`
+
+**tracker-label** - Label for discovering worker outputs
+- Format: `campaign:<id>`
+- Example: `campaign:security-audit`
+
+**state** - Lifecycle state
+- Values: `planned`, `active`, `paused`, `completed`, `archived`
+- Default: `planned`
+
+**governance** - Pacing and safety limits
+- See [Governance fields](#governance-fields) below
+
+## Optional fields
+
+**description** - Brief campaign description
+
+**version** - Spec format version
+- Default: `v1`
+
+**owners** - Primary human owners
+- Format: List of team or user names
+
+**allowed-repos** - Repositories campaign can modify
+- Default: Repository containing the spec
+- Format: List of `owner/repo` strings
+
+**allowed-orgs** - Organizations campaign can modify
+- Format: List of organization names
+
+**project-github-token** - Custom token for Projects API
+- Format: Token expression like `${{ secrets.TOKEN_NAME }}`
+- Use when default `GITHUB_TOKEN` lacks Projects permissions
+
+## KPI specification
+
+Each KPI requires these fields:
+
+```yaml
+kpis:
+  - id: vulnerabilities_fixed          # Stable identifier
+    name: "Vulnerabilities resolved"    # Display name
+    priority: primary                    # One KPI must be primary
+    unit: count                          # Measurement unit
+    baseline: 50                         # Starting value
+    target: 0                            # Goal value
+    time-window-days: 30                 # Measurement period
+    direction: "decrease"                # Improvement direction
+```
+
+### Required KPI fields
+
+- **name** - Human-readable name
+- **baseline** - Starting value
+- **target** - Goal value
+- **time-window-days** - Rolling window (7, 14, 30, or 90 days)
+
+### Optional KPI fields
+
+- **id** - Stable identifier (defaults to sanitized name)
+- **priority** - `primary` or `supporting` (exactly one primary)
+- **unit** - Measurement unit (`count`, `percent`, `days`, `hours`)
+- **direction** - `increase` or `decrease`
+- **source** - Signal source (`ci`, `pull_requests`, `code_security`, `custom`)
+
+### KPI guidelines
+
+- Define 1 primary KPI + up to 2 supporting KPIs (3 maximum)
+- Always pair `objective` with `kpis` (define both or neither)
+- Use concrete, measurable targets
+- Choose realistic time windows
+
+## Governance fields
+
+Governance controls execution pace and safety:
+
+```yaml
+governance:
+  max-project-updates-per-run: 10
+  max-discovery-items-per-run: 50
+  max-discovery-pages-per-run: 5
+  max-new-items-per-run: 10
+  max-comments-per-run: 10
+  do-not-downgrade-done-items: true
+  opt-out-labels: ["campaign:skip", "no-bot"]
+```
+
+**max-project-updates-per-run** - Maximum project board updates per execution
+- Default: Conservative limit
+- Start low (10) and increase with confidence
+
+**max-discovery-items-per-run** - Maximum items to discover per execution
+- Controls API load
+- Remaining items discovered on next run
+
+**max-discovery-pages-per-run** - Maximum API pages to fetch
+- Alternative to item limit
+
+**max-new-items-per-run** - Maximum new items to add to project
+- Separate from total updates
+
+**max-comments-per-run** - Maximum comments to post
+- Prevents notification spam
+
+**do-not-downgrade-done-items** - Prevent moving completed items backward
+- Recommended: `true`
+
+**opt-out-labels** - Labels that exclude items from campaign
+- Default: `["no-bot", "no-campaign"]`
+
+## Discovery configuration
+
+### Repository-scoped discovery
+
+```yaml
+discovery-repos:
+  - "myorg/frontend"
+  - "myorg/backend"
+  - "myorg/api"
+```
+
+Searches only specified repositories for issues and pull requests with tracker labels.
+
+### Organization-scoped discovery
+
+```yaml
+discovery-orgs:
+  - "myorg"
+```
+
+Searches all repositories in the organization. Use carefully - can be expensive for large organizations.
+
+### Hybrid approach
+
+```yaml
+discovery-repos:
+  - "myorg/critical-service"  # Always scan this one
+discovery-orgs:
+  - "myorg"                    # Scan all others
+```
+
+## Validation
+
+Validate campaign specs before committing:
+
+```bash
+gh aw campaign validate
+```
+
+Common validation errors:
+
+- Missing required fields (`id`, `name`, `project-url`)
+- Missing discovery scope when using `workflows` or `tracker-label`
+- Invalid KPI configuration (no primary, too many KPIs)
+- Invalid `state` value
+- Malformed URLs or identifiers
+
+## Example: Security audit campaign
+
+```yaml
+---
+id: security-audit-q1
+version: "v1"
+name: "Security Audit Q1 2025"
+description: "Quarterly security review and remediation"
+state: active
+
+project-url: "https://github.com/orgs/myorg/projects/5"
+tracker-label: "campaign:security-audit-q1"
+
+discovery-orgs:
+  - "myorg"
+
+objective: "Resolve all high and critical security vulnerabilities"
+kpis:
+  - id: critical_vulns
+    name: "Critical vulnerabilities"
+    priority: primary
     unit: count
-    baseline: 5
+    baseline: 15
     target: 0
+    time-window-days: 90
+    direction: "decrease"
+  - id: mttr
+    name: "Mean time to resolution"
+    priority: supporting
+    unit: days
+    baseline: 14
+    target: 3
     time-window-days: 30
     direction: "decrease"
 
 workflows:
-  - framework-upgrade
+  - security-scanner
+  - dependency-updater
 
-state: "active"
-owners:
-  - "platform-team"
----
-```
-
-## Core fields (what they do)
-
-### Required
-
-- `id`: Stable identifier used for file naming and reporting (lowercase letters, digits, hyphens only).
-- `name`: Human-friendly name for the campaign.
-- `project-url`: GitHub Project URL used for tracking.
-
-### Required for discovery
-
-When your campaign uses `workflows` or `tracker-label`, you must specify where to discover worker-created items:
-
-- `discovery-repos`: List of repositories (in `owner/repo` format) where worker workflows create issues/PRs.
-- `discovery-orgs`: List of GitHub organizations where worker workflows operate (searches all repos in those orgs).
-
-At least one of `discovery-repos` or `discovery-orgs` is required when using workflows or tracker labels.
-
-### Commonly used
-
-- `objective`: One sentence describing what success means for this campaign.
-- `kpis`: List of 1-3 KPIs used to measure progress toward the objective.
-- `workflows`: Workflow IDs the orchestrator can dispatch via `workflow_dispatch`.
-- `tracker-label`: Label used to discover worker-created issues/PRs (commonly `campaign:<id>`).
-- `state`: Lifecycle state (`planned`, `active`, `paused`, `completed`, or `archived`).
-
-### Optional
-
-- `allowed-repos`: Repositories this campaign can operate on (defaults to the repo containing the spec).
-- `allowed-orgs`: Organizations this campaign can operate on.
-- `project-github-token`: Token expression for Projects v2 operations (e.g., `${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}`).
-- `description`: Brief description of the campaign.
-- `version`: Spec version (defaults to `v1`).
-- `owners`: Primary human owners for this campaign.
-- `governance`: Pacing and opt-out policies (see Governance section below).
-
-> [!IMPORTANT]
-> - Use `priority: primary` (not `primary: true`) to mark your primary KPI.
-> - The `discovery-*` fields control WHERE to search for worker outputs.
-> - The `allowed-*` fields control WHERE the campaign can operate.
-
-## Strategic goals (objective + KPIs)
-
-Use `objective` and `kpis` to define what “done” means and how progress should be reported.
-
-- `objective`: a one-sentence definition of success.
-- `kpis`: a small set of measures shown in status updates.
-
-## KPIs (recommended shape)
-
-Each KPI requires these fields:
-
-- `name`: Human-readable KPI name.
-- `baseline`: Starting value.
-- `target`: Goal value.
-- `time-window-days`: Rolling window for measurement (e.g., 7, 14, 30 days).
-
-Optional fields:
-
-- `id`: Stable identifier (lowercase letters, digits, hyphens).
-- `priority`: `primary` or `supporting` (exactly one KPI should be primary).
-- `unit`: Unit of measurement (e.g., `count`, `percent`, `days`).
-- `direction`: `increase` or `decrease` (describes improvement direction).
-- `source`: Signal source (`ci`, `pull_requests`, `code_security`, or `custom`).
-
-Keep KPIs small and crisp:
-
-- Use 1 primary KPI + up to 2 supporting KPIs (maximum 3 total).
-- When you define `kpis`, also define `objective` (and vice versa).
-
-## Unified tracking (GitHub Project)
-
-Use `project-url` to point the campaign at a GitHub Project board for tracking.
-
-- `project-url`: the Project URL (for example: `https://github.com/orgs/ORG/projects/1`).
-- `project-github-token` (optional): a token to use for Projects operations when `GITHUB_TOKEN` isn’t enough.
-
-Project updates are applied by the orchestrator using safe outputs; see [Update Project](/gh-aw/reference/safe-outputs/#project-board-updates-update-project).
-
-## Worker workflows
-
-Use `workflows` to list the dispatchable workflows (“workers”) the orchestrator can trigger via `workflow_dispatch`.
-
-For worker requirements and dispatch behavior, see [Dispatching worker workflows](/gh-aw/guides/campaigns/lifecycle/#dispatching-worker-workflows).
-
-## Governance (pacing & safety)
-
-Use `governance` to keep orchestration predictable and reviewable:
-
-```yaml
 governance:
-  max-new-items-per-run: 10
+  max-project-updates-per-run: 20
   max-discovery-items-per-run: 100
-  max-discovery-pages-per-run: 5
-  opt-out-labels: ["campaign:skip"]
   do-not-downgrade-done-items: true
-  max-project-updates-per-run: 50
-  max-comments-per-run: 10
+
+owners:
+  - "security-team"
+---
+
+This campaign runs weekly to scan for vulnerabilities and track remediation.
+Workers create issues with severity labels and automated fix PRs where possible.
 ```
 
-> [!TIP]
-> Start conservative with low limits (e.g., `max-project-updates-per-run: 10`) for your first campaign, then increase as you gain confidence.
+## Further reading
 
-### Common fields
-
-- `max-project-updates-per-run`: cap Project updates per run (default is conservative).
-- `max-comments-per-run`: cap comments per run.
-- `do-not-downgrade-done-items`: prevents moving items backward.
-
-## Next
-
-- See [Campaign lifecycle](/gh-aw/guides/campaigns/lifecycle/) for what happens each run.
-- See [CLI commands](/gh-aw/guides/campaigns/cli-commands/) to validate and inspect campaigns.
+- [Campaign lifecycle](/gh-aw/guides/campaigns/lifecycle/) - Execution model
+- [Getting started](/gh-aw/guides/campaigns/getting-started/) - Create your first campaign
+- [CLI commands](/gh-aw/guides/campaigns/cli-commands/) - Validation and management

@@ -1,110 +1,173 @@
 ---
 title: CLI commands
-description: Command reference for managing agentic campaigns with gh aw
+description: Command reference for campaign management
 banner:
   content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
 ---
 
-The GitHub Agentic Workflows CLI provides commands for inspecting, validating, and managing agentic campaigns.
+The GitHub Agentic Workflows CLI provides commands for listing, inspecting, validating, and managing campaigns.
 
-> [!IMPORTANT]
-> **Use the automated creation flow to create campaigns.** The CLI commands below are for inspecting, validating, and managing existing campaigns. See the [Getting started guide](/gh-aw/guides/campaigns/getting-started/) for campaign creation.
+:::note
+Use the automated creation flow to create campaigns. These commands are for managing existing campaigns. See [Getting started](/gh-aw/guides/campaigns/getting-started/).
+:::
 
 ## Campaign commands
 
-From the root of the repo:
-
 ```bash
-gh aw campaign                         # List all agentic campaigns
-gh aw campaign security                # Filter by ID or name substring
-gh aw campaign --json                  # JSON output
+gh aw campaign                    # List all campaigns
+gh aw campaign security           # Filter by ID or name
+gh aw campaign --json             # JSON output
 
-gh aw campaign status                  # Live status for all agentic campaigns
-gh aw campaign status incident         # Filter by ID or name substring
-gh aw campaign status --json           # JSON status output
+gh aw campaign status             # Status for all campaigns
+gh aw campaign status incident    # Filter status by ID or name
+gh aw campaign status --json      # JSON status output
 
-gh aw campaign new my-campaign-id      # Scaffold a new agentic campaign spec
-gh aw campaign validate                # Validate agentic campaign specs (fails on problems)
-gh aw campaign validate --no-strict    # Report problems without failing
+gh aw campaign new my-campaign    # Scaffold new spec (advanced)
+gh aw campaign validate           # Validate all specs
+gh aw campaign validate --no-strict  # Report without failing
 ```
-
-## Most common tasks
-
-- See what campaigns exist: `gh aw campaign`
-- Check which ones look unhealthy: `gh aw campaign status`
-- Validate specs (locally or in CI): `gh aw campaign validate`
 
 ## List campaigns
 
-Display all agentic campaigns defined in `.github/workflows/*.campaign.md`:
+View all campaign specs in `.github/workflows/*.campaign.md`:
 
 ```bash
 gh aw campaign
 ```
 
-Filter by campaign ID or name:
+Output shows campaign ID, name, state, and file path.
+
+### Filter by name or ID
 
 ```bash
 gh aw campaign security
 ```
 
-Get machine-readable JSON output:
+Shows campaigns containing "security" in ID or name.
+
+### JSON output
 
 ```bash
 gh aw campaign --json
 ```
 
+Returns structured data for scripting and automation.
+
 ## Check campaign status
 
-View live status of all agentic campaigns with their associated project boards:
+View live status from project boards:
 
 ```bash
 gh aw campaign status
 ```
 
-Filter status by campaign ID or name:
+Shows active campaigns with project board statistics, progress, and health indicators.
+
+### Filter status
 
 ```bash
 gh aw campaign status incident
 ```
 
-Get status in JSON format:
+Shows status for campaigns matching "incident".
+
+### JSON status
 
 ```bash
 gh aw campaign status --json
 ```
 
-## Create new campaign (advanced)
-
-> [!WARNING]
-> This command is for advanced use cases only. **Use the [automated creation flow](/gh-aw/guides/campaigns/getting-started/) instead.**
-
-Scaffold a new agentic campaign spec file interactively:
-
-```bash
-gh aw campaign new my-campaign-id
-```
-
-This creates `.github/workflows/my-campaign-id.campaign.md` with a basic structure, but you'll still need to manually configure all fields and compile the campaign.
+Returns structured status data including metrics, KPIs, and item counts.
 
 ## Validate campaigns
 
-Validate all agentic campaign specs:
+Check all campaign specs for configuration errors:
 
 ```bash
 gh aw campaign validate
 ```
 
-By default, validation fails if problems are found. For non-failing validation (useful in CI while you iterate):
+Validates:
+- Required fields present
+- Valid YAML syntax
+- Proper KPI configuration
+- Discovery scope configured
+- Project URLs valid
+- Workflow references exist
+
+Exit code 1 indicates validation failures.
+
+### Non-failing validation
 
 ```bash
 gh aw campaign validate --no-strict
 ```
 
-<details>
-<summary>Compilation details (advanced)</summary>
+Reports problems without failing. Useful for CI pipelines during development.
 
-The automated campaign creation flow handles compilation for you.
+## Create new campaign (advanced)
 
-If you’re working on a campaign spec manually, see the [compile command documentation](/gh-aw/setup/cli/#compile).
-</details>
+:::caution
+Advanced users only. Most users should use the [automated creation flow](/gh-aw/guides/campaigns/getting-started/).
+:::
+
+Scaffold a new campaign spec:
+
+```bash
+gh aw campaign new my-campaign-id
+```
+
+Creates `.github/workflows/my-campaign-id.campaign.md` with basic structure. You must:
+1. Configure all required fields
+2. Set up project board manually
+3. Compile the spec with `gh aw compile`
+4. Test thoroughly before running
+
+The automated flow handles all this for you.
+
+## Common workflows
+
+### Check campaign health
+
+```bash
+# Quick health check
+gh aw campaign status
+
+# Detailed inspection of specific campaign
+gh aw campaign status security-audit --json | jq '.campaigns[0]'
+```
+
+### Pre-commit validation
+
+```bash
+# In CI or pre-commit hook
+gh aw campaign validate --no-strict
+```
+
+### Find inactive campaigns
+
+```bash
+# List campaigns with their states
+gh aw campaign --json | jq '.campaigns[] | {id, state}'
+```
+
+### Monitor campaign progress
+
+```bash
+# Watch campaign status (requires watch/jq)
+watch -n 300 'gh aw campaign status my-campaign'
+```
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Validation error or command failed |
+| 2 | Invalid arguments |
+
+## Further reading
+
+- [Campaign specs](/gh-aw/guides/campaigns/specs/) - Configuration format
+- [Getting started](/gh-aw/guides/campaigns/getting-started/) - Create your first campaign
+- [Campaign lifecycle](/gh-aw/guides/campaigns/lifecycle/) - Execution model

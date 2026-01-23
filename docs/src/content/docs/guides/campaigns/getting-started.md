@@ -5,57 +5,55 @@ banner:
   content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
 ---
 
-This guide shows you how to create your first campaign using the automated creation flow.
+Create your first campaign using the automated creation flow. The flow generates a Project board, campaign spec, and orchestrator workflow based on an issue description.
 
-> [!IMPORTANT]
-> **Automated creation is the only supported way to create campaigns.** It creates the Project, spec, and orchestrator for you.
+## Prerequisites
 
-## Quick start
+- Repository with GitHub Agentic Workflows installed
+- `create-agentic-campaign` label configured in your repository
+- Write access to create issues and merge pull requests
+- GitHub Actions enabled
 
-1. Create an issue describing the goal
-2. Apply the `create-agentic-campaign` label
-3. Review the generated pull request
-4. Merge and run the orchestrator from the Actions tab
+## Create a campaign
 
-> [!IMPORTANT]
-> Use the automated campaign creation flow—it's the only supported way to create campaigns.
+1. **Create an issue** describing your campaign goal and scope
+2. **Apply the label** `create-agentic-campaign` to the issue
+3. **Wait for automation** - A pull request appears within a few minutes
+4. **Review the PR** - Verify the generated Project, spec, and orchestrator
+5. **Merge the PR** when ready
+6. **Run the orchestrator** from the Actions tab to start the campaign
 
-## Create a campaign (supported flow)
+## Generated files
 
-1. Create an issue describing the goal and scope.
-2. Apply the `create-agentic-campaign` label.
-3. Wait for a pull request to appear (usually a couple of minutes).
-4. Review and merge the PR.
-5. Go to Actions and run the campaign orchestrator workflow.
+The pull request creates three components:
 
-## What you’ll see after merge
+**Project board** - GitHub Project for tracking campaign progress with custom fields and views.
 
-- A **Project board** for tracking progress
-- A **campaign spec** file (`.github/workflows/<id>.campaign.md`)
-- A compiled **orchestrator** workflow (`.github/workflows/<id>.campaign.lock.yml`)
+**Campaign spec** - Configuration file at `.github/workflows/<id>.campaign.md` defining goals, workers, and governance.
 
-## Run it day-to-day
+**Orchestrator workflow** - Compiled workflow at `.github/workflows/<id>.campaign.lock.yml` that executes the campaign logic.
 
-The orchestrator runs on a schedule (daily by default) and will:
+## Campaign execution
 
-- (Optional) dispatch worker workflows via `workflow_dispatch`
-- sync issues/PRs into the Project
-- post a Project status update each run
+The orchestrator runs on the configured schedule (daily by default):
 
-For details, see [Campaign lifecycle](/gh-aw/guides/campaigns/lifecycle/).
+1. Dispatches worker workflows via `workflow_dispatch` (if configured)
+2. Discovers issues and pull requests created by workers
+3. Updates the Project board with new items
+4. Posts a status update summarizing progress
 
-## Keep it simple (best practices)
+See [Campaign lifecycle](/gh-aw/guides/campaigns/lifecycle/) for execution details.
 
-- Start with one goal and 1–3 workflows.
-- Keep worker workflows dispatchable (`workflow_dispatch`) and remove other triggers if the campaign is responsible for running them.
-- Use conservative governance limits at first (e.g., 10 updates per run).
+## Best practices
 
-<details>
-<summary>What gets created for you?</summary>
+Start with focused scope:
+- Define one clear objective
+- Include 1-3 worker workflows maximum
+- Set conservative governance limits (e.g., 10 project updates per run)
 
-- A Project with standard fields and views
-- A campaign spec wired to that Project
-- A compiled orchestrator workflow
+Configure worker triggers:
+- Workers should accept `workflow_dispatch` only
+- Remove cron schedules, push, and pull_request triggers
+- Let the orchestrator control execution timing
 
-You’ll review everything in the generated pull request before it runs.
-</details>
+See [Campaign specs](/gh-aw/guides/campaigns/specs/) for configuration options.
