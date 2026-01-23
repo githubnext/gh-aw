@@ -465,6 +465,16 @@ The YAML frontmatter supports these fields:
         target-repo: "owner/repo"                   # Optional: cross-repository
     ```
     When using `safe-outputs.add-labels`, the main job does **not** need `issues: write` or `pull-requests: write` permission since label addition is handled by a separate job with appropriate permissions.
+  - `remove-labels:` - Safe label removal from issues or PRs
+    ```yaml
+    safe-outputs:
+      remove-labels:
+        allowed: [automated, stale]  # Optional: restrict to specific labels
+        max: 3                       # Optional: maximum number of operations (default: 3)
+        target: "*"                  # Optional: "triggering" (default), "*" (any issue/PR), or number
+        target-repo: "owner/repo"    # Optional: cross-repository
+    ```
+    When `allowed` is omitted, any labels can be removed. Use `allowed` to restrict removal to specific labels. When using `safe-outputs.remove-labels`, the main job does **not** need `issues: write` or `pull-requests: write` permission since label removal is handled by a separate job with appropriate permissions.
   - `add-reviewer:` - Add reviewers to pull requests
     ```yaml
     safe-outputs:
