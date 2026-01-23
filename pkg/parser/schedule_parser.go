@@ -856,6 +856,54 @@ func (p *ScheduleParser) parseBase() (string, error) {
 	return fmt.Sprintf("%s %s %s %s %s", minute, hour, day, month, weekday), nil
 }
 
+func normalizeTimezoneAbbreviation(token string) (string, bool) {
+	switch strings.ToLower(token) {
+	case "pt", "pst":
+		return "utc-8", true
+	case "pdt":
+		return "utc-7", true
+	case "est":
+		return "utc-5", true
+	case "edt":
+		return "utc-4", true
+	default:
+		return "", false
+	}
+}
+
+func isAMPMToken(token string) bool {
+	switch strings.ToLower(token) {
+	case "am", "pm":
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeTimeTokens(tokens []string) string {
+	if len(tokens) == 0 {
+		return ""
+	}
+
+	timeStr := tokens[0]
+	nextIndex := 1
+	if len(tokens) > 1 && isAMPMToken(tokens[1]) {
+		timeStr += tokens[1]
+		nextIndex = 2
+	}
+
+	if len(tokens) > nextIndex {
+		timezoneToken := strings.ToLower(tokens[nextIndex])
+		if strings.HasPrefix(timezoneToken, "utc") {
+			timeStr = timeStr + " " + timezoneToken
+		} else if normalized, ok := normalizeTimezoneAbbreviation(timezoneToken); ok {
+			timeStr = timeStr + " " + normalized
+		}
+	}
+
+	return timeStr
+}
+
 // extractTime extracts the time specification from tokens starting at startPos
 // Returns the time string (HH:MM, midnight, or noon) with optional UTC offset
 func (p *ScheduleParser) extractTime(startPos int) (string, error) {
@@ -871,18 +919,22 @@ func (p *ScheduleParser) extractTime(startPos int) (string, error) {
 		}
 	}
 
-	timeStr := p.tokens[startPos]
-
-	// Check if there's a UTC offset in the next token
-	if startPos+1 < len(p.tokens) {
-		nextToken := strings.ToLower(p.tokens[startPos+1])
-		if strings.HasPrefix(nextToken, "utc") {
-			// Combine time and UTC offset
-			timeStr = timeStr + " " + p.tokens[startPos+1]
+	timeTokens := []string{p.tokens[startPos]}
+	nextIndex := startPos + 1
+	if nextIndex < len(p.tokens) && isAMPMToken(p.tokens[nextIndex]) {
+		timeTokens = append(timeTokens, p.tokens[nextIndex])
+		nextIndex++
+	}
+	if nextIndex < len(p.tokens) {
+		timezoneToken := strings.ToLower(p.tokens[nextIndex])
+		if strings.HasPrefix(timezoneToken, "utc") {
+			timeTokens = append(timeTokens, timezoneToken)
+		} else if normalized, ok := normalizeTimezoneAbbreviation(timezoneToken); ok {
+			timeTokens = append(timeTokens, normalized)
 		}
 	}
 
-	return timeStr, nil
+	return normalizeTimeTokens(timeTokens), nil
 }
 
 // extractTimeBetween extracts a time specification from tokens between startPos and endPos (exclusive)
@@ -903,12 +955,7 @@ func (p *ScheduleParser) extractTimeBetween(startPos, endPos int) (string, error
 		return "", fmt.Errorf("expected time specification")
 	}
 
-	// Check if there's a UTC offset
-	if len(timeTokens) >= 2 && strings.HasPrefix(strings.ToLower(timeTokens[1]), "utc") {
-		return timeTokens[0] + " " + timeTokens[1], nil
-	}
-
-	return timeTokens[0], nil
+	return normalizeTimeTokens(timeTokens), nil
 }
 
 // extractTimeAfter extracts a time specification from tokens starting at startPos until the end
@@ -921,16 +968,22 @@ func (p *ScheduleParser) extractTimeAfter(startPos int) (string, error) {
 	// Collect remaining tokens (time and optional UTC offset)
 	timeStr := p.tokens[startPos]
 
-	// Check if there's a UTC offset in the next token
-	if startPos+1 < len(p.tokens) {
-		nextToken := strings.ToLower(p.tokens[startPos+1])
-		if strings.HasPrefix(nextToken, "utc") {
-			// Combine time and UTC offset
-			timeStr = timeStr + " " + p.tokens[startPos+1]
+	timeTokens := []string{timeStr}
+	nextIndex := startPos + 1
+	if nextIndex < len(p.tokens) && isAMPMToken(p.tokens[nextIndex]) {
+		timeTokens = append(timeTokens, p.tokens[nextIndex])
+		nextIndex++
+	}
+	if nextIndex < len(p.tokens) {
+		timezoneToken := strings.ToLower(p.tokens[nextIndex])
+		if strings.HasPrefix(timezoneToken, "utc") {
+			timeTokens = append(timeTokens, timezoneToken)
+		} else if normalized, ok := normalizeTimezoneAbbreviation(timezoneToken); ok {
+			timeTokens = append(timeTokens, normalized)
 		}
 	}
 
-	return timeStr, nil
+	return normalizeTimeTokens(timeTokens), nil
 }
 
 // parseTimeToMinutes converts hour and minute strings to total minutes since midnight
@@ -998,48 +1051,38 @@ func parseTime(timeStr string) (minute string, hour string) {
 		if strings.HasSuffix(lowerTime, "am") || strings.HasSuffix(lowerTime, "pm") {
 			isPM := strings.HasSuffix(lowerTime, "pm")
 			// Remove am/pm suffix
-			hourStr := lowerTime[:len(lowerTime)-2]
-
-			hourNum, err := strconv.Atoi(hourStr)
-			if err == nil && hourNum >= 1 && hourNum <= 12 {
-				// Convert 12-hour to 24-hour format
-				if isPM {
-					if hourNum != 12 {
-						hourNum += 12
-					}
-				} else { // AM
-					if hourNum == 12 {
-						hourNum = 0
-					}
-				}
-				baseMinute, baseHour = 0, hourNum
-			} else {
-				// Invalid format, return defaults
+			timePart := lowerTime[:len(lowerTime)-2]
+			hourNum, minNum, ok := parseHourMinute(timePart)
+			if !ok || hourNum < 1 || hourNum > 12 {
 				return "0", "0"
 			}
+			if minNum < 0 || minNum > 59 {
+				return "0", "0"
+			}
+			// Convert 12-hour to 24-hour format
+			if isPM {
+				if hourNum != 12 {
+					hourNum += 12
+				}
+			} else { // AM
+				if hourNum == 12 {
+					hourNum = 0
+				}
+			}
+			baseMinute, baseHour = minNum, hourNum
 		} else {
 			// Parse HH:MM format
-			timeParts := strings.Split(baseTime, ":")
-			if len(timeParts) == 2 {
-				// Validate hour
-				hourNum, err := strconv.Atoi(timeParts[0])
-				if err == nil && hourNum >= 0 && hourNum <= 23 {
-					// Validate minute
-					minNum, err := strconv.Atoi(timeParts[1])
-					if err == nil && minNum >= 0 && minNum <= 59 {
-						baseMinute, baseHour = minNum, hourNum
-					} else {
-						// Invalid format, return defaults
-						return "0", "0"
-					}
-				} else {
-					// Invalid format, return defaults
-					return "0", "0"
-				}
-			} else {
-				// Invalid format, return defaults
+			if !strings.Contains(baseTime, ":") {
 				return "0", "0"
 			}
+			hourNum, minNum, ok := parseHourMinute(baseTime)
+			if !ok || hourNum < 0 || hourNum > 23 {
+				return "0", "0"
+			}
+			if minNum < 0 || minNum > 59 {
+				return "0", "0"
+			}
+			baseMinute, baseHour = minNum, hourNum
 		}
 	}
 
@@ -1059,6 +1102,30 @@ func parseTime(timeStr string) (minute string, hour string) {
 	finalMinute := totalMinutes % 60
 
 	return strconv.Itoa(finalMinute), strconv.Itoa(finalHour)
+}
+
+func parseHourMinute(timePart string) (int, int, bool) {
+	if strings.Contains(timePart, ":") {
+		timeParts := strings.Split(timePart, ":")
+		if len(timeParts) != 2 {
+			return 0, 0, false
+		}
+		hourNum, err := strconv.Atoi(timeParts[0])
+		if err != nil {
+			return 0, 0, false
+		}
+		minNum, err := strconv.Atoi(timeParts[1])
+		if err != nil {
+			return 0, 0, false
+		}
+		return hourNum, minNum, true
+	}
+
+	hourNum, err := strconv.Atoi(timePart)
+	if err != nil {
+		return 0, 0, false
+	}
+	return hourNum, 0, true
 }
 
 // mapWeekday maps day names to cron day-of-week numbers (0=Sunday, 6=Saturday)
