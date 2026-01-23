@@ -498,6 +498,22 @@ async function main(config = {}) {
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);
+
+      // Check if this is a 404 error (discussion/issue was deleted)
+      // @ts-expect-error - Error handling with optional chaining
+      const is404 = error?.status === 404 || errorMessage.includes("404") || errorMessage.toLowerCase().includes("not found");
+
+      if (is404) {
+        // Treat 404s as warnings - the target was deleted between execution and safe output processing
+        core.warning(`Target was not found (may have been deleted): ${errorMessage}`);
+        return {
+          success: true,
+          warning: `Target not found: ${errorMessage}`,
+          skipped: true,
+        };
+      }
+
+      // For non-404 errors, fail as before
       core.error(`Failed to add comment: ${errorMessage}`);
       return {
         success: false,
