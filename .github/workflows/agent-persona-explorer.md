@@ -16,6 +16,8 @@ safe-outputs:
     max: 1
     close-older-discussions: true
 timeout-minutes: 600
+imports:
+  - shared/reporting.md
 ---
 
 # Agent Persona Explorer
@@ -121,37 +123,81 @@ Create a GitHub discussion with a comprehensive summary report. Use the `create 
 
 **Discussion content structure**:
 
-```markdown
-# Agent Persona Exploration - [DATE]
+Follow these formatting guidelines when creating your persona analysis report:
 
-## Summary
+### 1. Header Levels
+**Use h3 (###) or lower for all headers in persona analysis reports to maintain proper document hierarchy.**
+
+### 2. Progressive Disclosure
+**Wrap detailed examples and data tables in `<details><summary><b>Section Name</b></summary>` tags to improve readability.**
+
+Example:
+```markdown
+<details>
+<summary><b>View Communication Examples</b></summary>
+
+[Detailed examples of agent outputs, writing style samples, tone analysis]
+
+</details>
+```
+
+### 3. Report Structure Pattern
+
+```markdown
+### Persona Overview
+- **Agent**: [name]
+- **Communication Style**: [formal/casual/technical]
+- **Key Traits**: [list 3-5 main characteristics]
+
+### Summary
 - Personas tested: [count]
 - Scenarios evaluated: [count]
 - Average quality score: [X.X/5.0]
 
-## Top Patterns
+### Key Findings
+[High-level personality analysis - always visible]
+
+### Top Patterns
 1. [Most common trigger types]
 2. [Most recommended tools]
 3. [Security practices observed]
 
-## High Quality Responses
+<details>
+<summary><b>View Detailed Communication Analysis</b></summary>
+
+[Writing style breakdown, tone patterns, vocabulary analysis]
+
+</details>
+
+<details>
+<summary><b>View High Quality Responses</b></summary>
+
 - [Scenario that worked well and why]
 
-## Areas for Improvement
+</details>
+
+<details>
+<summary><b>View Areas for Improvement</b></summary>
+
 - [Specific issues found]
 - [Suggestions for enhancement]
 
-## Recommendations
-1. [Actionable recommendation for improving agent behavior]
-2. [Suggestion for documentation updates]
-3. [Ideas for additional examples or guidance]
+</details>
 
 <details>
-<summary><b>Detailed Scenario Analysis</b></summary>
+<summary><b>View Detailed Scenario Analysis</b></summary>
 
 [Include more detailed analysis of each scenario tested, quality scores, and specific agent responses]
 
 </details>
+
+### Behavioral Patterns
+[Notable patterns and trends - keep visible]
+
+### Recommendations
+1. [Actionable recommendation for improving agent behavior]
+2. [Suggestion for documentation updates]
+3. [Ideas for additional examples or guidance]
 ```
 
 **Also store a copy in cache memory** for historical comparison across runs.
