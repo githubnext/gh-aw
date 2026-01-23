@@ -236,6 +236,17 @@ Use the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowl
    ```
    ```
 
+### Report Formatting Guidelines
+
+**Header Hierarchy**: Use h3 (###) or lower for all headers in the static analysis report. The discussion title serves as h1.
+
+**Structure**:
+- Main report sections: h3 (###) - e.g., "### Analysis Summary"
+- Subsections and details: h4 (####) - e.g., "#### Zizmor Security Findings"
+- Nested details: h5 (#####) if needed
+
+**Progressive Disclosure**: Use `<details>` tags to collapse verbose content like individual workflow findings (as shown in template).
+
 ### Phase 5: Create Discussion Report
 
 **ALWAYS create a comprehensive discussion report** with your static analysis findings, regardless of whether issues were found or not.
@@ -253,14 +264,14 @@ Create a discussion with:
 ```markdown
 # 🔍 Static Analysis Report - [DATE]
 
-## Analysis Summary
+### Analysis Summary
 
 - **Tools Used**: zizmor, poutine, actionlint
 - **Total Findings**: [NUMBER]
 - **Workflows Scanned**: [NUMBER]
 - **Workflows Affected**: [NUMBER]
 
-### Findings by Tool
+#### Findings by Tool
 
 | Tool | Total | Critical | High | Medium | Low |
 |------|-------|----------|------|--------|-----|
@@ -268,9 +279,9 @@ Create a discussion with:
 | poutine (supply chain) | [NUM] | [NUM] | [NUM] | [NUM] | [NUM] |
 | actionlint (linting) | [NUM] | - | - | - | - |
 
-## Clustered Findings by Tool and Type
+### Clustered Findings by Tool and Type
 
-### Zizmor Security Findings
+#### Zizmor Security Findings
 
 [Group findings by their identifier/rule code]
 
@@ -278,21 +289,21 @@ Create a discussion with:
 |------------|----------|-------|-------------------|
 | [ident]    | [level]  | [num] | [workflow names]  |
 
-### Poutine Supply Chain Findings
+#### Poutine Supply Chain Findings
 
 | Issue Type | Severity | Count | Affected Workflows |
 |------------|----------|-------|-------------------|
 | [rule_id]  | [level]  | [num] | [workflow names]  |
 
-### Actionlint Linting Issues
+#### Actionlint Linting Issues
 
 | Issue Type | Count | Affected Workflows |
 |------------|-------|-------------------|
 | [rule]     | [num] | [workflow names]  |
 
-## Top Priority Issues
+### Top Priority Issues
 
-### 1. [Most Common/Severe Issue]
+#### 1. [Most Common/Severe Issue]
 - **Tool**: [zizmor/poutine/actionlint]
 - **Count**: [NUMBER]
 - **Severity**: [LEVEL]
@@ -301,7 +312,7 @@ Create a discussion with:
 - **Impact**: [WHY IT MATTERS]
 - **Reference**: [URL]
 
-## Fix Suggestion for [Selected Issue Type]
+### Fix Suggestion for [Selected Issue Type]
 
 **Issue**: [Brief description]
 **Severity**: [Level]
@@ -312,14 +323,14 @@ Create a discussion with:
 [Detailed fix prompt as generated in Phase 4]
 ```
 
-## All Findings Details
+### All Findings Details
 
 <details>
 <summary>Detailed Findings by Workflow</summary>
 
-### [Workflow Name 1]
+#### [Workflow Name 1]
 
-#### [Issue Type]
+##### [Issue Type]
 - **Severity**: [LEVEL]
 - **Location**: Line [NUM], Column [NUM]
 - **Description**: [DETAILED DESCRIPTION]
@@ -329,7 +340,7 @@ Create a discussion with:
 
 </details>
 
-## Historical Trends
+### Historical Trends
 
 [Compare with previous scans if available from cache memory]
 
@@ -338,20 +349,20 @@ Create a discussion with:
 - **Total Findings Now**: [NUMBER]
 - **Change**: [+/-NUMBER] ([+/-PERCENTAGE]%)
 
-### New Issues
+#### New Issues
 [List any new issue types that weren't present before]
 
-### Resolved Issues
+#### Resolved Issues
 [List any issue types that are no longer present]
 
-## Recommendations
+### Recommendations
 
 1. **Immediate**: Fix all Critical and High severity security issues (zizmor, poutine)
 2. **Short-term**: Address Medium severity issues and critical linting problems (actionlint)
 3. **Long-term**: Establish automated static analysis in CI/CD
 4. **Prevention**: Update workflow templates to avoid common patterns
 
-## Next Steps
+### Next Steps
 
 - [ ] Apply suggested fixes for [selected issue type]
 - [ ] Review and fix Critical severity security issues
