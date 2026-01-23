@@ -1,7 +1,8 @@
-## Flagged Items for Monitoring (2026-01-22)
+## Flagged Items for Monitoring (2026-01-23)
 
-- MCP remote authentication test failures due to missing MCP toolsets in runtime (auth-test discussion 2026-01-22).
-- High token usage per run in CI Cleaner and Agent Persona Explorer; optimization needed to reduce cost exposure.
-- GitHub MCP tool response bloat (list_releases, list_pull_requests, list_code_scanning_alerts) creates context pressure for agents.
-- Elevated skip rate (50%) in Copilot session insights; indicates heavy orchestration filtering and reduced executable task sample.
-- Schema documentation drift: removed included_file_schema still referenced in docs; safe-jobs missing from schema.
+- sandbox.mcp.port lacks runtime validation despite schema constraints; critical gap open 15+ days.
+- tools.timeout and tools.startup-timeout minimums are not enforced at runtime; risk of invalid values.
+- MCP auth-test failures due to missing MCP tool bindings in runtime (not server auth errors).
+- Safe output add_comment 404s from deleted discussions should be downgraded to warnings to avoid false failure rates.
+- list_code_scanning_alerts remains an outlier for MCP payload size and usefulness score.
+- Issue Monster shows high failure rate despite frequent runs; investigate error clusters if trend persists.

@@ -1,8 +1,8 @@
-## Known Patterns (2026-01-22)
+## Known Patterns (2026-01-23)
 
-- Token spend remains concentrated in CI Cleaner and Agent Persona Explorer; both exceed 6M tokens/run and together drive 25%+ of 30-day Copilot costs.
-- MCP tooling reliability gaps persist: auth-test workflows continue to fail when MCP toolsets are missing in runtime.
-- GitHub MCP payload bloat is recurrent in list_releases, list_pull_requests, and list_code_scanning_alerts; these endpoints exceed 3,800 tokens per call.
-- Safe outputs maintain perfect health (100% success) across recent audits, indicating stable post-processing pipelines.
-- Security posture remains strong; firewall escape tests continue to report zero new escapes post v0.9.1 patch.
-- Workflow architecture is highly standardized: 100% concurrency controls, 74% scheduled, and dominant schedule+dispatch trigger pairing.
+- Token spend remains concentrated in CI Cleaner and Agent Persona Explorer; top 2 workflows drive 34%+ of Copilot cost and exceed 7M tokens/run.
+- MCP payload bloat persists for list_code_scanning_alerts and list_pull_requests; token-heavy tools dominate MCP response budgets.
+- MCP tool availability gaps recur in auth-test runs (tool bindings missing in runtime), causing consistent failures before server contact.
+- Safe outputs are generally healthy, but add_comment 404s can appear when discussions are deleted between agent output and handler execution.
+- Copilot session completion rate is improving (28% today), but orchestration/PR review sessions still dominate skips and action_required outcomes.
+- Workflow corpus remains highly standardized: 139 lock files, 100% concurrency usage, and workflow_dispatch+schedule as the dominant trigger pairing.
