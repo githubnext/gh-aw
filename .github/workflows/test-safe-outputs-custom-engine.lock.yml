@@ -28,6 +28,9 @@ name: "Test Safe Outputs Custom Engine"
     - main
     paths:
     - .github/workflows/test-safe-outputs-custom-engine.md
+  schedule:
+  - cron: "41 15 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions: {}

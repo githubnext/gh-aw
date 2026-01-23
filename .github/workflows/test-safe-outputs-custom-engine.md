@@ -2,6 +2,7 @@
 name: Test Safe Outputs Custom Engine
 description: Test workflow to verify safe-outputs functionality with custom engine
 on:
+  schedule: daily
   workflow_dispatch:
   push:
     branches:
