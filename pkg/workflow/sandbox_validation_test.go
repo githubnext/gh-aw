@@ -512,3 +512,146 @@ func TestSandboxMCPGatewayValidation(t *testing.T) {
 		})
 	}
 }
+
+// TestSandboxMCPGatewayPortValidation tests that sandbox.mcp.port values are validated
+func TestSandboxMCPGatewayPortValidation(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		expectErr    bool
+		errContains  string
+	}{
+		{
+			name: "valid port - 80",
+			workflowData: &WorkflowData{
+				Name: "test-workflow",
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						Port: 80,
+					},
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "valid port - 8080",
+			workflowData: &WorkflowData{
+				Name: "test-workflow",
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						Port: 8080,
+					},
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "valid port - minimum (1)",
+			workflowData: &WorkflowData{
+				Name: "test-workflow",
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						Port: 1,
+					},
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "valid port - maximum (65535)",
+			workflowData: &WorkflowData{
+				Name: "test-workflow",
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						Port: 65535,
+					},
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "valid port - zero (default will be applied)",
+			workflowData: &WorkflowData{
+				Name: "test-workflow",
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						Port: 0,
+					},
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "invalid port - negative",
+			workflowData: &WorkflowData{
+				Name: "test-workflow",
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						Port: -1,
+					},
+				},
+			},
+			expectErr:   true,
+			errContains: "sandbox.mcp.port must be between 1 and 65535",
+		},
+		{
+			name: "invalid port - too high",
+			workflowData: &WorkflowData{
+				Name: "test-workflow",
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						Port: 65536,
+					},
+				},
+			},
+			expectErr:   true,
+			errContains: "sandbox.mcp.port must be between 1 and 65535",
+		},
+		{
+			name: "invalid port - way too high",
+			workflowData: &WorkflowData{
+				Name: "test-workflow",
+				SandboxConfig: &SandboxConfig{
+					MCP: &MCPGatewayRuntimeConfig{
+						Port: 100000,
+					},
+				},
+			},
+			expectErr:   true,
+			errContains: "sandbox.mcp.port must be between 1 and 65535",
+		},
+		{
+			name: "no MCP config - should pass",
+			workflowData: &WorkflowData{
+				Name:          "test-workflow",
+				SandboxConfig: &SandboxConfig{},
+			},
+			expectErr: false,
+		},
+		{
+			name:         "no sandbox config - should pass",
+			workflowData: &WorkflowData{Name: "test-workflow"},
+			expectErr:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateSandboxConfig(tt.workflowData)
+
+			if tt.expectErr {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+					return
+				}
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("Expected error to contain %q, got: %v", tt.errContains, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
