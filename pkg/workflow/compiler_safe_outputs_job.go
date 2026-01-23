@@ -290,7 +290,13 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Note: Create Code Scanning Alert is now handled by the handler manager
 	// The permissions are configured in the handler manager section above
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
-		permissions.Merge(NewPermissionsContentsReadSecurityEventsWrite())
+		permissions.Merge(NewPermissionsContentsReadSecurityEventsWriteActionsRead())
+	}
+
+	// Note: Autofix Code Scanning Alert is now handled by the handler manager
+	// The permissions are configured in the handler manager section above
+	if data.SafeOutputs.AutofixCodeScanningAlert != nil {
+		permissions.Merge(NewPermissionsContentsReadSecurityEventsWriteActionsRead())
 	}
 
 	// Note: Create Project Status Update is now handled by the handler manager
