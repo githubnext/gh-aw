@@ -1,12 +1,12 @@
 # Ubuntu Actions Runner Image Analysis
 
-**Last Updated**: 2026-01-22  
-**Source**: [Ubuntu2404-Readme.md (20260111.209)](https://github.com/actions/runner-images/blob/ubuntu24/20260111.209/images/ubuntu/Ubuntu2404-Readme.md)  
+**Last Updated**: 2026-01-23  
+**Source**: [Ubuntu2404-Readme.md (20260119)](https://github.com/actions/runner-images/blob/releases/ubuntu24/20260119/images/ubuntu/Ubuntu2404-Readme.md)  
 **Ubuntu Version**: 24.04.3 LTS  
-**Image Version**: 20260111.209.1  
+**Image Version**: 20260119.4.1  
 **Runner Version**: 2.331.0  
-**Kernel Version**: 6.11.0-1018-azure (or similar)  
-**Systemd Version**: 255.4-1ubuntu8.12 (or similar)  
+**Kernel Version**: 6.11.0-1018-azure  
+**Systemd Version**: 255.4-1ubuntu8.12  
 
 ## Overview
 
@@ -712,7 +712,7 @@ The GitHub Actions runner environment has several aspects that cannot be perfect
 
 ## Upcoming Changes & Announcements
 
-As of the 20260111.209 image version (January 22, 2026), the following changes are noted:
+As of the 20260119.4.1 image version (January 23, 2026), the following changes are noted:
 
 1. **Docker Update (February 9, 2026)** - UPCOMING:
    - Docker Server and Client → version 29.1.x
@@ -744,7 +744,7 @@ For the latest announcements, see the [runner-images repository announcements](h
 ## References
 
 - **Runner Image Repository**: [actions/runner-images](https://github.com/actions/runner-images)
-- **Documentation Source**: [Ubuntu2404-Readme.md (20260111.209)](https://github.com/actions/runner-images/blob/ubuntu24/20260111.209/images/ubuntu/Ubuntu2404-Readme.md)
+- **Documentation Source**: [Ubuntu2404-Readme.md (20260119)](https://github.com/actions/runner-images/blob/releases/ubuntu24/20260119/images/ubuntu/Ubuntu2404-Readme.md)
 - **Ubuntu Documentation**: [Ubuntu 24.04 (Noble Numbat)](https://ubuntu.com/blog/tag/ubuntu-24-04-lts)
 - **Docker Documentation**: [Docker Build Guide](https://docs.docker.com/build/)
 - **GitHub Actions Documentation**: [Using GitHub-hosted runners](https://docs.github.com/en/actions/using-github-hosted-runners)
