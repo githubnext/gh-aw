@@ -1,6 +1,6 @@
 // @ts-check
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { normalizeItem, loadCursor, saveCursor, searchByTrackerId, searchByLabel, discover } from "./campaign_discovery.cjs";
+import { normalizeItem, loadCursor, saveCursor, searchByTrackerId, searchByLabel, searchItems, buildScopeParts, discover } from "./campaign_discovery.cjs";
 import fs from "fs";
 import path from "path";
 
@@ -522,6 +522,434 @@ describe("campaign_discovery", () => {
       expect(manifest.summary.merged_count).toBe(1);
       expect(manifest.summary.needs_add_count).toBe(1); // open items
       expect(manifest.summary.needs_update_count).toBe(2); // closed + merged
+    });
+
+    it("should handle budget exhaustion with itemsBudgetExhausted reason", async () => {
+      const items = Array.from({ length: 150 }, (_, i) => ({
+        html_url: `https://github.com/owner/repo/issues/${i + 1}`,
+        number: i + 1,
+        repository: { full_name: "owner/repo" },
+        created_at: "2025-01-01T00:00:00Z",
+        updated_at: "2025-01-02T00:00:00Z",
+        state: "open",
+        title: `Issue ${i + 1}`,
+      }));
+
+      const mockOctokit = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn().mockResolvedValue({
+              data: { items: items.slice(0, 100) },
+            }),
+          },
+        },
+      };
+
+      global.github = mockOctokit;
+
+      const config = {
+        campaignId: "test-campaign",
+        workflows: ["workflow-1"],
+        maxDiscoveryItems: 50, // Set low budget
+        maxDiscoveryPages: 10,
+      };
+
+      const manifest = await discover(config);
+
+      expect(manifest.discovery.budget_exhausted).toBe(true);
+      expect(manifest.discovery.exhausted_reason).toBe("max_items_reached");
+      expect(manifest.discovery.items_scanned).toBe(50);
+    });
+
+    it("should handle budget exhaustion with pagesBudgetExhausted reason", async () => {
+      const mockOctokit = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn().mockResolvedValue({
+              data: {
+                items: Array.from({ length: 100 }, (_, i) => ({
+                  html_url: `https://github.com/owner/repo/issues/${i + 1}`,
+                  number: i + 1,
+                  repository: { full_name: "owner/repo" },
+                  created_at: "2025-01-01T00:00:00Z",
+                  updated_at: "2025-01-02T00:00:00Z",
+                  state: "open",
+                  title: `Issue ${i + 1}`,
+                })),
+              },
+            }),
+          },
+        },
+      };
+
+      global.github = mockOctokit;
+
+      const config = {
+        campaignId: "test-campaign",
+        workflows: ["workflow-1"],
+        maxDiscoveryItems: 1000,
+        maxDiscoveryPages: 2, // Set low page budget
+      };
+
+      const manifest = await discover(config);
+
+      expect(manifest.discovery.budget_exhausted).toBe(true);
+      expect(manifest.discovery.exhausted_reason).toBe("max_pages_reached");
+      expect(manifest.discovery.pages_scanned).toBe(2);
+    });
+
+    it("should deduplicate items found across multiple searches", async () => {
+      const duplicateItem = {
+        html_url: "https://github.com/owner/repo/issues/1",
+        number: 1,
+        repository: { full_name: "owner/repo" },
+        created_at: "2025-01-01T00:00:00Z",
+        updated_at: "2025-01-02T00:00:00Z",
+        state: "open",
+        title: "Duplicate Issue",
+      };
+
+      const uniqueItem = {
+        html_url: "https://github.com/owner/repo/issues/2",
+        number: 2,
+        repository: { full_name: "owner/repo" },
+        created_at: "2025-01-01T00:00:00Z",
+        updated_at: "2025-01-03T00:00:00Z",
+        state: "open",
+        title: "Unique Issue",
+      };
+
+      const mockOctokit = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi
+              .fn()
+              .mockResolvedValueOnce({ data: { items: [duplicateItem] } }) // Campaign-specific label
+              .mockResolvedValueOnce({ data: { items: [duplicateItem, uniqueItem] } }), // Generic label
+          },
+        },
+      };
+
+      global.github = mockOctokit;
+
+      const config = {
+        campaignId: "test-campaign",
+        workflows: ["workflow-1"],
+        maxDiscoveryItems: 100,
+        maxDiscoveryPages: 10,
+      };
+
+      const manifest = await discover(config);
+
+      // Should only have 2 items (deduplicated)
+      expect(manifest.discovery.total_items).toBe(2);
+      expect(manifest.items).toHaveLength(2);
+    });
+
+    it("should use tracker label as fallback when provided", async () => {
+      const mockOctokit = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi
+              .fn()
+              .mockResolvedValueOnce({ data: { items: [] } }) // Campaign-specific label - empty
+              .mockResolvedValueOnce({ data: { items: [] } }) // Generic label - empty
+              .mockResolvedValueOnce({
+                // Tracker label - has items
+                data: {
+                  items: [
+                    {
+                      html_url: "https://github.com/owner/repo/issues/1",
+                      number: 1,
+                      repository: { full_name: "owner/repo" },
+                      created_at: "2025-01-01T00:00:00Z",
+                      updated_at: "2025-01-02T00:00:00Z",
+                      state: "open",
+                      title: "Tracker Label Issue",
+                    },
+                  ],
+                },
+              }),
+          },
+        },
+      };
+
+      global.github = mockOctokit;
+
+      const config = {
+        campaignId: "test-campaign",
+        workflows: [],
+        trackerLabel: "custom-tracker",
+        maxDiscoveryItems: 100,
+        maxDiscoveryPages: 10,
+      };
+
+      const manifest = await discover(config);
+
+      expect(manifest.discovery.total_items).toBe(1);
+      expect(manifest.items[0].title).toBe("Tracker Label Issue");
+    });
+  });
+
+  describe("buildScopeParts", () => {
+    it("should build scope parts with repos only", () => {
+      const repos = ["owner1/repo1", "owner2/repo2"];
+      const orgs = [];
+
+      const result = buildScopeParts(repos, orgs);
+
+      expect(result).toEqual(["repo:owner1/repo1", "repo:owner2/repo2"]);
+    });
+
+    it("should build scope parts with orgs only", () => {
+      const repos = [];
+      const orgs = ["org1", "org2"];
+
+      const result = buildScopeParts(repos, orgs);
+
+      expect(result).toEqual(["org:org1", "org:org2"]);
+    });
+
+    it("should build scope parts with both repos and orgs", () => {
+      const repos = ["owner/repo1"];
+      const orgs = ["org1", "org2"];
+
+      const result = buildScopeParts(repos, orgs);
+
+      expect(result).toEqual(["repo:owner/repo1", "org:org1", "org:org2"]);
+    });
+
+    it("should return empty array when both repos and orgs are empty", () => {
+      const repos = [];
+      const orgs = [];
+
+      const result = buildScopeParts(repos, orgs);
+
+      expect(result).toEqual([]);
+    });
+
+    it("should handle null or undefined repos gracefully", () => {
+      const repos = null;
+      const orgs = ["org1"];
+
+      const result = buildScopeParts(repos, orgs);
+
+      expect(result).toEqual(["org:org1"]);
+    });
+
+    it("should handle null or undefined orgs gracefully", () => {
+      const repos = ["owner/repo"];
+      const orgs = null;
+
+      const result = buildScopeParts(repos, orgs);
+
+      expect(result).toEqual(["repo:owner/repo"]);
+    });
+  });
+
+  describe("searchItems", () => {
+    it("should search items with basic query", async () => {
+      const octokit = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn().mockResolvedValue({
+              data: {
+                items: [
+                  {
+                    html_url: "https://github.com/owner/repo/issues/1",
+                    number: 1,
+                    repository: { full_name: "owner/repo" },
+                    created_at: "2025-01-01T00:00:00Z",
+                    updated_at: "2025-01-02T00:00:00Z",
+                    state: "open",
+                    title: "Test Issue",
+                  },
+                ],
+              },
+            }),
+          },
+        },
+      };
+
+      const result = await searchItems(octokit, "test query", "test label", 100, 10, null, { test: "data" });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.itemsScanned).toBe(1);
+      expect(result.pagesScanned).toBe(1);
+      expect(result.cursor).toEqual({ page: 1, test: "data" });
+    });
+
+    it("should respect maxItems limit", async () => {
+      const items = Array.from({ length: 10 }, (_, i) => ({
+        html_url: `https://github.com/owner/repo/issues/${i + 1}`,
+        number: i + 1,
+        repository: { full_name: "owner/repo" },
+        created_at: "2025-01-01T00:00:00Z",
+        updated_at: "2025-01-02T00:00:00Z",
+        state: "open",
+        title: `Issue ${i + 1}`,
+      }));
+
+      const octokit = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn().mockResolvedValue({
+              data: { items },
+            }),
+          },
+        },
+      };
+
+      const result = await searchItems(octokit, "test query", "test label", 5, 10, null, {});
+
+      expect(result.items).toHaveLength(5);
+      expect(result.itemsScanned).toBe(5);
+    });
+
+    it("should respect maxPages limit", async () => {
+      const pageItems = Array.from({ length: 100 }, (_, i) => ({
+        html_url: `https://github.com/owner/repo/issues/${i + 1}`,
+        number: i + 1,
+        repository: { full_name: "owner/repo" },
+        created_at: "2025-01-01T00:00:00Z",
+        updated_at: "2025-01-02T00:00:00Z",
+        state: "open",
+        title: `Issue ${i + 1}`,
+      }));
+
+      const octokit = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn().mockResolvedValue({
+              data: { items: pageItems },
+            }),
+          },
+        },
+      };
+
+      const result = await searchItems(octokit, "test query", "test label", 1000, 2, null, {});
+
+      expect(result.pagesScanned).toBe(2);
+      expect(result.items).toHaveLength(200); // 2 pages * 100 items
+    });
+
+    it("should handle empty results", async () => {
+      const octokit = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn().mockResolvedValue({
+              data: { items: [] },
+            }),
+          },
+        },
+      };
+
+      const result = await searchItems(octokit, "test query", "test label", 100, 10, null, {});
+
+      expect(result.items).toHaveLength(0);
+      expect(result.itemsScanned).toBe(0);
+      expect(result.pagesScanned).toBe(1);
+    });
+
+    it("should resume from cursor page", async () => {
+      const octokit = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn().mockResolvedValue({
+              data: {
+                items: [
+                  {
+                    html_url: "https://github.com/owner/repo/issues/1",
+                    number: 1,
+                    repository: { full_name: "owner/repo" },
+                    created_at: "2025-01-01T00:00:00Z",
+                    updated_at: "2025-01-02T00:00:00Z",
+                    state: "open",
+                    title: "Test Issue",
+                  },
+                ],
+              },
+            }),
+          },
+        },
+      };
+
+      const cursor = { page: 5 };
+      const result = await searchItems(octokit, "test query", "test label", 100, 10, cursor, {});
+
+      expect(result.cursor.page).toBe(5);
+      expect(octokit.rest.search.issuesAndPullRequests).toHaveBeenCalledWith(
+        expect.objectContaining({
+          page: 5,
+        })
+      );
+    });
+
+    it("should distinguish between issues and pull requests", async () => {
+      const octokit = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn().mockResolvedValue({
+              data: {
+                items: [
+                  {
+                    html_url: "https://github.com/owner/repo/issues/1",
+                    number: 1,
+                    repository: { full_name: "owner/repo" },
+                    created_at: "2025-01-01T00:00:00Z",
+                    updated_at: "2025-01-02T00:00:00Z",
+                    state: "open",
+                    title: "Issue",
+                  },
+                  {
+                    html_url: "https://github.com/owner/repo/pull/2",
+                    number: 2,
+                    repository: { full_name: "owner/repo" },
+                    created_at: "2025-01-01T00:00:00Z",
+                    updated_at: "2025-01-03T00:00:00Z",
+                    state: "open",
+                    title: "PR",
+                    pull_request: {},
+                  },
+                ],
+              },
+            }),
+          },
+        },
+      };
+
+      const result = await searchItems(octokit, "test query", "test label", 100, 10, null, {});
+
+      expect(result.items).toHaveLength(2);
+      expect(result.items[0].content_type).toBe("issue");
+      expect(result.items[1].content_type).toBe("pull_request");
+    });
+
+    it("should stop pagination when fewer than 100 items returned", async () => {
+      const octokit = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn().mockResolvedValue({
+              data: {
+                items: Array.from({ length: 50 }, (_, i) => ({
+                  html_url: `https://github.com/owner/repo/issues/${i + 1}`,
+                  number: i + 1,
+                  repository: { full_name: "owner/repo" },
+                  created_at: "2025-01-01T00:00:00Z",
+                  updated_at: "2025-01-02T00:00:00Z",
+                  state: "open",
+                  title: `Issue ${i + 1}`,
+                })),
+              },
+            }),
+          },
+        },
+      };
+
+      const result = await searchItems(octokit, "test query", "test label", 1000, 10, null, {});
+
+      expect(result.pagesScanned).toBe(1); // Should stop after first page
+      expect(result.items).toHaveLength(50);
     });
   });
 });
