@@ -31,6 +31,7 @@ timeout-minutes: 20
 strict: true
 imports:
   - shared/reporting.md
+  - shared/go-make.md
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
@@ -47,20 +48,39 @@ Run daily performance benchmarks for workflow compilation, store results in cach
 **Run ID**: ${{ github.run_id }}
 **Memory Location**: `/tmp/gh-aw/repo-memory/default/`
 
+## Available Safe-Input Tools
+
+This workflow imports `shared/go-make.md` which provides:
+- **safeinputs-go** - Execute Go commands (e.g., args: "test ./...", "build ./cmd/gh-aw")
+- **safeinputs-make** - Execute Make targets (e.g., args: "build", "test-unit", "bench")
+
+**IMPORTANT**: Always use these safe-input tools for Go and Make commands instead of running them directly via bash.
+
 ## Phase 1: Run Performance Benchmarks
 
 ### 1.1 Run Compilation Benchmarks
 
-Run the benchmark suite and capture results:
+Run the benchmark suite and capture results using the **safeinputs-make** tool:
+
+**Step 1**: Create directory for results
 
 ```bash
-# Create directory for results
 mkdir -p /tmp/gh-aw/benchmarks
+```
 
-# Run benchmarks - this will take a few minutes
-make bench 2>&1 | tee /tmp/gh-aw/benchmarks/bench_results.txt
+**Step 2**: Run benchmarks using safeinputs-make
 
-# Also capture just the summary
+Use the **safeinputs-make** tool with args: "bench" to run the benchmark suite.
+
+This will execute `make bench` which runs Go benchmarks and saves results to `bench_results.txt`.
+
+**Step 3**: Copy results to our tracking directory
+
+```bash
+# Copy benchmark results to our directory
+cp bench_results.txt /tmp/gh-aw/benchmarks/bench_results.txt
+
+# Extract just the summary
 grep "Benchmark" /tmp/gh-aw/benchmarks/bench_results.txt > /tmp/gh-aw/benchmarks/bench_summary.txt || true
 ```
 
