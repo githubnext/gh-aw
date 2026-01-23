@@ -17,7 +17,7 @@ description: "Move services to Framework vNext"
 state: active
 
 project-url: "https://github.com/orgs/ORG/projects/1"
-tracker-label: "campaign:framework-upgrade"
+tracker-label: "z_campaign_framework-upgrade"
 
 discovery-repos:
   - "myorg/service-a"

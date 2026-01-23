@@ -5,7 +5,7 @@ name: Security Audit 2026
 version: v1
 state: planned
 project-url: https://github.com/orgs/example/projects/42
-tracker-label: campaign:security-audit-2026
+tracker-label: z_campaign_security-audit-2026
 
 # Worker workflows that will be discovered and dispatched
 workflows:

@@ -32,20 +32,18 @@ function formatCampaignLabel(campaignId) {
 
 /**
  * Get campaign labels implied by environment variables.
+ * Returns the generic "agentic-campaign" label and the campaign-specific "z_campaign_<id>" label.
  * @returns {{enabled: boolean, labels: string[]}}
  */
 function getCampaignLabelsFromEnv() {
   const campaignId = String(process.env.GH_AW_CAMPAIGN_ID || "").trim();
-  const trackerLabel = String(process.env.GH_AW_TRACKER_LABEL || "").trim();
 
   if (!campaignId) {
     return { enabled: false, labels: [] };
   }
 
+  // Only use the new z_campaign_ format, no legacy support
   const labels = [DEFAULT_AGENTIC_CAMPAIGN_LABEL, formatCampaignLabel(campaignId)];
-  if (trackerLabel) {
-    labels.push(trackerLabel);
-  }
 
   return { enabled: true, labels };
 }
