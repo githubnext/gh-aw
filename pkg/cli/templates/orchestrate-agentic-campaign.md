@@ -183,6 +183,7 @@ and synchronizing campaign state into a GitHub Project board.
 
 3) Parse discovered items from the manifest:
    - Each item has: url, content_type (issue/pull_request/discussion), number, repo, created_at, updated_at, state
+   - Items discovered via tracker-id also have: worker_workflow (the workflow name that created the item)
    - Closed items have: closed_at (for issues) or merged_at (for PRs)
    - Items are pre-sorted by updated_at for deterministic processing
 

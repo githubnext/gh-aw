@@ -53,7 +53,7 @@ Use **content number** (integer), never the URL as an identifier.
 These rules apply to any time you write fields:
 
 - `campaign_id`: always `{{.CampaignID}}`
-- `worker_workflow`: workflow ID if known, else `"unknown"`
+- `worker_workflow`: use `worker_workflow` from discovery manifest if present, else `"unknown"`
 - `repository`: extract `owner/repo` from the issue/PR URL
 - `priority`: default `Medium` unless explicitly known
 - `size`: default `Medium` unless explicitly known
