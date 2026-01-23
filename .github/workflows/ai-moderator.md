@@ -17,8 +17,6 @@ on:
 engine:
   id: copilot
   model: gpt-5-mini
-imports:
-  - shared/mcp/chroma.md
 tools:
   github:
     mode: local
@@ -140,27 +138,6 @@ Additional spam indicators for this repository:
 
 Perform the following detection analyses on the content:
 
-### 0. Duplicate Issue Detection
-
-Use the Chroma vector database to check for duplicate issues:
-
-1. **Index Current Issue**: 
-   - Create a collection named "issues" if it doesn't exist (use `chroma_create_collection`)
-   - Add the current issue to the collection with ID format `issue-{issue_number}` (use `chroma_add_documents`)
-   - Include issue title and body as the document content
-   - Store metadata: issue number, author, created date
-
-2. **Search for Duplicates**:
-   - Query the collection for similar issues using semantic search (use `chroma_query_documents`)
-   - Search with the issue title and first paragraph of the body
-   - Set a reasonable limit (e.g., 5 most similar issues)
-   - Exclude the current issue from results
-
-3. **Report Findings**:
-   - If similar issues are found (high semantic similarity), note them in your analysis
-   - Consider mentioning potential duplicates in your reasoning
-   - This helps maintainers identify related or duplicate issues
-
 ### 1. Generic Spam Detection
 
 Analyze for spam indicators:
@@ -238,41 +215,32 @@ An AI-powered GitHub Agentic Workflow that automatically detects spam in issues 
 
 ## Features
 
-- **Duplicate Issue Detection**: Uses Chroma vector database to find similar issues and help identify duplicates
 - **Automatic Spam Detection**: Detects promotional content, scams, and irrelevant posts
 - **Link Spam Detection**: Identifies suspicious URLs and shortened links
 - **AI-Generated Content Detection**: Recognizes artificially generated content patterns
 - **Automated Actions**: 
   - Adds labels (`spam`, `link-spam`, `ai-generated`) to flagged issues
   - Minimizes detected spam comments
-  - Indexes issues for future duplicate detection
 - **Multiple Trigger Support**: Works on new issues, issue comments, and PR review comments
 
 ## How It Works
 
-This workflow uses GitHub Copilot's AI capabilities and Chroma vector database to analyze content posted to your repository. When triggered by:
+This workflow uses GitHub Copilot's AI capabilities to analyze content posted to your repository. When triggered by:
 - A new issue being opened
 - A new comment on an issue
 - Manual workflow dispatch with an issue URL
 
 The AI agent:
 1. Fetches the content to analyze
-2. Indexes the issue in Chroma for duplicate detection
-3. Searches for similar issues using semantic search
-4. Runs three detection analyses (general spam, link spam, AI-generated)
-5. Takes appropriate action based on findings:
+2. Runs three detection analyses (general spam, link spam, AI-generated)
+3. Takes appropriate action based on findings:
    - For issues: Adds relevant labels
    - For comments: Hides the comment and adds labels to the parent issue
-6. Skips processing for:
+4. Skips processing for:
    - Issues opened by GitHub Action bots
    - Team members with write access or higher
 
 ## Detection Criteria
-
-### Duplicate Issues
-- Uses semantic search to find similar issues
-- Indexes all processed issues in Chroma vector database
-- Helps maintainers identify related or duplicate issues
 
 ### Generic Spam
 - Promotional content or advertisements
@@ -315,8 +283,6 @@ on:
 engine:
   id: copilot
   model: gpt-5-mini
-imports:
-  - shared/mcp/chroma.md
 tools:
   github:
     mode: local
@@ -334,14 +300,6 @@ permissions:
   contents: read
   issues: read
 ```
-
-### Chroma Vector Database
-
-The workflow imports the Chroma MCP server configuration (`shared/mcp/chroma.md`) which provides:
-- **Persistent Storage**: Issues are indexed in `/tmp/gh-aw/cache-memory-chroma/`
-- **Semantic Search**: Find similar issues using vector embeddings
-- **Duplicate Detection**: Helps identify related or duplicate issues
-- **Collection Management**: Automatically manages the "issues" collection
 
 ### Labels
 

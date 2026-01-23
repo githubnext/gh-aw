@@ -19,10 +19,6 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-#
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mcp/chroma.md
 
 name: "AI Moderator"
 "on":
@@ -132,27 +128,8 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.12'
-      - name: Setup uv
-        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory (chroma)
-        run: |
-          mkdir -p /tmp/gh-aw/cache-memory-chroma
-      - name: Cache cache-memory file share data (chroma)
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: memory-chroma-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory-chroma
-          restore-keys: |
-            memory-chroma-${{ github.workflow }}-
-            memory-chroma-
-            memory-
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -197,7 +174,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.76 node:lts-alpine python:alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.76 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -445,35 +422,6 @@ jobs:
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
-              "chroma": {
-                "type": "stdio",
-                "container": "python:alpine",
-                "entrypoint": "uvx",
-                "entrypointArgs": [
-                  "uvx",
-                  "chroma-mcp-server",
-                  "--client-type",
-                  "persistent",
-                  "--data-dir",
-                  "/tmp/gh-aw/cache-memory-chroma"
-                ],
-                "tools": [
-                  "chroma_list_collections",
-                  "chroma_create_collection",
-                  "chroma_peek_collection",
-                  "chroma_get_collection_info",
-                  "chroma_get_collection_count",
-                  "chroma_modify_collection",
-                  "chroma_delete_collection",
-                  "chroma_fork_collection",
-                  "chroma_add_documents",
-                  "chroma_query_documents",
-                  "chroma_get_documents",
-                  "chroma_update_documents",
-                  "chroma_delete_documents",
-                  "mcp_known_embedding_functions"
-                ]
-              },
               "github": {
                 "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.29.0",
@@ -572,27 +520,6 @@ jobs:
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
           cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          
-          ---
-          
-          ## Cache Folders Available
-          
-          You have access to persistent cache folders where you can read and write files to create memories and store information:
-          
-          - **chroma**: `/tmp/gh-aw/cache-memory-chroma/` - Persistent storage for Chroma vector database
-          
-          - **Read/Write Access**: You can freely read from and write to any files in these folders
-          - **Persistence**: Files in these folders persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use these as simple file shares - organize files as you see fit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory-chroma/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory-chroma/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory-chroma/state/` - organized state files in subdirectories
-          
-          Feel free to create, read, update, and organize files in these folders as needed for your tasks.
-          
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
@@ -642,8 +569,6 @@ jobs:
           </system>
           PROMPT_EOF
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          
-          
           {{#runtime-import? .github/shared-instructions.md}}
           
           # AI Moderator
@@ -692,27 +617,6 @@ jobs:
           ## Detection Tasks
           
           Perform the following detection analyses on the content:
-          
-          ### 0. Duplicate Issue Detection
-          
-          Use the Chroma vector database to check for duplicate issues:
-          
-          1. **Index Current Issue**: 
-             - Create a collection named "issues" if it doesn't exist (use `chroma_create_collection`)
-             - Add the current issue to the collection with ID format `issue-{issue_number}` (use `chroma_add_documents`)
-             - Include issue title and body as the document content
-             - Store metadata: issue number, author, created date
-          
-          2. **Search for Duplicates**:
-             - Query the collection for similar issues using semantic search (use `chroma_query_documents`)
-             - Search with the issue title and first paragraph of the body
-             - Set a reasonable limit (e.g., 5 most similar issues)
-             - Exclude the current issue from results
-          
-          3. **Report Findings**:
-             - If similar issues are found (high semantic similarity), note them in your analysis
-             - Consider mentioning potential duplicates in your reasoning
-             - This helps maintainers identify related or duplicate issues
           
           ### 1. Generic Spam Detection
           
@@ -851,7 +755,7 @@ jobs:
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.10.0 \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --model gpt-5-mini --allow-all-tools --add-dir /tmp/gh-aw/cache-memory-chroma/ --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --model gpt-5-mini --allow-all-tools --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
