@@ -13,6 +13,7 @@ network:
    allowed: [defaults, node, "api.github.com", "ghcr.io"]
 imports:
   - shared/jqschema.md
+  - shared/reporting.md
 tools:
   web-fetch:
   cache-memory: true
@@ -31,6 +32,70 @@ timeout-minutes: 45
 Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, Sandbox Runtime, and MCP Gateway.
 
 **Repository**: ${{ github.repository }} | **Run**: ${{ github.run_id }}
+
+## Report Formatting Guidelines
+
+When creating version update issues, follow these markdown formatting standards for improved readability:
+
+### Header Levels
+**Use h3 (###) or lower for all headers in update issue reports to maintain proper document hierarchy.**
+
+The issue title is already h1, so all internal sections should use h3 (###) or h4 (####) to maintain proper hierarchy. This ensures accessibility and proper document structure.
+
+### Progressive Disclosure
+**Wrap detailed changelog sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability.**
+
+Changelogs can be very long, especially for major version bumps. The summary and breaking changes should be visible, but full changelogs should be collapsible.
+
+Example:
+```markdown
+<details>
+<summary><b>View Full Changelog</b></summary>
+
+[Complete changelog with all commits, PRs, and detailed changes]
+
+</details>
+```
+
+### Report Structure Pattern
+Use this structure for version update issues:
+
+```markdown
+### Update Summary
+- **Current Version**: v1.2.3
+- **Latest Version**: v1.3.0
+- **Breaking Changes**: Yes/No
+- **Update Priority**: High/Medium/Low
+
+### Breaking Changes
+[Always visible if present - critical for planning updates]
+
+### Key Features
+[Highlight 2-3 most important new features - keep visible]
+
+<details>
+<summary><b>View Full Changelog</b></summary>
+
+[Complete release notes, all changes, commit history]
+
+</details>
+
+<details>
+<summary><b>View Migration Guide</b></summary>
+
+[Step-by-step update instructions, code changes needed]
+
+</details>
+
+### Recommendations
+[Update priority, testing strategy, rollout plan]
+```
+
+**Design Principles**: Version update reports should:
+- **Build trust through clarity**: Breaking changes and update priority immediately visible
+- **Exceed expectations**: Include migration guides, testing recommendations, impact analysis
+- **Create delight**: Use progressive disclosure for lengthy changelogs while keeping summary scannable
+- **Maintain consistency**: Follow the same patterns as other update/monitoring workflows
 
 ## Process
 
@@ -169,7 +234,10 @@ For each CLI tool update:
 4. **REQUIRED**: Create issue via safe-outputs with detailed analysis (do NOT skip this step)
 
 ## Issue Format
-Include for each updated CLI:
+
+**Follow the Report Structure Pattern defined in "Report Formatting Guidelines" section above.**
+
+For each updated CLI, include:
 - **Version**: old → new (list intermediate versions if multiple)
 - **Release Timeline**: dates and intervals
 - **Changes**: Categorized as Breaking/Features/Fixes/Security/Performance
@@ -178,6 +246,8 @@ Include for each updated CLI:
 - **CLI Changes**: New commands, flags, or removed features discovered via help
 - **Subcommand Changes**: Changes in subcommand functionality or flags (especially `config` and `environment` for Copilot CLI)
 - **GitHub Release Notes**: Include highlights and PR summaries when available from GitHub releases
+
+**IMPORTANT**: Use h3 (###) or lower for all headers. Wrap full changelogs and migration guides in `<details>` tags as shown in the Report Structure Pattern.
 
 **URL Formatting Rules**:
 - Use plain URLs without backticks around package names
@@ -191,30 +261,60 @@ Include for each updated CLI:
 - **INCORRECT**: #6211 (relative reference only works for same repository)
 - When copying PR references from release notes, convert `#1234` to full URLs like `https://github.com/owner/repo/pull/1234`
 
-Template structure:
+Legacy template reference (adapt to use Report Structure Pattern above):
 ```
-# Update [CLI Name]
+### Update [CLI Name]
 - Previous: [version] → New: [version]
 - Timeline: [dates and frequency]
-- Breaking Changes: [list or "None"]
-- New Features: [list]
-- Bug Fixes: [list]
-- Security: [CVEs/patches or "None"]
-- CLI Discovery: [New commands/flags or "None detected"]
-- Subcommand Changes: [Changes in subcommands like config/environment or "None detected"]
-- Impact: Risk [Low/Medium/High], affects [features]
-- Migration: [Yes/No - details if yes]
 
-## Release Highlights (from GitHub)
+### Breaking Changes
+[list or "None"]
+
+### Key Features
+- [New feature 1]
+- [New feature 2]
+
+<details>
+<summary><b>View Full Changelog</b></summary>
+
+### Release Highlights (from GitHub)
 [Include key highlights from GitHub release notes if available]
 
-## Merged PRs (from GitHub)
+### Bug Fixes
+[list]
+
+### Security Updates
+[CVEs/patches or "None"]
+
+### CLI Discovery
+[New commands/flags or "None detected"]
+
+### Subcommand Changes
+[Changes in subcommands like config/environment or "None detected"]
+
+### Merged PRs (from GitHub)
 [List significant merged PRs from release notes if available]
 
-## Subcommand Help Analysis
+### Subcommand Help Analysis
 [Document changes in subcommand help output, particularly for config and environment commands]
 
-## Package Links
+</details>
+
+<details>
+<summary><b>View Migration Guide</b></summary>
+
+[Step-by-step update instructions, code changes needed if any]
+
+</details>
+
+### Impact Assessment
+- Risk: [Low/Medium/High]
+- Affects: [features]
+
+### Recommendations
+[Update priority, testing strategy, rollout plan]
+
+### Package Links
 - **NPM Package**: https://www.npmjs.com/package/package-name-here
 - **Repository**: [GitHub URL if available]
 - **Release Notes**: [GitHub releases URL if available]
