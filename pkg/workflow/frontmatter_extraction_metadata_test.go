@@ -99,9 +99,10 @@ func TestExtractToolsStartupTimeout(t *testing.T) {
 	compiler := &Compiler{}
 
 	tests := []struct {
-		name     string
-		tools    map[string]any
-		expected int
+		name        string
+		tools       map[string]any
+		expected    int
+		shouldError bool
 	}{
 		{
 			name: "int timeout",
@@ -156,33 +157,61 @@ func TestExtractToolsStartupTimeout(t *testing.T) {
 			expected: 0,
 		},
 		{
-			name: "invalid type (string)",
+			name: "invalid type (string) - should error",
 			tools: map[string]any{
 				"startup-timeout": "not a number",
 			},
-			expected: 0,
+			expected:    0,
+			shouldError: true,
 		},
 		{
-			name: "invalid type (array)",
+			name: "invalid type (array) - should error",
 			tools: map[string]any{
 				"startup-timeout": []int{1, 2, 3},
 			},
-			expected: 0,
+			expected:    0,
+			shouldError: true,
 		},
 		{
-			name: "zero timeout",
+			name: "zero timeout - should fail validation",
 			tools: map[string]any{
 				"startup-timeout": 0,
 			},
-			expected: 0,
+			expected:    0,
+			shouldError: true,
+		},
+		{
+			name: "negative timeout - should fail validation",
+			tools: map[string]any{
+				"startup-timeout": -5,
+			},
+			expected:    0,
+			shouldError: true,
+		},
+		{
+			name: "minimum valid timeout (1)",
+			tools: map[string]any{
+				"startup-timeout": 1,
+			},
+			expected: 1,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := compiler.extractToolsStartupTimeout(tt.tools)
-			if result != tt.expected {
-				t.Errorf("extractToolsStartupTimeout() = %d, want %d", result, tt.expected)
+			result, err := compiler.extractToolsStartupTimeout(tt.tools)
+			
+			if tt.shouldError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error but got: %v", err)
+				}
+				if result != tt.expected {
+					t.Errorf("extractToolsStartupTimeout() = %d, want %d", result, tt.expected)
+				}
 			}
 		})
 	}
