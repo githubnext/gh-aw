@@ -12,9 +12,13 @@ import FeatureGrid from '../../../../components/FeatureGrid.astro';
 
 ## What are Agentic Campaigns?
 
-**[Agentic campaigns](/gh-aw/reference/glossary/#agentic-campaign)** bundle agentic workflows around a shared goal.
+[**Agentic campaigns**](/gh-aw/reference/glossary/#agentic-campaign) help you coordinate **[agentic workflows](/gh-aw/reference/glossary/#agentic-workflow)** toward a shared goal.
 
-Campaigns provide tracking infrastructure to coordinate work across repositories and teams, with all work visible through GitHub Projects.
+Imagine you have a goal that takes more than one workflow run, across one or more repositories. You can write a worker workflow to do the work, but you still need a way to schedule it, fan it out, track what it created, and report progress.
+
+Campaigns provide that orchestration layer: you define the goal and guardrails in a campaign spec, which gets compiled into an orchestrator workflow that runs on a schedule. On each run, the orchestrator can dispatch worker workflows, track the issues and pull requests they create, update a GitHub Project board, and publish a status update with metrics.
+
+Use campaigns when work needs coordination across multiple workflows or repositories, plus tracking, pacing, and governance. If a single workflow is enough (even on a schedule), start with a standalone agentic workflow.
 
 ## Why use campaigns?
 
@@ -33,7 +37,7 @@ Campaigns provide tracking infrastructure to coordinate work across repositories
   </FeatureCard>
 </FeatureGrid>
 
-## Natural language to Campaign
+## Natural language to campaign
 
 Campaigns use agentic workflows to generate configuration from natural language descriptions.
 
