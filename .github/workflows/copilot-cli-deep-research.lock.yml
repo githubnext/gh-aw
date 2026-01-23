@@ -20,6 +20,10 @@
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
 # Deep research analyzing Copilot CLI current state, available features, and missed optimization opportunities
+#
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/reporting.md
 
 name: "Copilot CLI Deep Research Agent"
 "on":
@@ -564,6 +568,76 @@ jobs:
           </system>
           PROMPT_EOF
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          ## Report Structure Guidelines
+          
+          ### 1. Header Levels
+          **Use h3 (###) or lower for all headers in your issue report to maintain proper document hierarchy.**
+          
+          When creating GitHub issues or discussions:
+          - Use `###` (h3) for main sections (e.g., "### Test Summary")
+          - Use `####` (h4) for subsections (e.g., "#### Device-Specific Results")
+          - Never use `##` (h2) or `#` (h1) in reports - these are reserved for titles
+          
+          ### 2. Progressive Disclosure
+          **Wrap detailed test results in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+          
+          Use collapsible sections for:
+          - Verbose details (full test logs, raw data)
+          - Secondary information (minor warnings, extra context)
+          - Per-item breakdowns when there are many items
+          
+          Always keep critical information visible (summary, critical issues, key metrics).
+          
+          ### 3. Report Structure Pattern
+          
+          1. **Overview**: 1-2 paragraphs summarizing key findings
+          2. **Critical Information**: Show immediately (summary stats, critical issues)
+          3. **Details**: Use `<details><summary><b>Section Name</b></summary>` for expanded content
+          4. **Context**: Add helpful metadata (workflow run, date, trigger)
+          
+          ### Design Principles (Airbnb-Inspired)
+          
+          Reports should:
+          - **Build trust through clarity**: Most important info immediately visible
+          - **Exceed expectations**: Add helpful context like trends, comparisons
+          - **Create delight**: Use progressive disclosure to reduce overwhelm
+          - **Maintain consistency**: Follow patterns across all reports
+          
+          ### Example Report Structure
+          
+          ```markdown
+          ### Summary
+          - Key metric 1: value
+          - Key metric 2: value
+          - Status: ✅/⚠️/❌
+          
+          ### Critical Issues
+          [Always visible - these are important]
+          
+          <details>
+          <summary><b>View Detailed Results</b></summary>
+          
+          [Comprehensive details, logs, traces]
+          
+          </details>
+          
+          <details>
+          <summary><b>View All Warnings</b></summary>
+          
+          [Minor issues and potential problems]
+          
+          </details>
+          
+          ### Recommendations
+          [Actionable next steps - keep visible]
+          ```
+          
+          ## Workflow Run References
+          
+          - Format run IDs as links: `[§12345](https://github.com/owner/repo/actions/runs/12345)`
+          - Include up to 3 most relevant run URLs at end under `**References:**`
+          - Do NOT add footer attribution (system adds automatically)
+          
           # Copilot CLI Deep Research Agent
           
           You are a research agent tasked with performing a comprehensive analysis of GitHub Copilot CLI (the agentic coding agent) usage in this repository. Your goal is to identify missed opportunities, unused features, and potential optimizations.
@@ -717,6 +791,77 @@ jobs:
              - Track which recommendations have been implemented
              - Note new features as they're added
           
+          ## Report Formatting Guidelines
+          
+          ### Header Levels
+          **Use h3 (###) or lower for all headers in research reports to maintain proper document hierarchy.**
+          
+          Research reports have complex structures (executive summary, detailed findings, methodology, appendices). Proper header levels prevent breaking the document hierarchy.
+          
+          ### Progressive Disclosure
+          **Wrap detailed research sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and focus.**
+          
+          Research reports are naturally long and detailed. Progressive disclosure allows readers to get the executive summary and key findings quickly, while deep-dive sections remain accessible but hidden by default.
+          
+          Example:
+          ```markdown
+          <details>
+          <summary><b>View Complete Research Methodology</b></summary>
+          
+          [Detailed explanation of research methods, data collection, analysis techniques]
+          
+          </details>
+          ```
+          
+          ### Research Report Structure Pattern
+          
+          Use this structure for comprehensive research reports:
+          
+          ```markdown
+          ### Executive Summary
+          - **Research Topic**: [topic]
+          - **Key Findings**: [3-5 main discoveries]
+          - **Recommendation**: [primary recommendation]
+          
+          ### Critical Findings
+          [Most important discoveries - always visible for quick scanning]
+          
+          <details>
+          <summary><b>View Detailed Analysis</b></summary>
+          
+          [In-depth analysis with data, charts, technical details]
+          
+          </details>
+          
+          <details>
+          <summary><b>View Supporting Evidence</b></summary>
+          
+          [Raw data, code examples, test results, screenshots]
+          
+          </details>
+          
+          <details>
+          <summary><b>View Research Methodology</b></summary>
+          
+          [How the research was conducted, tools used, data sources]
+          
+          </details>
+          
+          ### Recommendations
+          [Actionable next steps based on findings - keep visible]
+          
+          ### Future Research
+          [Suggested follow-up topics and questions]
+          ```
+          
+          ### Design Principles
+          
+          Create reports that:
+          1. **Build trust through clarity**: Executive summary and critical findings immediately visible
+          2. **Exceed expectations**: Include methodology, supporting evidence, future research directions
+          3. **Create delight**: Use progressive disclosure to accommodate both quick readers and deep divers
+          4. **Maintain consistency**: Follow the same patterns as other research/analysis workflows
+          
           ## Output Format
           
           Create a GitHub discussion with your comprehensive findings:
@@ -737,22 +882,46 @@ jobs:
           
           ## 📊 Executive Summary
           
+          **Research Topic**: Copilot CLI Optimization Opportunities
+          **Key Findings**: [3-5 main discoveries]
+          **Primary Recommendation**: [Most important actionable recommendation]
+          
           [2-3 paragraphs summarizing key findings, most important opportunities, and overall assessment]
           
           ---
           
+          ## Critical Findings
+          
+          ### 🔴 High Priority Issues
+          [Most important issues that need immediate attention - keep visible]
+          
+          ### 🟡 Medium Priority Opportunities
+          [Important but not urgent optimizations - keep visible]
+          
+          ---
+          
           ## 1️⃣ Current State Analysis
+          
+          <details>
+          <summary><b>View Copilot CLI Capabilities Inventory</b></summary>
           
           ### Copilot CLI Capabilities Inventory
           - **Version Information**: [Current version used]
           - **Available Features**: [List of all documented features]
           - **Configuration Options**: [CLI flags, engine config, etc.]
           
+          </details>
+          
+          <details>
+          <summary><b>View Usage Statistics</b></summary>
+          
           ### Usage Statistics
           - **Total Workflows**: [count]
           - **Copilot Workflows**: [count] ([percentage]%)
           - **Most Common Tools**: [list]
           - **Most Common Configurations**: [patterns]
+          
+          </details>
           
           ---
           
@@ -770,6 +939,9 @@ jobs:
           
           ## 3️⃣ Missed Opportunities
           
+          <details>
+          <summary><b>View High Priority Opportunities</b></summary>
+          
           ### 🔴 High Priority
           
           #### Opportunity 1: [Title]
@@ -784,17 +956,32 @@ jobs:
           
           [Repeat for each high-priority opportunity]
           
+          </details>
+          
+          <details>
+          <summary><b>View Medium Priority Opportunities</b></summary>
+          
           ### 🟡 Medium Priority
           
           [Same structure as high priority]
+          
+          </details>
+          
+          <details>
+          <summary><b>View Low Priority Opportunities</b></summary>
           
           ### 🟢 Low Priority
           
           [Same structure as high priority]
           
+          </details>
+          
           ---
           
           ## 4️⃣ Specific Workflow Recommendations
+          
+          <details>
+          <summary><b>View Workflow-Specific Recommendations</b></summary>
           
           ### Workflow: `example-workflow.md`
           - **Current State**: [brief description]
@@ -803,9 +990,14 @@ jobs:
           
           [Repeat for notable workflows]
           
+          </details>
+          
           ---
           
           ## 5️⃣ Trends & Insights
+          
+          <details>
+          <summary><b>View Historical Trends</b></summary>
           
           [If previous research exists in repo-memory]
           - **Changes Since Last Analysis**: [what's improved or changed]
@@ -814,6 +1006,8 @@ jobs:
           
           [If no previous research]
           - This is the first comprehensive analysis. Future research will track trends.
+          
+          </details>
           
           ---
           
@@ -843,12 +1037,21 @@ jobs:
           
           ---
           
+          <details>
+          <summary><b>View Supporting Evidence & Methodology</b></summary>
+          
           ## 📚 References
           
           - Copilot Engine Documentation: [link]
           - GitHub Agentic Workflows Instructions: [link]
           - Related Workflows: [links]
           - Previous Research: [link to repo-memory if exists]
+          
+          ## Research Methodology
+          
+          [How the research was conducted, tools used, data sources, analysis techniques]
+          
+          </details>
           
           ---
           
@@ -889,6 +1092,8 @@ jobs:
           - ✅ Use data and statistics to support findings
           - ✅ Save analysis to repo-memory for future tracking
           - ✅ Create a well-structured, readable discussion
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           - ✅ Reference actual code and workflows by name
           - ✅ Include both quick wins and long-term improvements
           - ✅ Consider security, performance, and developer experience

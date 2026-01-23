@@ -43,6 +43,8 @@ safe-outputs:
 
 timeout-minutes: 20
 strict: true
+imports:
+  - shared/reporting.md
 ---
 
 # Copilot CLI Deep Research Agent
@@ -198,6 +200,77 @@ Use the repo-memory tool to maintain research history:
    - Track which recommendations have been implemented
    - Note new features as they're added
 
+## Report Formatting Guidelines
+
+### Header Levels
+**Use h3 (###) or lower for all headers in research reports to maintain proper document hierarchy.**
+
+Research reports have complex structures (executive summary, detailed findings, methodology, appendices). Proper header levels prevent breaking the document hierarchy.
+
+### Progressive Disclosure
+**Wrap detailed research sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and focus.**
+
+Research reports are naturally long and detailed. Progressive disclosure allows readers to get the executive summary and key findings quickly, while deep-dive sections remain accessible but hidden by default.
+
+Example:
+```markdown
+<details>
+<summary><b>View Complete Research Methodology</b></summary>
+
+[Detailed explanation of research methods, data collection, analysis techniques]
+
+</details>
+```
+
+### Research Report Structure Pattern
+
+Use this structure for comprehensive research reports:
+
+```markdown
+### Executive Summary
+- **Research Topic**: [topic]
+- **Key Findings**: [3-5 main discoveries]
+- **Recommendation**: [primary recommendation]
+
+### Critical Findings
+[Most important discoveries - always visible for quick scanning]
+
+<details>
+<summary><b>View Detailed Analysis</b></summary>
+
+[In-depth analysis with data, charts, technical details]
+
+</details>
+
+<details>
+<summary><b>View Supporting Evidence</b></summary>
+
+[Raw data, code examples, test results, screenshots]
+
+</details>
+
+<details>
+<summary><b>View Research Methodology</b></summary>
+
+[How the research was conducted, tools used, data sources]
+
+</details>
+
+### Recommendations
+[Actionable next steps based on findings - keep visible]
+
+### Future Research
+[Suggested follow-up topics and questions]
+```
+
+### Design Principles
+
+Create reports that:
+1. **Build trust through clarity**: Executive summary and critical findings immediately visible
+2. **Exceed expectations**: Include methodology, supporting evidence, future research directions
+3. **Create delight**: Use progressive disclosure to accommodate both quick readers and deep divers
+4. **Maintain consistency**: Follow the same patterns as other research/analysis workflows
+
 ## Output Format
 
 Create a GitHub discussion with your comprehensive findings:
@@ -218,22 +291,46 @@ Create a GitHub discussion with your comprehensive findings:
 
 ## 📊 Executive Summary
 
+**Research Topic**: Copilot CLI Optimization Opportunities
+**Key Findings**: [3-5 main discoveries]
+**Primary Recommendation**: [Most important actionable recommendation]
+
 [2-3 paragraphs summarizing key findings, most important opportunities, and overall assessment]
 
 ---
 
+## Critical Findings
+
+### 🔴 High Priority Issues
+[Most important issues that need immediate attention - keep visible]
+
+### 🟡 Medium Priority Opportunities
+[Important but not urgent optimizations - keep visible]
+
+---
+
 ## 1️⃣ Current State Analysis
+
+<details>
+<summary><b>View Copilot CLI Capabilities Inventory</b></summary>
 
 ### Copilot CLI Capabilities Inventory
 - **Version Information**: [Current version used]
 - **Available Features**: [List of all documented features]
 - **Configuration Options**: [CLI flags, engine config, etc.]
 
+</details>
+
+<details>
+<summary><b>View Usage Statistics</b></summary>
+
 ### Usage Statistics
 - **Total Workflows**: [count]
 - **Copilot Workflows**: [count] ([percentage]%)
 - **Most Common Tools**: [list]
 - **Most Common Configurations**: [patterns]
+
+</details>
 
 ---
 
@@ -251,6 +348,9 @@ Create a GitHub discussion with your comprehensive findings:
 
 ## 3️⃣ Missed Opportunities
 
+<details>
+<summary><b>View High Priority Opportunities</b></summary>
+
 ### 🔴 High Priority
 
 #### Opportunity 1: [Title]
@@ -265,17 +365,32 @@ Create a GitHub discussion with your comprehensive findings:
 
 [Repeat for each high-priority opportunity]
 
+</details>
+
+<details>
+<summary><b>View Medium Priority Opportunities</b></summary>
+
 ### 🟡 Medium Priority
 
 [Same structure as high priority]
+
+</details>
+
+<details>
+<summary><b>View Low Priority Opportunities</b></summary>
 
 ### 🟢 Low Priority
 
 [Same structure as high priority]
 
+</details>
+
 ---
 
 ## 4️⃣ Specific Workflow Recommendations
+
+<details>
+<summary><b>View Workflow-Specific Recommendations</b></summary>
 
 ### Workflow: `example-workflow.md`
 - **Current State**: [brief description]
@@ -284,9 +399,14 @@ Create a GitHub discussion with your comprehensive findings:
 
 [Repeat for notable workflows]
 
+</details>
+
 ---
 
 ## 5️⃣ Trends & Insights
+
+<details>
+<summary><b>View Historical Trends</b></summary>
 
 [If previous research exists in repo-memory]
 - **Changes Since Last Analysis**: [what's improved or changed]
@@ -295,6 +415,8 @@ Create a GitHub discussion with your comprehensive findings:
 
 [If no previous research]
 - This is the first comprehensive analysis. Future research will track trends.
+
+</details>
 
 ---
 
@@ -324,12 +446,21 @@ Based on this research, here are recommended best practices:
 
 ---
 
+<details>
+<summary><b>View Supporting Evidence & Methodology</b></summary>
+
 ## 📚 References
 
 - Copilot Engine Documentation: [link]
 - GitHub Agentic Workflows Instructions: [link]
 - Related Workflows: [links]
 - Previous Research: [link to repo-memory if exists]
+
+## Research Methodology
+
+[How the research was conducted, tools used, data sources, analysis techniques]
+
+</details>
 
 ---
 
