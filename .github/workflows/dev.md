@@ -5,7 +5,8 @@ name: Dev
 description: Build and test this project
 timeout-minutes: 15
 strict: false
-sandbox: false
+sandbox:
+  agent: awf
 engine: copilot
 
 permissions:
