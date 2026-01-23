@@ -61,7 +61,9 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	if len(data.SafeOutputs.AddComments.AllowedReasons) > 0 {
 		reasonsJSON, err := json.Marshal(data.SafeOutputs.AddComments.AllowedReasons)
 		if err == nil {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ALLOWED_REASONS: %q\n", string(reasonsJSON)))
+			// Escape single quotes and backslashes for safe embedding in YAML single-quoted strings
+			escapedJSON := escapeSingleQuote(string(reasonsJSON))
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ALLOWED_REASONS: '%s'\n", escapedJSON))
 		}
 	}
 	// Add environment variables for the URLs from other safe output jobs if they exist

@@ -163,7 +163,9 @@ func (c *Compiler) buildStandardSafeOutputEnvVars(data *WorkflowData, targetRepo
 		if err != nil {
 			safeOutputsEnvLog.Printf("Warning: failed to serialize messages config: %v", err)
 		} else if messagesJSON != "" {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
+			// Escape single quotes and backslashes for safe embedding in YAML single-quoted strings
+			escapedJSON := escapeSingleQuote(messagesJSON)
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: '%s'\n", escapedJSON))
 		}
 	}
 

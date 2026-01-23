@@ -48,7 +48,9 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 	if len(data.SafeOutputs.MissingTool.Labels) > 0 {
 		labelsJSON, err := json.Marshal(data.SafeOutputs.MissingTool.Labels)
 		if err == nil {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_LABELS: %q\n", string(labelsJSON)))
+			// Escape single quotes and backslashes for safe embedding in YAML single-quoted strings
+			escapedJSON := escapeSingleQuote(string(labelsJSON))
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_LABELS: '%s'\n", escapedJSON))
 			missingToolLog.Printf("labels: %v", data.SafeOutputs.MissingTool.Labels)
 		}
 	}

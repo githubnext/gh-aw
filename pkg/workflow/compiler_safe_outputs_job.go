@@ -483,7 +483,9 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 		if err != nil {
 			consolidatedSafeOutputsJobLog.Printf("Warning: failed to serialize messages config: %v", err)
 		} else if messagesJSON != "" {
-			envVars["GH_AW_SAFE_OUTPUT_MESSAGES"] = fmt.Sprintf("%q", messagesJSON)
+			// Escape single quotes and backslashes for safe embedding in YAML single-quoted strings
+			escapedJSON := escapeSingleQuote(messagesJSON)
+			envVars["GH_AW_SAFE_OUTPUT_MESSAGES"] = fmt.Sprintf("'%s'", escapedJSON)
 		}
 	}
 

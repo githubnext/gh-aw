@@ -148,7 +148,9 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, "        env:\n")
 		// Pass commands as JSON array
 		commandsJSON, _ := json.Marshal(data.Command)
-		steps = append(steps, fmt.Sprintf("          GH_AW_COMMANDS: %q\n", string(commandsJSON)))
+		// Escape single quotes and backslashes for safe embedding in YAML single-quoted strings
+		escapedJSON := escapeSingleQuote(string(commandsJSON))
+		steps = append(steps, fmt.Sprintf("          GH_AW_COMMANDS: '%s'\n", escapedJSON))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("check_command_position.cjs"))
@@ -434,7 +436,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			if err != nil {
 				compilerActivationJobsLog.Printf("Warning: failed to serialize messages config for activation job: %v", err)
 			} else if messagesJSON != "" {
-				steps = append(steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
+				// Escape single quotes and backslashes for safe embedding in YAML single-quoted strings
+				escapedJSON := escapeSingleQuote(messagesJSON)
+				steps = append(steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: '%s'\n", escapedJSON))
 			}
 		}
 

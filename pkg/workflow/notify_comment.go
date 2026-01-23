@@ -123,7 +123,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		if len(data.SafeOutputs.MissingTool.Labels) > 0 {
 			labelsJSON, err := json.Marshal(data.SafeOutputs.MissingTool.Labels)
 			if err == nil {
-				missingToolEnvVars = append(missingToolEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_LABELS: %q\n", string(labelsJSON)))
+				// Escape single quotes and backslashes for safe embedding in YAML single-quoted strings
+				escapedJSON := escapeSingleQuote(string(labelsJSON))
+				missingToolEnvVars = append(missingToolEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_LABELS: '%s'\n", escapedJSON))
 			}
 		}
 
@@ -164,7 +166,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		if err != nil {
 			notifyCommentLog.Printf("Warning: failed to serialize messages config for agent failure handler: %v", err)
 		} else if messagesJSON != "" {
-			agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
+			// Escape single quotes and backslashes for safe embedding in YAML single-quoted strings
+			escapedJSON := escapeSingleQuote(messagesJSON)
+			agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: '%s'\n", escapedJSON))
 		}
 	}
 
@@ -225,7 +229,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		if err != nil {
 			notifyCommentLog.Printf("Warning: failed to serialize messages config: %v", err)
 		} else if messagesJSON != "" {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
+			// Escape single quotes and backslashes for safe embedding in YAML single-quoted strings
+			escapedJSON := escapeSingleQuote(messagesJSON)
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: '%s'\n", escapedJSON))
 		}
 	}
 
@@ -233,7 +239,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	if len(safeOutputJobNames) > 0 {
 		safeOutputJobsJSON, jobURLEnvVars := buildSafeOutputJobsEnvVars(safeOutputJobNames)
 		if safeOutputJobsJSON != "" {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_JOBS: %q\n", safeOutputJobsJSON))
+			// Escape single quotes and backslashes for safe embedding in YAML single-quoted strings
+			escapedJSON := escapeSingleQuote(safeOutputJobsJSON)
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_JOBS: '%s'\n", escapedJSON))
 			customEnvVars = append(customEnvVars, jobURLEnvVars...)
 			notifyCommentLog.Printf("Added safe output jobs info for %d job(s)", len(safeOutputJobNames))
 		}
