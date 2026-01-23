@@ -15,6 +15,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { writeSafeOutputSummaries } = require("./safe_output_summary.cjs");
 
 /**
  * Handler map configuration for project-related safe outputs
@@ -225,6 +226,9 @@ async function main() {
 
     // Process messages
     const { results, processedCount, temporaryProjectMap } = await processMessages(messageHandlers, messages);
+
+    // Write step summaries for all processed safe-outputs
+    await writeSafeOutputSummaries(results, messages);
 
     // Set outputs
     core.setOutput("processed_count", processedCount);

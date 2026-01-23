@@ -14,6 +14,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
 const { setCollectedMissings } = require("./missing_messages_helper.cjs");
+const { writeSafeOutputSummaries } = require("./safe_output_summary.cjs");
 
 const DEFAULT_AGENTIC_CAMPAIGN_LABEL = "agentic-campaign";
 
@@ -834,6 +835,9 @@ async function main() {
 
       syntheticUpdateCount = await processSyntheticUpdates(github, context, processingResult.outputsWithUnresolvedIds, temporaryIdMap);
     }
+
+    // Write step summaries for all processed safe-outputs
+    await writeSafeOutputSummaries(processingResult.results, agentOutput.items);
 
     // Log summary
     const successCount = processingResult.results.filter(r => r.success).length;
