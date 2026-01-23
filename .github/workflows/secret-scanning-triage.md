@@ -22,6 +22,10 @@ tools:
   edit:
   bash:
 safe-outputs:
+  add-labels:
+    allowed:
+      - agentic-campaign
+      - z_campaign_security-alert-burndown
   create-issue:
     title-prefix: "[secret-triage] "
     labels: [security, secret-scanning, triage, agentic-campaign, z_campaign_security-alert-burndown]

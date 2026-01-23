@@ -25,6 +25,10 @@ tools:
       campaign-id: security-alert-burndown
   cache-memory:
 safe-outputs:
+  add-labels:
+    allowed:
+      - agentic-campaign
+      - z_campaign_security-alert-burndown
   autofix-code-scanning-alert:
     max: 5
 timeout-minutes: 20
