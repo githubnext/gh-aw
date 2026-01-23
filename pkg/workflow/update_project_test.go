@@ -404,7 +404,7 @@ func TestUpdateProjectJob_ViewsEscaping(t *testing.T) {
 			if tt.shouldEscape {
 				// Should use single-quoted YAML string
 				assert.Contains(t, viewsEnvVar, "GH_AW_PROJECT_VIEWS: '", "Should use single-quoted YAML string")
-				
+
 				// Verify the expected escape sequences are present
 				assert.Contains(t, viewsEnvVar, tt.checkContent, "Should contain escaped characters")
 			}
@@ -454,11 +454,11 @@ func TestUpdateProjectJob_ViewsNoInjection(t *testing.T) {
 	// Verify that all single quotes and backslashes are properly escaped
 	// The environment variable should be wrapped in single quotes
 	assert.Contains(t, viewsEnvVar, "GH_AW_PROJECT_VIEWS: '", "Should use single-quoted YAML string")
-	
+
 	// Count opening quotes
 	openQuotes := strings.Count(viewsEnvVar, "GH_AW_PROJECT_VIEWS: '")
 	assert.Equal(t, 1, openQuotes, "Should have exactly one opening quote for the environment variable")
-	
+
 	// Verify all single quotes in the JSON are escaped
 	lines := strings.Split(viewsEnvVar, "\n")
 	for _, line := range lines {
@@ -469,13 +469,13 @@ func TestUpdateProjectJob_ViewsNoInjection(t *testing.T) {
 				value := parts[1]
 				// Remove the trailing quote
 				value = strings.TrimSuffix(value, "'")
-				
+
 				// Verify backslashes are escaped (doubled)
 				if strings.Contains(value, `\`) {
 					// Should contain escaped backslashes
 					assert.Contains(t, value, `\\`, "Backslashes should be escaped")
 				}
-				
+
 				// Verify single quotes are escaped
 				if strings.Contains(value, "'") {
 					// Should contain escaped quotes

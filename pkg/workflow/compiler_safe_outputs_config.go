@@ -635,9 +635,10 @@ func (c *Compiler) addProjectHandlerManagerConfigEnvVar(steps *[]string, data *W
 			consolidatedSafeOutputsLog.Printf("Failed to marshal project handler config: %v", err)
 			return
 		}
-		// Escape the JSON for YAML (handle quotes and special chars)
-		configStr := string(configJSON)
-		*steps = append(*steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG: %q\n", configStr))
+		// Escape single quotes and backslashes for safe embedding in YAML single-quoted strings
+		// This prevents injection when JSON values contain special characters
+		escapedJSON := escapeSingleQuote(string(configJSON))
+		*steps = append(*steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG: '%s'\n", escapedJSON))
 	}
 }
 
