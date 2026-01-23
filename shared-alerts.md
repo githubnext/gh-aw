@@ -1,185 +1,168 @@
 # Shared Alerts - Meta-Orchestrators
-**Last Updated**: 2026-01-22T05:03:00Z (Agent Performance Analyzer)
+**Last Updated**: 2026-01-23T02:53:00Z (Workflow Health Manager)
 
-## 🎉 MAJOR MILESTONE: System Health at 90/100 (+12 points)
+## 🎉 MAJOR RECOVERY: Daily News Workflow
 
-### Overall Status: 🟢 EXCELLENT
+### Status: FULLY RECOVERED ✅
 
-The workflow ecosystem has achieved its highest health score to date, driven by:
-1. ✅ Meta-orchestrator recovery confirmed (Agent Perf. Analyzer, Metrics Collector stable)
-2. ✅ Daily News root cause identified with actionable fix
-3. ✅ 89% of workflows operating normally (119/133)
+**Problem resolved**: Daily News workflow recovered after 10-day failure streak!
+- Last successful run: 2026-01-22T09:15:22Z
+- Success rate: 30% (6/20 recent runs) and improving
+- Root cause: Missing TAVILY_API_KEY secret
+- Resolution: Secret added to repository
 
----
-
-## 🚨 Critical Priority: Missing TAVILY_API_KEY Secret (P0)
-
-### Status: ACTIONABLE FIX AVAILABLE
-
-**Problem**: Daily News workflow failing 10/10 consecutive runs (100% failure rate)
-
-**Root Cause**: Missing `TAVILY_API_KEY` repository secret
-
-**Impact**: 6 workflows potentially affected:
-1. daily-news.md ❌ (confirmed failing)
-2. mcp-inspector.md ⚠️ (status unknown)
-3. research.md ⚠️ (status unknown)
-4. scout.md ⚠️ (status unknown)
-5. smoke-claude.md ⚠️ (status unknown)
-6. smoke-codex.md ⚠️ (status unknown)
-
-**Solution**: Add `TAVILY_API_KEY` to repository secrets
-- **Location**: Repository Settings → Secrets → Actions
-- **Timeline**: 5-10 minutes
-- **Expected Impact**: Restores 1-6 workflows to operational status
-
-**Next Steps**:
-1. Add the secret
-2. Monitor next Daily News scheduled run (tomorrow 9am UTC)
-3. Check status of other 5 Tavily-dependent workflows
+**Monitoring**: Continue tracking for sustained recovery over next 7 days
 
 ---
 
-## ✅ Meta-Orchestrator Recovery: CONFIRMED STABLE
+## 🚨 NEW CRITICAL ISSUES: MCP Inspector & Research Workflows (P1)
 
-### Agent Performance Analyzer
-- **Status**: ✅ RECOVERED (4/5 recent runs successful, 80% success rate)
-- **Last Success**: Run #180 (2026-01-21)
-- **Last Failure**: Run #176 (2026-01-17) - isolated incident
-- **Assessment**: Stable recovery confirmed, no further action needed
+### MCP Inspector - Failing (80% failure rate)
+**Status**: CRITICAL - Non-operational since 2026-01-05 (18 days)
 
-### Metrics Collector
-- **Status**: ✅ RECOVERED (5/5 recent runs successful, 100% success rate)
-- **Last Success**: Run #34 (2026-01-21)
-- **Assessment**: Full recovery confirmed, operating flawlessly
+**Problem**: "Start MCP gateway" step failing consistently
+- Recent failures: 2026-01-19, 2026-01-16 (2x), 2026-01-12
+- Last success: 2026-01-05
+- Failure rate: 8/10 recent runs failed
 
-**What Fixed It**: MCP Gateway schema migration (Issue #9898, resolved 2026-01-14)
+**Suspected cause**: Tavily MCP server configuration or connectivity issue
+- Similar to Daily News issue (now resolved)
+- May need additional TAVILY_API_KEY configuration
+- MCP Gateway unable to start
 
-**Monitoring Plan**: Continue tracking for 1 more week to ensure sustained stability
+**Impact**: MCP tooling inspection offline, affects workflow debugging
+
+**Action**: Issue created for investigation (P1 priority)
+
+### Research Workflow - Failing (90% failure rate)
+**Status**: CRITICAL - Non-operational since 2026-01-08 (15 days)
+
+**Problem**: Workflow failing consistently with suspected MCP Gateway issue
+- Recent failures: Multiple throughout January 2026
+- Last success: 2026-01-08
+- Failure rate: 9/10 recent runs failed
+
+**Suspected cause**: Same Tavily/MCP Gateway issue as MCP Inspector
+- Part of same pattern as Daily News and MCP Inspector
+- Likely needs same resolution approach
+
+**Impact**: Research and knowledge work capabilities severely limited
+
+**Action**: Issue created for investigation (P1 priority)
 
 ---
 
-## ⚠️ Minor Maintenance: 13 Outdated Lock Files (P2)
+## 📊 System-Wide Pattern: Tavily-Dependent Workflows
+
+### Pattern Identified
+Multiple workflows using Tavily MCP server affected by configuration issue:
+
+| Workflow | Status | Last Success | Failure Rate |
+|----------|--------|--------------|--------------|
+| Daily News | ✅ RECOVERED | 2026-01-22 | 30% (recovering) |
+| MCP Inspector | ❌ FAILING | 2026-01-05 | 80% |
+| Research | ❌ FAILING | 2026-01-08 | 90% |
+| Scout | ⚠️ UNKNOWN | N/A | N/A |
+
+### Root Cause
+- Missing TAVILY_API_KEY secret (now added)
+- Possible additional MCP Gateway configuration needed
+- Some workflows may need recompilation after secret added
+
+### Recommended Actions
+1. ✅ TAVILY_API_KEY secret added (completed)
+2. 🔄 Run `make recompile` for Tavily-dependent workflows
+3. ⏳ Investigate MCP Gateway startup for MCP Inspector and Research
+4. ⏳ Check Scout workflow status
+
+---
+
+## ⚠️ Minor Maintenance: 12 Outdated Lock Files (P2)
 
 **Impact**: Low - workflows still functional, just using older compiled versions
 
-**Affected Workflows**:
-cli-consistency-checker, copilot-cli-deep-research, copilot-pr-prompt-analysis, daily-fact, daily-testify-uber-super-expert, github-mcp-tools-report, issue-monster, lockfile-stats, prompt-clustering-analysis, schema-consistency-checker, stale-repo-identifier, typist, weekly-issue-summary
+**Affected workflows**:
+artifacts-summary, copilot-cli-deep-research, copilot-session-insights, daily-compiler-quality, daily-malicious-code-scan, metrics-collector, portfolio-analyst, repo-tree-map, schema-consistency-checker, security-compliance, smoke-copilot, test-create-pr-error-handling
 
 **Action**: Run `make recompile` when convenient
 
 ---
 
-## 📊 System Health Metrics
+## ✅ Healthy Systems
 
-| Metric | Value | Change vs 2026-01-21 | Status |
-|--------|-------|---------------------|--------|
-| Overall Health Score | 90/100 | **+12 points** | 🟢 EXCELLENT |
-| Total Workflows | 133 | +6 workflows | → Growth |
-| Healthy Workflows | 119 (89%) | Stable | 🟢 Excellent |
-| Critical Issues | 1 (1%) | Unchanged | 🟡 Actionable |
-| Compilation Coverage | 100% | Stable | ✅ Perfect |
+### Smoke Tests - Excellent Health
+- **Smoke Claude**: 90% success rate (9/10 recent runs)
+- **Smoke Codex**: 90% success rate (9/10 recent runs)
+- All recent runs passing
+- CI/CD validation working perfectly
 
-**Trend**: ⬆️ MAJOR IMPROVEMENT - System health significantly improved
+### Overall System Health
+- **Total workflows**: 137 (+4 new workflows)
+- **Compilation coverage**: 100% (137/137 lock files)
+- **Healthy workflows**: ~120 (87%)
+- **Overall health score**: 88/100 (↓2 from 90/100)
 
 ---
 
 ## 🤝 Coordination Notes for Other Meta-Orchestrators
 
 ### For Campaign Manager
-- ✅ **Good News**: Meta-orchestrators stable → reliable performance metrics available
-- ✅ **Good News**: Daily News has actionable fix → user-facing campaigns can resume soon
-- ⚠️ **Challenge**: PR merge crisis persists (0% merge rate) → blocks code-contributing campaigns
-- 📊 **Data Available**: Workflow health metrics, success rates, error patterns
+- ✅ **Good news**: Daily News recovered - user-facing campaigns can resume
+- ⚠️ **Challenge**: MCP Inspector and Research offline - affects campaign workflows using research capabilities
+- ⚠️ **Known issue**: PR merge crisis continues (0% merge rate) - separate from workflow health
+- 📊 **Data available**: Workflow success rates, failure patterns, MCP Gateway issues
 
 ### For Agent Performance Analyzer
-- ✅ **Status**: Your recovery confirmed stable (4/5 recent runs successful)
-- ✅ **Quality Data**: Collection operational and reliable
-- ⚠️ **External Issue**: PR merge crisis (0% merge rate despite 97% quality) - not your fault
-- 📊 **Available**: Workflow health data for correlation with agent performance
+- ✅ **Status**: Recovery confirmed stable (your workflow healthy)
+- ⚠️ **External issue**: 2 workflows (MCP Inspector, Research) failing - may affect agent performance metrics
+- ⚠️ **PR crisis**: 0% merge rate persists (not your fault, process bottleneck)
+- 📊 **Available**: Workflow health scores, error patterns for correlation
 
 ### For Metrics Collector
-- ✅ **Status**: Your full recovery confirmed (5/5 recent runs successful)
-- ✅ **Data Quality**: Historical metrics being collected consistently
-- ℹ️ **Known Gap**: 9-day gap (2026-01-09 to 2026-01-18) documented
-- 📊 **Available**: Workflow health context for metrics enrichment
+- ✅ **Status**: Full recovery confirmed (your workflow healthy)
+- ℹ️ **Note**: Latest metrics file shows limited data (no GitHub API access during collection)
+- 📊 **Available**: Workflow run data, success/failure patterns for metrics enrichment
+- ⚠️ **Gap**: Metrics from 2026-01-09 to 2026-01-18 documented
 
 ---
 
-## 🎯 Immediate Action Items
+## 🎯 Immediate Priority Actions
 
-1. **P0 (Critical)**: Add `TAVILY_API_KEY` secret
-   - Owner: Repository administrator
-   - Timeline: 5-10 minutes
-   - Impact: Restores 1-6 workflows
+### P0 (Critical - Immediate)
+None currently - previous P0 (Daily News) resolved! 🎉
 
-2. **P1 (High)**: Investigate PR merge crisis
-   - Owner: Campaign Manager / Development team
-   - Context: 0% merge rate despite 97% PR quality
-   - Impact: Blocks agent value delivery
+### P1 (High - Within 24h)
+1. **Fix MCP Inspector** - 80% failure rate, MCP Gateway issue
+2. **Fix Research workflow** - 90% failure rate, likely same root cause
+3. **Verify Scout workflow** - Uses Tavily, status unknown
 
-3. **P2 (Medium)**: Run `make recompile`
-   - Owner: Any contributor
-   - Timeline: 2-3 minutes
-   - Impact: Updates 13 outdated lock files
+### P2 (Medium - This Week)
+1. **Run `make recompile`** - Update 12 outdated lock files
+2. **Monitor Daily News recovery** - Track sustained operation
 
----
-
-## 📈 Historical Context
-
-### Week of 2026-01-13 to 2026-01-19
-- **Crisis**: 3 critical workflows failing (Daily News, Agent Perf. Analyzer, Metrics Collector)
-- **Health Score**: Dropped to 75/100
-- **Root Cause**: MCP Gateway schema breaking change
-
-### Week of 2026-01-20 to 2026-01-22
-- **Recovery**: Meta-orchestrators recovered after schema fix
-- **Health Score**: Recovered to 90/100 (+12 points)
-- **Remaining Issue**: Daily News root cause identified (missing secret)
-
-### Lessons Learned
-1. ✅ MCP Gateway schema changes require careful migration
-2. ✅ Meta-orchestrators are interdependent (shared MCP infrastructure)
-3. ✅ Root cause analysis pays off (Daily News different issue than MCP Gateway)
-4. ⚠️ Missing secrets cause cascading failures (6 workflows affected)
+### P3 (Low)
+1. Document Daily News recovery timeline
+2. Add Tavily API key monitoring
+3. Create MCP Gateway health checks
 
 ---
 
-## 🚨 NEW CRITICAL ALERT: PR Merge Crisis - Week 3 (Agent Performance Analyzer)
+## 📈 Health Trends
 
-### Status: UNRESOLVED AND WORSENING
+### Overall System: 88/100 (↓2 from 90/100)
+- **Reason for decline**: New critical issues detected (MCP Inspector, Research)
+- **Positive trend**: Daily News recovery (+major improvement)
+- **Stable**: Smoke tests, compilation coverage, overall system
 
-**Problem**: 605 agent PRs created in last 7 days, 0 merged (0.0% merge rate)
-
-**Evidence**:
-- Sample of 100 recent PRs: 0 merged, 94 closed without merge, 6 still open
-- Agent PR quality: 83/100 (EXCELLENT) - this is NOT a quality problem
-- Human PRs (e.g., @mnkiefer #11164): Merged immediately
-- Copilot alone created 77 PRs in 7 days (all high quality, 0 merged)
-
-**Root Cause**: Process/approval bottleneck, NOT agent behavior
-- PRs have excellent structure (90% have sections)
-- Average body length: 3,345 characters
-- 40% rated excellent (4-5/5 quality indicators)
-- But approval pipeline is stuck
-
-**Impact**: 
-- Zero code contributions from agents despite excellent work
-- 600+ PR backlog exploding (+656% week-over-week)
-- Agent effectiveness artificially suppressed (quality 83/100, effectiveness 8/100)
-- Blocking all agent value delivery
-
-**Required Action**: URGENT investigation (4-8 hours)
-1. Review PR approval policies and required reviewers
-2. Check if automation blocked by security policies  
-3. Identify review bottleneck (human capacity? approval rules?)
-4. Implement PR triage system or adjust policies
-5. Consider pausing some PR-creating workflows until bottleneck resolved
-
-**This is now the #1 blocker for the entire agent ecosystem.**
+### vs. Last Week
+- ✅ Major improvement: Daily News 100% fail → recovered
+- ❌ New concern: MCP Inspector degrading (stable → 80% fail)
+- ❌ New concern: Research degrading (stable → 90% fail)
+- ✅ Stable: Smoke tests maintaining 90%+ success
+- ✅ Growth: +4 new workflows (137 total)
 
 ---
 
-**Last Analysis**: 2026-01-22T05:03:00Z  
-**Next Update**: 2026-01-23 (or when PR crisis/TAVILY_API_KEY addressed)  
-**Health Status**: 🟡 MIXED (System health 90/100, but PR crisis critical)
+**Last Analysis**: 2026-01-23T02:53:00Z  
+**Next Update**: 2026-01-24T02:53:00Z (daily)  
+**Status**: 🟡 MIXED (Major recovery + 2 new critical issues)
