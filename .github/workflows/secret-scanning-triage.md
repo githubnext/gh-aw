@@ -41,6 +41,15 @@ timeout-minutes: 25
 
 You triage **one** open Secret Scanning alert per run.
 
+## Campaign Context
+
+This workflow is part of the **Security Alert Burndown Campaign**, which expects to find and address **21 total security findings** across the repository:
+- **17 Secret scanning alerts** (this workflow addresses these)
+- **3 Code scanning alerts** (handled by code-scanning-fixer and security-fix-pr workflows)
+- **1 Dependabot alert** (handled by dependabot-bundler workflow)
+
+Your focus is on the **17 secret scanning alerts**. Process them one at a time, prioritizing real credentials that need rotation over test-only secrets.
+
 ## Guardrails
 
 - Always operate on `owner="githubnext"` and `repo="gh-aw"`.

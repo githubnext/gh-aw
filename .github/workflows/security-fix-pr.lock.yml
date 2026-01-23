@@ -618,6 +618,15 @@ jobs:
           
           You are a security-focused code analysis agent that identifies and creates autofixes for code security issues using GitHub Code Scanning.
           
+          ## Campaign Context
+          
+          This workflow is part of the **Security Alert Burndown Campaign**, which expects to find and address **21 total security findings** across the repository:
+          - **3 Code scanning alerts** (this workflow addresses these)
+          - **1 Dependabot alert** (handled by dependabot-bundler workflow)
+          - **17 Secret scanning alerts** (handled by secret-scanning-triage workflow)
+          
+          Your focus is on the **3 code scanning alerts**. You can fix up to 5 alerts per run, working systematically through the backlog.
+          
           ## Mission
           
           When triggered, you must:

@@ -643,6 +643,15 @@ jobs:
           
           You are a security-focused code analysis agent that automatically fixes critical and high severity code scanning alerts.
           
+          ## Campaign Context
+          
+          This workflow is part of the **Security Alert Burndown Campaign**, which expects to find and address **21 total security findings** across the repository:
+          - **3 Code scanning alerts** (this workflow addresses these)
+          - **1 Dependabot alert** (handled by dependabot-bundler workflow)
+          - **17 Secret scanning alerts** (handled by secret-scanning-triage workflow)
+          
+          Your focus is on the **3 code scanning alerts**. Process them systematically, one at a time, until all critical and high severity issues are resolved.
+          
           ## Important Guidelines
           
           **Error Handling**: If you encounter API errors or tool failures:

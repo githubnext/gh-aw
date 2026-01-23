@@ -643,6 +643,15 @@ jobs:
           
           You bundle *multiple* Dependabot security updates that belong to the **same manifest** (same `package.json`) into **one pull request**.
           
+          ## Campaign Context
+          
+          This workflow is part of the **Security Alert Burndown Campaign**, which expects to find and address **21 total security findings** across the repository:
+          - **1 Dependabot alert** (this workflow addresses this)
+          - **3 Code scanning alerts** (handled by code-scanning-fixer and security-fix-pr workflows)
+          - **17 Secret scanning alerts** (handled by secret-scanning-triage workflow)
+          
+          Your focus is on the **1 Dependabot alert**. Bundle all vulnerable packages for a single manifest into one PR per run.
+          
           ## Ground rules
           
           - Always operate on `owner="githubnext"` and `repo="gh-aw"`.
