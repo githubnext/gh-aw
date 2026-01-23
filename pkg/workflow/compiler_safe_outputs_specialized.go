@@ -2,11 +2,16 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var specializedOutputsLog = logger.New("workflow:compiler_safe_outputs_specialized")
 
 // buildAssignToAgentStepConfig builds the configuration for assigning to an agent
 func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.AssignToAgent
+	specializedOutputsLog.Printf("Building assign-to-agent step config: max=%d, default_agent=%s", cfg.Max, cfg.DefaultAgent)
 
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
@@ -60,6 +65,7 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 // buildCreateAgentTaskStepConfig builds the configuration for creating an agent session
 func (c *Compiler) buildCreateAgentSessionStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.CreateAgentSessions
+	specializedOutputsLog.Print("Building create-agent-session step config")
 
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)
@@ -80,6 +86,7 @@ func (c *Compiler) buildCreateAgentSessionStepConfig(data *WorkflowData, mainJob
 // buildCreateProjectStepConfig builds the configuration for creating a project
 func (c *Compiler) buildCreateProjectStepConfig(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) SafeOutputStepConfig {
 	cfg := data.SafeOutputs.CreateProjects
+	specializedOutputsLog.Printf("Building create-project step config: target_owner=%s, title_prefix=%s", cfg.TargetOwner, cfg.TitlePrefix)
 
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, c.buildStepLevelSafeOutputEnvVars(data, "")...)

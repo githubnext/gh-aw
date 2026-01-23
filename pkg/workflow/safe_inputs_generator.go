@@ -7,8 +7,11 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
+
+var safeInputsGeneratorLog = logger.New("workflow:safe_inputs_generator")
 
 // SafeInputsToolJSON represents a tool configuration for the tools.json file
 type SafeInputsToolJSON struct {
@@ -30,7 +33,7 @@ type SafeInputsConfigJSON struct {
 
 // generateSafeInputsToolsConfig generates the tools.json configuration for the safe-inputs MCP server
 func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
-	safeInputsLog.Printf("Generating safe-inputs tools.json config: tool_count=%d", len(safeInputs.Tools))
+	safeInputsGeneratorLog.Printf("Generating safe-inputs tools.json config: tool_count=%d", len(safeInputs.Tools))
 
 	config := SafeInputsConfigJSON{
 		ServerName: "safeinputs",
@@ -129,17 +132,17 @@ func generateSafeInputsToolsConfig(safeInputs *SafeInputsConfig) string {
 
 	jsonBytes, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
-		safeInputsLog.Printf("Error marshaling tools config: %v", err)
+		safeInputsGeneratorLog.Printf("Error marshaling tools config: %v", err)
 		return "{}"
 	}
-	safeInputsLog.Printf("Generated tools.json config: size=%d bytes", len(jsonBytes))
+	safeInputsGeneratorLog.Printf("Generated tools.json config: size=%d bytes", len(jsonBytes))
 	return string(jsonBytes)
 }
 
 // generateSafeInputsMCPServerScript generates the entry point script for the safe-inputs MCP server
 // This script uses HTTP transport exclusively
 func generateSafeInputsMCPServerScript(safeInputs *SafeInputsConfig) string {
-	safeInputsLog.Print("Generating safe-inputs MCP server entry point script")
+	safeInputsGeneratorLog.Print("Generating safe-inputs MCP server entry point script")
 	var sb strings.Builder
 
 	// HTTP transport - server started in separate step

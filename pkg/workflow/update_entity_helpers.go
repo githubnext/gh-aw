@@ -64,6 +64,8 @@ import (
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
+var updateEntityHelpersLog = logger.New("workflow:update_entity_helpers")
+
 // UpdateEntityType represents the type of entity being updated
 type UpdateEntityType string
 
@@ -110,6 +112,7 @@ type UpdateEntityJobBuilder struct {
 // parseUpdateEntityConfig is a generic function to parse update entity configurations
 func (c *Compiler) parseUpdateEntityConfig(outputMap map[string]any, params UpdateEntityJobParams, logger *logger.Logger, parseSpecificFields func(map[string]any, *UpdateEntityConfig)) *UpdateEntityConfig {
 	if configData, exists := outputMap[params.ConfigKey]; exists {
+		updateEntityHelpersLog.Printf("Parsing %s configuration", params.ConfigKey)
 		logger.Printf("Parsing %s configuration", params.ConfigKey)
 		config := &UpdateEntityConfig{}
 
@@ -117,10 +120,12 @@ func (c *Compiler) parseUpdateEntityConfig(outputMap map[string]any, params Upda
 			// Parse target config (target, target-repo) with validation
 			targetConfig, isInvalid := ParseTargetConfig(configMap)
 			if isInvalid {
+				updateEntityHelpersLog.Printf("Invalid target-repo configuration for %s", params.ConfigKey)
 				logger.Print("Invalid target-repo configuration")
 				return nil
 			}
 			config.SafeOutputTargetConfig = targetConfig
+			updateEntityHelpersLog.Printf("Parsed target config for %s: target=%s", params.ConfigKey, targetConfig.Target)
 
 			// Parse type-specific fields if provided
 			if parseSpecificFields != nil {
