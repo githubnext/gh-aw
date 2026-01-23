@@ -1004,36 +1004,11 @@ func parseTime(timeStr string) (minute string, hour string) {
 	if len(parts) == 2 && strings.HasPrefix(strings.ToLower(parts[1]), "utc") {
 		baseTime = parts[0]
 		offsetStr := strings.ToLower(parts[1])
-
-		// Parse UTC offset (e.g., utc+9, utc-5, utc+09:00, utc-05:30)
-		if len(offsetStr) > 3 {
-			offsetPart := offsetStr[3:] // Skip "utc"
-			sign := 1
-			if strings.HasPrefix(offsetPart, "+") {
-				offsetPart = offsetPart[1:]
-			} else if strings.HasPrefix(offsetPart, "-") {
-				sign = -1
-				offsetPart = offsetPart[1:]
-			}
-
-			// Check if it's HH:MM format
-			if strings.Contains(offsetPart, ":") {
-				offsetParts := strings.Split(offsetPart, ":")
-				if len(offsetParts) == 2 {
-					hours, err1 := strconv.Atoi(offsetParts[0])
-					mins, err2 := strconv.Atoi(offsetParts[1])
-					if err1 == nil && err2 == nil {
-						utcOffset = sign * (hours*60 + mins)
-					}
-				}
-			} else {
-				// Just hours (e.g., utc+9)
-				hours, err := strconv.Atoi(offsetPart)
-				if err == nil {
-					utcOffset = sign * hours * 60
-				}
-			}
-		}
+		utcOffset = parseUTCOffset(offsetStr)
+	} else if len(parts) == 3 && isAMPMToken(parts[1]) && strings.HasPrefix(strings.ToLower(parts[2]), "utc") {
+		baseTime = parts[0] + " " + parts[1]
+		offsetStr := strings.ToLower(parts[2])
+		utcOffset = parseUTCOffset(offsetStr)
 	} else {
 		baseTime = timeStr
 	}
@@ -1051,7 +1026,7 @@ func parseTime(timeStr string) (minute string, hour string) {
 		if strings.HasSuffix(lowerTime, "am") || strings.HasSuffix(lowerTime, "pm") {
 			isPM := strings.HasSuffix(lowerTime, "pm")
 			// Remove am/pm suffix
-			timePart := lowerTime[:len(lowerTime)-2]
+			timePart := strings.TrimSpace(lowerTime[:len(lowerTime)-2])
 			hourNum, minNum, ok := parseHourMinute(timePart)
 			if !ok || hourNum < 1 || hourNum > 12 {
 				return "0", "0"
@@ -1102,6 +1077,42 @@ func parseTime(timeStr string) (minute string, hour string) {
 	finalMinute := totalMinutes % 60
 
 	return strconv.Itoa(finalMinute), strconv.Itoa(finalHour)
+}
+
+func parseUTCOffset(offsetStr string) int {
+	// Parse UTC offset (e.g., utc+9, utc-5, utc+09:00, utc-05:30)
+	if len(offsetStr) <= 3 {
+		return 0
+	}
+
+	offsetPart := offsetStr[3:] // Skip "utc"
+	sign := 1
+	if strings.HasPrefix(offsetPart, "+") {
+		offsetPart = offsetPart[1:]
+	} else if strings.HasPrefix(offsetPart, "-") {
+		sign = -1
+		offsetPart = offsetPart[1:]
+	}
+
+	// Check if it's HH:MM format
+	if strings.Contains(offsetPart, ":") {
+		offsetParts := strings.Split(offsetPart, ":")
+		if len(offsetParts) == 2 {
+			hours, err1 := strconv.Atoi(offsetParts[0])
+			mins, err2 := strconv.Atoi(offsetParts[1])
+			if err1 == nil && err2 == nil {
+				return sign * (hours*60 + mins)
+			}
+		}
+		return 0
+	}
+
+	// Just hours (e.g., utc+9)
+	hours, err := strconv.Atoi(offsetPart)
+	if err != nil {
+		return 0
+	}
+	return sign * hours * 60
 }
 
 func parseHourMinute(timePart string) (int, int, bool) {
