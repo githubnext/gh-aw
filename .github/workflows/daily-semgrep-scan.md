@@ -8,6 +8,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  security-events: read
+safe-outputs:
+  create-code-scanning-alert:
+    driver: "Semgrep Security Scanner"
 ---
 
 Scan the repository for SQL injection vulnerabilities using Semgrep.
