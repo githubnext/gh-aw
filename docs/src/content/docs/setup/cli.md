@@ -375,14 +375,28 @@ See [Agentic campaigns guide](/gh-aw/guides/campaigns/) for full spec and defaul
 
 ### Management
 
-#### `enable` / `disable`
+#### `enable`
 
-Enable or disable workflows with pattern matching support. Disable also cancels running jobs.
+Enable one or more workflows by ID, or all workflows if no IDs provided.
 
 ```bash wrap
-gh aw enable                                # Enable all
-gh aw enable ci-*                          # Enable with pattern
-gh aw disable workflow --repo owner/repo    # Disable in specific repo
+gh aw enable                                # Enable all workflows
+gh aw enable ci-doctor                      # Enable specific workflow
+gh aw enable ci-doctor daily                # Enable multiple workflows
+gh aw enable ci-doctor --repo owner/repo    # Enable in specific repository
+```
+
+**Options:** `--repo`
+
+#### `disable`
+
+Disable one or more workflows and cancel any in-progress runs.
+
+```bash wrap
+gh aw disable                               # Disable all workflows
+gh aw disable ci-doctor                     # Disable specific workflow
+gh aw disable ci-doctor daily               # Disable multiple workflows
+gh aw disable ci-doctor --repo owner/repo   # Disable in specific repository
 ```
 
 **Options:** `--repo`
