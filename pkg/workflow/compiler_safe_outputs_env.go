@@ -1,7 +1,15 @@
 package workflow
 
+import (
+	"github.com/githubnext/gh-aw/pkg/logger"
+)
+
+var safeOutputsEnvLog = logger.New("workflow:compiler_safe_outputs_env")
+
 func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *WorkflowData) {
+	safeOutputsEnvLog.Print("Adding safe output config environment variables")
 	if data.SafeOutputs == nil {
+		safeOutputsEnvLog.Print("No safe outputs configured, skipping env var addition")
 		return
 	}
 
@@ -11,10 +19,12 @@ func (c *Compiler) addAllSafeOutputConfigEnvVars(steps *[]string, data *Workflow
 	// Create Issue env vars - target-repo, allowed_labels and allowed_repos now in config object
 	if data.SafeOutputs.CreateIssues != nil {
 		cfg := data.SafeOutputs.CreateIssues
+		safeOutputsEnvLog.Print("Processing create-issue env vars")
 		// Add staged flag if needed (but not if target-repo is specified or we're in trial mode)
 		if !c.trialMode && data.SafeOutputs.Staged && !stagedFlagAdded && cfg.TargetRepoSlug == "" {
 			*steps = append(*steps, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 			stagedFlagAdded = true
+			safeOutputsEnvLog.Print("Added staged flag for create-issue")
 		}
 	}
 

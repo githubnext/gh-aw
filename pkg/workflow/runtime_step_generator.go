@@ -3,10 +3,15 @@ package workflow
 import (
 	"fmt"
 	"sort"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var runtimeStepGeneratorLog = logger.New("workflow:runtime_step_generator")
 
 // GenerateRuntimeSetupSteps creates GitHub Actions steps for runtime setup
 func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubActionStep {
+	runtimeStepGeneratorLog.Printf("Generating runtime setup steps: requirement_count=%d", len(requirements))
 	runtimeSetupLog.Printf("Generating runtime setup steps for %d requirements", len(requirements))
 	var steps []GitHubActionStep
 
@@ -14,6 +19,7 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubAction
 		steps = append(steps, generateSetupStep(&req))
 	}
 
+	runtimeStepGeneratorLog.Printf("Generated %d runtime setup steps", len(steps))
 	return steps
 }
 
@@ -22,6 +28,7 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubAction
 // Language services are provided inside the container and do not require host installation.
 // This function is kept for backward compatibility but returns an empty slice.
 func GenerateSerenaLanguageServiceSteps(tools *ToolsConfig) []GitHubActionStep {
+	runtimeStepGeneratorLog.Print("Serena language services provided inside container, no installation steps needed")
 	runtimeSetupLog.Print("Serena language services are now provided inside the container - no installation steps needed")
 
 	// Return empty slice - no steps needed since Serena runs in a container
@@ -33,6 +40,7 @@ func GenerateSerenaLanguageServiceSteps(tools *ToolsConfig) []GitHubActionStep {
 func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	runtime := req.Runtime
 	version := req.Version
+	runtimeStepGeneratorLog.Printf("Generating setup step for runtime: %s, version=%s", runtime.ID, version)
 	runtimeSetupLog.Printf("Generating setup step for runtime: %s, version=%s", runtime.ID, version)
 	// Use default version if none specified
 	if version == "" {
