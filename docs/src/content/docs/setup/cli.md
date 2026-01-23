@@ -361,17 +361,17 @@ Logs are saved to `logs/run-{id}/` with filenames indicating the extraction leve
 
 #### `campaign`
 
-Manage campaign definitions in `.github/workflows/*.campaign.md`. Supports cursor-based discovery, governance controls for safe scaling.
+Manage campaign definitions. See [Agentic Campaigns Guide](/gh-aw/guides/campaigns/) for complete documentation.
 
-```bash wrap
-gh aw campaign                         # List all campaigns
-gh aw campaign security                # Filter by ID/name
-gh aw campaign status                  # Live status
-gh aw campaign new my-campaign-id      # Scaffold new spec
-gh aw campaign validate                # Validate specs (fails on problems)
-```
+**Quick Reference:**
+- `gh aw campaign` - List campaigns
+- `gh aw campaign status` - Show live status
+- `gh aw campaign new <id>` - Create new campaign
+- `gh aw campaign validate` - Validate specs
 
-See [Agentic campaigns guide](/gh-aw/guides/campaigns/) for full spec and defaults. Alternative: create an issue with the `create-agentic-campaign` label to trigger automated campaign creation ([docs](/gh-aw/guides/campaigns/getting-started/)).
+**Options:** `--json`
+
+Alternative: create an issue with the `create-agentic-campaign` label to trigger automated campaign creation ([docs](/gh-aw/guides/campaigns/getting-started/)).
 
 ### Management
 
