@@ -292,7 +292,7 @@ describe("campaign_discovery", () => {
         },
       };
 
-      const result = await searchByLabel(octokit, "campaign:test", ["owner/repo"], [], 100, 10, null);
+      const result = await searchByLabel(octokit, "z_campaign_test", ["owner/repo"], [], 100, 10, null);
 
       expect(result.items).toHaveLength(1);
       expect(result.items[0].content_type).toBe("issue");
@@ -309,10 +309,10 @@ describe("campaign_discovery", () => {
         },
       };
 
-      await searchByLabel(octokit, "campaign:test", ["owner/repo1", "owner/repo2"], [], 100, 10, null);
+      await searchByLabel(octokit, "z_campaign_test", ["owner/repo1", "owner/repo2"], [], 100, 10, null);
 
       const call = octokit.rest.search.issuesAndPullRequests.mock.calls[0][0];
-      expect(call.q).toContain('label:"campaign:test"');
+      expect(call.q).toContain('label:"z_campaign_test"');
       expect(call.q).toContain("repo:owner/repo1");
       expect(call.q).toContain("repo:owner/repo2");
       expect(call.q).not.toContain("(");
@@ -330,10 +330,10 @@ describe("campaign_discovery", () => {
         },
       };
 
-      await searchByLabel(octokit, "campaign:test", [], ["myorg", "anotherorg"], 100, 10, null);
+      await searchByLabel(octokit, "z_campaign_test", [], ["myorg", "anotherorg"], 100, 10, null);
 
       const call = octokit.rest.search.issuesAndPullRequests.mock.calls[0][0];
-      expect(call.q).toContain('label:"campaign:test"');
+      expect(call.q).toContain('label:"z_campaign_test"');
       expect(call.q).toContain("org:myorg");
       expect(call.q).toContain("org:anotherorg");
       expect(call.q).not.toContain("(");
@@ -351,10 +351,10 @@ describe("campaign_discovery", () => {
         },
       };
 
-      await searchByLabel(octokit, "campaign:test", ["owner/repo1"], ["myorg"], 100, 10, null);
+      await searchByLabel(octokit, "z_campaign_test", ["owner/repo1"], ["myorg"], 100, 10, null);
 
       const call = octokit.rest.search.issuesAndPullRequests.mock.calls[0][0];
-      expect(call.q).toContain('label:"campaign:test"');
+      expect(call.q).toContain('label:"z_campaign_test"');
       expect(call.q).toContain("repo:owner/repo1");
       expect(call.q).toContain("org:myorg");
       expect(call.q).not.toContain("(");

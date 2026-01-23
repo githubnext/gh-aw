@@ -397,7 +397,7 @@ describe("updateProject", () => {
     await updateProject(output);
 
     const labelCall = mockGithub.rest.issues.addLabels.mock.calls[0][0];
-    expect(labelCall.labels).toEqual(["campaign:custom-id-2025"]);
+    expect(labelCall.labels).toEqual(["z_campaign_custom-id-2025"]);
     expect(getOutput("item-id")).toBe("item-custom");
   });
 
@@ -430,7 +430,7 @@ describe("updateProject", () => {
         issue_number: 42,
       })
     );
-    expect(labelCall.labels).toEqual(["campaign:my-campaign"]);
+    expect(labelCall.labels).toEqual(["z_campaign_my-campaign"]);
     expect(getOutput("item-id")).toBe("item123");
   });
 

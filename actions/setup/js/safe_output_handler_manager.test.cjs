@@ -116,7 +116,6 @@ describe("Safe Output Handler Manager", () => {
   describe("processMessages", () => {
     it("should inject campaign labels into create_issue and create_pull_request messages", async () => {
       process.env.GH_AW_CAMPAIGN_ID = "Security Alert Burndown";
-      process.env.GH_AW_TRACKER_LABEL = "campaign:security-alert-burndown";
 
       const messages = [
         { type: "create_issue", title: "Issue", labels: ["Bug"] },
@@ -127,7 +126,6 @@ describe("Safe Output Handler Manager", () => {
         expect(Array.isArray(message.labels)).toBe(true);
         expect(message.labels).toContain("agentic-campaign");
         expect(message.labels).toContain("z_campaign_security-alert-burndown");
-        expect(message.labels).toContain("campaign:security-alert-burndown");
         return { success: true };
       });
 
