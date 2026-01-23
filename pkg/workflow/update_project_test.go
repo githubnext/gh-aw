@@ -324,3 +324,164 @@ func TestUpdateProjectJob_Permissions(t *testing.T) {
 	require.NotEmpty(t, job.Permissions, "Job should have permissions")
 	assert.Contains(t, job.Permissions, "contents: read", "Should have contents: read permission")
 }
+
+func TestUpdateProjectJob_ViewsEscaping(t *testing.T) {
+	tests := []struct {
+		name         string
+		views        []ProjectView
+		shouldEscape bool
+		checkContent string
+	}{
+		{
+			name: "simple views without special characters",
+			views: []ProjectView{
+				{Name: "status", Layout: "board", Filter: "status:Todo"},
+				{Name: "priority", Layout: "table", Filter: "priority:High"},
+			},
+			shouldEscape: false,
+			checkContent: "status",
+		},
+		{
+			name: "views with single quotes in filter",
+			views: []ProjectView{
+				{Name: "broken", Layout: "board", Filter: "label:\"can't fix\""},
+				{Name: "issues", Layout: "table", Description: "It's broken"},
+			},
+			shouldEscape: true,
+			checkContent: `\'`,
+		},
+		{
+			name: "views with backslashes in description",
+			views: []ProjectView{
+				{Name: "regex", Layout: "board", Description: `Pattern: \d+\.\d+`},
+				{Name: "path", Layout: "table", Filter: `path:C:\\Windows`},
+			},
+			shouldEscape: true,
+			checkContent: `\\`,
+		},
+		{
+			name: "views with mixed special characters",
+			views: []ProjectView{
+				{Name: "complex", Layout: "board", Description: `It's a "test" with \backslash`},
+			},
+			shouldEscape: true,
+			checkContent: `\\`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "test")
+
+			workflowData := &WorkflowData{
+				Name: "test-workflow",
+				SafeOutputs: &SafeOutputsConfig{
+					UpdateProjects: &UpdateProjectConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{
+							Max: 10,
+						},
+						Views: tt.views,
+					},
+				},
+			}
+
+			job, err := compiler.buildUpdateProjectJob(workflowData, "main")
+			require.NoError(t, err)
+			require.NotNil(t, job)
+
+			// Find the step containing GH_AW_PROJECT_VIEWS
+			var viewsEnvVar string
+			for _, step := range job.Steps {
+				if strings.Contains(step, "GH_AW_PROJECT_VIEWS:") {
+					viewsEnvVar = step
+					break
+				}
+			}
+
+			require.NotEmpty(t, viewsEnvVar, "Should contain GH_AW_PROJECT_VIEWS environment variable")
+
+			// Verify that the JSON is properly escaped
+			if tt.shouldEscape {
+				// Should use single-quoted YAML string
+				assert.Contains(t, viewsEnvVar, "GH_AW_PROJECT_VIEWS: '", "Should use single-quoted YAML string")
+				
+				// Verify the expected escape sequences are present
+				assert.Contains(t, viewsEnvVar, tt.checkContent, "Should contain escaped characters")
+			}
+
+			// Verify the environment variable is properly formatted as YAML
+			assert.Contains(t, viewsEnvVar, "GH_AW_PROJECT_VIEWS:", "Should contain environment variable key")
+		})
+	}
+}
+
+func TestUpdateProjectJob_ViewsNoInjection(t *testing.T) {
+	// Test that malicious input cannot break out of the YAML string
+	compiler := NewCompiler(false, "", "test")
+
+	maliciousViews := []ProjectView{
+		{Name: "injection", Layout: "board", Filter: "'; echo 'injected'; echo '"},
+		{Name: "path", Layout: "table", Description: `\'; rm -rf /; echo '`},
+	}
+
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			UpdateProjects: &UpdateProjectConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: 10,
+				},
+				Views: maliciousViews,
+			},
+		},
+	}
+
+	job, err := compiler.buildUpdateProjectJob(workflowData, "main")
+	require.NoError(t, err)
+	require.NotNil(t, job)
+
+	// Find the step containing GH_AW_PROJECT_VIEWS
+	var viewsEnvVar string
+	for _, step := range job.Steps {
+		if strings.Contains(step, "GH_AW_PROJECT_VIEWS:") {
+			viewsEnvVar = step
+			break
+		}
+	}
+
+	require.NotEmpty(t, viewsEnvVar, "Should contain GH_AW_PROJECT_VIEWS environment variable")
+
+	// Verify that all single quotes and backslashes are properly escaped
+	// The environment variable should be wrapped in single quotes
+	assert.Contains(t, viewsEnvVar, "GH_AW_PROJECT_VIEWS: '", "Should use single-quoted YAML string")
+	
+	// Count opening quotes
+	openQuotes := strings.Count(viewsEnvVar, "GH_AW_PROJECT_VIEWS: '")
+	assert.Equal(t, 1, openQuotes, "Should have exactly one opening quote for the environment variable")
+	
+	// Verify all single quotes in the JSON are escaped
+	lines := strings.Split(viewsEnvVar, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "GH_AW_PROJECT_VIEWS:") {
+			// Extract the value part after the colon
+			parts := strings.SplitN(line, "GH_AW_PROJECT_VIEWS: '", 2)
+			if len(parts) == 2 {
+				value := parts[1]
+				// Remove the trailing quote
+				value = strings.TrimSuffix(value, "'")
+				
+				// Verify backslashes are escaped (doubled)
+				if strings.Contains(value, `\`) {
+					// Should contain escaped backslashes
+					assert.Contains(t, value, `\\`, "Backslashes should be escaped")
+				}
+				
+				// Verify single quotes are escaped
+				if strings.Contains(value, "'") {
+					// Should contain escaped quotes
+					assert.Contains(t, value, `\'`, "Single quotes should be escaped")
+				}
+			}
+		}
+	}
+}
