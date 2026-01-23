@@ -245,12 +245,7 @@ flowchart LR
     GATEWAY -->|"forwards to"| GH_MCP
 ```
 
-**Architecture Summary**
-
-1. AWF establishes an isolated network with a Squid proxy that enforces the workflow `network.allowed` list.
-2. The agent container can only egress through Squid. To reach the gateway, it uses `host.docker.internal:80` (Docker's host alias). This hostname must be included in the firewall's allowed list.
-3. The `gh-aw-mcpg` container publishes host port 80 mapped to container port 8000. It uses the Docker socket to spawn MCP server containers.
-4. All MCP traffic remains within the host boundary: AWF restricts egress, and the gateway routes requests to sandboxed MCP servers.
+AWF isolates the network via Squid proxy enforcing `network.allowed` list. Agent containers egress only through Squid, reaching the gateway at `host.docker.internal:80`. The `gh-aw-mcpg` container (port 80→8000) spawns MCP servers via Docker socket. All MCP traffic stays within host boundaries.
 
 ## MCP Server Sandboxing
 
@@ -298,12 +293,7 @@ flowchart TB
     ENDPOINT --> HEADERS
 ```
 
-**Isolation Properties:**
-
-- **Container Isolation**: Custom MCP servers run in Docker containers with no shared state
-- **Network Controls**: Per-container domain allowlists enforced via Squid proxy
-- **Tool Allowlisting**: Explicit `allowed:` lists restrict available operations
-- **Secret Injection**: Secrets are passed via environment variables, never in configuration files
+**Isolation Properties:** Custom MCP servers run in isolated Docker containers with per-container domain allowlists (Squid proxy), explicit tool allowlisting, and environment variable secret injection.
 
 ## Threat Detection Pipeline
 
@@ -355,18 +345,7 @@ flowchart TB
     SAFE_CHECK -->|"Yes"| BLOCK
 ```
 
-**Detection Job Properties:**
-
-- **Isolated Execution**: The detection agent runs in a separate job with no write permissions and no access to the original agent's runtime state
-- **Prompted Analysis**: Detection uses the same AI engine as the workflow, but with a security-focused system prompt that instructs the agent to identify threats
-- **Artifact-Based**: The detection agent only sees the buffered artifacts (outputs, patches, context), not live repository state
-- **Blocking Verdict**: The detection job must complete successfully and emit a "safe" verdict before any safe output jobs execute
-
-**Detection Mechanisms:**
-
-- **AI Detection**: Default AI-powered analysis using the workflow engine with a security-focused detection prompt
-- **Custom Steps**: Integration with security scanners (Semgrep, TruffleHog, LlamaGuard) via `threat-detection.steps` configuration
-- **Custom Prompts**: Domain-specific detection instructions for specialized threat models via `threat-detection.prompt` configuration
+**Detection Properties:** The detection agent runs in isolation with no write permissions, analyzing only buffered artifacts (not live state) using AI-powered analysis with a security-focused prompt. A "safe" verdict is required before any safe output jobs execute. Supports custom security scanner integration (Semgrep, TruffleHog) and domain-specific prompts via `threat-detection` configuration.
 
 **Configuration Example:**
 
@@ -491,60 +470,13 @@ flowchart LR
     CONTROL --> SAFE_TEXT
 ```
 
-**Sanitization Properties:**
-
-| Mechanism | Input | Output | Protection |
-|-----------|-------|--------|------------|
-| **@mention Neutralization** | `@user` | `` `@user` `` | Prevents unintended user notifications |
-| **Bot Trigger Protection** | `fixes #123` | `` `fixes #123` `` | Prevents automatic issue linking |
-| **XML/HTML Tag Conversion** | `<script>` | `(script)` | Prevents injection via XML tags |
-| **URI Filtering** | `http://evil.com` | `(redacted)` | Restricts to HTTPS from trusted domains |
-| **Special Characters** | Unicode homoglyphs | Normalized | Prevents visual spoofing attacks |
-| **Content Limits** | Large payloads | Truncated | Enforces 0.5MB max size, 65k lines max |
-| **Control Characters** | ANSI escapes | Stripped | Removes terminal manipulation codes |
-
-**URI Filtering Behavior:**
-
-The URI filtering mechanism applies strict validation:
-
-- ✅ **Allowed**: `https://github.com/...`, `https://api.github.com/...`
-- ✅ **Allowed**: URLs from explicitly trusted domains in configuration
-- ❌ **Blocked**: `http://` URLs (non-HTTPS)
-- ❌ **Blocked**: URLs with suspicious patterns
-- ❌ **Blocked**: Data URLs, javascript: URLs
-- ❌ **Blocked**: URLs from untrusted domains → replaced with `(redacted)`
+**Sanitization Properties:** Neutralizes @mentions and bot triggers by wrapping in backticks, converts XML/HTML tags to safe format `(script)`, filters URIs to HTTPS-only from trusted domains (replacing blocked URLs with `(redacted)`), normalizes special characters to prevent spoofing, enforces 0.5MB/65k line limits, and strips control characters.
 
 <Aside type="note" title="Why URLs are redacted">
 URLs appearing as `(redacted)` indicate the domain was not in the allowed list. This prevents potential data exfiltration through untrusted domains. The allowed domains list is derived from the workflow's `network:` configuration and includes GitHub domains by default.
 </Aside>
 
-**Configuring Additional Domains:**
-
-To permit URLs from additional domains in sanitized content, configure the `network:` field in the workflow frontmatter:
-
-```yaml wrap
-network:
-  allowed:
-    - defaults           # Basic infrastructure
-    - "api.example.com"  # Your custom domain
-    - "trusted.com"      # Another trusted domain
-```
-
-Domains configured here apply to both network egress control (when firewall is enabled) and content sanitization. See [Network Permissions](/gh-aw/reference/network/) for the complete list of ecosystem identifiers and configuration options.
-
-**XML/HTML Tag Handling:**
-
-XML and HTML tags are converted to a safe parentheses format to prevent injection:
-
-```
-<script>alert('xss')</script>  →  (script)alert('xss')(/script)
-<img src=x onerror=...>        →  (img src=x onerror=...)
-<!-- hidden comment -->        →  (!-- hidden comment --)
-```
-
-<Aside type="caution">
-Workflows should use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields to ensure proper sanitization of user-provided content.
-</Aside>
+Configure additional domains via the `network:` field (see [Network Permissions](/gh-aw/reference/network/)). Use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields for proper sanitization.
 
 ## Secret Redaction
 
@@ -591,25 +523,7 @@ flowchart LR
     REPLACE --> PROMPT
 ```
 
-**Redaction Properties:**
-- **Automatic Detection**: Scans workflow YAML for `secrets.*` patterns and collects all secret references
-- **Exact String Matching**: Uses safe string matching (not regex) to prevent injection attacks
-- **Partial Visibility**: Displays first 3 characters followed by asterisks for debugging without exposing full secrets
-- **Custom Masking**: Supports additional custom secret masking steps via `secret-masking:` configuration
-
-**Configuration Example:**
-
-```yaml wrap
-secret-masking:
-  steps:
-    - name: Redact custom patterns
-      run: |
-        find /tmp/gh-aw -type f -exec sed -i 's/password123/REDACTED/g' {} +
-```
-
-<Aside type="tip">
-Secret redaction executes with `if: always()` to ensure secrets are never leaked, even if the workflow fails at an earlier stage.
-</Aside>
+**Redaction Properties:** Automatically scans workflow YAML for `secrets.*` patterns, uses safe string matching (not regex), displays first 3 characters + asterisks for debugging, and supports custom masking via `secret-masking:` configuration. Executes with `if: always()` to ensure protection even on workflow failure.
 
 ## Job Execution Flow
 
@@ -743,26 +657,7 @@ flowchart TB
     AW_STATUS --> DEBUG
 ```
 
-**Observability Properties:**
-
-- **Artifact Preservation**: All workflow outputs (prompts, patches, logs) are saved as downloadable artifacts
-- **Cost Monitoring**: Token usage and costs across workflow runs are tracked via `gh aw logs`
-- **Failure Analysis**: Failed runs can be investigated with `gh aw audit` to examine prompts, errors, and network activity
-- **Firewall Logs**: All network requests made by the agent are logged for security auditing
-- **Step Summaries**: Rich markdown summaries in GitHub Actions display agent decisions and outputs
-
-**CLI Commands for Observability:**
-
-```bash wrap
-# Download and analyze workflow run logs
-gh aw logs
-
-# Investigate a specific workflow run
-gh aw audit <run-id>
-
-# Check workflow health and status
-gh aw status
-```
+**Observability:** All workflow outputs (prompts, patches, logs) are preserved as artifacts. Track token usage with `gh aw logs`, investigate failures with `gh aw audit <run-id>`, and monitor health with `gh aw status`.
 
 ## Security Layers Summary
 
