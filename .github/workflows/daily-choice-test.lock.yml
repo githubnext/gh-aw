@@ -1115,7 +1115,7 @@ jobs:
       - name: Setup Safe Job Environment Variables
         run: |
           find "/opt/gh-aw/safe-jobs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/opt/gh-aw/safe-jobs/agent-output" >> "$GITHUB_ENV"
+          echo "GH_AW_AGENT_OUTPUT=/opt/gh-aw/safe-jobs/agent_output.json" >> "$GITHUB_ENV"
       - name: Display test configuration
         run: |-
           if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
