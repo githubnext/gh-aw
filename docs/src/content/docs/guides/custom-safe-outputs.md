@@ -299,8 +299,6 @@ Custom safe-output jobs have access to these environment variables:
 | `GH_AW_AGENT_OUTPUT` | Path to JSON file containing the agent's output data |
 | `GH_AW_SAFE_OUTPUTS_STAGED` | Set to `"true"` when running in staged/preview mode |
 
-**Important**: The `inputs:` field defines the MCP tool schema for the AI agent, not GitHub Actions workflow inputs. You **cannot** use `${{ inputs.name }}` syntax in custom safe-output jobs. Instead, read and parse the `GH_AW_AGENT_OUTPUT` JSON file to access the agent's provided values.
-
 ### Accessing Agent Output
 
 Custom safe-output jobs receive the agent's data through the `GH_AW_AGENT_OUTPUT` environment variable, which contains a path to a JSON file. This file has the structure:
@@ -373,77 +371,7 @@ The `inputs:` field in your job definition serves **two purposes**:
 1. **Tool Discovery**: Defines the MCP tool schema that the AI agent sees
 2. **Validation**: Describes what fields the agent should provide in its output
 
-**What `inputs:` does NOT do**:
-- ❌ Create GitHub Actions workflow inputs
-- ❌ Make `${{ inputs.* }}` expressions available in steps
-- ❌ Pass data directly to job steps
-
 The agent uses the `inputs:` schema to understand what parameters to include when calling your custom job. The actual values are written to the `GH_AW_AGENT_OUTPUT` JSON file, which your job must read and parse.
-
-## Complete Example
-
-```yaml wrap title="Send a webhook notification"
-safe-outputs:
-  jobs:
-    webhook-notify:
-      description: "Send a notification to a webhook URL"
-      runs-on: ubuntu-latest
-      output: "Notification sent!"
-      inputs:
-        title:
-          description: "Notification title"
-          required: true
-          type: string
-        body:
-          description: "Notification body"
-          required: true
-          type: string
-      steps:
-        - name: Send webhook
-          uses: actions/github-script@v8
-          env:
-            WEBHOOK_URL: "${{ secrets.WEBHOOK_URL }}"
-          with:
-            script: |
-              const fs = require('fs');
-              const webhookUrl = process.env.WEBHOOK_URL;
-              const outputFile = process.env.GH_AW_AGENT_OUTPUT;
-              
-              if (!webhookUrl) {
-                core.setFailed('WEBHOOK_URL secret is not configured');
-                return;
-              }
-              
-              if (!outputFile) {
-                core.info('No GH_AW_AGENT_OUTPUT environment variable found');
-                return;
-              }
-              
-              // Read and parse agent output
-              const fileContent = fs.readFileSync(outputFile, 'utf8');
-              const agentOutput = JSON.parse(fileContent);
-              
-              // Filter for webhook-notify items (job name with dashes → underscores)
-              const items = agentOutput.items.filter(item => item.type === 'webhook_notify');
-              
-              for (const item of items) {
-                const title = item.title;
-                const body = item.body;
-                
-                const response = await fetch(webhookUrl, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ title, body })
-                });
-                
-                if (!response.ok) {
-                  core.setFailed(`Webhook failed: ${response.status}`);
-                  return;
-                }
-              }
-              
-              core.info('Notification sent successfully');
-```
 
 ## Importing Custom Jobs
 
@@ -521,8 +449,6 @@ steps:
     run: |
       echo "$MESSAGE"  # Empty - inputs.* is not available
 ```
-
-**Why it fails**: The `inputs:` field defines the MCP tool schema for the AI agent, not GitHub Actions workflow inputs. The `${{ inputs.* }}` syntax only works with workflow_dispatch inputs, not custom safe-output jobs.
 
 **✅ Correct approach:**
 
