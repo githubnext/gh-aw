@@ -1,6 +1,11 @@
 ---
 # Chroma MCP Server
-# Requires cache-memory: true for persistent storage
+# Requires cache-memory with chroma cache ID for persistent storage
+
+tools:
+  cache-memory:
+    - id: chroma
+      description: Persistent storage for Chroma vector database
 
 mcp-servers:
   chroma:
@@ -10,7 +15,7 @@ mcp-servers:
       - "--client-type"
       - "persistent"
       - "--data-dir"
-      - "/tmp/gh-aw/cache-memory"
+      - "/tmp/gh-aw/cache-memory-chroma"
     allowed:
       - chroma_list_collections
       - chroma_create_collection
@@ -72,13 +77,7 @@ Chroma is an open-source embedding database that provides standardized, programm
 
 ### Setup
 
-1. Enable cache-memory in your workflow:
-```yaml
-tools:
-  cache-memory: true
-```
-
-2. Import this configuration:
+1. Import this configuration (cache-memory is automatically configured):
 ```yaml
 imports:
   - shared/mcp/chroma.md
@@ -90,8 +89,6 @@ imports:
 ---
 on: workflow_dispatch
 engine: copilot
-tools:
-  cache-memory: true
 imports:
   - shared/mcp/chroma.md
 ---
@@ -108,7 +105,7 @@ Use Chroma to build a semantic search index of documentation and answer question
 
 ### How It Works
 
-The Chroma MCP server stores vector embeddings and metadata in `/tmp/gh-aw/cache-memory/`, which persists across workflow runs via GitHub Actions cache. The server uses uvx to run the chroma-mcp-server package in persistent mode.
+The Chroma MCP server stores vector embeddings and metadata in `/tmp/gh-aw/cache-memory-chroma/`, which persists across workflow runs via GitHub Actions cache with cache ID "chroma". The server uses uvx to run the chroma-mcp-server package in persistent mode.
 
 ### Use Cases
 
@@ -123,7 +120,8 @@ The Chroma MCP server stores vector embeddings and metadata in `/tmp/gh-aw/cache
 The Chroma MCP server can be customized by modifying the configuration:
 
 - **Client Type**: `persistent` (default, stores data) or `ephemeral` (in-memory only)
-- **Data Directory**: `/tmp/gh-aw/cache-memory` (default, uses cache-memory folder)
+- **Data Directory**: `/tmp/gh-aw/cache-memory-chroma` (uses cache ID "chroma" for isolation)
+- **Cache ID**: `chroma` (separate cache from other workflows)
 - **Embedding Functions**: Multiple embedding functions available via `mcp_known_embedding_functions`
 
 ### Documentation
