@@ -32,7 +32,7 @@ name: "Framework Upgrade"
 description: "Move services to Framework vNext"
 
 project-url: "https://github.com/orgs/ORG/projects/1"
-tracker-label: "campaign:framework-upgrade"
+tracker-label: "z_campaign_framework-upgrade"
 
 # Discovery: Where to find worker-created issues/PRs
 discovery-repos:
@@ -103,7 +103,7 @@ At least one of `discovery-repos` or `discovery-orgs` is required when using wor
 - `objective`: One sentence describing what success means for this campaign.
 - `kpis`: List of 1-3 KPIs used to measure progress toward the objective.
 - `workflows`: Workflow IDs the orchestrator can dispatch via `workflow_dispatch`.
-- `tracker-label`: Label used to discover worker-created issues/PRs (commonly `campaign:<id>`).
+- `tracker-label`: Label used to discover worker-created issues/PRs (format: `z_campaign_<id>`).
 - `state`: Lifecycle state (`planned`, `active`, `paused`, `completed`, or `archived`).
 
 ### Optional
@@ -174,7 +174,7 @@ governance:
   max-new-items-per-run: 10
   max-discovery-items-per-run: 100
   max-discovery-pages-per-run: 5
-  opt-out-labels: ["campaign:skip"]
+  opt-out-labels: ["z_campaign_skip"]
   do-not-downgrade-done-items: true
   max-project-updates-per-run: 50
   max-comments-per-run: 10

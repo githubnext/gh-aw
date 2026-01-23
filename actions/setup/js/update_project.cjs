@@ -5,6 +5,26 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
+ * Campaign label prefix constant.
+ * Campaign-specific labels follow the format "z_campaign_<id>" where <id> is the campaign identifier.
+ * The "z_" prefix ensures these labels sort last in label lists.
+ */
+const CAMPAIGN_LABEL_PREFIX = "z_campaign_";
+
+/**
+ * Format a campaign ID into a standardized campaign label.
+ * Mirrors the logic in pkg/stringutil/identifiers.go:FormatCampaignLabel and
+ * actions/setup/js/safe_output_handler_manager.cjs:formatCampaignLabel.
+ * @param {string} campaignId - Campaign ID to format
+ * @returns {string} Formatted campaign label (e.g., "z_campaign_security-q1-2025")
+ */
+function formatCampaignLabel(campaignId) {
+  return `${CAMPAIGN_LABEL_PREFIX}${String(campaignId)
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-")}`;
+}
+
+/**
  * Log detailed GraphQL error information
  * @param {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown }} error - GraphQL error
  * @param {string} operation - Operation description
@@ -792,7 +812,7 @@ async function updateProject(output) {
         ).addProjectV2ItemById.item.id;
         if (campaignId) {
           try {
-            await github.rest.issues.addLabels({ owner, repo, issue_number: contentNumber, labels: [`campaign:${campaignId}`] });
+            await github.rest.issues.addLabels({ owner, repo, issue_number: contentNumber, labels: [formatCampaignLabel(campaignId)] });
           } catch (labelError) {
             core.warning(`Failed to add campaign label: ${getErrorMessage(labelError)}`);
           }
