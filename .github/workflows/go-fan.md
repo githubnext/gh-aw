@@ -23,6 +23,7 @@ network:
     - go
 
 imports:
+  - shared/mcp/semgrep.md
   - shared/reporting.md
 
 safe-outputs:
