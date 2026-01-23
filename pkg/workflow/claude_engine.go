@@ -342,6 +342,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
 		claudeLog.Printf("Pinned AWF image tag to %s", awfImageTag)
 
+		// Use ACT agent container for GitHub Actions parity
+		awfArgs = append(awfArgs, "--agent-image", "act")
+		claudeLog.Print("Using ACT agent container for GitHub Actions parity")
+
 		// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
 		sslBumpArgs := getSSLBumpArgs(firewallConfig)
 		awfArgs = append(awfArgs, sslBumpArgs...)

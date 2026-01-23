@@ -257,6 +257,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
 		codexEngineLog.Printf("Pinned AWF image tag to %s", awfImageTag)
 
+		// Use ACT agent container for GitHub Actions parity
+		awfArgs = append(awfArgs, "--agent-image", "act")
+		codexEngineLog.Print("Using ACT agent container for GitHub Actions parity")
+
 		// Note: No --tty flag for Codex (it's not a TUI, it outputs to stdout/stderr)
 
 		// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
