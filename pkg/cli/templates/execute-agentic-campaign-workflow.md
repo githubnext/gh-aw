@@ -19,7 +19,7 @@ The following campaign workers are referenced by this campaign:
 - Use `workflow_dispatch` as the ONLY trigger (no schedule/push/pull_request)
 - Accept `campaign_id` (string) and `payload` (string; JSON) inputs
 - Implement idempotency via deterministic work item keys
-- Label all created items with `campaign:{{ .CampaignID }}`
+- Label all created items with `z_campaign_{{ .CampaignID }}`
 
 ---
 
@@ -119,12 +119,12 @@ Expected payload structure:
 
 2. **Check for existing work**:
    - Search for PRs/issues with `workKey` in title
-   - Filter by label: `campaign:${campaignId}`
+  - Filter by label: `z_campaign_${campaignId}`
    - If found: Skip or update
    - If not: Create new
 
 3. **Label all created items**:
-   - Apply `campaign:${campaignId}` label
+  - Apply `z_campaign_${campaignId}` label
    - This enables discovery by orchestrator
 
 ## Task

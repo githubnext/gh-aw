@@ -242,6 +242,8 @@ describe("campaign_discovery", () => {
       const call = octokit.rest.search.issuesAndPullRequests.mock.calls[0][0];
       expect(call.q).toContain('"gh-aw-tracker-id: workflow-1"');
       expect(call.q).toContain("org:myorg");
+      expect(call.q).not.toContain("(");
+      expect(call.q).not.toContain(")");
     });
 
     it("should build query with both repos and orgs", async () => {
@@ -261,6 +263,8 @@ describe("campaign_discovery", () => {
       expect(call.q).toContain('"gh-aw-tracker-id: workflow-1"');
       expect(call.q).toContain("repo:owner/repo1");
       expect(call.q).toContain("org:myorg");
+      expect(call.q).not.toContain("(");
+      expect(call.q).not.toContain(")");
     });
   });
 
@@ -311,6 +315,8 @@ describe("campaign_discovery", () => {
       expect(call.q).toContain('label:"campaign:test"');
       expect(call.q).toContain("repo:owner/repo1");
       expect(call.q).toContain("repo:owner/repo2");
+      expect(call.q).not.toContain("(");
+      expect(call.q).not.toContain(")");
     });
 
     it("should build org-specific query when orgs provided", async () => {
@@ -330,6 +336,8 @@ describe("campaign_discovery", () => {
       expect(call.q).toContain('label:"campaign:test"');
       expect(call.q).toContain("org:myorg");
       expect(call.q).toContain("org:anotherorg");
+      expect(call.q).not.toContain("(");
+      expect(call.q).not.toContain(")");
     });
 
     it("should build combined query when both repos and orgs provided", async () => {
@@ -349,6 +357,8 @@ describe("campaign_discovery", () => {
       expect(call.q).toContain('label:"campaign:test"');
       expect(call.q).toContain("repo:owner/repo1");
       expect(call.q).toContain("org:myorg");
+      expect(call.q).not.toContain("(");
+      expect(call.q).not.toContain(")");
     });
   });
 

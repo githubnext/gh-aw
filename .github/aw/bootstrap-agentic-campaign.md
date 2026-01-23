@@ -33,7 +33,7 @@ When no work items are discovered, dispatch a seeder/scanner worker to discover 
 **Seeder Worker Contract**:
 - MUST accept `campaign_id` and `payload` inputs (standard worker contract)
 - MUST create discoverable outputs (issues, PRs, or discussions)
-- MUST apply the tracker label: `campaign:{{ .CampaignID }}`
+- MUST apply the tracker label: `z_campaign_{{ .CampaignID }}`
 - SHOULD limit output count to configured max-items if provided
 - SHOULD use deterministic work item keys for idempotency
 
@@ -88,7 +88,7 @@ When no work items are discovered, read from the Project board's "{{ .TodoValue 
 No automatic bootstrap configured. Wait for manual work item creation:
 
 - Work items should be created manually (issues, PRs, or discussions)
-- All items MUST have the tracker label: `campaign:{{ .CampaignID }}`
+- All items MUST have the tracker label: `z_campaign_{{ .CampaignID }}`
 - Items MUST follow the worker output labeling contract
 - Once items exist, the orchestrator will discover them normally
 
@@ -116,7 +116,7 @@ When dispatching workers during bootstrap, use deterministic selection:
 {{ end }}- Key in Title: {{ .OutputLabeling.KeyInTitle }}
 {{ if .OutputLabeling.KeyFormat }}- Key Format: `{{ .OutputLabeling.KeyFormat }}`
 {{ end }}
-- Campaign tracker label applied automatically: `campaign:{{ $.CampaignID }}`
+- Campaign tracker label applied automatically: `z_campaign_{{ $.CampaignID }}`
 
 **Idempotency Strategy**: {{ .IdempotencyStrategy }}
 
