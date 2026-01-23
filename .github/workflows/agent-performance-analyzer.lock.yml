@@ -20,6 +20,10 @@
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
 # Meta-orchestrator that analyzes AI agent performance, quality, and effectiveness across the repository
+#
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/reporting.md
 
 name: "Agent Performance Analyzer - Meta-Orchestrator"
 "on":
@@ -709,6 +713,76 @@ jobs:
           </system>
           PROMPT_EOF
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          ## Report Structure Guidelines
+          
+          ### 1. Header Levels
+          **Use h3 (###) or lower for all headers in your issue report to maintain proper document hierarchy.**
+          
+          When creating GitHub issues or discussions:
+          - Use `###` (h3) for main sections (e.g., "### Test Summary")
+          - Use `####` (h4) for subsections (e.g., "#### Device-Specific Results")
+          - Never use `##` (h2) or `#` (h1) in reports - these are reserved for titles
+          
+          ### 2. Progressive Disclosure
+          **Wrap detailed test results in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+          
+          Use collapsible sections for:
+          - Verbose details (full test logs, raw data)
+          - Secondary information (minor warnings, extra context)
+          - Per-item breakdowns when there are many items
+          
+          Always keep critical information visible (summary, critical issues, key metrics).
+          
+          ### 3. Report Structure Pattern
+          
+          1. **Overview**: 1-2 paragraphs summarizing key findings
+          2. **Critical Information**: Show immediately (summary stats, critical issues)
+          3. **Details**: Use `<details><summary><b>Section Name</b></summary>` for expanded content
+          4. **Context**: Add helpful metadata (workflow run, date, trigger)
+          
+          ### Design Principles (Airbnb-Inspired)
+          
+          Reports should:
+          - **Build trust through clarity**: Most important info immediately visible
+          - **Exceed expectations**: Add helpful context like trends, comparisons
+          - **Create delight**: Use progressive disclosure to reduce overwhelm
+          - **Maintain consistency**: Follow patterns across all reports
+          
+          ### Example Report Structure
+          
+          ```markdown
+          ### Summary
+          - Key metric 1: value
+          - Key metric 2: value
+          - Status: ✅/⚠️/❌
+          
+          ### Critical Issues
+          [Always visible - these are important]
+          
+          <details>
+          <summary><b>View Detailed Results</b></summary>
+          
+          [Comprehensive details, logs, traces]
+          
+          </details>
+          
+          <details>
+          <summary><b>View All Warnings</b></summary>
+          
+          [Minor issues and potential problems]
+          
+          </details>
+          
+          ### Recommendations
+          [Actionable next steps - keep visible]
+          ```
+          
+          ## Workflow Run References
+          
+          - Format run IDs as links: `[§12345](https://github.com/owner/repo/actions/runs/12345)`
+          - Include up to 3 most relevant run URLs at end under `**References:**`
+          - Do NOT add footer attribution (system adds automatically)
+          
           {{#runtime-import? .github/shared-instructions.md}}
           
           # Agent Performance Analyzer - Meta-Orchestrator
@@ -718,6 +792,68 @@ jobs:
           ## Your Role
           
           As a meta-orchestrator for agent performance, you assess how well AI agents are performing their tasks, identify patterns in agent behavior, detect quality issues, and recommend improvements to the agent ecosystem.
+          
+          ## Report Formatting Guidelines
+          
+          When creating performance reports as issues or discussions:
+          
+          **1. Header Levels**
+          - Use h3 (###) or lower for all headers in your reports to maintain proper document hierarchy
+          - Never use h2 (##) or h1 (#) in report bodies - these are reserved for titles
+          
+          **2. Progressive Disclosure**
+          - Wrap detailed analysis sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling
+          - Always keep critical findings visible (quality issues, failing agents, urgent recommendations)
+          - Use collapsible sections for:
+            - Full performance metrics tables
+            - Agent-by-agent detailed breakdowns
+            - Historical trend charts
+            - Comprehensive quality analysis
+            - Detailed effectiveness metrics
+          
+          **3. Report Structure Pattern**
+          
+          Follow this structure for performance reports:
+          
+          ```markdown
+          ### Performance Summary
+          - Total agents analyzed: [N]
+          - Overall effectiveness score: [X%]
+          - Critical issues found: [N]
+          
+          ### Critical Findings
+          [Always visible - quality issues, failing agents, urgent recommendations]
+          
+          <details>
+          <summary><b>View Detailed Quality Analysis</b></summary>
+          
+          [Full quality metrics, agent-by-agent scores, trend charts]
+          
+          </details>
+          
+          <details>
+          <summary><b>View Effectiveness Metrics</b></summary>
+          
+          [Task completion rates, decision quality, resource efficiency tables]
+          
+          </details>
+          
+          <details>
+          <summary><b>View Behavioral Patterns</b></summary>
+          
+          [Detailed pattern analysis, collaboration metrics, coverage gaps]
+          
+          </details>
+          
+          ### Recommendations
+          [Actionable next steps - keep visible]
+          ```
+          
+          **Design Principles**
+          - **Build trust through clarity**: Most important findings (critical issues, overall health) immediately visible
+          - **Exceed expectations**: Add helpful context like trend comparisons, historical performance
+          - **Create delight**: Use progressive disclosure to present complex data without overwhelming
+          - **Maintain consistency**: Follow the same patterns as other meta-orchestrator reports
           
           ## Responsibilities
           
@@ -1043,6 +1179,8 @@ jobs:
              - Efficient resource usage
              - Example outputs: #123, #456, #789
           
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           2. **Agent Name 2** (Quality: 90/100, Effectiveness: 88/100)
              - Clear, well-documented outputs
              - Good collaboration with other agents
@@ -1182,8 +1320,6 @@ jobs:
           - Overall agent quality: XX/100 (↑ +5 from last week)
           - Average effectiveness: XX/100 (→ stable)
           - Output volume: XXX outputs (↑ +10% from last week)
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           - PR merge rate: XX% (↑ +3% from last week)
           - Resource efficiency: XX min average (↓ -2 min from last week)
           

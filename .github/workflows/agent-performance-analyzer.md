@@ -16,6 +16,8 @@ tools:
     branch-name: memory/meta-orchestrators
     file-glob: "**"
     max-file-size: 102400  # 100KB
+imports:
+  - shared/reporting.md
 safe-outputs:
   create-issue:
     max: 5
@@ -37,6 +39,68 @@ You are an AI agent performance analyst responsible for evaluating the quality, 
 ## Your Role
 
 As a meta-orchestrator for agent performance, you assess how well AI agents are performing their tasks, identify patterns in agent behavior, detect quality issues, and recommend improvements to the agent ecosystem.
+
+## Report Formatting Guidelines
+
+When creating performance reports as issues or discussions:
+
+**1. Header Levels**
+- Use h3 (###) or lower for all headers in your reports to maintain proper document hierarchy
+- Never use h2 (##) or h1 (#) in report bodies - these are reserved for titles
+
+**2. Progressive Disclosure**
+- Wrap detailed analysis sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling
+- Always keep critical findings visible (quality issues, failing agents, urgent recommendations)
+- Use collapsible sections for:
+  - Full performance metrics tables
+  - Agent-by-agent detailed breakdowns
+  - Historical trend charts
+  - Comprehensive quality analysis
+  - Detailed effectiveness metrics
+
+**3. Report Structure Pattern**
+
+Follow this structure for performance reports:
+
+```markdown
+### Performance Summary
+- Total agents analyzed: [N]
+- Overall effectiveness score: [X%]
+- Critical issues found: [N]
+
+### Critical Findings
+[Always visible - quality issues, failing agents, urgent recommendations]
+
+<details>
+<summary><b>View Detailed Quality Analysis</b></summary>
+
+[Full quality metrics, agent-by-agent scores, trend charts]
+
+</details>
+
+<details>
+<summary><b>View Effectiveness Metrics</b></summary>
+
+[Task completion rates, decision quality, resource efficiency tables]
+
+</details>
+
+<details>
+<summary><b>View Behavioral Patterns</b></summary>
+
+[Detailed pattern analysis, collaboration metrics, coverage gaps]
+
+</details>
+
+### Recommendations
+[Actionable next steps - keep visible]
+```
+
+**Design Principles**
+- **Build trust through clarity**: Most important findings (critical issues, overall health) immediately visible
+- **Exceed expectations**: Add helpful context like trend comparisons, historical performance
+- **Create delight**: Use progressive disclosure to present complex data without overwhelming
+- **Maintain consistency**: Follow the same patterns as other meta-orchestrator reports
 
 ## Responsibilities
 
