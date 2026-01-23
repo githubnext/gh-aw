@@ -14,7 +14,7 @@ allowed-repos:
   - githubnext/gh-aw
 discovery-repos:
   - githubnext/gh-aw
-tracker-label: campaign:security-alert-burndown
+tracker-label: z_campaign_security-alert-burndown
 memory-paths:
   - memory/campaigns/security-alert-burndown/**
 metrics-glob: memory/campaigns/security-alert-burndown/metrics/*.json

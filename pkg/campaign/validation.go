@@ -69,9 +69,10 @@ func ValidateSpec(spec *CampaignSpec) []string {
 	// Validate tracker-label format if provided
 	if strings.TrimSpace(spec.TrackerLabel) != "" {
 		trimmedLabel := strings.TrimSpace(spec.TrackerLabel)
-		// Tracker labels should follow the pattern "campaign:campaign-id"
-		if !strings.HasPrefix(trimmedLabel, "campaign:") {
-			problems = append(problems, fmt.Sprintf("tracker-label should start with 'campaign:' prefix - got '%s', recommended: 'campaign:%s'", trimmedLabel, spec.ID))
+		// Tracker labels should follow the pattern "z_campaign_<campaign-id>"
+		expectedLabel := fmt.Sprintf("z_campaign_%s", strings.ToLower(strings.ReplaceAll(spec.ID, "_", "-")))
+		if !strings.HasPrefix(trimmedLabel, "z_campaign_") {
+			problems = append(problems, fmt.Sprintf("tracker-label should start with 'z_campaign_' prefix - got '%s', recommended: '%s'", trimmedLabel, expectedLabel))
 		}
 		// Check for invalid characters in labels (GitHub label restrictions)
 		if strings.Contains(trimmedLabel, " ") {
