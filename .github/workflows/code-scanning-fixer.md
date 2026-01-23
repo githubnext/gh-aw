@@ -22,6 +22,10 @@ tools:
   bash:
   cache-memory:
 safe-outputs:
+  add-labels:
+    allowed:
+      - agentic-campaign
+      - z_campaign_security-alert-burndown
   create-pull-request:
     title-prefix: "[code-scanning-fix] "
     labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]

@@ -22,6 +22,10 @@ tools:
   edit:
   bash:
 safe-outputs:
+  add-labels:
+    allowed:
+      - agentic-campaign
+      - z_campaign_security-alert-burndown
   create-pull-request:
     title-prefix: "[dependabot-bundle] "
     labels: [security, dependencies, dependabot, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
