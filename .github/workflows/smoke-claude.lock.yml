@@ -25,6 +25,7 @@
 #   Imports:
 #     - shared/gh.md
 #     - shared/github-queries-safe-input.md
+#     - shared/go-make.md
 #     - shared/mcp-pagination.md
 #     - shared/mcp/tavily.md
 #     - shared/reporting.md
@@ -620,6 +621,42 @@ jobs:
                   "GH_TOKEN": "GH_TOKEN"
                 },
                 "timeout": 60
+              },
+              {
+                "name": "go",
+                "description": "Execute any Go command. This tool is accessible as 'safeinputs-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
+                "inputSchema": {
+                  "properties": {
+                    "args": {
+                      "description": "Arguments to pass to go CLI (without the 'go' prefix). Examples: 'test ./...', 'build ./cmd/gh-aw', 'mod tidy', 'fmt ./...', 'vet ./...'",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "args"
+                  ],
+                  "type": "object"
+                },
+                "handler": "go.sh",
+                "timeout": 60
+              },
+              {
+                "name": "make",
+                "description": "Execute any Make target. This tool is accessible as 'safeinputs-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make \u003cargs\u003e. Use single quotes ' for complex args to avoid shell interpretation issues.",
+                "inputSchema": {
+                  "properties": {
+                    "args": {
+                      "description": "Arguments to pass to make (target names and options). Examples: 'build', 'test-unit', 'lint', 'recompile', 'agent-finish', 'fmt build test-unit'",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "args"
+                  ],
+                  "type": "object"
+                },
+                "handler": "make.sh",
+                "timeout": 60
               }
             ]
           }
@@ -961,6 +998,31 @@ jobs:
           
           EOFSH_github-pr-query
           chmod +x /opt/gh-aw/safe-inputs/github-pr-query.sh
+          cat > /opt/gh-aw/safe-inputs/go.sh << 'EOFSH_go'
+          #!/bin/bash
+          # Auto-generated safe-input tool: go
+          # Execute any Go command. This tool is accessible as 'safeinputs-go'. Provide the full command after 'go' (e.g., args: 'test ./...'). The tool will run: go <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
+          
+          set -euo pipefail
+          
+          echo "go $INPUT_ARGS"
+          go $INPUT_ARGS
+          
+          
+          EOFSH_go
+          chmod +x /opt/gh-aw/safe-inputs/go.sh
+          cat > /opt/gh-aw/safe-inputs/make.sh << 'EOFSH_make'
+          #!/bin/bash
+          # Auto-generated safe-input tool: make
+          # Execute any Make target. This tool is accessible as 'safeinputs-make'. Provide the target name(s) (e.g., args: 'build'). The tool will run: make <args>. Use single quotes ' for complex args to avoid shell interpretation issues.
+          
+          set -euo pipefail
+          
+          echo "make $INPUT_ARGS"
+          make $INPUT_ARGS
+          
+          EOFSH_make
+          chmod +x /opt/gh-aw/safe-inputs/make.sh
           
       - name: Generate Safe Inputs MCP Server Config
         id: safe-inputs-config
@@ -1441,6 +1503,25 @@ jobs:
           
           
           
+          **IMPORTANT**: Always use the `safeinputs-go` and `safeinputs-make` tools for Go and Make commands instead of running them directly via bash. These safe-input tools provide consistent execution and proper logging.
+          
+          **Correct**:
+          ```
+          Use the safeinputs-go tool with args: "test ./..."
+          Use the safeinputs-make tool with args: "build"
+          Use the safeinputs-make tool with args: "lint"
+          Use the safeinputs-make tool with args: "test-unit"
+          ```
+          
+          **Incorrect**:
+          ```
+          Use the go safe-input tool with args: "test ./..."  ❌ (Wrong tool name - use safeinputs-go)
+          Run: go test ./...  ❌ (Use safeinputs-go instead)
+          Execute bash: make build  ❌ (Use safeinputs-make instead)
+          ```
+          
+          
+          
           # Smoke Test: Claude Engine Validation
           
           **IMPORTANT: Keep all outputs extremely short and concise. Use single-line responses where possible. No verbose explanations.**
@@ -1449,12 +1530,13 @@ jobs:
           
           1. **GitHub MCP Testing**: Review the last 2 merged pull requests in __GH_AW_GITHUB_REPOSITORY__
           2. **Safe Inputs GH CLI Testing**: Use the `safeinputs-gh` tool to query 2 pull requests from __GH_AW_GITHUB_REPOSITORY__ (use args: "pr list --repo __GH_AW_GITHUB_REPOSITORY__ --limit 2 --json number,title,author")
-          3. **Serena MCP Testing**: Use the Serena MCP server tool `activate_project` to initialize the workspace at `__GH_AW_GITHUB_WORKSPACE__` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools)
-          4. **Playwright Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
-          5. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item
-          6. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-claude-__GH_AW_GITHUB_RUN_ID__.txt` with content "Smoke test passed for Claude at $(date)" (create the directory if it doesn't exist)
-          7. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
-          8. **Discussion Interaction Testing**: 
+          3. **Serena MCP Testing**: Use the Serena MCP server tool `activate_project` to initialize the workspace at `__GH_AW_GITHUB_WORKSPACE__` and verify it succeeds (do NOT use bash to run go commands - use Serena's MCP tools or the safeinputs-go/safeinputs-make tools from the go-make shared workflow)
+          4. **Make Build Testing**: Use the `safeinputs-make` tool to build the project (use args: "build") and verify it succeeds
+          5. **Playwright Testing**: Use playwright to navigate to https://github.com and verify the page title contains "GitHub"
+          6. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item
+          7. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-claude-__GH_AW_GITHUB_RUN_ID__.txt` with content "Smoke test passed for Claude at $(date)" (create the directory if it doesn't exist)
+          8. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+          9. **Discussion Interaction Testing**: 
              - Use the `github-discussion-query` safe-input tool with params: `limit=1, jq=".[0]"` to get the latest discussion from __GH_AW_GITHUB_REPOSITORY__
              - Extract the discussion number from the result (e.g., if the result is `{"number": 123, "title": "...", ...}`, extract 123)
              - Use the `add_comment` tool with `discussion_number: <extracted_number>` to add a fun, comic-book style comment stating that the smoke test agent was here
@@ -1474,7 +1556,7 @@ jobs:
              - ✅ or ❌ for each test result
              - Overall status: PASS or FAIL
           
-          3. Use the `add_comment` tool to add a **fun comic-book style comment** to the latest discussion (using the `discussion_number` you extracted in step 8) - be playful and use comic-book language like "💥 WHOOSH!"
+          3. Use the `add_comment` tool to add a **fun comic-book style comment** to the latest discussion (using the `discussion_number` you extracted in step 9) - be playful and use comic-book language like "💥 WHOOSH!"
           
           If all tests pass, add the label `smoke-claude` to the pull request.
           
