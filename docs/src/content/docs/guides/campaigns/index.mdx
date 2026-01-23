@@ -12,15 +12,15 @@ import FeatureGrid from '../../../../components/FeatureGrid.astro';
 
 ## What are Agentic Campaigns?
 
-**[Agentic campaigns](/gh-aw/reference/glossary/#agentic-campaign)** are a way to bundle agentic workflows around a shared goal.
+**[Agentic campaigns](/gh-aw/reference/glossary/#agentic-campaign)** bundle agentic workflows around a shared goal.
 
-This can be as lightweight tracking or grow over time to coordinate work across repositories and teams. Campaigns keep agentic work visible and easier to manage as it scales.
+Campaigns provide tracking infrastructure to coordinate work across repositories and teams, with all work visible through GitHub Projects.
 
 ## Why use campaigns?
 
 <FeatureGrid columns={2}>
   <FeatureCard icon="goal" title="Strategic Goals" href="/gh-aw/guides/campaigns/specs/#strategic-goals-objective--kpis">
-    Define what “done” means with an objective and KPIs (and optional narrative context).
+    Define campaign objectives and key performance indicators (KPIs) with optional narrative context.
   </FeatureCard>
   <FeatureCard icon="workflow" title="Reuse Worker Workflows" href="/gh-aw/guides/campaigns/specs/#worker-workflows">
     Coordinate existing dispatchable workflows instead of rewriting automation.
@@ -35,18 +35,16 @@ This can be as lightweight tracking or grow over time to coordinate work across 
 
 ## Natural language to Campaign
 
-Creating campaigns without agentic workflows would be tedious and error-prone.
-Just like agentic workflows turn natural language into GitHub Actions,
-campaigns turn brief natural language goal definitions into coordinated work tracked in GitHub Projects.
+Campaigns use agentic workflows to generate configuration from natural language descriptions.
 
-**Example input**: Describe your goal in plain language, such as:
+**Example input**: Describe your goal in plain language:
 
 ```md
 Burn down all open code security alerts, prioritizing file-write alerts first
 and batching up to 3 related alerts/PR with a brief fix rationale comment.
 ```
 
-The campaign generator automatically converts this into a **[campaign spec](/gh-aw/guides/campaigns/specs/)** in a pull request where you can review and iterate on the details. Here's what the essential parts look like:
+The campaign generator converts this into a **[campaign spec](/gh-aw/guides/campaigns/specs/)** in a pull request for review. Essential spec components include:
 
 ```yaml
 ---
@@ -78,10 +76,9 @@ governance:
 ---
 ```
 
-The spec is validated and compiled to create the campaign's orchestrator workflow (`.campaign.lock.yml`) that GitHub Actions can execute.
-Think of it like compiling code: you write a human-friendly campaign definition, and the compiler produces a hardened, machine-executable workflow.
+The spec is validated and compiled into the campaign orchestrator workflow (`.campaign.lock.yml`) that GitHub Actions executes.
 
-**What happens next**: Once merged, the campaign orchestrator runs on schedule (daily by default) to [dispatch worker workflows, discover items, update the Project board, and report status](/gh-aw/guides/campaigns/lifecycle/). The campaign coordinates all work toward your objective while respecting governance limits.
+Once merged, the orchestrator runs on schedule (daily by default) to [dispatch worker workflows, discover items, update the Project board, and report status](/gh-aw/guides/campaigns/lifecycle/).
 
 ## Next steps
 

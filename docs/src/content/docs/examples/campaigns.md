@@ -1,61 +1,43 @@
 ---
 title: Campaign Examples
-description: Example campaign workflows demonstrating worker orchestration with standardized contracts
+description: Example campaign workflows with worker patterns and idempotency
 sidebar:
   badge: { text: 'Examples', variant: 'note' }
 ---
 
-This section contains example campaign workflows that demonstrate how to use first-class campaign workers with standardized input contracts and idempotency.
+Example campaigns demonstrating worker coordination, standardized contracts, and idempotent execution patterns.
 
 ## Security Audit Campaign
 
-[**Security Audit 2026**](/gh-aw/examples/campaigns/security-auditcampaign/) - A comprehensive security audit campaign that demonstrates:
+[**Security Audit 2026**](/gh-aw/examples/campaigns/security-auditcampaign/) demonstrates:
 
-- **Worker Discovery**: Finding security-related issues and PRs via tracker labels
-- **Dispatch-Only Workers**: Workers designed specifically for campaign orchestration
-- **Standardized Contract**: All workers accept `campaign_id` and `payload` inputs
-- **Idempotency**: Workers check for existing work before creating duplicates
-- **KPI Tracking**: Measuring vulnerability reduction over time
+- Worker discovery via tracker labels
+- Dispatch-only worker design
+- Standardized input contracts (`campaign_id`, `payload`)
+- Idempotent execution with deterministic keys
+- KPI tracking for vulnerability metrics
 
-### Key Features
+The campaign coordinates three workers (scanner, fixer, reviewer) that create security-related issues and pull requests. Workers use deterministic branch names and titles to prevent duplicates.
 
-- 3 dispatch-only worker workflows (scanner, fixer, reviewer)
-- Governance policies for pacing and opt-out
-- Deterministic work item keys to prevent duplicates
-- Quarterly timeline with weekly status updates
-- Executive sponsorship and risk management
+### Key patterns
 
-### Worker Example
+**Orchestrator responsibilities:**
+- Dispatches workers on schedule
+- Discovers worker outputs via labels
+- Updates project board
+- Reports progress metrics
 
-[**Security Scanner**](/gh-aw/examples/campaigns/security-scanner/) - An example security scanner workflow that:
+**Worker responsibilities:**
+- Accepts `workflow_dispatch` only
+- Uses standardized inputs
+- Generates deterministic keys
+- Checks for existing work
+- Labels outputs with `campaign:<id>`
 
-- Accepts `campaign_id` and `payload` inputs via workflow_dispatch
-- Uses deterministic keys for branch names and PR titles
-- Checks for existing PRs before creating new ones
-- Labels all created items with `campaign:{id}` for tracking
-- Reports completion status back to orchestrator
+## Security Scanner Worker
 
-## Using These Examples
+[**Security Scanner**](/gh-aw/examples/campaigns/security-scanner/) shows worker implementation:
 
-### 1. Campaign Spec Structure
-
-Campaign specs (`.campaign.md` files) define:
-- Campaign goals and KPIs
-- Worker workflows to reference (by name)
-- Discovery scope (repos/orgs to search)
-- Memory paths for state persistence
-- Governance and pacing policies
-
-### 2. Worker Workflow Pattern (Dispatch-Only)
-
-Worker workflows MUST:
-- Use `workflow_dispatch` as the ONLY trigger (no schedule/push/pull_request)
-- Accept standardized inputs: `campaign_id` (string) and `payload` (string; JSON)
-- Implement idempotency via deterministic work item keys
-- Label all created items with `campaign:{campaign_id}`
-- Focus on specific, repeatable tasks
-
-Example:
 ```yaml
 on:
   workflow_dispatch:
@@ -70,41 +52,145 @@ on:
         type: string
 ```
 
-### 3. Idempotency Requirements
+The worker:
+1. Receives dispatch from orchestrator
+2. Scans for vulnerabilities
+3. Generates deterministic key: `campaign-{id}-{repo}-{vuln_id}`
+4. Checks for existing PR with that key
+5. Creates PR only if none exists
+6. Labels PR with `campaign:{id}`
 
-Workers prevent duplicates by:
-1. Computing deterministic keys: `campaign-{campaign_id}-{repository}-{work_item_id}`
-2. Using keys in branch names, PR titles, issue titles
-3. Checking for existing work with the key before creating
-4. Skipping or updating existing items rather than creating duplicates
+## Worker design patterns
 
-### 4. Folder Organization
+### Standardized contract
+
+All campaign workers accept the same inputs:
+
+```yaml
+inputs:
+  campaign_id:
+    description: 'Campaign identifier'
+    required: true
+    type: string
+  payload:
+    description: 'JSON payload with work details'
+    required: true
+    type: string
+```
+
+The payload contains work item details in JSON format.
+
+### Idempotency
+
+Workers prevent duplicate work using deterministic keys:
+
+```
+campaign-{campaign_id}-{repository}-{work_item_id}
+```
+
+Used in:
+- Branch names: `campaign-security-audit-myorg-myrepo-vuln-123`
+- PR titles: `[campaign-security-audit] Fix vulnerability 123`
+- Issue titles: `[campaign-security-audit] Security finding 123`
+
+Before creating items, workers search for existing items with the same key.
+
+### Dispatch-only triggers
+
+Workers in the campaign's `workflows` list must use only `workflow_dispatch`:
+
+```yaml
+# Correct
+on:
+  workflow_dispatch:
+    inputs: ...
+
+# Incorrect - campaign-controlled workers should not have other triggers
+on:
+  schedule: daily
+  workflow_dispatch:
+    inputs: ...
+```
+
+Workflows with schedules or event triggers should run independently and let the campaign discover their outputs.
+
+## File organization
 
 ```
 .github/workflows/
-├── my-campaign.campaign.md         # Campaign spec
-├── my-worker.md                    # Worker workflow (dispatch-only)
-└── my-campaign.campaign.lock.yml   # Compiled orchestrator
-
-docs/
-└── campaign-workers.md             # Worker pattern documentation
+├── security-audit.campaign.md           # Campaign spec
+├── security-audit.campaign.lock.yml     # Compiled orchestrator
+├── security-scanner.md                  # Worker workflow
+├── security-fixer.md                    # Worker workflow
+└── security-reviewer.md                 # Worker workflow
 ```
 
-Workers are stored alongside regular workflows, not in campaign-specific folders. The dispatch-only trigger makes ownership clear.
+Workers are regular workflows, not in campaign-specific folders. The dispatch-only trigger indicates campaign ownership.
 
-## Learn More
+## Campaign lifecycle integration
 
-- [Campaign Guides](/gh-aw/guides/campaigns/) - Campaign setup and configuration
-- [Campaign lifecycle](/gh-aw/guides/campaigns/lifecycle/) - How the orchestrator runs
-- [Safe Outputs](/gh-aw/reference/safe-outputs/) - dispatch_workflow configuration
+### Startup
 
-## Pattern Analysis
+1. Orchestrator dispatches workers
+2. Workers create issues/PRs with campaign labels
+3. Next run discovers these items
+4. Items added to project board
 
-These examples demonstrate best practices for campaign workers:
-- **Explicit ownership**: Workers are dispatch-only, clearly orchestrated
-- **Standardized contract**: All workers use the same input format
-- **Idempotent behavior**: Workers avoid duplicate work across runs
-- **Deterministic keys**: Enable reliable duplicate detection
-- **Simple units**: Workers are focused, stateless, deterministic
+### Ongoing execution
 
-The dispatch-only pattern eliminates confusion about trigger precedence and makes orchestration explicit.
+1. Orchestrator dispatches workers (new work)
+2. Discovers outputs from previous runs
+3. Updates project board incrementally
+4. Reports progress against KPIs
+
+### Completion
+
+1. All work items processed
+2. Final status update with metrics
+3. Campaign state set to `completed`
+4. Orchestrator disabled
+
+## Idempotency example
+
+```yaml
+# Worker checks for existing PR before creating
+- name: Check for existing PR
+  id: check
+  run: |
+    KEY="campaign-${{ inputs.campaign_id }}-${{ github.repository }}-vuln-123"
+    EXISTING=$(gh pr list --search "$KEY in:title" --json number --jq '.[0].number')
+    echo "existing=$EXISTING" >> $GITHUB_OUTPUT
+
+- name: Create PR
+  if: steps.check.outputs.existing == ''
+  uses: ./actions/safe-output
+  with:
+    type: create_pull_request
+    title: "[$KEY] Fix vulnerability 123"
+    body: "Automated security fix"
+    labels: "campaign:${{ inputs.campaign_id }}"
+```
+
+## Independent workflows
+
+Workflows not in the campaign's `workflows` list can run independently with their own triggers:
+
+```yaml
+# Independent worker - keeps its schedule
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+# Creates items with campaign label for discovery
+labels: ["campaign:security-audit", "security"]
+```
+
+The campaign discovers these via tracker labels without controlling execution.
+
+## Further reading
+
+- [Campaign guides](/gh-aw/guides/campaigns/) - Setup and configuration
+- [Campaign lifecycle](/gh-aw/guides/campaigns/lifecycle/) - Execution model
+- [Campaign specs](/gh-aw/guides/campaigns/specs/) - Configuration reference
+- [Safe outputs](/gh-aw/reference/safe-outputs/) - dispatch_workflow configuration
