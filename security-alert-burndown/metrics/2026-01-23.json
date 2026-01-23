@@ -2,22 +2,15 @@
   "campaign_id": "security-alert-burndown",
   "date": "2026-01-23",
   "tasks_total": 1,
-  "tasks_completed": 19,
+  "tasks_completed": 0,
   "tasks_in_progress": 0,
   "tasks_blocked": 0,
-  "velocity_per_day": 0.95,
-  "kpis": {
-    "critical_alerts": {
-      "baseline": 5,
-      "current": 1,
-      "target": 0,
-      "progress_pct": 80
-    },
-    "high_severity_alerts": {
-      "baseline": 15,
-      "current": 0,
-      "target": 5,
-      "progress_pct": 100
-    }
-  }
+  "critical_alerts_open": 1,
+  "high_alerts_open": 0,
+  "critical_alerts_baseline": 5,
+  "high_alerts_baseline": 15,
+  "critical_alerts_target": 0,
+  "high_alerts_target": 5,
+  "total_alerts_open": 4,
+  "note": "First run - discovered 1 critical alert (#538 unsafe-quoting in Go) and 3 low-severity alerts. No workers dispatched yet as no worker outputs were discovered in the manifest."
 }
