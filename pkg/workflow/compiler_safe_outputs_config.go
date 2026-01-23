@@ -81,6 +81,8 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 		if len(cfg.AllowedRepos) > 0 {
 			handlerConfig["allowed_repos"] = cfg.AllowedRepos
 		}
+		// Note: discussion flag is deprecated and not emitted to config
+		// Discussion support is always available in add_comment handler
 		config["add_comment"] = handlerConfig
 	}
 

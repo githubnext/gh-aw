@@ -11,6 +11,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  discussions: read
 name: Smoke Codex
 engine: codex
 strict: true
@@ -18,6 +19,7 @@ imports:
   - shared/gh.md
   - shared/mcp/tavily.md
   - shared/reporting.md
+  - shared/github-queries-safe-input.md
 network:
   allowed:
     - defaults
@@ -44,6 +46,7 @@ sandbox:
 safe-outputs:
     add-comment:
       hide-older-comments: true
+      max: 2
     create-issue:
       expires: 2h
       close-older-issues: true
@@ -73,6 +76,10 @@ timeout-minutes: 10
 5. **Tavily Web Search Testing**: Use the Tavily MCP server to perform a web search for "GitHub Agentic Workflows" and verify that results are returned with at least one item
 6. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-codex-${{ github.run_id }}.txt` with content "Smoke test passed for Codex at $(date)" (create the directory if it doesn't exist)
 7. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
+8. **Discussion Interaction Testing**: 
+   - Use the `github-discussion-query` safe-input tool with params: `limit=1, jq=".[0]"` to get the latest discussion from ${{ github.repository }}
+   - Extract the discussion number from the result (e.g., if the result is `{"number": 123, "title": "...", ...}`, extract 123)
+   - Use the `add_comment` tool with `discussion_number: <extracted_number>` to add a mystical, oracle-themed comment stating that the smoke test agent was here
 
 ## Output
 
@@ -80,5 +87,7 @@ Add a **very brief** comment (max 5-10 lines) to the current pull request with:
 - PR titles only (no descriptions)
 - ✅ or ❌ for each test result
 - Overall status: PASS or FAIL
+
+Use the `add_comment` tool to add a **mystical oracle-themed comment** to the latest discussion (using the `discussion_number` you extracted in step 8) - be creative and use mystical language like "🔮 The ancient spirits stir..."
 
 If all tests pass, add the label `smoke-codex` to the pull request.
