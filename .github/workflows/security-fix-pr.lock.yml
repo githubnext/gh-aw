@@ -1341,9 +1341,11 @@ jobs:
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
+      actions: read
       contents: read
       issues: write
       pull-requests: write
+      security-events: write
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"

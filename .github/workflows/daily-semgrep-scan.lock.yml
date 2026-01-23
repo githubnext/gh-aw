@@ -1048,6 +1048,7 @@ jobs:
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
+      actions: read
       contents: read
       security-events: write
     timeout-minutes: 15
