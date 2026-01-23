@@ -14,6 +14,7 @@ const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { listFilesRecursively } = require("./file_helpers.cjs");
+const { AGENT_OUTPUT_FILENAME } = require("./constants.cjs");
 
 /**
  * Main entry point for parsing threat detection results
@@ -27,7 +28,7 @@ async function main() {
     // Agent output artifact is downloaded to /tmp/gh-aw/threat-detection/
     // GitHub Actions places single-file artifacts directly in the target directory
     const threatDetectionDir = "/tmp/gh-aw/threat-detection";
-    const outputPath = path.join(threatDetectionDir, "agent_output.json");
+    const outputPath = path.join(threatDetectionDir, AGENT_OUTPUT_FILENAME);
     if (!fs.existsSync(outputPath)) {
       core.error("❌ Agent output file not found at: " + outputPath);
       // List all files in artifact directory for debugging

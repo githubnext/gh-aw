@@ -140,7 +140,7 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 		if (strings.HasSuffix(fileName, ".log") ||
 			(strings.HasSuffix(fileName, ".txt") && strings.Contains(fileName, "log"))) &&
 			!strings.Contains(fileName, "aw_output") &&
-			fileName != "agent_output.json" {
+			fileName != constants.AgentOutputFilename {
 
 			fileMetrics, err := parseLogFileWithEngine(path, detectedEngine, isGitHubCopilotAgent, verbose)
 			if err != nil && verbose {
@@ -214,7 +214,7 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 	// Look for the safe output artifact file that contains structured JSON with items array
 	// This file is created by the collect_ndjson_output.cjs script during workflow execution
 	// After artifact refactoring, the file is flattened to agent_output.json at root
-	agentOutputJSONPath := filepath.Join(runDir, "agent_output.json")
+	agentOutputJSONPath := filepath.Join(runDir, constants.AgentOutputFilename)
 
 	// Support both new flattened form (agent_output.json) and old forms for backward compatibility:
 	// 1. New: agent_output.json at root (after flattening)
@@ -225,7 +225,7 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 		// New flattened structure: agent_output.json at root
 		resolvedAgentOutputFile = agentOutputJSONPath
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found agent_output.json at root: %s", agentOutputJSONPath)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %s at root: %s", constants.AgentOutputFilename, agentOutputJSONPath)))
 		}
 	} else {
 		// Try old structure: agent-output directory
@@ -340,7 +340,7 @@ func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool) ([]NoopRe
 	// Look for the safe output artifact file that contains structured JSON with items array
 	// This file is created by the collect_ndjson_output.cjs script during workflow execution
 	// After artifact refactoring, the file is flattened to agent_output.json at root
-	agentOutputJSONPath := filepath.Join(runDir, "agent_output.json")
+	agentOutputJSONPath := filepath.Join(runDir, constants.AgentOutputFilename)
 
 	// Support both new flattened form (agent_output.json) and old forms for backward compatibility:
 	// 1. New: agent_output.json at root (after flattening)
@@ -351,7 +351,7 @@ func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool) ([]NoopRe
 		// New flattened structure: agent_output.json at root
 		resolvedAgentOutputFile = agentOutputJSONPath
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found agent_output.json at root: %s", agentOutputJSONPath)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %s at root: %s", constants.AgentOutputFilename, agentOutputJSONPath)))
 		}
 	} else {
 		// Try old structure: agent-output directory
@@ -462,7 +462,7 @@ func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool) ([]
 	// Look for the safe output artifact file that contains structured JSON with items array
 	// This file is created by the collect_ndjson_output.cjs script during workflow execution
 	// After artifact refactoring, the file is flattened to agent_output.json at root
-	agentOutputJSONPath := filepath.Join(runDir, "agent_output.json")
+	agentOutputJSONPath := filepath.Join(runDir, constants.AgentOutputFilename)
 
 	// Support both new flattened form (agent_output.json) and old forms for backward compatibility:
 	// 1. New: agent_output.json at root (after flattening)
@@ -473,7 +473,7 @@ func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool) ([]
 		// New flattened structure: agent_output.json at root
 		resolvedAgentOutputFile = agentOutputJSONPath
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found agent_output.json at root: %s", agentOutputJSONPath)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %s at root: %s", constants.AgentOutputFilename, agentOutputJSONPath)))
 		}
 	} else {
 		// Try old structure: agent-output directory

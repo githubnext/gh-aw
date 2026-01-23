@@ -803,7 +803,7 @@ func runContainsSafeOutputType(runDir string, safeOutputType string, verbose boo
 	normalizedType := normalizeSafeOutputType(safeOutputType)
 
 	// Look for agent_output.json in the run directory
-	agentOutputPath := filepath.Join(runDir, "agent_output.json")
+	agentOutputPath := filepath.Join(runDir, constants.AgentOutputFilename)
 
 	// Support both new flattened form and old directory form
 	if stat, err := os.Stat(agentOutputPath); err != nil || stat.IsDir() {

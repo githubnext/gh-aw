@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
@@ -327,7 +328,7 @@ func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtif
 
 		// Handle specific artifact types
 		switch {
-		case strings.HasSuffix(path, "agent_output.json"):
+		case strings.HasSuffix(path, constants.AgentOutputFilename):
 			// Parse safe outputs
 			if safeOutputs := parseJSONArtifact(path, verbose); safeOutputs != nil {
 				artifacts.SafeOutputs = safeOutputs
