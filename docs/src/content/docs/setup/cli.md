@@ -501,6 +501,23 @@ Show gh-aw version and product information.
 gh aw version
 ```
 
+#### `completion`
+
+Generate and manage shell completion scripts for tab completion.
+
+```bash wrap
+gh aw completion install              # Auto-detect and install
+gh aw completion uninstall            # Remove completions
+gh aw completion bash                 # Generate bash script
+gh aw completion zsh                  # Generate zsh script
+gh aw completion fish                 # Generate fish script
+gh aw completion powershell           # Generate powershell script
+```
+
+**Subcommands:** `install`, `uninstall`, `bash`, `zsh`, `fish`, `powershell`
+
+See [Shell Completions](#shell-completions) for detailed installation instructions.
+
 ## Shell Completions
 
 Enable tab completion for workflow names, engines, and paths.
