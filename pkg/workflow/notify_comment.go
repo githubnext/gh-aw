@@ -180,6 +180,27 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	})
 	steps = append(steps, agentFailureSteps...)
 
+	// Add create_pull_request error handling step if create-pull-request is configured
+	if data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequests != nil {
+		// Build environment variables for the create PR error handler
+		var createPRErrorEnvVars []string
+		createPRErrorEnvVars = append(createPRErrorEnvVars, "          CREATE_PR_ERROR_MESSAGE: ${{ needs.create_pull_request.outputs.error_message }}\n")
+		createPRErrorEnvVars = append(createPRErrorEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
+		createPRErrorEnvVars = append(createPRErrorEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
+
+		// Build the create PR error handling step
+		createPRErrorSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
+			StepName:      "Handle Create Pull Request Error",
+			StepID:        "handle_create_pr_error",
+			MainJobName:   mainJobName,
+			CustomEnvVars: createPRErrorEnvVars,
+			Script:        "const { main } = require('/opt/gh-aw/actions/handle_create_pr_error.cjs'); await main();",
+			ScriptFile:    "handle_create_pr_error.cjs",
+			Token:         "", // Will use default GITHUB_TOKEN
+		})
+		steps = append(steps, createPRErrorSteps...)
+	}
+
 	// Build environment variables for the conclusion script
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_ID: ${{ needs.%s.outputs.comment_id }}\n", constants.ActivationJobName))

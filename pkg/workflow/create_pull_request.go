@@ -136,6 +136,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		"issue_url":           "${{ steps.create_pull_request.outputs.issue_url }}",
 		"branch_name":         "${{ steps.create_pull_request.outputs.branch_name }}",
 		"fallback_used":       "${{ steps.create_pull_request.outputs.fallback_used }}",
+		"error_message":       "${{ steps.create_pull_request.outputs.error_message }}",
 	}
 
 	// Use the shared builder function to create the job
