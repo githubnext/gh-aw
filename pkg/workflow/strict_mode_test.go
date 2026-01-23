@@ -165,6 +165,8 @@ network:
     - "api.example.com"
 tools:
   github: false
+  playwright:
+    allowed_domains: ["example.com"]
 ---
 
 # Test Workflow`,
@@ -174,7 +176,7 @@ tools:
 			name: "shorthand write permission refused in strict mode",
 			content: `---
 on: push
-permissions: write
+permissions: write-all
 features:
   dangerous-permissions-write: true
 timeout-minutes: 10

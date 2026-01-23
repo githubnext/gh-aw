@@ -48,7 +48,7 @@ func TestStepOrderTracker_ValidateOrdering_UploadBeforeSecretRedaction(t *testin
 	if err == nil {
 		t.Error("Expected error when upload comes before secret redaction, got nil")
 	}
-	expectedMsg := "compiler bug: secret redaction must happen before artifact uploads"
+	expectedMsg := "This is a compiler bug - secret redaction must happen before artifact uploads"
 	if err != nil && !contains(err.Error(), expectedMsg) {
 		t.Errorf("Expected error message to contain '%s', got: %v", expectedMsg, err)
 	}
