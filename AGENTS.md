@@ -143,7 +143,7 @@ See [GitHub MCP Server Documentation](skills/github-mcp-server/SKILL.md) for com
 
 ## Merging Main Branch
 
-**When instructed to "merge main", follow these steps WITHOUT asking for confirmation:**
+**When explicitly instructed to "merge main", follow these steps:**
 
 1. **Start the merge from origin/main:**
    ```bash
@@ -167,7 +167,7 @@ See [GitHub MCP Server Documentation](skills/github-mcp-server/SKILL.md) for com
    git commit        # Complete the merge (accept default merge message)
    ```
 
-**Important**: Do NOT ask for confirmation when performing a merge - execute all steps automatically.
+**Important**: Only perform a merge when the user explicitly requests it. Do not attempt to merge automatically or without clear user instruction.
 
 ## Quick Setup
 
