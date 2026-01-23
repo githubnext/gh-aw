@@ -859,6 +859,7 @@ func (p *ScheduleParser) parseBase() (string, error) {
 func normalizeTimezoneAbbreviation(token string) (string, bool) {
 	switch strings.ToLower(token) {
 	case "pt", "pst":
+		scheduleLog.Printf("Warning: PT timezone is ambiguous; treating as UTC-8 (PST)")
 		return "utc-8", true
 	case "pdt":
 		return "utc-7", true
@@ -1026,7 +1027,7 @@ func parseTime(timeStr string) (minute string, hour string) {
 		if strings.HasSuffix(lowerTime, "am") || strings.HasSuffix(lowerTime, "pm") {
 			isPM := strings.HasSuffix(lowerTime, "pm")
 			// Remove am/pm suffix
-			timePart := strings.TrimSpace(lowerTime[:len(lowerTime)-2])
+			timePart := strings.TrimSpace(strings.TrimSuffix(strings.TrimSuffix(lowerTime, "am"), "pm"))
 			hourNum, minNum, ok := parseHourMinute(timePart)
 			if !ok || hourNum < 1 || hourNum > 12 {
 				return "0", "0"
