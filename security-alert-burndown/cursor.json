@@ -1,6 +1,8 @@
 {
   "page": 1,
   "label": "z_campaign_security-alert-burndown",
-  "last_processed_at": "2026-01-23T08:52:52Z",
-  "items_processed": 5
+  "last_processed_at": "2026-01-23T11:21:55.173Z",
+  "items_processed": 5,
+  "items_remaining": 0,
+  "status": "complete"
 }
