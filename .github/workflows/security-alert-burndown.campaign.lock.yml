@@ -1571,9 +1571,9 @@ jobs:
           | `status` | single-select | `Todo` / `In Progress` / `Review required` / `Blocked` / `Done` |
           | `campaign_id` | text | Must equal `security-alert-burndown` |
           | `worker_workflow` | text | workflow ID or `"unknown"` |
-          | `repository` | text | `owner/repo` |
-          | `priority` | single-select | `High` / `Medium` / `Low` |
-          | `size` | single-select | `Small` / `Medium` / `Large` |
+          | `repo` | text | `owner/repo` (renamed from `repository` to avoid GitHub's reserved REPOSITORY field) |
+          | `priority` | single-select | `High` / `Medium` / `Low` (ensure Medium option exists in project) |
+          | `size` | single-select | `Small` / `Medium` / `Large` (ensure Medium option exists in project) |
           | `start_date` | date | `YYYY-MM-DD` |
           | `end_date` | date | `YYYY-MM-DD` |
           
@@ -1596,9 +1596,9 @@ jobs:
           
           - `campaign_id`: always `security-alert-burndown`
           - `worker_workflow`: workflow ID if known, else `"unknown"`
-          - `repository`: extract `owner/repo` from the issue/PR URL
-          - `priority`: default `Medium` unless explicitly known
-          - `size`: default `Medium` unless explicitly known
+          - `repo`: extract `owner/repo` from the issue/PR URL
+          - `priority`: default `Medium` unless explicitly known (ensure Medium option exists in project)
+          - `size`: default `Medium` unless explicitly known (ensure Medium option exists in project)
           - `start_date`: issue/PR `created_at` formatted `YYYY-MM-DD`
           - `end_date`:
             - if closed/merged → `closed_at` / `merged_at` formatted `YYYY-MM-DD`
@@ -1633,7 +1633,7 @@ jobs:
               status: "Todo"                   # "Done" if already closed/merged
               campaign_id: "security-alert-burndown"
               worker_workflow: "unknown"
-              repository: "owner/repo"
+              repo: "owner/repo"
               priority: "Medium"
               size: "Medium"
               start_date: "2025-12-15"
@@ -1676,7 +1676,7 @@ jobs:
               status: "Done"
               campaign_id: "security-alert-burndown"
               worker_workflow: "WORKFLOW_ID"
-              repository: "owner/repo"
+              repo: "owner/repo"
               priority: "Medium"
               size: "Medium"
               start_date: "2025-12-15"
@@ -1701,7 +1701,7 @@ jobs:
           
           For every attempted item, record:
           
-          - `content_type`, `content_number`, `repository`
+          - `content_type`, `content_number`, `repo`
           - action taken: `noop | add | status_update | backfill | failed`
           - error details if failed
           
@@ -1757,9 +1757,9 @@ jobs:
           - [ ] `fields.status` ∈ {`Todo`, `In Progress`, `Review required`, `Blocked`, `Done`}
           - [ ] `fields.campaign_id` is present on first-add/backfill and equals `security-alert-burndown`
           - [ ] `fields.worker_workflow` is present on first-add/backfill and is either a known workflow ID or `"unknown"`
-          - [ ] `fields.repository` matches `owner/repo`
-          - [ ] `fields.priority` ∈ {`High`, `Medium`, `Low`}
-          - [ ] `fields.size` ∈ {`Small`, `Medium`, `Large`}
+          - [ ] `fields.repo` matches `owner/repo`
+          - [ ] `fields.priority` ∈ {`High`, `Medium`, `Low`} (Medium option must exist in project)
+          - [ ] `fields.size` ∈ {`Small`, `Medium`, `Large`} (Medium option must exist in project)
           - [ ] `fields.start_date` matches `YYYY-MM-DD`
           - [ ] `fields.end_date` matches `YYYY-MM-DD`
           

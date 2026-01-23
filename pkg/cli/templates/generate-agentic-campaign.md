@@ -70,7 +70,7 @@ Required fields:
 - `status` (single-select): `Todo`, `In Progress`, `Review required`, `Blocked`, `Done`
 - `campaign_id` (text)
 - `worker_workflow` (text)
-- `repository` (text, `owner/repo`)
+- `repo` (text, `owner/repo` - renamed from `repository` to avoid GitHub's reserved REPOSITORY field)
 - `priority` (single-select): `High`, `Medium`, `Low`
 - `size` (single-select): `Small`, `Medium`, `Large`
 - `start_date` (date, `YYYY-MM-DD`)

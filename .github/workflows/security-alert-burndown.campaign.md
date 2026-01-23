@@ -137,6 +137,20 @@ The campaign orchestrator will:
 - Cache prevents duplicate fixes
 - Opt-out labels allow excluding specific repos/issues
 
+## Setup Requirements
+
+**Project Field Configuration (Project 134):**
+- Ensure the following fields exist with the correct options:
+  - `repo` field (text) - **Note:** Use `repo` instead of `repository` to avoid GitHub's reserved REPOSITORY field type
+  - `priority` field (single-select) - Must include: High, **Medium**, Low
+  - `size` field (single-select) - Must include: Small, **Medium**, Large
+- If "Medium" options are missing, add them manually in the GitHub Project UI before running the campaign
+
+**Worker Workflow Initial Activation:**
+- "Dependabot Bundler" and "Secret Scanning Triage" workers require an initial manual trigger to activate scheduled runs
+- Run `gh workflow run "Dependabot Bundler"` and `gh workflow run "Secret Scanning Triage"` once
+- After the first manual run, scheduled cron-based runs will activate automatically
+
 ## Success Criteria
 
 - All critical security alerts resolved (target: 0)
