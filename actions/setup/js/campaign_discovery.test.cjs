@@ -1,6 +1,6 @@
 // @ts-check
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { normalizeItem, loadCursor, saveCursor, searchByTrackerId, searchByLabel, discover } from "./campaign_discovery.cjs";
+import { normalizeItem, loadCursor, saveCursor, searchByTrackerId, searchByLabel, searchItems, buildScopeParts, discover } from "./campaign_discovery.cjs";
 import fs from "fs";
 import path from "path";
 

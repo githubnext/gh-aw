@@ -111,14 +111,56 @@ function normalizeItem(item, contentType) {
  * @returns {string[]} Array of scope parts (e.g., ["repo:owner/repo", "org:orgname"])
  */
 function buildScopeParts(repos, orgs) {
-  const scopeParts = [];
-  if (repos && repos.length > 0) {
-    scopeParts.push(...repos.map(r => `repo:${r}`));
+  return [...(repos?.length ? repos.map(r => `repo:${r}`) : []), ...(orgs?.length ? orgs.map(o => `org:${o}`) : [])];
+}
+
+/**
+ * Generic search helper for issues and PRs
+ * @param {any} octokit - GitHub API client
+ * @param {string} searchQuery - GitHub search query
+ * @param {string} searchLabel - Label for logging (e.g., "tracker-id: workflow-1" or "label: bug")
+ * @param {number} maxItems - Maximum items to discover
+ * @param {number} maxPages - Maximum pages to fetch
+ * @param {any} cursor - Cursor for pagination
+ * @param {any} cursorData - Additional data to store in cursor
+ * @returns {Promise<{items: any[], cursor: any, itemsScanned: number, pagesScanned: number}>}
+ */
+async function searchItems(octokit, searchQuery, searchLabel, maxItems, maxPages, cursor, cursorData) {
+  const items = [];
+  let itemsScanned = 0;
+  let pagesScanned = 0;
+  let page = cursor?.page || 1;
+
+  while (pagesScanned < maxPages && itemsScanned < maxItems) {
+    core.info(`Fetching page ${page} for ${searchLabel}`);
+
+    const response = await octokit.rest.search.issuesAndPullRequests({
+      q: searchQuery,
+      per_page: 100,
+      page,
+      sort: "updated",
+      order: "asc",
+    });
+
+    pagesScanned++;
+
+    if (response.data.items.length === 0) {
+      core.info(`No more items found for ${searchLabel}`);
+      break;
+    }
+
+    for (const item of response.data.items) {
+      if (itemsScanned >= maxItems) break;
+      itemsScanned++;
+      const contentType = item.pull_request ? "pull_request" : "issue";
+      items.push(normalizeItem(item, contentType));
+    }
+
+    if (response.data.items.length < 100) break;
+    page++;
   }
-  if (orgs && orgs.length > 0) {
-    scopeParts.push(...orgs.map(o => `org:${o}`));
-  }
-  return scopeParts;
+
+  return { items, cursor: { page, ...cursorData }, itemsScanned, pagesScanned };
 }
 
 /**
@@ -133,23 +175,13 @@ function buildScopeParts(repos, orgs) {
  * @returns {Promise<{items: any[], cursor: any, itemsScanned: number, pagesScanned: number}>}
  */
 async function searchByTrackerId(octokit, trackerId, repos, orgs, maxItems, maxPages, cursor) {
-  const items = [];
-  let itemsScanned = 0;
-  let pagesScanned = 0;
-
   core.info(`Searching for tracker-id: ${trackerId} in ${repos.length} repo(s) and ${orgs.length} org(s)`);
 
-  // Search in issues and PRs
-  // Format: "gh-aw-tracker-id: workflow-name" appears in issue/PR body or comments
   let searchQuery = `"gh-aw-tracker-id: ${trackerId}" type:issue`;
-
-  // Scope search to allowed repositories and/or organizations
-  // GitHub search query has a limit of ~1024 characters
   const scopeParts = buildScopeParts(repos, orgs);
 
   if (scopeParts.length > 0) {
     const scopeQuery = scopeParts.join(" ");
-    // Check if combined query would exceed GitHub's limit
     if (searchQuery.length + scopeQuery.length + 1 > 1000) {
       core.warning(`Search query length (${searchQuery.length + scopeQuery.length + 1}) approaches GitHub's ~1024 character limit. Some repos/orgs may be omitted.`);
     }
@@ -157,59 +189,7 @@ async function searchByTrackerId(octokit, trackerId, repos, orgs, maxItems, maxP
     core.info(`Scoped search to: ${scopeParts.join(", ")}`);
   }
 
-  try {
-    let page = cursor?.page || 1;
-
-    while (pagesScanned < maxPages && itemsScanned < maxItems) {
-      core.info(`Fetching page ${page} for tracker-id: ${trackerId}`);
-
-      const response = await octokit.rest.search.issuesAndPullRequests({
-        q: searchQuery,
-        per_page: 100,
-        page: page,
-        sort: "updated",
-        order: "asc", // Stable ordering
-      });
-
-      pagesScanned++;
-
-      if (response.data.items.length === 0) {
-        core.info(`No more items found for tracker-id: ${trackerId}`);
-        break;
-      }
-
-      for (const item of response.data.items) {
-        if (itemsScanned >= maxItems) {
-          break;
-        }
-
-        itemsScanned++;
-
-        // Determine if it's a PR or issue
-        const contentType = item.pull_request ? "pull_request" : "issue";
-        const normalized = normalizeItem(item, contentType);
-        items.push(normalized);
-      }
-
-      // Check if there are more pages
-      if (response.data.items.length < 100) {
-        break; // Last page
-      }
-
-      page++;
-    }
-
-    return {
-      items,
-      cursor: { page, trackerId },
-      itemsScanned,
-      pagesScanned,
-    };
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    core.error(`Error searching by tracker-id: ${err.message}`);
-    throw err;
-  }
+  return searchItems(octokit, searchQuery, `tracker-id: ${trackerId}`, maxItems, maxPages, cursor, { trackerId });
 }
 
 /**
@@ -224,22 +204,13 @@ async function searchByTrackerId(octokit, trackerId, repos, orgs, maxItems, maxP
  * @returns {Promise<{items: any[], cursor: any, itemsScanned: number, pagesScanned: number}>}
  */
 async function searchByLabel(octokit, label, repos, orgs, maxItems, maxPages, cursor) {
-  const items = [];
-  let itemsScanned = 0;
-  let pagesScanned = 0;
-
   core.info(`Searching for label: ${label} in ${repos.length} repo(s) and ${orgs.length} org(s)`);
 
-  // Build search query for label scoped to allowed repositories and/or organizations
   let searchQuery = `label:"${label}"`;
-
-  // Scope search to allowed repositories and/or organizations
-  // GitHub search query has a limit of ~1024 characters
   const scopeParts = buildScopeParts(repos, orgs);
 
   if (scopeParts.length > 0) {
     const scopeQuery = scopeParts.join(" ");
-    // Check if combined query would exceed GitHub's limit
     if (searchQuery.length + scopeQuery.length + 1 > 1000) {
       core.warning(`Search query length (${searchQuery.length + scopeQuery.length + 1}) approaches GitHub's ~1024 character limit. Some repos/orgs may be omitted.`);
     }
@@ -247,59 +218,7 @@ async function searchByLabel(octokit, label, repos, orgs, maxItems, maxPages, cu
     core.info(`Scoped search to: ${scopeParts.join(", ")}`);
   }
 
-  try {
-    let page = cursor?.page || 1;
-
-    while (pagesScanned < maxPages && itemsScanned < maxItems) {
-      core.info(`Fetching page ${page} for label: ${label}`);
-
-      const response = await octokit.rest.search.issuesAndPullRequests({
-        q: searchQuery,
-        per_page: 100,
-        page: page,
-        sort: "updated",
-        order: "asc", // Stable ordering
-      });
-
-      pagesScanned++;
-
-      if (response.data.items.length === 0) {
-        core.info(`No more items found for label: ${label}`);
-        break;
-      }
-
-      for (const item of response.data.items) {
-        if (itemsScanned >= maxItems) {
-          break;
-        }
-
-        itemsScanned++;
-
-        // Determine if it's a PR or issue
-        const contentType = item.pull_request ? "pull_request" : "issue";
-        const normalized = normalizeItem(item, contentType);
-        items.push(normalized);
-      }
-
-      // Check if there are more pages
-      if (response.data.items.length < 100) {
-        break; // Last page
-      }
-
-      page++;
-    }
-
-    return {
-      items,
-      cursor: { page, label },
-      itemsScanned,
-      pagesScanned,
-    };
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    core.error(`Error searching by label: ${err.message}`);
-    throw err;
-  }
+  return searchItems(octokit, searchQuery, `label: ${label}`, maxItems, maxPages, cursor, { label });
 }
 
 /**
@@ -330,64 +249,50 @@ async function discover(config) {
 
   // Primary discovery: Search by campaign-specific label (most reliable)
   core.info(`Primary discovery: Searching by campaign-specific label: ${campaignLabel}`);
-  try {
-    const labelResult = await searchByLabel(octokit, campaignLabel, repos, orgs, maxDiscoveryItems, maxDiscoveryPages, cursor);
-    allItems.push(...labelResult.items);
-    totalItemsScanned += labelResult.itemsScanned;
-    totalPagesScanned += labelResult.pagesScanned;
-    cursor = labelResult.cursor;
-    core.info(`Campaign-specific label discovery found ${labelResult.items.length} item(s)`);
-  } catch (labelError) {
-    core.warning(`Campaign-specific label discovery failed: ${labelError instanceof Error ? labelError.message : String(labelError)}`);
-  }
+  const labelResult = await searchByLabel(octokit, campaignLabel, repos, orgs, maxDiscoveryItems, maxDiscoveryPages, cursor).catch(err => {
+    core.warning(`Campaign-specific label discovery failed: ${err instanceof Error ? err.message : String(err)}`);
+    return { items: [], itemsScanned: 0, pagesScanned: 0, cursor };
+  });
+
+  allItems.push(...labelResult.items);
+  totalItemsScanned += labelResult.itemsScanned;
+  totalPagesScanned += labelResult.pagesScanned;
+  cursor = labelResult.cursor;
+  core.info(`Campaign-specific label discovery found ${labelResult.items.length} item(s)`);
 
   // Secondary discovery: Search by generic "agentic-campaign" label
   if (allItems.length === 0 || totalItemsScanned < maxDiscoveryItems) {
     core.info(`Secondary discovery: Searching by generic agentic-campaign label...`);
-    try {
-      const remainingItems = maxDiscoveryItems - totalItemsScanned;
-      const remainingPages = maxDiscoveryPages - totalPagesScanned;
+    const remainingItems = maxDiscoveryItems - totalItemsScanned;
+    const remainingPages = maxDiscoveryPages - totalPagesScanned;
 
-      const genericResult = await searchByLabel(octokit, "agentic-campaign", repos, orgs, remainingItems, remainingPages, cursor);
+    const genericResult = await searchByLabel(octokit, "agentic-campaign", repos, orgs, remainingItems, remainingPages, cursor).catch(err => {
+      core.warning(`Generic label discovery failed: ${err instanceof Error ? err.message : String(err)}`);
+      return { items: [], itemsScanned: 0, pagesScanned: 0, cursor };
+    });
 
-      // Filter to only items that match this campaign ID (check body for campaign_id: <id>)
-      const campaignItems = genericResult.items.filter(item => {
-        // Check if item body contains campaign_id: <campaignId>
-        // This requires fetching the full issue/PR data
-        return true; // For now, include all items with generic label
-        // TODO: Add filtering by campaign_id in body text
-      });
+    // Merge items (deduplicate by URL)
+    const existingUrls = new Set(allItems.map(i => i.url));
+    const newItems = genericResult.items.filter(item => !existingUrls.has(item.url));
+    allItems.push(...newItems);
 
-      // Merge items (deduplicate by URL)
-      const existingUrls = new Set(allItems.map(i => i.url));
-      for (const item of campaignItems) {
-        if (!existingUrls.has(item.url)) {
-          allItems.push(item);
-        }
-      }
-
-      totalItemsScanned += genericResult.itemsScanned;
-      totalPagesScanned += genericResult.pagesScanned;
-      cursor = genericResult.cursor;
-      core.info(`Generic label discovery found ${campaignItems.length} item(s)`);
-    } catch (genericError) {
-      core.warning(`Generic label discovery failed: ${genericError instanceof Error ? genericError.message : String(genericError)}`);
-    }
+    totalItemsScanned += genericResult.itemsScanned;
+    totalPagesScanned += genericResult.pagesScanned;
+    cursor = genericResult.cursor;
+    core.info(`Generic label discovery found ${newItems.length} item(s)`);
   }
 
   // Fallback: Search GitHub API by tracker-id (if still no items)
-  if (allItems.length === 0 && workflows && workflows.length > 0) {
+  if (allItems.length === 0 && workflows?.length && totalItemsScanned < maxDiscoveryItems && totalPagesScanned < maxDiscoveryPages) {
     core.info(`No items found via labels. Searching GitHub API by tracker-id...`);
+
     for (const workflow of workflows) {
       if (totalItemsScanned >= maxDiscoveryItems || totalPagesScanned >= maxDiscoveryPages) {
         core.warning(`Reached discovery budget limits. Stopping discovery.`);
         break;
       }
 
-      const remainingItems = maxDiscoveryItems - totalItemsScanned;
-      const remainingPages = maxDiscoveryPages - totalPagesScanned;
-
-      const result = await searchByTrackerId(octokit, workflow, repos, orgs, remainingItems, remainingPages, cursor);
+      const result = await searchByTrackerId(octokit, workflow, repos, orgs, maxDiscoveryItems - totalItemsScanned, maxDiscoveryPages - totalPagesScanned, cursor);
 
       allItems.push(...result.items);
       totalItemsScanned += result.itemsScanned;
@@ -399,18 +304,12 @@ async function discover(config) {
   // Legacy discovery by tracker label (if provided and still needed)
   if (trackerLabel && (allItems.length === 0 || totalItemsScanned < maxDiscoveryItems)) {
     if (totalItemsScanned < maxDiscoveryItems && totalPagesScanned < maxDiscoveryPages) {
-      const remainingItems = maxDiscoveryItems - totalItemsScanned;
-      const remainingPages = maxDiscoveryPages - totalPagesScanned;
-
-      const result = await searchByLabel(octokit, trackerLabel, repos, orgs, remainingItems, remainingPages, cursor);
+      const result = await searchByLabel(octokit, trackerLabel, repos, orgs, maxDiscoveryItems - totalItemsScanned, maxDiscoveryPages - totalPagesScanned, cursor);
 
       // Merge items (deduplicate by URL)
       const existingUrls = new Set(allItems.map(i => i.url));
-      for (const item of result.items) {
-        if (!existingUrls.has(item.url)) {
-          allItems.push(item);
-        }
-      }
+      const newItems = result.items.filter(item => !existingUrls.has(item.url));
+      allItems.push(...newItems);
 
       totalItemsScanned += result.itemsScanned;
       totalPagesScanned += result.pagesScanned;
@@ -419,22 +318,20 @@ async function discover(config) {
   }
 
   // Sort items for stable ordering (by updated_at, then by number)
-  allItems.sort((a, b) => {
-    if (a.updated_at !== b.updated_at) {
-      return a.updated_at.localeCompare(b.updated_at);
-    }
-    return a.number - b.number;
-  });
+  allItems.sort((a, b) => a.updated_at.localeCompare(b.updated_at) || a.number - b.number);
 
   // Calculate summary counts
-  const needsAddCount = allItems.filter(i => i.state === "open").length;
-  const needsUpdateCount = allItems.filter(i => i.state === "closed" || i.merged_at).length;
+  const openItems = allItems.filter(i => i.state === "open");
+  const closedItems = allItems.filter(i => i.state === "closed" && !i.merged_at);
+  const mergedItems = allItems.filter(i => i.merged_at);
+  const needsAddCount = openItems.length;
+  const needsUpdateCount = closedItems.length + mergedItems.length;
 
   // Determine if budget was exhausted
   const itemsBudgetExhausted = totalItemsScanned >= maxDiscoveryItems;
   const pagesBudgetExhausted = totalPagesScanned >= maxDiscoveryPages;
   const budgetExhausted = itemsBudgetExhausted || pagesBudgetExhausted;
-  const exhaustedReason = itemsBudgetExhausted ? "max_items_reached" : pagesBudgetExhausted ? "max_pages_reached" : null;
+  const exhaustedReason = budgetExhausted ? (itemsBudgetExhausted ? "max_items_reached" : "max_pages_reached") : null;
 
   // Build manifest
   const manifest = {
@@ -455,9 +352,9 @@ async function discover(config) {
     summary: {
       needs_add_count: needsAddCount,
       needs_update_count: needsUpdateCount,
-      open_count: allItems.filter(i => i.state === "open").length,
-      closed_count: allItems.filter(i => i.state === "closed" && !i.merged_at).length,
-      merged_count: allItems.filter(i => i.merged_at).length,
+      open_count: openItems.length,
+      closed_count: closedItems.length,
+      merged_count: mergedItems.length,
     },
     items: allItems,
   };
@@ -471,11 +368,8 @@ async function discover(config) {
   core.info(`Budget utilization: ${totalItemsScanned}/${maxDiscoveryItems} items, ${totalPagesScanned}/${maxDiscoveryPages} pages`);
 
   if (budgetExhausted) {
-    if (allItems.length === 0) {
-      core.warning(`Discovery budget exhausted with 0 items found. Consider increasing budget limits in governance configuration.`);
-    } else {
-      core.info(`Discovery stopped at budget limit. Use cursor for continuation in next run.`);
-    }
+    const message = allItems.length === 0 ? `Discovery budget exhausted with 0 items found. Consider increasing budget limits in governance configuration.` : `Discovery stopped at budget limit. Use cursor for continuation in next run.`;
+    allItems.length === 0 ? core.warning(message) : core.info(message);
   }
 
   core.info(`Summary: ${needsAddCount} to add, ${needsUpdateCount} to update`);
@@ -516,14 +410,12 @@ async function main() {
     }
 
     // RUNTIME GUARD: Campaigns MUST be scoped
-    if ((!config.repos || config.repos.length === 0) && (!config.orgs || config.orgs.length === 0)) {
+    if (!config.repos?.length && !config.orgs?.length) {
       throw new Error("campaigns MUST be scoped: GH_AW_DISCOVERY_REPOS or GH_AW_DISCOVERY_ORGS is required. Configure allowed-repos or allowed-orgs in the campaign spec.");
     }
 
-    if (!config.workflows || config.workflows.length === 0) {
-      if (!config.trackerLabel) {
-        throw new Error("Either workflows or tracker-label must be provided");
-      }
+    if (!config.workflows?.length && !config.trackerLabel) {
+      throw new Error("Either workflows or tracker-label must be provided");
     }
 
     // Run discovery
@@ -564,6 +456,8 @@ module.exports = {
   normalizeItem,
   searchByTrackerId,
   searchByLabel,
+  searchItems,
   loadCursor,
   saveCursor,
+  buildScopeParts,
 };
