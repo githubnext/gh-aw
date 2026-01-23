@@ -104,17 +104,19 @@ Generate exactly **2 high-quality trend charts**:
 
 **Phase 5: Embed Charts in Discussion**
 
+**Formatting Guidelines**: Use h3 (###) for main sections and h4 (####) for subsections in your weekly summary to maintain proper document hierarchy. The discussion title serves as h1.
+
 Include the charts in your weekly summary with this structure:
 
 ```markdown
-## 📈 Issue Activity Trends
+### 📈 Issue Activity Trends
 
-### Weekly Activity Patterns
+#### Weekly Activity Patterns
 ![Issue Activity Trends](URL_FROM_UPLOAD_ASSET_CHART_1)
 
 [Brief 2-3 sentence analysis of issue activity trends, highlighting increases/decreases in activity or backlog growth]
 
-### Resolution Time Analysis
+#### Resolution Time Analysis
 ![Issue Resolution Trends](URL_FROM_UPLOAD_ASSET_CHART_2)
 
 [Brief 2-3 sentence analysis of how quickly issues are being resolved, noting improvements or slowdowns]
@@ -141,6 +143,8 @@ If insufficient data is available (less than 7 days):
 ## Weekly Analysis
 
 Analyze all issues opened in the repository ${{ github.repository }} over the last 7 days.
+
+**Report Structure**: Use h3 (###) or lower for all headers in your summary report.
 
 Create a comprehensive summary that includes:
 - Total number of issues opened
