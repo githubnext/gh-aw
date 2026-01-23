@@ -528,4 +528,221 @@ describe("add_comment", () => {
       delete process.env.GITHUB_WORKFLOW;
     });
   });
+
+  describe("404 error handling", () => {
+    it("should treat 404 errors as warnings for issue comments", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let warningCalls = [];
+      mockCore.warning = msg => {
+        warningCalls.push(msg);
+      };
+
+      let errorCalls = [];
+      mockCore.error = msg => {
+        errorCalls.push(msg);
+      };
+
+      // Mock API to throw 404 error
+      mockGithub.rest.issues.createComment = async () => {
+        const error = new Error("Not Found");
+        // @ts-ignore
+        error.status = 404;
+        throw error;
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "Test comment",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.warning).toBeTruthy();
+      expect(result.warning).toContain("not found");
+      expect(result.skipped).toBe(true);
+      expect(warningCalls.length).toBeGreaterThan(0);
+      expect(warningCalls[0]).toContain("not found");
+      expect(errorCalls.length).toBe(0);
+    });
+
+    it("should treat 404 errors as warnings for discussion comments", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let warningCalls = [];
+      mockCore.warning = msg => {
+        warningCalls.push(msg);
+      };
+
+      let errorCalls = [];
+      mockCore.error = msg => {
+        errorCalls.push(msg);
+      };
+
+      // Change context to discussion
+      mockContext.eventName = "discussion";
+      mockContext.payload = {
+        discussion: {
+          number: 10,
+        },
+      };
+
+      // Mock API to throw 404 error when querying discussion
+      mockGithub.graphql = async (query, variables) => {
+        if (query.includes("discussion(number")) {
+          // Return null to trigger the "not found" error
+          return {
+            repository: {
+              discussion: null, // Discussion not found
+            },
+          };
+        }
+        throw new Error("Unexpected query");
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "Test comment on deleted discussion",
+      };
+
+      const result = await handler(message, {});
+
+      // The error message contains "not found" so it should be treated as a warning
+      expect(result.success).toBe(true);
+      expect(result.warning).toBeTruthy();
+      expect(result.warning).toContain("not found");
+      expect(result.skipped).toBe(true);
+      expect(warningCalls.length).toBeGreaterThan(0);
+      expect(errorCalls.length).toBe(0);
+    });
+
+    it("should detect 404 from error message containing '404'", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let warningCalls = [];
+      mockCore.warning = msg => {
+        warningCalls.push(msg);
+      };
+
+      // Mock API to throw error with 404 in message
+      mockGithub.rest.issues.createComment = async () => {
+        throw new Error("API request failed with status 404");
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "Test comment",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.warning).toBeTruthy();
+      expect(result.skipped).toBe(true);
+      expect(warningCalls.length).toBeGreaterThan(0);
+    });
+
+    it("should detect 404 from error message containing 'Not Found'", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let warningCalls = [];
+      mockCore.warning = msg => {
+        warningCalls.push(msg);
+      };
+
+      // Mock API to throw error with "Not Found" in message
+      mockGithub.rest.issues.createComment = async () => {
+        throw new Error("Resource Not Found");
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "Test comment",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.warning).toBeTruthy();
+      expect(result.skipped).toBe(true);
+      expect(warningCalls.length).toBeGreaterThan(0);
+    });
+
+    it("should still fail for non-404 errors", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let warningCalls = [];
+      mockCore.warning = msg => {
+        warningCalls.push(msg);
+      };
+
+      let errorCalls = [];
+      mockCore.error = msg => {
+        errorCalls.push(msg);
+      };
+
+      // Mock API to throw non-404 error
+      mockGithub.rest.issues.createComment = async () => {
+        const error = new Error("Forbidden");
+        // @ts-ignore
+        error.status = 403;
+        throw error;
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "Test comment",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeTruthy();
+      expect(result.error).toContain("Forbidden");
+      expect(errorCalls.length).toBeGreaterThan(0);
+      expect(errorCalls[0]).toContain("Failed to add comment");
+    });
+
+    it("should still fail for validation errors", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let errorCalls = [];
+      mockCore.error = msg => {
+        errorCalls.push(msg);
+      };
+
+      // Mock API to throw validation error
+      mockGithub.rest.issues.createComment = async () => {
+        const error = new Error("Validation Failed");
+        // @ts-ignore
+        error.status = 422;
+        throw error;
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "Test comment",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeTruthy();
+      expect(result.error).toContain("Validation Failed");
+      expect(errorCalls.length).toBeGreaterThan(0);
+    });
+  });
 });
