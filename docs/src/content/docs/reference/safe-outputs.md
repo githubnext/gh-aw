@@ -409,7 +409,7 @@ safe-outputs:
         layout: roadmap
 ```
 
-Agent must provide full project URL (e.g., `https://github.com/orgs/myorg/projects/42`). Optional `campaign_id` applies `campaign:<id>` labels for [Campaign Workflows](/gh-aw/guides/campaigns/). Exposes outputs: `project-id`, `project-number`, `project-url`, `campaign-id`, `item-id`.
+Agent must provide full project URL (e.g., `https://github.com/orgs/myorg/projects/42`). Optional `campaign_id` applies `z_campaign_<id>` labels for [Campaign Workflows](/gh-aw/guides/campaigns/). Exposes outputs: `project-id`, `project-number`, `project-url`, `campaign-id`, `item-id`.
 
 #### Supported Field Types
 
@@ -972,7 +972,7 @@ Auto-enabled. Analyzes output for prompt injection, secret leaks, malicious patc
 
 ## Agentic Campaign Workflows
 
-Combine `create-issue` + `update-project` for coordinated initiatives. Returns campaign ID, applies `campaign:<id>` labels, syncs boards. See [Campaign Workflows](/gh-aw/guides/campaigns/).
+Combine `create-issue` + `update-project` for coordinated initiatives. Returns campaign ID, applies `z_campaign_<id>` labels, syncs boards. See [Campaign Workflows](/gh-aw/guides/campaigns/).
 
 ## Custom Messages (`messages:`)
 
