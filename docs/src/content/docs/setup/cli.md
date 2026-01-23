@@ -423,10 +423,10 @@ gh aw update ci-doctor --major --force    # Allow major version updates
 
 #### `upgrade`
 
-Upgrade the gh-aw extension and update all workflow files to the latest version. Applies codemods to fix deprecated fields, updates agent instruction files, and recompiles workflows.
+Upgrade repository with latest agent files and apply codemods to all workflows. Ensures workflows are compatible with the latest gh-aw version.
 
 ```bash wrap
-gh aw upgrade                              # Upgrade extension and all workflows
+gh aw upgrade                              # Upgrade repository agent files and all workflows
 gh aw upgrade --no-fix                     # Update agent files only (skip codemods and compilation)
 gh aw upgrade --push                       # Upgrade and automatically commit/push changes
 gh aw upgrade --push --no-fix              # Update agent files and push
