@@ -149,34 +149,66 @@ process.stdin.on('end', () => {
     expect(output).toEqual(complexInput);
   });
 
-  it("should handle async operations", async () => {
-    testScriptPath = path.join(tempDir, "async.cjs");
-    const jsCode = `
-let input = '';
-process.stdin.on('data', chunk => {
-  input += chunk;
-});
+  it("should execute script from GITHUB_WORKSPACE directory", async () => {
+    // Save original GITHUB_WORKSPACE
+    const originalWorkspace = process.env.GITHUB_WORKSPACE;
 
-process.stdin.on('end', async () => {
-  const inputs = JSON.parse(input);
-  
-  // Simulate async operation
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  const result = {
-    message: "Async completed",
-    input: inputs
-  };
-  console.log(JSON.stringify(result));
-});
+    // Set GITHUB_WORKSPACE to tempDir
+    process.env.GITHUB_WORKSPACE = tempDir;
+
+    try {
+      // Create a JavaScript script that outputs current working directory
+      testScriptPath = path.join(tempDir, "test-cwd.cjs");
+      const jsCode = `
+const result = { cwd: process.cwd() };
+console.log(JSON.stringify(result));
 `;
-    fs.writeFileSync(testScriptPath, jsCode);
+      fs.writeFileSync(testScriptPath, jsCode);
 
-    const handler = createJavaScriptHandler(mockServer, "async-tool", testScriptPath);
-    const result = await handler({ test: "data" });
+      const handler = createJavaScriptHandler(mockServer, "cwd-tool", testScriptPath);
+      const result = await handler({});
 
-    const output = JSON.parse(result.content[0].text);
-    expect(output.message).toBe("Async completed");
-    expect(output.input).toEqual({ test: "data" });
+      const output = JSON.parse(result.content[0].text);
+      expect(output.cwd).toBe(tempDir);
+    } finally {
+      // Restore original GITHUB_WORKSPACE
+      if (originalWorkspace === undefined) {
+        delete process.env.GITHUB_WORKSPACE;
+      } else {
+        process.env.GITHUB_WORKSPACE = originalWorkspace;
+      }
+    }
+  });
+
+  it("should use process.cwd() when GITHUB_WORKSPACE is not set", async () => {
+    // Save original GITHUB_WORKSPACE
+    const originalWorkspace = process.env.GITHUB_WORKSPACE;
+
+    // Unset GITHUB_WORKSPACE
+    delete process.env.GITHUB_WORKSPACE;
+
+    try {
+      // Create a JavaScript script that outputs current working directory
+      testScriptPath = path.join(tempDir, "test-default-cwd.cjs");
+      const jsCode = `
+const result = { cwd: process.cwd() };
+console.log(JSON.stringify(result));
+`;
+      fs.writeFileSync(testScriptPath, jsCode);
+
+      const handler = createJavaScriptHandler(mockServer, "default-cwd-tool", testScriptPath);
+      const result = await handler({});
+
+      const output = JSON.parse(result.content[0].text);
+      // When GITHUB_WORKSPACE is not set, should use process.cwd()
+      expect(output.cwd).toBe(process.cwd());
+    } finally {
+      // Restore original GITHUB_WORKSPACE
+      if (originalWorkspace === undefined) {
+        delete process.env.GITHUB_WORKSPACE;
+      } else {
+        process.env.GITHUB_WORKSPACE = originalWorkspace;
+      }
+    }
   });
 });

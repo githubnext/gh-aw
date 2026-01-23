@@ -40,6 +40,7 @@ function createGoHandler(server, toolName, scriptPath, timeoutSeconds = 60) {
         ["run", scriptPath],
         {
           env: process.env,
+          cwd: process.env.GITHUB_WORKSPACE || process.cwd(),
           timeout: timeoutSeconds * 1000, // Convert to milliseconds
           maxBuffer: 10 * 1024 * 1024, // 10MB buffer
         },
