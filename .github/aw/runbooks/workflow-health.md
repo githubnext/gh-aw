@@ -363,12 +363,12 @@ safe-inputs:
 
 Multiple workflows using Tavily MCP server for web research experienced 90%+ failure rates for 15 days:
 
-| Workflow | Status | Impact |
-|----------|--------|--------|
-| Research | ❌ FAILING | 90% failure rate, 15 days offline |
-| MCP Inspector | ❌ FAILING | Cannot validate MCP configurations |
-| Scout | ⚠️ UNKNOWN | Uses Tavily, needs verification |
-| Daily News | ✅ RECOVERED | Working after secret added |
+| Workflow       | Status        | Impact                                 |
+|----------------|---------------|----------------------------------------|
+| Research       | ❌ FAILING    | 90% failure rate, 15 days offline      |
+| MCP Inspector  | ❌ FAILING    | Cannot validate MCP configurations     |
+| Scout          | ⚠️ UNKNOWN    | Uses Tavily, needs verification        |
+| Daily News     | ✅ RECOVERED  | Working after secret added             |
 
 ### Investigation
 
@@ -429,7 +429,8 @@ To verify Tavily MCP server configuration in a workflow:
 
 1. **Check secret reference**:
 ```bash
-grep -n "TAVILY_API_KEY" .github/workflows/<workflow>.lock.yml
+# Replace <workflow> with actual workflow name (e.g., research, mcp-inspector)
+grep -n "TAVILY_API_KEY" .github/workflows/research.lock.yml
 ```
 
 Expected output should show:
@@ -439,12 +440,15 @@ Expected output should show:
 
 2. **Inspect MCP configuration**:
 ```bash
-gh aw mcp inspect <workflow-name> --server tavily
+# Inspect specific workflow's Tavily configuration
+gh aw mcp inspect research --server tavily
 ```
 
 3. **Test manually**:
 ```bash
-gh workflow run <workflow-name>.lock.yml
+# Trigger workflow and monitor execution
+gh workflow run research.lock.yml
+# Get the run ID from the output or use: gh run list --workflow=research.lock.yml --limit 1
 gh run watch <run-id>
 ```
 
