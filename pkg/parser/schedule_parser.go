@@ -888,7 +888,7 @@ func normalizeTimeTokens(tokens []string) string {
 	timeStr := tokens[0]
 	nextIndex := 1
 	if len(tokens) > 1 && isAMPMToken(tokens[1]) {
-		timeStr += tokens[1]
+		timeStr += " " + tokens[1]
 		nextIndex = 2
 	}
 
