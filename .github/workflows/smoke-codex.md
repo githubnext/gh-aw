@@ -81,4 +81,6 @@ Add a **very brief** comment (max 5-10 lines) to the current pull request with:
 - ✅ or ❌ for each test result
 - Overall status: PASS or FAIL
 
-If all tests pass, add the label `smoke-codex` to the pull request.
+If all tests pass:
+- Use the `add_labels` safe-output tool to add the label `smoke-codex` to the pull request
+- Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request
