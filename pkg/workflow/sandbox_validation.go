@@ -152,6 +152,14 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		}
 	}
 
+	// Validate MCP gateway port if configured
+	if sandboxConfig.MCP != nil && sandboxConfig.MCP.Port != 0 {
+		if err := validateIntRange(sandboxConfig.MCP.Port, 1, 65535, "sandbox.mcp.port"); err != nil {
+			return err
+		}
+		sandboxValidationLog.Printf("Validated MCP gateway port: %d", sandboxConfig.MCP.Port)
+	}
+
 	// Validate that if agent sandbox is enabled, MCP gateway must be enabled
 	// The MCP gateway is enabled when MCP servers are configured (tools that use MCP)
 	// Only validate this when sandbox is explicitly configured (not nil)
