@@ -170,11 +170,13 @@ func TestExtractToolsTimeout(t *testing.T) {
 		name            string
 		tools           map[string]any
 		expectedTimeout int
+		shouldError     bool
 	}{
 		{
 			name:            "no timeout specified",
 			tools:           map[string]any{},
 			expectedTimeout: 0,
+			shouldError:     false,
 		},
 		{
 			name: "timeout as int",
@@ -182,6 +184,7 @@ func TestExtractToolsTimeout(t *testing.T) {
 				"timeout": 45,
 			},
 			expectedTimeout: 45,
+			shouldError:     false,
 		},
 		{
 			name: "timeout as int64",
@@ -189,6 +192,7 @@ func TestExtractToolsTimeout(t *testing.T) {
 				"timeout": int64(90),
 			},
 			expectedTimeout: 90,
+			shouldError:     false,
 		},
 		{
 			name: "timeout as uint",
@@ -196,6 +200,7 @@ func TestExtractToolsTimeout(t *testing.T) {
 				"timeout": uint(75),
 			},
 			expectedTimeout: 75,
+			shouldError:     false,
 		},
 		{
 			name: "timeout as uint64",
@@ -203,6 +208,7 @@ func TestExtractToolsTimeout(t *testing.T) {
 				"timeout": uint64(120),
 			},
 			expectedTimeout: 120,
+			shouldError:     false,
 		},
 		{
 			name: "timeout as float64",
@@ -210,19 +216,55 @@ func TestExtractToolsTimeout(t *testing.T) {
 				"timeout": 60.0,
 			},
 			expectedTimeout: 60,
+			shouldError:     false,
 		},
 		{
 			name:            "nil tools",
 			tools:           nil,
 			expectedTimeout: 0,
+			shouldError:     false,
+		},
+		{
+			name: "zero timeout - should fail",
+			tools: map[string]any{
+				"timeout": 0,
+			},
+			expectedTimeout: 0,
+			shouldError:     true,
+		},
+		{
+			name: "negative timeout - should fail",
+			tools: map[string]any{
+				"timeout": -5,
+			},
+			expectedTimeout: 0,
+			shouldError:     true,
+		},
+		{
+			name: "minimum valid timeout (1)",
+			tools: map[string]any{
+				"timeout": 1,
+			},
+			expectedTimeout: 1,
+			shouldError:     false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			timeout := compiler.extractToolsTimeout(tt.tools)
-			if timeout != tt.expectedTimeout {
-				t.Errorf("Expected timeout %d, got %d", tt.expectedTimeout, timeout)
+			timeout, err := compiler.extractToolsTimeout(tt.tools)
+
+			if tt.shouldError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error but got: %v", err)
+				}
+				if timeout != tt.expectedTimeout {
+					t.Errorf("Expected timeout %d, got %d", tt.expectedTimeout, timeout)
+				}
 			}
 		})
 	}

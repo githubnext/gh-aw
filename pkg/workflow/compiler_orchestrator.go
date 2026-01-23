@@ -373,11 +373,16 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
 
-	// Extract timeout setting from merged tools (defaults to 0 which means use engine defaults)
-	toolsTimeout := c.extractToolsTimeout(tools)
+	// Extract and validate tools timeout settings
+	toolsTimeout, err := c.extractToolsTimeout(tools)
+	if err != nil {
+		return nil, fmt.Errorf("invalid tools timeout configuration: %w", err)
+	}
 
-	// Extract startup-timeout setting from merged tools (defaults to 0 which means use engine defaults)
-	toolsStartupTimeout := c.extractToolsStartupTimeout(tools)
+	toolsStartupTimeout, err := c.extractToolsStartupTimeout(tools)
+	if err != nil {
+		return nil, fmt.Errorf("invalid tools startup timeout configuration: %w", err)
+	}
 
 	// Remove meta fields (timeout, startup-timeout) from merged tools map
 	// These are configuration fields, not actual tools

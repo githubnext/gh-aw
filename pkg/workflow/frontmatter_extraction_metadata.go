@@ -144,58 +144,80 @@ func safeUint64ToInt(u uint64) int {
 
 // extractToolsTimeout extracts the timeout setting from tools
 // Returns 0 if not set (engines will use their own defaults)
-func (c *Compiler) extractToolsTimeout(tools map[string]any) int {
+// Returns error if timeout is explicitly set but invalid (< 1)
+func (c *Compiler) extractToolsTimeout(tools map[string]any) (int, error) {
 	if tools == nil {
-		return 0 // Use engine defaults
+		return 0, nil // Use engine defaults
 	}
 
 	// Check if timeout is explicitly set in tools
 	if timeoutValue, exists := tools["timeout"]; exists {
+		var timeout int
 		// Handle different numeric types with safe conversions to prevent overflow
 		switch v := timeoutValue.(type) {
 		case int:
-			return v
+			timeout = v
 		case int64:
-			return int(v)
+			timeout = int(v)
 		case uint:
-			return safeUintToInt(v) // Safe conversion to prevent overflow (alert #418)
+			timeout = safeUintToInt(v) // Safe conversion to prevent overflow (alert #418)
 		case uint64:
-			return safeUint64ToInt(v) // Safe conversion to prevent overflow (alert #416)
+			timeout = safeUint64ToInt(v) // Safe conversion to prevent overflow (alert #416)
 		case float64:
-			return int(v)
+			timeout = int(v)
+		default:
+			return 0, fmt.Errorf("tools.timeout must be an integer, got %T", timeoutValue)
 		}
+
+		// Validate minimum value per schema constraint
+		if timeout < 1 {
+			return 0, fmt.Errorf("tools.timeout must be at least 1 second, got %d. Example:\ntools:\n  timeout: 60", timeout)
+		}
+
+		return timeout, nil
 	}
 
 	// Default to 0 (use engine defaults)
-	return 0
+	return 0, nil
 }
 
 // extractToolsStartupTimeout extracts the startup-timeout setting from tools
 // Returns 0 if not set (engines will use their own defaults)
-func (c *Compiler) extractToolsStartupTimeout(tools map[string]any) int {
+// Returns error if startup-timeout is explicitly set but invalid (< 1)
+func (c *Compiler) extractToolsStartupTimeout(tools map[string]any) (int, error) {
 	if tools == nil {
-		return 0 // Use engine defaults
+		return 0, nil // Use engine defaults
 	}
 
 	// Check if startup-timeout is explicitly set in tools
 	if timeoutValue, exists := tools["startup-timeout"]; exists {
+		var timeout int
 		// Handle different numeric types with safe conversions to prevent overflow
 		switch v := timeoutValue.(type) {
 		case int:
-			return v
+			timeout = v
 		case int64:
-			return int(v)
+			timeout = int(v)
 		case uint:
-			return safeUintToInt(v) // Safe conversion to prevent overflow (alert #417)
+			timeout = safeUintToInt(v) // Safe conversion to prevent overflow (alert #417)
 		case uint64:
-			return safeUint64ToInt(v) // Safe conversion to prevent overflow (alert #415)
+			timeout = safeUint64ToInt(v) // Safe conversion to prevent overflow (alert #415)
 		case float64:
-			return int(v)
+			timeout = int(v)
+		default:
+			return 0, fmt.Errorf("tools.startup-timeout must be an integer, got %T", timeoutValue)
 		}
+
+		// Validate minimum value per schema constraint
+		if timeout < 1 {
+			return 0, fmt.Errorf("tools.startup-timeout must be at least 1 second, got %d. Example:\ntools:\n  startup-timeout: 120", timeout)
+		}
+
+		return timeout, nil
 	}
 
 	// Default to 0 (use engine defaults)
-	return 0
+	return 0, nil
 }
 
 // extractMapFromFrontmatter is a generic helper to extract a map[string]any from frontmatter
