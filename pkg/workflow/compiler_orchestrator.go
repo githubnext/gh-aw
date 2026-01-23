@@ -378,7 +378,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	if err != nil {
 		return nil, fmt.Errorf("invalid tools timeout configuration: %w", err)
 	}
-	
+
 	toolsStartupTimeout, err := c.extractToolsStartupTimeout(tools)
 	if err != nil {
 		return nil, fmt.Errorf("invalid tools startup timeout configuration: %w", err)

@@ -253,7 +253,7 @@ func TestExtractToolsTimeout(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			timeout, err := compiler.extractToolsTimeout(tt.tools)
-			
+
 			if tt.shouldError {
 				if err == nil {
 					t.Errorf("Expected error but got none")
