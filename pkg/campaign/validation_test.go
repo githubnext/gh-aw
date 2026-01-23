@@ -754,3 +754,79 @@ func TestValidateSpec_AllowedOrgsWildcard(t *testing.T) {
 		t.Errorf("Expected wildcard validation problem for orgs, got: %v", problems)
 	}
 }
+
+func TestValidateSpec_TrackerLabelFormat(t *testing.T) {
+	tests := []struct {
+		name          string
+		campaignID    string
+		trackerLabel  string
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name:         "valid tracker label with z_campaign_ prefix",
+			campaignID:   "security-alert-burndown",
+			trackerLabel: "z_campaign_security-alert-burndown",
+			expectError:  false,
+		},
+		{
+			name:          "invalid tracker label with old campaign: prefix",
+			campaignID:    "security-alert-burndown",
+			trackerLabel:  "campaign:security-alert-burndown",
+			expectError:   true,
+			errorContains: "tracker-label should start with 'z_campaign_' prefix",
+		},
+		{
+			name:          "invalid tracker label with wrong format",
+			campaignID:    "test-campaign",
+			trackerLabel:  "wrong-label-format",
+			expectError:   true,
+			errorContains: "tracker-label should start with 'z_campaign_' prefix",
+		},
+		{
+			name:         "empty tracker label is valid (optional field)",
+			campaignID:   "test-campaign",
+			trackerLabel: "",
+			expectError:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spec := &CampaignSpec{
+				ID:             tt.campaignID,
+				Name:           "Test Campaign",
+				ProjectURL:     "https://github.com/orgs/org/projects/1",
+				DiscoveryRepos: []string{"test/repo"},
+				Workflows:      []string{"workflow1"},
+				TrackerLabel:   tt.trackerLabel,
+			}
+
+			problems := ValidateSpec(spec)
+
+			if tt.expectError {
+				if len(problems) == 0 {
+					t.Errorf("Expected validation error but got none")
+					return
+				}
+				found := false
+				for _, p := range problems {
+					if strings.Contains(p, tt.errorContains) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected error containing %q, got: %v", tt.errorContains, problems)
+				}
+			} else {
+				// Filter out problems that are not related to tracker-label
+				for _, p := range problems {
+					if strings.Contains(p, "tracker-label") {
+						t.Errorf("Unexpected tracker-label validation error: %s", p)
+					}
+				}
+			}
+		})
+	}
+}
