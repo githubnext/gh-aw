@@ -104,5 +104,5 @@ strict: true
 3. Use the `add_comment` tool to add a **fun and creative comment** to the latest discussion (using the `discussion_number` you extracted in step 7) - be playful and entertaining in your comment
 
 If all tests pass:
-- Add the label `smoke-copilot` to the pull request
-- Remove the label `smoke` from the pull request
+- Use the `add_labels` safe-output tool to add the label `smoke-copilot` to the pull request
+- Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request

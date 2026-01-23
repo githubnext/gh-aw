@@ -47,6 +47,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**Add Comment**](#comment-creation-add-comment) (`add-comment`) — Post comments on issues, PRs, or discussions (max: 1)
 - [**Hide Comment**](#hide-comment-hide-comment) (`hide-comment`) — Hide comments on issues, PRs, or discussions (max: 5)
 - [**Add Labels**](#add-labels-add-labels) (`add-labels`) — Add labels to issues or PRs (max: 3)
+- [**Remove Labels**](#remove-labels-remove-labels) (`remove-labels`) — Remove labels from issues or PRs (max: 3)
 - [**Add Reviewer**](#add-reviewer-add-reviewer) (`add-reviewer`) — Add reviewers to pull requests (max: 3)
 - [**Assign Milestone**](#assign-milestone-assign-milestone) (`assign-milestone`) — Assign issues to milestones (max: 1)
 - [**Assign to Agent**](#assign-to-agent-assign-to-agent) (`assign-to-agent`) — Assign Copilot agents to issues or PRs (max: 1)
@@ -209,6 +210,33 @@ safe-outputs:
     max: 3                       # max labels (default: 3)
     target: "*"                  # "triggering" (default), "*", or number
     target-repo: "owner/repo"    # cross-repository
+```
+
+### Remove Labels (`remove-labels:`)
+
+Removes labels from issues or PRs. Specify `allowed` to restrict which labels can be removed. If a label is not present on the item, it will be silently skipped.
+
+```yaml wrap
+safe-outputs:
+  remove-labels:
+    allowed: [automated, stale]  # restrict to specific labels (optional)
+    max: 3                       # max operations (default: 3)
+    target: "*"                  # "triggering" (default), "*", or number
+    target-repo: "owner/repo"    # cross-repository
+```
+
+**Target**: `"triggering"` (requires issue/PR event), `"*"` (any issue/PR), or number (specific issue/PR).
+
+When `allowed` is omitted or set to `null`, any labels can be removed. Use `allowed` to restrict removal to specific labels only, providing control over which labels agents can manipulate.
+
+**Example use case**: Label lifecycle management where agents add temporary labels during triage and remove them once processed.
+
+```yaml wrap
+safe-outputs:
+  add-labels:
+    allowed: [needs-triage, automation]
+  remove-labels:
+    allowed: [needs-triage]  # agents can remove triage label after processing
 ```
 
 ### Add Reviewer (`add-reviewer:`)

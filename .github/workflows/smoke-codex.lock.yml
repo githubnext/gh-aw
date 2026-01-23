@@ -1450,7 +1450,9 @@ jobs:
           
           Use the `add_comment` tool to add a **mystical oracle-themed comment** to the latest discussion (using the `discussion_number` you extracted in step 8) - be creative and use mystical language like "🔮 The ancient spirits stir..."
           
-          If all tests pass, add the label `smoke-codex` to the pull request.
+          If all tests pass:
+          - Use the `add_labels` safe-output tool to add the label `smoke-codex` to the pull request
+          - Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request
           
           PROMPT_EOF
       - name: Substitute placeholders
