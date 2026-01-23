@@ -117,7 +117,7 @@ jobs:
           GH_AW_MAX_DISCOVERY_ITEMS: "100"
           GH_AW_MAX_DISCOVERY_PAGES: "5"
           GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/134
-          GH_AW_TRACKER_LABEL: campaign:security-alert-burndown
+          GH_AW_TRACKER_LABEL: z_campaign_security-alert-burndown
           GH_AW_WORKFLOWS: code-scanning-fixer,security-fix-pr,dependabot-bundler,secret-scanning-triage
         id: discovery
         name: Run campaign discovery precomputation
