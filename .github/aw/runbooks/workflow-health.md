@@ -357,6 +357,111 @@ safe-inputs:
 4. **Test after compilation**: Always test workflows manually after making configuration changes
 5. **Monitor systematically**: Use `gh aw logs` for regular workflow health monitoring
 
+## Case Study: Tavily MCP Server Secret Issue (January 2026)
+
+### Background
+
+Multiple workflows using Tavily MCP server for web research experienced 90%+ failure rates for 15 days:
+
+| Workflow | Status | Impact |
+|----------|--------|--------|
+| Research | ❌ FAILING | 90% failure rate, 15 days offline |
+| MCP Inspector | ❌ FAILING | Cannot validate MCP configurations |
+| Scout | ⚠️ UNKNOWN | Uses Tavily, needs verification |
+| Daily News | ✅ RECOVERED | Working after secret added |
+
+### Investigation
+
+**Root Cause**: Missing `TAVILY_API_KEY` GitHub Secret
+
+The workflows were correctly configured to use the Tavily MCP server:
+- Imported shared configuration from `shared/mcp/tavily.md`
+- HTTP MCP server at `https://mcp.tavily.com/mcp/`
+- Authorization header: `Bearer ${TAVILY_API_KEY}`
+- Secret reference: `${{ secrets.TAVILY_API_KEY }}`
+
+However, the `TAVILY_API_KEY` secret was not set in the repository's GitHub Secrets, causing:
+- MCP Gateway unable to authenticate with Tavily
+- "401 Unauthorized" or similar authentication errors
+- Workflow failures at the MCP server initialization stage
+
+### Resolution
+
+1. **Added GitHub Secret**: Added `TAVILY_API_KEY` to repository secrets
+2. **Verified Configuration**: Confirmed all workflows have correct secret reference
+3. **Tested Recovery**: Daily News workflow recovered immediately after secret was added
+
+### Tavily MCP Server Configuration
+
+The shared Tavily configuration in `shared/mcp/tavily.md`:
+
+```yaml
+---
+mcp-servers:
+  tavily:
+    type: http
+    url: "https://mcp.tavily.com/mcp/"
+    headers:
+      Authorization: "Bearer ${{ secrets.TAVILY_API_KEY }}"
+    allowed: ["*"]
+---
+```
+
+Workflows import this configuration:
+
+```yaml
+---
+imports:
+  - shared/mcp/tavily.md
+---
+```
+
+The MCP Gateway receives the secret:
+
+```yaml
+env:
+  TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+```
+
+### Verification Steps
+
+To verify Tavily MCP server configuration in a workflow:
+
+1. **Check secret reference**:
+```bash
+grep -n "TAVILY_API_KEY" .github/workflows/<workflow>.lock.yml
+```
+
+Expected output should show:
+- `TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}` in env block
+- `-e TAVILY_API_KEY` in MCP Gateway docker command
+- `"Authorization": "Bearer \${TAVILY_API_KEY}"` in MCP config
+
+2. **Inspect MCP configuration**:
+```bash
+gh aw mcp inspect <workflow-name> --server tavily
+```
+
+3. **Test manually**:
+```bash
+gh workflow run <workflow-name>.lock.yml
+gh run watch <run-id>
+```
+
+### Prevention
+
+1. **Document required secrets**: Add README or documentation listing all required secrets
+2. **Secret validation**: Consider adding workflow validation step to check required secrets exist
+3. **Monitoring**: Set up alerts for workflows using external MCP servers
+4. **Shared documentation**: Maintain `shared/mcp/` configurations with secret requirements
+
+### Lessons Learned
+
+1. **Secret dependency documentation**: All MCP servers requiring secrets should document this clearly
+2. **Systemic impact**: One missing secret can affect multiple workflows importing shared config
+3. **Early detection**: Monitor workflow health regularly to catch issues within 24-48 hours
+4. **Quick recovery**: Once secret is added, workflows recover immediately without code changes
+
 ## Quick Reference
 
 ### Essential Commands
@@ -434,6 +539,28 @@ tools:
     toolsets: [default]
 ---
 ```
+
+**Workflow with Tavily web search**:
+```aw
+---
+on: workflow_dispatch
+engine: copilot
+imports:
+  - shared/mcp/tavily.md
+network:
+  allowed:
+    - defaults
+    - node
+sandbox:
+  agent: awf
+---
+
+# Research Agent
+
+Use Tavily search to research the topic and create a summary.
+```
+
+**Required GitHub Secret**: `TAVILY_API_KEY` (get from https://tavily.com/)
 
 ## Additional Resources
 
