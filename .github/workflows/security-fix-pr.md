@@ -32,8 +32,6 @@ safe-outputs:
   autofix-code-scanning-alert:
     max: 5
 timeout-minutes: 20
-imports:
-  - shared/mcp/semgrep.md
 ---
 
 # Security Issue Autofix Agent

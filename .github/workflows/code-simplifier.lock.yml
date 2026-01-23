@@ -23,6 +23,7 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/mcp/semgrep.md
 #     - shared/reporting.md
 
 name: "Code Simplifier"
@@ -157,7 +158,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.76 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.76 node:lts-alpine semgrep/semgrep:latest
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -419,6 +420,19 @@ jobs:
                 "headers": {
                   "Authorization": "\${GH_AW_SAFE_OUTPUTS_API_KEY}"
                 }
+              },
+              "semgrep": {
+                "type": "stdio",
+                "container": "semgrep/semgrep:latest",
+                "entrypointArgs": [
+                  "semgrep",
+                  "mcp",
+                  "-t",
+                  "stdio"
+                ],
+                "tools": [
+                  "*"
+                ]
               }
             },
             "gateway": {
@@ -545,6 +559,8 @@ jobs:
           </system>
           PROMPT_EOF
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          
+          
           ## Report Structure Guidelines
           
           ### 1. Header Levels

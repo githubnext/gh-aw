@@ -31,8 +31,6 @@ safe-outputs:
     labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
     reviewers: [copilot]
 timeout-minutes: 20
-imports:
-  - shared/mcp/semgrep.md
 ---
 
 # Code Scanning Alert Fixer Agent
