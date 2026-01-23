@@ -174,4 +174,43 @@ func main() {
     const output = JSON.parse(result.content[0].text);
     expect(output).toEqual(complexInput);
   }, 30000); // Increase timeout to allow for Go compilation
+
+  it("should execute script from GITHUB_WORKSPACE directory", async () => {
+    // Save original GITHUB_WORKSPACE
+    const originalWorkspace = process.env.GITHUB_WORKSPACE;
+
+    // Set GITHUB_WORKSPACE to tempDir
+    process.env.GITHUB_WORKSPACE = tempDir;
+
+    try {
+      // Create a Go script that outputs current working directory
+      testScriptPath = path.join(tempDir, "test-cwd.go");
+      const goCode = `package main
+
+import (
+	"encoding/json"
+	"os"
+)
+
+func main() {
+	cwd, _ := os.Getwd()
+	result := map[string]interface{}{"cwd": cwd}
+	json.NewEncoder(os.Stdout).Encode(result)
+}`;
+      fs.writeFileSync(testScriptPath, goCode);
+
+      const handler = createGoHandler(mockServer, "cwd-tool", testScriptPath);
+      const result = await handler({});
+
+      const output = JSON.parse(result.content[0].text);
+      expect(output.cwd).toBe(tempDir);
+    } finally {
+      // Restore original GITHUB_WORKSPACE
+      if (originalWorkspace === undefined) {
+        delete process.env.GITHUB_WORKSPACE;
+      } else {
+        process.env.GITHUB_WORKSPACE = originalWorkspace;
+      }
+    }
+  }, 30000); // Increase timeout to allow for Go compilation
 });
