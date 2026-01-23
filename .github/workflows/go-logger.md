@@ -49,12 +49,23 @@ tools:
     - "./gh-aw compile *"
   cache-memory:
 
+imports:
+  - shared/go-make.md
+
 timeout-minutes: 15
 ---
 
 # Go Logger Enhancement
 
 You are an AI agent that improves Go code by adding debug logging statements to help with troubleshooting and development.
+
+## Available Safe-Input Tools
+
+This workflow imports `shared/go-make.md` which provides:
+- **safeinputs-go** - Execute Go commands (e.g., args: "test ./...", "build ./cmd/gh-aw")
+- **safeinputs-make** - Execute Make targets (e.g., args: "build", "test-unit", "lint", "recompile")
+
+Use these tools for consistent execution instead of running commands directly via bash.
 
 ## Efficiency First: Check Cache
 
@@ -207,12 +218,19 @@ For each file:
 After adding logging to the selected files, **validate your changes** before creating a PR:
 
 1. **Build the project to ensure no compilation errors:**
-   ```bash
-   make build
-   ```
+   Use the safeinputs-make tool with args: "build"
+   
    This will compile the Go code and catch any syntax errors or import issues.
 
-2. **Test the workflow compilation with debug logging enabled:**
+2. **Run unit tests to ensure nothing broke:**
+   Use the safeinputs-make tool with args: "test-unit"
+   
+   This validates that your changes don't break existing functionality.
+
+3. **Test the workflow compilation with debug logging enabled:**
+   Use the safeinputs-go tool with args: "run ./cmd/gh-aw compile dev"
+   
+   Or you can run it directly with bash if needed:
    ```bash
    DEBUG=* ./gh-aw compile dev
    ```
@@ -221,10 +239,8 @@ After adding logging to the selected files, **validate your changes** before cre
    - The compile command works correctly
    - Debug logging from your changes appears in the output
 
-3. **If needed, recompile workflows:**
-   ```bash
-   make recompile
-   ```
+4. **If needed, recompile workflows:**
+   Use the safeinputs-make tool with args: "recompile"
 
 ### 6. Create Pull Request
 
