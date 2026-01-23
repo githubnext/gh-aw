@@ -1,23 +1,14 @@
 {
   "campaign_id": "security-alert-burndown",
   "date": "2026-01-23",
-  "tasks_total": 0,
-  "tasks_completed": 0,
-  "tasks_in_progress": 0,
+  "tasks_total": 5,
+  "tasks_completed": 3,
+  "tasks_in_progress": 1,
   "tasks_blocked": 0,
-  "kpis": {
-    "critical_alerts": {
-      "baseline": 5,
-      "current": 0,
-      "target": 0,
-      "achieved": true
-    },
-    "high_severity_alerts": {
-      "baseline": 15,
-      "current": 0,
-      "target": 5,
-      "achieved": true
-    }
-  },
-  "notes": "Discovery found 0 items. Both KPIs have been achieved (0 critical alerts, 0 high-severity alerts). Campaign objectives met."
+  "critical_alerts": 0,
+  "high_severity_alerts": 0,
+  "open_prs": 1,
+  "closed_prs": 3,
+  "velocity_per_day": 1.5,
+  "estimated_completion": "2026-01-24"
 }
