@@ -36,7 +36,10 @@ imports:
   - shared/mcp/deepwiki.md
   - shared/mcp/fabric-rti.md
   - shared/mcp/gh-aw.md
-  - shared/mcp/markitdown.md
+  # Note: markitdown.md excluded temporarily due to MCP Gateway v0.0.76 schema validation issue
+  # Error: Gateway incorrectly transforms 'container' field to 'command' field during validation
+  # TODO: Re-enable when MCP Gateway is updated to fix this issue
+  # - shared/mcp/markitdown.md
   - shared/mcp/microsoft-docs.md
   - shared/mcp/notion.md
   - shared/mcp/sentry.md
