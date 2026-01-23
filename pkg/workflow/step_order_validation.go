@@ -178,17 +178,17 @@ func (t *StepOrderTracker) findUnscannablePaths(artifactUploads []StepRecord) []
 
 // isPathScannedBySecretRedaction checks if a path would be scanned by the secret redaction step
 func isPathScannedBySecretRedaction(path string) bool {
-	// Paths must be under /tmp/gh-aw/ to be scanned
+	// Paths must be under /tmp/gh-aw/ or /opt/gh-aw/ to be scanned
 	// Accept both literal paths and environment variable references
-	if !strings.HasPrefix(path, "/tmp/gh-aw/") {
-		// Check if it's an environment variable that might resolve to /tmp/gh-aw/
+	if !strings.HasPrefix(path, "/tmp/gh-aw/") && !strings.HasPrefix(path, "/opt/gh-aw/") {
+		// Check if it's an environment variable that might resolve to /tmp/gh-aw/ or /opt/gh-aw/
 		// For now, we'll allow ${{ env.* }} patterns through as we can't resolve them at compile time
-		// Assume environment variables that might contain /tmp/gh-aw paths are safe
+		// Assume environment variables that might contain /tmp/gh-aw or /opt/gh-aw paths are safe
 		// This is a conservative assumption - in practice these are controlled by the compiler
 		return strings.Contains(path, "${{ env.")
 	}
 
-	// Path must have one of the scanned extensions: .txt, .json, .log
+	// Path must have one of the scanned extensions: .txt, .json, .log, .jsonl
 	ext := filepath.Ext(path)
 	scannedExtensions := []string{".txt", ".json", ".log", ".jsonl"}
 	for _, scannedExt := range scannedExtensions {

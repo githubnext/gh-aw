@@ -171,9 +171,9 @@ Normal content without conditionals.
 		t.Error("Compiled workflow should contain interpolation and template rendering step because GitHub tool is added by default")
 	}
 
-	// Verify the GitHub context was added
-	if !strings.Contains(compiledStr, "- name: Append GitHub context to prompt") {
-		t.Error("Compiled workflow should contain GitHub context step because GitHub tool is added by default")
+	// Verify the GitHub context was added (now part of unified prompt creation step)
+	if !strings.Contains(compiledStr, "- name: Create prompt with built-in context") {
+		t.Error("Compiled workflow should contain unified prompt creation step (which includes GitHub context)")
 	}
 }
 
@@ -225,8 +225,8 @@ Normal content without conditionals in markdown.
 		t.Error("Compiled workflow should contain interpolation and template rendering step when GitHub tool is enabled")
 	}
 
-	// Verify the GitHub context was added
-	if !strings.Contains(compiledStr, "- name: Append GitHub context to prompt") {
-		t.Error("Compiled workflow should contain GitHub context step when GitHub tool is enabled")
+	// Verify the GitHub context was added (now part of unified prompt creation step)
+	if !strings.Contains(compiledStr, "- name: Create prompt with built-in context") {
+		t.Error("Compiled workflow should contain unified prompt creation step (which includes GitHub context)")
 	}
 }
