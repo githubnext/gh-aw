@@ -698,3 +698,106 @@ This workflow tests fuzzy daily schedule compilation using array format with cro
 
 	t.Logf("Integration test passed - successfully compiled fuzzy daily schedule (array format) to %s", lockFilePath)
 }
+
+// TestCompileWithInvalidSchedule tests that compilation fails with an invalid schedule string
+func TestCompileWithInvalidSchedule(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Create a test markdown workflow file with an invalid schedule
+	testWorkflow := `---
+name: Invalid Schedule Test
+on:
+  schedule: invalid schedule format
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+---
+
+# Invalid Schedule Test
+
+This workflow tests that invalid schedule strings fail compilation.
+`
+
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "invalid-schedule-test.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	// Run the compile command - expect it to fail
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+
+	// The command should fail with an error
+	if err == nil {
+		t.Fatalf("Expected compile to fail with invalid schedule, but it succeeded\nOutput: %s", string(output))
+	}
+
+	outputStr := string(output)
+
+	// Verify the error message contains information about invalid schedule
+	if !strings.Contains(outputStr, "schedule") && !strings.Contains(outputStr, "trigger") {
+		t.Errorf("Expected error output to mention 'schedule' or 'trigger', got: %s", outputStr)
+	}
+
+	// Verify no lock file was created
+	lockFilePath := filepath.Join(setup.workflowsDir, "invalid-schedule-test.lock.yml")
+	if _, err := os.Stat(lockFilePath); err == nil {
+		t.Errorf("Lock file should not be created for invalid workflow, but %s exists", lockFilePath)
+	}
+
+	t.Logf("Integration test passed - invalid schedule correctly failed compilation\nOutput: %s", outputStr)
+}
+
+// TestCompileWithInvalidScheduleArrayFormat tests that compilation fails with an invalid schedule in array format
+func TestCompileWithInvalidScheduleArrayFormat(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Create a test markdown workflow file with an invalid schedule in array format
+	testWorkflow := `---
+name: Invalid Schedule Array Format Test
+on:
+  schedule:
+    - cron: totally invalid cron here
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+---
+
+# Invalid Schedule Array Format Test
+
+This workflow tests that invalid schedule strings in array format fail compilation.
+`
+
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "invalid-schedule-array-test.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	// Run the compile command - expect it to fail
+	cmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	output, err := cmd.CombinedOutput()
+
+	// The command should fail with an error
+	if err == nil {
+		t.Fatalf("Expected compile to fail with invalid schedule, but it succeeded\nOutput: %s", string(output))
+	}
+
+	outputStr := string(output)
+
+	// Verify the error message contains information about invalid schedule
+	if !strings.Contains(outputStr, "schedule") && !strings.Contains(outputStr, "cron") {
+		t.Errorf("Expected error output to mention 'schedule' or 'cron', got: %s", outputStr)
+	}
+
+	// Verify no lock file was created
+	lockFilePath := filepath.Join(setup.workflowsDir, "invalid-schedule-array-test.lock.yml")
+	if _, err := os.Stat(lockFilePath); err == nil {
+		t.Errorf("Lock file should not be created for invalid workflow, but %s exists", lockFilePath)
+	}
+
+	t.Logf("Integration test passed - invalid schedule in array format correctly failed compilation\nOutput: %s", outputStr)
+}
