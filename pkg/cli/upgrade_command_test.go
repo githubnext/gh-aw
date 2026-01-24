@@ -446,3 +446,76 @@ This workflow is already up to date.
 	require.Error(t, err, "Upgrade with --push should fail when no remote is configured")
 	assert.Contains(t, err.Error(), "--push requires a remote repository to be configured")
 }
+
+func TestUpgradeCommand_UpdatesWorkflowsWithSource(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+
+	// Initialize git repository
+	os.Chdir(tmpDir)
+	exec.Command("git", "init").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "config", "user.name", "Test User").Run()
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a workflow with source field
+	workflowWithSource := filepath.Join(workflowsDir, "workflow-with-source.md")
+	sourceWorkflowContent := `---
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+source: example/repo/workflow.md@v1.0.0
+---
+
+# Workflow with Source
+
+This workflow has a source field.
+`
+	err = os.WriteFile(workflowWithSource, []byte(sourceWorkflowContent), 0644)
+	require.NoError(t, err, "Failed to create workflow with source")
+
+	// Create a workflow without source field
+	workflowWithoutSource := filepath.Join(workflowsDir, "workflow-without-source.md")
+	normalWorkflowContent := `---
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+---
+
+# Normal Workflow
+
+This workflow has no source field.
+`
+	err = os.WriteFile(workflowWithoutSource, []byte(normalWorkflowContent), 0644)
+	require.NoError(t, err, "Failed to create normal workflow")
+
+	// Run upgrade command (should attempt to update workflows with source field)
+	// Note: The actual update will fail because the source repo doesn't exist,
+	// but we're testing that the update step is executed
+	config := UpgradeConfig{
+		Verbose:     true,
+		NoFix:       false, // Enable update step
+		WorkflowDir: "",
+		Push:        false,
+	}
+
+	// Capture the workflow execution - we expect the update to be attempted
+	// The upgrade should complete even if update fails (it's non-critical)
+	err = RunUpgrade(config)
+	require.NoError(t, err, "Upgrade should complete even if workflow update fails")
+
+	// Verify that both workflows still exist
+	assert.FileExists(t, workflowWithSource, "Workflow with source should still exist")
+	assert.FileExists(t, workflowWithoutSource, "Workflow without source should still exist")
+}

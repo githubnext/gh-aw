@@ -34,13 +34,15 @@ func NewUpgradeCommand() *cobra.Command {
 
 This command:
   1. Updates all agent and prompt files to the latest templates (like 'init' command)
-  2. Applies automatic codemods to fix deprecated fields in all workflows (like 'fix --write')
-  3. Compiles all workflows to generate lock files (like 'compile' command)
+  2. Updates workflows from their source repositories (for workflows with 'source' field)
+  3. Applies automatic codemods to fix deprecated fields in all workflows (like 'fix --write')
+  4. Compiles all workflows to generate lock files (like 'compile' command)
 
 The upgrade process ensures:
 - GitHub Copilot instructions are up-to-date (.github/aw/github-agentic-workflows.md)
 - Dispatcher agent is current (.github/agents/agentic-workflows.agent.md)
 - All workflow prompts are updated (create, update, debug, upgrade)
+- Workflows with 'source' field are updated to their latest version
 - All workflows use the latest syntax and configuration options
 - Deprecated fields are automatically migrated across all workflows
 - All workflows are compiled and lock files are up-to-date
@@ -111,7 +113,30 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated agent and prompt files"))
 	}
 
-	// Step 2: Apply codemods to all workflows (unless --no-fix is specified)
+	// Step 2: Update workflows from source repositories (unless --no-fix is specified)
+	if !noFix {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating workflows from source repositories..."))
+		upgradeLog.Print("Updating workflows from source repositories")
+
+		// Update workflows with source field
+		// Pass nil for workflowNames to update all workflows with source field
+		// Note: Each workflow is compiled immediately after update
+		if err := UpdateWorkflows(nil, false, false, verbose, "", workflowDir, false, "", false); err != nil {
+			upgradeLog.Printf("Failed to update workflows: %v", err)
+			// Don't fail the upgrade if update fails - this is non-critical
+			// Some workflows may not have source field, which is expected
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update workflows: %v", err)))
+			}
+		}
+	} else {
+		upgradeLog.Print("Skipping workflow updates (--no-fix specified)")
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping workflow updates (--no-fix specified)"))
+		}
+	}
+
+	// Step 3: Apply codemods to all workflows (unless --no-fix is specified)
 	if !noFix {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying codemods to all workflows..."))
 		upgradeLog.Print("Applying codemods to all workflows")
@@ -135,7 +160,7 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 		}
 	}
 
-	// Step 3: Compile all workflows (unless --no-fix is specified)
+	// Step 4: Compile all workflows (unless --no-fix is specified)
 	if !noFix {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling all workflows..."))
 		upgradeLog.Print("Compiling all workflows")
@@ -178,7 +203,7 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Upgrade complete"))
 
-	// Step 4: If --push is enabled, commit and push changes
+	// Step 5: If --push is enabled, commit and push changes
 	if push {
 		upgradeLog.Print("Push enabled - preparing to commit and push changes")
 		fmt.Fprintln(os.Stderr, "")
