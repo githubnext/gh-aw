@@ -83,9 +83,9 @@ func TestParseTime(t *testing.T) {
 
 func TestParseTimeToMinutes(t *testing.T) {
 	tests := []struct {
-		hourStr  string
+		hourStr   string
 		minuteStr string
-		expected int
+		expected  int
 	}{
 		{"0", "0", 0},
 		{"12", "0", 720},
@@ -132,9 +132,9 @@ func TestParseUTCOffset(t *testing.T) {
 
 func TestParseHourMinute(t *testing.T) {
 	tests := []struct {
-		input      string
-		hour       int
-		minute     int
+		input         string
+		hour          int
+		minute        int
 		shouldSucceed bool
 	}{
 		{"12:30", 12, 30, true},
@@ -190,8 +190,8 @@ func TestIsAMPMToken(t *testing.T) {
 
 func TestNormalizeTimezoneAbbreviation(t *testing.T) {
 	tests := []struct {
-		input    string
-		expected string
+		input           string
+		expected        string
 		shouldNormalize bool
 	}{
 		{"pst", "utc-8", true},

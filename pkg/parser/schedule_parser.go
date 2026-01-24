@@ -54,10 +54,6 @@ func ParseSchedule(input string) (cron string, original string, err error) {
 	return cronExpr, input, nil
 }
 
-
-
-
-
 // tokenize breaks the input into tokens
 func (p *ScheduleParser) tokenize() error {
 	// Normalize the input
@@ -425,8 +421,6 @@ func (p *ScheduleParser) parseBase() (string, error) {
 	return fmt.Sprintf("%s %s %s %s %s", minute, hour, day, month, weekday), nil
 }
 
-
-
 // extractTime extracts the time specification from tokens starting at startPos
 // Returns the time string (HH:MM, midnight, or noon) with optional UTC offset
 func (p *ScheduleParser) extractTime(startPos int) (string, error) {
@@ -508,5 +502,3 @@ func (p *ScheduleParser) extractTimeAfter(startPos int) (string, error) {
 
 	return normalizeTimeTokens(timeTokens), nil
 }
-
-

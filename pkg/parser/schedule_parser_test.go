@@ -932,32 +932,30 @@ func TestParseSchedule(t *testing.T) {
 	}
 }
 
-
-
 // containsSubstring checks if s contains substr (case-insensitive)
 func containsSubstring(s, substr string) bool {
-return len(substr) == 0 || len(s) >= len(substr) && (s == substr || len(s) > len(substr) && containsIgnoreCase(s, substr))
+	return len(substr) == 0 || len(s) >= len(substr) && (s == substr || len(s) > len(substr) && containsIgnoreCase(s, substr))
 }
 
 func containsIgnoreCase(s, substr string) bool {
-s = toLower(s)
-substr = toLower(substr)
-for i := 0; i <= len(s)-len(substr); i++ {
-if s[i:i+len(substr)] == substr {
-return true
-}
-}
-return false
+	s = toLower(s)
+	substr = toLower(substr)
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
 
 func toLower(s string) string {
-b := make([]byte, len(s))
-for i := 0; i < len(s); i++ {
-c := s[i]
-if 'A' <= c && c <= 'Z' {
-c += 'a' - 'A'
-}
-b[i] = c
-}
-return string(b)
+	b := make([]byte, len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if 'A' <= c && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		b[i] = c
+	}
+	return string(b)
 }

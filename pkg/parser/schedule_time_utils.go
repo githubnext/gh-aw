@@ -32,7 +32,7 @@ func normalizeTimezoneAbbreviation(token string) (string, bool) {
 // isAMPMToken checks if a token is an AM/PM indicator
 func isAMPMToken(token string) bool {
 	switch strings.ToLower(token) {
-		case "am", "pm":
+	case "am", "pm":
 		return true
 	default:
 		return false
