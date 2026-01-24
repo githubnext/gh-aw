@@ -4,23 +4,21 @@
 const { parseRequiredPermissions, parseAllowedBots, checkRepositoryPermission, checkBotStatus } = require("./check_permissions_utils.cjs");
 
 async function main() {
-  const { eventName } = context;
-  const actor = context.actor;
+  const { eventName, actor } = context;
   const { owner, repo } = context.repo;
   const requiredPermissions = parseRequiredPermissions();
   const allowedBots = parseAllowedBots();
 
   // For workflow_dispatch, only skip check if "write" is in the allowed roles
   // since workflow_dispatch can be triggered by users with write access
+  if (eventName === "workflow_dispatch" && requiredPermissions.includes("write")) {
+    core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
+    core.setOutput("is_team_member", "true");
+    core.setOutput("result", "safe_event");
+    return;
+  }
+
   if (eventName === "workflow_dispatch") {
-    const hasWriteRole = requiredPermissions.includes("write");
-    if (hasWriteRole) {
-      core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
-      core.setOutput("is_team_member", "true");
-      core.setOutput("result", "safe_event");
-      return;
-    }
-    // If write is not allowed, continue with permission check
     core.info(`Event ${eventName} requires validation (write role not allowed)`);
   }
 
@@ -65,7 +63,7 @@ async function main() {
     core.setOutput("user_permission", result.permission);
   } else {
     // User doesn't have required permissions, check if they're an allowed bot
-    if (allowedBots && allowedBots.length > 0) {
+    if (allowedBots?.length > 0) {
       core.info(`Checking if actor '${actor}' is in allowed bots list: ${allowedBots.join(", ")}`);
 
       if (allowedBots.includes(actor)) {
@@ -100,7 +98,7 @@ async function main() {
     core.setOutput(
       "error_message",
       `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}. ` +
-        `To allow this user to run the workflow, add their role to the frontmatter. Example: roles: [${requiredPermissions.join(", ")}, ${result.permission}]`
+        `To allow this user to run the workflow, add their role to the frontmatter. Example: roles: [${[...requiredPermissions, result.permission].join(", ")}]`
     );
   }
 }

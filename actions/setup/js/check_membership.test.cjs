@@ -314,4 +314,42 @@ describe("check_membership.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith("✅ User has write access to repository");
     });
   });
+
+  describe("bot authorization", () => {
+    beforeEach(() => {
+      process.env.GH_AW_REQUIRED_ROLES = "admin";
+    });
+
+    afterEach(() => {
+      delete process.env.GH_AW_ALLOWED_BOTS;
+    });
+
+    it("should skip bot check when no allowed bots configured", async () => {
+      delete process.env.GH_AW_ALLOWED_BOTS;
+      mockContext.actor = "dependabot[bot]";
+
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "read" },
+      });
+
+      await runScript();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "insufficient_permissions");
+    });
+
+    it("should deny bot not in allowed list", async () => {
+      process.env.GH_AW_ALLOWED_BOTS = "dependabot[bot],renovate[bot]";
+      mockContext.actor = "another-bot[bot]";
+
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
+        data: { permission: "read" },
+      });
+
+      await runScript();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "insufficient_permissions");
+    });
+  });
 });
