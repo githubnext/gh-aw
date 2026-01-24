@@ -188,6 +188,8 @@ func validateMCPServerConfiguration(cmdPath string) error {
 		// Check for common error cases
 		if ctx.Err() == context.DeadlineExceeded {
 			mcpValidationLog.Print("Status command timed out")
+			errMsg := "status command timed out - this may indicate a configuration issue"
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 			return fmt.Errorf("status command timed out - this may indicate a configuration issue")
 		}
 
@@ -195,8 +197,12 @@ func validateMCPServerConfiguration(cmdPath string) error {
 
 		// If the command failed, provide helpful error message
 		if cmdPath != "" {
+			errMsg := fmt.Sprintf("failed to run status command with custom command '%s': %v\nOutput: %s\n\nPlease ensure:\n  - The command path is correct and executable\n  - You are in a git repository with .github/workflows directory", cmdPath, err, string(output))
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 			return fmt.Errorf("failed to run status command with custom command '%s': %w\nOutput: %s\n\nPlease ensure:\n  - The command path is correct and executable\n  - You are in a git repository with .github/workflows directory", cmdPath, err, string(output))
 		}
+		errMsg := fmt.Sprintf("failed to run status command: %v\nOutput: %s\n\nPlease ensure:\n  - gh CLI is installed and in PATH\n  - gh aw extension is installed (run: gh extension install githubnext/gh-aw)\n  - You are in a git repository with .github/workflows directory", err, string(output))
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return fmt.Errorf("failed to run status command: %w\nOutput: %s\n\nPlease ensure:\n  - gh CLI is installed and in PATH\n  - gh aw extension is installed (run: gh extension install githubnext/gh-aw)\n  - You are in a git repository with .github/workflows directory", err, string(output))
 	}
 
