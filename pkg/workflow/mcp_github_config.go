@@ -265,9 +265,9 @@ func (c *Compiler) generateGitHubMCPAppTokenMintingStep(yaml *strings.Builder, d
 	steps := c.buildGitHubAppTokenMintStep(app, permissions)
 
 	// Modify the step ID to differentiate from safe-outputs app token
-	// Replace "app-token" with "github-mcp-app-token"
+	// Replace "safe-outputs-app-token" with "github-mcp-app-token"
 	for _, step := range steps {
-		modifiedStep := strings.ReplaceAll(step, "id: app-token", "id: github-mcp-app-token")
+		modifiedStep := strings.ReplaceAll(step, "id: safe-outputs-app-token", "id: github-mcp-app-token")
 		yaml.WriteString(modifiedStep)
 	}
 }
@@ -285,9 +285,9 @@ func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Build
 	// Generate the token invalidation step using the existing helper from safe_outputs_app.go
 	steps := c.buildGitHubAppTokenInvalidationStep()
 
-	// Modify the step references to use github-mcp-app-token instead of app-token
+	// Modify the step references to use github-mcp-app-token instead of safe-outputs-app-token
 	for _, step := range steps {
-		modifiedStep := strings.ReplaceAll(step, "steps.app-token.outputs.token", "steps.github-mcp-app-token.outputs.token")
+		modifiedStep := strings.ReplaceAll(step, "steps.safe-outputs-app-token.outputs.token", "steps.github-mcp-app-token.outputs.token")
 		yaml.WriteString(modifiedStep)
 	}
 }
