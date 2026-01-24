@@ -261,7 +261,8 @@ const DefaultClaudeCodeVersion Version = "2.1.15"
 const DefaultCopilotVersion Version = "0.0.389"
 
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
-const DefaultCopilotDetectionModel ModelName = "gpt-5-mini"
+// Updated to gpt-5.1-codex-mini after gpt-5-mini deprecation on 2026-01-17
+const DefaultCopilotDetectionModel ModelName = "gpt-5.1-codex-mini"
 
 // Environment variable names for model configuration
 const (
@@ -502,6 +503,9 @@ const PreActivationJobName JobName = "pre_activation"
 const DetectionJobName JobName = "detection"
 const SafeOutputArtifactName = "safe-output"
 const AgentOutputArtifactName = "agent-output"
+
+// AgentOutputFilename is the filename of the agent output JSON file
+const AgentOutputFilename = "agent_output.json"
 
 // SafeOutputsMCPServerID is the identifier for the safe-outputs MCP server
 const SafeOutputsMCPServerID = "safeoutputs"

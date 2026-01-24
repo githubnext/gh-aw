@@ -152,7 +152,7 @@ jobs:
       - name: Install GitHub Copilot CLI
         run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.389
       - name: Install awf binary
-        run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.11.2
+        run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.10.0
       - name: Determine automatic lockdown mode for GitHub MCP server
         id: determine-automatic-lockdown
         env:
@@ -643,7 +643,7 @@ jobs:
               network_mode: "defaults",
               allowed_domains: [],
               firewall_enabled: true,
-              awf_version: "v0.11.2",
+              awf_version: "v0.10.0",
               awmg_version: "v0.0.76",
               steps: {
                 firewall: "squid"
@@ -882,15 +882,20 @@ jobs:
           
           **Step 2**: Run benchmarks using safeinputs-make
           
-          Use the **safeinputs-make** tool with args: "bench" to run the benchmark suite.
+          Use the **safeinputs-make** tool with args: "bench-performance" to run the critical performance benchmark suite.
           
-          This will execute `make bench` which runs Go benchmarks and saves results to `bench_results.txt`.
+          This will execute `make bench-performance` which runs targeted performance benchmarks and saves results to `bench_performance.txt`.
+          
+          The targeted benchmarks include:
+          - **Workflow compilation**: CompileSimpleWorkflow, CompileComplexWorkflow, CompileMCPWorkflow, CompileMemoryUsage
+          - **Workflow phases**: ParseWorkflow, Validation, YAMLGeneration
+          - **CLI helpers**: ExtractWorkflowNameFromFile, UpdateWorkflowTitle, FindIncludesInContent
           
           **Step 3**: Copy results to our tracking directory
           
           ```bash
           # Copy benchmark results to our directory
-          cp bench_results.txt /tmp/gh-aw/benchmarks/bench_results.txt
+          cp bench_performance.txt /tmp/gh-aw/benchmarks/bench_results.txt
           
           # Extract just the summary
           grep "Benchmark" /tmp/gh-aw/benchmarks/bench_results.txt > /tmp/gh-aw/benchmarks/bench_summary.txt || true
@@ -1249,6 +1254,8 @@ jobs:
           Generate a comprehensive summary of today's benchmark run:
           
           ```bash
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           cat > /tmp/gh-aw/benchmarks/generate_report.py << 'EOF'
           #!/usr/bin/env python3
           """
@@ -1262,8 +1269,6 @@ jobs:
           def format_ns(ns):
               """Format nanoseconds in human-readable form"""
               if ns < 1000:
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
                   return f"{ns}ns"
               elif ns < 1000000:
                   return f"{ns/1000:.2f}µs"
@@ -1451,7 +1456,7 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.11.2 --agent-image act \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.10.0 \
             -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeinputs --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:

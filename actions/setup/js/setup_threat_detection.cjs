@@ -14,6 +14,7 @@
 const fs = require("fs");
 const path = require("path");
 const { checkFileExists } = require("./file_helpers.cjs");
+const { AGENT_OUTPUT_FILENAME } = require("./constants.cjs");
 
 /**
  * Main entry point for setting up threat detection
@@ -35,7 +36,7 @@ async function main(templateContent) {
   // Check if agent output file exists
   // The agent-output artifact is also downloaded to /tmp/gh-aw/threat-detection/
   // The artifact contains /tmp/gh-aw/agent_output.json which becomes /tmp/gh-aw/threat-detection/agent_output.json
-  const agentOutputPath = path.join(threatDetectionDir, "agent_output.json");
+  const agentOutputPath = path.join(threatDetectionDir, AGENT_OUTPUT_FILENAME);
   if (!checkFileExists(agentOutputPath, threatDetectionDir, "Agent output file", true)) {
     return;
   }

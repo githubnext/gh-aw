@@ -77,11 +77,17 @@ Use gh-aw MCP server (not CLI directly). Run `status` tool to verify.
 - `patterns/{errors,missing-tools,mcp-failures}.json`
 - Compare with historical data
 
+### Report Formatting Guidelines
+
+**Header Levels**: Use h3 (###) or lower for all headers in your audit report. The discussion title serves as h1, so content headers should start at h3.
+
+**Progressive Disclosure**: The template already uses appropriate `<details>` tags - maintain this pattern for any additional long sections.
+
 **Create Discussion**: Always create report with audit findings including summary, statistics, missing tools, errors, affected workflows, recommendations, and historical context.
 ```markdown
 # 🔍 Agentic Workflow Audit Report - [DATE]
 
-## Audit Summary
+### Audit Summary
 
 - **Period**: Last 24 hours
 - **Runs Analyzed**: [NUMBER]
@@ -89,7 +95,7 @@ Use gh-aw MCP server (not CLI directly). Run `status` tool to verify.
 - **Success Rate**: [PERCENTAGE]
 - **Issues Found**: [NUMBER]
 
-## Missing Tools
+### Missing Tools
 
 [If any missing tools were detected, list them with frequency and affected workflows]
 
@@ -97,17 +103,17 @@ Use gh-aw MCP server (not CLI directly). Run `status` tool to verify.
 |-----------|---------------|-------------------|---------|
 | [tool]    | [count]       | [workflows]       | [reason]|
 
-## Error Analysis
+### Error Analysis
 
 [Detailed breakdown of errors found]
 
-### Critical Errors
+#### Critical Errors
 - [Error description with affected workflows]
 
-### Warnings
+#### Warnings
 - [Warning description with affected workflows]
 
-## MCP Server Failures
+### MCP Server Failures
 
 [If any MCP server failures detected]
 
@@ -115,7 +121,7 @@ Use gh-aw MCP server (not CLI directly). Run `status` tool to verify.
 |-------------|---------------|-------------------|
 | [server]    | [count]       | [workflows]       |
 
-## Firewall Analysis
+### Firewall Analysis
 
 [If firewall logs were collected and analyzed]
 
@@ -123,34 +129,34 @@ Use gh-aw MCP server (not CLI directly). Run `status` tool to verify.
 - **Allowed Requests**: [NUMBER]
 - **Denied Requests**: [NUMBER]
 
-### Allowed Domains
+#### Allowed Domains
 [List of allowed domains with request counts]
 
-### Denied Domains
+#### Denied Domains
 [List of denied domains with request counts - these may indicate blocked network access attempts]
 
-## Performance Metrics
+### Performance Metrics
 
 - **Average Token Usage**: [NUMBER]
 - **Total Cost (24h)**: $[AMOUNT]
 - **Highest Cost Workflow**: [NAME] ($[AMOUNT])
 - **Average Turns**: [NUMBER]
 
-## Affected Workflows
+### Affected Workflows
 
 [List of workflows with issues]
 
-## Recommendations
+### Recommendations
 
 1. [Specific actionable recommendation]
 2. [Specific actionable recommendation]
 3. [...]
 
-## Historical Context
+### Historical Context
 
 [Compare with previous audits if available from cache memory]
 
-## Next Steps
+### Next Steps
 
 - [ ] [Action item 1]
 - [ ] [Action item 2]

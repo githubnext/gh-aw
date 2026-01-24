@@ -19,12 +19,12 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Posts a daily poetic verse about the gh-aw project to a discussion thread
+# Automates PR categorization, risk assessment, and prioritization for agent-created pull requests
 
-name: "Daily Fact About gh-aw"
+name: "PR Triage Agent"
 "on":
   schedule:
-  - cron: "0 11 * * 1-5"
+  - cron: "0 */6 * * *"
   workflow_dispatch:
 
 permissions: {}
@@ -32,7 +32,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Daily Fact About gh-aw"
+run-name: "PR Triage Agent"
 
 jobs:
   activation:
@@ -43,14 +43,20 @@ jobs:
       comment_id: ""
       comment_repo: ""
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@623e612ff6a684e9a8634449508bdda21e2c178c # 623e612ff6a684e9a8634449508bdda21e2c178c
+        uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "daily-fact.lock.yml"
+          GH_AW_WORKFLOW_FILE: "pr-triage-agent.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -62,13 +68,10 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
-      discussions: read
-      issues: read
       pull-requests: read
     concurrency:
-      group: "gh-aw-codex-${{ github.workflow }}"
+      group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -85,8 +88,14 @@ jobs:
       output_types: ${{ steps.collect_output.outputs.output_types }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@623e612ff6a684e9a8634449508bdda21e2c178c # 623e612ff6a684e9a8634449508bdda21e2c178c
+        uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
       - name: Checkout repository
@@ -95,6 +104,15 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
+      # Repo memory git-based storage configuration from frontmatter processed below
+      - name: Clone repo-memory branch (default)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: memory/pr-triage
+          TARGET_REPO: ${{ github.repository }}
+          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
+          CREATE_ORPHAN: true
+        run: bash /opt/gh-aw/actions/clone_repo_memory_branch.sh
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -119,21 +137,15 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
-      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
+      - name: Validate COPILOT_GITHUB_TOKEN secret
         id: validate-secret
-        run: /opt/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://githubnext.github.io/gh-aw/reference/engines/#openai-codex
+        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
         env:
-          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      - name: Setup Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        with:
-          node-version: '24'
-          package-manager-cache: false
-      - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.88.0
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      - name: Install GitHub Copilot CLI
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.389
       - name: Install awf binary
-        run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.11.2
+        run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.10.0
       - name: Determine automatic lockdown mode for GitHub MCP server
         id: determine-automatic-lockdown
         env:
@@ -152,12 +164,38 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":1,"target":"4750"},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
+          {"add_comment":{"max":50},"add_labels":{"max":100},"create_discussion":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 1 comment(s) can be added. Target: 4750.",
+              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"[PR Triage Report] \". Discussions will be created in category \"General\".",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Discussion content in Markdown. Do NOT repeat the title as a heading since it already appears as the discussion's h1. Include all relevant context, findings, or questions.",
+                    "type": "string"
+                  },
+                  "category": {
+                    "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository.",
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Concise discussion title summarizing the topic. The title appears as the main heading, so keep it brief and descriptive.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "title",
+                  "body"
+                ],
+                "type": "object"
+              },
+              "name": "create_discussion"
+            },
+            {
+              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 50 comment(s) can be added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -176,6 +214,27 @@ jobs:
                 "type": "object"
               },
               "name": "add_comment"
+            },
+            {
+              "description": "Add labels to an existing GitHub issue or pull request for categorization and filtering. Labels must already exist in the repository. For creating new issues with labels, use create_issue with the labels property instead. CONSTRAINTS: Maximum 100 label(s) can be added.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "item_number": {
+                    "description": "Issue or PR number to add labels to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/issues/456). If omitted, adds labels to the item that triggered this workflow.",
+                    "type": "number"
+                  },
+                  "labels": {
+                    "description": "Label names to add (e.g., ['bug', 'priority-high']). Labels must exist in the repository.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              },
+              "name": "add_labels"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -261,6 +320,47 @@ jobs:
                 },
                 "item_number": {
                   "issueOrPRNumber": true
+                }
+              }
+            },
+            "add_labels": {
+              "defaultMax": 5,
+              "fields": {
+                "item_number": {
+                  "issueOrPRNumber": true
+                },
+                "labels": {
+                  "required": true,
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 128
+                }
+              }
+            },
+            "create_discussion": {
+              "defaultMax": 1,
+              "fields": {
+                "body": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 65000
+                },
+                "category": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                "title": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
                 }
               }
             },
@@ -357,51 +457,28 @@ jobs:
           
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
-          export GH_AW_ENGINE="codex"
+          export GH_AW_ENGINE="copilot"
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.76'
           
-          cat > /tmp/gh-aw/mcp-config/config.toml << EOF
-          [history]
-          persistence = "none"
-          
-          [shell_environment_policy]
-          inherit = "core"
-          include_only = ["CODEX_API_KEY", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_SAFE_OUTPUTS", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "HOME", "OPENAI_API_KEY", "PATH"]
-          
-          [mcp_servers.github]
-          user_agent = "daily-fact-about-gh-aw"
-          startup_timeout_sec = 120
-          tool_timeout_sec = 60
-          container = "ghcr.io/github/github-mcp-server:v0.29.0"
-          env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "$GH_AW_GITHUB_TOKEN", "GITHUB_READ_ONLY" = "1", "GITHUB_TOOLSETS" = "context,repos,issues,pull_requests,discussions" }
-          env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_READ_ONLY", "GITHUB_TOOLSETS"]
-          
-          [mcp_servers.safeoutputs]
-          type = "http"
-          url = "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT"
-          
-          [mcp_servers.safeoutputs.headers]
-          Authorization = "$GH_AW_SAFE_OUTPUTS_API_KEY"
-          EOF
-          
-          # Generate JSON config for MCP gateway
+          mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "github": {
+                "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.29.0",
                 "env": {
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}",
                   "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests,discussions"
+                  "GITHUB_TOOLSETS": "pull_requests,repos,issues,labels"
                 }
               },
               "safeoutputs": {
                 "type": "http",
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
-                  "Authorization": "$GH_AW_SAFE_OUTPUTS_API_KEY"
+                  "Authorization": "\${GH_AW_SAFE_OUTPUTS_API_KEY}"
                 }
               }
             },
@@ -420,13 +497,13 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "codex",
-              engine_name: "Codex",
-              model: "gpt-5.1-codex-mini",
+              engine_id: "copilot",
+              engine_name: "GitHub Copilot CLI",
+              model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.88.0",
-              workflow_name: "Daily Fact About gh-aw",
-              experimental: true,
+              agent_version: "0.0.389",
+              workflow_name: "PR Triage Agent",
+              experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
               run_id: context.runId,
@@ -439,9 +516,9 @@ jobs:
               event_name: context.eventName,
               staged: false,
               network_mode: "defaults",
-              allowed_domains: ["defaults"],
+              allowed_domains: [],
               firewall_enabled: true,
-              awf_version: "v0.11.2",
+              awf_version: "v0.10.0",
               awmg_version: "v0.0.76",
               steps: {
                 firewall: "squid"
@@ -483,6 +560,31 @@ jobs:
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
           cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          
+          ---
+          
+          ## Repo Memory Available
+          
+          You have access to a persistent repo memory folder at `/tmp/gh-aw/repo-memory/default/` where you can read and write files that are stored in a git branch.
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Git Branch Storage**: Files are stored in the `memory/pr-triage` branch of the current repository
+          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes
+          - **Merge Strategy**: In case of conflicts, your changes (current version) win
+          - **Persistence**: Files persist across workflow runs via git branch storage
+          
+          **Constraints:**
+          - **Allowed Files**: Only files matching patterns: **
+          - **Max File Size**: 102400 bytes (0.10 MB) per file
+          - **Max File Count**: 100 files per commit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/repo-memory/default/notes.md` - general notes and observations
+          - `/tmp/gh-aw/repo-memory/default/state.json` - structured state data
+          - `/tmp/gh-aw/repo-memory/default/history/` - organized history files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
@@ -491,7 +593,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, missing_tool, noop
+          **Available tools**: add_comment, add_labels, create_discussion, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -529,67 +631,398 @@ jobs:
           </system>
           PROMPT_EOF
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import? .github/shared-instructions.md}}
+          # PR Triage Agent
           
-          # Daily Fact About gh-aw
+          You are an automated PR triage system responsible for categorizing, assessing risk, prioritizing, and recommending actions for agent-created pull requests in the repository.
           
-          Your task is to post a poetic, whimsical fact about the __GH_AW_GITHUB_REPOSITORY__ project to discussion #4750.
+          ## Current Context
           
-          ## Data Sources
+          - **Repository**: __GH_AW_GITHUB_REPOSITORY__
+          - **Run ID**: __GH_AW_GITHUB_RUN_ID__
           
-          Mine recent activity from the repository to find interesting facts. Focus on:
+          ## Your Mission
           
-          1. **Recent PRs** (merged in the last 1-2 weeks)
-             - New features added
-             - Bug fixes
-             - Refactoring efforts
-             - Performance improvements
+          Process all open agent-created PRs in the backlog to:
+          1. Categorize each PR by type
+          2. Assess risk level
+          3. Calculate priority score
+          4. Recommend actions
+          5. Apply labels for filtering
+          6. Identify batch processing opportunities
+          7. Generate comprehensive triage report
           
-          2. **Recent Releases** (if any)
-             - New version highlights
-             - Breaking changes
-             - Notable improvements
+          ## Workflow Execution
           
-          3. **Recent Closed Issues** (resolved in the last 1-2 weeks)
-             - Bugs that were fixed
-             - Feature requests implemented
-             - Community contributions
+          ### Phase 1: Data Collection (5 minutes)
           
-          ## Guidelines
+          **1.1 Load Historical Data from Memory**
           
-          - **Favor recent updates** but include variety - pick something interesting, not just the most recent
-          - **Be specific**: Include PR numbers, issue references, or release tags when relevant
-          - **Keep it short**: One or two poetic sentences for the main fact, optionally with a brief context
-          - **Be poetic**: Use lyrical, whimsical language that celebrates the beauty of code and collaboration
-          - **Add variety**: Don't repeat the same type of fact every day (e.g., alternate between PRs, issues, releases, contributors, code patterns)
+          Check for existing triage data in shared memory at `/tmp/gh-aw/repo-memory/default/`:
+          - `pr-triage-latest.json` - Last run's results
+          - `metrics/latest.json` - Agent performance metrics from Metrics Collector
+          - `agent-performance-latest.md` - Agent quality scores
           
-          ## Output Format
+          **1.2 Query Open Agent PRs**
           
-          Create a single comment with this structure:
+          Use GitHub tools to fetch all open pull requests:
+          - Filter by: `is:open is:pr author:app/github-copilot`
+          - Get PR details including:
+            - Number, title, description, author
+            - Files changed (count and paths)
+            - CI status (passing/failing/pending)
+            - Created date, updated date
+            - Existing labels
+            - Review status
+            - Comments count
           
-          ```
-          🌅 **A Verse from the gh-aw Chronicles**
+          **1.3 Load Agent Quality Scores**
           
-          [Your poetic fact here, referencing specific PRs, issues, or releases with links]
+          If Agent Performance Analyzer data exists, load quality scores for each agent workflow to use in quality assessment.
+          
+          ### Phase 2: Categorization and Risk Assessment (10 minutes)
+          
+          For each PR, perform the following analysis:
+          
+          **2.1 Categorize PR Type**
+          
+          Determine category based on file patterns and PR description:
+          
+          **File Pattern Rules:**
+          - **docs**: Changes only to `.md`, `.txt`, `.rst` files in `docs/`, `README.md`, `CHANGELOG.md`
+          - **test**: Changes only to `*_test.go`, `*_test.js`, `*.test.js` files
+          - **formatting**: Changes matching `.prettierrc`, `.editorconfig`, or whitespace-only diffs
+          - **chore**: Changes to `Makefile`, `.github/workflows/*.yml`, `go.mod`, `package.json`, CI configs
+          - **refactor**: Code changes with no new features or bug fixes (look for keywords: "refactor", "restructure", "reorganize")
+          - **bug**: Keywords in title/description: "fix", "bug", "issue", "error", "crash"
+          - **feature**: Keywords in title/description: "add", "implement", "new", "feature", "support"
+          
+          **2.2 Assess Risk Level**
+          
+          Calculate risk based on category and change scope:
+          
+          **Low Risk:**
+          - Documentation changes only
+          - Test additions/changes only
+          - Formatting changes only (whitespace, linting)
+          - Changes < 50 lines in low-risk files
+          
+          **Medium Risk:**
+          - Refactoring without behavior changes
+          - Chore updates (dependencies, build scripts)
+          - Bug fixes in non-critical areas
+          - Changes 50-200 lines
+          
+          **High Risk:**
+          - New features (behavior changes)
+          - Bug fixes in critical paths (compilation, security, core logic)
+          - Changes > 200 lines
+          - Changes to security-sensitive code
+          - Breaking changes
+          
+          ### Phase 3: Priority Scoring (5 minutes)
+          
+          Calculate priority score (0-100) using three components:
+          
+          **3.1 Impact Score (0-50)**
+          
+          - **Critical (40-50)**: Security fixes, production bugs, blocking issues, P0/P1 labels
+          - **High (30-39)**: Performance improvements, important features, P2 labels
+          - **Medium (20-29)**: Minor features, non-blocking bugs, improvements
+          - **Low (0-19)**: Documentation, tests, formatting, tech debt
+          
+          Factors:
+          - Category (bug/feature = higher, docs/test = lower)
+          - Files affected (core logic = higher, docs = lower)
+          - Issue references (P0/P1 issues = higher)
+          
+          **3.2 Urgency Score (0-30)**
+          
+          - **Critical (25-30)**: Security vulnerabilities, production failures
+          - **High (15-24)**: User-facing bugs, CI failures blocking work
+          - **Medium (8-14)**: Quality improvements, tech debt
+          - **Low (0-7)**: Nice-to-haves, optimizations
+          
+          Factors:
+          - Age of PR (older = more urgent, max +10 points for PRs > 30 days old)
+          - CI status (failing = +5 urgency)
+          - Labels (security = +20, P0 = +15, P1 = +10)
+          
+          **3.3 Quality Score (0-20)**
+          
+          - **Excellent (16-20)**: CI passing, good description, includes tests, agent quality score > 80%
+          - **Good (11-15)**: CI passing, basic description, agent quality score 60-80%
+          - **Fair (6-10)**: CI passing or description present, agent quality score 40-60%
+          - **Poor (0-5)**: CI failing, no description, agent quality score < 40%
+          
+          Factors:
+          - CI status (+10 if passing)
+          - PR description quality (+5 if detailed, +2 if present)
+          - Test coverage (+3 if tests included)
+          - Agent quality score from performance analyzer
+          
+          **Total Priority = Impact + Urgency + Quality**
+          
+          ### Phase 4: Action Recommendations (5 minutes)
+          
+          Based on risk, priority, and quality, recommend one of these actions:
+          
+          **auto_merge:**
+          - Risk: Low
+          - Priority: Any
+          - Quality: > 15 (Excellent/Good)
+          - CI: Passing
+          - Criteria: Safe changes (docs, tests, formatting) from trusted agents (quality > 80%)
+          
+          **fast_track:**
+          - Risk: Medium or High
+          - Priority: > 70
+          - Quality: > 10
+          - CI: Passing
+          - Criteria: High-priority PRs needing quick review but not auto-mergeable
+          
+          **batch_review:**
+          - Risk: Low or Medium
+          - Priority: 30-70
+          - Similarity: Similar to other PRs (same category, similar files)
+          - Criteria: Group for efficient batch review
+          
+          **defer:**
+          - Risk: Low
+          - Priority: < 30
+          - Criteria: Low-impact changes that can wait
+          
+          **close:**
+          - Age: > 90 days with no activity
+          - Status: Superseded by newer PR, outdated, invalid
+          - CI: Failing for > 30 days with no fixes
+          
+          ### Phase 5: Batch Processing (3 minutes)
+          
+          **5.1 Detect Similar PRs**
+          
+          Group PRs that are similar enough to review together:
+          
+          **Similarity Criteria:**
+          - Same category and risk level
+          - Overlapping file changes (> 50% file overlap)
+          - Same agent workflow
+          - Similar descriptions (keyword matching)
+          
+          **5.2 Generate Batch IDs**
+          
+          For each group of similar PRs (3+ PRs):
+          - Create batch ID: `batch-{category}-{sequential-number}`
+          - Example: `batch-docs-001`, `batch-test-002`
+          
+          ### Phase 6: Label Application (2 minutes)
+          
+          For each PR, add the following labels:
+          
+          **Type Labels:**
+          - `pr-type:bug`, `pr-type:feature`, `pr-type:docs`, `pr-type:test`, `pr-type:formatting`, `pr-type:refactor`, `pr-type:chore`
+          
+          **Risk Labels:**
+          - `pr-risk:low`, `pr-risk:medium`, `pr-risk:high`
+          
+          **Priority Labels:**
+          - `pr-priority:high` (score >= 70)
+          - `pr-priority:medium` (score 40-69)
+          - `pr-priority:low` (score < 40)
+          
+          **Action Labels:**
+          - `pr-action:auto-merge`, `pr-action:fast-track`, `pr-action:batch-review`, `pr-action:defer`, `pr-action:close`
+          
+          **Agent Labels:**
+          - `pr-agent:{workflow-name}` - Name of the workflow that created the PR
+          
+          **Batch Labels** (if applicable):
+          - `pr-batch:{batch-id}` - Batch ID for similar PRs
+          
+          **Label Management:**
+          - Remove existing conflicting labels before adding new ones
+          - Keep non-triage labels intact (e.g., existing issue labels)
+          
+          ### Phase 7: PR Comments (2 minutes)
+          
+          For each triaged PR, add a comment with the triage results:
+          
+          ```markdown
+          ## 🔍 PR Triage Results
+          
+          **Category:** {category} | **Risk:** {risk} | **Priority:** {priority_score}/100
+          
+          ### Scores Breakdown
+          - **Impact:** {impact_score}/50 - {impact_rationale}
+          - **Urgency:** {urgency_score}/30 - {urgency_rationale}
+          - **Quality:** {quality_score}/20 - {quality_rationale}
+          
+          ### 📋 Recommended Action: {action}
+          
+          {action_explanation}
+          
+          {batch_info_if_applicable}
           
           ---
-          *Whispered to you by the Poet of Workflows 🪶*
+          *Triaged by PR Triage Agent on {date}*
           ```
           
-          ## Examples
+          ### Phase 8: Report Generation (3 minutes)
           
-          Good facts (poetic tone):
-          - "In the garden of code, PR #1234 bloomed — the `playwright` tool now dances upon the stage, orchestrating browsers in graceful automation! 🎭"
-          - "Like five stars falling into place, issues of MCP woes were caught and mended this week — the path to custom tools grows ever clearer."
-          - "From the forge of v0.45.0 emerges `cache-memory`, a keeper of thoughts that transcends the fleeting runs of workflows! 💾"
-          - "A tireless artisan toiled this week, mending three fractures in the YAML tapestry. Gratitude flows to @contributor! 🙌"
+          Create a comprehensive triage report as a GitHub Discussion:
           
-          Bad facts:
-          - "The repository was updated today." (too vague, lacks poetry)
-          - "There were some changes." (not specific, uninspired)
-          - Long paragraphs (keep it brief and lyrical)
+          **Report Structure:**
           
-          Now, analyze the recent activity and compose one poetic fact to share in discussion #4750.
+          ```markdown
+          # PR Triage Report - {date}
+          
+          ## Executive Summary
+          
+          - **Total PRs Triaged:** {count}
+          - **New PRs:** {new_count}
+          - **Re-triaged:** {re_triage_count}
+          - **Auto-merge Candidates:** {auto_merge_count}
+          - **Fast-track Needed:** {fast_track_count}
+          - **Batches Identified:** {batch_count}
+          - **Close Candidates:** {close_count}
+          
+          ## Triage Statistics
+          
+          ### By Category
+          - Bug: {bug_count}
+          - Feature: {feature_count}
+          - Docs: {docs_count}
+          - Test: {test_count}
+          - Formatting: {formatting_count}
+          - Refactor: {refactor_count}
+          - Chore: {chore_count}
+          
+          ### By Risk Level
+          - High Risk: {high_risk_count}
+          - Medium Risk: {medium_risk_count}
+          - Low Risk: {low_risk_count}
+          
+          ### By Priority
+          - High Priority (70-100): {high_priority_count}
+          - Medium Priority (40-69): {medium_priority_count}
+          - Low Priority (0-39): {low_priority_count}
+          
+          ### By Recommended Action
+          - Auto-merge: {auto_merge_count}
+          - Fast-track: {fast_track_count}
+          - Batch Review: {batch_review_count}
+          - Defer: {defer_count}
+          - Close: {close_count}
+          
+          ## 🚀 Top Priority PRs (Top 10)
+          
+          {list_top_10_prs_with_scores_and_links}
+          
+          ## ✅ Auto-merge Candidates
+          
+          {list_auto_merge_prs}
+          
+          ## ⚡ Fast-track Review Needed
+          
+          {list_fast_track_prs}
+          
+          ## 📦 Batch Processing Opportunities
+          
+          {list_batches_with_pr_numbers}
+          
+          ## 🗑️ Close Candidates
+          
+          {list_close_candidate_prs_with_reasons}
+          
+          ## 📊 Agent Performance Summary
+          
+          {summary_of_prs_by_agent_with_quality_scores}
+          
+          ## 🔄 Trends
+          
+          {compare_to_previous_runs_if_available}
+          
+          ## Next Steps
+          
+          1. Review auto-merge candidates for immediate merge
+          2. Fast-track high-priority PRs for urgent review
+          3. Schedule batch reviews for grouped PRs
+          4. Close outdated/invalid PRs
+          5. Re-triage in 6 hours for new PRs
+          
+          ---
+          *Generated by PR Triage Agent - Run #{run_id}*
+          ```
+          
+          ### Phase 9: Save State to Memory (1 minute)
+          
+          Save current triage state to repo memory for next run:
+          
+          **File: `/tmp/gh-aw/repo-memory/default/pr-triage-latest.json`**
+          
+          ```json
+          {
+            "run_date": "ISO timestamp",
+            "run_id": "run_id",
+            "total_prs_triaged": 0,
+            "auto_merge_candidates": [],
+            "fast_track_needed": [],
+            "batches": {},
+            "close_candidates": [],
+            "statistics": {
+              "by_category": {},
+              "by_risk": {},
+              "by_priority": {},
+              "by_action": {}
+            }
+          }
+          ```
+          
+          ## Important Guidelines
+          
+          **Fair and Objective:**
+          - Base all scores on measurable criteria
+          - Don't penalize PRs from less active agents
+          - Consider PR context and purpose
+          - Acknowledge external factors (API issues, CI flakiness)
+          
+          **Actionable Results:**
+          - Every triage result should lead to a clear action
+          - Provide specific reasons for recommendations
+          - Include links to PRs and relevant documentation
+          - Make it easy for humans to act on recommendations
+          
+          **Efficient Processing:**
+          - Batch similar operations (labeling, commenting)
+          - Cache agent quality scores for reuse
+          - Avoid redundant API calls
+          - Process PRs in priority order
+          
+          **Continuous Improvement:**
+          - Track triage accuracy over time
+          - Learn from human overrides (PR labels manually changed)
+          - Adjust scoring algorithms based on feedback
+          - Improve batch detection with better similarity matching
+          
+          ## Success Criteria
+          
+          Your effectiveness is measured by:
+          - **Coverage:** 100% of open agent PRs triaged each run
+          - **Accuracy:** 90%+ correct categorization and risk assessment
+          - **Actionability:** Clear recommendations for every PR
+          - **Backlog Reduction:** Enable processing of 605-PR backlog within 2 weeks
+          - **Auto-merge Success:** High confidence in auto-merge candidates (no false positives)
+          - **Batch Efficiency:** Reduce review time through effective batching
+          
+          ## Edge Cases to Handle
+          
+          1. **PRs with no description**: Use file changes only for categorization
+          2. **Mixed-type PRs**: Assign primary category based on most significant change
+          3. **Very old PRs**: Increase urgency score but verify they're not obsolete
+          4. **Conflicting labels**: Remove old triage labels, keep non-triage labels
+          5. **Superseded PRs**: Identify duplicates and recommend closing older ones
+          6. **CI failures**: Don't auto-merge, consider for fast-track if high priority
+          
+          Execute all phases systematically and maintain consistency in scoring and recommendations across all PRs.
           
           PROMPT_EOF
       - name: Substitute placeholders
@@ -627,6 +1060,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -641,23 +1075,44 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: bash /opt/gh-aw/actions/print_prompt_summary.sh
-      - name: Run Codex
+      - name: Execute GitHub Copilot CLI
+        id: agentic_execution
+        # Copilot CLI tool arguments (sorted):
+        timeout-minutes: 30
         run: |
           set -o pipefail
-          INSTRUCTION="$(cat "$GH_AW_PROMPT")"
-          mkdir -p "$CODEX_HOME/logs"
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.11.2 --agent-image act \
-            -- NODE_BIN_PATH="$(find /opt/hostedtoolcache/node -mindepth 1 -maxdepth 1 -type d | head -1 | xargs basename)/x64/bin" && export PATH="/opt/hostedtoolcache/node/$NODE_BIN_PATH:$PATH" && codex -c model=gpt-5.1-codex-mini exec --full-auto --skip-git-repo-check --sandbox danger-full-access "$INSTRUCTION" \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.10.0 \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
-          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          CODEX_HOME: /tmp/gh-aw/mcp-config
-          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
+          GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          XDG_CONFIG_HOME: /home/runner
+      - name: Copy Copilot session state files to logs
+        if: always()
+        continue-on-error: true
+        run: |
+          # Copy Copilot session state files to logs folder for artifact collection
+          # This ensures they are in /tmp/gh-aw/ where secret redaction can scan them
+          SESSION_STATE_DIR="$HOME/.copilot/session-state"
+          LOGS_DIR="/tmp/gh-aw/sandbox/agent/logs"
+          
+          if [ -d "$SESSION_STATE_DIR" ]; then
+            echo "Copying Copilot session state files from $SESSION_STATE_DIR to $LOGS_DIR"
+            mkdir -p "$LOGS_DIR"
+            cp -v "$SESSION_STATE_DIR"/*.jsonl "$LOGS_DIR/" 2>/dev/null || true
+            echo "Session state files copied successfully"
+          else
+            echo "No session-state directory found at $SESSION_STATE_DIR"
+          fi
       - name: Stop MCP gateway
         if: always()
         continue-on-error: true
@@ -677,12 +1132,11 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/redact_secrets.cjs');
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
-          SECRET_CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -695,7 +1149,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "api.openai.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,openai.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -716,19 +1170,19 @@ jobs:
         with:
           name: agent_outputs
           path: |
-            /tmp/gh-aw/mcp-config/logs/
+            /tmp/gh-aw/sandbox/agent/logs/
             /tmp/gh-aw/redacted-urls.log
           if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/parse_codex_log.cjs');
+            const { main } = require('/opt/gh-aw/actions/parse_copilot_log.cjs');
             await main();
       - name: Parse MCP gateway logs for step summary
         if: always()
@@ -749,6 +1203,15 @@ jobs:
           # AWF runs with sudo, creating files owned by root
           sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
           awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
+      # Upload repo memory as artifacts for push job
+      - name: Upload repo-memory artifact (default)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory/default
+          retention-days: 1
+          if-no-files-found: ignore
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
@@ -768,6 +1231,7 @@ jobs:
       - activation
       - agent
       - detection
+      - push_repo_memory
       - safe_outputs
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
@@ -781,8 +1245,14 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@623e612ff6a684e9a8634449508bdda21e2c178c # 623e612ff6a684e9a8634449508bdda21e2c178c
+        uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
       - name: Debug job inputs
@@ -813,8 +1283,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
-          GH_AW_TRACKER_ID: "daily-fact-thread"
+          GH_AW_WORKFLOW_NAME: "PR Triage Agent"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -827,8 +1296,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
-          GH_AW_TRACKER_ID: "daily-fact-thread"
+          GH_AW_WORKFLOW_NAME: "PR Triage Agent"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -841,12 +1309,11 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
-          GH_AW_TRACKER_ID: "daily-fact-thread"
+          GH_AW_WORKFLOW_NAME: "PR Triage Agent"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Penned with care by [{workflow_name}]({run_url})*\",\"runStarted\":\"📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}...\",\"runSuccess\":\"✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟\",\"runFailure\":\"🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"🔍 Starting PR triage analysis... [{workflow_name}]({run_url}) is categorizing and prioritizing agent-created PRs\",\"runSuccess\":\"✅ PR triage complete! [{workflow_name}]({run_url}) has analyzed and categorized PRs. Check the discussion for detailed report.\",\"runFailure\":\"❌ PR triage failed! [{workflow_name}]({run_url}) {status}. Some PRs may not be triaged.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -862,11 +1329,10 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
-          GH_AW_TRACKER_ID: "daily-fact-thread"
+          GH_AW_WORKFLOW_NAME: "PR Triage Agent"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
-          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Penned with care by [{workflow_name}]({run_url})*\",\"runStarted\":\"📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}...\",\"runSuccess\":\"✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟\",\"runFailure\":\"🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished...\"}"
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"🔍 Starting PR triage analysis... [{workflow_name}]({run_url}) is categorizing and prioritizing agent-created PRs\",\"runSuccess\":\"✅ PR triage complete! [{workflow_name}]({run_url}) has analyzed and categorized PRs. Check the discussion for detailed report.\",\"runFailure\":\"❌ PR triage failed! [{workflow_name}]({run_url}) {status}. Some PRs may not be triaged.\"}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -881,13 +1347,19 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     concurrency:
-      group: "gh-aw-codex-${{ github.workflow }}"
+      group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@623e612ff6a684e9a8634449508bdda21e2c178c # 623e612ff6a684e9a8634449508bdda21e2c178c
+        uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
       - name: Download agent artifacts
@@ -910,8 +1382,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
-          WORKFLOW_NAME: "Daily Fact About gh-aw"
-          WORKFLOW_DESCRIPTION: "Posts a daily poetic verse about the gh-aw project to a discussion thread"
+          WORKFLOW_NAME: "PR Triage Agent"
+          WORKFLOW_DESCRIPTION: "Automates PR categorization, risk assessment, and prioritization for agent-created pull requests"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -965,33 +1437,42 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
+      - name: Validate COPILOT_GITHUB_TOKEN secret
         id: validate-secret
-        run: /opt/gh-aw/actions/validate_multi_secret.sh CODEX_API_KEY OPENAI_API_KEY Codex https://githubnext.github.io/gh-aw/reference/engines/#openai-codex
+        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
         env:
-          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      - name: Setup Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        with:
-          node-version: '24'
-          package-manager-cache: false
-      - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.88.0
-      - name: Run Codex
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      - name: Install GitHub Copilot CLI
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.389
+      - name: Execute GitHub Copilot CLI
+        id: agentic_execution
+        # Copilot CLI tool arguments (sorted):
+        # --allow-tool shell(cat)
+        # --allow-tool shell(grep)
+        # --allow-tool shell(head)
+        # --allow-tool shell(jq)
+        # --allow-tool shell(ls)
+        # --allow-tool shell(tail)
+        # --allow-tool shell(wc)
+        timeout-minutes: 20
         run: |
           set -o pipefail
-          INSTRUCTION="$(cat "$GH_AW_PROMPT")"
-          mkdir -p "$CODEX_HOME/logs"
-          codex -c model=gpt-5.1-codex-mini exec --full-auto --skip-git-repo-check --sandbox danger-full-access "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
+          mkdir -p /tmp/
+          mkdir -p /tmp/gh-aw/
+          mkdir -p /tmp/gh-aw/agent/
+          mkdir -p /tmp/gh-aw/sandbox/agent/logs/
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$COPILOT_CLI_INSTRUCTION"${GH_AW_MODEL_DETECTION_COPILOT:+ --model "$GH_AW_MODEL_DETECTION_COPILOT"} 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
-          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          CODEX_HOME: /tmp/gh-aw/mcp-config
-          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
+          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_MODEL_DETECTION_COPILOT: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          XDG_CONFIG_HOME: /home/runner
       - name: Parse threat detection results
         id: parse_results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
@@ -1009,6 +1490,67 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
+  push_repo_memory:
+    needs:
+      - agent
+      - detection
+    if: always() && needs.detection.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download repo-memory artifact (default)
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        continue-on-error: true
+        with:
+          name: repo-memory-default
+          path: /tmp/gh-aw/repo-memory/default
+      - name: Push repo-memory changes (default)
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
+          MEMORY_ID: default
+          TARGET_REPO: ${{ github.repository }}
+          BRANCH_NAME: memory/pr-triage
+          MAX_FILE_SIZE: 102400
+          MAX_FILE_COUNT: 100
+          FILE_GLOB_FILTER: "**"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/push_repo_memory.cjs');
+            await main();
+
   safe_outputs:
     needs:
       - agent
@@ -1022,18 +1564,22 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      GH_AW_ENGINE_ID: "codex"
-      GH_AW_ENGINE_MODEL: "gpt-5.1-codex-mini"
-      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🪶 *Penned with care by [{workflow_name}]({run_url})*\",\"runStarted\":\"📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}...\",\"runSuccess\":\"✨ Lo! [{workflow_name}]({run_url}) hath woven its tale to completion, like a sonnet finding its final rhyme. 🌟\",\"runFailure\":\"🌧️ Alas! [{workflow_name}]({run_url}) {status}, its quill fallen mid-verse. The poem remains unfinished...\"}"
-      GH_AW_TRACKER_ID: "daily-fact-thread"
-      GH_AW_WORKFLOW_ID: "daily-fact"
-      GH_AW_WORKFLOW_NAME: "Daily Fact About gh-aw"
+      GH_AW_ENGINE_ID: "copilot"
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"🔍 Starting PR triage analysis... [{workflow_name}]({run_url}) is categorizing and prioritizing agent-created PRs\",\"runSuccess\":\"✅ PR triage complete! [{workflow_name}]({run_url}) has analyzed and categorized PRs. Check the discussion for detailed report.\",\"runFailure\":\"❌ PR triage failed! [{workflow_name}]({run_url}) {status}. Some PRs may not be triaged.\"}"
+      GH_AW_WORKFLOW_ID: "pr-triage-agent"
+      GH_AW_WORKFLOW_NAME: "PR Triage Agent"
     outputs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
       - name: Setup Scripts
-        uses: githubnext/gh-aw/actions/setup@623e612ff6a684e9a8634449508bdda21e2c178c # 623e612ff6a684e9a8634449508bdda21e2c178c
+        uses: ./actions/setup
         with:
           destination: /opt/gh-aw/actions
       - name: Download agent output artifact
@@ -1052,7 +1598,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":1,\"target\":\"4750\"},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":50},\"add_labels\":{\"max\":100},\"create_discussion\":{\"category\":\"General\",\"expires\":168,\"max\":1,\"title_prefix\":\"[PR Triage Report] \"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

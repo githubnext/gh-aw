@@ -225,8 +225,6 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		// Build job steps
 		var steps []string
 
-		artifactFileName := "agent_output.json"
-
 		// Add step to download agent output artifact using shared helper
 		downloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
 			ArtifactName: constants.AgentOutputArtifactName,
@@ -237,7 +235,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		steps = append(steps, downloadSteps...)
 
 		// the download artifacts always creates a folder, then unpacks in that folder
-		agentOutputArtifactFilename := fmt.Sprintf("/opt/gh-aw/safe-jobs/%s", artifactFileName)
+		agentOutputArtifactFilename := fmt.Sprintf("/opt/gh-aw/safe-jobs/%s", constants.AgentOutputFilename)
 
 		// Add environment variables step with GH_AW_AGENT_OUTPUT and job-specific env vars
 		steps = append(steps, "      - name: Setup Safe Job Environment Variables\n")

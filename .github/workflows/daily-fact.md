@@ -13,7 +13,7 @@ permissions:
 tracker-id: daily-fact-thread
 engine:
   id: codex
-  model: gpt-5-mini
+  model: gpt-5.1-codex-mini
 strict: true
 timeout-minutes: 15
 features:

@@ -439,7 +439,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error when sandbox.agent is false in strict mode for copilot")
 		}
-		expectedMsg := "sandbox.agent: false"
+		expectedMsg := "sandbox: false"
 		if !strings.Contains(err.Error(), expectedMsg) {
 			t.Errorf("Expected error message to contain '%s', got: %v", expectedMsg, err)
 		}
@@ -466,7 +466,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error for non-copilot engine with sandbox.agent: false in strict mode")
 		}
-		expectedMsg := "sandbox.agent: false"
+		expectedMsg := "sandbox: false"
 		if !strings.Contains(err.Error(), expectedMsg) {
 			t.Errorf("Expected error message to contain '%s', got: %v", expectedMsg, err)
 		}
@@ -532,7 +532,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 		if err != nil {
 			// If we get an error here, it's from strict mode validation
 			// which is expected to reject it
-			expectedMsg := "sandbox.agent: false"
+			expectedMsg := "sandbox: false"
 			if !strings.Contains(err.Error(), expectedMsg) {
 				t.Errorf("Expected error message to contain '%s', got: %v", expectedMsg, err)
 			}

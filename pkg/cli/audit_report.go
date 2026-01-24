@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/timeutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -332,15 +333,15 @@ func extractDownloadedFiles(logsPath string) []FileInfo {
 // describeFile provides a short description for known artifact files
 func describeFile(filename string) string {
 	descriptions := map[string]string{
-		"aw_info.json":      "Engine configuration and workflow metadata",
-		"safe_output.jsonl": "Safe outputs from workflow execution",
-		"agent_output.json": "Validated safe outputs",
-		"aw.patch":          "Git patch of changes made during execution",
-		"agent-stdio.log":   "Agent standard output/error logs",
-		"log.md":            "Human-readable agent session summary",
-		"firewall.md":       "Firewall log analysis report",
-		"run_summary.json":  "Cached summary of workflow run analysis",
-		"prompt.txt":        "Input prompt for AI agent",
+		"aw_info.json":                "Engine configuration and workflow metadata",
+		"safe_output.jsonl":           "Safe outputs from workflow execution",
+		constants.AgentOutputFilename: "Validated safe outputs",
+		"aw.patch":                    "Git patch of changes made during execution",
+		"agent-stdio.log":             "Agent standard output/error logs",
+		"log.md":                      "Human-readable agent session summary",
+		"firewall.md":                 "Firewall log analysis report",
+		"run_summary.json":            "Cached summary of workflow run analysis",
+		"prompt.txt":                  "Input prompt for AI agent",
 	}
 
 	if desc, ok := descriptions[filename]; ok {
