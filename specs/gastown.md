@@ -906,7 +906,7 @@ Based on Gastown's proven patterns, here are recommended enhancements for gh-aw:
 ### What gh-aw Does Well
 - **Security First**: Strict mode, safe-outputs, sandboxed execution
 - **GitHub Integration**: Native GitHub Actions, API access, authentication
-- **Event-Driven**: Powerful trigger system for automation
+- **Event-Driven**: Comprehensive trigger system for automation
 - **Declarative**: Natural language markdown workflows
 - **Supply Chain Security**: SHA-pinned dependencies
 

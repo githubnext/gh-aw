@@ -4,12 +4,12 @@ This guide helps you quickly understand and use the new meta-orchestrator agents
 
 ## What Are Meta-Orchestrators?
 
-Meta-orchestrators are "managerial agents" that oversee and coordinate other agents in the repository. Think of them as middle managers for your AI workforce.
+Meta-orchestrators are specialized workflows that oversee and coordinate other agents in the repository. They provide status tracking and coordination across multiple workflows.
 
 ## The Three Meta-Orchestrators
 
-### 1. Campaign Manager 📊
-**What it does:** Manages your campaign portfolio like a program manager
+### 1. Campaign Manager
+**What it does:** Manages campaign portfolio status and coordination
 
 **When it runs:** Daily
 
@@ -28,18 +28,18 @@ Meta-orchestrators are "managerial agents" that oversee and coordinate other age
 - Overall completion: 45%
 - Campaigns on track: 1 | Behind schedule: 1
 
-## Campaigns Needing Attention ⚠️
+## Campaigns Needing Attention
 - Security Q1 (55/100) - Stalled, no progress in 7 days
   Issue #123 created with recommendations
-```text
+```
 
 **When to check it:** 
 - Weekly during planning meetings
 - When starting new campaigns
 - When campaigns seem to conflict
 
-### 2. Workflow Health Manager 🏥
-**What it does:** Monitors all 120+ workflows like a system reliability engineer
+### 2. Workflow Health Manager
+**What it does:** Monitors workflow health and execution status for failures and performance issues
 
 **When it runs:** Daily
 
@@ -53,23 +53,23 @@ Meta-orchestrators are "managerial agents" that oversee and coordinate other age
 ```markdown
 # Workflow Health Dashboard - 2025-12-20
 
-## Critical Issues 🚨
+## Critical Issues
 - daily-file-diet: Failing (8/10 runs failed)
   Error: Permission denied accessing GitHub API
   Issue #456 created
 
-## Warnings ⚠️
+## Warnings
 - ci-coach: Compilation warnings
   Issue #457 created with migration guide
-```text
+```
 
 **When to check it:**
 - Daily for critical issues (P0/P1)
 - Before making workflow changes
 - When investigating workflow failures
 
-### 3. Agent Performance Analyzer 📈
-**What it does:** Evaluates agent quality like a quality assurance team
+### 3. Agent Performance Analyzer
+**What it does:** Evaluates agent output quality and effectiveness
 
 **When it runs:** Daily
 
@@ -83,16 +83,16 @@ Meta-orchestrators are "managerial agents" that oversee and coordinate other age
 ```markdown
 # Agent Performance Report - Week of 2025-12-20
 
-## Top Performers 🏆
-1. Campaign Manager (95/100) - Excellent quality, good effectiveness
+## Top Performers
+1. Campaign Manager (95/100) - High quality, good effectiveness
 2. CI Coach (90/100) - Clear outputs, high merge rate
 
-## Needs Improvement 📉
+## Needs Improvement
 1. Workflow X (45/100)
    Issues: Incomplete outputs, high PR rejection rate
    Recommendations: Refine prompt, add quality checks
    Issue #789 created
-```text
+```
 
 **When to check it:**
 - Daily during agent reviews
@@ -101,9 +101,32 @@ Meta-orchestrators are "managerial agents" that oversee and coordinate other age
 
 ## How They Coordinate
 
-### Shared Memory System 🔗
+### Shared Memory System
 
 All three meta-orchestrators share a common repository memory at `memory/meta-orchestrators/` where they exchange insights and coordinate actions.
+
+```mermaid
+graph TD
+    A[Meta-Orchestrators] --> B[Campaign Manager]
+    A --> C[Workflow Health Manager]
+    A --> D[Agent Performance Analyzer]
+
+    B --> E[Shared Memory]
+    C --> E
+    D --> E
+
+    E --> F[memory/meta-orchestrators/]
+
+    F --> G[Run Summaries]
+    F --> H[Cross-cutting Alerts]
+    F --> I[Historical Trends]
+    F --> J[Action Items]
+
+    G --> K[Coordinated Actions]
+    H --> K
+    I --> K
+    J --> K
+```
 
 **What's shared:**
 - Latest run summaries from each orchestrator
@@ -130,7 +153,7 @@ All three meta-orchestrators share a common repository memory at `memory/meta-or
 ### As a Repository Maintainer
 
 **Daily:**
-1. Check Workflow Health Dashboard pinned issue
+1. Check Workflow Health Dashboard pinned issue for critical issues
 2. Address P0/P1 issues immediately
 3. Review Campaign Manager report if campaigns are active
 4. Review Agent Performance Report discussion
@@ -173,10 +196,10 @@ All three meta-orchestrators share a common repository memory at `memory/meta-or
 ### Health Scores
 
 Scores are 0-100, calculated as:
-- **80-100:** Healthy ✅ - No action needed
-- **60-79:** Warning ⚠️ - Monitor closely
-- **40-59:** Needs Attention ⚠️ - Address soon
-- **0-39:** Critical 🚨 - Fix immediately
+- **80-100:** Healthy - No action needed
+- **60-79:** Warning - Monitor closely
+- **40-59:** Needs Attention - Address soon
+- **0-39:** Critical - Fix immediately
 
 ### Priority Levels
 
@@ -207,7 +230,7 @@ on: daily  # Change to: weekly, or custom schedule
 
 # agent-performance-analyzer.md
 on: daily  # Change to: weekly, biweekly, monthly
-```text
+```
 
 Recompile with: `gh aw compile <workflow>.md`
 
@@ -219,7 +242,7 @@ If meta-orchestrators hit limits:
 safe-outputs:
   create-issue:
     max: 10  # Increase if needed
-```text
+```
 
 ### Refining Prompts
 
