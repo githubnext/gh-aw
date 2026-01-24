@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -161,7 +162,7 @@ func (ft *FileTracker) RollbackModifiedFiles(verbose bool) error {
 			}
 		} else {
 			if verbose {
-				fmt.Printf("    Warning: No original content stored for %s\n", file)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No original content stored for %s", file)))
 			}
 		}
 	}

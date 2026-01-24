@@ -132,13 +132,24 @@ function balanceCodeRegions(markdown) {
   const unclosedFences = [];
   const pairedBlocks = []; // Track paired blocks with their line ranges
 
-  // Helper function to check if a line is inside any paired block
+  // Helper function to check if a line is inside any paired or unclosed block
   const isInsideBlock = lineIndex => {
+    // Check if inside a successfully paired block
     for (const block of pairedBlocks) {
       if (lineIndex > block.start && lineIndex < block.end) {
         return true;
       }
     }
+
+    // Check if inside an unclosed block
+    // An unclosed block starts at an opening fence and extends to the end of the document
+    // if no closer was found
+    for (const fence of unclosedFences) {
+      if (lineIndex > fence.lineIndex) {
+        return true;
+      }
+    }
+
     return false;
   };
 

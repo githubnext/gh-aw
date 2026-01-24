@@ -104,6 +104,7 @@ while IFS= read -r SERVER_NAME; do
   # Retry logic for slow-starting servers
   RETRY_COUNT=0
   PING_SUCCESS=false
+  LAST_ERROR=""
   
   while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     # Calculate timeout based on retry attempt (10s, 20s, 30s)
@@ -112,7 +113,10 @@ while IFS= read -r SERVER_NAME; do
     if [ $RETRY_COUNT -gt 0 ]; then
       # Progressive delay between retries (2s, 4s)
       DELAY=$((2 * RETRY_COUNT))
+      echo "  Retry $RETRY_COUNT/$MAX_RETRIES after ${DELAY}s delay (timeout: ${TIMEOUT}s)..."
       sleep $DELAY
+    else
+      echo "  Attempting connection (timeout: ${TIMEOUT}s)..."
     fi
     
     # Make the request with proper headers and progressive timeout
@@ -136,6 +140,22 @@ while IFS= read -r SERVER_NAME; do
       if ! echo "$PING_BODY" | jq -e '.error' >/dev/null 2>&1; then
         PING_SUCCESS=true
         break
+      else
+        LAST_ERROR="JSON-RPC error: $(echo "$PING_BODY" | jq -r '.error.message // .error' 2>/dev/null)"
+      fi
+    else
+      LAST_ERROR="HTTP ${PING_HTTP_CODE}"
+      if [ "$PING_HTTP_CODE" = "000" ]; then
+        # Connection error or timeout
+        if echo "$PING_BODY" | grep -q "Connection refused"; then
+          LAST_ERROR="Connection refused"
+        elif echo "$PING_BODY" | grep -q "timed out"; then
+          LAST_ERROR="Connection timeout"
+        elif echo "$PING_BODY" | grep -q "Could not resolve host"; then
+          LAST_ERROR="DNS resolution failed"
+        else
+          LAST_ERROR="Connection error: $(echo "$PING_BODY" | head -c 100)"
+        fi
       fi
     fi
     
@@ -147,6 +167,9 @@ while IFS= read -r SERVER_NAME; do
     SERVERS_SUCCEEDED=$((SERVERS_SUCCEEDED + 1))
   else
     echo "✗ $SERVER_NAME: failed to connect"
+    echo "  URL: $SERVER_URL"
+    echo "  Last error: $LAST_ERROR"
+    echo "  Retries attempted: $MAX_RETRIES"
     SERVERS_FAILED=$((SERVERS_FAILED + 1))
   fi
   
@@ -155,10 +178,29 @@ done <<< "$SERVER_NAMES"
 # Print summary
 echo ""
 if [ $SERVERS_FAILED -gt 0 ]; then
-  echo "ERROR: $SERVERS_FAILED server(s) failed"
+  echo "ERROR: $SERVERS_FAILED of $SERVERS_CHECKED server(s) failed connectivity check"
+  echo "Succeeded: $SERVERS_SUCCEEDED, Failed: $SERVERS_FAILED, Skipped: $SERVERS_SKIPPED"
+  echo ""
+  echo "This indicates that one or more MCP servers failed to respond to ping requests"
+  echo "after multiple retry attempts with progressive timeouts (10s, 20s, 30s)."
+  echo ""
+  echo "Common causes:"
+  echo "  - MCP server container failed to start or crashed"
+  echo "  - Network connectivity issues between gateway and server"
+  echo "  - Server initialization taking longer than expected (>30s)"
+  echo "  - Server port not properly exposed or accessible"
+  echo ""
+  echo "Check the gateway logs and individual server logs for more details:"
+  echo "  /tmp/gh-aw/mcp-logs/stderr.log"
+  echo "  /tmp/gh-aw/mcp-logs/start-gateway.log"
   exit 1
 elif [ $SERVERS_SUCCEEDED -eq 0 ]; then
   echo "ERROR: No HTTP servers were successfully checked"
+  echo "This could indicate:"
+  echo "  - No HTTP-type MCP servers were configured"
+  echo "  - All configured servers are stdio-type (which are skipped by this check)"
+  echo ""
+  echo "If you expected HTTP servers to be configured, check the gateway configuration."
   exit 1
 else
   echo "✓ All checks passed ($SERVERS_SUCCEEDED succeeded, $SERVERS_SKIPPED skipped)"
