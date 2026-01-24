@@ -53,36 +53,55 @@ The goal is to ensure all workflow runs have the necessary logs and telemetry to
 
 ## Phase 1: Fetch Workflow Runs
 
-Use the `agentic-workflows` MCP tool to download and analyze logs from recent workflow runs.
+Use the `agentic-workflows` MCP server tools to download and analyze logs from recent workflow runs.
+
+**⚠️ IMPORTANT**: The `status`, `logs`, and `audit` operations are MCP server tools, NOT shell commands. Call them as tools with JSON parameters, not as `gh aw` shell commands.
 
 ### Step 1.1: List Available Workflows
 
-First, get a list of all agentic workflows in the repository:
+First, get a list of all agentic workflows in the repository using the `status` MCP tool:
 
-```bash
-gh aw status --json
+**Tool**: `status`  
+**Parameters**:
+```json
+{
+  "json": true
+}
 ```
 
 ### Step 1.2: Download Logs from Recent Runs
 
-For each agentic workflow, download logs from the past week. Use the `--start-date` flag to filter to the last 7 days:
+For each agentic workflow, download logs from the past week using the `logs` MCP tool. The tool will automatically save logs to `/tmp/gh-aw/aw-mcp/logs/`.
 
-```bash
-# Download logs for all workflows from the last week (adjust -c for high-activity repos)
-gh aw logs --start-date -7d -o /tmp/gh-aw/observability-logs -c 100
+**Tool**: `logs`  
+**Parameters**:
+```json
+{
+  "workflow_name": "",
+  "count": 100,
+  "start_date": "-7d",
+  "parse": true
+}
 ```
 
-**Note**: For repositories with high activity, you can increase the `-c` limit (e.g., `-c 500`) or run multiple passes with pagination.
+**Note**: For repositories with high activity, you can increase the `count` parameter (e.g., `"count": 500`) or run multiple passes with pagination. Leave `workflow_name` empty to download logs for all workflows.
 
 If there are many workflows, you can also target specific workflows:
 
-```bash
-gh aw logs <workflow-name> --start-date -7d -o /tmp/gh-aw/observability-logs/<workflow-name>
+**Tool**: `logs`  
+**Parameters**:
+```json
+{
+  "workflow_name": "workflow-name",
+  "count": 100,
+  "start_date": "-7d",
+  "parse": true
+}
 ```
 
 ### Step 1.3: Collect Run Information
 
-For each downloaded run, note (see standardized metric names in specs/metrics-glossary.md):
+The `logs` MCP tool saves all downloaded run logs to `/tmp/gh-aw/aw-mcp/logs/`. For each downloaded run, note (see standardized metric names in specs/metrics-glossary.md):
 - Workflow name
 - Run ID
 - Conclusion (success, failure, cancelled)
@@ -100,7 +119,7 @@ The AWF Firewall uses Squid proxy for egress control. The key log file is `acces
 For each firewall-enabled workflow run, check:
 
 1. **access.log existence**: Look for `access.log/` directory in the run logs
-   - Path pattern: `/tmp/gh-aw/observability-logs/run-<id>/access.log/`
+   - Path pattern: `/tmp/gh-aw/aw-mcp/logs/run-<id>/access.log/`
    - Contains files like `access-*.log`
 
 2. **access.log content quality**:
@@ -131,7 +150,7 @@ The MCP Gateway logs tool execution in `gateway.jsonl` format.
 For each run that uses MCP servers, check:
 
 1. **gateway.jsonl existence**: Look for the file in run logs
-   - Path pattern: `/tmp/gh-aw/observability-logs/run-<id>/gateway.jsonl`
+   - Path pattern: `/tmp/gh-aw/aw-mcp/logs/run-<id>/gateway.jsonl`
 
 2. **gateway.jsonl content quality**:
    - Are log entries valid JSONL format?
