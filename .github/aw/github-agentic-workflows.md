@@ -568,6 +568,14 @@ The YAML frontmatter supports these fields:
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
     Publishes workflow artifacts to an orphaned git branch for persistent storage. Default allowed extensions include common non-executable types. Maximum file size is 50MB (51200 KB).
+  - `dispatch-workflow:` - Trigger other workflows with inputs
+    ```yaml
+    safe-outputs:
+      dispatch-workflow:
+        workflows: [workflow-name]          # Required: list of workflow names to allow
+        max: 3                              # Optional: max dispatches (default: 1, max: 3)
+    ```
+    Triggers other agentic workflows in the same repository using workflow_dispatch. Agent output includes `workflow_name` (without .md extension) and optional `inputs` (key-value pairs). Not supported for cross-repository operations.
   - `create-code-scanning-alert:` - Generate SARIF security advisories
     ```yaml
     safe-outputs:
