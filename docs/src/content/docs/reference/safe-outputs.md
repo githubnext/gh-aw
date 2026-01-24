@@ -64,6 +64,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 
 ### Security & Agent Tasks
 
+- [**Dispatch Workflow**](#workflow-dispatch-dispatch-workflow) (`dispatch-workflow`) — Trigger other workflows with inputs (max: 3, same-repo only)
 - [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) (`create-code-scanning-alert`) — Generate SARIF security advisories (max: unlimited, same-repo only)
 - [**Create Agent Session**](#agent-session-creation-create-agent-session) (`create-agent-session`) — Create Copilot agent sessions (max: 1)
 
@@ -817,6 +818,110 @@ safe-outputs:
 **Target**: `"triggering"` (requires discussion event), `"*"` (any discussion), or number (specific discussion).
 
 When using `target: "*"`, the agent must provide `discussion_number` in the output to identify which discussion to update.
+
+### Workflow Dispatch (`dispatch-workflow:`)
+
+Triggers other workflows in the same repository using GitHub's `workflow_dispatch` event. This enables workflow orchestration and task delegation patterns, such as campaign workflows that coordinate multiple worker workflows.
+
+**Shorthand Syntax:**
+```yaml wrap
+safe-outputs:
+  dispatch-workflow: [worker-workflow, scanner-workflow]
+```
+
+**Detailed Syntax:**
+```yaml wrap
+safe-outputs:
+  dispatch-workflow:
+    workflows: [worker-workflow, scanner-workflow]
+    max: 3  # maximum dispatches (default: 1, max: 3)
+```
+
+#### Configuration
+
+- **`workflows`** (required) — List of workflow names (without `.md` extension) that the agent is allowed to dispatch. Each workflow must exist in the same repository and support the `workflow_dispatch` trigger.
+- **`max`** (optional) — Maximum number of workflow dispatches allowed (default: 1, maximum: 3). This prevents excessive workflow triggering.
+
+#### Validation Rules
+
+At compile time, the compiler validates:
+
+1. **Workflow existence** — Each workflow in the `workflows` list must exist as either:
+   - A markdown workflow file (`.md`)
+   - A compiled lock file (`.lock.yml`)  
+   - A standard GitHub Actions workflow (`.yml`)
+
+2. **workflow_dispatch trigger** — Each workflow must include `workflow_dispatch` in its `on:` trigger section:
+   ```yaml
+   on: [push, workflow_dispatch]  # or
+   on:
+     push:
+     workflow_dispatch:
+       inputs:
+         campaign_id:
+           description: "Campaign identifier"
+           required: true
+   ```
+
+3. **No self-reference** — A workflow cannot dispatch itself to prevent infinite loops.
+
+4. **File resolution** — The compiler resolves the correct file extension (`.lock.yml` or `.yml`) at compile time and embeds it in the safe output configuration, ensuring the runtime handler dispatches the correct workflow file.
+
+#### Agent Output Format
+
+The agent produces dispatch requests in its output:
+
+```json
+{
+  "type": "dispatch_workflow",
+  "workflow_name": "worker-workflow",
+  "inputs": {
+    "campaign_id": "bootstrap-123",
+    "payload": "{\"target\": \"repositories\"}"
+  }
+}
+```
+
+All input values are automatically converted to strings as required by GitHub's workflow_dispatch API:
+- Objects are JSON-stringified
+- Numbers and booleans are converted to strings
+- `null` and `undefined` become empty strings
+
+#### Rate Limiting
+
+To respect GitHub API rate limits, the handler automatically enforces a 5-second delay between consecutive workflow dispatches. The first dispatch has no delay.
+
+#### Security Considerations
+
+- **Same-repository only** — Cannot dispatch workflows in other repositories. This prevents cross-repository workflow triggering which could be a security risk.
+- **Allowlist enforcement** — Only workflows explicitly listed in the `workflows` configuration can be dispatched. Requests for unlisted workflows are rejected.
+- **Compile-time validation** — Workflows are validated at compile time to catch configuration errors early.
+
+#### Use Cases
+
+**Campaign Orchestration:**
+```yaml wrap
+safe-outputs:
+  dispatch-workflow:
+    workflows: [seeder-worker, processor-worker]
+    max: 2
+```
+
+An orchestrator workflow can dispatch seeder and worker workflows to discover and process campaign work items.
+
+**Multi-Stage Pipelines:**
+```yaml wrap
+safe-outputs:
+  dispatch-workflow: [deploy-staging, run-tests]
+```
+
+A workflow can trigger deployment and testing workflows as separate, trackable runs.
+
+> [!WARNING]
+> **Workflow compilation required**: Markdown workflows (`.md` files) must be compiled to `.lock.yml` files before they can be dispatched. If you reference a workflow that only exists as `.md`, compilation will fail with an error asking you to run `gh aw compile <workflow-name>`.
+
+> [!NOTE]
+> **Workflow inputs**: If the target workflow defines `workflow_dispatch` inputs, the agent should provide matching inputs in the dispatch request. GitHub validates input requirements at dispatch time.
 
 ### Agent Session Creation (`create-agent-session:`)
 
