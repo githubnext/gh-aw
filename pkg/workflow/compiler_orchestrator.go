@@ -16,8 +16,21 @@ import (
 var detectionLog = logger.New("workflow:detection")
 var orchestratorLog = logger.New("workflow:compiler_orchestrator")
 
-func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
-	orchestratorLog.Printf("Starting workflow file parsing: %s", markdownPath)
+// frontmatterParseResult holds the results of parsing and validating frontmatter
+type frontmatterParseResult struct {
+	cleanPath                string
+	content                  []byte
+	frontmatterResult        *parser.FrontmatterResult
+	frontmatterForValidation map[string]any
+	markdownDir              string
+	isSharedWorkflow         bool
+}
+
+// parseFrontmatterSection reads the workflow file and parses its frontmatter.
+// It returns a frontmatterParseResult containing the parsed data and validation information.
+// If the workflow is detected as a shared workflow (no 'on' field), isSharedWorkflow is set to true.
+func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterParseResult, error) {
+	orchestratorLog.Printf("Starting frontmatter parsing: %s", markdownPath)
 	log.Printf("Reading file: %s", markdownPath)
 
 	// Clean the path to prevent path traversal issues (gosec G304)
@@ -72,12 +85,14 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 			return nil, err
 		}
 
-		// Return a special error to signal that this is a shared workflow
-		// and compilation should be skipped with an info message
-		// Note: Markdown content is optional for shared workflows (they may be just config)
-		return nil, &SharedWorkflowError{
-			Path: cleanPath,
-		}
+		return &frontmatterParseResult{
+			cleanPath:                cleanPath,
+			content:                  content,
+			frontmatterResult:        result,
+			frontmatterForValidation: frontmatterForValidation,
+			markdownDir:              filepath.Dir(cleanPath),
+			isSharedWorkflow:         true,
+		}, nil
 	}
 
 	// For main workflows (with 'on' field), markdown content is required
@@ -99,9 +114,48 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 
+	// Validate that @include/@import directives are not used inside template regions
+	if err := validateNoIncludesInTemplateRegions(result.Markdown); err != nil {
+		orchestratorLog.Printf("Template region validation failed: %v", err)
+		return nil, fmt.Errorf("template region validation failed: %w", err)
+	}
+
 	log.Printf("Frontmatter: %d chars, Markdown: %d chars", len(result.Frontmatter), len(result.Markdown))
 
-	markdownDir := filepath.Dir(cleanPath)
+	return &frontmatterParseResult{
+		cleanPath:                cleanPath,
+		content:                  content,
+		frontmatterResult:        result,
+		frontmatterForValidation: frontmatterForValidation,
+		markdownDir:              filepath.Dir(cleanPath),
+		isSharedWorkflow:         false,
+	}, nil
+}
+
+func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
+	orchestratorLog.Printf("Starting workflow file parsing: %s", markdownPath)
+
+	// Parse frontmatter section
+	parseResult, err := c.parseFrontmatterSection(markdownPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle shared workflows
+	if parseResult.isSharedWorkflow {
+		// Return a special error to signal that this is a shared workflow
+		// and compilation should be skipped with an info message
+		// Note: Markdown content is optional for shared workflows (they may be just config)
+		return nil, &SharedWorkflowError{
+			Path: parseResult.cleanPath,
+		}
+	}
+
+	// Unpack parse result for convenience
+	cleanPath := parseResult.cleanPath
+	content := parseResult.content
+	result := parseResult.frontmatterResult
+	markdownDir := parseResult.markdownDir
 
 	// Extract AI engine setting from frontmatter
 	engineSetting, engineConfig := c.ExtractEngineConfig(result.Frontmatter)
@@ -150,12 +204,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Restore the initial strict mode state after validation
 	// This ensures strict mode doesn't leak to other workflows being compiled
 	c.strictMode = initialStrictMode
-
-	// Validate that @include/@import directives are not used inside template regions
-	if err := validateNoIncludesInTemplateRegions(result.Markdown); err != nil {
-		orchestratorLog.Printf("Template region validation failed: %v", err)
-		return nil, fmt.Errorf("template region validation failed: %w", err)
-	}
 
 	// Override with command line AI engine setting if provided
 	if c.engineOverride != "" {
