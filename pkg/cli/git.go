@@ -301,9 +301,7 @@ func getCurrentBranch() (string, error) {
 
 // createAndSwitchBranch creates a new branch and switches to it
 func createAndSwitchBranch(branchName string, verbose bool) error {
-	if verbose {
-		fmt.Printf("Creating and switching to branch: %s\n", branchName)
-	}
+	console.LogVerbose(verbose, fmt.Sprintf("Creating and switching to branch: %s", branchName))
 
 	cmd := exec.Command("git", "checkout", "-b", branchName)
 	if err := cmd.Run(); err != nil {
@@ -315,9 +313,7 @@ func createAndSwitchBranch(branchName string, verbose bool) error {
 
 // switchBranch switches to the specified branch
 func switchBranch(branchName string, verbose bool) error {
-	if verbose {
-		fmt.Printf("Switching to branch: %s\n", branchName)
-	}
+	console.LogVerbose(verbose, fmt.Sprintf("Switching to branch: %s", branchName))
 
 	cmd := exec.Command("git", "checkout", branchName)
 	if err := cmd.Run(); err != nil {
@@ -329,9 +325,7 @@ func switchBranch(branchName string, verbose bool) error {
 
 // commitChanges commits all staged changes with the given message
 func commitChanges(message string, verbose bool) error {
-	if verbose {
-		fmt.Printf("Committing changes with message: %s\n", message)
-	}
+	console.LogVerbose(verbose, fmt.Sprintf("Committing changes with message: %s", message))
 
 	cmd := exec.Command("git", "commit", "-m", message)
 	if err := cmd.Run(); err != nil {
@@ -343,9 +337,7 @@ func commitChanges(message string, verbose bool) error {
 
 // pushBranch pushes the specified branch to origin
 func pushBranch(branchName string, verbose bool) error {
-	if verbose {
-		fmt.Printf("Pushing branch: %s\n", branchName)
-	}
+	console.LogVerbose(verbose, fmt.Sprintf("Pushing branch: %s", branchName))
 
 	cmd := exec.Command("git", "push", "-u", "origin", branchName)
 	if err := cmd.Run(); err != nil {
@@ -357,9 +349,7 @@ func pushBranch(branchName string, verbose bool) error {
 
 // checkCleanWorkingDirectory checks if there are uncommitted changes
 func checkCleanWorkingDirectory(verbose bool) error {
-	if verbose {
-		fmt.Printf("Checking for uncommitted changes...\n")
-	}
+	console.LogVerbose(verbose, "Checking for uncommitted changes...")
 
 	cmd := exec.Command("git", "status", "--porcelain")
 	output, err := cmd.Output()
@@ -371,9 +361,7 @@ func checkCleanWorkingDirectory(verbose bool) error {
 		return fmt.Errorf("working directory has uncommitted changes, please commit or stash them first")
 	}
 
-	if verbose {
-		fmt.Printf("Working directory is clean\n")
-	}
+	console.LogVerbose(verbose, "Working directory is clean")
 	return nil
 }
 
