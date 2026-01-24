@@ -477,6 +477,29 @@ content
 \`\`\`\`\`\`\`\`\`\`\`\`\`\`\`\``;
         expect(balancer.balanceCodeRegions(input)).toBe(input);
       });
+
+      it("should close unmatched opening fence when shorter fence cannot close it", () => {
+        // Regression test for GitHub Issue #11630
+        // When a 4-backtick fence is opened but only a 3-backtick fence follows,
+        // the 3-backtick fence should be treated as content inside the code block,
+        // not as a separate unclosed fence.
+        const input = `#### NPM Versions Available
+
+\`\`\`\`
+0.0.56
+0.0.57
+0.0.58
+\`\`\``;
+        const expected = `#### NPM Versions Available
+
+\`\`\`\`
+0.0.56
+0.0.57
+0.0.58
+\`\`\`
+\`\`\`\``;
+        expect(balancer.balanceCodeRegions(input)).toBe(expected);
+      });
     });
 
     describe("trailing content after fence", () => {
