@@ -71,6 +71,8 @@ func applyImportsToFrontmatter(frontmatter map[string]any, importsResult *parser
 	compiler := workflow.NewCompiler(false, "", "")
 	mergedMCPServers, err := compiler.MergeMCPServers(existingMCPServers, importsResult.MergedMCPServers)
 	if err != nil {
+		errMsg := fmt.Sprintf("failed to merge imported MCP servers: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return nil, fmt.Errorf("failed to merge imported MCP servers: %w", err)
 	}
 
@@ -93,6 +95,8 @@ func applyImportsToFrontmatter(frontmatter map[string]any, importsResult *parser
 	// Merge imported tools using the workflow compiler's merge logic
 	mergedTools, err := compiler.MergeTools(existingTools, importsResult.MergedTools)
 	if err != nil {
+		errMsg := fmt.Sprintf("failed to merge imported tools: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return nil, fmt.Errorf("failed to merge imported tools: %w", err)
 	}
 
@@ -138,11 +142,15 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 	// Parse the workflow file for MCP configurations
 	content, err := os.ReadFile(workflowPath)
 	if err != nil {
+		errMsg := fmt.Sprintf("failed to read workflow file: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return fmt.Errorf("failed to read workflow file: %w", err)
 	}
 
 	parsedData, err := parser.ExtractFrontmatterFromContent(string(content))
 	if err != nil {
+		errMsg := fmt.Sprintf("failed to parse workflow file: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return fmt.Errorf("failed to parse workflow file: %w", err)
 	}
 
@@ -161,12 +169,16 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 	markdownDir := filepath.Dir(workflowPath)
 	importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(parsedData.Frontmatter, markdownDir, nil)
 	if err != nil {
+		errMsg := fmt.Sprintf("failed to process imports from frontmatter: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return fmt.Errorf("failed to process imports from frontmatter: %w", err)
 	}
 
 	// Apply imported MCP servers to frontmatter
 	frontmatterWithImports, err := applyImportsToFrontmatter(parsedData.Frontmatter, importsResult)
 	if err != nil {
+		errMsg := fmt.Sprintf("failed to apply imports: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return fmt.Errorf("failed to apply imports: %w", err)
 	}
 
@@ -178,6 +190,8 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("MCP configuration validation failed: %v", err)))
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Continuing with MCP inspection (validation errors may affect results)"))
 				} else {
+					errMsg := fmt.Sprintf("MCP configuration validation failed: %v", err)
+					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 					return fmt.Errorf("MCP configuration validation failed: %w", err)
 				}
 			} else if verbose {
@@ -189,6 +203,8 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 	// Extract MCP configurations from frontmatter with imports applied
 	mcpConfigs, err := parser.ExtractMCPConfigurations(frontmatterWithImports, serverFilter)
 	if err != nil {
+		errMsg := fmt.Sprintf("failed to extract MCP configurations: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return fmt.Errorf("failed to extract MCP configurations: %w", err)
 	}
 
@@ -283,6 +299,8 @@ func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
 	results, err := ScanWorkflowsForMCP(workflowsDir, "", verbose)
 	if err != nil {
 		if os.IsNotExist(err) {
+			errMsg := "no .github/workflows directory found"
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 			return fmt.Errorf("no .github/workflows directory found")
 		}
 		return err
@@ -318,6 +336,8 @@ func writeSafeInputsFiles(dir string, safeInputsConfig *workflow.SafeInputsConfi
 	// Create logs directory
 	logsDir := filepath.Join(dir, "logs")
 	if err := os.MkdirAll(logsDir, 0755); err != nil {
+		errMsg := fmt.Sprintf("failed to create logs directory: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return fmt.Errorf("failed to create logs directory: %w", err)
 	}
 
@@ -340,6 +360,8 @@ func writeSafeInputsFiles(dir string, safeInputsConfig *workflow.SafeInputsConfi
 	for _, jsFile := range jsFiles {
 		filePath := filepath.Join(dir, jsFile.name)
 		if err := os.WriteFile(filePath, []byte(jsFile.content), 0644); err != nil {
+			errMsg := fmt.Sprintf("failed to write %s: %v", jsFile.name, err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 			return fmt.Errorf("failed to write %s: %w", jsFile.name, err)
 		}
 		if verbose {
@@ -351,6 +373,8 @@ func writeSafeInputsFiles(dir string, safeInputsConfig *workflow.SafeInputsConfi
 	toolsJSON := workflow.GenerateSafeInputsToolsConfigForInspector(safeInputsConfig)
 	toolsPath := filepath.Join(dir, "tools.json")
 	if err := os.WriteFile(toolsPath, []byte(toolsJSON), 0644); err != nil {
+		errMsg := fmt.Sprintf("failed to write tools.json: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return fmt.Errorf("failed to write tools.json: %w", err)
 	}
 	if verbose {
@@ -361,6 +385,8 @@ func writeSafeInputsFiles(dir string, safeInputsConfig *workflow.SafeInputsConfi
 	mcpServerScript := workflow.GenerateSafeInputsMCPServerScriptForInspector(safeInputsConfig)
 	mcpServerPath := filepath.Join(dir, "mcp-server.cjs")
 	if err := os.WriteFile(mcpServerPath, []byte(mcpServerScript), 0755); err != nil {
+		errMsg := fmt.Sprintf("failed to write mcp-server.cjs: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return fmt.Errorf("failed to write mcp-server.cjs: %w", err)
 	}
 	if verbose {
@@ -391,6 +417,8 @@ func writeSafeInputsFiles(dir string, safeInputsConfig *workflow.SafeInputsConfi
 			mode = 0755
 		}
 		if err := os.WriteFile(toolPath, []byte(content), mode); err != nil {
+			errMsg := fmt.Sprintf("failed to write tool %s: %v", toolName, err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 			return fmt.Errorf("failed to write tool %s: %w", toolName, err)
 		}
 		if verbose {
@@ -421,6 +449,8 @@ func startSafeInputsHTTPServer(dir string, port int, verbose bool) (*exec.Cmd, e
 	}
 
 	if err := cmd.Start(); err != nil {
+		errMsg := fmt.Sprintf("failed to start server: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return nil, fmt.Errorf("failed to start server: %w", err)
 	}
 
@@ -481,6 +511,8 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 
 	// Check if node is available
 	if _, err := exec.LookPath("node"); err != nil {
+		errMsg := "node not found. Please install Node.js to run the safe-inputs MCP server"
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return nil, nil, "", fmt.Errorf("node not found. Please install Node.js to run the safe-inputs MCP server: %w", err)
 	}
 
@@ -491,6 +523,8 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 	// Create temporary directory for safe-inputs files
 	tmpDir, err := os.MkdirTemp("", "gh-aw-safe-inputs-*")
 	if err != nil {
+		errMsg := fmt.Sprintf("failed to create temporary directory: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return nil, nil, "", fmt.Errorf("failed to create temporary directory: %w", err)
 	}
 
@@ -506,6 +540,8 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 		if err := os.RemoveAll(tmpDir); err != nil && verbose {
 			mcpInspectLog.Printf("Warning: failed to clean up temporary directory %s: %v", tmpDir, err)
 		}
+		errMsg := fmt.Sprintf("failed to write safe-inputs files: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return nil, nil, "", fmt.Errorf("failed to write safe-inputs files: %w", err)
 	}
 
@@ -515,6 +551,8 @@ func startSafeInputsServer(safeInputsConfig *workflow.SafeInputsConfig, verbose 
 		if err := os.RemoveAll(tmpDir); err != nil && verbose {
 			mcpInspectLog.Printf("Warning: failed to clean up temporary directory %s: %v", tmpDir, err)
 		}
+		errMsg := "failed to find an available port for the HTTP server"
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return nil, nil, "", fmt.Errorf("failed to find an available port for the HTTP server")
 	}
 
