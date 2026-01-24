@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/tty"
 )
 
 var fileTrackerLog = logger.New("cli:file_tracker")
@@ -82,15 +84,26 @@ func (ft *FileTracker) StageAllFiles(verbose bool) error {
 	fileTrackerLog.Printf("Staging %d tracked files", len(allFiles))
 	if len(allFiles) == 0 {
 		if verbose {
-			fmt.Println("No files to stage")
+			if tty.IsStderrTerminal() {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No files to stage"))
+			} else {
+				fmt.Fprintln(os.Stderr, "No files to stage")
+			}
 		}
 		return nil
 	}
 
 	if verbose {
-		fmt.Printf("Staging %d files...\n", len(allFiles))
-		for _, file := range allFiles {
-			fmt.Printf("  - %s\n", file)
+		if tty.IsStderrTerminal() {
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Staging %d files...", len(allFiles))))
+			for _, file := range allFiles {
+				fmt.Fprintln(os.Stderr, console.FormatListItem(file))
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "Staging %d files...\n", len(allFiles))
+			for _, file := range allFiles {
+				fmt.Fprintf(os.Stderr, "  - %s\n", file)
+			}
 		}
 	}
 
@@ -115,13 +128,21 @@ func (ft *FileTracker) RollbackCreatedFiles(verbose bool) error {
 
 	fileTrackerLog.Printf("Rolling back %d created files", len(ft.CreatedFiles))
 	if verbose {
-		fmt.Printf("Rolling back %d created files...\n", len(ft.CreatedFiles))
+		if tty.IsStderrTerminal() {
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Rolling back %d created files...", len(ft.CreatedFiles))))
+		} else {
+			fmt.Fprintf(os.Stderr, "Rolling back %d created files...\n", len(ft.CreatedFiles))
+		}
 	}
 
 	var errors []string
 	for _, file := range ft.CreatedFiles {
 		if verbose {
-			fmt.Printf("  - Deleting %s\n", file)
+			if tty.IsStderrTerminal() {
+				fmt.Fprintln(os.Stderr, console.FormatListItem(fmt.Sprintf("Deleting %s", file)))
+			} else {
+				fmt.Fprintf(os.Stderr, "  - Deleting %s\n", file)
+			}
 		}
 		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
 			fileTrackerLog.Printf("Failed to delete %s: %v", file, err)
@@ -144,13 +165,21 @@ func (ft *FileTracker) RollbackModifiedFiles(verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Printf("Rolling back %d modified files...\n", len(ft.ModifiedFiles))
+		if tty.IsStderrTerminal() {
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Rolling back %d modified files...", len(ft.ModifiedFiles))))
+		} else {
+			fmt.Fprintf(os.Stderr, "Rolling back %d modified files...\n", len(ft.ModifiedFiles))
+		}
 	}
 
 	var errors []string
 	for _, file := range ft.ModifiedFiles {
 		if verbose {
-			fmt.Printf("  - Restoring %s\n", file)
+			if tty.IsStderrTerminal() {
+				fmt.Fprintln(os.Stderr, console.FormatListItem(fmt.Sprintf("Restoring %s", file)))
+			} else {
+				fmt.Fprintf(os.Stderr, "  - Restoring %s\n", file)
+			}
 		}
 
 		// Restore original content if we have it
@@ -161,7 +190,11 @@ func (ft *FileTracker) RollbackModifiedFiles(verbose bool) error {
 			}
 		} else {
 			if verbose {
-				fmt.Printf("    Warning: No original content stored for %s\n", file)
+				if tty.IsStderrTerminal() {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No original content stored for %s", file)))
+				} else {
+					fmt.Fprintf(os.Stderr, "    Warning: No original content stored for %s\n", file)
+				}
 			}
 		}
 	}

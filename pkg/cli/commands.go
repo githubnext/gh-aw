@@ -12,6 +12,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/tty"
 )
 
 var commandsLog = logger.New("cli:commands")
@@ -83,7 +84,11 @@ func resolveWorkflowFileInDir(fileOrWorkflowName string, verbose bool, workflowD
 	if _, err := os.Stat(fileOrWorkflowName); err == nil {
 		commandsLog.Printf("Found workflow file at path: %s", fileOrWorkflowName)
 		if verbose {
-			fmt.Printf("Found workflow file at path: %s\n", fileOrWorkflowName)
+			if tty.IsStderrTerminal() {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found workflow file at path: %s", fileOrWorkflowName)))
+			} else {
+				fmt.Fprintf(os.Stderr, "Found workflow file at path: %s\n", fileOrWorkflowName)
+			}
 		}
 		// Return absolute path
 		absPath, err := filepath.Abs(fileOrWorkflowName)
@@ -151,7 +156,11 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 	commandsLog.Printf("Normalized workflow name: %s", workflowName)
 
 	if verbose {
-		fmt.Printf("Creating new workflow: %s\n", workflowName)
+		if tty.IsStderrTerminal() {
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Creating new workflow: %s", workflowName)))
+		} else {
+			fmt.Fprintf(os.Stderr, "Creating new workflow: %s\n", workflowName)
+		}
 	}
 
 	// Get current working directory for .github/workflows
@@ -188,8 +197,8 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 		return fmt.Errorf("failed to write workflow file '%s': %w", destFile, err)
 	}
 
-	fmt.Printf("Created new workflow: %s\n", destFile)
-	fmt.Printf("Edit the file to customize your workflow, then run '" + string(constants.CLIExtensionPrefix) + " compile' to generate the GitHub Actions workflow.\n")
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created new workflow: %s", destFile)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Edit the file to customize your workflow, then run '%s compile' to generate the GitHub Actions workflow", string(constants.CLIExtensionPrefix))))
 
 	return nil
 }

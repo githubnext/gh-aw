@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/tty"
 )
 
 var copilotAgentsLog = logger.New("cli:copilot_agents")
@@ -44,7 +46,11 @@ func ensureFileMatchesTemplate(subdir, fileName, templateContent, fileType strin
 	if strings.TrimSpace(existingContent) == expectedContent {
 		copilotAgentsLog.Printf("File is up-to-date: %s", targetPath)
 		if verbose {
-			fmt.Printf("%s is up-to-date: %s\n", fileType, targetPath)
+			if tty.IsStderrTerminal() {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("%s is up-to-date: %s", fileType, targetPath)))
+			} else {
+				fmt.Fprintf(os.Stderr, "%s is up-to-date: %s\n", fileType, targetPath)
+			}
 		}
 		return nil
 	}
@@ -64,9 +70,17 @@ func ensureFileMatchesTemplate(subdir, fileName, templateContent, fileType strin
 
 	if verbose {
 		if existingContent == "" {
-			fmt.Printf("Created %s: %s\n", fileType, targetPath)
+			if tty.IsStderrTerminal() {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created %s: %s", fileType, targetPath)))
+			} else {
+				fmt.Fprintf(os.Stderr, "Created %s: %s\n", fileType, targetPath)
+			}
 		} else {
-			fmt.Printf("Updated %s: %s\n", fileType, targetPath)
+			if tty.IsStderrTerminal() {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s: %s", fileType, targetPath)))
+			} else {
+				fmt.Fprintf(os.Stderr, "Updated %s: %s\n", fileType, targetPath)
+			}
 		}
 	}
 
@@ -100,7 +114,11 @@ func cleanupOldPromptFile(promptFileName string, verbose bool) error {
 			return fmt.Errorf("failed to remove old prompt file: %w", err)
 		}
 		if verbose {
-			fmt.Printf("Removed old prompt file: %s\n", oldPath)
+			if tty.IsStderrTerminal() {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed old prompt file: %s", oldPath)))
+			} else {
+				fmt.Fprintf(os.Stderr, "Removed old prompt file: %s\n", oldPath)
+			}
 		}
 	}
 
@@ -139,7 +157,11 @@ func cleanupOldCopilotInstructions(verbose bool) error {
 			return fmt.Errorf("failed to remove old instructions file: %w", err)
 		}
 		if verbose {
-			fmt.Printf("Removed old instructions file: %s\n", oldPath)
+			if tty.IsStderrTerminal() {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed old instructions file: %s", oldPath)))
+			} else {
+				fmt.Fprintf(os.Stderr, "Removed old instructions file: %s\n", oldPath)
+			}
 		}
 	}
 

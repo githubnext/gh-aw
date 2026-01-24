@@ -14,6 +14,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/stringutil"
+	"github.com/githubnext/gh-aw/pkg/tty"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
@@ -48,7 +49,11 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 	}
 
 	if verbose {
-		fmt.Printf("Running workflow on GitHub Actions: %s\n", workflowIdOrName)
+		if tty.IsStderrTerminal() {
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Running workflow on GitHub Actions: %s", workflowIdOrName)))
+		} else {
+			fmt.Fprintf(os.Stderr, "Running workflow on GitHub Actions: %s\n", workflowIdOrName)
+		}
 	}
 
 	// Check if gh CLI is available
@@ -119,7 +124,11 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 		wf, err := getWorkflowStatus(workflowIdOrName, repoOverride, verbose)
 		if err != nil {
 			if verbose {
-				fmt.Printf("Warning: Could not check workflow status: %v\n", err)
+				if tty.IsStderrTerminal() {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not check workflow status: %v", err)))
+				} else {
+					fmt.Fprintf(os.Stderr, "Warning: Could not check workflow status: %v\n", err)
+				}
 			}
 		}
 
@@ -199,7 +208,11 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 	// Recompile workflow if engine override is provided (only for local workflows)
 	if engineOverride != "" && repoOverride == "" {
 		if verbose {
-			fmt.Printf("Recompiling workflow with engine override: %s\n", engineOverride)
+			if tty.IsStderrTerminal() {
+				fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Recompiling workflow with engine override: %s", engineOverride)))
+			} else {
+				fmt.Fprintf(os.Stderr, "Recompiling workflow with engine override: %s\n", engineOverride)
+			}
 		}
 
 		workflowMarkdownPath := stringutil.LockFileToMarkdown(lockFilePath)
@@ -222,16 +235,28 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 		}
 
 		if verbose {
-			fmt.Printf("Successfully recompiled workflow with engine: %s\n", engineOverride)
+			if tty.IsStderrTerminal() {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully recompiled workflow with engine: %s", engineOverride)))
+			} else {
+				fmt.Fprintf(os.Stderr, "Successfully recompiled workflow with engine: %s\n", engineOverride)
+			}
 		}
 	} else if engineOverride != "" && repoOverride != "" {
 		if verbose {
-			fmt.Printf("Note: Engine override ignored for remote repository workflows\n")
+			if tty.IsStderrTerminal() {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Engine override ignored for remote repository workflows"))
+			} else {
+				fmt.Fprintln(os.Stderr, "Note: Engine override ignored for remote repository workflows")
+			}
 		}
 	}
 
 	if verbose {
-		fmt.Printf("Using lock file: %s\n", lockFileName)
+		if tty.IsStderrTerminal() {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using lock file: %s", lockFileName)))
+		} else {
+			fmt.Fprintf(os.Stderr, "Using lock file: %s\n", lockFileName)
+		}
 	}
 
 	// Check for missing or outdated lock files (when not using --push)
@@ -377,7 +402,11 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 			ref = currentBranch
 			executionLog.Printf("Using current branch for workflow run: %s", ref)
 		} else if verbose {
-			fmt.Printf("Note: Could not determine current branch: %v\n", err)
+			if tty.IsStderrTerminal() {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Could not determine current branch: %v", err)))
+			} else {
+				fmt.Fprintf(os.Stderr, "Note: Could not determine current branch: %v\n", err)
+			}
 		}
 	}
 	if ref != "" {
@@ -412,7 +441,11 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 				cmdParts = append(cmdParts, "-f", input)
 			}
 		}
-		fmt.Printf("Executing: %s\n", strings.Join(cmdParts, " "))
+		if tty.IsStderrTerminal() {
+			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(strings.Join(cmdParts, " ")))
+		} else {
+			fmt.Fprintf(os.Stderr, "Executing: %s\n", strings.Join(cmdParts, " "))
+		}
 	}
 
 	// Capture both stdout and stderr
@@ -444,23 +477,27 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 	// Display the output from gh workflow run
 	output := strings.TrimSpace(string(stdout))
 	if output != "" {
-		fmt.Println(output)
+		fmt.Fprintln(os.Stderr, output)
 	}
 
-	fmt.Printf("Successfully triggered workflow: %s\n", lockFileName)
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully triggered workflow: %s", lockFileName)))
 	executionLog.Printf("Workflow triggered successfully: %s", lockFileName)
 
 	// Try to get the latest run for this workflow to show a direct link
 	// Add a delay to allow GitHub Actions time to register the new workflow run
 	runInfo, runErr := getLatestWorkflowRunWithRetry(lockFileName, repoOverride, verbose)
 	if runErr == nil && runInfo.URL != "" {
-		fmt.Printf("\n🔗 View workflow run: %s\n", runInfo.URL)
+		fmt.Fprintf(os.Stderr, "\n🔗 View workflow run: %s\n", runInfo.URL)
 		executionLog.Printf("Workflow run URL: %s (ID: %d)", runInfo.URL, runInfo.DatabaseID)
 
 		// Suggest audit command for analysis
-		fmt.Printf("\n💡 To analyze this run, use: %s audit %d\n", string(constants.CLIExtensionPrefix), runInfo.DatabaseID)
+		fmt.Fprintf(os.Stderr, "\n💡 To analyze this run, use: %s audit %d\n", string(constants.CLIExtensionPrefix), runInfo.DatabaseID)
 	} else if verbose && runErr != nil {
-		fmt.Printf("Note: Could not get workflow run URL: %v\n", runErr)
+		if tty.IsStderrTerminal() {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Could not get workflow run URL: %v", runErr)))
+		} else {
+			fmt.Fprintf(os.Stderr, "Note: Could not get workflow run URL: %v\n", runErr)
+		}
 	}
 
 	// Wait for workflow completion if requested (for --repeat or --auto-merge-prs)

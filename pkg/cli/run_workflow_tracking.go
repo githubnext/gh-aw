@@ -3,10 +3,12 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/tty"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
@@ -28,9 +30,17 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 
 	if verbose {
 		if repo != "" {
-			fmt.Printf("Getting latest run for workflow: %s in repo: %s (with retry logic)\n", lockFileName, repo)
+			if tty.IsStderrTerminal() {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Getting latest run for workflow: %s in repo: %s (with retry logic)", lockFileName, repo)))
+			} else {
+				fmt.Fprintf(os.Stderr, "Getting latest run for workflow: %s in repo: %s (with retry logic)\n", lockFileName, repo)
+			}
 		} else {
-			fmt.Printf("Getting latest run for workflow: %s (with retry logic)\n", lockFileName)
+			if tty.IsStderrTerminal() {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Getting latest run for workflow: %s (with retry logic)", lockFileName)))
+			} else {
+				fmt.Fprintf(os.Stderr, "Getting latest run for workflow: %s (with retry logic)\n", lockFileName)
+			}
 		}
 	}
 
@@ -57,7 +67,11 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 			elapsed := time.Since(startTime).Round(time.Second)
 
 			if verbose {
-				fmt.Printf("Waiting %v before retry attempt %d/%d...\n", delay, attempt+1, maxRetries)
+				if tty.IsStderrTerminal() {
+					fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Waiting %v before retry attempt %d/%d...", delay, attempt+1, maxRetries)))
+				} else {
+					fmt.Fprintf(os.Stderr, "Waiting %v before retry attempt %d/%d...\n", delay, attempt+1, maxRetries)
+				}
 			} else {
 				// Show spinner starting from second attempt to avoid flickering
 				if attempt == 1 && spinner != nil {
@@ -83,7 +97,11 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		if err != nil {
 			lastErr = fmt.Errorf("failed to get workflow runs: %w", err)
 			if verbose {
-				fmt.Printf("Attempt %d/%d failed: %v\n", attempt+1, maxRetries, err)
+				if tty.IsStderrTerminal() {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Attempt %d/%d failed: %v", attempt+1, maxRetries, err)))
+				} else {
+					fmt.Fprintf(os.Stderr, "Attempt %d/%d failed: %v\n", attempt+1, maxRetries, err)
+				}
 			}
 			continue
 		}
@@ -91,7 +109,11 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		if len(output) == 0 || string(output) == "[]" {
 			lastErr = fmt.Errorf("no runs found for workflow")
 			if verbose {
-				fmt.Printf("Attempt %d/%d: no runs found yet\n", attempt+1, maxRetries)
+				if tty.IsStderrTerminal() {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Attempt %d/%d: no runs found yet", attempt+1, maxRetries)))
+				} else {
+					fmt.Fprintf(os.Stderr, "Attempt %d/%d: no runs found yet\n", attempt+1, maxRetries)
+				}
 			}
 			continue
 		}
@@ -108,7 +130,11 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		if err := json.Unmarshal(output, &runs); err != nil {
 			lastErr = fmt.Errorf("failed to parse workflow run data: %w", err)
 			if verbose {
-				fmt.Printf("Attempt %d/%d failed to parse JSON: %v\n", attempt+1, maxRetries, err)
+				if tty.IsStderrTerminal() {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Attempt %d/%d failed to parse JSON: %v", attempt+1, maxRetries, err)))
+				} else {
+					fmt.Fprintf(os.Stderr, "Attempt %d/%d failed to parse JSON: %v\n", attempt+1, maxRetries, err)
+				}
 			}
 			continue
 		}
@@ -116,7 +142,11 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		if len(runs) == 0 {
 			lastErr = fmt.Errorf("no runs found")
 			if verbose {
-				fmt.Printf("Attempt %d/%d: no runs in parsed JSON\n", attempt+1, maxRetries)
+				if tty.IsStderrTerminal() {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Attempt %d/%d: no runs in parsed JSON", attempt+1, maxRetries)))
+				} else {
+					fmt.Fprintf(os.Stderr, "Attempt %d/%d: no runs in parsed JSON\n", attempt+1, maxRetries)
+				}
 			}
 			continue
 		}
@@ -129,7 +159,11 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 			if parsedTime, err := time.Parse(time.RFC3339, run.CreatedAt); err == nil {
 				createdAt = parsedTime
 			} else if verbose {
-				fmt.Printf("Warning: Could not parse creation time '%s': %v\n", run.CreatedAt, err)
+				if tty.IsStderrTerminal() {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not parse creation time '%s': %v", run.CreatedAt, err)))
+				} else {
+					fmt.Fprintf(os.Stderr, "Warning: Could not parse creation time '%s': %v\n", run.CreatedAt, err)
+				}
 			}
 		}
 
@@ -145,8 +179,13 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		// it's likely the run we just triggered
 		if !createdAt.IsZero() && createdAt.After(startTime.Add(-30*time.Second)) {
 			if verbose {
-				fmt.Printf("Found recent run (ID: %d) created at %v (started polling at %v)\n",
-					run.DatabaseID, createdAt.Format(time.RFC3339), startTime.Format(time.RFC3339))
+				if tty.IsStderrTerminal() {
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found recent run (ID: %d) created at %v (started polling at %v)",
+						run.DatabaseID, createdAt.Format(time.RFC3339), startTime.Format(time.RFC3339))))
+				} else {
+					fmt.Fprintf(os.Stderr, "Found recent run (ID: %d) created at %v (started polling at %v)\n",
+						run.DatabaseID, createdAt.Format(time.RFC3339), startTime.Format(time.RFC3339))
+				}
 			}
 			if spinner != nil {
 				spinner.StopWithMessage("✓ Found workflow run")
@@ -156,10 +195,19 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 
 		if verbose {
 			if createdAt.IsZero() {
-				fmt.Printf("Attempt %d/%d: Found run (ID: %d) but no creation timestamp available\n", attempt+1, maxRetries, run.DatabaseID)
+				if tty.IsStderrTerminal() {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Attempt %d/%d: Found run (ID: %d) but no creation timestamp available", attempt+1, maxRetries, run.DatabaseID)))
+				} else {
+					fmt.Fprintf(os.Stderr, "Attempt %d/%d: Found run (ID: %d) but no creation timestamp available\n", attempt+1, maxRetries, run.DatabaseID)
+				}
 			} else {
-				fmt.Printf("Attempt %d/%d: Found run (ID: %d) but it was created at %v (too old)\n",
-					attempt+1, maxRetries, run.DatabaseID, createdAt.Format(time.RFC3339))
+				if tty.IsStderrTerminal() {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Attempt %d/%d: Found run (ID: %d) but it was created at %v (too old)",
+						attempt+1, maxRetries, run.DatabaseID, createdAt.Format(time.RFC3339))))
+				} else {
+					fmt.Fprintf(os.Stderr, "Attempt %d/%d: Found run (ID: %d) but it was created at %v (too old)\n",
+						attempt+1, maxRetries, run.DatabaseID, createdAt.Format(time.RFC3339))
+				}
 			}
 		}
 
@@ -171,7 +219,11 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 
 		// For later attempts, return what we found even if timing is uncertain
 		if verbose {
-			fmt.Printf("Returning workflow run (ID: %d) after %d attempts (timing uncertain)\n", run.DatabaseID, attempt+1)
+			if tty.IsStderrTerminal() {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Returning workflow run (ID: %d) after %d attempts (timing uncertain)", run.DatabaseID, attempt+1)))
+			} else {
+				fmt.Fprintf(os.Stderr, "Returning workflow run (ID: %d) after %d attempts (timing uncertain)\n", run.DatabaseID, attempt+1)
+			}
 		}
 		if spinner != nil {
 			spinner.StopWithMessage("✓ Found workflow run")

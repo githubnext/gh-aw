@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/tty"
 )
 
 var gitLog = logger.New("cli:git")
@@ -302,7 +303,11 @@ func getCurrentBranch() (string, error) {
 // createAndSwitchBranch creates a new branch and switches to it
 func createAndSwitchBranch(branchName string, verbose bool) error {
 	if verbose {
-		fmt.Printf("Creating and switching to branch: %s\n", branchName)
+		if tty.IsStderrTerminal() {
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Creating and switching to branch: %s", branchName)))
+		} else {
+			fmt.Fprintf(os.Stderr, "Creating and switching to branch: %s\n", branchName)
+		}
 	}
 
 	cmd := exec.Command("git", "checkout", "-b", branchName)
@@ -316,7 +321,11 @@ func createAndSwitchBranch(branchName string, verbose bool) error {
 // switchBranch switches to the specified branch
 func switchBranch(branchName string, verbose bool) error {
 	if verbose {
-		fmt.Printf("Switching to branch: %s\n", branchName)
+		if tty.IsStderrTerminal() {
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Switching to branch: %s", branchName)))
+		} else {
+			fmt.Fprintf(os.Stderr, "Switching to branch: %s\n", branchName)
+		}
 	}
 
 	cmd := exec.Command("git", "checkout", branchName)
@@ -330,7 +339,11 @@ func switchBranch(branchName string, verbose bool) error {
 // commitChanges commits all staged changes with the given message
 func commitChanges(message string, verbose bool) error {
 	if verbose {
-		fmt.Printf("Committing changes with message: %s\n", message)
+		if tty.IsStderrTerminal() {
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Committing changes with message: %s", message)))
+		} else {
+			fmt.Fprintf(os.Stderr, "Committing changes with message: %s\n", message)
+		}
 	}
 
 	cmd := exec.Command("git", "commit", "-m", message)
@@ -344,7 +357,11 @@ func commitChanges(message string, verbose bool) error {
 // pushBranch pushes the specified branch to origin
 func pushBranch(branchName string, verbose bool) error {
 	if verbose {
-		fmt.Printf("Pushing branch: %s\n", branchName)
+		if tty.IsStderrTerminal() {
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Pushing branch: %s", branchName)))
+		} else {
+			fmt.Fprintf(os.Stderr, "Pushing branch: %s\n", branchName)
+		}
 	}
 
 	cmd := exec.Command("git", "push", "-u", "origin", branchName)
@@ -358,7 +375,11 @@ func pushBranch(branchName string, verbose bool) error {
 // checkCleanWorkingDirectory checks if there are uncommitted changes
 func checkCleanWorkingDirectory(verbose bool) error {
 	if verbose {
-		fmt.Printf("Checking for uncommitted changes...\n")
+		if tty.IsStderrTerminal() {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking for uncommitted changes..."))
+		} else {
+			fmt.Fprintln(os.Stderr, "Checking for uncommitted changes...")
+		}
 	}
 
 	cmd := exec.Command("git", "status", "--porcelain")
@@ -372,7 +393,11 @@ func checkCleanWorkingDirectory(verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Printf("Working directory is clean\n")
+		if tty.IsStderrTerminal() {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Working directory is clean"))
+		} else {
+			fmt.Fprintln(os.Stderr, "Working directory is clean")
+		}
 	}
 	return nil
 }
