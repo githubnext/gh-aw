@@ -19,8 +19,12 @@ set -e
 #   GATEWAY_API_KEY     : API key for gateway authentication
 #
 # Exit codes:
-#   0 - All HTTP servers successfully checked (skipped servers logged as warnings)
-#   1 - Invalid arguments, configuration file issues, or server connection failures
+#   0 - At least one HTTP server successfully checked (failed servers logged as warnings)
+#   1 - Invalid arguments, configuration file issues, or NO servers connected successfully
+#
+# Note: This script allows optional MCP servers to fail gracefully. As long as at least
+# one HTTP server connects successfully, the script exits 0. This enables workflows with
+# optional servers (e.g., Datadog, Sentry) that require secrets not always configured.
 
 if [ "$#" -ne 3 ]; then
   echo "Usage: $0 GATEWAY_CONFIG_PATH GATEWAY_URL GATEWAY_API_KEY" >&2
@@ -154,13 +158,26 @@ done <<< "$SERVER_NAMES"
 
 # Print summary
 echo ""
-if [ $SERVERS_FAILED -gt 0 ]; then
-  echo "ERROR: $SERVERS_FAILED server(s) failed"
-  exit 1
-elif [ $SERVERS_SUCCEEDED -eq 0 ]; then
+echo "MCP Server Check Summary:"
+echo "  Succeeded: $SERVERS_SUCCEEDED"
+echo "  Failed: $SERVERS_FAILED"
+echo "  Skipped: $SERVERS_SKIPPED (non-HTTP servers)"
+echo ""
+
+# Only fail if NO servers succeeded (all servers are broken)
+# This allows optional servers (datadog, sentry, etc.) to fail gracefully
+# when their required secrets are not configured
+if [ $SERVERS_SUCCEEDED -eq 0 ]; then
   echo "ERROR: No HTTP servers were successfully checked"
+  echo "At least one MCP server must be operational for the workflow to function"
   exit 1
 else
-  echo "✓ All checks passed ($SERVERS_SUCCEEDED succeeded, $SERVERS_SKIPPED skipped)"
+  if [ $SERVERS_FAILED -gt 0 ]; then
+    echo "⚠ WARNING: $SERVERS_FAILED server(s) failed to connect"
+    echo "This is expected for optional servers without configured secrets (e.g., Datadog, Sentry)"
+    echo "The workflow will continue with the $SERVERS_SUCCEEDED available server(s)"
+  else
+    echo "✓ All checks passed ($SERVERS_SUCCEEDED succeeded, $SERVERS_SKIPPED skipped)"
+  fi
   exit 0
 fi
