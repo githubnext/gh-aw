@@ -882,15 +882,20 @@ jobs:
           
           **Step 2**: Run benchmarks using safeinputs-make
           
-          Use the **safeinputs-make** tool with args: "bench" to run the benchmark suite.
+          Use the **safeinputs-make** tool with args: "bench-performance" to run the critical performance benchmark suite.
           
-          This will execute `make bench` which runs Go benchmarks and saves results to `bench_results.txt`.
+          This will execute `make bench-performance` which runs targeted performance benchmarks and saves results to `bench_performance.txt`.
+          
+          The targeted benchmarks include:
+          - **Workflow compilation**: CompileSimpleWorkflow, CompileComplexWorkflow, CompileMCPWorkflow, CompileMemoryUsage
+          - **Workflow phases**: ParseWorkflow, Validation, YAMLGeneration
+          - **CLI helpers**: ExtractWorkflowNameFromFile, UpdateWorkflowTitle, FindIncludesInContent
           
           **Step 3**: Copy results to our tracking directory
           
           ```bash
           # Copy benchmark results to our directory
-          cp bench_results.txt /tmp/gh-aw/benchmarks/bench_results.txt
+          cp bench_performance.txt /tmp/gh-aw/benchmarks/bench_results.txt
           
           # Extract just the summary
           grep "Benchmark" /tmp/gh-aw/benchmarks/bench_results.txt > /tmp/gh-aw/benchmarks/bench_summary.txt || true
@@ -1249,6 +1254,8 @@ jobs:
           Generate a comprehensive summary of today's benchmark run:
           
           ```bash
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           cat > /tmp/gh-aw/benchmarks/generate_report.py << 'EOF'
           #!/usr/bin/env python3
           """
@@ -1262,8 +1269,6 @@ jobs:
           def format_ns(ns):
               """Format nanoseconds in human-readable form"""
               if ns < 1000:
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
                   return f"{ns}ns"
               elif ns < 1000000:
                   return f"{ns/1000:.2f}µs"
