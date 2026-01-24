@@ -16,7 +16,7 @@ permissions:
 
 engine:
   id: copilot
-  model: gpt-5-mini
+  model: gpt-5.1-codex-mini
 
 timeout-minutes: 30
 

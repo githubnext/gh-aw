@@ -61,8 +61,8 @@ func TestCopilotEngineDefaultDetectionModel(t *testing.T) {
 	}
 
 	// Verify the expected value
-	if defaultModel != "gpt-5-mini" {
-		t.Errorf("Expected 'gpt-5-mini' as default detection model, got '%s'", defaultModel)
+	if defaultModel != "gpt-5.1-codex-mini" {
+		t.Errorf("Expected 'gpt-5.1-codex-mini' as default detection model, got '%s'", defaultModel)
 	}
 }
 
