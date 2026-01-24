@@ -246,7 +246,8 @@ resolve_sha_to_release() {
         elif echo "$line" | grep -q '"target_commitish"'; then
             current_commit=$(echo "$line" | sed -E 's/.*"target_commitish": *"([^"]+)".*/\1/')
             # Check if this commit matches our SHA (full or prefix match)
-            if [ "$current_commit" = "$sha" ] || [[ "$sha" == "$current_commit"* ]]; then
+            # Supports both full SHA and short SHA prefix
+            if [ "$current_commit" = "$sha" ] || [[ "$current_commit" == "$sha"* ]]; then
                 found_tag="$current_tag"
                 break
             fi

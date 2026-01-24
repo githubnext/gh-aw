@@ -32,12 +32,13 @@ jobs:
         uses: actions/checkout@v4
       
       # This demonstrates SHA resolution
-      # Note: The SHA must correspond to a published release
+      # Note: Replace this SHA with a commit that corresponds to a published release
+      # You can find release SHAs at: https://github.com/githubnext/gh-aw/releases
       - name: Install gh-aw using SHA
         id: install
         uses: ./actions/setup-cli
         with:
-          version: "53a14809f3234d628d47864d48170c48e5bb25b9"  # Corresponds to a release
+          version: "53a14809f3234d628d47864d48170c48e5bb25b9"  # Example SHA (update as needed)
       
       - name: Verify installation and check output
         run: |
