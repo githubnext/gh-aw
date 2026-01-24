@@ -21,6 +21,9 @@ type PromptSection struct {
 	ShellCondition string
 	// EnvVars contains environment variables needed for expressions in this section
 	EnvVars map[string]string
+	// Substitutions contains placeholder-value pairs for sed substitution (only used when IsFile is true)
+	// Format: map["__PLACEHOLDER__"]="value to substitute"
+	Substitutions map[string]string
 }
 
 // generateUnifiedPromptStep generates a single workflow step that appends all prompt sections.
@@ -69,8 +72,8 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 
 	// Write each section's content
 	for i, section := range sections {
-		unifiedPromptLog.Printf("Writing section %d/%d: hasCondition=%v, isFile=%v",
-			i+1, len(sections), section.ShellCondition != "", section.IsFile)
+		unifiedPromptLog.Printf("Writing section %d/%d: hasCondition=%v, isFile=%v, substitutions=%d",
+			i+1, len(sections), section.ShellCondition != "", section.IsFile, len(section.Substitutions))
 
 		if section.ShellCondition != "" {
 			// Close heredoc if open, add conditional
@@ -83,7 +86,20 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 			if section.IsFile {
 				// File reference inside conditional
 				promptPath := fmt.Sprintf("%s/%s", promptsDir, section.Content)
-				yaml.WriteString("            " + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
+				if len(section.Substitutions) > 0 {
+					// Cat file with sed substitutions
+					yaml.WriteString("            " + fmt.Sprintf("cat \"%s\"", promptPath))
+					// Add sed commands for each substitution
+					for placeholder, value := range section.Substitutions {
+						// Escape single quotes in value for sed
+						escapedValue := strings.ReplaceAll(value, "'", "'\\''")
+						yaml.WriteString(fmt.Sprintf(" | sed 's|%s|%s|g'", placeholder, escapedValue))
+					}
+					yaml.WriteString(" >> \"$GH_AW_PROMPT\"\n")
+				} else {
+					// Simple cat without substitutions
+					yaml.WriteString("            " + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
+				}
 			} else {
 				// Inline content inside conditional - open heredoc, write content, close
 				yaml.WriteString("            cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
@@ -107,7 +123,20 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 				}
 				// Cat the file
 				promptPath := fmt.Sprintf("%s/%s", promptsDir, section.Content)
-				yaml.WriteString("          " + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
+				if len(section.Substitutions) > 0 {
+					// Cat file with sed substitutions
+					yaml.WriteString("          " + fmt.Sprintf("cat \"%s\"", promptPath))
+					// Add sed commands for each substitution
+					for placeholder, value := range section.Substitutions {
+						// Escape single quotes in value for sed
+						escapedValue := strings.ReplaceAll(value, "'", "'\\''")
+						yaml.WriteString(fmt.Sprintf(" | sed 's|%s|%s|g'", placeholder, escapedValue))
+					}
+					yaml.WriteString(" >> \"$GH_AW_PROMPT\"\n")
+				} else {
+					// Simple cat without substitutions
+					yaml.WriteString("          " + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
+				}
 			} else {
 				// Inline content - open heredoc if not already open
 				if !inHeredoc {
@@ -247,12 +276,10 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 	// 5. Cache memory instructions (if enabled)
 	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
 		unifiedPromptLog.Printf("Adding cache memory section: caches=%d", len(data.CacheMemoryConfig.Caches))
-		var cacheContent strings.Builder
-		generateCacheMemoryPromptSection(&cacheContent, data.CacheMemoryConfig)
-		sections = append(sections, PromptSection{
-			Content: cacheContent.String(),
-			IsFile:  false,
-		})
+		section := buildCacheMemoryPromptSection(data.CacheMemoryConfig)
+		if section != nil {
+			sections = append(sections, *section)
+		}
 	}
 
 	// 6. Repo memory instructions (if enabled)
@@ -460,10 +487,30 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 				// File reference inside conditional
 				promptPath := fmt.Sprintf("%s/%s", promptsDir, section.Content)
 				if isFirstContent {
-					yaml.WriteString("            " + fmt.Sprintf("cat \"%s\" > \"$GH_AW_PROMPT\"\n", promptPath))
+					if len(section.Substitutions) > 0 {
+						// Cat file with sed substitutions
+						yaml.WriteString("            " + fmt.Sprintf("cat \"%s\"", promptPath))
+						for placeholder, value := range section.Substitutions {
+							escapedValue := strings.ReplaceAll(value, "'", "'\\''")
+							yaml.WriteString(fmt.Sprintf(" | sed 's|%s|%s|g'", placeholder, escapedValue))
+						}
+						yaml.WriteString(" > \"$GH_AW_PROMPT\"\n")
+					} else {
+						yaml.WriteString("            " + fmt.Sprintf("cat \"%s\" > \"$GH_AW_PROMPT\"\n", promptPath))
+					}
 					isFirstContent = false
 				} else {
-					yaml.WriteString("            " + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
+					if len(section.Substitutions) > 0 {
+						// Cat file with sed substitutions
+						yaml.WriteString("            " + fmt.Sprintf("cat \"%s\"", promptPath))
+						for placeholder, value := range section.Substitutions {
+							escapedValue := strings.ReplaceAll(value, "'", "'\\''")
+							yaml.WriteString(fmt.Sprintf(" | sed 's|%s|%s|g'", placeholder, escapedValue))
+						}
+						yaml.WriteString(" >> \"$GH_AW_PROMPT\"\n")
+					} else {
+						yaml.WriteString("            " + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
+					}
 				}
 			} else {
 				// Inline content inside conditional - open heredoc, write content, close
@@ -494,10 +541,30 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 				// Cat the file
 				promptPath := fmt.Sprintf("%s/%s", promptsDir, section.Content)
 				if isFirstContent {
-					yaml.WriteString("          " + fmt.Sprintf("cat \"%s\" > \"$GH_AW_PROMPT\"\n", promptPath))
+					if len(section.Substitutions) > 0 {
+						// Cat file with sed substitutions
+						yaml.WriteString("          " + fmt.Sprintf("cat \"%s\"", promptPath))
+						for placeholder, value := range section.Substitutions {
+							escapedValue := strings.ReplaceAll(value, "'", "'\\''")
+							yaml.WriteString(fmt.Sprintf(" | sed 's|%s|%s|g'", placeholder, escapedValue))
+						}
+						yaml.WriteString(" > \"$GH_AW_PROMPT\"\n")
+					} else {
+						yaml.WriteString("          " + fmt.Sprintf("cat \"%s\" > \"$GH_AW_PROMPT\"\n", promptPath))
+					}
 					isFirstContent = false
 				} else {
-					yaml.WriteString("          " + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
+					if len(section.Substitutions) > 0 {
+						// Cat file with sed substitutions
+						yaml.WriteString("          " + fmt.Sprintf("cat \"%s\"", promptPath))
+						for placeholder, value := range section.Substitutions {
+							escapedValue := strings.ReplaceAll(value, "'", "'\\''")
+							yaml.WriteString(fmt.Sprintf(" | sed 's|%s|%s|g'", placeholder, escapedValue))
+						}
+						yaml.WriteString(" >> \"$GH_AW_PROMPT\"\n")
+					} else {
+						yaml.WriteString("          " + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
+					}
 				}
 			} else {
 				// Inline content - open heredoc if not already open

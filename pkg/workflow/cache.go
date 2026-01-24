@@ -477,8 +477,95 @@ func generateCacheMemoryArtifactUpload(builder *strings.Builder, data *WorkflowD
 	}
 }
 
+// buildCacheMemoryPromptSection builds a PromptSection for cache memory instructions
+// Returns a PromptSection that references a template file with substitutions, or nil if no cache is configured
+func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
+	if config == nil || len(config.Caches) == 0 {
+		return nil
+	}
+
+	// Check if there's only one cache with ID "default" to use singular template
+	if len(config.Caches) == 1 && config.Caches[0].ID == "default" {
+		cache := config.Caches[0]
+		cacheDir := "/tmp/gh-aw/cache-memory/"
+		
+		// Build description text
+		descriptionText := ""
+		if cache.Description != "" {
+			descriptionText = " " + cache.Description
+		}
+
+		cacheLog.Printf("Building cache memory prompt section with substitutions: cache_dir=%s, description=%s", cacheDir, descriptionText)
+		
+		// Return prompt section with template file and substitutions
+		return &PromptSection{
+			Content: cacheMemoryPromptFile,
+			IsFile:  true,
+			Substitutions: map[string]string{
+				"__CACHE_DIR__":         cacheDir,
+				"__CACHE_DESCRIPTION__": descriptionText,
+			},
+		}
+	}
+
+	// Multiple caches or non-default single cache - generate content inline
+	var content strings.Builder
+	content.WriteString("\n")
+	content.WriteString("---\n")
+	content.WriteString("\n")
+	content.WriteString("## Cache Folders Available\n")
+	content.WriteString("\n")
+	content.WriteString("You have access to persistent cache folders where you can read and write files to create memories and store information:\n")
+	content.WriteString("\n")
+	
+	// List all caches
+	for _, cache := range config.Caches {
+		var cacheDir string
+		if cache.ID == "default" {
+			cacheDir = "/tmp/gh-aw/cache-memory/"
+		} else {
+			cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s/", cache.ID)
+		}
+		if cache.Description != "" {
+			fmt.Fprintf(&content, "- **%s**: `%s` - %s\n", cache.ID, cacheDir, cache.Description)
+		} else {
+			fmt.Fprintf(&content, "- **%s**: `%s`\n", cache.ID, cacheDir)
+		}
+	}
+	
+	content.WriteString("\n")
+	content.WriteString("- **Read/Write Access**: You can freely read from and write to any files in these folders\n")
+	content.WriteString("- **Persistence**: Files in these folders persist across workflow runs via GitHub Actions cache\n")
+	content.WriteString("- **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved\n")
+	content.WriteString("- **File Share**: Use these as simple file shares - organize files as you see fit\n")
+	content.WriteString("\n")
+	content.WriteString("Examples of what you can store:\n")
+	
+	// Add examples for each cache
+	for _, cache := range config.Caches {
+		var cacheDir string
+		if cache.ID == "default" {
+			cacheDir = "/tmp/gh-aw/cache-memory"
+		} else {
+			cacheDir = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s", cache.ID)
+		}
+		fmt.Fprintf(&content, "- `%s/notes.txt` - general notes and observations\n", cacheDir)
+		fmt.Fprintf(&content, "- `%s/preferences.json` - user preferences and settings\n", cacheDir)
+		fmt.Fprintf(&content, "- `%s/state/` - organized state files in subdirectories\n", cacheDir)
+	}
+	
+	content.WriteString("\n")
+	content.WriteString("Feel free to create, read, update, and organize files in these folders as needed for your tasks.\n")
+
+	return &PromptSection{
+		Content: content.String(),
+		IsFile:  false,
+	}
+}
+
 // generateCacheMemoryPromptSection generates the cache folder notification section for prompts
 // when cache-memory is enabled, informing the agent about persistent storage capabilities
+// DEPRECATED: Use buildCacheMemoryPromptSection instead
 func generateCacheMemoryPromptSection(yaml *strings.Builder, config *CacheMemoryConfig) {
 	if config == nil || len(config.Caches) == 0 {
 		return

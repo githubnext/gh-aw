@@ -40,8 +40,8 @@ tools:
 				"uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"key: memory-${{ github.workflow }}-${{ github.run_id }}",
 				"path: /tmp/gh-aw/cache-memory",
-				"## Cache Folder Available",
-				"You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/`",
+				"cat \"/opt/gh-aw/prompts/cache_memory_prompt.md\"",
+				"sed 's|__CACHE_DIR__|/tmp/gh-aw/cache-memory/|g'",
 			},
 			notExpectedInLock: []string{
 				// Should NOT upload artifact when detection is disabled
