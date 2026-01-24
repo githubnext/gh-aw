@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-This document provides a deep research comparison between **oh-my-opencode** and **GitHub Agentic Workflows** (gh-aw). Both projects represent cutting-edge approaches to AI-powered software development automation, but they target fundamentally different use cases, execution environments, and philosophies.
+This document provides a deep research comparison between **oh-my-opencode** and **GitHub Agentic Workflows** (gh-aw). Both projects represent recent approaches to AI-powered software development automation, but they target fundamentally different use cases, execution environments, and philosophies.
 
 ### Key Differences at a Glance
 
@@ -20,7 +20,7 @@ This document provides a deep research comparison between **oh-my-opencode** and
 | **Multi-Agent** | Native multi-agent orchestration | Single-agent per workflow (event-driven) |
 | **Tool Ecosystem** | LSP, AST-Grep, MCP servers | GitHub MCP, Bash allowlist, Playwright |
 | **State Management** | Stateful, persistent across sessions | Stateless workflow runs |
-| **Philosophy** | "Coding on steroids" - maximize agent power | "Safe by default" - minimize risk |
+| **Philosophy** | Provide comprehensive agent capabilities | "Safe by default" - minimize risk |
 
 ---
 
@@ -59,7 +59,7 @@ Local Development Environment (OpenCode IDE)
 - **Multi-agent by design**: Main agent delegates to specialized agents
 - **Stateful execution**: Sessions persist, agents can continue work across restarts
 - **Local control**: Full filesystem access, user permissions
-- **IDE-quality tools**: LSP and AST-Grep for professional-grade code manipulation
+- **IDE-integrated tools**: LSP and AST-Grep for code manipulation
 - **Extensible**: Plugin architecture, hook system, custom agents
 
 ### 1.2 GitHub Agentic Workflows Architecture
@@ -108,7 +108,7 @@ GitHub Repository
 2. **Multi-component development**: Frontend agent works on UI while backend agent implements API simultaneously
 3. **Deep code exploration**: Librarian agent searches official docs, codebase history, and GitHub implementations
 4. **Interactive debugging**: Oracle agent provides design feedback and debugging assistance in real-time
-5. **Production-quality code**: Todo Continuation Enforcer ensures tasks complete; Comment Checker prevents AI bloat
+5. **Code implementation**: Todo Continuation Enforcer ensures tasks complete; Comment Checker prevents unnecessary comments
 
 **Example Workflow**:
 ```
@@ -125,11 +125,11 @@ User: "ultrawork - Implement OAuth authentication system"
 ```
 
 **Key Benefits**:
-- Multiple agents work in parallel (like a dev team)
+- Multiple agents work in parallel
 - Context management handled automatically
-- Professional IDE tools (LSP) available to agents
-- Works until task is truly complete
-- Code indistinguishable from human-written
+- IDE-integrated tools (LSP) available to agents
+- Agents continue until task completion
+- Code follows project conventions
 
 ### 2.2 GitHub Agentic Workflows: Repository Automation
 
@@ -231,10 +231,10 @@ Use GitHub MCP to access PR files and repository context.
 - "This is what keeps Sisyphus rolling that boulder"
 
 **Benefits**:
-- Parallel execution (like real dev team)
+- Parallel execution across multiple agents
 - Specialized expertise (design, frontend, backend, research)
 - Context management handled automatically
-- User becomes "AI Manager" rather than "AI User"
+- Agent coordination and delegation
 
 ### 3.2 GitHub Agentic Workflows: Event-Driven Single-Agent
 
@@ -329,7 +329,7 @@ Coordinate multiple worker workflows:
 **Tool Categories** (20+ tools in 6 categories):
 
 #### Category 1: LSP Tools (11 tools)
-Professional IDE-quality code intelligence via Language Server Protocol:
+IDE-integrated code intelligence via Language Server Protocol:
 
 | Tool | Purpose | Example |
 |------|---------|---------|
@@ -345,7 +345,7 @@ Professional IDE-quality code intelligence via Language Server Protocol:
 | `lsp_format_document` | Format code | Auto-format file |
 | `lsp_format_selection` | Format code region | Format selected lines |
 
-**Key Advantage**: Agents work like professional developers with full IDE capabilities
+**Key Advantage**: Agents access full IDE code intelligence capabilities
 
 #### Category 2: AST-Grep Tools
 Syntax-aware search and replace for 25+ languages:
@@ -477,7 +477,7 @@ Sanitized write operations to GitHub:
 | Aspect | Implementation | Risk Level |
 |--------|---------------|-----------|
 | **Execution Environment** | Local user machine | User-managed |
-| **Permissions** | Full user permissions (filesystem, network) | High trust |
+| **Permissions** | Full user permissions (filesystem, network) | User-controlled environment |
 | **Network Access** | Unrestricted (can access any URL) | User-controlled |
 | **Code Execution** | Direct shell command execution | User-trusted |
 | **State Management** | Persistent sessions, file modifications | User-reviewed |
