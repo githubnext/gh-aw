@@ -237,3 +237,57 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	yaml.WriteString("            const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');\n")
 	yaml.WriteString("            await determineAutomaticLockdown(github, context, core);\n")
 }
+
+// generateGitHubMCPAppTokenMintingStep generates a step to mint a GitHub App token for GitHub MCP server
+// This step is added when:
+// - GitHub tool is enabled with app configuration
+// The step mints an installation access token with permissions matching the agent job permissions
+func (c *Compiler) generateGitHubMCPAppTokenMintingStep(yaml *strings.Builder, data *WorkflowData) {
+	// Check if GitHub tool has app configuration
+	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.App == nil {
+		return
+	}
+
+	app := data.ParsedTools.GitHub.App
+	githubConfigLog.Printf("Generating GitHub App token minting step for GitHub MCP server: app-id=%s", app.AppID)
+
+	// Get permissions from the agent job - parse from YAML string
+	var permissions *Permissions
+	if data.Permissions != "" {
+		parser := NewPermissionsParser(data.Permissions)
+		permissions = parser.ToPermissions()
+	} else {
+		githubConfigLog.Print("No permissions specified, using empty permissions")
+		permissions = NewPermissions()
+	}
+
+	// Generate the token minting step using the existing helper from safe_outputs_app.go
+	steps := c.buildGitHubAppTokenMintStep(app, permissions)
+
+	// Modify the step ID to differentiate from safe-outputs app token
+	// Replace "safe-outputs-app-token" with "github-mcp-app-token"
+	for _, step := range steps {
+		modifiedStep := strings.ReplaceAll(step, "id: safe-outputs-app-token", "id: github-mcp-app-token")
+		yaml.WriteString(modifiedStep)
+	}
+}
+
+// generateGitHubMCPAppTokenInvalidationStep generates a step to invalidate the GitHub App token for GitHub MCP server
+// This step always runs (even on failure) to ensure tokens are properly cleaned up
+func (c *Compiler) generateGitHubMCPAppTokenInvalidationStep(yaml *strings.Builder, data *WorkflowData) {
+	// Check if GitHub tool has app configuration
+	if data.ParsedTools == nil || data.ParsedTools.GitHub == nil || data.ParsedTools.GitHub.App == nil {
+		return
+	}
+
+	githubConfigLog.Print("Generating GitHub App token invalidation step for GitHub MCP server")
+
+	// Generate the token invalidation step using the existing helper from safe_outputs_app.go
+	steps := c.buildGitHubAppTokenInvalidationStep()
+
+	// Modify the step references to use github-mcp-app-token instead of safe-outputs-app-token
+	for _, step := range steps {
+		modifiedStep := strings.ReplaceAll(step, "steps.safe-outputs-app-token.outputs.token", "steps.github-mcp-app-token.outputs.token")
+		yaml.WriteString(modifiedStep)
+	}
+}

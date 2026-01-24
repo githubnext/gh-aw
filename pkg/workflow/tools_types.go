@@ -268,6 +268,7 @@ type GitHubToolConfig struct {
 	GitHubToken string             `yaml:"github-token,omitempty"`
 	Toolset     GitHubToolsets     `yaml:"toolsets,omitempty"`
 	Lockdown    bool               `yaml:"lockdown,omitempty"`
+	App         *GitHubAppConfig   `yaml:"app,omitempty"` // GitHub App configuration for token minting
 }
 
 // PlaywrightDomain represents a domain name allowed for Playwright browser automation
