@@ -396,6 +396,11 @@ jobs:
                   "X-MCP-Readonly": "true",
                   "X-MCP-Toolsets": "repos,issues,discussions"
                 },
+                "tools": [
+                  "get_repository",
+                  "list_issues",
+                  "issue_read"
+                ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
