@@ -1,0 +1,25 @@
+name: 'Setup gh-aw CLI'
+description: 'Install gh-aw CLI extension for a specific version'
+author: 'GitHub Next'
+
+inputs:
+  version:
+    description: 'Version to install (release tag like v0.37.18 or long commit SHA that resolves to a release)'
+    required: true
+
+outputs:
+  installed-version:
+    description: 'The version that was installed'
+  
+runs:
+  using: 'composite'
+  steps:
+    - name: Install gh-aw CLI
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+      run: ${{ github.action_path }}/install.sh
+
+branding:
+  icon: 'download'
+  color: 'purple'

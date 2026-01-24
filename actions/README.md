@@ -23,6 +23,12 @@ Copies workflow script files to the agent environment. This action embeds all ne
 
 [Documentation](./setup/README.md)
 
+### setup-cli
+
+Installs the gh-aw CLI extension for a specific version. Supports both release tags and commit SHAs that resolve to releases.
+
+[Documentation](./setup-cli/README.md)
+
 ### noop
 
 Processes noop safe output - a fallback output type that logs messages for transparency without taking any GitHub API actions.
