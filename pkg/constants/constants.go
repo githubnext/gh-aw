@@ -261,7 +261,8 @@ const DefaultClaudeCodeVersion Version = "2.1.15"
 const DefaultCopilotVersion Version = "0.0.389"
 
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
-const DefaultCopilotDetectionModel ModelName = "gpt-5-mini"
+// Updated to gpt-5.1-codex-mini after gpt-5-mini deprecation on 2026-01-17
+const DefaultCopilotDetectionModel ModelName = "gpt-5.1-codex-mini"
 
 // Environment variable names for model configuration
 const (

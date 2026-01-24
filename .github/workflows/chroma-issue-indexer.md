@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 engine:
   id: copilot
-  model: gpt-5-mini
+  model: gpt-5.1-codex-mini
 imports:
   - shared/mcp/chroma.md
 permissions:
@@ -101,7 +101,7 @@ on:
   workflow_dispatch:
 engine:
   id: copilot
-  model: gpt-5-mini
+  model: gpt-5.1-codex-mini
 imports:
   - shared/mcp/chroma.md
 permissions:

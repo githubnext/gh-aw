@@ -924,7 +924,7 @@ func TestDetectionJobSkipCondition(t *testing.T) {
 }
 
 // TestCopilotDetectionDefaultModel verifies that the copilot engine uses the
-// default model gpt-5-mini for the detection job when no model is specified
+// default model gpt-5.1-codex-mini for the detection job when no model is specified
 func TestCopilotDetectionDefaultModel(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
@@ -935,7 +935,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 		expectedModel      string
 	}{
 		{
-			name: "copilot engine without model uses default gpt-5-mini",
+			name: "copilot engine without model uses default gpt-5.1-codex-mini",
 			data: &WorkflowData{
 				AI: "copilot",
 				SafeOutputs: &SafeOutputsConfig{

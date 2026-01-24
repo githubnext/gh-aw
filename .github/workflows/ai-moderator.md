@@ -16,7 +16,7 @@ on:
         type: string
 engine:
   id: copilot
-  model: gpt-5-mini
+  model: gpt-5.1-codex-mini
 tools:
   github:
     mode: local
@@ -282,7 +282,7 @@ on:
         type: string
 engine:
   id: copilot
-  model: gpt-5-mini
+  model: gpt-5.1-codex-mini
 tools:
   github:
     mode: local

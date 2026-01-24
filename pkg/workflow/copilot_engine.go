@@ -45,7 +45,7 @@ func NewCopilotEngine() *CopilotEngine {
 }
 
 // GetDefaultDetectionModel returns the default model for threat detection
-// Uses gpt-5-mini as a cost-effective model for detection tasks
+// Uses gpt-5.1-codex-mini as a cost-effective model for detection tasks (replacement for deprecated gpt-5-mini)
 func (e *CopilotEngine) GetDefaultDetectionModel() string {
 	return string(constants.DefaultCopilotDetectionModel)
 }
