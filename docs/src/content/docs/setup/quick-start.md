@@ -9,6 +9,11 @@ sidebar:
 > Using agentic workflows means giving AI agents the ability to make decisions and take actions in your repository. This requires careful attention to security considerations and human supervision.
 > Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
 
+> [!TIP]
+> **New to agentic workflows?**
+>
+> This guide uses terminology like "frontmatter", "MCP", "compilation", and "lock files" throughout. If you encounter unfamiliar terms, see the [**Key Concepts Glossary**](/gh-aw/reference/glossary/) for clear definitions of all core concepts.
+
 ## Adding a Daily Status Workflow to Your Repo
 
 This is a happy path guide to get you started with automated daily team status reports in an existing GitHub repository you have admin or write access to. If you stumble on one of these steps, go to the [Prerequisites](#prerequisites) section for setup instructions.
@@ -33,7 +38,7 @@ gh extension install githubnext/gh-aw
 
 ### Step 2 — Initialize your repository
 
-Initialize your repository to configure custom agents and MCP server:
+Initialize your repository to configure custom agents and [MCP](/gh-aw/reference/glossary/#mcp-model-context-protocol) server:
 
 ```bash wrap
 gh aw init --push
