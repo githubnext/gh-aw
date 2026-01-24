@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"time"
 
@@ -83,7 +84,7 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		if err != nil {
 			lastErr = fmt.Errorf("failed to get workflow runs: %w", err)
 			if verbose {
-				fmt.Printf("Attempt %d/%d failed: %v\n", attempt+1, maxRetries, err)
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Attempt %d/%d failed: %v", attempt+1, maxRetries, err)))
 			}
 			continue
 		}
@@ -108,7 +109,7 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		if err := json.Unmarshal(output, &runs); err != nil {
 			lastErr = fmt.Errorf("failed to parse workflow run data: %w", err)
 			if verbose {
-				fmt.Printf("Attempt %d/%d failed to parse JSON: %v\n", attempt+1, maxRetries, err)
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Attempt %d/%d failed to parse JSON: %v", attempt+1, maxRetries, err)))
 			}
 			continue
 		}
@@ -129,7 +130,7 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 			if parsedTime, err := time.Parse(time.RFC3339, run.CreatedAt); err == nil {
 				createdAt = parsedTime
 			} else if verbose {
-				fmt.Printf("Warning: Could not parse creation time '%s': %v\n", run.CreatedAt, err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not parse creation time '%s': %v", run.CreatedAt, err)))
 			}
 		}
 
