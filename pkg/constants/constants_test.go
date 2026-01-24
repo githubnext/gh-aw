@@ -280,15 +280,15 @@ func TestVersionConstants(t *testing.T) {
 		value    Version
 		expected Version
 	}{
-		{"DefaultClaudeCodeVersion", DefaultClaudeCodeVersion, "2.1.15"},
-		{"DefaultCopilotVersion", DefaultCopilotVersion, "0.0.389"},
-		{"DefaultCodexVersion", DefaultCodexVersion, "0.88.0"},
+		{"DefaultClaudeCodeVersion", DefaultClaudeCodeVersion, "2.1.19"},
+		{"DefaultCopilotVersion", DefaultCopilotVersion, "0.0.394"},
+		{"DefaultCodexVersion", DefaultCodexVersion, "0.89.0"},
 		{"DefaultGitHubMCPServerVersion", DefaultGitHubMCPServerVersion, "v0.29.0"},
-		{"DefaultMCPGatewayVersion", DefaultMCPGatewayVersion, "v0.0.76"},
-		{"DefaultSandboxRuntimeVersion", DefaultSandboxRuntimeVersion, "0.0.29"},
+		{"DefaultMCPGatewayVersion", DefaultMCPGatewayVersion, "v0.0.78"},
+		{"DefaultSandboxRuntimeVersion", DefaultSandboxRuntimeVersion, "0.0.32"},
 		{"DefaultFirewallVersion", DefaultFirewallVersion, "v0.10.0"},
-		{"DefaultPlaywrightMCPVersion", DefaultPlaywrightMCPVersion, "0.0.56"},
-		{"DefaultPlaywrightBrowserVersion", DefaultPlaywrightBrowserVersion, "v1.57.0"},
+		{"DefaultPlaywrightMCPVersion", DefaultPlaywrightMCPVersion, "0.0.58"},
+		{"DefaultPlaywrightBrowserVersion", DefaultPlaywrightBrowserVersion, "v1.58.0"},
 		{"DefaultBunVersion", DefaultBunVersion, "1.1"},
 		{"DefaultNodeVersion", DefaultNodeVersion, "24"},
 		{"DefaultPythonVersion", DefaultPythonVersion, "3.12"},
