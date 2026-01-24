@@ -1122,7 +1122,7 @@ jobs:
         with:
           destination: /opt/gh-aw/actions
       - name: Generate GitHub App token
-        id: app-token
+        id: safe-outputs-app-token
         uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
         with:
           app-id: ${{ vars.APP_ID }}
@@ -1165,7 +1165,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Daily File Diet"
           GH_AW_TRACKER_ID: "daily-file-diet"
         with:
-          github-token: ${{ steps.app-token.outputs.token }}
+          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
@@ -1179,7 +1179,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Daily File Diet"
           GH_AW_TRACKER_ID: "daily-file-diet"
         with:
-          github-token: ${{ steps.app-token.outputs.token }}
+          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
@@ -1196,7 +1196,7 @@ jobs:
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
         with:
-          github-token: ${{ steps.app-token.outputs.token }}
+          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
@@ -1215,16 +1215,16 @@ jobs:
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
-          github-token: ${{ steps.app-token.outputs.token }}
+          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/notify_comment_error.cjs');
             await main();
       - name: Invalidate GitHub App token
-        if: always() && steps.app-token.outputs.token != ''
+        if: always() && steps.safe-outputs-app-token.outputs.token != ''
         env:
-          TOKEN: ${{ steps.app-token.outputs.token }}
+          TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}
         run: |
           echo "Revoking GitHub App installation token..."
           # GitHub CLI will auth with the token being revoked.
@@ -1468,7 +1468,7 @@ jobs:
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Generate GitHub App token
-        id: app-token
+        id: safe-outputs-app-token
         uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
         with:
           app-id: ${{ vars.APP_ID }}
@@ -1485,16 +1485,16 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"labels\":[\"refactoring\",\"code-health\",\"automated-analysis\",\"cookie\"],\"max\":1,\"title_prefix\":\"[file-diet] \"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
-          github-token: ${{ steps.app-token.outputs.token }}
+          github-token: ${{ steps.safe-outputs-app-token.outputs.token }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
       - name: Invalidate GitHub App token
-        if: always() && steps.app-token.outputs.token != ''
+        if: always() && steps.safe-outputs-app-token.outputs.token != ''
         env:
-          TOKEN: ${{ steps.app-token.outputs.token }}
+          TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}
         run: |
           echo "Revoking GitHub App installation token..."
           # GitHub CLI will auth with the token being revoked.

@@ -25,6 +25,7 @@ imports:
   - shared/reporting.md
   - shared/github-queries-safe-input.md
   - shared/go-make.md
+  - shared/github-mcp-app.md
 network:
   allowed:
     - defaults
