@@ -302,7 +302,45 @@ Compare current analysis with previous analyses:
 
 ## Phase 5: Create Discussion Report
 
-Generate a comprehensive discussion report with findings:
+Generate a comprehensive discussion report with findings.
+
+### Report Formatting Guidelines
+
+**IMPORTANT**: Follow these formatting standards to maintain consistency and readability:
+
+#### 1. Header Levels
+Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. The discussion title serves as h1, so all content headers should start at h3.
+
+**Structure**:
+- Main sections: h3 (###) - e.g., "### 🔍 Quality Analysis Summary"
+- Subsections: h4 (####) - e.g., "#### Scores Breakdown"
+- Detail sections inside `<details>`: h3/h4 as appropriate
+
+#### 2. Progressive Disclosure
+Wrap detailed analysis and long code sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce visual clutter. This helps users quickly scan the most important information while still providing access to detailed content.
+
+**Example**:
+```markdown
+<details>
+<summary><b>Detailed File Analysis</b></summary>
+
+[Long detailed content here...]
+
+</details>
+```
+
+#### 3. Suggested Report Structure
+- **Brief summary** of quality score and key findings (always visible)
+- **Key quality issues** requiring immediate attention (always visible)
+- **Detailed file analysis** (wrapped in `<details>` tags for progressive disclosure)
+- **Historical trends** (wrapped in `<details>` tags if lengthy)
+- **Recommendations** (always visible for quick action)
+
+This structure follows Airbnb-inspired design principles:
+- **Build trust through clarity**: Most important info immediately visible
+- **Exceed expectations**: Add helpful context, trends, and comparisons
+- **Create delight**: Use progressive disclosure to reduce overwhelm
+- **Maintain consistency**: Follow the same patterns as other reporting workflows
 
 ### Discussion Title
 
@@ -313,7 +351,7 @@ Daily Compiler Code Quality Report - YYYY-MM-DD
 ### Discussion Body
 
 ```markdown
-# 🔍 Compiler Code Quality Analysis Report
+### 🔍 Compiler Code Quality Analysis Report
 
 **Analysis Date**: YYYY-MM-DD  
 **Files Analyzed**: [file1.go, file2.go, file3.go]  
@@ -321,7 +359,7 @@ Daily Compiler Code Quality Report - YYYY-MM-DD
 
 ---
 
-## Executive Summary
+### Executive Summary
 
 [2-3 paragraph summary highlighting:
 - Overall quality assessment
@@ -332,15 +370,18 @@ Daily Compiler Code Quality Report - YYYY-MM-DD
 
 ---
 
-## Files Analyzed Today
+### Files Analyzed Today
 
-### 1. `compiler_orchestrator.go` - Score: 82/100 ✅
+<details>
+<summary><b>📁 Detailed File Analysis</b></summary>
+
+#### 1. `compiler_orchestrator.go` - Score: 82/100 ✅
 
 **Rating**: Good  
 **Size**: 859 lines  
 **Git Hash**: `abc123...`
 
-#### Scores Breakdown
+##### Scores Breakdown
 
 | Dimension | Score | Rating |
 |-----------|-------|--------|
@@ -351,14 +392,14 @@ Daily Compiler Code Quality Report - YYYY-MM-DD
 | Patterns & Best Practices | 13/15 | Excellent |
 | **Total** | **82/100** | **Good** |
 
-#### ✅ Strengths
+##### ✅ Strengths
 
 - Well-organized into logical sections for different compilation phases
 - Excellent error wrapping with context using fmt.Errorf with %w
 - Clear function naming that describes intent
 - Consistent use of Go idioms and patterns
 
-#### ⚠️ Issues Identified
+##### ⚠️ Issues Identified
 
 1. **File Size (Medium Priority)**
    - Current: 859 lines
@@ -396,19 +437,21 @@ Estimated Complexity Score: 7.2/10
 
 ---
 
-### 2. `compiler_jobs.go` - Score: 78/100 ✅
+#### 2. `compiler_jobs.go` - Score: 78/100 ✅
 
 [Similar detailed analysis...]
 
 ---
 
-### 3. `compiler_yaml.go` - Score: 68/100 ⚠️
+#### 3. `compiler_yaml.go` - Score: 68/100 ⚠️
 
 [Similar detailed analysis...]
 
+</details>
+
 ---
 
-## Overall Statistics
+### Overall Statistics
 
 ### Quality Score Distribution
 
@@ -424,23 +467,24 @@ Estimated Complexity Score: 7.2/10
 **Median Score**: 78/100  
 **Human-Written Quality**: ✅ All files meet threshold (≥75)
 
-### Common Patterns
+#### Common Patterns
 
-#### Strengths Across Files
+##### Strengths Across Files
 - ✅ Consistent error handling with proper wrapping
 - ✅ Clear naming conventions throughout
 - ✅ Good separation of concerns
 
-#### Common Issues
+##### Common Issues
 - ⚠️ Some files exceed ideal size (800+ lines)
 - ⚠️ Occasional missing documentation for exported functions
 - ⚠️ Test coverage varies between files
 
 ---
 
-## Historical Trends
+<details>
+<summary><b>📈 Historical Trends</b></summary>
 
-### Progress Since Last Analysis
+#### Progress Since Last Analysis
 
 | Metric | Previous | Current | Change |
 |--------|----------|---------|--------|
@@ -448,24 +492,26 @@ Estimated Complexity Score: 7.2/10
 | Average Score | 74/100 | 76/100 | +2 ⬆️ |
 | Files Meeting Threshold | 83% | 89% | +6% ⬆️ |
 
-### Notable Improvements
+#### Notable Improvements
 
 - `compiler_orchestrator.go`: Score improved from 78 to 82 (+4 points)
   - Better error handling patterns implemented
   - Added documentation for key functions
 
-### Files Needing Attention
+#### Files Needing Attention
 
 Based on historical analysis, these files consistently score below 70:
 
 1. `compiler_filters_validation.go` - Last score: 65/100
 2. `compiler_safe_outputs_specialized.go` - Not yet analyzed
 
+</details>
+
 ---
 
-## Actionable Recommendations
+### Actionable Recommendations
 
-### Immediate Actions (High Priority)
+#### Immediate Actions (High Priority)
 
 1. **Add missing documentation**
    - Files: `compiler_orchestrator.go`, `compiler_jobs.go`
@@ -477,7 +523,7 @@ Based on historical analysis, these files consistently score below 70:
    - Issue: Some error cases return generic errors without context
    - Estimated effort: 1-2 hours
 
-### Short-term Improvements (Medium Priority)
+#### Short-term Improvements (Medium Priority)
 
 3. **Refactor oversized files**
    - `compiler_orchestrator.go` (859 lines) - Split into 2-3 files
@@ -489,7 +535,7 @@ Based on historical analysis, these files consistently score below 70:
    - Focus on edge cases and error paths
    - Estimated effort: 2-4 hours per file
 
-### Long-term Goals (Low Priority)
+#### Long-term Goals (Low Priority)
 
 5. **Establish code quality baseline**
    - Set minimum quality score for new code: 75/100
@@ -503,18 +549,19 @@ Based on historical analysis, these files consistently score below 70:
 
 ---
 
-## Cache Memory Summary
+<details>
+<summary><b>💾 Cache Memory Summary</b></summary>
 
 **Cache Location**: `/tmp/gh-aw/cache-memory/compiler-quality/`
 
-### Cache Statistics
+#### Cache Statistics
 
 - **Total Files Tracked**: 9
 - **Files Analyzed Today**: 3
 - **Files Changed Since Last Run**: 1
 - **Files in Analysis Queue**: 6
 
-### Next Analysis Schedule
+#### Next Analysis Schedule
 
 Based on rotation and changes, these files are prioritized for next analysis:
 
@@ -522,9 +569,11 @@ Based on rotation and changes, these files are prioritized for next analysis:
 2. `compiler_safe_outputs_specialized.go` (priority: never analyzed)
 3. `compiler.go` (priority: unchanged, scheduled rotation)
 
+</details>
+
 ---
 
-## Conclusion
+### Conclusion
 
 The compiler codebase maintains **good overall quality** with an average score of 76/100. All analyzed files today meet or exceed the human-written quality threshold of 75 points.
 
