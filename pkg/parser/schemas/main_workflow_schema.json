@@ -2504,7 +2504,7 @@
             [
               {
                 "name": "Verify Post-Steps Execution",
-                "run": "echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
+                "run": "echo \"\u2705 Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
               },
               {
                 "name": "Upload Test Results",
@@ -5647,7 +5647,8 @@
               "additionalProperties": false
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "$comment": "INTERNAL IMPLEMENTATION: This user-facing 'safe-outputs.jobs:' configuration is transformed internally into a 'safe-jobs' key for parsing by the compiler (see pkg/workflow/safe_jobs.go). The top-level 'safe-jobs:' key is NOT supported in user workflows and is used only internally."
         },
         "messages": {
           "type": "object",
@@ -5675,8 +5676,8 @@
             },
             "staged-title": {
               "type": "string",
-              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '🎭 Preview: {operation}'",
-              "examples": ["🎭 Preview: {operation}", "## Staged Mode: {operation}"]
+              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '\ud83c\udfad Preview: {operation}'",
+              "examples": ["\ud83c\udfad Preview: {operation}", "## Staged Mode: {operation}"]
             },
             "staged-description": {
               "type": "string",
@@ -5690,18 +5691,18 @@
             },
             "run-success": {
               "type": "string",
-              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '✅ Agentic [{workflow_name}]({run_url}) completed successfully.'",
-              "examples": ["✅ Agentic [{workflow_name}]({run_url}) completed successfully.", "✅ [{workflow_name}]({run_url}) finished."]
+              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.'",
+              "examples": ["\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.", "\u2705 [{workflow_name}]({run_url}) finished."]
             },
             "run-failure": {
               "type": "string",
-              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
-              "examples": ["❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "❌ [{workflow_name}]({run_url}) {status}."]
+              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
+              "examples": ["\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "\u274c [{workflow_name}]({run_url}) {status}."]
             },
             "detection-failure": {
               "type": "string",
-              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
-              "examples": ["⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "⚠️ Detection job failed in [{workflow_name}]({run_url})."]
+              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
+              "examples": ["\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."]
             },
             "append-only-comments": {
               "type": "boolean",
@@ -5781,12 +5782,12 @@
       "additionalProperties": false
     },
     "roles": {
-      "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
+      "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
       "oneOf": [
         {
           "type": "string",
           "enum": ["all"],
-          "description": "Allow any authenticated user to trigger the workflow (⚠️ disables permission checking entirely - use with caution)"
+          "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
         },
         {
           "type": "array",

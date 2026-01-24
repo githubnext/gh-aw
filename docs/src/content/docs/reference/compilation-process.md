@@ -267,7 +267,7 @@ Pre-activation runs checks sequentially. Any failure sets `activated=false`, pre
 
 **Maintainability**: Use imports for shared configuration, document complex workflows with `description:`, compile frequently during development, version control lock files and action pins (`.github/aw/actions-lock.json`).
 
-**Performance**: Enable caching (`cache:` and `cache-memory:`), minimize imports to essentials, optimize tool configurations with restricted `allowed:` lists, use safe-jobs for custom logic.
+**Performance**: Enable caching (`cache:` and `cache-memory:`), minimize imports to essentials, optimize tool configurations with restricted `allowed:` lists, use custom safe output jobs (`safe-outputs.jobs:`) for custom logic.
 
 **Debugging**: Enable verbose logging (`--verbose`), check job dependency graphs in headers, inspect artifacts and firewall logs (`gh aw logs`), validate without file generation (`--no-emit`).
 

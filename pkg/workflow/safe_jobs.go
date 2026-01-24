@@ -9,6 +9,24 @@ import (
 	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
+// Package workflow implements custom safe output jobs for GitHub Agentic Workflows.
+//
+// ARCHITECTURE OVERVIEW:
+//
+// User-Facing API:
+//   - Users configure custom safe output jobs via "safe-outputs.jobs:" in workflow frontmatter
+//   - This is documented in docs/src/content/docs/reference/safe-outputs.md
+//   - Schema definition in pkg/parser/schemas/main_workflow_schema.json under safe-outputs.properties.jobs
+//
+// Internal Implementation:
+//   - The internal "safe-jobs" key is used ONLY for parsing and is NOT user-facing
+//   - extractSafeJobsFromFrontmatter() reads "safe-outputs.jobs:" and transforms it for parsing
+//   - parseSafeJobsConfig() expects the internal "safe-jobs" key format
+//   - The top-level "safe-jobs:" key is NOT supported in user workflows
+//
+// This separation allows the code to use a consistent internal format while maintaining
+// a clean user-facing API under the safe-outputs namespace.
+
 var safeJobsLog = logger.New("workflow:safe_jobs")
 
 // SafeJobConfig defines a safe job configuration with GitHub Actions job properties
@@ -35,8 +53,13 @@ func HasSafeJobsEnabled(safeJobs map[string]*SafeJobConfig) bool {
 }
 
 // parseSafeJobsConfig parses safe-jobs configuration from a frontmatter map.
-// This is an internal helper function that expects a map with a "safe-jobs" key.
-// User workflows should use "safe-outputs.jobs" syntax; the top-level "safe-jobs" key is NOT supported.
+//
+// INTERNAL USE ONLY: This is an internal helper function that expects a map with a "safe-jobs" key
+// for parsing purposes. This key is NOT user-facing and NOT in the schema.
+//
+// Users should configure custom safe output jobs via the "safe-outputs.jobs:" frontmatter syntax,
+// which is then extracted by extractSafeJobsFromFrontmatter() and transformed into the internal
+// "safe-jobs" format for parsing. The top-level "safe-jobs:" key is not supported in user workflows.
 func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*SafeJobConfig {
 	safeJobsSection, exists := frontmatter["safe-jobs"]
 	if !exists {
@@ -292,8 +315,13 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 	return safeJobNames, nil
 }
 
-// extractSafeJobsFromFrontmatter extracts safe-jobs configuration from frontmatter.
-// Only checks the safe-outputs.jobs location. The old top-level "safe-jobs" syntax is NOT supported.
+// extractSafeJobsFromFrontmatter extracts custom safe output jobs from the user-facing
+// "safe-outputs.jobs:" frontmatter configuration and transforms them into the internal
+// SafeJobConfig format.
+//
+// USER-FACING API: Users configure custom safe output jobs via "safe-outputs.jobs:" in frontmatter.
+// INTERNAL DETAIL: The extracted configuration is temporarily wrapped with a "safe-jobs" key
+// for internal parsing by parseSafeJobsConfig(). This internal key is not user-facing.
 func extractSafeJobsFromFrontmatter(frontmatter map[string]any) map[string]*SafeJobConfig {
 	// Check location: safe-outputs.jobs
 	if safeOutputs, exists := frontmatter["safe-outputs"]; exists {

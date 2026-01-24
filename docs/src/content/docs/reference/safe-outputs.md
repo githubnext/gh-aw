@@ -82,7 +82,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 Create custom post-processing jobs registered as Model Context Protocol (MCP) tools. Support standard GitHub Actions properties and auto-access agent output via `$GH_AW_AGENT_OUTPUT`. See [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/).
 
 > [!NOTE]
-> **Internal Implementation**: Custom safe output jobs are internally referred to as "safe-jobs" in the compiler code (`pkg/workflow/safe_jobs.go`), but they are user-facing only through the `safe-outputs.jobs:` configuration. The top-level `safe-jobs:` key is deprecated and not supported.
+> **Internal Implementation Note**: Custom safe output jobs are internally referred to as "safe-jobs" in the compiler code (`pkg/workflow/safe_jobs.go`) for parsing purposes. However, users should ONLY configure these jobs via the `safe-outputs.jobs:` frontmatter syntax. The top-level `safe-jobs:` key is an internal implementation detail and is not supported in user workflows.
 
 ### Issue Creation (`create-issue:`)
 

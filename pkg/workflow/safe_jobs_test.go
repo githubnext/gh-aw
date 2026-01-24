@@ -8,9 +8,11 @@ import (
 func TestParseSafeJobsConfig(t *testing.T) {
 	c := NewCompiler(false, "", "test")
 
-	// Test parseSafeJobsConfig internal function which expects a "safe-jobs" key.
-	// Note: User workflows should use "safe-outputs.jobs" syntax; this test validates
-	// the internal parsing logic used by extractSafeJobsFromFrontmatter and safe_outputs.go.
+	// Test parseSafeJobsConfig internal function which expects a "safe-jobs" key for parsing.
+	// NOTE: The "safe-jobs" key is INTERNAL ONLY and not user-facing. Users configure custom
+	// safe output jobs via "safe-outputs.jobs:" in frontmatter. This test validates the internal
+	// parsing logic used by extractSafeJobsFromFrontmatter() which transforms the user-facing
+	// "safe-outputs.jobs:" configuration into the internal "safe-jobs" format.
 	frontmatter := map[string]any{
 		"safe-jobs": map[string]any{
 			"deploy": map[string]any{
