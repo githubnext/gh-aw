@@ -148,7 +148,7 @@
           "description": "Complex trigger configuration with event-specific filters and options",
           "properties": {
             "slash_command": {
-              "description": "Special slash command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically.",
+              "description": "Special slash command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically. Note: Can be combined with issues/pull_request events if those events only use 'labeled' or 'unlabeled' types.",
               "oneOf": [
                 {
                   "type": "null",
