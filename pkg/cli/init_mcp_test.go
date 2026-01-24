@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 func TestInitRepository_WithMCP(t *testing.T) {
@@ -261,7 +262,7 @@ jobs:
 	}
 
 	// Call ensureCopilotSetupSteps
-	if err := ensureCopilotSetupSteps(false); err != nil {
+	if err := ensureCopilotSetupSteps(false, workflow.ActionModeDev, "dev"); err != nil {
 		t.Fatalf("ensureCopilotSetupSteps() returned error: %v", err)
 	}
 
@@ -342,7 +343,7 @@ jobs:
 	}
 
 	// Call ensureCopilotSetupSteps
-	if err := ensureCopilotSetupSteps(false); err != nil {
+	if err := ensureCopilotSetupSteps(false, workflow.ActionModeDev, "dev"); err != nil {
 		t.Fatalf("ensureCopilotSetupSteps() returned error: %v", err)
 	}
 
