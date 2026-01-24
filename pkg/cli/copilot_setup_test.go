@@ -639,3 +639,429 @@ func TestEnsureCopilotSetupSteps_DevMode(t *testing.T) {
 		t.Error("Expected copilot-setup-steps.yml to NOT use actions/setup-cli in dev mode")
 	}
 }
+
+// TestEnsureCopilotSetupSteps_CreateWithReleaseMode tests creating a new file with release mode
+func TestEnsureCopilotSetupSteps_CreateWithReleaseMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(originalDir) }()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Create new file with release mode and specific version
+	testVersion := "v2.0.0"
+	err = ensureCopilotSetupSteps(false, workflow.ActionModeRelease, testVersion)
+	if err != nil {
+		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+	}
+
+	setupStepsPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
+	content, err := os.ReadFile(setupStepsPath)
+	if err != nil {
+		t.Fatalf("Failed to read copilot-setup-steps.yml: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify release mode characteristics
+	if !strings.Contains(contentStr, "actions/setup-cli@v2.0.0") {
+		t.Errorf("Expected action reference with version tag @v2.0.0, got:\n%s", contentStr)
+	}
+	if !strings.Contains(contentStr, "version: v2.0.0") {
+		t.Errorf("Expected version parameter v2.0.0, got:\n%s", contentStr)
+	}
+	if !strings.Contains(contentStr, "actions/checkout@v4") {
+		t.Errorf("Expected checkout step in release mode")
+	}
+}
+
+// TestEnsureCopilotSetupSteps_CreateWithDevMode tests creating a new file with dev mode
+func TestEnsureCopilotSetupSteps_CreateWithDevMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(originalDir) }()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Create new file with dev mode
+	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev, "dev")
+	if err != nil {
+		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+	}
+
+	setupStepsPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
+	content, err := os.ReadFile(setupStepsPath)
+	if err != nil {
+		t.Fatalf("Failed to read copilot-setup-steps.yml: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify dev mode characteristics
+	if !strings.Contains(contentStr, "curl -fsSL") {
+		t.Errorf("Expected curl command in dev mode")
+	}
+	if !strings.Contains(contentStr, "install-gh-aw.sh") {
+		t.Errorf("Expected install-gh-aw.sh reference in dev mode")
+	}
+	if strings.Contains(contentStr, "actions/setup-cli") {
+		t.Errorf("Did not expect actions/setup-cli in dev mode")
+	}
+	if strings.Contains(contentStr, "actions/checkout") {
+		t.Errorf("Did not expect checkout step in dev mode")
+	}
+}
+
+// TestEnsureCopilotSetupSteps_UpdateExistingWithReleaseMode tests updating an existing file with release mode
+func TestEnsureCopilotSetupSteps_UpdateExistingWithReleaseMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(originalDir) }()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Write existing workflow without gh-aw install step
+	existingContent := `name: "Copilot Setup Steps"
+on: workflow_dispatch
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Some other step
+        run: echo "test"
+`
+	setupStepsPath := filepath.Join(workflowsDir, "copilot-setup-steps.yml")
+	if err := os.WriteFile(setupStepsPath, []byte(existingContent), 0644); err != nil {
+		t.Fatalf("Failed to write existing workflow: %v", err)
+	}
+
+	// Update with release mode
+	testVersion := "v3.0.0"
+	err = ensureCopilotSetupSteps(false, workflow.ActionModeRelease, testVersion)
+	if err != nil {
+		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+	}
+
+	// Read updated file
+	content, err := os.ReadFile(setupStepsPath)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify release mode injection
+	if !strings.Contains(contentStr, "actions/setup-cli@v3.0.0") {
+		t.Errorf("Expected injected action with @v3.0.0 tag, got:\n%s", contentStr)
+	}
+	if !strings.Contains(contentStr, "version: v3.0.0") {
+		t.Errorf("Expected version: v3.0.0 parameter, got:\n%s", contentStr)
+	}
+	if !strings.Contains(contentStr, "actions/checkout@v4") {
+		t.Errorf("Expected checkout step to be injected")
+	}
+	// Verify original step is preserved
+	if !strings.Contains(contentStr, "Some other step") {
+		t.Errorf("Expected original step to be preserved")
+	}
+}
+
+// TestEnsureCopilotSetupSteps_UpdateExistingWithDevMode tests updating an existing file with dev mode
+func TestEnsureCopilotSetupSteps_UpdateExistingWithDevMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(originalDir) }()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Write existing workflow without gh-aw install step
+	existingContent := `name: "Copilot Setup Steps"
+on: workflow_dispatch
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Some other step
+        run: echo "test"
+`
+	setupStepsPath := filepath.Join(workflowsDir, "copilot-setup-steps.yml")
+	if err := os.WriteFile(setupStepsPath, []byte(existingContent), 0644); err != nil {
+		t.Fatalf("Failed to write existing workflow: %v", err)
+	}
+
+	// Update with dev mode
+	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev, "dev")
+	if err != nil {
+		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+	}
+
+	// Read updated file
+	content, err := os.ReadFile(setupStepsPath)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify dev mode injection
+	if !strings.Contains(contentStr, "curl -fsSL") {
+		t.Errorf("Expected curl command in dev mode")
+	}
+	if !strings.Contains(contentStr, "install-gh-aw.sh") {
+		t.Errorf("Expected install-gh-aw.sh in dev mode")
+	}
+	if strings.Contains(contentStr, "actions/setup-cli") {
+		t.Errorf("Did not expect actions/setup-cli in dev mode")
+	}
+	// Verify original step is preserved
+	if !strings.Contains(contentStr, "Some other step") {
+		t.Errorf("Expected original step to be preserved")
+	}
+}
+
+// TestEnsureCopilotSetupSteps_SkipsUpdateWhenActionExists tests that update is skipped when action already exists
+func TestEnsureCopilotSetupSteps_SkipsUpdateWhenActionExists(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(originalDir) }()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Write existing workflow WITH actions/setup-cli (release mode)
+	existingContent := `name: "Copilot Setup Steps"
+on: workflow_dispatch
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: githubnext/gh-aw/actions/setup-cli@v1.0.0
+        with:
+          version: v1.0.0
+`
+	setupStepsPath := filepath.Join(workflowsDir, "copilot-setup-steps.yml")
+	if err := os.WriteFile(setupStepsPath, []byte(existingContent), 0644); err != nil {
+		t.Fatalf("Failed to write existing workflow: %v", err)
+	}
+
+	// Attempt to update - should skip
+	err = ensureCopilotSetupSteps(false, workflow.ActionModeRelease, "v2.0.0")
+	if err != nil {
+		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+	}
+
+	// Read file - should be unchanged
+	content, err := os.ReadFile(setupStepsPath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify file was not modified (still has v1.0.0)
+	if !strings.Contains(contentStr, "v1.0.0") {
+		t.Errorf("Expected file to remain unchanged with v1.0.0")
+	}
+	if strings.Contains(contentStr, "v2.0.0") {
+		t.Errorf("File should not have been updated to v2.0.0")
+	}
+}
+
+// TestEnsureCopilotSetupSteps_SkipsUpdateWhenCurlExists tests that update is skipped when curl install exists
+func TestEnsureCopilotSetupSteps_SkipsUpdateWhenCurlExists(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(originalDir) }()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Write existing workflow WITH curl install (dev mode)
+	existingContent := `name: "Copilot Setup Steps"
+on: workflow_dispatch
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install gh-aw extension
+        run: curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash
+`
+	setupStepsPath := filepath.Join(workflowsDir, "copilot-setup-steps.yml")
+	if err := os.WriteFile(setupStepsPath, []byte(existingContent), 0644); err != nil {
+		t.Fatalf("Failed to write existing workflow: %v", err)
+	}
+
+	// Attempt to update - should skip
+	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev, "dev")
+	if err != nil {
+		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+	}
+
+	// Verify file content matches expected (should be unchanged)
+	content, err := os.ReadFile(setupStepsPath)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+
+	if string(content) != existingContent {
+		t.Errorf("Expected file to remain unchanged")
+	}
+}
+
+// TestInjectExtensionInstallStep_ReleaseMode tests injecting in release mode with version
+func TestInjectExtensionInstallStep_ReleaseMode(t *testing.T) {
+	wf := &Workflow{
+		Jobs: map[string]WorkflowJob{
+			"copilot-setup-steps": {
+				Steps: []CopilotWorkflowStep{
+					{Name: "Existing step", Run: "echo test"},
+				},
+			},
+		},
+	}
+
+	testVersion := "v4.5.6"
+	err := injectExtensionInstallStep(wf, workflow.ActionModeRelease, testVersion)
+	if err != nil {
+		t.Fatalf("injectExtensionInstallStep() failed: %v", err)
+	}
+
+	job := wf.Jobs["copilot-setup-steps"]
+
+	// Should have 4 steps: checkout, install, verify, existing
+	if len(job.Steps) != 4 {
+		t.Fatalf("Expected 4 steps (checkout, install, verify, existing), got %d", len(job.Steps))
+	}
+
+	// Verify checkout step
+	if job.Steps[0].Name != "Checkout repository" {
+		t.Errorf("First step should be checkout, got: %s", job.Steps[0].Name)
+	}
+	if job.Steps[0].Uses != "actions/checkout@v4" {
+		t.Errorf("Checkout should use actions/checkout@v4, got: %s", job.Steps[0].Uses)
+	}
+
+	// Verify install step
+	if job.Steps[1].Name != "Install gh-aw extension" {
+		t.Errorf("Second step should be install, got: %s", job.Steps[1].Name)
+	}
+	expectedUses := "githubnext/gh-aw/actions/setup-cli@v4.5.6"
+	if job.Steps[1].Uses != expectedUses {
+		t.Errorf("Install should use %s, got: %s", expectedUses, job.Steps[1].Uses)
+	}
+	if version, ok := job.Steps[1].With["version"]; !ok || version != testVersion {
+		t.Errorf("Install step should have version: %s in with, got: %v", testVersion, job.Steps[1].With)
+	}
+
+	// Verify verify step
+	if job.Steps[2].Name != "Verify gh-aw installation" {
+		t.Errorf("Third step should be verify, got: %s", job.Steps[2].Name)
+	}
+
+	// Verify original step is preserved
+	if job.Steps[3].Name != "Existing step" {
+		t.Errorf("Fourth step should be existing step, got: %s", job.Steps[3].Name)
+	}
+}
+
+// TestInjectExtensionInstallStep_DevMode tests injecting in dev mode
+func TestInjectExtensionInstallStep_DevMode(t *testing.T) {
+	wf := &Workflow{
+		Jobs: map[string]WorkflowJob{
+			"copilot-setup-steps": {
+				Steps: []CopilotWorkflowStep{
+					{Name: "Existing step", Run: "echo test"},
+				},
+			},
+		},
+	}
+
+	err := injectExtensionInstallStep(wf, workflow.ActionModeDev, "dev")
+	if err != nil {
+		t.Fatalf("injectExtensionInstallStep() failed: %v", err)
+	}
+
+	job := wf.Jobs["copilot-setup-steps"]
+
+	// Should have 3 steps: install, verify, existing (no checkout in dev mode)
+	if len(job.Steps) != 3 {
+		t.Fatalf("Expected 3 steps (install, verify, existing), got %d", len(job.Steps))
+	}
+
+	// Verify install step uses curl
+	if job.Steps[0].Name != "Install gh-aw extension" {
+		t.Errorf("First step should be install, got: %s", job.Steps[0].Name)
+	}
+	if !strings.Contains(job.Steps[0].Run, "curl -fsSL") {
+		t.Errorf("Install should use curl, got: %s", job.Steps[0].Run)
+	}
+	if !strings.Contains(job.Steps[0].Run, "install-gh-aw.sh") {
+		t.Errorf("Install should reference install-gh-aw.sh, got: %s", job.Steps[0].Run)
+	}
+
+	// Verify verify step
+	if job.Steps[1].Name != "Verify gh-aw installation" {
+		t.Errorf("Second step should be verify, got: %s", job.Steps[1].Name)
+	}
+
+	// Verify original step is preserved
+	if job.Steps[2].Name != "Existing step" {
+		t.Errorf("Third step should be existing step, got: %s", job.Steps[2].Name)
+	}
+}
