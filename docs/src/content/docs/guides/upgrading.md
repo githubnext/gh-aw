@@ -7,6 +7,11 @@ sidebar:
 
 This guide walks you through upgrading your agentic workflows to the latest version, ensuring you have access to the newest features, improvements, and security fixes.
 
+> [!TIP]
+> Agentic Upgrade
+>
+> You can start an agent session in your repository on GitHub.com and use the command `/agent agentic-workflows Upgrade` to automatically upgrade your workflows.
+
 ## Overview
 
 The upgrade process updates three key areas:
