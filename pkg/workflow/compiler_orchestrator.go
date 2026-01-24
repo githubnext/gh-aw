@@ -16,92 +16,271 @@ import (
 var detectionLog = logger.New("workflow:detection")
 var orchestratorLog = logger.New("workflow:compiler_orchestrator")
 
-func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
-	orchestratorLog.Printf("Starting workflow file parsing: %s", markdownPath)
-	log.Printf("Reading file: %s", markdownPath)
+// frontmatterParseResult holds the results of parsing and validating frontmatter
+type frontmatterParseResult struct {
+	cleanPath                string
+	content                  []byte
+	frontmatterResult        *parser.FrontmatterResult
+	frontmatterForValidation map[string]any
+	markdownDir              string
+	isSharedWorkflow         bool
+}
 
-	// Clean the path to prevent path traversal issues (gosec G304)
-	// filepath.Clean removes ".." and other problematic path elements
-	cleanPath := filepath.Clean(markdownPath)
+// engineSetupResult holds the results of engine configuration and validation
+type engineSetupResult struct {
+	engineSetting      string
+	engineConfig       *EngineConfig
+	agenticEngine      CodingAgentEngine
+	networkPermissions *NetworkPermissions
+	sandboxConfig      *SandboxConfig
+	importsResult      *parser.ImportsResult
+}
 
-	// Read the file
-	content, err := os.ReadFile(cleanPath)
+// toolsProcessingResult holds the results of tools and markdown processing
+type toolsProcessingResult struct {
+	tools               map[string]any
+	runtimes            map[string]any
+	toolsTimeout        int
+	toolsStartupTimeout int
+	markdownContent     string
+	allIncludedFiles    []string
+	workflowName        string
+	frontmatterName     string
+	needsTextOutput     bool
+	trackerID           string
+	safeOutputs         *SafeOutputsConfig
+	secretMasking       *SecretMaskingConfig
+	parsedFrontmatter   *FrontmatterConfig
+}
+
+// processToolsAndMarkdown processes tools configuration, runtimes, and markdown content.
+// This function handles:
+// - Safe outputs and secret masking configuration
+// - Tools and MCP servers merging
+// - Runtimes merging
+// - MCP validations
+// - Markdown content expansion
+// - Workflow name extraction
+func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cleanPath string, markdownDir string,
+	agenticEngine CodingAgentEngine, engineSetting string, importsResult *parser.ImportsResult) (*toolsProcessingResult, error) {
+
+	orchestratorLog.Printf("Processing tools and markdown")
+	log.Print("Processing tools and includes...")
+
+	// Extract SafeOutputs configuration early so we can use it when applying default tools
+	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
+
+	// Extract SecretMasking configuration
+	secretMasking := c.extractSecretMaskingConfig(result.Frontmatter)
+
+	// Merge secret-masking from imports with top-level secret-masking
+	if importsResult.MergedSecretMasking != "" {
+		orchestratorLog.Printf("Merging secret-masking from imports")
+		var err error
+		secretMasking, err = c.MergeSecretMasking(secretMasking, importsResult.MergedSecretMasking)
+		if err != nil {
+			orchestratorLog.Printf("Secret-masking merge failed: %v", err)
+			return nil, fmt.Errorf("failed to merge secret-masking: %w", err)
+		}
+	}
+
+	var tools map[string]any
+
+	// Extract tools from the main file
+	topTools := extractToolsFromFrontmatter(result.Frontmatter)
+
+	// Extract mcp-servers from the main file and merge them into tools
+	mcpServers := extractMCPServersFromFrontmatter(result.Frontmatter)
+
+	// Process @include directives to extract additional tools
+	orchestratorLog.Printf("Expanding includes for tools")
+	includedTools, includedToolFiles, err := parser.ExpandIncludesWithManifest(result.Markdown, markdownDir, true)
 	if err != nil {
-		orchestratorLog.Printf("Failed to read file: %s, error: %v", cleanPath, err)
-		return nil, fmt.Errorf("failed to read file: %w", err)
+		orchestratorLog.Printf("Failed to expand includes for tools: %v", err)
+		return nil, fmt.Errorf("failed to expand includes for tools: %w", err)
 	}
 
-	log.Printf("File size: %d bytes", len(content))
+	// Combine imported tools with included tools
+	var allIncludedTools string
+	if importsResult.MergedTools != "" && includedTools != "" {
+		allIncludedTools = importsResult.MergedTools + "\n" + includedTools
+	} else if importsResult.MergedTools != "" {
+		allIncludedTools = importsResult.MergedTools
+	} else {
+		allIncludedTools = includedTools
+	}
 
-	// Parse frontmatter and markdown
-	orchestratorLog.Printf("Parsing frontmatter from file: %s", cleanPath)
-	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	// Combine imported mcp-servers with top-level mcp-servers
+	// Imported mcp-servers are in JSON format (newline-separated), need to merge them
+	allMCPServers := mcpServers
+	if importsResult.MergedMCPServers != "" {
+		orchestratorLog.Printf("Merging imported mcp-servers")
+		// Parse and merge imported MCP servers
+		mergedMCPServers, err := c.MergeMCPServers(mcpServers, importsResult.MergedMCPServers)
+		if err != nil {
+			orchestratorLog.Printf("MCP servers merge failed: %v", err)
+			return nil, fmt.Errorf("failed to merge imported mcp-servers: %w", err)
+		}
+		allMCPServers = mergedMCPServers
+	}
+
+	// Merge tools including mcp-servers
+	orchestratorLog.Printf("Merging tools and MCP servers")
+	tools, err = c.mergeToolsAndMCPServers(topTools, allMCPServers, allIncludedTools)
 	if err != nil {
-		orchestratorLog.Printf("Frontmatter extraction failed: %v", err)
-		// Use FrontmatterStart from result if available, otherwise default to line 2 (after opening ---)
-		frontmatterStart := 2
-		if result != nil && result.FrontmatterStart > 0 {
-			frontmatterStart = result.FrontmatterStart
-		}
-		return nil, c.createFrontmatterError(cleanPath, string(content), err, frontmatterStart)
+		orchestratorLog.Printf("Tools merge failed: %v", err)
+		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
 
-	if len(result.Frontmatter) == 0 {
-		orchestratorLog.Print("No frontmatter found in file")
-		return nil, fmt.Errorf("no frontmatter found")
+	// Extract and validate tools timeout settings
+	toolsTimeout, err := c.extractToolsTimeout(tools)
+	if err != nil {
+		return nil, fmt.Errorf("invalid tools timeout configuration: %w", err)
 	}
 
-	// Preprocess schedule fields to convert human-friendly format to cron expressions
-	if err := c.preprocessScheduleFields(result.Frontmatter, cleanPath, string(content)); err != nil {
-		orchestratorLog.Printf("Schedule preprocessing failed: %v", err)
+	toolsStartupTimeout, err := c.extractToolsStartupTimeout(tools)
+	if err != nil {
+		return nil, fmt.Errorf("invalid tools startup timeout configuration: %w", err)
+	}
+
+	// Remove meta fields (timeout, startup-timeout) from merged tools map
+	// These are configuration fields, not actual tools
+	delete(tools, "timeout")
+	delete(tools, "startup-timeout")
+
+	// Extract and merge runtimes from frontmatter and imports
+	topRuntimes := extractRuntimesFromFrontmatter(result.Frontmatter)
+	orchestratorLog.Printf("Merging runtimes")
+	runtimes, err := mergeRuntimes(topRuntimes, importsResult.MergedRuntimes)
+	if err != nil {
+		orchestratorLog.Printf("Runtimes merge failed: %v", err)
+		return nil, fmt.Errorf("failed to merge runtimes: %w", err)
+	}
+
+	// Add MCP fetch server if needed (when web-fetch is requested but engine doesn't support it)
+	tools, _ = AddMCPFetchServerIfNeeded(tools, agenticEngine)
+
+	// Validate MCP configurations
+	orchestratorLog.Printf("Validating MCP configurations")
+	if err := ValidateMCPConfigs(tools); err != nil {
+		orchestratorLog.Printf("MCP configuration validation failed: %v", err)
 		return nil, err
 	}
 
-	// Create a copy of frontmatter without internal markers for schema validation
-	// Keep the original frontmatter with markers for YAML generation
-	frontmatterForValidation := c.copyFrontmatterWithoutInternalMarkers(result.Frontmatter)
-
-	// Check if "on" field is missing - if so, treat as a shared/imported workflow
-	_, hasOnField := frontmatterForValidation["on"]
-	if !hasOnField {
-		detectionLog.Printf("No 'on' field detected - treating as shared agentic workflow")
-
-		// Validate as an included/shared workflow (uses main_workflow_schema with forbidden field checks)
-		if err := parser.ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
-			orchestratorLog.Printf("Shared workflow validation failed: %v", err)
-			return nil, err
-		}
-
-		// Return a special error to signal that this is a shared workflow
-		// and compilation should be skipped with an info message
-		// Note: Markdown content is optional for shared workflows (they may be just config)
-		return nil, &SharedWorkflowError{
-			Path: cleanPath,
-		}
-	}
-
-	// For main workflows (with 'on' field), markdown content is required
-	if result.Markdown == "" {
-		orchestratorLog.Print("No markdown content found for main workflow")
-		return nil, fmt.Errorf("no markdown content found")
-	}
-
-	// Validate main workflow frontmatter contains only expected entries
-	orchestratorLog.Printf("Validating main workflow frontmatter schema")
-	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
-		orchestratorLog.Printf("Main workflow frontmatter validation failed: %v", err)
+	// Validate HTTP transport support for the current engine
+	if err := c.validateHTTPTransportSupport(tools, agenticEngine); err != nil {
+		orchestratorLog.Printf("HTTP transport validation failed: %v", err)
 		return nil, err
 	}
 
-	// Validate event filter mutual exclusivity (branches/branches-ignore, paths/paths-ignore)
-	if err := ValidateEventFilters(frontmatterForValidation); err != nil {
-		orchestratorLog.Printf("Event filter validation failed: %v", err)
+	if !agenticEngine.SupportsToolsAllowlist() {
+		// For engines that don't support tool allowlists (like codex), ignore tools section and provide warnings
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), engineSetting)))
+		c.IncrementWarningCount()
+		if _, hasTools := result.Frontmatter["tools"]; hasTools {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("'tools' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", engineSetting, agenticEngine.GetDisplayName())))
+			c.IncrementWarningCount()
+		}
+		tools = map[string]any{}
+		// For now, we'll add a basic github tool (always uses docker MCP)
+		githubConfig := map[string]any{}
+		tools["github"] = githubConfig
+	}
+
+	// Validate max-turns support for the current engine
+	if err := c.validateMaxTurnsSupport(result.Frontmatter, agenticEngine); err != nil {
 		return nil, err
 	}
 
-	log.Printf("Frontmatter: %d chars, Markdown: %d chars", len(result.Frontmatter), len(result.Markdown))
+	// Validate web-search support for the current engine (warning only)
+	c.validateWebSearchSupport(tools, agenticEngine)
 
-	markdownDir := filepath.Dir(cleanPath)
+	// Process @include directives in markdown content
+	markdownContent, includedMarkdownFiles, err := parser.ExpandIncludesWithManifest(result.Markdown, markdownDir, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to expand includes in markdown: %w", err)
+	}
+
+	// Prepend imported markdown from frontmatter imports field
+	if importsResult.MergedMarkdown != "" {
+		markdownContent = importsResult.MergedMarkdown + markdownContent
+	}
+
+	log.Print("Expanded includes in markdown content")
+
+	// Combine all included files (from tools and markdown)
+	// Use a map to deduplicate files
+	allIncludedFilesMap := make(map[string]bool)
+	for _, file := range includedToolFiles {
+		allIncludedFilesMap[file] = true
+	}
+	for _, file := range includedMarkdownFiles {
+		allIncludedFilesMap[file] = true
+	}
+	var allIncludedFiles []string
+	for file := range allIncludedFilesMap {
+		allIncludedFiles = append(allIncludedFiles, file)
+	}
+	// Sort files alphabetically to ensure consistent ordering in lock files
+	sort.Strings(allIncludedFiles)
+
+	// Extract workflow name
+	workflowName, err := parser.ExtractWorkflowNameFromMarkdown(cleanPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract workflow name: %w", err)
+	}
+
+	// Check if frontmatter specifies a custom name and use it instead
+	frontmatterName := extractStringFromMap(result.Frontmatter, "name", nil)
+	if frontmatterName != "" {
+		workflowName = frontmatterName
+	}
+
+	log.Printf("Extracted workflow name: '%s'", workflowName)
+
+	// Check if the markdown content uses the text output
+	needsTextOutput := c.detectTextOutputUsage(markdownContent)
+
+	// Extract and validate tracker-id
+	trackerID, err := c.extractTrackerID(result.Frontmatter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse frontmatter config once for performance optimization
+	parsedFrontmatter, err := ParseFrontmatterConfig(result.Frontmatter)
+	if err != nil {
+		orchestratorLog.Printf("Failed to parse frontmatter config: %v", err)
+		// Non-fatal error - continue with nil ParsedFrontmatter
+		parsedFrontmatter = nil
+	}
+
+	return &toolsProcessingResult{
+		tools:               tools,
+		runtimes:            runtimes,
+		toolsTimeout:        toolsTimeout,
+		toolsStartupTimeout: toolsStartupTimeout,
+		markdownContent:     markdownContent,
+		allIncludedFiles:    allIncludedFiles,
+		workflowName:        workflowName,
+		frontmatterName:     frontmatterName,
+		needsTextOutput:     needsTextOutput,
+		trackerID:           trackerID,
+		safeOutputs:         safeOutputs,
+		secretMasking:       secretMasking,
+		parsedFrontmatter:   parsedFrontmatter,
+	}, nil
+}
+
+// setupEngineAndImports configures the AI engine, processes imports, and validates network/sandbox settings.
+// This function handles:
+// - Engine extraction and validation
+// - Import processing and merging
+// - Network permissions setup
+// - Sandbox configuration
+// - Strict mode validations
+func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, cleanPath string, content []byte, markdownDir string) (*engineSetupResult, error) {
+	orchestratorLog.Printf("Setting up engine and processing imports")
 
 	// Extract AI engine setting from frontmatter
 	engineSetting, engineConfig := c.ExtractEngineConfig(result.Frontmatter)
@@ -150,12 +329,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Restore the initial strict mode state after validation
 	// This ensures strict mode doesn't leak to other workflows being compiled
 	c.strictMode = initialStrictMode
-
-	// Validate that @include/@import directives are not used inside template regions
-	if err := validateNoIncludesInTemplateRegions(result.Markdown); err != nil {
-		orchestratorLog.Printf("Template region validation failed: %v", err)
-		return nil, fmt.Errorf("template region validation failed: %w", err)
-	}
 
 	// Override with command line AI engine setting if provided
 	if c.engineOverride != "" {
@@ -306,196 +479,181 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Restore the strict mode state after network check
 	c.strictMode = initialStrictModeForFirewall
 
-	log.Print("Processing tools and includes...")
+	return &engineSetupResult{
+		engineSetting:      engineSetting,
+		engineConfig:       engineConfig,
+		agenticEngine:      agenticEngine,
+		networkPermissions: networkPermissions,
+		sandboxConfig:      sandboxConfig,
+		importsResult:      importsResult,
+	}, nil
+}
 
-	// Extract SafeOutputs configuration early so we can use it when applying default tools
-	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
+// parseFrontmatterSection reads the workflow file and parses its frontmatter.
+// It returns a frontmatterParseResult containing the parsed data and validation information.
+// If the workflow is detected as a shared workflow (no 'on' field), isSharedWorkflow is set to true.
+func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterParseResult, error) {
+	orchestratorLog.Printf("Starting frontmatter parsing: %s", markdownPath)
+	log.Printf("Reading file: %s", markdownPath)
 
-	// Extract SecretMasking configuration
-	secretMasking := c.extractSecretMaskingConfig(result.Frontmatter)
+	// Clean the path to prevent path traversal issues (gosec G304)
+	// filepath.Clean removes ".." and other problematic path elements
+	cleanPath := filepath.Clean(markdownPath)
 
-	// Merge secret-masking from imports with top-level secret-masking
-	if importsResult.MergedSecretMasking != "" {
-		orchestratorLog.Printf("Merging secret-masking from imports")
-		secretMasking, err = c.MergeSecretMasking(secretMasking, importsResult.MergedSecretMasking)
-		if err != nil {
-			orchestratorLog.Printf("Secret-masking merge failed: %v", err)
-			return nil, fmt.Errorf("failed to merge secret-masking: %w", err)
+	// Read the file
+	content, err := os.ReadFile(cleanPath)
+	if err != nil {
+		orchestratorLog.Printf("Failed to read file: %s, error: %v", cleanPath, err)
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	log.Printf("File size: %d bytes", len(content))
+
+	// Parse frontmatter and markdown
+	orchestratorLog.Printf("Parsing frontmatter from file: %s", cleanPath)
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		orchestratorLog.Printf("Frontmatter extraction failed: %v", err)
+		// Use FrontmatterStart from result if available, otherwise default to line 2 (after opening ---)
+		frontmatterStart := 2
+		if result != nil && result.FrontmatterStart > 0 {
+			frontmatterStart = result.FrontmatterStart
+		}
+		return nil, c.createFrontmatterError(cleanPath, string(content), err, frontmatterStart)
+	}
+
+	if len(result.Frontmatter) == 0 {
+		orchestratorLog.Print("No frontmatter found in file")
+		return nil, fmt.Errorf("no frontmatter found")
+	}
+
+	// Preprocess schedule fields to convert human-friendly format to cron expressions
+	if err := c.preprocessScheduleFields(result.Frontmatter, cleanPath, string(content)); err != nil {
+		orchestratorLog.Printf("Schedule preprocessing failed: %v", err)
+		return nil, err
+	}
+
+	// Create a copy of frontmatter without internal markers for schema validation
+	// Keep the original frontmatter with markers for YAML generation
+	frontmatterForValidation := c.copyFrontmatterWithoutInternalMarkers(result.Frontmatter)
+
+	// Check if "on" field is missing - if so, treat as a shared/imported workflow
+	_, hasOnField := frontmatterForValidation["on"]
+	if !hasOnField {
+		detectionLog.Printf("No 'on' field detected - treating as shared agentic workflow")
+
+		// Validate as an included/shared workflow (uses main_workflow_schema with forbidden field checks)
+		if err := parser.ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
+			orchestratorLog.Printf("Shared workflow validation failed: %v", err)
+			return nil, err
+		}
+
+		return &frontmatterParseResult{
+			cleanPath:                cleanPath,
+			content:                  content,
+			frontmatterResult:        result,
+			frontmatterForValidation: frontmatterForValidation,
+			markdownDir:              filepath.Dir(cleanPath),
+			isSharedWorkflow:         true,
+		}, nil
+	}
+
+	// For main workflows (with 'on' field), markdown content is required
+	if result.Markdown == "" {
+		orchestratorLog.Print("No markdown content found for main workflow")
+		return nil, fmt.Errorf("no markdown content found")
+	}
+
+	// Validate main workflow frontmatter contains only expected entries
+	orchestratorLog.Printf("Validating main workflow frontmatter schema")
+	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
+		orchestratorLog.Printf("Main workflow frontmatter validation failed: %v", err)
+		return nil, err
+	}
+
+	// Validate event filter mutual exclusivity (branches/branches-ignore, paths/paths-ignore)
+	if err := ValidateEventFilters(frontmatterForValidation); err != nil {
+		orchestratorLog.Printf("Event filter validation failed: %v", err)
+		return nil, err
+	}
+
+	// Validate that @include/@import directives are not used inside template regions
+	if err := validateNoIncludesInTemplateRegions(result.Markdown); err != nil {
+		orchestratorLog.Printf("Template region validation failed: %v", err)
+		return nil, fmt.Errorf("template region validation failed: %w", err)
+	}
+
+	log.Printf("Frontmatter: %d chars, Markdown: %d chars", len(result.Frontmatter), len(result.Markdown))
+
+	return &frontmatterParseResult{
+		cleanPath:                cleanPath,
+		content:                  content,
+		frontmatterResult:        result,
+		frontmatterForValidation: frontmatterForValidation,
+		markdownDir:              filepath.Dir(cleanPath),
+		isSharedWorkflow:         false,
+	}, nil
+}
+
+func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
+	orchestratorLog.Printf("Starting workflow file parsing: %s", markdownPath)
+
+	// Parse frontmatter section
+	parseResult, err := c.parseFrontmatterSection(markdownPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle shared workflows
+	if parseResult.isSharedWorkflow {
+		// Return a special error to signal that this is a shared workflow
+		// and compilation should be skipped with an info message
+		// Note: Markdown content is optional for shared workflows (they may be just config)
+		return nil, &SharedWorkflowError{
+			Path: parseResult.cleanPath,
 		}
 	}
 
-	var tools map[string]any
+	// Unpack parse result for convenience
+	cleanPath := parseResult.cleanPath
+	content := parseResult.content
+	result := parseResult.frontmatterResult
+	markdownDir := parseResult.markdownDir
 
-	// Extract tools from the main file
-	topTools := extractToolsFromFrontmatter(result.Frontmatter)
-
-	// Extract mcp-servers from the main file and merge them into tools
-	mcpServers := extractMCPServersFromFrontmatter(result.Frontmatter)
-
-	// Process @include directives to extract additional tools
-	orchestratorLog.Printf("Expanding includes for tools")
-	includedTools, includedToolFiles, err := parser.ExpandIncludesWithManifest(result.Markdown, markdownDir, true)
-	if err != nil {
-		orchestratorLog.Printf("Failed to expand includes for tools: %v", err)
-		return nil, fmt.Errorf("failed to expand includes for tools: %w", err)
-	}
-
-	// Combine imported tools with included tools
-	var allIncludedTools string
-	if importsResult.MergedTools != "" && includedTools != "" {
-		allIncludedTools = importsResult.MergedTools + "\n" + includedTools
-	} else if importsResult.MergedTools != "" {
-		allIncludedTools = importsResult.MergedTools
-	} else {
-		allIncludedTools = includedTools
-	}
-
-	// Combine imported mcp-servers with top-level mcp-servers
-	// Imported mcp-servers are in JSON format (newline-separated), need to merge them
-	allMCPServers := mcpServers
-	if importsResult.MergedMCPServers != "" {
-		orchestratorLog.Printf("Merging imported mcp-servers")
-		// Parse and merge imported MCP servers
-		mergedMCPServers, err := c.MergeMCPServers(mcpServers, importsResult.MergedMCPServers)
-		if err != nil {
-			orchestratorLog.Printf("MCP servers merge failed: %v", err)
-			return nil, fmt.Errorf("failed to merge imported mcp-servers: %w", err)
-		}
-		allMCPServers = mergedMCPServers
-	}
-
-	// Merge tools including mcp-servers
-	orchestratorLog.Printf("Merging tools and MCP servers")
-	tools, err = c.mergeToolsAndMCPServers(topTools, allMCPServers, allIncludedTools)
-
-	if err != nil {
-		orchestratorLog.Printf("Tools merge failed: %v", err)
-		return nil, fmt.Errorf("failed to merge tools: %w", err)
-	}
-
-	// Extract and validate tools timeout settings
-	toolsTimeout, err := c.extractToolsTimeout(tools)
-	if err != nil {
-		return nil, fmt.Errorf("invalid tools timeout configuration: %w", err)
-	}
-
-	toolsStartupTimeout, err := c.extractToolsStartupTimeout(tools)
-	if err != nil {
-		return nil, fmt.Errorf("invalid tools startup timeout configuration: %w", err)
-	}
-
-	// Remove meta fields (timeout, startup-timeout) from merged tools map
-	// These are configuration fields, not actual tools
-	delete(tools, "timeout")
-	delete(tools, "startup-timeout")
-
-	// Extract and merge runtimes from frontmatter and imports
-	topRuntimes := extractRuntimesFromFrontmatter(result.Frontmatter)
-	orchestratorLog.Printf("Merging runtimes")
-	runtimes, err := mergeRuntimes(topRuntimes, importsResult.MergedRuntimes)
-	if err != nil {
-		orchestratorLog.Printf("Runtimes merge failed: %v", err)
-		return nil, fmt.Errorf("failed to merge runtimes: %w", err)
-	}
-
-	// Add MCP fetch server if needed (when web-fetch is requested but engine doesn't support it)
-	tools, _ = AddMCPFetchServerIfNeeded(tools, agenticEngine)
-
-	// Validate MCP configurations
-	orchestratorLog.Printf("Validating MCP configurations")
-	if err := ValidateMCPConfigs(tools); err != nil {
-		orchestratorLog.Printf("MCP configuration validation failed: %v", err)
-		return nil, err
-	}
-
-	// Validate HTTP transport support for the current engine
-	if err := c.validateHTTPTransportSupport(tools, agenticEngine); err != nil {
-		orchestratorLog.Printf("HTTP transport validation failed: %v", err)
-		return nil, err
-	}
-
-	if !agenticEngine.SupportsToolsAllowlist() {
-		// For engines that don't support tool allowlists (like codex), ignore tools section and provide warnings
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), engineSetting)))
-		c.IncrementWarningCount()
-		if _, hasTools := result.Frontmatter["tools"]; hasTools {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("'tools' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", engineSetting, agenticEngine.GetDisplayName())))
-			c.IncrementWarningCount()
-		}
-		tools = map[string]any{}
-		// For now, we'll add a basic github tool (always uses docker MCP)
-		githubConfig := map[string]any{}
-
-		tools["github"] = githubConfig
-	}
-
-	// Validate max-turns support for the current engine
-	if err := c.validateMaxTurnsSupport(result.Frontmatter, agenticEngine); err != nil {
-		return nil, err
-	}
-
-	// Validate web-search support for the current engine (warning only)
-	c.validateWebSearchSupport(tools, agenticEngine)
-
-	// Process @include directives in markdown content
-	markdownContent, includedMarkdownFiles, err := parser.ExpandIncludesWithManifest(result.Markdown, markdownDir, false)
-	if err != nil {
-		return nil, fmt.Errorf("failed to expand includes in markdown: %w", err)
-	}
-
-	// Prepend imported markdown from frontmatter imports field
-	if importsResult.MergedMarkdown != "" {
-		markdownContent = importsResult.MergedMarkdown + markdownContent
-	}
-
-	log.Print("Expanded includes in markdown content")
-
-	// Combine all included files (from tools and markdown)
-	// Use a map to deduplicate files
-	allIncludedFilesMap := make(map[string]bool)
-	for _, file := range includedToolFiles {
-		allIncludedFilesMap[file] = true
-	}
-	for _, file := range includedMarkdownFiles {
-		allIncludedFilesMap[file] = true
-	}
-	var allIncludedFiles []string
-	for file := range allIncludedFilesMap {
-		allIncludedFiles = append(allIncludedFiles, file)
-	}
-	// Sort files alphabetically to ensure consistent ordering in lock files
-	sort.Strings(allIncludedFiles)
-
-	// Extract workflow name
-	workflowName, err := parser.ExtractWorkflowNameFromMarkdown(cleanPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract workflow name: %w", err)
-	}
-
-	// Check if frontmatter specifies a custom name and use it instead
-	frontmatterName := extractStringFromMap(result.Frontmatter, "name", nil)
-	if frontmatterName != "" {
-		workflowName = frontmatterName
-	}
-
-	log.Printf("Extracted workflow name: '%s'", workflowName)
-
-	// Check if the markdown content uses the text output
-	needsTextOutput := c.detectTextOutputUsage(markdownContent)
-
-	// Extract and validate tracker-id
-	trackerID, err := c.extractTrackerID(result.Frontmatter)
+	// Setup engine and process imports
+	engineSetup, err := c.setupEngineAndImports(result, cleanPath, content, markdownDir)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse frontmatter config once for performance optimization
-	parsedFrontmatter, err := ParseFrontmatterConfig(result.Frontmatter)
+	// Unpack engine setup results
+	engineSetting := engineSetup.engineSetting
+	engineConfig := engineSetup.engineConfig
+	agenticEngine := engineSetup.agenticEngine
+	networkPermissions := engineSetup.networkPermissions
+	sandboxConfig := engineSetup.sandboxConfig
+	importsResult := engineSetup.importsResult
+
+	// Process tools and markdown
+	toolsResult, err := c.processToolsAndMarkdown(result, cleanPath, markdownDir, agenticEngine, engineSetting, importsResult)
 	if err != nil {
-		orchestratorLog.Printf("Failed to parse frontmatter config: %v", err)
-		// Non-fatal error - continue with nil ParsedFrontmatter
-		parsedFrontmatter = nil
+		return nil, err
 	}
+
+	// Unpack tools processing results
+	tools := toolsResult.tools
+	runtimes := toolsResult.runtimes
+	toolsTimeout := toolsResult.toolsTimeout
+	toolsStartupTimeout := toolsResult.toolsStartupTimeout
+	markdownContent := toolsResult.markdownContent
+	allIncludedFiles := toolsResult.allIncludedFiles
+	workflowName := toolsResult.workflowName
+	frontmatterName := toolsResult.frontmatterName
+	needsTextOutput := toolsResult.needsTextOutput
+	trackerID := toolsResult.trackerID
+	safeOutputs := toolsResult.safeOutputs
+	secretMasking := toolsResult.secretMasking
+	parsedFrontmatter := toolsResult.parsedFrontmatter
 
 	// Build workflow data
 	workflowData := &WorkflowData{
