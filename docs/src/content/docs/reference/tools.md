@@ -128,6 +128,88 @@ tools:
 
 See [Automatic GitHub Lockdown](/gh-aw/guides/security/#automatic-github-lockdown-on-public-repositories) for security implications.
 
+### GitHub App Authentication
+
+Configure GitHub App token minting for enhanced security with short-lived, automatically-revoked credentials:
+
+```yaml wrap
+tools:
+  github:
+    toolsets: [repos, issues, pull_requests]
+    app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      repositories:  # Optional: defaults to current repo only
+        - "repo1"
+        - "repo2"
+```
+
+**Benefits**:
+
+- **Short-lived tokens**: Created at job start, automatically revoked at job end (even on failure)
+- **Automatic permissions**: Compiler calculates required permissions from job `permissions` field
+- **No PAT rotation**: Eliminates manual token management
+- **Audit trail**: Actions logged under GitHub App identity
+
+**How it works**:
+
+1. Token minted at workflow start with permissions matching the job's `permissions` field
+2. Token overrides `github-token` and default token fallback
+3. Token automatically invalidated at workflow end using `if: always()` condition
+4. Works with both local (Docker) and remote (hosted) GitHub MCP modes
+
+**Setup**:
+
+Repository variables and secrets needed:
+- `APP_ID` - GitHub App ID (repository variable)
+- `APP_PRIVATE_KEY` - GitHub App private key (repository secret)
+
+```bash wrap
+gh variable set APP_ID --body "YOUR_APP_ID"
+gh secret set APP_PRIVATE_KEY < app-private-key.pem
+```
+
+**Shared workflow pattern** (recommended):
+
+Create a shared workflow for reusable GitHub App configuration:
+
+```yaml wrap
+# .github/aw/shared/github-mcp-app.md
+---
+tools:
+  github:
+    app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+---
+```
+
+Import in workflows:
+
+```yaml wrap
+# .github/aw/my-workflow.md
+---
+imports:
+  - shared/github-mcp-app.md
+permissions:
+  contents: read
+  issues: write
+tools:
+  github:
+    toolsets: [repos, issues]
+---
+
+# Workflow uses app token automatically
+```
+
+**Permissions**: The minted token receives permissions matching your job's `permissions` configuration. For example, `contents: read, issues: write` grants the token read access to repository contents and write access to issues.
+
+> [!NOTE]
+> Token precedence
+> When GitHub App is configured, the app token takes precedence over all other tokens: app token → `github-token` → `GH_AW_GITHUB_MCP_SERVER_TOKEN` → `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN`
+
+See [GitHub Tokens](/gh-aw/reference/tokens/#github-app-tokens) for complete authentication options and [Safe Outputs](/gh-aw/reference/safe-outputs/) for safe-outputs-specific app configuration.
+
 ## Playwright Tool (`playwright:`)
 
 Enables containerized browser automation with domain-based access control:
