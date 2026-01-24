@@ -353,7 +353,7 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 				Model: "claude-3-5-sonnet-20241022",
 			},
 			NetworkPermissions: &NetworkPermissions{
-				Mode: "defaults", // Default network mode
+				Allowed: []string{"defaults"}, // Default network mode
 			},
 		}
 

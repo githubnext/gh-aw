@@ -1015,7 +1015,6 @@ jobs:
               actor: context.actor,
               event_name: context.eventName,
               staged: true,
-              network_mode: "defaults",
               allowed_domains: [],
               firewall_enabled: true,
               awf_version: "v0.10.0",

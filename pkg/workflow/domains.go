@@ -122,17 +122,43 @@ func getEcosystemDomains(category string) []string {
 	return result
 }
 
-// GetAllowedDomains returns the allowed domains from network permissions
-// Returns default allow-list if no network permissions configured or in "defaults" mode
-// Returns empty slice if network permissions configured but no domains allowed (deny all)
-// Returns domain list if network permissions configured with allowed domains
-// The returned list is sorted and deduplicated
-// Supports ecosystem identifiers:
-//   - "defaults": basic infrastructure (certs, JSON schema, Ubuntu, common package mirrors, Microsoft sources)
-//   - "containers": container registries (Docker, GitHub Container Registry, etc.)
+// GetAllowedDomains returns the allowed domains from network permissions.
+//
+// # Behavior based on network permissions configuration:
+//
+//  1. No network permissions (nil):
+//     Returns default ecosystem domains for backwards compatibility.
+//
+//  2. Allowed list with "defaults" only:
+//     network: defaults  OR  network: { allowed: [defaults] }
+//     Returns default ecosystem domains.
+//
+//  3. Allowed list with multiple ecosystems:
+//     network:
+//     allowed:
+//     - defaults
+//     - github
+//     Processes the Allowed list, expanding all ecosystem identifiers and merging them.
+//
+//  4. Allowed list with custom domains:
+//     network:
+//     allowed:
+//     - example.com
+//     - python
+//     Processes the Allowed list, expanding ecosystem identifiers.
+//
+//  5. Empty Allowed list (deny-all):
+//     network: {}  OR  network: { allowed: [] }
+//     Returns empty slice (no network access).
+//
+// The returned list is sorted and deduplicated.
+//
+// # Supported ecosystem identifiers:
+//   - "defaults": basic infrastructure (certs, JSON schema, Ubuntu, package mirrors)
+//   - "containers": container registries (Docker, GHCR, etc.)
 //   - "dotnet": .NET and NuGet ecosystem
 //   - "dart": Dart/Flutter ecosystem
-//   - "github": GitHub domains
+//   - "github": GitHub domains (*.githubusercontent.com, github.githubassets.com, etc.)
 //   - "go": Go ecosystem
 //   - "terraform": HashiCorp/Terraform
 //   - "haskell": Haskell ecosystem
@@ -146,15 +172,11 @@ func getEcosystemDomains(category string) []string {
 //   - "ruby": Ruby/RubyGems
 //   - "rust": Rust/Cargo/Crates
 //   - "swift": Swift/CocoaPods
-//   - "github-actions": GitHub Actions domains
+//   - "github-actions": GitHub Actions blob storage domains
 func GetAllowedDomains(network *NetworkPermissions) []string {
 	if network == nil {
 		domainsLog.Print("No network permissions specified, using defaults")
 		return getEcosystemDomains("defaults") // Default allow-list for backwards compatibility
-	}
-	if network.Mode == "defaults" {
-		domainsLog.Print("Network mode is defaults, using default ecosystem domains")
-		return getEcosystemDomains("defaults") // Default allow-list for defaults mode
 	}
 
 	// Handle empty allowed list (deny-all case)

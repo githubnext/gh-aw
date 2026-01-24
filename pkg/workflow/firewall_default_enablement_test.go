@@ -26,7 +26,6 @@ func TestEnableFirewallByDefaultForCopilot(t *testing.T) {
 
 	t.Run("copilot engine with network:defaults enables firewall by default", func(t *testing.T) {
 		networkPerms := &NetworkPermissions{
-			Mode:              "defaults",
 			ExplicitlyDefined: true,
 		}
 
@@ -328,8 +327,8 @@ func TestDailyTeamStatusFirewallEnabled(t *testing.T) {
 			t.Fatal("Expected network permissions to be extracted")
 		}
 
-		if networkPerms.Mode != "defaults" {
-			t.Errorf("Expected network mode to be 'defaults', got '%s'", networkPerms.Mode)
+		if len(networkPerms.Allowed) != 1 || networkPerms.Allowed[0] != "defaults" {
+			t.Errorf("Expected network allowed to be ['defaults'], got %v", networkPerms.Allowed)
 		}
 
 		// Enable firewall by default

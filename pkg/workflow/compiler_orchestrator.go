@@ -288,10 +288,10 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// Extract network permissions from frontmatter
 	networkPermissions := c.extractNetworkPermissions(result.Frontmatter)
 
-	// Default to 'defaults' network access if no network permissions specified
+	// Default to 'defaults' ecosystem if no network permissions specified
 	if networkPermissions == nil {
 		networkPermissions = &NetworkPermissions{
-			Mode: "defaults",
+			Allowed: []string{"defaults"},
 		}
 	}
 
@@ -595,127 +595,80 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 	}, nil
 }
 
-func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
-	orchestratorLog.Printf("Starting workflow file parsing: %s", markdownPath)
+// buildInitialWorkflowData creates the initial WorkflowData struct with basic fields populated
+func (c *Compiler) buildInitialWorkflowData(
+	result *parser.FrontmatterResult,
+	toolsResult *toolsProcessingResult,
+	engineSetup *engineSetupResult,
+	importsResult *parser.ImportsResult,
+) *WorkflowData {
+	orchestratorLog.Print("Building initial workflow data")
 
-	// Parse frontmatter section
-	parseResult, err := c.parseFrontmatterSection(markdownPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// Handle shared workflows
-	if parseResult.isSharedWorkflow {
-		// Return a special error to signal that this is a shared workflow
-		// and compilation should be skipped with an info message
-		// Note: Markdown content is optional for shared workflows (they may be just config)
-		return nil, &SharedWorkflowError{
-			Path: parseResult.cleanPath,
-		}
-	}
-
-	// Unpack parse result for convenience
-	cleanPath := parseResult.cleanPath
-	content := parseResult.content
-	result := parseResult.frontmatterResult
-	markdownDir := parseResult.markdownDir
-
-	// Setup engine and process imports
-	engineSetup, err := c.setupEngineAndImports(result, cleanPath, content, markdownDir)
-	if err != nil {
-		return nil, err
-	}
-
-	// Unpack engine setup results
-	engineSetting := engineSetup.engineSetting
-	engineConfig := engineSetup.engineConfig
-	agenticEngine := engineSetup.agenticEngine
-	networkPermissions := engineSetup.networkPermissions
-	sandboxConfig := engineSetup.sandboxConfig
-	importsResult := engineSetup.importsResult
-
-	// Process tools and markdown
-	toolsResult, err := c.processToolsAndMarkdown(result, cleanPath, markdownDir, agenticEngine, engineSetting, importsResult)
-	if err != nil {
-		return nil, err
-	}
-
-	// Unpack tools processing results
-	tools := toolsResult.tools
-	runtimes := toolsResult.runtimes
-	toolsTimeout := toolsResult.toolsTimeout
-	toolsStartupTimeout := toolsResult.toolsStartupTimeout
-	markdownContent := toolsResult.markdownContent
-	allIncludedFiles := toolsResult.allIncludedFiles
-	workflowName := toolsResult.workflowName
-	frontmatterName := toolsResult.frontmatterName
-	needsTextOutput := toolsResult.needsTextOutput
-	trackerID := toolsResult.trackerID
-	safeOutputs := toolsResult.safeOutputs
-	secretMasking := toolsResult.secretMasking
-	parsedFrontmatter := toolsResult.parsedFrontmatter
-
-	// Build workflow data
-	workflowData := &WorkflowData{
-		Name:                workflowName,
-		FrontmatterName:     frontmatterName,
+	return &WorkflowData{
+		Name:                toolsResult.workflowName,
+		FrontmatterName:     toolsResult.frontmatterName,
 		FrontmatterYAML:     strings.Join(result.FrontmatterLines, "\n"),
 		Description:         c.extractDescription(result.Frontmatter),
 		Source:              c.extractSource(result.Frontmatter),
-		TrackerID:           trackerID,
+		TrackerID:           toolsResult.trackerID,
 		ImportedFiles:       importsResult.ImportedFiles,
-		IncludedFiles:       allIncludedFiles,
+		IncludedFiles:       toolsResult.allIncludedFiles,
 		ImportInputs:        importsResult.ImportInputs,
-		Tools:               tools,
-		ParsedTools:         NewTools(tools),
-		Runtimes:            runtimes,
-		MarkdownContent:     markdownContent,
-		AI:                  engineSetting,
-		EngineConfig:        engineConfig,
+		Tools:               toolsResult.tools,
+		ParsedTools:         NewTools(toolsResult.tools),
+		Runtimes:            toolsResult.runtimes,
+		MarkdownContent:     toolsResult.markdownContent,
+		AI:                  engineSetup.engineSetting,
+		EngineConfig:        engineSetup.engineConfig,
 		AgentFile:           importsResult.AgentFile,
-		NetworkPermissions:  networkPermissions,
-		SandboxConfig:       sandboxConfig,
-		NeedsTextOutput:     needsTextOutput,
-		ToolsTimeout:        toolsTimeout,
-		ToolsStartupTimeout: toolsStartupTimeout,
+		NetworkPermissions:  engineSetup.networkPermissions,
+		SandboxConfig:       applySandboxDefaults(engineSetup.sandboxConfig, engineSetup.engineConfig),
+		NeedsTextOutput:     toolsResult.needsTextOutput,
+		ToolsTimeout:        toolsResult.toolsTimeout,
+		ToolsStartupTimeout: toolsResult.toolsStartupTimeout,
 		TrialMode:           c.trialMode,
 		TrialLogicalRepo:    c.trialLogicalRepoSlug,
 		GitHubToken:         extractStringFromMap(result.Frontmatter, "github-token", nil),
 		StrictMode:          c.strictMode,
-		SecretMasking:       secretMasking,
-		ParsedFrontmatter:   parsedFrontmatter,
+		SecretMasking:       toolsResult.secretMasking,
+		ParsedFrontmatter:   toolsResult.parsedFrontmatter,
 	}
+}
 
-	// Apply defaults to sandbox config
-	workflowData.SandboxConfig = applySandboxDefaults(workflowData.SandboxConfig, engineConfig)
+// extractYAMLSections extracts YAML configuration sections from frontmatter
+func (c *Compiler) extractYAMLSections(frontmatter map[string]any, workflowData *WorkflowData) {
+	orchestratorLog.Print("Extracting YAML sections from frontmatter")
 
-	// Use shared action cache and resolver from the compiler
-	// This ensures cache is shared across all workflows during compilation
-	actionCache, actionResolver := c.getSharedActionResolver()
-	workflowData.ActionCache = actionCache
-	workflowData.ActionResolver = actionResolver
-	workflowData.ActionPinWarnings = c.actionPinWarnings // Share warning cache across all workflows
+	workflowData.On = c.extractTopLevelYAMLSection(frontmatter, "on")
+	workflowData.Permissions = c.extractPermissions(frontmatter)
+	workflowData.Network = c.extractTopLevelYAMLSection(frontmatter, "network")
+	workflowData.Concurrency = c.extractTopLevelYAMLSection(frontmatter, "concurrency")
+	workflowData.RunName = c.extractTopLevelYAMLSection(frontmatter, "run-name")
+	workflowData.Env = c.extractTopLevelYAMLSection(frontmatter, "env")
+	workflowData.Features = c.extractFeatures(frontmatter)
+	workflowData.If = c.extractIfCondition(frontmatter)
 
-	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
-	// to avoid issues with nested keys (e.g., tools.mcps.*.env being confused with top-level env)
-	workflowData.On = c.extractTopLevelYAMLSection(result.Frontmatter, "on")
-	workflowData.Permissions = c.extractPermissions(result.Frontmatter)
-	workflowData.Network = c.extractTopLevelYAMLSection(result.Frontmatter, "network")
-	workflowData.Concurrency = c.extractTopLevelYAMLSection(result.Frontmatter, "concurrency")
-	workflowData.RunName = c.extractTopLevelYAMLSection(result.Frontmatter, "run-name")
-	workflowData.Env = c.extractTopLevelYAMLSection(result.Frontmatter, "env")
-	workflowData.Features = c.extractFeatures(result.Frontmatter)
-	workflowData.If = c.extractIfCondition(result.Frontmatter)
 	// Prefer timeout-minutes (new) over timeout_minutes (deprecated)
-	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout-minutes")
+	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(frontmatter, "timeout-minutes")
 	if workflowData.TimeoutMinutes == "" {
-		workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout_minutes")
+		workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(frontmatter, "timeout_minutes")
 		if workflowData.TimeoutMinutes != "" {
 			// Emit deprecation warning
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Field 'timeout_minutes' is deprecated. Please use 'timeout-minutes' instead to follow GitHub Actions naming convention."))
 		}
 	}
-	workflowData.CustomSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "steps")
+
+	workflowData.RunsOn = c.extractTopLevelYAMLSection(frontmatter, "runs-on")
+	workflowData.Environment = c.extractTopLevelYAMLSection(frontmatter, "environment")
+	workflowData.Container = c.extractTopLevelYAMLSection(frontmatter, "container")
+	workflowData.Cache = c.extractTopLevelYAMLSection(frontmatter, "cache")
+}
+
+// processAndMergeSteps handles the merging of imported steps with main workflow steps
+func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) {
+	orchestratorLog.Print("Processing and merging custom steps")
+
+	workflowData.CustomSteps = c.extractTopLevelYAMLSection(frontmatter, "steps")
 
 	// Merge imported steps if any
 	if importsResult.MergedSteps != "" {
@@ -777,8 +730,13 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 			}
 		}
 	}
+}
 
-	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
+// processAndMergePostSteps handles the processing of post-steps with action pinning
+func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflowData *WorkflowData) {
+	orchestratorLog.Print("Processing post-steps")
+
+	workflowData.PostSteps = c.extractTopLevelYAMLSection(frontmatter, "post-steps")
 
 	// Apply action pinning to post-steps if any
 	if workflowData.PostSteps != "" {
@@ -800,11 +758,13 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 			}
 		}
 	}
+}
 
-	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
-	workflowData.Environment = c.extractTopLevelYAMLSection(result.Frontmatter, "environment")
-	workflowData.Container = c.extractTopLevelYAMLSection(result.Frontmatter, "container")
-	workflowData.Services = c.extractTopLevelYAMLSection(result.Frontmatter, "services")
+// processAndMergeServices handles the merging of imported services with main workflow services
+func (c *Compiler) processAndMergeServices(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) {
+	orchestratorLog.Print("Processing and merging services")
+
+	workflowData.Services = c.extractTopLevelYAMLSection(frontmatter, "services")
 
 	// Merge imported services if any
 	if importsResult.MergedServices != "" {
@@ -841,62 +801,49 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 			}
 		}
 	}
+}
 
-	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
+// extractAdditionalConfigurations extracts cache-memory, repo-memory, safe-inputs, and safe-outputs configurations
+func (c *Compiler) extractAdditionalConfigurations(
+	frontmatter map[string]any,
+	tools map[string]any,
+	markdownDir string,
+	workflowData *WorkflowData,
+	importsResult *parser.ImportsResult,
+	markdown string,
+	safeOutputs *SafeOutputsConfig,
+) error {
+	orchestratorLog.Print("Extracting additional configurations")
 
 	// Extract cache-memory config and check for errors
-	// Use the backward compatibility wrapper to avoid changing all call sites at once
-	cacheMemoryConfig, err := c.extractCacheMemoryConfigFromMap(tools) // Use merged tools to support imports
+	cacheMemoryConfig, err := c.extractCacheMemoryConfigFromMap(tools)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	workflowData.CacheMemoryConfig = cacheMemoryConfig
 
 	// Extract repo-memory config and check for errors
 	toolsConfig, err := ParseToolsConfig(tools)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	repoMemoryConfig, err := c.extractRepoMemoryConfig(toolsConfig)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	workflowData.RepoMemoryConfig = repoMemoryConfig
 
-	// Process stop-after configuration from the on: section
-	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData, cleanPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// Process skip-if-match configuration from the on: section
-	err = c.processSkipIfMatchConfiguration(result.Frontmatter, workflowData)
-	if err != nil {
-		return nil, err
-	}
-
-	// Process skip-if-no-match configuration from the on: section
-	err = c.processSkipIfNoMatchConfiguration(result.Frontmatter, workflowData)
-	if err != nil {
-		return nil, err
-	}
-
-	// Process manual-approval configuration from the on: section
-	err = c.processManualApprovalConfiguration(result.Frontmatter, workflowData)
-	if err != nil {
-		return nil, err
-	}
-
-	workflowData.Command, workflowData.CommandEvents = c.extractCommandConfig(result.Frontmatter)
-	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
-	workflowData.Roles = c.extractRoles(result.Frontmatter)
-	workflowData.Bots = c.extractBots(result.Frontmatter)
+	// Extract and process safe-inputs and safe-outputs
+	workflowData.Command, workflowData.CommandEvents = c.extractCommandConfig(frontmatter)
+	workflowData.Jobs = c.extractJobsFromFrontmatter(frontmatter)
+	workflowData.Roles = c.extractRoles(frontmatter)
+	workflowData.Bots = c.extractBots(frontmatter)
 
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
 
 	// Extract safe-inputs configuration
-	workflowData.SafeInputs = c.extractSafeInputsConfig(result.Frontmatter)
+	workflowData.SafeInputs = c.extractSafeInputsConfig(frontmatter)
 
 	// Merge safe-inputs from imports
 	if len(importsResult.MergedSafeInputs) > 0 {
@@ -904,12 +851,12 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Extract safe-jobs from safe-outputs.jobs location
-	topSafeJobs := extractSafeJobsFromFrontmatter(result.Frontmatter)
+	topSafeJobs := extractSafeJobsFromFrontmatter(frontmatter)
 
 	// Process @include directives to extract additional safe-outputs configurations
-	includedSafeOutputsConfigs, err := parser.ExpandIncludesForSafeOutputs(result.Markdown, markdownDir)
+	includedSafeOutputsConfigs, err := parser.ExpandIncludesForSafeOutputs(markdown, markdownDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to expand includes for safe-outputs: %w", err)
+		return fmt.Errorf("failed to expand includes for safe-outputs: %w", err)
 	}
 
 	// Combine imported safe-outputs with included safe-outputs
@@ -924,13 +871,13 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Merge safe-jobs from all safe-outputs configurations (imported and included)
 	includedSafeJobs, err := c.mergeSafeJobsFromIncludedConfigs(topSafeJobs, allSafeOutputsConfigs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to merge safe-jobs from includes: %w", err)
+		return fmt.Errorf("failed to merge safe-jobs from includes: %w", err)
 	}
 
 	// Merge app configuration from included safe-outputs configurations
 	includedApp, err := c.mergeAppFromIncludedConfigs(workflowData.SafeOutputs, allSafeOutputsConfigs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to merge app from includes: %w", err)
+		return fmt.Errorf("failed to merge app from includes: %w", err)
 	}
 
 	// Ensure SafeOutputs exists and populate the Jobs field with merged jobs
@@ -938,7 +885,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		workflowData.SafeOutputs = &SafeOutputsConfig{}
 	}
 	// Always use the merged includedSafeJobs as it contains both main and imported jobs
-	// The mergeSafeJobsFromIncludedConfigs function already handles conflict detection
 	if workflowData.SafeOutputs != nil && len(includedSafeJobs) > 0 {
 		workflowData.SafeOutputs.Jobs = includedSafeJobs
 	}
@@ -948,32 +894,136 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		workflowData.SafeOutputs.App = includedApp
 	}
 
-	// Merge safe-outputs types from imports (create-issue, add-comment, etc.)
+	// Merge safe-outputs types from imports
 	mergedSafeOutputs, err := c.MergeSafeOutputs(workflowData.SafeOutputs, allSafeOutputsConfigs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to merge safe-outputs from imports: %w", err)
+		return fmt.Errorf("failed to merge safe-outputs from imports: %w", err)
 	}
 	workflowData.SafeOutputs = mergedSafeOutputs
 
+	return nil
+}
+
+// processOnSectionAndFilters processes the on section configuration and applies various filters
+func (c *Compiler) processOnSectionAndFilters(
+	frontmatter map[string]any,
+	workflowData *WorkflowData,
+	cleanPath string,
+) error {
+	orchestratorLog.Print("Processing on section and filters")
+
+	// Process stop-after configuration from the on: section
+	if err := c.processStopAfterConfiguration(frontmatter, workflowData, cleanPath); err != nil {
+		return err
+	}
+
+	// Process skip-if-match configuration from the on: section
+	if err := c.processSkipIfMatchConfiguration(frontmatter, workflowData); err != nil {
+		return err
+	}
+
+	// Process skip-if-no-match configuration from the on: section
+	if err := c.processSkipIfNoMatchConfiguration(frontmatter, workflowData); err != nil {
+		return err
+	}
+
+	// Process manual-approval configuration from the on: section
+	if err := c.processManualApprovalConfiguration(frontmatter, workflowData); err != nil {
+		return err
+	}
+
 	// Parse the "on" section for command triggers, reactions, and other events
-	err = c.parseOnSection(result.Frontmatter, workflowData, cleanPath)
-	if err != nil {
-		return nil, err
+	if err := c.parseOnSection(frontmatter, workflowData, cleanPath); err != nil {
+		return err
 	}
 
 	// Apply defaults
 	if err := c.applyDefaults(workflowData, cleanPath); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Apply pull request draft filter if specified
-	c.applyPullRequestDraftFilter(workflowData, result.Frontmatter)
+	c.applyPullRequestDraftFilter(workflowData, frontmatter)
 
 	// Apply pull request fork filter if specified
-	c.applyPullRequestForkFilter(workflowData, result.Frontmatter)
+	c.applyPullRequestForkFilter(workflowData, frontmatter)
 
 	// Apply label filter if specified
-	c.applyLabelFilter(workflowData, result.Frontmatter)
+	c.applyLabelFilter(workflowData, frontmatter)
+
+	return nil
+}
+
+func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
+	orchestratorLog.Printf("Starting workflow file parsing: %s", markdownPath)
+
+	// Parse frontmatter section
+	parseResult, err := c.parseFrontmatterSection(markdownPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle shared workflows
+	if parseResult.isSharedWorkflow {
+		return nil, &SharedWorkflowError{Path: parseResult.cleanPath}
+	}
+
+	// Unpack parse result for convenience
+	cleanPath := parseResult.cleanPath
+	content := parseResult.content
+	result := parseResult.frontmatterResult
+	markdownDir := parseResult.markdownDir
+
+	// Setup engine and process imports
+	engineSetup, err := c.setupEngineAndImports(result, cleanPath, content, markdownDir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Process tools and markdown
+	toolsResult, err := c.processToolsAndMarkdown(result, cleanPath, markdownDir, engineSetup.agenticEngine, engineSetup.engineSetting, engineSetup.importsResult)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build initial workflow data structure
+	workflowData := c.buildInitialWorkflowData(result, toolsResult, engineSetup, engineSetup.importsResult)
+
+	// Use shared action cache and resolver from the compiler
+	actionCache, actionResolver := c.getSharedActionResolver()
+	workflowData.ActionCache = actionCache
+	workflowData.ActionResolver = actionResolver
+	workflowData.ActionPinWarnings = c.actionPinWarnings
+
+	// Extract YAML configuration sections from frontmatter
+	c.extractYAMLSections(result.Frontmatter, workflowData)
+
+	// Process and merge custom steps with imported steps
+	c.processAndMergeSteps(result.Frontmatter, workflowData, engineSetup.importsResult)
+
+	// Process and merge post-steps
+	c.processAndMergePostSteps(result.Frontmatter, workflowData)
+
+	// Process and merge services
+	c.processAndMergeServices(result.Frontmatter, workflowData, engineSetup.importsResult)
+
+	// Extract additional configurations (cache, safe-inputs, safe-outputs, etc.)
+	if err := c.extractAdditionalConfigurations(
+		result.Frontmatter,
+		toolsResult.tools,
+		markdownDir,
+		workflowData,
+		engineSetup.importsResult,
+		result.Markdown,
+		toolsResult.safeOutputs,
+	); err != nil {
+		return nil, err
+	}
+
+	// Process on section configuration and apply filters
+	if err := c.processOnSectionAndFilters(result.Frontmatter, workflowData, cleanPath); err != nil {
+		return nil, err
+	}
 
 	orchestratorLog.Printf("Workflow file parsing completed successfully: %s", markdownPath)
 	return workflowData, nil

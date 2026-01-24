@@ -391,3 +391,298 @@ func TestGetClaudeAllowedDomains(t *testing.T) {
 		}
 	})
 }
+
+// TestGetAllowedDomains_ModeDefaultsWithAllowedList verifies that when there's an Allowed list
+// with multiple ecosystems, it processes and expands all of them
+func TestGetAllowedDomains_ModeDefaultsWithAllowedList(t *testing.T) {
+	network := &NetworkPermissions{
+		Allowed: []string{
+			"defaults",
+			"github",
+		},
+	}
+
+	domains := GetAllowedDomains(network)
+
+	// Should include both defaults and github ecosystem domains
+	// Check for some representative domains from each ecosystem
+	hasDefaults := false
+	hasGitHub := false
+
+	for _, domain := range domains {
+		if domain == "json-schema.org" {
+			hasDefaults = true
+		}
+		if domain == "github.githubassets.com" {
+			hasGitHub = true
+		}
+	}
+
+	if !hasDefaults {
+		t.Error("Expected domains list to include 'json-schema.org' from defaults ecosystem")
+	}
+	if !hasGitHub {
+		t.Error("Expected domains list to include 'github.githubassets.com' from github ecosystem")
+	}
+
+	t.Logf("Total domains: %d", len(domains))
+}
+
+// TestGetAllowedDomains_VariousCombinations tests various combinations of domain configurations
+func TestGetAllowedDomains_VariousCombinations(t *testing.T) {
+	tests := []struct {
+		name              string
+		allowed           []string
+		expectContains    []string // Domains that must be in the result
+		expectNotContains []string // Domains that must NOT be in the result
+		expectEmpty       bool     // If true, expect empty result
+	}{
+		{
+			name:           "nil network permissions returns defaults",
+			allowed:        nil,
+			expectContains: []string{"json-schema.org", "archive.ubuntu.com"},
+		},
+		{
+			name:           "single defaults ecosystem",
+			allowed:        []string{"defaults"},
+			expectContains: []string{"json-schema.org", "archive.ubuntu.com", "ocsp.digicert.com"},
+		},
+		{
+			name:           "defaults + github ecosystems",
+			allowed:        []string{"defaults", "github"},
+			expectContains: []string{"json-schema.org", "github.githubassets.com", "*.githubusercontent.com", "lfs.github.com"},
+		},
+		{
+			name:              "defaults + github + python ecosystems",
+			allowed:           []string{"defaults", "github", "python"},
+			expectContains:    []string{"json-schema.org", "github.githubassets.com", "pypi.org", "files.pythonhosted.org"},
+			expectNotContains: []string{"registry.npmjs.org"}, // node ecosystem not included
+		},
+		{
+			name:           "defaults + node + containers",
+			allowed:        []string{"defaults", "node", "containers"},
+			expectContains: []string{"json-schema.org", "registry.npmjs.org", "ghcr.io", "registry.hub.docker.com"},
+		},
+		{
+			name:              "single literal domain",
+			allowed:           []string{"example.com"},
+			expectContains:    []string{"example.com"},
+			expectNotContains: []string{"json-schema.org", "github.com"},
+		},
+		{
+			name:           "literal domain + ecosystem",
+			allowed:        []string{"example.com", "github"},
+			expectContains: []string{"example.com", "github.githubassets.com", "*.githubusercontent.com"},
+		},
+		{
+			name:           "multiple literal domains",
+			allowed:        []string{"example.com", "test.org", "api.custom.io"},
+			expectContains: []string{"example.com", "test.org", "api.custom.io"},
+		},
+		{
+			name:        "empty allowed list (deny all)",
+			allowed:     []string{},
+			expectEmpty: true,
+		},
+		{
+			name:           "go + rust + java ecosystems",
+			allowed:        []string{"go", "rust", "java"},
+			expectContains: []string{"proxy.golang.org", "crates.io", "repo.maven.apache.org"},
+		},
+		{
+			name:           "mixed ecosystems and literals",
+			allowed:        []string{"defaults", "github", "custom.domain.com", "python", "api.test.io"},
+			expectContains: []string{"json-schema.org", "github.githubassets.com", "custom.domain.com", "pypi.org", "api.test.io"},
+		},
+		{
+			name:              "overlapping ecosystems (defaults already contains some basics)",
+			allowed:           []string{"defaults", "linux-distros"},
+			expectContains:    []string{"json-schema.org", "archive.ubuntu.com", "deb.debian.org"},
+			expectNotContains: []string{"github.githubassets.com"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var network *NetworkPermissions
+			if tt.allowed != nil {
+				network = &NetworkPermissions{
+					Allowed: tt.allowed,
+				}
+			}
+
+			domains := GetAllowedDomains(network)
+
+			if tt.expectEmpty {
+				if len(domains) != 0 {
+					t.Errorf("Expected empty domain list, got %d domains", len(domains))
+				}
+				return
+			}
+
+			// Check that expected domains are present
+			for _, expectedDomain := range tt.expectContains {
+				found := false
+				for _, domain := range domains {
+					if domain == expectedDomain {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected domain '%s' not found in result. Got: %v", expectedDomain, domains)
+				}
+			}
+
+			// Check that unexpected domains are NOT present
+			for _, unexpectedDomain := range tt.expectNotContains {
+				for _, domain := range domains {
+					if domain == unexpectedDomain {
+						t.Errorf("Domain '%s' should not be in result, but was found", unexpectedDomain)
+						break
+					}
+				}
+			}
+
+			t.Logf("Test '%s': Got %d domains", tt.name, len(domains))
+		})
+	}
+}
+
+// TestGetAllowedDomains_DeduplicationAcrossEcosystems tests that domains are deduplicated
+// even when they appear in multiple ecosystems
+func TestGetAllowedDomains_DeduplicationAcrossEcosystems(t *testing.T) {
+	// Some domains might theoretically appear in multiple ecosystems
+	// The function should deduplicate them
+	network := &NetworkPermissions{
+		Allowed: []string{
+			"defaults",
+			"github",
+			"python",
+			"node",
+		},
+	}
+
+	domains := GetAllowedDomains(network)
+
+	// Check for duplicates
+	seen := make(map[string]bool)
+	for _, domain := range domains {
+		if seen[domain] {
+			t.Errorf("Duplicate domain found: %s", domain)
+		}
+		seen[domain] = true
+	}
+
+	// Verify we got a reasonable number of unique domains
+	if len(domains) < 10 {
+		t.Errorf("Expected at least 10 unique domains from 4 ecosystems, got %d", len(domains))
+	}
+
+	t.Logf("Total unique domains from [defaults, github, python, node]: %d", len(domains))
+}
+
+// TestGetAllowedDomains_SortingConsistency tests that the output is always sorted
+func TestGetAllowedDomains_SortingConsistency(t *testing.T) {
+	tests := []struct {
+		name    string
+		allowed []string
+	}{
+		{
+			name:    "single ecosystem",
+			allowed: []string{"defaults"},
+		},
+		{
+			name:    "multiple ecosystems",
+			allowed: []string{"github", "defaults", "python"},
+		},
+		{
+			name:    "mixed literals and ecosystems",
+			allowed: []string{"zzz.com", "aaa.com", "defaults", "github"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			network := &NetworkPermissions{
+				Allowed: tt.allowed,
+			}
+
+			domains := GetAllowedDomains(network)
+
+			// Verify sorting
+			for i := 1; i < len(domains); i++ {
+				if domains[i-1] > domains[i] {
+					t.Errorf("Domains not sorted: %s comes before %s", domains[i-1], domains[i])
+				}
+			}
+
+			t.Logf("Test '%s': All %d domains are sorted", tt.name, len(domains))
+		})
+	}
+}
+
+// TestNetworkPermissions_EdgeCases tests edge cases in network configuration
+func TestNetworkPermissions_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name           string
+		network        *NetworkPermissions
+		expectCount    int
+		expectContains []string
+	}{
+		{
+			name: "wildcard domain with ecosystem",
+			network: &NetworkPermissions{
+				Allowed: []string{"*.example.com", "defaults"},
+			},
+			expectContains: []string{"*.example.com", "json-schema.org"},
+		},
+		{
+			name: "duplicate ecosystems in allowed list",
+			network: &NetworkPermissions{
+				Allowed: []string{"defaults", "github", "defaults", "github"},
+			},
+			// Should deduplicate - each ecosystem domain appears only once
+			expectContains: []string{"json-schema.org", "github.githubassets.com"},
+		},
+		{
+			name: "unknown ecosystem identifier treated as literal",
+			network: &NetworkPermissions{
+				Allowed: []string{"unknown-ecosystem"},
+			},
+			expectContains: []string{"unknown-ecosystem"},
+		},
+		{
+			name: "mixed case sensitivity",
+			network: &NetworkPermissions{
+				Allowed: []string{"Example.COM", "test.ORG"},
+			},
+			expectContains: []string{"Example.COM", "test.ORG"}, // Preserved as-is
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			domains := GetAllowedDomains(tt.network)
+
+			if tt.expectCount > 0 && len(domains) != tt.expectCount {
+				t.Errorf("Expected %d domains, got %d", tt.expectCount, len(domains))
+			}
+
+			for _, expectedDomain := range tt.expectContains {
+				found := false
+				for _, domain := range domains {
+					if domain == expectedDomain {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected domain '%s' not found in result: %v", expectedDomain, domains)
+				}
+			}
+
+			t.Logf("Test '%s': Got %d domains", tt.name, len(domains))
+		})
+	}
+}
