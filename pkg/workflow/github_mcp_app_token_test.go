@@ -153,7 +153,7 @@ Test that app token overrides custom token.
 
 	// Verify app token is used (not the custom token)
 	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "Should use app token")
-	
+
 	// Verify custom token is not used when app is configured
 	assert.NotContains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN }}", "Should not use custom token when app is configured")
 }
