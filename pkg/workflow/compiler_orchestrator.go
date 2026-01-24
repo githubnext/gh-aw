@@ -26,136 +26,25 @@ type frontmatterParseResult struct {
 	isSharedWorkflow         bool
 }
 
-// parseFrontmatterSection reads the workflow file and parses its frontmatter.
-// It returns a frontmatterParseResult containing the parsed data and validation information.
-// If the workflow is detected as a shared workflow (no 'on' field), isSharedWorkflow is set to true.
-func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterParseResult, error) {
-	orchestratorLog.Printf("Starting frontmatter parsing: %s", markdownPath)
-	log.Printf("Reading file: %s", markdownPath)
-
-	// Clean the path to prevent path traversal issues (gosec G304)
-	// filepath.Clean removes ".." and other problematic path elements
-	cleanPath := filepath.Clean(markdownPath)
-
-	// Read the file
-	content, err := os.ReadFile(cleanPath)
-	if err != nil {
-		orchestratorLog.Printf("Failed to read file: %s, error: %v", cleanPath, err)
-		return nil, fmt.Errorf("failed to read file: %w", err)
-	}
-
-	log.Printf("File size: %d bytes", len(content))
-
-	// Parse frontmatter and markdown
-	orchestratorLog.Printf("Parsing frontmatter from file: %s", cleanPath)
-	result, err := parser.ExtractFrontmatterFromContent(string(content))
-	if err != nil {
-		orchestratorLog.Printf("Frontmatter extraction failed: %v", err)
-		// Use FrontmatterStart from result if available, otherwise default to line 2 (after opening ---)
-		frontmatterStart := 2
-		if result != nil && result.FrontmatterStart > 0 {
-			frontmatterStart = result.FrontmatterStart
-		}
-		return nil, c.createFrontmatterError(cleanPath, string(content), err, frontmatterStart)
-	}
-
-	if len(result.Frontmatter) == 0 {
-		orchestratorLog.Print("No frontmatter found in file")
-		return nil, fmt.Errorf("no frontmatter found")
-	}
-
-	// Preprocess schedule fields to convert human-friendly format to cron expressions
-	if err := c.preprocessScheduleFields(result.Frontmatter, cleanPath, string(content)); err != nil {
-		orchestratorLog.Printf("Schedule preprocessing failed: %v", err)
-		return nil, err
-	}
-
-	// Create a copy of frontmatter without internal markers for schema validation
-	// Keep the original frontmatter with markers for YAML generation
-	frontmatterForValidation := c.copyFrontmatterWithoutInternalMarkers(result.Frontmatter)
-
-	// Check if "on" field is missing - if so, treat as a shared/imported workflow
-	_, hasOnField := frontmatterForValidation["on"]
-	if !hasOnField {
-		detectionLog.Printf("No 'on' field detected - treating as shared agentic workflow")
-
-		// Validate as an included/shared workflow (uses main_workflow_schema with forbidden field checks)
-		if err := parser.ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
-			orchestratorLog.Printf("Shared workflow validation failed: %v", err)
-			return nil, err
-		}
-
-		return &frontmatterParseResult{
-			cleanPath:                cleanPath,
-			content:                  content,
-			frontmatterResult:        result,
-			frontmatterForValidation: frontmatterForValidation,
-			markdownDir:              filepath.Dir(cleanPath),
-			isSharedWorkflow:         true,
-		}, nil
-	}
-
-	// For main workflows (with 'on' field), markdown content is required
-	if result.Markdown == "" {
-		orchestratorLog.Print("No markdown content found for main workflow")
-		return nil, fmt.Errorf("no markdown content found")
-	}
-
-	// Validate main workflow frontmatter contains only expected entries
-	orchestratorLog.Printf("Validating main workflow frontmatter schema")
-	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
-		orchestratorLog.Printf("Main workflow frontmatter validation failed: %v", err)
-		return nil, err
-	}
-
-	// Validate event filter mutual exclusivity (branches/branches-ignore, paths/paths-ignore)
-	if err := ValidateEventFilters(frontmatterForValidation); err != nil {
-		orchestratorLog.Printf("Event filter validation failed: %v", err)
-		return nil, err
-	}
-
-	// Validate that @include/@import directives are not used inside template regions
-	if err := validateNoIncludesInTemplateRegions(result.Markdown); err != nil {
-		orchestratorLog.Printf("Template region validation failed: %v", err)
-		return nil, fmt.Errorf("template region validation failed: %w", err)
-	}
-
-	log.Printf("Frontmatter: %d chars, Markdown: %d chars", len(result.Frontmatter), len(result.Markdown))
-
-	return &frontmatterParseResult{
-		cleanPath:                cleanPath,
-		content:                  content,
-		frontmatterResult:        result,
-		frontmatterForValidation: frontmatterForValidation,
-		markdownDir:              filepath.Dir(cleanPath),
-		isSharedWorkflow:         false,
-	}, nil
+// engineSetupResult holds the results of engine configuration and validation
+type engineSetupResult struct {
+	engineSetting      string
+	engineConfig       *EngineConfig
+	agenticEngine      CodingAgentEngine
+	networkPermissions *NetworkPermissions
+	sandboxConfig      *SandboxConfig
+	importsResult      *parser.ImportsResult
 }
 
-func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
-	orchestratorLog.Printf("Starting workflow file parsing: %s", markdownPath)
-
-	// Parse frontmatter section
-	parseResult, err := c.parseFrontmatterSection(markdownPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// Handle shared workflows
-	if parseResult.isSharedWorkflow {
-		// Return a special error to signal that this is a shared workflow
-		// and compilation should be skipped with an info message
-		// Note: Markdown content is optional for shared workflows (they may be just config)
-		return nil, &SharedWorkflowError{
-			Path: parseResult.cleanPath,
-		}
-	}
-
-	// Unpack parse result for convenience
-	cleanPath := parseResult.cleanPath
-	content := parseResult.content
-	result := parseResult.frontmatterResult
-	markdownDir := parseResult.markdownDir
+// setupEngineAndImports configures the AI engine, processes imports, and validates network/sandbox settings.
+// This function handles:
+// - Engine extraction and validation
+// - Import processing and merging
+// - Network permissions setup
+// - Sandbox configuration
+// - Strict mode validations
+func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, cleanPath string, content []byte, markdownDir string) (*engineSetupResult, error) {
+	orchestratorLog.Printf("Setting up engine and processing imports")
 
 	// Extract AI engine setting from frontmatter
 	engineSetting, engineConfig := c.ExtractEngineConfig(result.Frontmatter)
@@ -353,6 +242,161 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Restore the strict mode state after network check
 	c.strictMode = initialStrictModeForFirewall
+
+	return &engineSetupResult{
+		engineSetting:      engineSetting,
+		engineConfig:       engineConfig,
+		agenticEngine:      agenticEngine,
+		networkPermissions: networkPermissions,
+		sandboxConfig:      sandboxConfig,
+		importsResult:      importsResult,
+	}, nil
+}
+
+// parseFrontmatterSection reads the workflow file and parses its frontmatter.
+// It returns a frontmatterParseResult containing the parsed data and validation information.
+// If the workflow is detected as a shared workflow (no 'on' field), isSharedWorkflow is set to true.
+func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterParseResult, error) {
+	orchestratorLog.Printf("Starting frontmatter parsing: %s", markdownPath)
+	log.Printf("Reading file: %s", markdownPath)
+
+	// Clean the path to prevent path traversal issues (gosec G304)
+	// filepath.Clean removes ".." and other problematic path elements
+	cleanPath := filepath.Clean(markdownPath)
+
+	// Read the file
+	content, err := os.ReadFile(cleanPath)
+	if err != nil {
+		orchestratorLog.Printf("Failed to read file: %s, error: %v", cleanPath, err)
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	log.Printf("File size: %d bytes", len(content))
+
+	// Parse frontmatter and markdown
+	orchestratorLog.Printf("Parsing frontmatter from file: %s", cleanPath)
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		orchestratorLog.Printf("Frontmatter extraction failed: %v", err)
+		// Use FrontmatterStart from result if available, otherwise default to line 2 (after opening ---)
+		frontmatterStart := 2
+		if result != nil && result.FrontmatterStart > 0 {
+			frontmatterStart = result.FrontmatterStart
+		}
+		return nil, c.createFrontmatterError(cleanPath, string(content), err, frontmatterStart)
+	}
+
+	if len(result.Frontmatter) == 0 {
+		orchestratorLog.Print("No frontmatter found in file")
+		return nil, fmt.Errorf("no frontmatter found")
+	}
+
+	// Preprocess schedule fields to convert human-friendly format to cron expressions
+	if err := c.preprocessScheduleFields(result.Frontmatter, cleanPath, string(content)); err != nil {
+		orchestratorLog.Printf("Schedule preprocessing failed: %v", err)
+		return nil, err
+	}
+
+	// Create a copy of frontmatter without internal markers for schema validation
+	// Keep the original frontmatter with markers for YAML generation
+	frontmatterForValidation := c.copyFrontmatterWithoutInternalMarkers(result.Frontmatter)
+
+	// Check if "on" field is missing - if so, treat as a shared/imported workflow
+	_, hasOnField := frontmatterForValidation["on"]
+	if !hasOnField {
+		detectionLog.Printf("No 'on' field detected - treating as shared agentic workflow")
+
+		// Validate as an included/shared workflow (uses main_workflow_schema with forbidden field checks)
+		if err := parser.ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
+			orchestratorLog.Printf("Shared workflow validation failed: %v", err)
+			return nil, err
+		}
+
+		return &frontmatterParseResult{
+			cleanPath:                cleanPath,
+			content:                  content,
+			frontmatterResult:        result,
+			frontmatterForValidation: frontmatterForValidation,
+			markdownDir:              filepath.Dir(cleanPath),
+			isSharedWorkflow:         true,
+		}, nil
+	}
+
+	// For main workflows (with 'on' field), markdown content is required
+	if result.Markdown == "" {
+		orchestratorLog.Print("No markdown content found for main workflow")
+		return nil, fmt.Errorf("no markdown content found")
+	}
+
+	// Validate main workflow frontmatter contains only expected entries
+	orchestratorLog.Printf("Validating main workflow frontmatter schema")
+	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
+		orchestratorLog.Printf("Main workflow frontmatter validation failed: %v", err)
+		return nil, err
+	}
+
+	// Validate event filter mutual exclusivity (branches/branches-ignore, paths/paths-ignore)
+	if err := ValidateEventFilters(frontmatterForValidation); err != nil {
+		orchestratorLog.Printf("Event filter validation failed: %v", err)
+		return nil, err
+	}
+
+	// Validate that @include/@import directives are not used inside template regions
+	if err := validateNoIncludesInTemplateRegions(result.Markdown); err != nil {
+		orchestratorLog.Printf("Template region validation failed: %v", err)
+		return nil, fmt.Errorf("template region validation failed: %w", err)
+	}
+
+	log.Printf("Frontmatter: %d chars, Markdown: %d chars", len(result.Frontmatter), len(result.Markdown))
+
+	return &frontmatterParseResult{
+		cleanPath:                cleanPath,
+		content:                  content,
+		frontmatterResult:        result,
+		frontmatterForValidation: frontmatterForValidation,
+		markdownDir:              filepath.Dir(cleanPath),
+		isSharedWorkflow:         false,
+	}, nil
+}
+
+func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
+	orchestratorLog.Printf("Starting workflow file parsing: %s", markdownPath)
+
+	// Parse frontmatter section
+	parseResult, err := c.parseFrontmatterSection(markdownPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle shared workflows
+	if parseResult.isSharedWorkflow {
+		// Return a special error to signal that this is a shared workflow
+		// and compilation should be skipped with an info message
+		// Note: Markdown content is optional for shared workflows (they may be just config)
+		return nil, &SharedWorkflowError{
+			Path: parseResult.cleanPath,
+		}
+	}
+
+	// Unpack parse result for convenience
+	cleanPath := parseResult.cleanPath
+	content := parseResult.content
+	result := parseResult.frontmatterResult
+	markdownDir := parseResult.markdownDir
+
+	// Setup engine and process imports
+	engineSetup, err := c.setupEngineAndImports(result, cleanPath, content, markdownDir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unpack engine setup results
+	engineSetting := engineSetup.engineSetting
+	engineConfig := engineSetup.engineConfig
+	agenticEngine := engineSetup.agenticEngine
+	networkPermissions := engineSetup.networkPermissions
+	sandboxConfig := engineSetup.sandboxConfig
+	importsResult := engineSetup.importsResult
 
 	log.Print("Processing tools and includes...")
 
