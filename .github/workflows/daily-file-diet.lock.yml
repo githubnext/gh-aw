@@ -713,23 +713,53 @@ jobs:
           
           If refactoring is needed (file ≥ 800 lines), create an issue with this structure:
           
-          ```markdown
-          # Refactor Large Go File: [FILE_PATH]
+          #### Markdown Formatting Guidelines
           
-          ## Overview
+          **IMPORTANT**: Follow these formatting rules to ensure consistent, readable issue reports:
+          
+          1. **Header Levels**: Use h3 (###) or lower for all headers in your issue report to maintain proper document hierarchy. The issue title serves as h1, so start section headers at h3.
+          
+          2. **Progressive Disclosure**: Wrap detailed file analysis, code snippets, and lengthy explanations in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce overwhelm. This keeps the most important information immediately visible while allowing readers to expand sections as needed.
+          
+          3. **Issue Structure**: Follow this pattern for optimal clarity:
+             - **Brief summary** of the file size issue (always visible)
+             - **Key metrics** (LOC, complexity, test coverage) (always visible)
+             - **Detailed file structure analysis** (in `<details>` tags)
+             - **Refactoring suggestions** (always visible)
+          
+          These guidelines build trust through clarity, exceed expectations with helpful context, create delight through progressive disclosure, and maintain consistency with other reporting workflows.
+          
+          #### Issue Template
+          
+          ```markdown
+          ### Overview
           
           The file `[FILE_PATH]` has grown to [LINE_COUNT] lines, making it difficult to maintain and test. This task involves refactoring it into smaller, focused files with improved test coverage.
           
-          ## Current State
+          ### Current State
           
           - **File**: `[FILE_PATH]`
           - **Size**: [LINE_COUNT] lines
           - **Test Coverage**: [RATIO or "No test file found"]
           - **Complexity**: [Brief assessment from Serena analysis]
           
-          ## Refactoring Strategy
+          <details>
+          <summary><b>Full File Analysis</b></summary>
           
-          ### Proposed File Splits
+          #### Detailed Breakdown
+          
+          [Provide detailed semantic analysis from Serena here:
+          - Function count and distribution
+          - Complexity hotspots
+          - Duplicate or similar code patterns
+          - Areas with high coupling
+          - Specific line number references for complex sections]
+          
+          </details>
+          
+          ### Refactoring Strategy
+          
+          #### Proposed File Splits
           
           Based on semantic analysis, split the file into the following modules:
           
@@ -748,17 +778,18 @@ jobs:
              - Responsibility: [description]
              - Estimated LOC: [count]
           
-          ### Shared Utilities
+          #### Shared Utilities
           
           Extract common functionality into:
           - **`[utility_file].go`**: [description]
           
-          ### Interface Abstractions
+          #### Interface Abstractions
           
           Consider introducing interfaces to reduce coupling:
           - [Interface suggestions]
           
-          ## Test Coverage Plan
+          <details>
+          <summary><b>Test Coverage Plan</b></summary>
           
           Add comprehensive tests for each new file:
           
@@ -774,7 +805,9 @@ jobs:
              - Test cases: [list key scenarios]
              - Target coverage: >80%
           
-          ## Implementation Guidelines
+          </details>
+          
+          ### Implementation Guidelines
           
           1. **Preserve Behavior**: Ensure all existing functionality works identically
           2. **Maintain Exports**: Keep public API unchanged (exported functions/types)
@@ -784,7 +817,7 @@ jobs:
           6. **Update Imports**: Ensure all import paths are correct
           7. **Document Changes**: Add comments explaining module boundaries
           
-          ## Acceptance Criteria
+          ### Acceptance Criteria
           
           - [ ] Original file is split into [N] focused files
           - [ ] Each new file is under 500 lines
@@ -794,16 +827,19 @@ jobs:
           - [ ] Code passes linting (`make lint`)
           - [ ] Build succeeds (`make build`)
           
-          ## Additional Context
+          <details>
+          <summary><b>Additional Context</b></summary>
           
           - **Repository Guidelines**: Follow patterns in `.github/agents/developer.instructions.agent.md`
           - **Code Organization**: Prefer many small files grouped by functionality
           - **Testing**: Match existing test patterns in `pkg/workflow/*_test.go`
           
+          </details>
+          
           ---
           
-          **Priority**: Medium
-          **Effort**: [Estimate: Small/Medium/Large based on complexity]
+          **Priority**: Medium  
+          **Effort**: [Estimate: Small/Medium/Large based on complexity]  
           **Expected Impact**: Improved maintainability, easier testing, reduced complexity
           ```
           
