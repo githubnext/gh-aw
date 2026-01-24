@@ -524,10 +524,11 @@ This workflow should trigger action pin updates.
 	// Verify that actions-lock.json still exists (it may or may not be updated depending on GitHub API availability)
 	// We just verify the upgrade doesn't break when action updates are enabled
 	_, statErr := os.Stat(actionsLockPath)
-	if statErr == nil || os.IsNotExist(statErr) {
-		// Either file still exists or was removed (both are acceptable outcomes)
-		assert.True(t, true, "Actions lock file handling is acceptable")
-	}
+	// Either file still exists or was removed (both are acceptable outcomes)
+	// Just verify no panic or crash occurred
+	assert.Condition(t, func() bool {
+		return statErr == nil || os.IsNotExist(statErr)
+	}, "Actions lock file should exist or be removed cleanly")
 }
 
 func TestUpgradeCommand_NoActionsFlag(t *testing.T) {
