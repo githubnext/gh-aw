@@ -308,6 +308,7 @@ func deleteOldAgentFiles(verbose bool) error {
 		"create-agentic-workflow.md",
 		"setup-agentic-workflows.md",
 		"update-agentic-workflows.md",
+		"upgrade-agentic-workflows.md",
 	}
 
 	// Also delete the dangling singular form file from .github/aw/

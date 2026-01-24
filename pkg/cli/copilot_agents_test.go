@@ -255,11 +255,13 @@ func TestDeleteOldAgentFiles(t *testing.T) {
 				".github/agents/create-agentic-workflow.md",
 				".github/agents/setup-agentic-workflows.md",
 				".github/agents/update-agentic-workflows.md",
+				".github/agents/upgrade-agentic-workflows.md",
 			},
 			expectedDeleted: []string{
 				".github/agents/create-agentic-workflow.md",
 				".github/agents/setup-agentic-workflows.md",
 				".github/agents/update-agentic-workflows.md",
+				".github/agents/upgrade-agentic-workflows.md",
 			},
 		},
 		{
@@ -271,6 +273,7 @@ func TestDeleteOldAgentFiles(t *testing.T) {
 				".github/agents/create-agentic-workflow.md",
 				".github/agents/setup-agentic-workflows.md",
 				".github/agents/update-agentic-workflows.md",
+				".github/agents/upgrade-agentic-workflows.md",
 				".github/aw/upgrade-agentic-workflow.md",
 			},
 			expectedDeleted: []string{
@@ -280,6 +283,7 @@ func TestDeleteOldAgentFiles(t *testing.T) {
 				".github/agents/create-agentic-workflow.md",
 				".github/agents/setup-agentic-workflows.md",
 				".github/agents/update-agentic-workflows.md",
+				".github/agents/upgrade-agentic-workflows.md",
 				".github/aw/upgrade-agentic-workflow.md",
 			},
 		},
