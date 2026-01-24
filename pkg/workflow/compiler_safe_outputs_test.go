@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -267,9 +266,9 @@ func TestParseOnSection(t *testing.T) {
 			err := c.parseOnSection(tt.frontmatter, tt.workflowData, tt.markdownPath)
 
 			if tt.expectedError {
-				assert.Error(t, err, "Expected an error but got none")
+				require.Error(t, err, "Expected an error but got none")
 			} else {
-				assert.NoError(t, err, "Expected no error but got one")
+				require.NoError(t, err, "Expected no error but got one")
 				if len(tt.expectedCommand) > 0 {
 					assert.Equal(t, tt.expectedCommand, tt.workflowData.Command, "Command mismatch")
 				}
@@ -281,7 +280,7 @@ func TestParseOnSection(t *testing.T) {
 					assert.NotNil(t, tt.workflowData.CommandOtherEvents, "CommandOtherEvents should be set")
 					if tt.expectedOtherEvents != nil {
 						// Basic check that other events were extracted
-						assert.Greater(t, len(tt.workflowData.CommandOtherEvents), 0, "CommandOtherEvents should not be empty")
+						assert.NotEmpty(t, tt.workflowData.CommandOtherEvents, "CommandOtherEvents should not be empty")
 					}
 				}
 			}
@@ -380,12 +379,12 @@ func TestCompilerGenerateJobName(t *testing.T) {
 // TestCompilerMergeSafeJobsFromIncludes tests safe-jobs merging from included files via Compiler
 func TestCompilerMergeSafeJobsFromIncludes(t *testing.T) {
 	tests := []struct {
-		name               string
-		topSafeJobs        map[string]*SafeJobConfig
+		name                string
+		topSafeJobs         map[string]*SafeJobConfig
 		includedContentJSON string
-		expectError        bool
-		expectedJobNames   []string
-		checkConflict      bool
+		expectError         bool
+		expectedJobNames    []string
+		checkConflict       bool
 	}{
 		{
 			name:                "empty included content",
@@ -455,12 +454,12 @@ func TestCompilerMergeSafeJobsFromIncludes(t *testing.T) {
 			result, err := c.mergeSafeJobsFromIncludes(tt.topSafeJobs, tt.includedContentJSON)
 
 			if tt.expectError {
-				assert.Error(t, err, "Expected an error but got none")
+				require.Error(t, err, "Expected an error but got none")
 				if tt.checkConflict {
 					assert.Contains(t, err.Error(), "conflict", "Error should mention conflict")
 				}
 			} else {
-				assert.NoError(t, err, "Expected no error but got one")
+				require.NoError(t, err, "Expected no error but got one")
 				assert.NotNil(t, result, "Result should not be nil")
 				// Check job names if specified
 				if len(tt.expectedJobNames) > 0 {
@@ -539,7 +538,7 @@ func TestCompilerMergeSafeJobsFromIncludedConfigs(t *testing.T) {
 			if tt.expectError {
 				assert.Error(t, err, "Expected an error but got none")
 			} else {
-				assert.NoError(t, err, "Expected no error but got one")
+				require.NoError(t, err, "Expected no error but got one")
 				assert.NotNil(t, result, "Result should not be nil")
 				// Check job names if specified
 				if len(tt.expectedJobNames) > 0 {
@@ -557,17 +556,17 @@ func TestCompilerMergeSafeJobsFromIncludedConfigs(t *testing.T) {
 // TestApplyDefaultTools tests default tool application logic
 func TestApplyDefaultTools(t *testing.T) {
 	tests := []struct {
-		name                string
-		tools               map[string]any
-		safeOutputs         *SafeOutputsConfig
-		sandboxConfig       *SandboxConfig
-		networkPermissions  *NetworkPermissions
-		expectedGitHub      bool // true if github tool should exist
-		expectedEdit        bool
-		expectedBash        bool
-		checkBashWildcard   bool
-		checkGitCommands    bool
-		checkBashDefault    bool
+		name                 string
+		tools                map[string]any
+		safeOutputs          *SafeOutputsConfig
+		sandboxConfig        *SandboxConfig
+		networkPermissions   *NetworkPermissions
+		expectedGitHub       bool // true if github tool should exist
+		expectedEdit         bool
+		expectedBash         bool
+		checkBashWildcard    bool
+		checkGitCommands     bool
+		checkBashDefault     bool
 		expectedBashCommands []string
 	}{
 		{
@@ -681,8 +680,8 @@ func TestApplyDefaultTools(t *testing.T) {
 			tools: map[string]any{
 				"bash": []any{},
 			},
-			expectedGitHub:      true,
-			expectedBash:        true,
+			expectedGitHub:       true,
+			expectedBash:         true,
 			expectedBashCommands: []string{}, // Empty means no tools allowed
 		},
 		{
@@ -695,7 +694,7 @@ func TestApplyDefaultTools(t *testing.T) {
 			expectedGitHub: true,
 		},
 		{
-			name: "sandbox disabled explicitly",
+			name:  "sandbox disabled explicitly",
 			tools: map[string]any{},
 			sandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
@@ -772,14 +771,14 @@ func TestApplyDefaultTools(t *testing.T) {
 			if tt.checkBashDefault && bashExists {
 				bashArray, ok := bashTool.([]any)
 				require.True(t, ok, "Bash tool should be array")
-				assert.Greater(t, len(bashArray), 0, "Bash tool should have default commands")
+				assert.NotEmpty(t, bashArray, "Bash tool should have default commands")
 			}
 
 			if len(tt.expectedBashCommands) == 0 && bashExists {
 				if bashArray, ok := bashTool.([]any); ok {
 					if len(tt.expectedBashCommands) == 0 && len(bashArray) == 0 {
 						// This is the expected empty array case
-						assert.Len(t, bashArray, 0, "Bash tool should be empty array")
+						assert.Empty(t, bashArray, "Bash tool should be empty array")
 					}
 				}
 			}
@@ -972,10 +971,10 @@ func TestCompilerIsSandboxEnabled(t *testing.T) {
 // TestParseOnSectionWithParsedFrontmatter tests parseOnSection using cached parsed frontmatter
 func TestParseOnSectionWithParsedFrontmatter(t *testing.T) {
 	tests := []struct {
-		name             string
+		name              string
 		parsedFrontmatter *FrontmatterConfig
-		expectedReaction string
-		expectedError    bool
+		expectedReaction  string
+		expectedError     bool
 	}{
 		{
 			name: "cached on field used",
@@ -1011,7 +1010,7 @@ func TestParseOnSectionWithParsedFrontmatter(t *testing.T) {
 			if tt.expectedError {
 				assert.Error(t, err, "Expected an error but got none")
 			} else {
-				assert.NoError(t, err, "Expected no error but got one")
+				require.NoError(t, err, "Expected no error but got one")
 				if tt.expectedReaction != "" {
 					assert.Equal(t, tt.expectedReaction, workflowData.AIReaction, "Reaction mismatch")
 				}
@@ -1073,7 +1072,7 @@ func TestCompilerMergeSafeJobsFromIncludesEdgeCases(t *testing.T) {
 			if tt.expectError {
 				assert.Error(t, err, "Expected an error but got none")
 			} else {
-				assert.NoError(t, err, "Expected no error but got one")
+				require.NoError(t, err, "Expected no error but got one")
 				if !tt.expectNil {
 					assert.NotNil(t, result, "Result should not be nil")
 				}
@@ -1085,12 +1084,12 @@ func TestCompilerMergeSafeJobsFromIncludesEdgeCases(t *testing.T) {
 // TestApplyDefaultToolsGitHubConfigPreservation tests that GitHub tool config is preserved
 func TestApplyDefaultToolsGitHubConfigPreservation(t *testing.T) {
 	tests := []struct {
-		name              string
-		tools             map[string]any
-		expectedMode      string
-		expectedVersion   string
-		expectedAllowed   []string
-		checkConfig       bool
+		name            string
+		tools           map[string]any
+		expectedMode    string
+		expectedVersion string
+		expectedAllowed []string
+		checkConfig     bool
 	}{
 		{
 			name: "github config with mode and version preserved",
@@ -1162,22 +1161,22 @@ func TestApplyDefaultToolsGitHubConfigPreservation(t *testing.T) {
 // TestApplyDefaultToolsBashWithGitAndDefaults tests bash tool with both git commands and defaults
 func TestApplyDefaultToolsBashWithGitAndDefaults(t *testing.T) {
 	c := &Compiler{}
-	
+
 	// Test that git commands are added when needed, but not default commands
 	tools := map[string]any{}
 	safeOutputs := &SafeOutputsConfig{
 		CreatePullRequests: &CreatePullRequestsConfig{},
 	}
-	
+
 	result := c.applyDefaultTools(tools, safeOutputs, nil, nil)
-	
+
 	bashTool, exists := result["bash"]
 	require.True(t, exists, "Bash tool should exist")
-	
+
 	bashArray, ok := bashTool.([]any)
 	require.True(t, ok, "Bash tool should be array")
-	require.Greater(t, len(bashArray), 0, "Bash tool should have commands")
-	
+	require.NotEmpty(t, bashArray, "Bash tool should have commands")
+
 	// Check for git commands
 	hasGitCommand := false
 	for _, cmd := range bashArray {
@@ -1194,23 +1193,23 @@ func TestApplyDefaultToolsBashWithGitAndDefaults(t *testing.T) {
 // TestCompilerGenerateJobNameUnicodeHandling tests that Unicode characters are handled
 func TestCompilerGenerateJobNameUnicodeHandling(t *testing.T) {
 	tests := []struct {
-		name         string
-		workflowName string
+		name             string
+		workflowName     string
 		shouldHavePrefix bool
 	}{
 		{
-			name:         "emoji in name",
-			workflowName: "test 🚀 workflow",
+			name:             "emoji in name",
+			workflowName:     "test 🚀 workflow",
 			shouldHavePrefix: false, // Emoji is removed, starts with 't'
 		},
 		{
-			name:         "japanese characters",
-			workflowName: "テスト workflow",
+			name:             "japanese characters",
+			workflowName:     "テスト workflow",
 			shouldHavePrefix: true, // Starts with non-ASCII, needs prefix
 		},
 		{
-			name:         "accented characters",
-			workflowName: "café workflow",
+			name:             "accented characters",
+			workflowName:     "café workflow",
 			shouldHavePrefix: false, // Starts with 'c'
 		},
 	}
@@ -1219,7 +1218,7 @@ func TestCompilerGenerateJobNameUnicodeHandling(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Compiler{}
 			result := c.generateJobName(tt.workflowName)
-			
+
 			hasPrefix := len(result) > 9 && result[:9] == "workflow-"
 			assert.Equal(t, tt.shouldHavePrefix, hasPrefix, "Prefix presence mismatch")
 		})
@@ -1229,11 +1228,11 @@ func TestCompilerGenerateJobNameUnicodeHandling(t *testing.T) {
 // TestCompilerMergeSafeJobsFromIncludedConfigsMultipleConflicts tests multiple config merging with conflicts
 func TestCompilerMergeSafeJobsFromIncludedConfigsMultipleConflicts(t *testing.T) {
 	c := &Compiler{}
-	
+
 	topSafeJobs := map[string]*SafeJobConfig{
 		"job1": {},
 	}
-	
+
 	// Test that the extractSafeJobsFromFrontmatter function is actually called
 	// and jobs are extracted when the structure has the jobs field directly
 	includedConfigs := []string{
@@ -1242,10 +1241,10 @@ func TestCompilerMergeSafeJobsFromIncludedConfigsMultipleConflicts(t *testing.T)
 		"invalid",
 		"",
 	}
-	
+
 	result, err := c.mergeSafeJobsFromIncludedConfigs(topSafeJobs, includedConfigs)
-	
-	assert.NoError(t, err, "Should handle malformed configs gracefully")
+
+	require.NoError(t, err, "Should handle malformed configs gracefully")
 	assert.NotNil(t, result, "Result should not be nil")
 	// The function looks for safe-outputs.jobs structure, so configs with just "jobs" will extract jobs
 	assert.GreaterOrEqual(t, len(result), 1, "Should have at least original job")
@@ -1256,15 +1255,15 @@ func TestCompilerMergeSafeJobsFromIncludedConfigsMultipleConflicts(t *testing.T)
 // TestApplyDefaultToolsComplexScenarios tests complex tool configurations
 func TestApplyDefaultToolsComplexScenarios(t *testing.T) {
 	tests := []struct {
-		name                string
-		tools               map[string]any
-		safeOutputs         *SafeOutputsConfig
-		sandboxConfig       *SandboxConfig
-		networkPermissions  *NetworkPermissions
-		validateFunc        func(*testing.T, map[string]any)
+		name               string
+		tools              map[string]any
+		safeOutputs        *SafeOutputsConfig
+		sandboxConfig      *SandboxConfig
+		networkPermissions *NetworkPermissions
+		validateFunc       func(*testing.T, map[string]any)
 	}{
 		{
-			name: "sandbox and git commands both needed",
+			name:  "sandbox and git commands both needed",
 			tools: map[string]any{},
 			sandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{ID: "awf"},
@@ -1276,15 +1275,15 @@ func TestApplyDefaultToolsComplexScenarios(t *testing.T) {
 				// Should have edit tool
 				_, editExists := result["edit"]
 				assert.True(t, editExists, "Edit tool should exist")
-				
+
 				// Should have bash - when sandbox adds wildcard first, git command logic skips
 				bashTool, bashExists := result["bash"]
 				require.True(t, bashExists, "Bash tool should exist")
-				
+
 				bashArray, ok := bashTool.([]any)
 				require.True(t, ok, "Bash tool should be array")
-				require.Greater(t, len(bashArray), 0, "Bash should have commands")
-				
+				require.NotEmpty(t, bashArray, "Bash should have commands")
+
 				// When sandbox is enabled first, it adds wildcard, so git commands are not added
 				// (wildcard already allows all commands including git)
 				hasWildcard := false
@@ -1310,10 +1309,10 @@ func TestApplyDefaultToolsComplexScenarios(t *testing.T) {
 			validateFunc: func(t *testing.T, result map[string]any) {
 				bashTool, exists := result["bash"]
 				require.True(t, exists, "Bash tool should exist")
-				
+
 				bashArray, ok := bashTool.([]any)
 				require.True(t, ok, "Bash tool should be array")
-				
+
 				// Should have both custom and git commands
 				hasCustom := false
 				hasGit := false
@@ -1337,7 +1336,7 @@ func TestApplyDefaultToolsComplexScenarios(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Compiler{}
 			result := c.applyDefaultTools(tt.tools, tt.safeOutputs, tt.sandboxConfig, tt.networkPermissions)
-			
+
 			assert.NotNil(t, result, "Result should not be nil")
 			if tt.validateFunc != nil {
 				tt.validateFunc(t, result)
@@ -1352,7 +1351,7 @@ func TestParseOnSectionReactionMapFormat(t *testing.T) {
 	// though the current implementation expects string or int
 	c := &Compiler{}
 	workflowData := &WorkflowData{}
-	
+
 	// Test that invalid type (map) is handled
 	frontmatter := map[string]any{
 		"on": map[string]any{
@@ -1361,9 +1360,9 @@ func TestParseOnSectionReactionMapFormat(t *testing.T) {
 			},
 		},
 	}
-	
+
 	err := c.parseOnSection(frontmatter, workflowData, "/path/to/test.md")
-	
+
 	// The parseReactionValue function should return an error for map type
 	assert.Error(t, err, "Should error on map type reaction")
 }
@@ -1379,11 +1378,11 @@ func TestCompilerNeedsGitCommandsAllOutputTypes(t *testing.T) {
 		PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
 		CreateDiscussions:       &CreateDiscussionsConfig{},
 	}
-	
+
 	// Should need git commands because of CreatePullRequests and PushToPullRequestBranch
 	result := needsGitCommands(allOutputTypes)
 	assert.True(t, result, "Should need git commands with PR-related outputs")
-	
+
 	// Test without PR-related outputs
 	nonPROutputs := &SafeOutputsConfig{
 		CreateIssues:      &CreateIssuesConfig{},
@@ -1391,7 +1390,7 @@ func TestCompilerNeedsGitCommandsAllOutputTypes(t *testing.T) {
 		AddLabels:         &AddLabelsConfig{},
 		CreateDiscussions: &CreateDiscussionsConfig{},
 	}
-	
+
 	result = needsGitCommands(nonPROutputs)
 	assert.False(t, result, "Should not need git commands without PR-related outputs")
 }
@@ -1410,10 +1409,10 @@ func TestCompilerIsSandboxEnabledPrecedence(t *testing.T) {
 	networkPerms := &NetworkPermissions{
 		Firewall: &FirewallConfig{Enabled: true},
 	}
-	
+
 	result := isSandboxEnabled(config, networkPerms)
 	assert.False(t, result, "Disabled flag should take precedence over all other settings")
-	
+
 	// Test that ID field takes precedence over Type field
 	config2 := &SandboxConfig{
 		Agent: &AgentSandboxConfig{
@@ -1421,7 +1420,7 @@ func TestCompilerIsSandboxEnabledPrecedence(t *testing.T) {
 			Type: "unknown",
 		},
 	}
-	
+
 	result = isSandboxEnabled(config2, nil)
 	assert.True(t, result, "ID field should take precedence over Type field")
 }
@@ -1429,11 +1428,11 @@ func TestCompilerIsSandboxEnabledPrecedence(t *testing.T) {
 // TestCompilerGenerateJobNameAllSpecialChars tests all special character replacements
 func TestCompilerGenerateJobNameAllSpecialChars(t *testing.T) {
 	c := &Compiler{}
-	
+
 	// Test string with all special characters
 	input := `Test:Workflow.Name,Here/There\Back@Email'Single"Double()Parens`
 	result := c.generateJobName(input)
-	
+
 	// Should only contain lowercase letters, numbers, hyphens, and underscores
 	assert.NotContains(t, result, ":", "Colon should be removed")
 	assert.NotContains(t, result, ".", "Period should be removed")
@@ -1486,17 +1485,17 @@ func TestCompilerMergeSafeJobsFromIncludesJSONEdgeCases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Compiler{}
 			topSafeJobs := map[string]*SafeJobConfig{"job1": {}}
-			
+
 			result, err := c.mergeSafeJobsFromIncludes(topSafeJobs, tt.includedContentJSON)
-			
+
 			if tt.expectSuccess {
-				assert.NoError(t, err, "Should handle edge case gracefully")
+				require.NoError(t, err, "Should handle edge case gracefully")
 				assert.NotNil(t, result, "Result should not be nil")
 				// Should preserve original jobs
 				_, exists := result["job1"]
 				assert.True(t, exists, "Original job should be preserved")
 			} else {
-				assert.Error(t, err, "Should error on invalid input")
+				require.Error(t, err, "Should error on invalid input")
 			}
 		})
 	}
@@ -1505,19 +1504,12 @@ func TestCompilerMergeSafeJobsFromIncludesJSONEdgeCases(t *testing.T) {
 // TestApplyDefaultToolsNilInputRecovery tests that nil inputs are handled safely
 func TestApplyDefaultToolsNilInputRecovery(t *testing.T) {
 	c := &Compiler{}
-	
+
 	// All nil inputs should not panic
 	result := c.applyDefaultTools(nil, nil, nil, nil)
 	assert.NotNil(t, result, "Should return non-nil map")
-	
+
 	// Should create github tool by default
 	_, githubExists := result["github"]
 	assert.True(t, githubExists, "Should create default github tool")
-}
-
-// Helper function to create JSON from map
-func toJSON(t *testing.T, data map[string]any) string {
-	jsonBytes, err := json.Marshal(data)
-	require.NoError(t, err, "Failed to marshal to JSON")
-	return string(jsonBytes)
 }
