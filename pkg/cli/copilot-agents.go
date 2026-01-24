@@ -301,46 +301,32 @@ func deleteOldAgentFiles(verbose bool) error {
 		return nil // Not in a git repository, skip
 	}
 
-	agentFiles := []string{
-		"create-agentic-workflow.agent.md",
-		"debug-agentic-workflow.agent.md",
-		"create-shared-agentic-workflow.agent.md",
-		"create-agentic-workflow.md",
-		"setup-agentic-workflows.md",
-		"update-agentic-workflows.md",
-		"upgrade-agentic-workflows.md",
+	// Map of subdirectory to list of files to delete
+	filesToDelete := map[string][]string{
+		"agents": {
+			"create-agentic-workflow.agent.md",
+			"debug-agentic-workflow.agent.md",
+			"create-shared-agentic-workflow.agent.md",
+			"create-agentic-workflow.md",
+			"setup-agentic-workflows.md",
+			"update-agentic-workflows.md",
+			"upgrade-agentic-workflows.md",
+		},
+		"aw": {
+			"upgrade-agentic-workflow.md", // singular form (typo/duplicate)
+		},
 	}
 
-	// Also delete the dangling singular form file from .github/aw/
-	awFiles := []string{
-		"upgrade-agentic-workflow.md", // singular form (typo/duplicate)
-	}
-
-	for _, agentFile := range agentFiles {
-		agentPath := filepath.Join(gitRoot, ".github", "agents", agentFile)
-
-		// Check if the file exists and remove it
-		if _, err := os.Stat(agentPath); err == nil {
-			if err := os.Remove(agentPath); err != nil {
-				return fmt.Errorf("failed to remove old agent file %s: %w", agentFile, err)
-			}
-			if verbose {
-				fmt.Fprintf(os.Stderr, "Removed old agent file: %s\n", agentPath)
-			}
-		}
-	}
-
-	// Delete dangling files from .github/aw/
-	for _, awFile := range awFiles {
-		awPath := filepath.Join(gitRoot, ".github", "aw", awFile)
-
-		// Check if the file exists and remove it
-		if _, err := os.Stat(awPath); err == nil {
-			if err := os.Remove(awPath); err != nil {
-				return fmt.Errorf("failed to remove old aw file %s: %w", awFile, err)
-			}
-			if verbose {
-				fmt.Fprintf(os.Stderr, "Removed old aw file: %s\n", awPath)
+	for subdir, files := range filesToDelete {
+		for _, file := range files {
+			path := filepath.Join(gitRoot, ".github", subdir, file)
+			if _, err := os.Stat(path); err == nil {
+				if err := os.Remove(path); err != nil {
+					return fmt.Errorf("failed to remove old %s file %s: %w", subdir, file, err)
+				}
+				if verbose {
+					fmt.Fprintf(os.Stderr, "Removed old %s file: %s\n", subdir, path)
+				}
 			}
 		}
 	}
