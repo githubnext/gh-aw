@@ -82,9 +82,7 @@ func resolveWorkflowFileInDir(fileOrWorkflowName string, verbose bool, workflowD
 	// First, try to use it as a direct file path
 	if _, err := os.Stat(fileOrWorkflowName); err == nil {
 		commandsLog.Printf("Found workflow file at path: %s", fileOrWorkflowName)
-		if verbose {
-			fmt.Printf("Found workflow file at path: %s\n", fileOrWorkflowName)
-		}
+		console.LogVerbose(verbose, fmt.Sprintf("Found workflow file at path: %s", fileOrWorkflowName))
 		// Return absolute path
 		absPath, err := filepath.Abs(fileOrWorkflowName)
 		if err != nil {
@@ -150,9 +148,7 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 	workflowName = strings.TrimSuffix(workflowName, ".md")
 	commandsLog.Printf("Normalized workflow name: %s", workflowName)
 
-	if verbose {
-		fmt.Printf("Creating new workflow: %s\n", workflowName)
-	}
+	console.LogVerbose(verbose, fmt.Sprintf("Creating new workflow: %s", workflowName))
 
 	// Get current working directory for .github/workflows
 	workingDir, err := os.Getwd()
@@ -188,8 +184,8 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 		return fmt.Errorf("failed to write workflow file '%s': %w", destFile, err)
 	}
 
-	fmt.Printf("Created new workflow: %s\n", destFile)
-	fmt.Printf("Edit the file to customize your workflow, then run '" + string(constants.CLIExtensionPrefix) + " compile' to generate the GitHub Actions workflow.\n")
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created new workflow: %s", destFile)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Edit the file to customize your workflow, then run '%s compile' to generate the GitHub Actions workflow", string(constants.CLIExtensionPrefix))))
 
 	return nil
 }

@@ -27,12 +27,10 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 	const initialDelay = 2 * time.Second
 	const maxDelay = 10 * time.Second
 
-	if verbose {
-		if repo != "" {
-			fmt.Printf("Getting latest run for workflow: %s in repo: %s (with retry logic)\n", lockFileName, repo)
-		} else {
-			fmt.Printf("Getting latest run for workflow: %s (with retry logic)\n", lockFileName)
-		}
+	if repo != "" {
+		console.LogVerbose(verbose, fmt.Sprintf("Getting latest run for workflow: %s in repo: %s (with retry logic)", lockFileName, repo))
+	} else {
+		console.LogVerbose(verbose, fmt.Sprintf("Getting latest run for workflow: %s (with retry logic)", lockFileName))
 	}
 
 	// Capture the current time before we start polling
@@ -57,9 +55,9 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 			// Calculate elapsed time since start
 			elapsed := time.Since(startTime).Round(time.Second)
 
-			if verbose {
-				fmt.Printf("Waiting %v before retry attempt %d/%d...\n", delay, attempt+1, maxRetries)
-			} else {
+			console.LogVerbose(verbose, fmt.Sprintf("Waiting %v before retry attempt %d/%d...", delay, attempt+1, maxRetries))
+
+			if !verbose {
 				// Show spinner starting from second attempt to avoid flickering
 				if attempt == 1 && spinner != nil {
 					spinner.Start()
@@ -91,9 +89,7 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 
 		if len(output) == 0 || string(output) == "[]" {
 			lastErr = fmt.Errorf("no runs found for workflow")
-			if verbose {
-				fmt.Printf("Attempt %d/%d: no runs found yet\n", attempt+1, maxRetries)
-			}
+			console.LogVerbose(verbose, fmt.Sprintf("Attempt %d/%d: no runs found yet", attempt+1, maxRetries))
 			continue
 		}
 
@@ -116,9 +112,7 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 
 		if len(runs) == 0 {
 			lastErr = fmt.Errorf("no runs found")
-			if verbose {
-				fmt.Printf("Attempt %d/%d: no runs in parsed JSON\n", attempt+1, maxRetries)
-			}
+			console.LogVerbose(verbose, fmt.Sprintf("Attempt %d/%d: no runs in parsed JSON", attempt+1, maxRetries))
 			continue
 		}
 
@@ -145,23 +139,19 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		// If we found a run and it was created after we started (within 30 seconds tolerance),
 		// it's likely the run we just triggered
 		if !createdAt.IsZero() && createdAt.After(startTime.Add(-30*time.Second)) {
-			if verbose {
-				fmt.Printf("Found recent run (ID: %d) created at %v (started polling at %v)\n",
-					run.DatabaseID, createdAt.Format(time.RFC3339), startTime.Format(time.RFC3339))
-			}
+			console.LogVerbose(verbose, fmt.Sprintf("Found recent run (ID: %d) created at %v (started polling at %v)",
+				run.DatabaseID, createdAt.Format(time.RFC3339), startTime.Format(time.RFC3339)))
 			if spinner != nil {
 				spinner.StopWithMessage("✓ Found workflow run")
 			}
 			return runInfo, nil
 		}
 
-		if verbose {
-			if createdAt.IsZero() {
-				fmt.Printf("Attempt %d/%d: Found run (ID: %d) but no creation timestamp available\n", attempt+1, maxRetries, run.DatabaseID)
-			} else {
-				fmt.Printf("Attempt %d/%d: Found run (ID: %d) but it was created at %v (too old)\n",
-					attempt+1, maxRetries, run.DatabaseID, createdAt.Format(time.RFC3339))
-			}
+		if createdAt.IsZero() {
+			console.LogVerbose(verbose, fmt.Sprintf("Attempt %d/%d: Found run (ID: %d) but no creation timestamp available", attempt+1, maxRetries, run.DatabaseID))
+		} else {
+			console.LogVerbose(verbose, fmt.Sprintf("Attempt %d/%d: Found run (ID: %d) but it was created at %v (too old)",
+				attempt+1, maxRetries, run.DatabaseID, createdAt.Format(time.RFC3339)))
 		}
 
 		// For the first few attempts, if we have a run but it's too old, keep trying
@@ -171,9 +161,7 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		}
 
 		// For later attempts, return what we found even if timing is uncertain
-		if verbose {
-			fmt.Printf("Returning workflow run (ID: %d) after %d attempts (timing uncertain)\n", run.DatabaseID, attempt+1)
-		}
+		console.LogVerbose(verbose, fmt.Sprintf("Returning workflow run (ID: %d) after %d attempts (timing uncertain)", run.DatabaseID, attempt+1))
 		if spinner != nil {
 			spinner.StopWithMessage("✓ Found workflow run")
 		}
