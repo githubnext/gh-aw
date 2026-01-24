@@ -30,20 +30,50 @@
       "version": "v4",
       "sha": "34e114876b0b11c390a56381ad16ebd13914f8d5"
     },
+    "actions/checkout@v5": {
+      "repo": "actions/checkout",
+      "version": "v5",
+      "sha": "93cb6efe18208431cddfb8368fd83d5badbf9bfd"
+    },
     "actions/checkout@v5.0.1": {
       "repo": "actions/checkout",
       "version": "v5.0.1",
       "sha": "93cb6efe18208431cddfb8368fd83d5badbf9bfd"
+    },
+    "actions/checkout@v6": {
+      "repo": "actions/checkout",
+      "version": "v6",
+      "sha": "8e8c483db84b4bee98b60c0593521ed34d9990e8"
+    },
+    "actions/checkout@v6.0.2": {
+      "repo": "actions/checkout",
+      "version": "v6.0.2",
+      "sha": "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
     },
     "actions/create-github-app-token@v2.2.1": {
       "repo": "actions/create-github-app-token",
       "version": "v2.2.1",
       "sha": "29824e69f54612133e76f7eaac726eef6c875baf"
     },
+    "actions/download-artifact@v6": {
+      "repo": "actions/download-artifact",
+      "version": "v6",
+      "sha": "018cc2cf5baa6db3ef3c5f8a56943fffe632ef53"
+    },
     "actions/download-artifact@v6.0.0": {
       "repo": "actions/download-artifact",
       "version": "v6.0.0",
       "sha": "018cc2cf5baa6db3ef3c5f8a56943fffe632ef53"
+    },
+    "actions/download-artifact@v7": {
+      "repo": "actions/download-artifact",
+      "version": "v7",
+      "sha": "37930b1c2abaa49bbe596cd826c3c89aef350131"
+    },
+    "actions/download-artifact@v7.0.0": {
+      "repo": "actions/download-artifact",
+      "version": "v7.0.0",
+      "sha": "37930b1c2abaa49bbe596cd826c3c89aef350131"
     },
     "actions/github-script@v7": {
       "repo": "actions/github-script",
