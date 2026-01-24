@@ -80,7 +80,10 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 	yaml.WriteString("                \"container\": \"" + constants.DefaultAlpineImage + "\",\n")
 	yaml.WriteString("                \"entrypoint\": \"/opt/gh-aw/gh-aw\",\n")
 	yaml.WriteString("                \"entrypointArgs\": [\"mcp-server\"],\n")
-	yaml.WriteString("                \"mounts\": [\"" + constants.DefaultGhAwMount + "\"],\n")
+	// Mount gh-aw binary (read-only), workspace (read-write for status/compile), and temp directory (read-write for logs)
+	yaml.WriteString("                \"mounts\": [\"" + constants.DefaultGhAwMount + "\", \"" + constants.DefaultWorkspaceMount + "\", \"" + constants.DefaultTmpGhAwMount + "\"],\n")
+	// Set working directory to workspace for proper command execution context
+	yaml.WriteString("                \"workdir\": \"${{ github.workspace }}\",\n")
 
 	// Note: tools field is NOT included here - the converter script adds it back
 	// for Copilot. This keeps the gateway config compatible with the schema.
@@ -133,7 +136,10 @@ func renderAgenticWorkflowsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("          container = \"" + constants.DefaultAlpineImage + "\"\n")
 	yaml.WriteString("          entrypoint = \"/opt/gh-aw/gh-aw\"\n")
 	yaml.WriteString("          entrypointArgs = [\"mcp-server\"]\n")
-	yaml.WriteString("          mounts = [\"" + constants.DefaultGhAwMount + "\"]\n")
+	// Mount gh-aw binary (read-only), workspace (read-write for status/compile), and temp directory (read-write for logs)
+	yaml.WriteString("          mounts = [\"" + constants.DefaultGhAwMount + "\", \"" + constants.DefaultWorkspaceMount + "\", \"" + constants.DefaultTmpGhAwMount + "\"]\n")
+	// Set working directory to workspace for proper command execution context
+	yaml.WriteString("          workdir = \"${{ github.workspace }}\"\n")
 	// Use env_vars array to reference environment variables instead of embedding secrets
 	yaml.WriteString("          env_vars = [\"GITHUB_TOKEN\"]\n")
 }
