@@ -4,6 +4,7 @@ description: Validates network permissions enforcement for MCP fetch tool with d
 
 on:
   workflow_dispatch:
+  schedule: daily
   pull_request:
     types: [labeled]
     names: ['test-network-permissions']

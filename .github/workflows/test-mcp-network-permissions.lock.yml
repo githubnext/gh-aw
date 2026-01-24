@@ -28,6 +28,9 @@ name: "MCP Network Permissions Test"
     # - test-network-permissions # Label filtering applied via job conditions
     types:
     - labeled
+  schedule:
+  - cron: "32 10 * * *"
+    # Friendly format: daily (scattered)
   workflow_dispatch:
 
 permissions: {}
