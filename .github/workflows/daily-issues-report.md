@@ -245,6 +245,8 @@ Use the `close_discussion` safe output for each discussion found.
 
 Create a new discussion with the comprehensive report.
 
+**Formatting Guideline**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. The discussion title serves as h1, so all content headers should start at h3.
+
 ### Discussion Format
 
 **Title**: `[daily issues] Daily Issues Report - YYYY-MM-DD`
@@ -257,13 +259,13 @@ Brief 2-3 paragraph summary of key findings: total issues analyzed, main cluster
 <details>
 <summary><b>📊 Full Report Details</b></summary>
 
-## 📈 Issue Activity Trends
+### 📈 Issue Activity Trends
 
 ![Issue Activity Trends](URL_FROM_UPLOAD_ASSET_CHART_1)
 
 [2-3 sentence analysis of activity trends - peaks, patterns, recent changes]
 
-## 🏷️ Issue Clusters by Theme
+### 🏷️ Issue Clusters by Theme
 
 ![Issue Clusters](URL_FROM_UPLOAD_ASSET_CHART_2)
 
@@ -277,7 +279,7 @@ Brief 2-3 paragraph summary of key findings: total issues analyzed, main cluster
 | 2 | [Theme] | [Count] | #789, #101 |
 | ... | ... | ... | ... |
 
-## 📊 Key Metrics
+### 📊 Key Metrics
 
 ### Volume Metrics
 - **Total Issues Analyzed** (`issues_analyzed`): [NUMBER] (Scope: Last 1000 issues)
@@ -294,21 +296,21 @@ Brief 2-3 paragraph summary of key findings: total issues analyzed, main cluster
 - **Issues Without Assignees** (`issues_without_assignees`): [NUMBER]
 - **Stale Issues (30+ days)** (`stale_issues`): [NUMBER]
 
-## 🏆 Top Labels
+### 🏆 Top Labels
 
 | Label | Issue Count |
 |-------|-------------|
 | [label] | [count] |
 | ... | ... |
 
-## 👥 Most Active Authors
+### 👥 Most Active Authors
 
 | Author | Issues Created |
 |--------|----------------|
 | @[author] | [count] |
 | ... | ... |
 
-## ⚠️ Issues Needing Attention
+### ⚠️ Issues Needing Attention
 
 ### Stale Issues (No Activity 30+ Days)
 - #[number]: [title]
@@ -318,7 +320,7 @@ Brief 2-3 paragraph summary of key findings: total issues analyzed, main cluster
 - #[number]: [title]
 - #[number]: [title]
 
-## 📝 Recommendations
+### 📝 Recommendations
 
 1. [Specific actionable recommendation based on findings]
 2. [Another recommendation]
