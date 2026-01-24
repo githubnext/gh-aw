@@ -152,12 +152,14 @@ func GetAllowedDomains(network *NetworkPermissions) []string {
 		domainsLog.Print("No network permissions specified, using defaults")
 		return getEcosystemDomains("defaults") // Default allow-list for backwards compatibility
 	}
-	if network.Mode == "defaults" {
-		domainsLog.Print("Network mode is defaults, using default ecosystem domains")
+	
+	// If mode is "defaults" but there's no explicit allowed list, return default ecosystem domains
+	if network.Mode == "defaults" && len(network.Allowed) == 0 {
+		domainsLog.Print("Network mode is defaults with no allowed list, using default ecosystem domains")
 		return getEcosystemDomains("defaults") // Default allow-list for defaults mode
 	}
 
-	// Handle empty allowed list (deny-all case)
+	// Handle empty allowed list (deny-all case) when mode is not "defaults"
 	if len(network.Allowed) == 0 {
 		domainsLog.Print("Empty allowed list, denying all network access")
 		return []string{} // Return empty slice, not nil

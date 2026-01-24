@@ -391,3 +391,40 @@ func TestGetClaudeAllowedDomains(t *testing.T) {
 		}
 	})
 }
+
+// TestGetAllowedDomains_ModeDefaultsWithAllowedList verifies that when Mode is "defaults"
+// but there's an Allowed list, it processes the Allowed list instead of returning only defaults
+func TestGetAllowedDomains_ModeDefaultsWithAllowedList(t *testing.T) {
+	network := &NetworkPermissions{
+		Mode: "defaults",
+		Allowed: []string{
+			"defaults",
+			"github",
+		},
+	}
+
+	domains := GetAllowedDomains(network)
+
+	// Should include both defaults and github ecosystem domains
+	// Check for some representative domains from each ecosystem
+	hasDefaults := false
+	hasGitHub := false
+
+	for _, domain := range domains {
+		if domain == "json-schema.org" {
+			hasDefaults = true
+		}
+		if domain == "github.githubassets.com" {
+			hasGitHub = true
+		}
+	}
+
+	if !hasDefaults {
+		t.Error("Expected domains list to include 'json-schema.org' from defaults ecosystem")
+	}
+	if !hasGitHub {
+		t.Error("Expected domains list to include 'github.githubassets.com' from github ecosystem")
+	}
+
+	t.Logf("Total domains: %d", len(domains))
+}
