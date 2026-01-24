@@ -5,6 +5,7 @@ This GitHub Action installs the `gh-aw` CLI extension for a specific version usi
 ## Features
 
 - ✅ **Version validation**: Ensures the specified version exists as a release
+- ✅ **Checksum verification**: Validates SHA256 checksums for downloaded binaries
 - ✅ **Automatic fallback**: Tries `gh extension install` first, falls back to direct download if needed
 - ✅ **Cross-platform**: Works on Linux, macOS, Windows, and FreeBSD
 - ✅ **Multi-architecture**: Supports amd64, arm64, 386, and arm architectures
@@ -65,7 +66,8 @@ The version tag that was actually installed.
 2. **Release verification**: Validates that the release exists on GitHub
 3. **Primary installation method**: Attempts to install using `gh extension install githubnext/gh-aw`
 4. **Fallback method**: If primary method fails, downloads the binary directly from GitHub releases
-5. **Verification**: Ensures the installed binary works correctly
+5. **Checksum verification**: Downloads and verifies SHA256 checksums for the binary
+6. **Binary verification**: Ensures the installed binary works correctly
 
 ## Requirements
 

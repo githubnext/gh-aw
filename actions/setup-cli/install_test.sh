@@ -82,18 +82,6 @@ test_gh_install() {
   fi
 }
 
-# Test 6: Verify SHA resolution function
-test_sha_resolution() {
-  echo ""
-  echo "Test 6: Verify SHA resolution function"
-  
-  if grep -q "resolve_sha_to_release" "$SCRIPT_PATH"; then
-    print_result "Script includes SHA resolution function" "PASS"
-  else
-    print_result "Script missing SHA resolution function" "FAIL"
-  fi
-}
-
 # Test 5: Verify release validation
 test_release_validation() {
   echo ""
@@ -103,6 +91,19 @@ test_release_validation() {
     print_result "Script includes release validation" "PASS"
   else
     print_result "Script missing release validation" "FAIL"
+  fi
+}
+
+# Test 6: Verify checksum validation logic
+test_checksum_validation() {
+  echo ""
+  echo "Test 6: Verify checksum validation"
+  
+  # Check if script has checksum validation logic
+  if grep -q "SKIP_CHECKSUM.*false" "$SCRIPT_PATH" && grep -q "sha256sum\|shasum" "$SCRIPT_PATH"; then
+    print_result "Script includes checksum validation" "PASS"
+  else
+    print_result "Script missing checksum validation" "FAIL"
   fi
 }
 
@@ -116,6 +117,7 @@ test_executable
 test_input_version
 test_gh_install
 test_release_validation
+test_checksum_validation
 
 # Summary
 echo ""

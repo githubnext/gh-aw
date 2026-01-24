@@ -18,6 +18,7 @@ VERSION=""
 if [ -n "$INPUT_VERSION" ]; then
     VERSION="$INPUT_VERSION"
     TRY_GH_INSTALL=true  # In GitHub Actions, try gh install first
+    SKIP_CHECKSUM=false  # Enable checksum validation in GitHub Actions
 fi
 
 for arg in "$@"; do
