@@ -3,6 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { repairJson } = require("./json_repair_helpers.cjs");
+const { AGENT_OUTPUT_FILENAME, TMP_GH_AW_PATH } = require("./constants.cjs");
 
 async function main() {
   try {
@@ -282,10 +283,11 @@ async function main() {
       items: parsedItems,
       errors: errors,
     };
-    const agentOutputFile = "/tmp/gh-aw/agent_output.json";
+    const path = require("path");
+    const agentOutputFile = path.join(TMP_GH_AW_PATH, AGENT_OUTPUT_FILENAME);
     const validatedOutputJson = JSON.stringify(validatedOutput);
     try {
-      fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+      fs.mkdirSync(TMP_GH_AW_PATH, { recursive: true });
       fs.writeFileSync(agentOutputFile, validatedOutputJson, "utf8");
       core.info(`Stored validated output to: ${agentOutputFile}`);
       core.exportVariable("GH_AW_AGENT_OUTPUT", agentOutputFile);

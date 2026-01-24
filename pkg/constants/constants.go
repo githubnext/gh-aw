@@ -503,6 +503,9 @@ const DetectionJobName JobName = "detection"
 const SafeOutputArtifactName = "safe-output"
 const AgentOutputArtifactName = "agent-output"
 
+// AgentOutputFilename is the filename of the agent output JSON file
+const AgentOutputFilename = "agent_output.json"
+
 // SafeOutputsMCPServerID is the identifier for the safe-outputs MCP server
 const SafeOutputsMCPServerID = "safeoutputs"
 
