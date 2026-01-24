@@ -27,6 +27,7 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 		if networkObj, ok := network.(map[string]any); ok {
 			frontmatterExtractionSecurityLog.Printf("Network permissions object format with %d fields", len(networkObj))
 			permissions := &NetworkPermissions{
+				Mode:              "defaults",
 				ExplicitlyDefined: true,
 			}
 
