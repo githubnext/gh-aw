@@ -26,11 +26,37 @@ type EngineConfig struct {
 	Firewall    *FirewallConfig // AWF firewall configuration
 }
 
-// NetworkPermissions represents network access permissions
+// NetworkPermissions represents network access permissions for workflow execution
+// Controls which domains the workflow can access during execution.
+//
+// The Mode field indicates the network access strategy:
+//   - "defaults": Uses the default ecosystem domain list when Allowed list is empty.
+//                 When Allowed list is present, Mode serves as a hint but the Allowed list is processed.
+//   - "" (empty):  Custom network configuration - processes only the Allowed/Blocked lists.
+//
+// Examples:
+//   1. String format - use default domains only:
+//      network: defaults
+//      Result: NetworkPermissions{Mode: "defaults", Allowed: []}
+//
+//   2. Object format - specify allowed ecosystems/domains:
+//      network:
+//        allowed:
+//          - defaults      # Expands to default ecosystem domains (certs, JSON schema, Ubuntu, etc.)
+//          - github        # Expands to GitHub ecosystem domains (*.githubusercontent.com, etc.)
+//          - example.com   # Literal domain
+//      Result: NetworkPermissions{Mode: "defaults", Allowed: ["defaults", "github", "example.com"]}
+//
+//   3. Empty object - deny all network access:
+//      network: {}
+//      Result: NetworkPermissions{Mode: "defaults", Allowed: []}
+//
+// The Mode field is set to "defaults" when the network config is explicitly defined in frontmatter,
+// helping distinguish between "not configured" (nil) and "configured as defaults" scenarios.
 type NetworkPermissions struct {
-	Mode              string          `yaml:"mode,omitempty"`     // "defaults" for default access
-	Allowed           []string        `yaml:"allowed,omitempty"`  // List of allowed domains
-	Blocked           []string        `yaml:"blocked,omitempty"`  // List of blocked domains
+	Mode              string          `yaml:"mode,omitempty"`     // Network access mode: "defaults" or "" (empty for custom)
+	Allowed           []string        `yaml:"allowed,omitempty"`  // List of allowed domains or ecosystem identifiers (e.g., "defaults", "github", "python")
+	Blocked           []string        `yaml:"blocked,omitempty"`  // List of blocked domains (takes precedence over allowed)
 	Firewall          *FirewallConfig `yaml:"firewall,omitempty"` // AWF firewall configuration (see firewall.go)
 	ExplicitlyDefined bool            `yaml:"-"`                  // Internal flag: true if network field was explicitly set in frontmatter
 }
