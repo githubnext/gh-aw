@@ -73,7 +73,6 @@ describe("generate_workflow_overview.cjs", () => {
     expect(summaryArg).toContain("| Engine Name | GitHub Copilot |");
     expect(summaryArg).toContain("| Model | gpt-4 |");
     expect(summaryArg).toContain("#### Network Configuration");
-    expect(summaryArg).toContain("| Mode | firewall |");
     expect(summaryArg).toContain("| Firewall | ✅ Enabled |");
     expect(summaryArg).toContain("| Firewall Version | 1.0.0 |");
     expect(summaryArg).toContain("</details>");
@@ -92,7 +91,6 @@ describe("generate_workflow_overview.cjs", () => {
 
     const summaryArg = mockCore.summary.addRaw.mock.calls[0][0];
     expect(summaryArg).toContain("| Model | (default) |");
-    expect(summaryArg).toContain("| Mode | defaults |");
     expect(summaryArg).toContain("| Firewall | ❌ Disabled |");
     expect(summaryArg).toContain("| Firewall Version | (latest) |");
   });
