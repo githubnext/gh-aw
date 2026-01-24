@@ -30,7 +30,7 @@ Validates that the AWF correctly enforces network permissions by:
 ```yaml
 network:
   allowed:
-    - example.com
+    - microsoft.com
 
 sandbox:
   agent: awf  # Enable Agent Workflow Firewall
@@ -45,7 +45,7 @@ The workflow includes 5 comprehensive test cases:
 
 | Test | Domain | Expected Result | Purpose |
 |------|--------|-----------------|---------|
-| 1 | `example.com` | ✅ **ALLOWED** | Validate allowed domain access works |
+| 1 | `microsoft.com` | ✅ **ALLOWED** | Validate allowed domain access works |
 | 2 | `httpbin.org` | ❌ **BLOCKED** | Validate non-listed domains are blocked |
 | 3 | `api.github.com` | ❌ **BLOCKED** | Validate GitHub API blocked despite GitHub MCP access |
 | 4 | `www.google.com` | ❌ **BLOCKED** | Validate major public sites are blocked |
@@ -92,7 +92,7 @@ The system supports several domain configuration methods:
 ```yaml
 network:
   allowed:
-    - example.com
+    - microsoft.com
     - api.github.com
 ```
 
@@ -176,7 +176,7 @@ The workflow can be triggered automatically:
 
 **Success Scenario:**
 ```
-Test 1 (example.com): ✅ PASS - Successfully fetched content
+Test 1 (microsoft.com): ✅ PASS - Successfully fetched content
 Test 2 (httpbin.org): ✅ PASS - Blocked by firewall (403 Forbidden)
 Test 3 (api.github.com): ✅ PASS - Blocked by firewall (403 Forbidden)
 Test 4 (google.com): ✅ PASS - Blocked by firewall (403 Forbidden)
@@ -238,7 +238,7 @@ timestamp siaddr code/status bytes method URL rfc931 peerstatus/peerhost type
 
 **Allowed Access:**
 ```
-1234567890.123 123 TCP_MISS/200 1234 GET https://example.com/ - HIER_DIRECT/93.184.216.34 text/html
+1234567890.123 123 TCP_MISS/200 1234 GET https://microsoft.com/ - HIER_DIRECT/20.42.65.92 text/html
 ```
 
 **Blocked Access:**
@@ -269,8 +269,8 @@ network:
 # ✅ GOOD - Specific domains only
 network:
   allowed:
-    - example.com
-    - api.example.com
+    - microsoft.com
+    - api.github.com
 ```
 
 ### Use Ecosystem Identifiers
@@ -317,7 +317,7 @@ network:
   allowed:
     - defaults       # Required: Base infrastructure
     - node           # Required: NPM package installs
-    - example.com    # Required: API access for workflow logic
+    - microsoft.com  # Required: API access for workflow logic
     - httpbin.org    # Required: HTTP testing endpoints
 ```
 
@@ -401,7 +401,7 @@ docker logs [fetch-container-id]
 docker logs [squid-proxy-container-id]
 
 # Check proxy health
-curl -x http://localhost:3128 https://example.com/
+curl -x http://localhost:3128 https://microsoft.com/
 ```
 
 ## Future Enhancements

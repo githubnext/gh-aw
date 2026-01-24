@@ -15,10 +15,10 @@ permissions:
 
 engine: copilot
 
-# Network permissions - ONLY example.com should be allowed
+# Network permissions - ONLY microsoft.com should be allowed
 network:
   allowed:
-    - example.com
+    - microsoft.com
 
 sandbox:
   agent: awf  # Enable Agent Workflow Firewall
@@ -45,23 +45,23 @@ You are a security testing agent validating network permissions enforcement thro
 ## Mission
 
 Test that network permissions are correctly enforced by the Agent Workflow Firewall (AWF):
-- **Allowed domain**: `example.com` should be accessible
+- **Allowed domain**: `microsoft.com` should be accessible
 - **Blocked domains**: All other domains should be blocked by the firewall
 
 ## Test Cases
 
 Execute the following tests systematically and record all results.
 
-### Test 1: Allowed Domain - example.com (SHOULD SUCCEED)
+### Test 1: Allowed Domain - microsoft.com (SHOULD SUCCEED)
 
 Attempt to fetch content from the allowed domain:
 
 ```bash
-# Using web-fetch tool to access example.com
-echo "Test 1: Attempting to fetch https://example.com/"
+# Using web-fetch tool to access microsoft.com
+echo "Test 1: Attempting to fetch https://microsoft.com/"
 ```
 
-Use the `web-fetch` tool to fetch `https://example.com/`.
+Use the `web-fetch` tool to fetch `https://microsoft.com/`.
 
 **Expected Result**: ✅ **SUCCESS** - This domain is in the allowed list and should be accessible through the proxy.
 
@@ -117,7 +117,7 @@ Use the `web-fetch` tool to fetch `http://malicious-example.com/`.
 ## Success Criteria
 
 The test is successful if:
-1. ✅ Test 1 (example.com) **SUCCEEDS** - allowed domain is accessible
+1. ✅ Test 1 (microsoft.com) **SUCCEEDS** - allowed domain is accessible
 2. ❌ Test 2 (httpbin.org) **FAILS** - blocked by firewall
 3. ❌ Test 3 (api.github.com) **FAILS** - blocked by firewall
 4. ❌ Test 4 (google.com) **FAILS** - blocked by firewall
@@ -134,7 +134,7 @@ After running all tests, create a summary report with this structure:
 
 | Test | Domain | Expected | Actual | Status |
 |------|--------|----------|--------|--------|
-| 1 | example.com | ✅ ALLOWED | [RESULT] | [PASS/FAIL] |
+| 1 | microsoft.com | ✅ ALLOWED | [RESULT] | [PASS/FAIL] |
 | 2 | httpbin.org | ❌ BLOCKED | [RESULT] | [PASS/FAIL] |
 | 3 | api.github.com | ❌ BLOCKED | [RESULT] | [PASS/FAIL] |
 | 4 | google.com | ❌ BLOCKED | [RESULT] | [PASS/FAIL] |
@@ -150,7 +150,7 @@ After running all tests, create a summary report with this structure:
 [Your analysis of how well the firewall blocked unauthorized domains]
 
 ### Configuration Validation
-[Confirm that only example.com was accessible as configured]
+[Confirm that only microsoft.com was accessible as configured]
 
 ### Observations
 [Any notable observations about error messages, response times, or firewall behavior]
@@ -185,6 +185,6 @@ The labels will be automatically applied based on the safe-outputs configuration
 - **Repository**: ${{ github.repository }}
 - **Triggered by**: ${{ github.actor }}
 - **Run ID**: ${{ github.run_id }}
-- **Network Configuration**: Only `example.com` in allowed list
+- **Network Configuration**: Only `microsoft.com` in allowed list
 - **Firewall**: Agent Workflow Firewall (AWF) with Squid proxy
 - **MCP Tool**: web-fetch for network access testing
