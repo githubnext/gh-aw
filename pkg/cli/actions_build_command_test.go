@@ -300,3 +300,110 @@ func TestActionsCleanCommand_EmptyActionsDir(t *testing.T) {
 	err = ActionsCleanCommand()
 	assert.NoError(t, err, "Should not error with empty actions directory")
 }
+
+func TestIsCompositeAction(t *testing.T) {
+	tests := []struct {
+		name             string
+		actionYmlContent string
+		expectComposite  bool
+		expectError      bool
+	}{
+		{
+			name: "composite action with single quotes",
+			actionYmlContent: `name: Test Action
+description: A test action
+runs:
+  using: 'composite'
+  steps:
+    - run: echo "test"`,
+			expectComposite: true,
+			expectError:     false,
+		},
+		{
+			name: "composite action with double quotes",
+			actionYmlContent: `name: Test Action
+description: A test action
+runs:
+  using: "composite"
+  steps:
+    - run: echo "test"`,
+			expectComposite: true,
+			expectError:     false,
+		},
+		{
+			name: "node20 action",
+			actionYmlContent: `name: Test Action
+description: A test action
+runs:
+  using: 'node20'
+  main: 'index.js'`,
+			expectComposite: false,
+			expectError:     false,
+		},
+		{
+			name:            "missing action.yml",
+			expectComposite: false,
+			expectError:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			actionPath := filepath.Join(tmpDir, "test-action")
+			err := os.MkdirAll(actionPath, 0755)
+			require.NoError(t, err, "Failed to create action directory")
+
+			if tt.actionYmlContent != "" {
+				ymlPath := filepath.Join(actionPath, "action.yml")
+				err = os.WriteFile(ymlPath, []byte(tt.actionYmlContent), 0644)
+				require.NoError(t, err, "Failed to write action.yml")
+			}
+
+			isComposite, err := isCompositeAction(actionPath)
+
+			if tt.expectError {
+				require.Error(t, err, "Expected an error")
+			} else {
+				require.NoError(t, err, "Should not error")
+				assert.Equal(t, tt.expectComposite, isComposite, "Composite action detection mismatch")
+			}
+		})
+	}
+}
+
+func TestBuildAction_CompositeAction(t *testing.T) {
+	// Create a temporary directory with a composite action
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	defer os.Chdir(originalDir)
+
+	err = os.Chdir(tmpDir)
+	require.NoError(t, err, "Failed to change to temp directory")
+
+	actionsDir := filepath.Join(tmpDir, "actions")
+	compositeActionPath := filepath.Join(actionsDir, "test-composite")
+	err = os.MkdirAll(compositeActionPath, 0755)
+	require.NoError(t, err, "Failed to create composite action directory")
+
+	// Create action.yml for composite action
+	actionYml := `name: Test Composite Action
+description: A test composite action
+runs:
+  using: 'composite'
+  steps:
+    - run: echo "test"
+      shell: bash`
+	err = os.WriteFile(filepath.Join(compositeActionPath, "action.yml"), []byte(actionYml), 0644)
+	require.NoError(t, err, "Failed to write action.yml")
+
+	// Build the composite action (should succeed without src/index.js)
+	err = buildAction("actions", "test-composite")
+	assert.NoError(t, err, "Should successfully build composite action without JavaScript source")
+
+	// Verify that no index.js was generated
+	indexPath := filepath.Join(compositeActionPath, "index.js")
+	_, err = os.Stat(indexPath)
+	assert.True(t, os.IsNotExist(err), "index.js should not be generated for composite actions")
+}
