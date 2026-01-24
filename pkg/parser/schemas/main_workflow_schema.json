@@ -2730,8 +2730,8 @@
                       "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
                     },
                     {
-                      "app-id": "${{ vars.GITHUB_APP_ID }}",
-                      "private-key": "${{ secrets.GITHUB_APP_PRIVATE_KEY }}",
+                      "app-id": "${{ vars.APP_ID }}",
+                      "private-key": "${{ secrets.APP_PRIVATE_KEY }}",
                       "repositories": ["repo1", "repo2"]
                     }
                   ]

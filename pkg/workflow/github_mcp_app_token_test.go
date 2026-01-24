@@ -24,8 +24,8 @@ tools:
   github:
     mode: local
     app:
-      app-id: ${{ vars.GITHUB_APP_ID }}
-      private-key: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
       repositories:
         - "repo1"
         - "repo2"
@@ -49,8 +49,8 @@ Test workflow with GitHub MCP server app configuration.
 	require.NotNil(t, workflowData.ParsedTools.GitHub.App, "App configuration should be parsed")
 
 	// Verify app configuration
-	assert.Equal(t, "${{ vars.GITHUB_APP_ID }}", workflowData.ParsedTools.GitHub.App.AppID)
-	assert.Equal(t, "${{ secrets.GITHUB_APP_PRIVATE_KEY }}", workflowData.ParsedTools.GitHub.App.PrivateKey)
+	assert.Equal(t, "${{ vars.APP_ID }}", workflowData.ParsedTools.GitHub.App.AppID)
+	assert.Equal(t, "${{ secrets.APP_PRIVATE_KEY }}", workflowData.ParsedTools.GitHub.App.PrivateKey)
 	assert.Equal(t, []string{"repo1", "repo2"}, workflowData.ParsedTools.GitHub.App.Repositories)
 }
 
@@ -68,8 +68,8 @@ tools:
   github:
     mode: local
     app:
-      app-id: ${{ vars.GITHUB_APP_ID }}
-      private-key: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ---
 
 # Test Workflow
@@ -97,8 +97,8 @@ Test workflow with GitHub MCP app token minting.
 	assert.Contains(t, lockContent, "Generate GitHub App token", "Token minting step should be present")
 	assert.Contains(t, lockContent, "actions/create-github-app-token", "Should use create-github-app-token action")
 	assert.Contains(t, lockContent, "id: github-mcp-app-token", "Should use github-mcp-app-token as step ID")
-	assert.Contains(t, lockContent, "app-id: ${{ vars.GITHUB_APP_ID }}", "Should use configured app ID")
-	assert.Contains(t, lockContent, "private-key: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}", "Should use configured private key")
+	assert.Contains(t, lockContent, "app-id: ${{ vars.APP_ID }}", "Should use configured app ID")
+	assert.Contains(t, lockContent, "private-key: ${{ secrets.APP_PRIVATE_KEY }}", "Should use configured private key")
 
 	// Verify permissions are passed to the app token minting
 	assert.Contains(t, lockContent, "permission-contents: read", "Should include contents read permission")
@@ -126,8 +126,8 @@ tools:
     mode: local
     github-token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
     app:
-      app-id: ${{ vars.GITHUB_APP_ID }}
-      private-key: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ---
 
 # Test Workflow
@@ -170,8 +170,8 @@ tools:
   github:
     mode: remote
     app:
-      app-id: ${{ vars.GITHUB_APP_ID }}
-      private-key: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
 engine: claude
 ---
 

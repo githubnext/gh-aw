@@ -2,8 +2,8 @@
 tools:
   github:
     app:
-      app-id: ${{ vars.GITHUB_APP_ID }}
-      private-key: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ---
 
 <!--
@@ -14,8 +14,8 @@ This shared workflow provides repository-level GitHub App configuration for the 
 ## Configuration Variables
 
 This shared workflow expects:
-- **Repository Variable**: `GITHUB_APP_ID` - The GitHub App ID for MCP server authentication
-- **Repository Secret**: `GITHUB_APP_PRIVATE_KEY` - The GitHub App private key for MCP server authentication
+- **Repository Variable**: `APP_ID` - The GitHub App ID for MCP server authentication
+- **Repository Secret**: `APP_PRIVATE_KEY` - The GitHub App private key for MCP server authentication
 
 ## Usage
 
