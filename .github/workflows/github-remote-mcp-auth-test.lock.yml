@@ -136,7 +136,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.389
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.394
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.10.0
       - name: Determine automatic lockdown mode for GitHub MCP server
@@ -432,7 +432,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "gpt-5.1-codex-mini",
               version: "",
-              agent_version: "0.0.389",
+              agent_version: "0.0.394",
               workflow_name: "GitHub Remote MCP Authentication Test",
               experimental: false,
               supports_tools_allowlist: true,
@@ -1109,7 +1109,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.389
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.394
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
