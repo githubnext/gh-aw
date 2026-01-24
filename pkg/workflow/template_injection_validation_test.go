@@ -746,3 +746,164 @@ EOF`,
 		})
 	}
 }
+
+// TestTemplateInjectionYAMLKeyOrdering tests that validation correctly handles
+// different YAML key orderings, particularly when env: appears after run:
+func TestTemplateInjectionYAMLKeyOrdering(t *testing.T) {
+	tests := []struct {
+		name        string
+		yaml        string
+		shouldError bool
+		description string
+	}{
+		{
+			name: "safe - env after run with pipe keep indicator",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Use value safely
+        run: |
+          echo "Line 1"
+          echo "Value: $MY_VALUE"
+        env:
+          MY_VALUE: ${{ steps.get_value.outputs.value }}`,
+			shouldError: false,
+			description: "Expression in env block should be safe even when env comes after run",
+		},
+		{
+			name: "safe - env after run with pipe strip indicator",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Use value safely
+        run: |-
+          echo "Line 1"
+          echo "Value: $MY_VALUE"
+        env:
+          MY_VALUE: ${{ steps.get_value.outputs.value }}`,
+			shouldError: false,
+			description: "Expression in env block should be safe with run: |- (strip indicator)",
+		},
+		{
+			name: "safe - env before run (original ordering)",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Use value safely
+        env:
+          MY_VALUE: ${{ steps.get_value.outputs.value }}
+        run: |
+          echo "Value: $MY_VALUE"`,
+			shouldError: false,
+			description: "Expression in env block should be safe when env comes before run",
+		},
+		{
+			name: "safe - multiple YAML keys after run",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Complex step
+        run: |
+          echo "Value: $MY_VALUE"
+        env:
+          MY_VALUE: ${{ steps.get_value.outputs.value }}
+        if: always()
+        continue-on-error: true`,
+			shouldError: false,
+			description: "Multiple YAML keys after run should not be captured",
+		},
+		{
+			name: "safe - with block after run",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Use action
+        run: echo "Running"
+        with:
+          value: ${{ steps.get_value.outputs.value }}`,
+			shouldError: false,
+			description: "with block after run should not be captured as run content",
+		},
+		{
+			name: "unsafe - expression directly in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Unsafe usage
+        run: |
+          echo "Value: ${{ steps.get_value.outputs.value }}"
+        env:
+          OTHER: "safe"`,
+			shouldError: true,
+			description: "Expression directly in run block should still be detected",
+		},
+		{
+			name: "safe - env after run in custom job step",
+			yaml: `jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - id: get_value
+        run: echo "value=test" >> $GITHUB_OUTPUT
+      - name: Sign image
+        run: |
+          echo "Signing image with digest: $DIGEST"
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}`,
+			shouldError: false,
+			description: "Custom job step with env after run should be safe (reproduces issue)",
+		},
+		{
+			name: "safe - if condition after run",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Conditional run
+        run: echo "test"
+        if: ${{ steps.get_value.outputs.value == 'test' }}`,
+			shouldError: false,
+			description: "if condition after run should not be captured",
+		},
+		{
+			name: "safe - timeout-minutes after run",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Timed run
+        run: |
+          echo "Running with timeout"
+        timeout-minutes: 5
+        env:
+          VALUE: ${{ steps.get_value.outputs.value }}`,
+			shouldError: false,
+			description: "timeout-minutes and env after run should not be captured",
+		},
+		{
+			name: "safe - continue-on-error after run",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Allowed failure
+        run: echo "test"
+        continue-on-error: true
+        env:
+          VALUE: ${{ steps.get_value.outputs.value }}`,
+			shouldError: false,
+			description: "continue-on-error and env after run should not be captured",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateNoTemplateInjection(tt.yaml)
+
+			if tt.shouldError {
+				require.Error(t, err, tt.description)
+				assert.Contains(t, err.Error(), "template injection",
+					"Error should mention template injection")
+			} else {
+				assert.NoError(t, err, tt.description)
+			}
+		})
+	}
+}

@@ -61,12 +61,13 @@ var (
 	// runBlockRegex matches YAML run: blocks and captures their content
 	// This regex matches both single-line and multi-line run commands in YAML
 	// Pattern explanation:
-	//   ^\s+run:\s*\|\s*\n((?:[ \t]+.+\n?)+?)\s*(?:^[ \t]*-\s|\z) - matches multi-line block scalar (run: |)
-	//     - Stops at next step (^[ \t]*-\s) or end of string (\z)
+	//   ^\s+run:\s*\|(?:-|)\s*\n((?:[ \t]+.+\n?)+?)\s*(?:^[ \t]*(?:-\s|[a-z-]+:)|\z) - matches multi-line block scalar (run: | or run: |-)
+	//     - Matches both run: | (keep) and run: |- (strip) indicators
+	//     - Stops at next step (^[ \t]*-\s), next YAML key (^[ \t]*[a-z-]+:), or end of string (\z)
 	//   | - OR
 	//   ^\s+run:\s*(.+)$ - matches single-line run command
 	// Group 1 = multi-line content, Group 2 = single-line content
-	runBlockRegex = regexp.MustCompile(`(?m)^\s+run:\s*\|\s*\n((?:[ \t]+.+\n?)+?)\s*(?:^[ \t]*-\s|\z)|^\s+run:\s*(.+)$`)
+	runBlockRegex = regexp.MustCompile(`(?m)^\s+run:\s*\|(?:-|)\s*\n((?:[ \t]+.+\n?)+?)\s*(?:^[ \t]*(?:-\s|[a-z-]+:)|\z)|^\s+run:\s*(.+)$`)
 
 	// inlineExpressionRegex matches GitHub Actions template expressions ${{ ... }}
 	inlineExpressionRegex = regexp.MustCompile(`\$\{\{[^}]+\}\}`)
