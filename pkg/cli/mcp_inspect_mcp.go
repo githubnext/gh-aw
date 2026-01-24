@@ -13,7 +13,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
-	"github.com/githubnext/gh-aw/pkg/styles"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -52,15 +51,18 @@ func (h *headerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error
 func inspectMCPServer(config parser.MCPServerConfig, toolFilter string, verbose bool, useActionsSecrets bool) error {
 	mcpInspectServerLog.Printf("Inspecting MCP server: name=%s, type=%s", config.Name, config.Type)
 	fmt.Fprintf(os.Stderr, "%s %s (%s)\n",
-		styles.ServerName.Render("📡 "+config.Name),
-		styles.ServerType.Render(config.Type),
-		styles.ServerType.Render(buildConnectionString(config)))
+		console.FormatCommandMessage(config.Name),
+		console.FormatInfoMessage(config.Type),
+		console.FormatInfoMessage(buildConnectionString(config)))
 
 	// Validate secrets/environment variables
 	mcpInspectServerLog.Print("Validating server secrets")
 	if err := validateServerSecrets(config, verbose, useActionsSecrets); err != nil {
 		mcpInspectServerLog.Printf("Secret validation failed: %v", err)
-		fmt.Print(styles.ErrorBox.Render(fmt.Sprintf("❌ Secret validation failed: %s", err)))
+		errorBox := console.RenderErrorBox(fmt.Sprintf("❌ Secret validation failed: %s", err))
+		for _, line := range errorBox {
+			fmt.Fprintln(os.Stderr, line)
+		}
 		return nil // Don't return error, just show validation failure
 	}
 
@@ -69,7 +71,10 @@ func inspectMCPServer(config parser.MCPServerConfig, toolFilter string, verbose 
 	info, err := connectToMCPServer(config, verbose)
 	if err != nil {
 		mcpInspectServerLog.Printf("Connection failed: %v", err)
-		fmt.Print(styles.ErrorBox.Render(fmt.Sprintf("❌ Connection failed: %s", err)))
+		errorBox := console.RenderErrorBox(fmt.Sprintf("❌ Connection failed: %s", err))
+		for _, line := range errorBox {
+			fmt.Fprintln(os.Stderr, line)
+		}
 		return nil // Don't return error, just show connection failure
 	}
 
@@ -349,7 +354,7 @@ func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
 		if toolFilter != "" {
 			displayDetailedToolInfo(info, toolFilter)
 		} else {
-			fmt.Fprintf(os.Stderr, "\n%s\n", styles.Header.Render("🛠️  Tool Access Status"))
+			fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("🛠️  Tool Access Status"))
 
 			// Configure options for inspect command
 			// Use a slightly shorter truncation length than list-tools for better fit
@@ -377,7 +382,7 @@ func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
 
 	// Display resources (skip if showing specific tool details)
 	if toolFilter == "" && len(info.Resources) > 0 {
-		fmt.Fprintf(os.Stderr, "\n%s\n", styles.Header.Render("📚 Available Resources"))
+		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("📚 Available Resources"))
 
 		headers := []string{"URI", "Name", "Description", "MIME Type"}
 		rows := make([][]string, 0, len(info.Resources))
@@ -407,7 +412,7 @@ func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
 
 	// Display roots (skip if showing specific tool details)
 	if toolFilter == "" && len(info.Roots) > 0 {
-		fmt.Fprintf(os.Stderr, "\n%s\n", styles.Header.Render("🌳 Available Roots"))
+		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("🌳 Available Roots"))
 
 		headers := []string{"URI", "Name"}
 		rows := make([][]string, 0, len(info.Roots))
@@ -459,7 +464,7 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "\n%s\n", styles.Header.Render(fmt.Sprintf("🛠️  Tool Details: %s", foundTool.Name)))
+	fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader(fmt.Sprintf("🛠️  Tool Details: %s", foundTool.Name)))
 
 	// Display basic information
 	fmt.Fprintf(os.Stderr, "📋 **Name:** %s\n", foundTool.Name)
@@ -483,7 +488,7 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 
 	// Display annotations if available
 	if foundTool.Annotations != nil {
-		fmt.Fprintf(os.Stderr, "\n%s\n", styles.Header.Render("⚙️  Tool Attributes"))
+		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("⚙️  Tool Attributes"))
 
 		if foundTool.Annotations.ReadOnlyHint {
 			fmt.Fprintf(os.Stderr, "🔒 **Read-only:** This tool does not modify its environment\n")
@@ -514,7 +519,7 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 
 	// Display input schema
 	if foundTool.InputSchema != nil {
-		fmt.Fprintf(os.Stderr, "\n%s\n", styles.Header.Render("📥 Input Schema"))
+		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("📥 Input Schema"))
 		if schemaJSON, err := json.MarshalIndent(foundTool.InputSchema, "", "  "); err == nil {
 			fmt.Fprintf(os.Stderr, "```json\n%s\n```\n", string(schemaJSON))
 		} else {
@@ -526,7 +531,7 @@ func displayDetailedToolInfo(info *parser.MCPServerInfo, toolName string) {
 
 	// Display output schema
 	if foundTool.OutputSchema != nil {
-		fmt.Fprintf(os.Stderr, "\n%s\n", styles.Header.Render("📤 Output Schema"))
+		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatSectionHeader("📤 Output Schema"))
 		if schemaJSON, err := json.MarshalIndent(foundTool.OutputSchema, "", "  "); err == nil {
 			fmt.Fprintf(os.Stderr, "```json\n%s\n```\n", string(schemaJSON))
 		} else {
