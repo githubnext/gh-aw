@@ -347,6 +347,16 @@ tools:
 - **Automatic and transparent**: Works automatically when `GH_AW_GITHUB_MCP_SERVER_TOKEN` is defined
 - **Safe by default**: Detection failures default to the most secure setting
 
+> [!TIP]
+> GitHub App Authentication (More Secure)
+> For enhanced security, consider using GitHub App tokens instead of long-lived PATs:
+> - **Short-lived tokens**: Automatically minted at workflow start and revoked at workflow end
+> - **Scoped permissions**: Token permissions automatically match your workflow's `permissions` field
+> - **No manual rotation**: Eliminates need for PAT expiration management
+> - **Better audit trail**: All actions logged under GitHub App identity
+> 
+> Configure via `tools.github.app` or import `shared/github-mcp-app.md`. See [GitHub App Tokens for GitHub MCP Server](/gh-aw/reference/tokens/#github-app-tokens-for-github-mcp-server) for setup details.
+
 See also: [GitHub MCP Tool Configuration](/gh-aw/reference/tools/#github-tools-github) for complete tool configuration options.
 
 ### Agent Security and Prompt Injection Defense
