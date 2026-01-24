@@ -1053,6 +1053,8 @@ safe-outputs:
   create-issue:
 ```
 
+When configured, the compiler uses [`actions/create-github-app-token`](https://github.com/actions/create-github-app-token) to mint short-lived installation tokens that are automatically invalidated at job end. See [GitHub App Tokens](/gh-aw/reference/tokens/#github-app-tokens) for complete technical implementation details.
+
 ### Maximum Patch Size (`max-patch-size:`)
 
 Limits git patch size for PR operations (1-10,240 KB, default: 1024 KB):
