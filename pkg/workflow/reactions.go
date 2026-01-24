@@ -64,6 +64,18 @@ func parseReactionValue(value any) (string, error) {
 		}
 		reactionsLog.Printf("Invalid uint64 reaction value: %d", v)
 		return "", fmt.Errorf("invalid reaction value '%d': must be one of %v", v, getValidReactions())
+	case float64:
+		// YAML may parse +1 and -1 as float64
+		if v == 1.0 {
+			reactionsLog.Print("Parsed float64 reaction: +1")
+			return "+1", nil
+		}
+		if v == -1.0 {
+			reactionsLog.Print("Parsed float64 reaction: -1")
+			return "-1", nil
+		}
+		reactionsLog.Printf("Invalid float64 reaction value: %f", v)
+		return "", fmt.Errorf("invalid reaction value '%v': must be one of %v", v, getValidReactions())
 	default:
 		reactionsLog.Printf("Invalid reaction type: %T", value)
 		return "", fmt.Errorf("invalid reaction type: expected string, got %T", value)
