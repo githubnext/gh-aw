@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestInterfaceSegregation validates that the interface segregation is properly implemented
@@ -15,8 +16,8 @@ func TestInterfaceSegregation(t *testing.T) {
 
 		for _, engine := range engines {
 			// Verify each engine implements the composite interface
-			_, ok := engine.(CodingAgentEngine)
-			assert.True(t, ok, "Engine %s should implement CodingAgentEngine", engine.GetID())
+			// All engines are returned as CodingAgentEngine from registry
+			assert.NotNil(t, engine, "Engine should not be nil")
 		}
 	})
 
@@ -162,29 +163,25 @@ func TestInterfaceComposition(t *testing.T) {
 		// Get an engine instance
 		registry := NewEngineRegistry()
 		engine, err := registry.GetEngine("copilot")
-		assert.NoError(t, err)
-
-		// Verify it can be cast to the composite interface
-		codingEngine, ok := engine.(CodingAgentEngine)
-		assert.True(t, ok, "Should be able to cast to CodingAgentEngine")
+		require.NoError(t, err)
 
 		// Verify it can also be cast to individual interfaces
-		_, ok = codingEngine.(Engine)
+		_, ok := engine.(Engine)
 		assert.True(t, ok, "Should be able to cast CodingAgentEngine to Engine")
 
-		_, ok = codingEngine.(CapabilityProvider)
+		_, ok = engine.(CapabilityProvider)
 		assert.True(t, ok, "Should be able to cast CodingAgentEngine to CapabilityProvider")
 
-		_, ok = codingEngine.(WorkflowExecutor)
+		_, ok = engine.(WorkflowExecutor)
 		assert.True(t, ok, "Should be able to cast CodingAgentEngine to WorkflowExecutor")
 
-		_, ok = codingEngine.(MCPConfigProvider)
+		_, ok = engine.(MCPConfigProvider)
 		assert.True(t, ok, "Should be able to cast CodingAgentEngine to MCPConfigProvider")
 
-		_, ok = codingEngine.(LogParser)
+		_, ok = engine.(LogParser)
 		assert.True(t, ok, "Should be able to cast CodingAgentEngine to LogParser")
 
-		_, ok = codingEngine.(SecurityProvider)
+		_, ok = engine.(SecurityProvider)
 		assert.True(t, ok, "Should be able to cast CodingAgentEngine to SecurityProvider")
 	})
 }
@@ -193,7 +190,7 @@ func TestInterfaceComposition(t *testing.T) {
 func TestSpecificInterfaceUsage(t *testing.T) {
 	t.Run("using only Engine interface", func(t *testing.T) {
 		registry := NewEngineRegistry()
-		
+
 		// Function that only needs Engine interface
 		checkEngineIdentity := func(e Engine) bool {
 			return e.GetID() != "" && e.GetDisplayName() != ""
@@ -207,7 +204,7 @@ func TestSpecificInterfaceUsage(t *testing.T) {
 
 	t.Run("using only CapabilityProvider interface", func(t *testing.T) {
 		registry := NewEngineRegistry()
-		
+
 		// Function that only needs CapabilityProvider interface
 		checkCapabilities := func(cp CapabilityProvider) map[string]bool {
 			return map[string]bool{
@@ -230,7 +227,7 @@ func TestSpecificInterfaceUsage(t *testing.T) {
 
 	t.Run("using only WorkflowExecutor interface", func(t *testing.T) {
 		registry := NewEngineRegistry()
-		
+
 		// Function that only needs WorkflowExecutor interface
 		canExecuteWorkflow := func(we WorkflowExecutor) bool {
 			workflowData := &WorkflowData{
@@ -362,7 +359,7 @@ func TestEngineRegistryAcceptsEngineInterface(t *testing.T) {
 
 	// Should be able to retrieve it
 	retrieved, err := registry.GetEngine("minimal-test")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "minimal-test", retrieved.GetID())
 	assert.Equal(t, "Minimal Test Engine", retrieved.GetDisplayName())
 }
