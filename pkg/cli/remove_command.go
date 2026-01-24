@@ -119,13 +119,16 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 	}
 
 	// Ask for confirmation
-	fmt.Print("\nAre you sure you want to remove these workflows? [y/N]: ")
-	reader := bufio.NewReader(os.Stdin)
-	response, _ := reader.ReadString('\n')
-	response = strings.TrimSpace(strings.ToLower(response))
-
-	if response != "y" && response != "yes" {
-		fmt.Println("Operation cancelled.")
+	confirmed, err := console.ConfirmAction(
+		"Are you sure you want to remove these workflows?",
+		"Yes, remove",
+		"No, cancel",
+	)
+	if err != nil {
+		return fmt.Errorf("failed to get confirmation: %w", err)
+	}
+	if !confirmed {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Operation cancelled."))
 		return nil
 	}
 
