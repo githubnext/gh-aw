@@ -22,7 +22,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	// Extract custom steps and outputs from jobs.pre-activation if present
 	customSteps, customOutputs, err := c.extractPreActivationCustomFields(data.Jobs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to extract pre-activation custom fields: %w", err)
 	}
 
 	// Add setup step to copy activation scripts (required - no inline fallback)
@@ -642,7 +642,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	// but capture it into a string instead of writing directly
 	var stepBuilder strings.Builder
 	if err := c.generateMainJobSteps(&stepBuilder, data); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to generate main job steps: %w", err)
 	}
 
 	// Split the steps content into individual step entries
