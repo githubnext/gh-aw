@@ -495,6 +495,28 @@ safe-outputs:
     # Permissions computed based on safe output types
 ```
 
+**Technical implementation**:
+
+When you configure a GitHub App in `safe-outputs.app`, the compiler generates a workflow that:
+
+1. **Mints a token** at the start of the safe-outputs job using [`actions/create-github-app-token`](https://github.com/actions/create-github-app-token):
+   - Creates an installation access token with the GitHub App's `app-id` and `private-key`
+   - Automatically determines required permissions from safe output types (e.g., `permission-issues: write` for `create-issue`)
+   - Scopes token to specified owner and repositories (defaults to current repo)
+   - Stores token in step output: `steps.app-token.outputs.token`
+
+2. **Uses the token** for all safe output operations:
+   - Passed as `github-token` parameter to GitHub API calls
+   - Used for checkout operations when creating pull requests
+   - All actions are attributed to the GitHub App identity
+
+3. **Invalidates the token** at job end (even on failure):
+   - Makes DELETE request to `/installation/token` API endpoint
+   - Runs with `if: always()` to ensure cleanup
+   - Prevents token reuse after workflow completes
+
+This differs from [OpenID Connect (OIDC) authentication](/gh-aw/reference/permissions/#special-permission-id-token), which uses the `id-token: write` permission for cloud provider authentication (AWS, GCP, Azure). OIDC tokens are for external services, while GitHub App tokens authenticate with GitHub's API.
+
 **Permission mapping**:
 
 - `create-issue:` → Issues: Write

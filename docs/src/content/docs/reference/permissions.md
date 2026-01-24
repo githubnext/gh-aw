@@ -47,6 +47,11 @@ permissions:
 
 This permission is safe to use and does not require safe-outputs, even in strict mode.
 
+> [!NOTE]
+> OIDC vs GitHub App tokens
+> 
+> The `id-token: write` permission is for **OIDC authentication with external cloud providers** (AWS, GCP, Azure). This is different from [GitHub App tokens](/gh-aw/reference/tokens/#github-app-tokens), which authenticate with GitHub's API for safe output operations. GitHub App tokens are configured via `safe-outputs.app` and use the [`actions/create-github-app-token`](https://github.com/actions/create-github-app-token) action, not OIDC.
+
 ## Configuration
 
 ### Basic Configuration
