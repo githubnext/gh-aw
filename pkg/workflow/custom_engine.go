@@ -36,7 +36,7 @@ func (e *CustomEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 	// Custom engine doesn't have predefined secrets
 	// User-defined steps should explicitly reference secrets they need
 	// MCP gateway API key is added if MCP servers are present
-	var secrets []string
+	secrets := []string{}
 
 	if HasMCPServers(workflowData) {
 		secrets = append(secrets, "MCP_GATEWAY_API_KEY")
