@@ -20,6 +20,13 @@ For GitHub Agentic Workflows, you only need to create a few **optional** secrets
 | Any GitHub Projects v2 operations                    | `GH_AW_PROJECT_GITHUB_TOKEN`           | **Required** for `update-project`. Default `GITHUB_TOKEN` cannot access Projects v2 API. |
 | Isolating Model Context Protocol (MCP) server permissions (advanced optional) | `GH_AW_GITHUB_MCP_SERVER_TOKEN`        | Only if you want MCP to use a different token than other jobs. |
 
+> [!TIP]
+> GitHub App Authentication (Recommended for Production)
+> Instead of PATs, you can use GitHub Apps for enhanced security with short-lived tokens:
+> - **Safe outputs**: Configure `app-id` and `private-key` in `safe-outputs.app`
+> - **GitHub MCP server**: Configure `app-id` and `private-key` in `tools.github.app`, or import `shared/github-mcp-app.md`
+> - See [GitHub App Tokens](#github-app-tokens) and [GitHub App Tokens for GitHub MCP Server](#github-app-tokens-for-github-mcp-server) for details
+
 Create these as **repository secrets in *your* repo**. The easiest way is to use the GitHub Agentic Workflows CLI:
 
 ```bash
@@ -517,6 +524,113 @@ safe-outputs:
   create-issue:
 ```
 
+### GitHub App Tokens for GitHub MCP Server
+
+GitHub App tokens can also be used to authenticate the GitHub MCP server, providing the same security benefits as safe-outputs while isolating MCP server permissions.
+
+**Benefits**:
+
+- **Isolated permissions**: GitHub MCP server uses separate token from safe-outputs
+- **On-demand minting**: Token created at workflow start, minimized exposure
+- **Automatic revocation**: Token invalidated at workflow end (even on failure)
+- **Permission mapping**: Automatically computed from agent job `permissions` field
+- **Dual mode support**: Works with both local (Docker) and remote (hosted) modes
+
+**Setup**:
+
+Configure the GitHub App directly in the tools configuration:
+
+```yaml wrap
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+tools:
+  github:
+    mode: remote  # or "local" for Docker-based
+    toolsets: [repos, issues, pull_requests]
+    app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      owner: "my-org"                    # Optional: defaults to current repo owner
+      repositories: ["repo1", "repo2"]   # Optional: defaults to current repo only
+```
+
+**Shared workflow pattern** (recommended):
+
+Use the provided shared workflow for centralized configuration:
+
+```yaml wrap
+imports:
+  - shared/github-mcp-app.md  # Provides APP_ID and APP_PRIVATE_KEY configuration
+
+permissions:
+  contents: read
+  issues: write
+
+tools:
+  github:
+    toolsets: [repos, issues, pull_requests]
+```
+
+The shared workflow (`shared/github-mcp-app.md`) expects:
+- **Repository Variable**: `APP_ID` - Your GitHub App ID
+- **Repository Secret**: `APP_PRIVATE_KEY` - Your GitHub App private key
+
+**How it works**:
+
+1. At workflow start, a token minting step (`github-mcp-app-token`) is automatically inserted before MCP server setup
+2. The token is minted with permissions matching the agent job's `permissions` field
+3. Token is passed to the GitHub MCP server as `GITHUB_MCP_SERVER_TOKEN`
+4. At workflow end, the token is automatically invalidated (even on failure)
+
+**Token precedence**:
+
+When a GitHub App is configured for the GitHub MCP server:
+
+1. GitHub App token (highest priority)
+2. `tools.github.github-token` (custom token)
+3. `GH_AW_GITHUB_MCP_SERVER_TOKEN` (dedicated MCP token)
+4. `GH_AW_GITHUB_TOKEN` (general enhanced token)
+5. `GITHUB_TOKEN` (default Actions token - not supported in remote mode)
+
+**Setup repository variables**:
+
+```bash wrap
+# Set GitHub App ID as repository variable
+gh variable set APP_ID --body "123456"
+
+# Set GitHub App private key as repository secret
+gh aw secrets set APP_PRIVATE_KEY --value "$(cat path/to/private-key.pem)"
+```
+
+> [!TIP]
+> Dual App Configuration
+> You can configure GitHub Apps for both safe-outputs and GitHub MCP server independently:
+> 
+> ```yaml
+> tools:
+>   github:
+>     app:
+>       app-id: ${{ vars.MCP_APP_ID }}
+>       private-key: ${{ secrets.MCP_APP_PRIVATE_KEY }}
+> 
+> safe-outputs:
+>   app:
+>     app-id: ${{ vars.SAFE_OUTPUTS_APP_ID }}
+>     private-key: ${{ secrets.SAFE_OUTPUTS_APP_PRIVATE_KEY }}
+> ```
+> 
+> This allows different permission levels for MCP server operations versus safe output operations.
+
+> [!NOTE]
+> Permission Requirements
+> The GitHub App must have sufficient permissions for the operations you need:
+> - **Read operations**: Contents: Read, Issues: Read, Pull requests: Read
+> - **Write operations**: Match the permissions in your workflow's `permissions` field
+> - **Organization access**: If accessing org-owned repositories, the app must be installed at the organization level
+
 ## Token Selection Guide
 
 Use this guide to choose the right token for your workflow:
@@ -526,11 +640,11 @@ Use this guide to choose the right token for your workflow:
 | Single repository, basic operations | `GITHUB_TOKEN` (default) | None needed |
 | Cross-repository operations | `GH_AW_GITHUB_TOKEN` | GitHub App |
 | Copilot engine workflows | `COPILOT_GITHUB_TOKEN` | None |
-| Remote GitHub MCP mode | `GH_AW_GITHUB_TOKEN` | GitHub App |
+| Remote GitHub MCP mode | `GH_AW_GITHUB_TOKEN` | GitHub App via `tools.github.app` |
+| GitHub MCP server (isolated permissions) | GitHub App via `tools.github.app` | `GH_AW_GITHUB_MCP_SERVER_TOKEN` |
 | Agent assignments | `GH_AW_AGENT_TOKEN` | `GH_AW_GITHUB_TOKEN` with elevated permissions |
 | GitHub Projects v2 operations | `GH_AW_PROJECT_GITHUB_TOKEN` | `GH_AW_GITHUB_TOKEN` with Projects permissions |
-| Production workflows | GitHub App | `GH_AW_GITHUB_TOKEN` with fine-grained PAT |
-| Custom MCP server permissions | `GH_AW_GITHUB_MCP_SERVER_TOKEN` | Use `GH_AW_GITHUB_TOKEN` |
+| Production workflows | GitHub App (safe-outputs and MCP) | `GH_AW_GITHUB_TOKEN` with fine-grained PAT |
 
 ## Security Best Practices
 
@@ -620,7 +734,9 @@ github-token: ${{ secrets.ISSUE_TOKEN }}
 
 **Different permissions per output**: Override at per-output level with different PATs
 
-**Production (most secure)**: Configure GitHub App with `app-id` and `private-key` in safe-outputs
+**Production (most secure)**: Configure GitHub App with `app-id` and `private-key` in safe-outputs and/or tools.github
+
+**GitHub MCP with App**: Import `shared/github-mcp-app.md` and configure `APP_ID` + `APP_PRIVATE_KEY` repository variables
 
 ## Troubleshooting
 

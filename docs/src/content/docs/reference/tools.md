@@ -128,6 +128,48 @@ tools:
 
 See [Automatic GitHub Lockdown](/gh-aw/guides/security/#automatic-github-lockdown-on-public-repositories) for security implications.
 
+### GitHub App Authentication
+
+Use GitHub App tokens for enhanced security with short-lived, automatically-revoked credentials:
+
+```yaml wrap
+tools:
+  github:
+    mode: remote
+    toolsets: [repos, issues, pull_requests]
+    app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      owner: "my-org"                    # Optional: defaults to current repo owner
+      repositories: ["repo1", "repo2"]   # Optional: defaults to current repo only
+```
+
+**Shared workflow pattern** (recommended):
+
+```yaml wrap
+imports:
+  - shared/github-mcp-app.md  # Centralized GitHub App configuration
+
+permissions:
+  contents: read
+  issues: write
+
+tools:
+  github:
+    toolsets: [repos, issues]
+```
+
+**Benefits**:
+- On-demand token minting at workflow start
+- Automatic token revocation at workflow end (even on failure)
+- Permissions automatically mapped from agent job `permissions` field
+- Works with both local (Docker) and remote (hosted) modes
+- Isolated from safe-outputs token configuration
+
+See [GitHub App Tokens for GitHub MCP Server](/gh-aw/reference/tokens/#github-app-tokens-for-github-mcp-server) for complete setup and configuration details.
+
+**Token precedence**: GitHub App → `github-token` → `GH_AW_GITHUB_MCP_SERVER_TOKEN` → `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN`
+
 ## Playwright Tool (`playwright:`)
 
 Enables containerized browser automation with domain-based access control:
