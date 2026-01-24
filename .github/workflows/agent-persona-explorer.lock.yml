@@ -436,7 +436,6 @@ jobs:
                 "entrypoint": "/opt/gh-aw/gh-aw",
                 "entrypointArgs": ["mcp-server"],
                 "mounts": ["/opt/gh-aw:/opt/gh-aw:ro", "${{ github.workspace }}:${{ github.workspace }}:rw", "/tmp/gh-aw:/tmp/gh-aw:rw"],
-                "workdir": "${{ github.workspace }}",
                 "env": {
                   "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
                 }
