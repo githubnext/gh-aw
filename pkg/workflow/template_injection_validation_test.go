@@ -110,7 +110,7 @@ func TestValidateNoTemplateInjection(t *testing.T) {
     runs-on: ubuntu-latest
     steps:
       - name: Single line unsafe
-        run: echo "PR title: ${{ github.event.pull_request.title }}"`,
+        run: 'echo "PR title: ${{ github.event.pull_request.title }}"'`,
 			shouldError: true,
 			errorString: "github.event",
 		},
@@ -548,7 +548,7 @@ func TestTemplateInjectionEdgeCases(t *testing.T) {
     runs-on: ubuntu-latest
     steps:
       - name: Test
-        run: echo "Issue: ${{    github.event.issue.title    }}"`,
+        run: 'echo "Issue: ${{    github.event.issue.title    }}"'`,
 			shouldError: true,
 			description: "Expressions with extra whitespace should still be detected",
 		},
