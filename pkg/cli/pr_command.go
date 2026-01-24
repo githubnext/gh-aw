@@ -12,6 +12,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/tty"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -791,7 +792,11 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 // createPR creates a pull request using GitHub CLI
 func createPR(branchName, title, body string, verbose bool) error {
 	if verbose {
-		fmt.Printf("Creating PR: %s\n", title)
+		if tty.IsStderrTerminal() {
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Creating PR: %s", title)))
+		} else {
+			fmt.Fprintf(os.Stderr, "Creating PR: %s\n", title)
+		}
 	}
 
 	// Get the current repository info to ensure PR is created in the correct repo
@@ -826,7 +831,7 @@ func createPR(branchName, title, body string, verbose bool) error {
 	}
 
 	prURL := strings.TrimSpace(string(output))
-	fmt.Printf("📢 Pull Request created: %s\n", prURL)
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Pull Request created: %s", prURL)))
 
 	return nil
 }

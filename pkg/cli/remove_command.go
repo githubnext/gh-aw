@@ -23,7 +23,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 	workflowsDir := getWorkflowsDir()
 
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		fmt.Println("No .github/workflows directory found.")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No .github/workflows directory found"))
 		return nil
 	}
 
@@ -38,7 +38,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 
 	removeLog.Printf("Found %d workflow files", len(mdFiles))
 	if len(mdFiles) == 0 {
-		fmt.Println("No workflow files found to remove.")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflow files found to remove"))
 		return nil
 	}
 
@@ -46,18 +46,18 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 
 	// If no pattern specified, list all files for user to see
 	if pattern == "" {
-		fmt.Println("Available workflows to remove:")
+		fmt.Fprintln(os.Stderr, console.FormatListHeader("Available workflows to remove:"))
 		for _, file := range mdFiles {
 			workflowName, _ := extractWorkflowNameFromFile(file)
 			base := filepath.Base(file)
 			name := strings.TrimSuffix(base, ".md")
 			if workflowName != "" {
-				fmt.Printf("  %-20s - %s\n", name, workflowName)
+				fmt.Fprintf(os.Stderr, "  %-20s - %s\n", name, workflowName)
 			} else {
-				fmt.Printf("  %s\n", name)
+				fmt.Fprintf(os.Stderr, "  %s\n", name)
 			}
 		}
-		fmt.Println("\nUsage: " + string(constants.CLIExtensionPrefix) + " remove <pattern>")
+		fmt.Fprintf(os.Stderr, "\nUsage: %s remove <pattern>\n", string(constants.CLIExtensionPrefix))
 		return nil
 	}
 
@@ -76,7 +76,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 
 	if len(filesToRemove) == 0 {
 		removeLog.Printf("No workflows matched pattern: %q", pattern)
-		fmt.Printf("No workflows found matching pattern: %s\n", pattern)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No workflows found matching pattern: %s", pattern)))
 		return nil
 	}
 
@@ -88,44 +88,44 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 		var err error
 		orphanedIncludes, err = previewOrphanedIncludes(filesToRemove, false)
 		if err != nil {
-			fmt.Printf("Warning: Failed to preview orphaned includes: %v\n", err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to preview orphaned includes: %v", err)))
 			orphanedIncludes = []string{} // Continue with empty list
 		}
 	}
 
 	// Show what will be removed
-	fmt.Printf("The following workflows will be removed:\n")
+	fmt.Fprintln(os.Stderr, console.FormatListHeader("The following workflows will be removed:"))
 	for _, file := range filesToRemove {
 		workflowName, _ := extractWorkflowNameFromFile(file)
 		if workflowName != "" {
-			fmt.Printf("  %s - %s\n", filepath.Base(file), workflowName)
+			fmt.Fprintf(os.Stderr, "  %s - %s\n", filepath.Base(file), workflowName)
 		} else {
-			fmt.Printf("  %s\n", filepath.Base(file))
+			fmt.Fprintf(os.Stderr, "  %s\n", filepath.Base(file))
 		}
 
 		// Also check for corresponding .lock.yml file in .github/workflows
 		lockFile := stringutil.MarkdownToLockFile(file)
 		if _, err := os.Stat(lockFile); err == nil {
-			fmt.Printf("  %s (compiled workflow)\n", filepath.Base(lockFile))
+			fmt.Fprintf(os.Stderr, "  %s (compiled workflow)\n", filepath.Base(lockFile))
 		}
 	}
 
 	// Show orphaned includes that will also be removed
 	if len(orphanedIncludes) > 0 {
-		fmt.Printf("\nThe following orphaned include files will also be removed (suppress with --keep-orphans):\n")
+		fmt.Fprintf(os.Stderr, "\n%s\n", console.FormatListHeader("The following orphaned include files will also be removed (suppress with --keep-orphans):"))
 		for _, include := range orphanedIncludes {
-			fmt.Printf("  %s (orphaned include)\n", include)
+			fmt.Fprintf(os.Stderr, "  %s (orphaned include)\n", include)
 		}
 	}
 
 	// Ask for confirmation
-	fmt.Print("\nAre you sure you want to remove these workflows? [y/N]: ")
+	fmt.Fprint(os.Stderr, console.FormatPromptMessage("Are you sure you want to remove these workflows? [y/N]: "))
 	reader := bufio.NewReader(os.Stdin)
 	response, _ := reader.ReadString('\n')
 	response = strings.TrimSpace(strings.ToLower(response))
 
 	if response != "y" && response != "yes" {
-		fmt.Println("Operation cancelled.")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Operation cancelled"))
 		return nil
 	}
 
@@ -133,9 +133,9 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 	var removedFiles []string
 	for _, file := range filesToRemove {
 		if err := os.Remove(file); err != nil {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to remove %s: %v", file, err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove %s: %v", file, err)))
 		} else {
-			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Removed: %s", filepath.Base(file))))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed: %s", filepath.Base(file))))
 			removedFiles = append(removedFiles, file)
 		}
 
@@ -143,9 +143,9 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 		lockFile := stringutil.MarkdownToLockFile(file)
 		if _, err := os.Stat(lockFile); err == nil {
 			if err := os.Remove(lockFile); err != nil {
-				fmt.Printf("Warning: Failed to remove %s: %v\n", lockFile, err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove %s: %v", lockFile, err)))
 			} else {
-				fmt.Printf("Removed: %s\n", filepath.Base(lockFile))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed: %s", filepath.Base(lockFile))))
 			}
 		}
 	}
@@ -153,7 +153,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool) error {
 	// Clean up orphaned include files (if orphan removal is enabled)
 	if len(removedFiles) > 0 && !keepOrphans {
 		if err := cleanupOrphanedIncludes(false); err != nil {
-			fmt.Printf("Warning: Failed to clean up orphaned includes: %v\n", err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to clean up orphaned includes: %v", err)))
 		}
 	}
 
@@ -174,7 +174,7 @@ func cleanupOrphanedIncludes(verbose bool) error {
 		// No markdown files means we can clean up all includes
 		removeLog.Print("No markdown files found, cleaning up all includes")
 		if verbose {
-			fmt.Printf("No markdown files found, cleaning up all includes\n")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No markdown files found, cleaning up all includes"))
 		}
 		return cleanupAllIncludes(verbose)
 	}
@@ -186,7 +186,7 @@ func cleanupOrphanedIncludes(verbose bool) error {
 		content, err := os.ReadFile(mdFile)
 		if err != nil {
 			if verbose {
-				fmt.Printf("Warning: Could not read %s for include analysis: %v\n", mdFile, err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not read %s for include analysis: %v", mdFile, err)))
 			}
 			continue
 		}
@@ -195,7 +195,7 @@ func cleanupOrphanedIncludes(verbose bool) error {
 		includes, err := findIncludesInContent(string(content), filepath.Dir(mdFile), verbose)
 		if err != nil {
 			if verbose {
-				fmt.Printf("Warning: Could not analyze includes in %s: %v\n", mdFile, err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not analyze includes in %s: %v", mdFile, err)))
 			}
 			continue
 		}
@@ -242,10 +242,10 @@ func cleanupOrphanedIncludes(verbose bool) error {
 			includePath := filepath.Join(workflowsDir, include)
 			if err := os.Remove(includePath); err != nil {
 				if verbose {
-					fmt.Printf("Warning: Failed to remove orphaned include %s: %v\n", include, err)
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove orphaned include %s: %v", include, err)))
 				}
 			} else {
-				fmt.Printf("Removed orphaned include: %s\n", include)
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed orphaned include: %s", include)))
 			}
 		}
 	}
@@ -287,7 +287,7 @@ func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, er
 		content, err := os.ReadFile(mdFile)
 		if err != nil {
 			if verbose {
-				fmt.Printf("Warning: Could not read %s for include analysis: %v\n", mdFile, err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not read %s for include analysis: %v", mdFile, err)))
 			}
 			continue
 		}
@@ -296,7 +296,7 @@ func previewOrphanedIncludes(filesToRemove []string, verbose bool) ([]string, er
 		includes, err := findIncludesInContent(string(content), filepath.Dir(mdFile), verbose)
 		if err != nil {
 			if verbose {
-				fmt.Printf("Warning: Could not analyze includes in %s: %v\n", mdFile, err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not analyze includes in %s: %v", mdFile, err)))
 			}
 			continue
 		}
@@ -368,10 +368,10 @@ func cleanupAllIncludes(verbose bool) error {
 			if strings.Contains(relPath, string(filepath.Separator)) {
 				if err := os.Remove(path); err != nil {
 					if verbose {
-						fmt.Printf("Warning: Failed to remove include %s: %v\n", relPath, err)
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove include %s: %v", relPath, err)))
 					}
 				} else {
-					fmt.Printf("Removed include: %s\n", relPath)
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Removed include: %s", relPath)))
 				}
 			}
 		}

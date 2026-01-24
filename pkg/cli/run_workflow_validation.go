@@ -13,6 +13,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/tty"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/goccy/go-yaml"
 )
@@ -285,7 +286,11 @@ func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bo
 	}
 
 	if verbose {
-		fmt.Printf("Checking if workflow '%s' exists in repository '%s'...\n", lockFileName, repoOverride)
+		if tty.IsStderrTerminal() {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Checking if workflow '%s' exists in repository '%s'...", lockFileName, repoOverride)))
+		} else {
+			fmt.Fprintf(os.Stderr, "Checking if workflow '%s' exists in repository '%s'...\n", lockFileName, repoOverride)
+		}
 	}
 
 	// Use gh CLI to list workflows in the target repository
@@ -313,8 +318,13 @@ func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bo
 	for _, wf := range workflows {
 		if strings.HasSuffix(wf.Path, lockFileName) {
 			if verbose {
-				fmt.Printf("Found workflow '%s' in repository (path: %s, state: %s)\n",
-					wf.Name, wf.Path, wf.State)
+				if tty.IsStderrTerminal() {
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found workflow '%s' in repository (path: %s, state: %s)",
+						wf.Name, wf.Path, wf.State)))
+				} else {
+					fmt.Fprintf(os.Stderr, "Found workflow '%s' in repository (path: %s, state: %s)\n",
+						wf.Name, wf.Path, wf.State)
+				}
 			}
 			return nil
 		}
