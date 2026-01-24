@@ -7,7 +7,41 @@ sidebar:
 
 This guide walks you through upgrading your agentic workflows to the latest version, ensuring you have access to the newest features, improvements, and security fixes.
 
-## Overview
+## Agentic Upgrade (Recommended)
+
+The fastest and easiest way to upgrade is using the agentic-workflows agent in GitHub Copilot, which automates the entire upgrade process including reviewing changelogs, applying fixes, and handling compilation errors.
+
+### How to Use Agentic Upgrade
+
+1. **Start an agent session in GitHub**  
+   Navigate to your repository on GitHub.com and start a new issue or pull request session with GitHub Copilot
+
+2. **Invoke the agentic-workflows agent**  
+   Use the following command with the "Upgrade" prompt:
+   ```text
+   /agent agentic-workflows Upgrade
+   ```
+
+3. **Let the agent handle the upgrade**  
+   The agent will:
+   - Review the latest gh-aw changelog and identify breaking changes
+   - Apply automatic codemods to fix deprecated fields
+   - Compile all workflows and fix any compilation errors
+   - Create a pull request with all changes documented
+
+> [!TIP]
+> Benefits of Agentic Upgrade
+>
+> - **Automated**: No manual steps required
+> - **Intelligent**: Understands breaking changes and applies appropriate fixes
+> - **Documented**: Creates detailed PR description with all changes explained
+> - **Error handling**: Automatically fixes compilation errors when possible
+
+## Manual Upgrade
+
+If you prefer to upgrade manually or need more control over the process, follow these steps:
+
+### Overview
 
 The upgrade process updates three key areas:
 
@@ -16,7 +50,7 @@ The upgrade process updates three key areas:
 3. **Workflow compilation** — Automatically compiles all workflows to generate up-to-date `.lock.yml` files
 
 > [!TIP]
-> Quick Upgrade
+> Quick Manual Upgrade
 >
 > For most users, upgrading is a single command:
 > ```bash wrap
@@ -26,9 +60,18 @@ The upgrade process updates three key areas:
 
 ## Prerequisites
 
-Before upgrading, ensure you have GitHub CLI (`gh`) v2.0.0+, the latest gh-aw extension, and a clean working directory in your Git repository. Verify with `gh --version`, `gh extension list | grep gh-aw`, and `git status`.
+### Manual Prerequisites
 
-## Step 1: Upgrade the Extension
+Before upgrading manually, ensure you have GitHub CLI (`gh`) v2.0.0+, the latest gh-aw extension, and a clean working directory in your Git repository. Verify with `gh --version`, `gh extension list | grep gh-aw`, and `git status`.
+
+### Agentic Prerequisites
+
+For agentic upgrade, you need:
+- Access to GitHub Copilot
+- An initialized repository with `gh aw init` already run
+- Access to the agentic-workflows agent in your repository (available after `gh aw init`)
+
+## Step 1: Upgrade the Extension (Manual)
 
 Upgrade the `gh-aw` extension to get the latest features and codemods:
 
@@ -48,11 +91,11 @@ gh extension upgrade gh-aw
 
 Check your version with `gh aw version` and compare against the [latest release](https://github.com/githubnext/gh-aw/releases). If you encounter issues, try a clean reinstall with `gh extension remove gh-aw` followed by `gh extension install githubnext/gh-aw`.
 
-## Step 2: Backup Your Workflows
+## Step 2: Backup Your Workflows (Manual)
 
 Create a backup branch (`git checkout -b backup-before-upgrade`) or ensure your changes are committed and pushed. Since workflows are tracked in Git, you can always revert changes with `git checkout HEAD~1 -- .github/workflows/my-workflow.md`.
 
-## Step 3: Run the Upgrade Command
+## Step 3: Run the Upgrade Command (Manual)
 
 Run the upgrade command from your repository root:
 
@@ -134,7 +177,7 @@ gh aw upgrade --dir custom/workflows
 > gh aw upgrade --dir path/to/workflows
 > ```
 
-## Step 4: Review the Changes
+## Step 4: Review the Changes (Manual)
 
 After upgrading, carefully review all changes before committing:
 
@@ -144,19 +187,19 @@ Review changes with `git diff .github/workflows/` to verify that deprecated fiel
 
 Typical migrations include `timeout_minutes` → `timeout-minutes`, `daily at` → `daily around`, and removal of deprecated `network.firewall` and `safe-inputs.mode` fields. Use `git diff --word-diff` for detailed comparison.
 
-## Step 5: Verify Compilation
+## Step 5: Verify Compilation (Manual)
 
 The upgrade automatically compiles workflows. To validate specific workflows, run `gh aw compile my-workflow --validate`. Common issues include invalid YAML syntax, deprecated fields (fix with `gh aw fix --write`), or incorrect schedule format. See the [schedule syntax reference](/gh-aw/reference/schedule-syntax/) for details.
 
-## Step 6: Review Lock Files
+## Step 6: Review Lock Files (Manual)
 
 Verify that each `.md` workflow has a corresponding `.lock.yml` file with `git status | grep .lock.yml`. Never edit `.lock.yml` files directly—they're auto-generated. Always edit the `.md` source and recompile.
 
-## Step 7: Test Your Workflows
+## Step 7: Test Your Workflows (Manual)
 
 Test workflows locally with `gh aw status` and `gh aw compile my-workflow --validate`. Trigger manual runs with `gh aw run my-workflow` and monitor with `gh aw logs my-workflow`. If using MCP servers, verify configuration with `gh aw mcp list`. Consider testing in a draft PR before merging to production.
 
-## Step 8: Commit and Push
+## Step 8: Commit and Push (Manual)
 
 Stage and commit your changes:
 
