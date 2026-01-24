@@ -24,7 +24,7 @@ safe-outputs:
 # Auto-Assign Issue
 
 Find ONE open issue that:
-- Has no assignees
+- **Has no assignees** - When you retrieve issues from GitHub, explicitly check the `assignees` field. Skip any issue where `issue.assignees` is not empty or has length > 0.
 - Does not have label `ai-generated`
 - Does not have a `campaign:*` label (these are managed by campaign orchestrators)
 - Does not have labels: `no-bot`, `no-campaign`
