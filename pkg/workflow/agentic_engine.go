@@ -15,8 +15,82 @@ var agenticEngineLog = logger.New("workflow:agentic_engine")
 // GitHubActionStep represents the YAML lines for a single step in a GitHub Actions workflow
 type GitHubActionStep []string
 
-// CodingAgentEngine represents an AI coding agent that can be used as an engine to execute agentic workflows
-type CodingAgentEngine interface {
+// Interface Segregation Architecture
+//
+// The agentic engine interfaces follow the Interface Segregation Principle (ISP) to avoid
+// forcing implementations to depend on methods they don't use. The architecture uses interface
+// composition to provide flexibility while maintaining backward compatibility.
+//
+// Core Principles:
+// 1. Focused interfaces with single responsibilities
+// 2. Composition over monolithic interfaces
+// 3. Backward compatibility via composite interface
+// 4. Optional capabilities via interface type assertions
+//
+// Interface Hierarchy:
+//
+//   Engine (core identity - required by all)
+//   ├── GetID()
+//   ├── GetDisplayName()
+//   ├── GetDescription()
+//   └── IsExperimental()
+//
+//   CapabilityProvider (feature detection - optional)
+//   ├── SupportsToolsAllowlist()
+//   ├── SupportsHTTPTransport()
+//   ├── SupportsMaxTurns()
+//   ├── SupportsWebFetch()
+//   ├── SupportsWebSearch()
+//   └── SupportsFirewall()
+//
+//   WorkflowExecutor (compilation - required)
+//   ├── GetDeclaredOutputFiles()
+//   ├── GetInstallationSteps()
+//   └── GetExecutionSteps()
+//
+//   MCPConfigProvider (MCP servers - optional)
+//   └── RenderMCPConfig()
+//
+//   LogParser (log analysis - optional)
+//   ├── ParseLogMetrics()
+//   ├── GetLogParserScriptId()
+//   └── GetLogFileForParsing()
+//
+//   SecurityProvider (security features - optional)
+//   ├── GetDefaultDetectionModel()
+//   └── GetRequiredSecretNames()
+//
+//   CodingAgentEngine (composite - backward compatibility)
+//   └── Composes all above interfaces
+//
+// Usage Patterns:
+//
+// 1. For code that only needs identity information:
+//    func processEngine(e Engine) { ... }
+//
+// 2. For code that needs capability checks:
+//    func checkCapabilities(cp CapabilityProvider) { ... }
+//
+// 3. For backward compatibility (existing code):
+//    func compile(engine CodingAgentEngine) { ... }
+//
+// Implementation:
+//
+// All engines embed BaseEngine which provides default implementations for all methods.
+// Engines can override specific methods to provide custom behavior.
+//
+// Example:
+//   type MyEngine struct {
+//       BaseEngine
+//   }
+//
+//   func (e *MyEngine) GetInstallationSteps(...) []GitHubActionStep {
+//       // Custom implementation
+//   }
+
+// Engine represents the core identity of an AI coding agent
+// All engines must implement this interface to provide basic identification
+type Engine interface {
 	// GetID returns the unique identifier for this engine
 	GetID() string
 
@@ -28,7 +102,11 @@ type CodingAgentEngine interface {
 
 	// IsExperimental returns true if this engine is experimental
 	IsExperimental() bool
+}
 
+// CapabilityProvider detects what capabilities an engine supports
+// Engines can optionally implement this to indicate feature support
+type CapabilityProvider interface {
 	// SupportsToolsAllowlist returns true if this engine supports MCP tool allow-listing
 	SupportsToolsAllowlist() bool
 
@@ -47,7 +125,11 @@ type CodingAgentEngine interface {
 	// SupportsFirewall returns true if this engine supports network firewalling/sandboxing
 	// When true, the engine can enforce network restrictions defined in the workflow
 	SupportsFirewall() bool
+}
 
+// WorkflowExecutor handles workflow compilation and execution
+// All engines must implement this to generate GitHub Actions steps
+type WorkflowExecutor interface {
 	// GetDeclaredOutputFiles returns a list of output files that this engine may produce
 	// These files will be automatically uploaded as artifacts if they exist
 	GetDeclaredOutputFiles() []string
@@ -57,10 +139,18 @@ type CodingAgentEngine interface {
 
 	// GetExecutionSteps returns the GitHub Actions steps for executing this engine
 	GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep
+}
 
+// MCPConfigProvider handles MCP (Model Context Protocol) configuration
+// Engines that support MCP servers should implement this
+type MCPConfigProvider interface {
 	// RenderMCPConfig renders the MCP configuration for this engine to the given YAML builder
 	RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData)
+}
 
+// LogParser handles parsing and analyzing engine logs
+// Engines can optionally implement this to provide detailed log parsing
+type LogParser interface {
 	// ParseLogMetrics extracts metrics from engine-specific log content
 	ParseLogMetrics(logContent string, verbose bool) LogMetrics
 
@@ -70,7 +160,11 @@ type CodingAgentEngine interface {
 	// GetLogFileForParsing returns the log file path to use for JavaScript parsing in the workflow
 	// This may be different from the stdout/stderr log file if the engine produces separate detailed logs
 	GetLogFileForParsing() string
+}
 
+// SecurityProvider handles security-related configuration
+// Engines can optionally implement this to provide security features
+type SecurityProvider interface {
 	// GetDefaultDetectionModel returns the default model to use for threat detection
 	// If empty, no default model is applied and the engine uses its standard default
 	GetDefaultDetectionModel() string
@@ -79,6 +173,18 @@ type CodingAgentEngine interface {
 	// This includes engine-specific auth tokens and the MCP gateway API key when MCP servers are present
 	// Returns: slice of secret names (e.g., ["COPILOT_GITHUB_TOKEN", "MCP_GATEWAY_API_KEY"])
 	GetRequiredSecretNames(workflowData *WorkflowData) []string
+}
+
+// CodingAgentEngine is a composite interface that combines all focused interfaces
+// This maintains backward compatibility with existing code while allowing more flexibility
+// Implementations can choose to implement only the interfaces they need by embedding BaseEngine
+type CodingAgentEngine interface {
+	Engine
+	CapabilityProvider
+	WorkflowExecutor
+	MCPConfigProvider
+	LogParser
+	SecurityProvider
 }
 
 // BaseEngine provides common functionality for agentic engines
