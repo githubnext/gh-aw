@@ -362,15 +362,11 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "              staged: %s,\n", stagedValue)
 
 	// Network configuration
-	networkMode := "defaults"
 	var allowedDomains []string
 	firewallEnabled := false
 	firewallVersion := ""
 
 	if data.NetworkPermissions != nil {
-		if data.NetworkPermissions.Mode != "" {
-			networkMode = data.NetworkPermissions.Mode
-		}
 		allowedDomains = data.NetworkPermissions.Allowed
 		if data.NetworkPermissions.Firewall != nil {
 			firewallEnabled = data.NetworkPermissions.Firewall.Enabled
@@ -381,8 +377,6 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			}
 		}
 	}
-
-	fmt.Fprintf(yaml, "              network_mode: \"%s\",\n", networkMode)
 
 	// Add allowed domains as JSON array
 	if len(allowedDomains) > 0 {

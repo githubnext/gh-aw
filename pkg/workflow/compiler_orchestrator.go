@@ -288,10 +288,10 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	// Extract network permissions from frontmatter
 	networkPermissions := c.extractNetworkPermissions(result.Frontmatter)
 
-	// Default to 'defaults' network access if no network permissions specified
+	// Default to 'defaults' ecosystem if no network permissions specified
 	if networkPermissions == nil {
 		networkPermissions = &NetworkPermissions{
-			Mode: "defaults",
+			Allowed: []string{"defaults"},
 		}
 	}
 

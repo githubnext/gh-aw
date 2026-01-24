@@ -218,14 +218,13 @@ func TestValidateStrictNetwork(t *testing.T) {
 		{
 			name: "defaults mode is allowed",
 			networkPermissions: &NetworkPermissions{
-				Mode: "defaults",
+				Allowed: []string{"defaults"},
 			},
 			expectError: false,
 		},
 		{
 			name: "specific allowed domains are allowed",
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{"api.example.com", "github.com"},
 			},
 			expectError: false,
@@ -233,7 +232,6 @@ func TestValidateStrictNetwork(t *testing.T) {
 		{
 			name: "wildcard in allowed domains is refused",
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{"*"},
 			},
 			expectError: true,
@@ -242,7 +240,6 @@ func TestValidateStrictNetwork(t *testing.T) {
 		{
 			name: "wildcard among other domains is refused",
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{"api.example.com", "*", "github.com"},
 			},
 			expectError: true,
@@ -251,7 +248,6 @@ func TestValidateStrictNetwork(t *testing.T) {
 		{
 			name: "empty allowed list is allowed",
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{},
 			},
 			expectError: false,
@@ -259,7 +255,6 @@ func TestValidateStrictNetwork(t *testing.T) {
 		{
 			name: "domain patterns with wildcards are allowed (not exact *)",
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{"*.example.com", "api.*.com"},
 			},
 			expectError: false,
@@ -267,7 +262,6 @@ func TestValidateStrictNetwork(t *testing.T) {
 		{
 			name: "single domain is allowed",
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{"api.github.com"},
 			},
 			expectError: false,
@@ -324,7 +318,6 @@ func TestValidateStrictMode(t *testing.T) {
 				},
 			},
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{"api.example.com"},
 			},
 			expectError: false,
@@ -339,7 +332,6 @@ func TestValidateStrictMode(t *testing.T) {
 				},
 			},
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{"api.example.com"},
 			},
 			expectError: true,
@@ -368,7 +360,6 @@ func TestValidateStrictMode(t *testing.T) {
 				},
 			},
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{"*"},
 			},
 			expectError: true,
@@ -389,7 +380,6 @@ func TestValidateStrictMode(t *testing.T) {
 				},
 			},
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{}, // Empty allowed list - no top-level network config
 			},
 			expectError: true,
@@ -413,7 +403,6 @@ func TestValidateStrictMode(t *testing.T) {
 				},
 			},
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{"api.example.com"},
 			},
 			expectError: false,
@@ -428,7 +417,7 @@ func TestValidateStrictMode(t *testing.T) {
 				},
 			},
 			networkPermissions: &NetworkPermissions{
-				Mode: "defaults",
+				Allowed: []string{"defaults"},
 			},
 			expectError: false,
 		},
@@ -442,7 +431,7 @@ func TestValidateStrictMode(t *testing.T) {
 				},
 			},
 			networkPermissions: &NetworkPermissions{
-				Mode: "defaults", // This is what the compiler orchestrator sets when network is not in frontmatter
+				Allowed: []string{"defaults"}, // This is what the compiler orchestrator sets when network is not in frontmatter
 			},
 			expectError: false,
 		},
@@ -453,7 +442,6 @@ func TestValidateStrictMode(t *testing.T) {
 				"on": "push",
 			},
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{"api.example.com"},
 			},
 			expectError: false,
@@ -469,7 +457,6 @@ func TestValidateStrictMode(t *testing.T) {
 				},
 			},
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{"api.example.com"},
 			},
 			expectError: false,
@@ -508,7 +495,6 @@ func TestValidateStrictModeEdgeCases(t *testing.T) {
 			name:        "empty frontmatter with valid network",
 			frontmatter: map[string]any{},
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{"api.example.com"},
 			},
 			expectError: false,
@@ -517,7 +503,6 @@ func TestValidateStrictModeEdgeCases(t *testing.T) {
 			name:        "nil frontmatter map is handled",
 			frontmatter: nil,
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{"api.example.com"},
 			},
 			expectError: false,
@@ -529,7 +514,6 @@ func TestValidateStrictModeEdgeCases(t *testing.T) {
 				"permissions": "invalid-string-value",
 			},
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{"api.example.com"},
 			},
 			expectError: false,
@@ -541,7 +525,6 @@ func TestValidateStrictModeEdgeCases(t *testing.T) {
 				"permissions": []string{"contents:read"},
 			},
 			networkPermissions: &NetworkPermissions{
-				Mode:    "custom",
 				Allowed: []string{"api.example.com"},
 			},
 			expectError: false,

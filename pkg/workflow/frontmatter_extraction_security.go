@@ -14,7 +14,7 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 			frontmatterExtractionSecurityLog.Printf("Network permissions string format: %s", networkStr)
 			if networkStr == "defaults" {
 				return &NetworkPermissions{
-					Mode:              "defaults",
+					Allowed:           []string{"defaults"},
 					ExplicitlyDefined: true,
 				}
 			}
@@ -27,7 +27,6 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 		if networkObj, ok := network.(map[string]any); ok {
 			frontmatterExtractionSecurityLog.Printf("Network permissions object format with %d fields", len(networkObj))
 			permissions := &NetworkPermissions{
-				Mode:              "defaults",
 				ExplicitlyDefined: true,
 			}
 

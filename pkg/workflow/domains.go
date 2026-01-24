@@ -126,32 +126,30 @@ func getEcosystemDomains(category string) []string {
 //
 // # Behavior based on network permissions configuration:
 //
-// 1. No network permissions (nil):
-//    Returns default ecosystem domains for backwards compatibility.
+//  1. No network permissions (nil):
+//     Returns default ecosystem domains for backwards compatibility.
 //
-// 2. Mode "defaults" with empty Allowed list:
-//    network: defaults  OR  network: {}
-//    Returns only default ecosystem domains.
+//  2. Allowed list with "defaults" only:
+//     network: defaults  OR  network: { allowed: [defaults] }
+//     Returns default ecosystem domains.
 //
-// 3. Mode "defaults" with Allowed list:
-//    network:
-//      allowed:
-//        - defaults
-//        - github
-//    Processes the Allowed list, expanding ecosystem identifiers.
-//    The Mode field serves as a hint but doesn't override the Allowed list.
+//  3. Allowed list with multiple ecosystems:
+//     network:
+//     allowed:
+//     - defaults
+//     - github
+//     Processes the Allowed list, expanding all ecosystem identifiers and merging them.
 //
-// 4. Custom mode (Mode empty) with Allowed list:
-//    network:
-//      allowed:
-//        - example.com
-//        - python
-//    Processes the Allowed list, expanding ecosystem identifiers.
+//  4. Allowed list with custom domains:
+//     network:
+//     allowed:
+//     - example.com
+//     - python
+//     Processes the Allowed list, expanding ecosystem identifiers.
 //
-// 5. Empty Allowed list (deny-all):
-//    network:
-//      allowed: []
-//    Returns empty slice (no network access).
+//  5. Empty Allowed list (deny-all):
+//     network: {}  OR  network: { allowed: [] }
+//     Returns empty slice (no network access).
 //
 // The returned list is sorted and deduplicated.
 //
@@ -180,14 +178,8 @@ func GetAllowedDomains(network *NetworkPermissions) []string {
 		domainsLog.Print("No network permissions specified, using defaults")
 		return getEcosystemDomains("defaults") // Default allow-list for backwards compatibility
 	}
-	
-	// If mode is "defaults" but there's no explicit allowed list, return default ecosystem domains
-	if network.Mode == "defaults" && len(network.Allowed) == 0 {
-		domainsLog.Print("Network mode is defaults with no allowed list, using default ecosystem domains")
-		return getEcosystemDomains("defaults") // Default allow-list for defaults mode
-	}
 
-	// Handle empty allowed list (deny-all case) when mode is not "defaults"
+	// Handle empty allowed list (deny-all case)
 	if len(network.Allowed) == 0 {
 		domainsLog.Print("Empty allowed list, denying all network access")
 		return []string{} // Return empty slice, not nil

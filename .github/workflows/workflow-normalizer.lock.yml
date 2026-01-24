@@ -487,7 +487,6 @@ jobs:
               actor: context.actor,
               event_name: context.eventName,
               staged: false,
-              network_mode: "defaults",
               allowed_domains: ["defaults","python","node"],
               firewall_enabled: true,
               awf_version: "v0.10.0",

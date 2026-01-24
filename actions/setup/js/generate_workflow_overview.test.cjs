@@ -54,7 +54,6 @@ describe("generate_workflow_overview.cjs", () => {
       engine_id: "copilot",
       engine_name: "GitHub Copilot",
       model: "gpt-4",
-      network_mode: "firewall",
       firewall_enabled: true,
       awf_version: "1.0.0",
       allowed_domains: [],

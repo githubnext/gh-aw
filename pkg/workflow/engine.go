@@ -29,32 +29,34 @@ type EngineConfig struct {
 // NetworkPermissions represents network access permissions for workflow execution
 // Controls which domains the workflow can access during execution.
 //
-// The Mode field indicates the network access strategy:
-//   - "defaults": Uses the default ecosystem domain list when Allowed list is empty.
-//                 When Allowed list is present, Mode serves as a hint but the Allowed list is processed.
-//   - "" (empty):  Custom network configuration - processes only the Allowed/Blocked lists.
+// The Allowed field specifies which domains/ecosystems are permitted:
+//   - nil/not set: Use default ecosystem domains (backwards compatibility)
+//   - []: Empty list means deny all network access
+//   - ["defaults"]: Use default ecosystem domains
+//   - ["defaults", "github", "python"]: Expand and merge multiple ecosystems
+//   - ["example.com"]: Allow specific domain only
 //
 // Examples:
-//   1. String format - use default domains only:
-//      network: defaults
-//      Result: NetworkPermissions{Mode: "defaults", Allowed: []}
 //
-//   2. Object format - specify allowed ecosystems/domains:
-//      network:
-//        allowed:
-//          - defaults      # Expands to default ecosystem domains (certs, JSON schema, Ubuntu, etc.)
-//          - github        # Expands to GitHub ecosystem domains (*.githubusercontent.com, etc.)
-//          - example.com   # Literal domain
-//      Result: NetworkPermissions{Mode: "defaults", Allowed: ["defaults", "github", "example.com"]}
+//  1. String format - use default domains only:
+//     network: defaults
+//     Result: NetworkPermissions{Allowed: ["defaults"], ExplicitlyDefined: true}
 //
-//   3. Empty object - deny all network access:
-//      network: {}
-//      Result: NetworkPermissions{Mode: "defaults", Allowed: []}
+//  2. Object format - specify allowed ecosystems/domains:
+//     network:
+//     allowed:
+//     - defaults      # Expands to default ecosystem domains (certs, JSON schema, Ubuntu, etc.)
+//     - github        # Expands to GitHub ecosystem domains (*.githubusercontent.com, etc.)
+//     - example.com   # Literal domain
+//     Result: NetworkPermissions{Allowed: ["defaults", "github", "example.com"], ExplicitlyDefined: true}
 //
-// The Mode field is set to "defaults" when the network config is explicitly defined in frontmatter,
-// helping distinguish between "not configured" (nil) and "configured as defaults" scenarios.
+//  3. Empty object - deny all network access:
+//     network: {}
+//     Result: NetworkPermissions{Allowed: [], ExplicitlyDefined: true}
+//
+// Ecosystem identifiers in the Allowed list are expanded to their corresponding domain lists.
+// See GetAllowedDomains() for the list of supported ecosystem identifiers.
 type NetworkPermissions struct {
-	Mode              string          `yaml:"mode,omitempty"`     // Network access mode: "defaults" or "" (empty for custom)
 	Allowed           []string        `yaml:"allowed,omitempty"`  // List of allowed domains or ecosystem identifiers (e.g., "defaults", "github", "python")
 	Blocked           []string        `yaml:"blocked,omitempty"`  // List of blocked domains (takes precedence over allowed)
 	Firewall          *FirewallConfig `yaml:"firewall,omitempty"` // AWF firewall configuration (see firewall.go)

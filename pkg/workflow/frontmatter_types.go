@@ -459,22 +459,23 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	// Network and sandbox
 	if fc.Network != nil {
 		// Convert NetworkPermissions to map format
-		networkMap := make(map[string]any)
-		if fc.Network.Mode != "" {
-			if fc.Network.Mode == "defaults" {
-				result["network"] = "defaults"
-			} else {
-				networkMap["mode"] = fc.Network.Mode
+		// If allowed list is just ["defaults"], convert to string format "defaults"
+		if len(fc.Network.Allowed) == 1 && fc.Network.Allowed[0] == "defaults" && fc.Network.Firewall == nil && len(fc.Network.Blocked) == 0 {
+			result["network"] = "defaults"
+		} else {
+			networkMap := make(map[string]any)
+			if len(fc.Network.Allowed) > 0 {
+				networkMap["allowed"] = fc.Network.Allowed
 			}
-		}
-		if len(fc.Network.Allowed) > 0 {
-			networkMap["allowed"] = fc.Network.Allowed
-		}
-		if fc.Network.Firewall != nil {
-			networkMap["firewall"] = fc.Network.Firewall
-		}
-		if len(networkMap) > 0 {
-			result["network"] = networkMap
+			if len(fc.Network.Blocked) > 0 {
+				networkMap["blocked"] = fc.Network.Blocked
+			}
+			if fc.Network.Firewall != nil {
+				networkMap["firewall"] = fc.Network.Firewall
+			}
+			if len(networkMap) > 0 {
+				result["network"] = networkMap
+			}
 		}
 	}
 	if fc.Sandbox != nil {

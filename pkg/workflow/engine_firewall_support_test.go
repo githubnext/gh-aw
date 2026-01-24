@@ -44,7 +44,7 @@ func TestHasNetworkRestrictions(t *testing.T) {
 
 	t.Run("defaults mode has no restrictions", func(t *testing.T) {
 		perms := &NetworkPermissions{
-			Mode: "defaults",
+			Allowed: []string{"defaults"},
 		}
 		if hasNetworkRestrictions(perms) {
 			t.Error("defaults mode should not have restrictions")
@@ -62,8 +62,8 @@ func TestHasNetworkRestrictions(t *testing.T) {
 
 	t.Run("empty allowed list with no mode is a restriction", func(t *testing.T) {
 		perms := &NetworkPermissions{
-			Mode:    "",
-			Allowed: []string{},
+			Allowed:           []string{},
+			ExplicitlyDefined: true,
 		}
 		if !hasNetworkRestrictions(perms) {
 			t.Error("empty object {} should indicate deny-all restriction")
@@ -76,7 +76,7 @@ func TestCheckNetworkSupport_NoRestrictions(t *testing.T) {
 
 	t.Run("no restrictions with copilot engine", func(t *testing.T) {
 		engine := NewCopilotEngine()
-		perms := &NetworkPermissions{Mode: "defaults"}
+		perms := &NetworkPermissions{Allowed: []string{"defaults"}}
 		err := compiler.checkNetworkSupport(engine, perms)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
@@ -85,7 +85,7 @@ func TestCheckNetworkSupport_NoRestrictions(t *testing.T) {
 
 	t.Run("no restrictions with claude engine", func(t *testing.T) {
 		engine := NewClaudeEngine()
-		perms := &NetworkPermissions{Mode: "defaults"}
+		perms := &NetworkPermissions{Allowed: []string{"defaults"}}
 		err := compiler.checkNetworkSupport(engine, perms)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
@@ -232,7 +232,7 @@ func TestCheckNetworkSupport_StrictMode(t *testing.T) {
 		compiler := NewCompiler(false, "", "test")
 		compiler.strictMode = true
 		engine := NewClaudeEngine()
-		perms := &NetworkPermissions{Mode: "defaults"}
+		perms := &NetworkPermissions{Allowed: []string{"defaults"}}
 
 		err := compiler.checkNetworkSupport(engine, perms)
 		if err != nil {

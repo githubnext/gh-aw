@@ -394,7 +394,6 @@ jobs:
               actor: context.actor,
               event_name: context.eventName,
               staged: false,
-              network_mode: "defaults",
               allowed_domains: ["*"],
               firewall_enabled: false,
               awf_version: "",

@@ -392,11 +392,10 @@ func TestGetClaudeAllowedDomains(t *testing.T) {
 	})
 }
 
-// TestGetAllowedDomains_ModeDefaultsWithAllowedList verifies that when Mode is "defaults"
-// but there's an Allowed list, it processes the Allowed list instead of returning only defaults
+// TestGetAllowedDomains_ModeDefaultsWithAllowedList verifies that when there's an Allowed list
+// with multiple ecosystems, it processes and expands all of them
 func TestGetAllowedDomains_ModeDefaultsWithAllowedList(t *testing.T) {
 	network := &NetworkPermissions{
-		Mode: "defaults",
 		Allowed: []string{
 			"defaults",
 			"github",

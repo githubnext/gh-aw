@@ -16,7 +16,6 @@ func TestFirewallWorkflowNetworkConfiguration(t *testing.T) {
 			Model: "claude-3-5-sonnet-20241022",
 		},
 		NetworkPermissions: &NetworkPermissions{
-			Mode:     "defaults",
 			Firewall: &FirewallConfig{Enabled: true},
 		},
 		Tools: map[string]any{
@@ -107,9 +106,9 @@ func TestFirewallWorkflowCompilation(t *testing.T) {
 		t.Fatal("Network permissions should be configured")
 	}
 
-	// Verify it's using defaults mode
-	if networkPerms.Mode != "defaults" {
-		t.Errorf("Expected network mode 'defaults', got '%s'", networkPerms.Mode)
+	// Verify it's using defaults ecosystem
+	if len(networkPerms.Allowed) != 1 || networkPerms.Allowed[0] != "defaults" {
+		t.Errorf("Expected network allowed to be ['defaults'], got %v", networkPerms.Allowed)
 	}
 
 	// Get the actual allowed domains using the GetAllowedDomains function
@@ -129,7 +128,7 @@ func TestFirewallWorkflowCompilation(t *testing.T) {
 // TestFirewallWorkflowBlocksExampleCom tests that the network hook would block example.com
 func TestFirewallWorkflowBlocksExampleCom(t *testing.T) {
 	networkPerms := &NetworkPermissions{
-		Mode: "defaults",
+		Allowed: []string{"defaults"},
 	}
 	allowedDomains := GetAllowedDomains(networkPerms)
 

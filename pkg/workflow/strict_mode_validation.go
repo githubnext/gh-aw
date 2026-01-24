@@ -75,7 +75,7 @@ func (c *Compiler) validateStrictPermissions(frontmatter map[string]any) error {
 
 // validateStrictNetwork validates network configuration in strict mode and refuses "*" wildcard
 // Note: networkPermissions should never be nil at this point because the compiler orchestrator
-// applies defaults (Mode: "defaults") when no network configuration is specified in frontmatter.
+// applies defaults (Allowed: ["defaults"]) when no network configuration is specified in frontmatter.
 // This automatic default application means users don't need to explicitly declare network in strict mode.
 func (c *Compiler) validateStrictNetwork(networkPermissions *NetworkPermissions) error {
 	// This check should never trigger in production since the compiler orchestrator
@@ -86,10 +86,12 @@ func (c *Compiler) validateStrictNetwork(networkPermissions *NetworkPermissions)
 		return fmt.Errorf("internal error: network permissions not initialized (this should not happen in normal operation)")
 	}
 
-	// If mode is "defaults", that's acceptable (this is the automatic default)
-	if networkPermissions.Mode == "defaults" {
-		strictModeValidationLog.Printf("Network validation passed: mode=defaults (automatically applied or explicitly set)")
-		return nil
+	// If allowed list contains "defaults", that's acceptable (this is the automatic default)
+	for _, domain := range networkPermissions.Allowed {
+		if domain == "defaults" {
+			strictModeValidationLog.Printf("Network validation passed: allowed list contains 'defaults'")
+			return nil
+		}
 	}
 
 	// Check for wildcard "*" in allowed domains

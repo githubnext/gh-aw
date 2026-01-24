@@ -250,13 +250,13 @@ func TestParseWorkflowFile_NetworkPermissions(t *testing.T) {
 		name               string
 		includeNetwork     bool
 		networkConfig      string
-		expectedMode       string
+		expectedAllowed    []string
 		expectedHasAllowed bool
 	}{
 		{
-			name:           "default network mode",
-			includeNetwork: false,
-			expectedMode:   "defaults",
+			name:            "default network (no network field)",
+			includeNetwork:  false,
+			expectedAllowed: []string{"defaults"},
 		},
 		{
 			name:           "explicit allowed domains",
@@ -266,7 +266,6 @@ network:
   allowed:
     - github.com
     - api.example.com`,
-			expectedMode:       "defaults",
 			expectedHasAllowed: true,
 		},
 	}
@@ -289,8 +288,10 @@ network:
 			require.NotNil(t, workflowData)
 			require.NotNil(t, workflowData.NetworkPermissions)
 
-			assert.Equal(t, tt.expectedMode, workflowData.NetworkPermissions.Mode,
-				"Network mode should be %s", tt.expectedMode)
+			if len(tt.expectedAllowed) > 0 {
+				assert.Equal(t, tt.expectedAllowed, workflowData.NetworkPermissions.Allowed,
+					"Network allowed list should match expected")
+			}
 
 			if tt.expectedHasAllowed {
 				assert.NotEmpty(t, workflowData.NetworkPermissions.Allowed,
