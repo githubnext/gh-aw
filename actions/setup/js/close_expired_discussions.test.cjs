@@ -42,11 +42,7 @@ describe("close_expired_discussions", () => {
       mockGithub.graphql.mockResolvedValueOnce({
         node: {
           comments: {
-            nodes: [
-              { body: "Some other comment" },
-              { body: "This discussion was automatically closed because it expired on 2026-01-20T09:20:00.000Z." },
-              { body: "Another comment" },
-            ],
+            nodes: [{ body: "Some other comment" }, { body: "This discussion was automatically closed because it expired on 2026-01-20T09:20:00.000Z.\n\n<!-- gh-aw-closed -->" }, { body: "Another comment" }],
           },
         },
       });
@@ -61,10 +57,7 @@ describe("close_expired_discussions", () => {
       mockGithub.graphql.mockResolvedValueOnce({
         node: {
           comments: {
-            nodes: [
-              { body: "Some regular comment" },
-              { body: "Another regular comment" },
-            ],
+            nodes: [{ body: "Some regular comment" }, { body: "Another regular comment" }],
           },
         },
       });
@@ -104,9 +97,7 @@ describe("close_expired_discussions", () => {
         .mockResolvedValueOnce({
           node: {
             comments: {
-              nodes: [
-                { body: "This discussion was automatically closed because it expired on 2020-01-20T09:20:00.000Z." },
-              ],
+              nodes: [{ body: "This discussion was automatically closed because it expired on 2020-01-20T09:20:00.000Z.\n\n<!-- gh-aw-closed -->" }],
             },
           },
         })
@@ -126,14 +117,10 @@ describe("close_expired_discussions", () => {
       expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
 
       // Verify that we checked for existing comments
-      expect(mockCore.warning).toHaveBeenCalledWith(
-        expect.stringContaining("already has an expiration comment")
-      );
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("already has an expiration comment"));
 
       // Verify that we still tried to close the discussion
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringContaining("Attempting to close discussion")
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Attempting to close discussion"));
     });
 
     it("should add comment if none exists", async () => {
@@ -166,9 +153,7 @@ describe("close_expired_discussions", () => {
         .mockResolvedValueOnce({
           node: {
             comments: {
-              nodes: [
-                { body: "Some unrelated comment" },
-              ],
+              nodes: [{ body: "Some unrelated comment" }],
             },
           },
         })
@@ -197,14 +182,10 @@ describe("close_expired_discussions", () => {
       expect(mockGithub.graphql).toHaveBeenCalledTimes(4);
 
       // Verify that we added the comment
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringContaining("Adding closing comment")
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Adding closing comment"));
 
       // Verify that we closed the discussion
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringContaining("Discussion closed successfully")
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Discussion closed successfully"));
     });
 
     it("should handle empty comments gracefully", async () => {
@@ -263,9 +244,7 @@ describe("close_expired_discussions", () => {
 
       // Should add comment when no comments exist
       expect(mockGithub.graphql).toHaveBeenCalledTimes(4);
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringContaining("Adding closing comment")
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Adding closing comment"));
     });
   });
 
@@ -287,9 +266,7 @@ describe("close_expired_discussions", () => {
 
       await module.main();
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        "No discussions with expiration markers found"
-      );
+      expect(mockCore.info).toHaveBeenCalledWith("No discussions with expiration markers found");
       expect(mockCore.summary.write).toHaveBeenCalled();
     });
 
@@ -323,9 +300,7 @@ describe("close_expired_discussions", () => {
 
       await module.main();
 
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringContaining("is NOT expired")
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("is NOT expired"));
       expect(mockCore.info).toHaveBeenCalledWith("No expired discussions found");
     });
   });

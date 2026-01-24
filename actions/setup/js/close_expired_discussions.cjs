@@ -207,7 +207,7 @@ async function hasExpirationComment(github, discussionId) {
   }
 
   const comments = result.node.comments.nodes || [];
-  const expirationCommentPattern = /This discussion was automatically closed because it expired on/;
+  const expirationCommentPattern = /<!--\s*gh-aw-closed\s*-->/;
 
   return comments.some(comment => comment.body && expirationCommentPattern.test(comment.body));
 }
@@ -348,7 +348,7 @@ async function main() {
         });
         closedCount++;
       } else {
-        const closingMessage = `This discussion was automatically closed because it expired on ${discussion.expirationDate.toISOString()}.`;
+        const closingMessage = `This discussion was automatically closed because it expired on ${discussion.expirationDate.toISOString()}.\n\n<!-- gh-aw-closed -->`;
 
         // Add comment first
         core.info(`  Adding closing comment to discussion #${discussion.number}`);
