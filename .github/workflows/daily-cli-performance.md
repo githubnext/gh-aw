@@ -70,15 +70,20 @@ mkdir -p /tmp/gh-aw/benchmarks
 
 **Step 2**: Run benchmarks using safeinputs-make
 
-Use the **safeinputs-make** tool with args: "bench" to run the benchmark suite.
+Use the **safeinputs-make** tool with args: "bench-performance" to run the critical performance benchmark suite.
 
-This will execute `make bench` which runs Go benchmarks and saves results to `bench_results.txt`.
+This will execute `make bench-performance` which runs targeted performance benchmarks and saves results to `bench_performance.txt`.
+
+The targeted benchmarks include:
+- **Workflow compilation**: CompileSimpleWorkflow, CompileComplexWorkflow, CompileMCPWorkflow, CompileMemoryUsage
+- **Workflow phases**: ParseWorkflow, Validation, YAMLGeneration
+- **CLI helpers**: ExtractWorkflowNameFromFile, UpdateWorkflowTitle, FindIncludesInContent
 
 **Step 3**: Copy results to our tracking directory
 
 ```bash
 # Copy benchmark results to our directory
-cp bench_results.txt /tmp/gh-aw/benchmarks/bench_results.txt
+cp bench_performance.txt /tmp/gh-aw/benchmarks/bench_results.txt
 
 # Extract just the summary
 grep "Benchmark" /tmp/gh-aw/benchmarks/bench_results.txt > /tmp/gh-aw/benchmarks/bench_summary.txt || true
