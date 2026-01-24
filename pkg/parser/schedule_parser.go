@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"hash/fnv"
 	"regexp"
 	"strconv"
 	"strings"
