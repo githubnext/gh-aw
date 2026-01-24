@@ -21,9 +21,23 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 	}
 	if hasGitHub {
 		githubTool := tools["github"]
-		customGitHubToken := getGitHubToken(githubTool)
-		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
-		envVars["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
+		
+		// Check if GitHub App is configured for token minting
+		hasGitHubApp := false
+		if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil && workflowData.ParsedTools.GitHub.App != nil {
+			hasGitHubApp = true
+		}
+		
+		// If GitHub App is configured, use the app token (overrides other tokens)
+		if hasGitHubApp {
+			mcpEnvironmentLog.Print("Using GitHub App token for GitHub MCP server (overrides custom and default tokens)")
+			envVars["GITHUB_MCP_SERVER_TOKEN"] = "${{ steps.github-mcp-app-token.outputs.token }}"
+		} else {
+			// Otherwise, use custom token or default fallback
+			customGitHubToken := getGitHubToken(githubTool)
+			effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
+			envVars["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
+		}
 
 		// Add lockdown value if it's determined from step output
 		// Security: Pass step output through environment variable to prevent template injection

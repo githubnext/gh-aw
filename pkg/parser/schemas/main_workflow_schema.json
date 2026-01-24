@@ -2697,6 +2697,44 @@
                     "description": "Mount specification in format 'host:container:mode'"
                   },
                   "examples": [["/data:/data:ro", "/tmp:/tmp:rw"], ["/opt:/opt:ro"]]
+                },
+                "app": {
+                  "type": "object",
+                  "description": "GitHub App configuration for token minting. When configured, a GitHub App installation access token is minted at workflow start and used instead of the default token. This token overrides any custom github-token setting and provides fine-grained permissions matching the agent job requirements.",
+                  "properties": {
+                    "app-id": {
+                      "type": "string",
+                      "description": "GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token."
+                    },
+                    "private-key": {
+                      "type": "string",
+                      "description": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to mint a GitHub App token."
+                    },
+                    "owner": {
+                      "type": "string",
+                      "description": "Optional owner of the GitHub App installation (defaults to current repository owner if not specified)"
+                    },
+                    "repositories": {
+                      "type": "array",
+                      "description": "Optional list of repositories to grant access to (defaults to current repository if not specified)",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": ["app-id", "private-key"],
+                  "additionalProperties": false,
+                  "examples": [
+                    {
+                      "app-id": "${{ vars.APP_ID }}",
+                      "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
+                    },
+                    {
+                      "app-id": "${{ vars.GITHUB_APP_ID }}",
+                      "private-key": "${{ secrets.GITHUB_APP_PRIVATE_KEY }}",
+                      "repositories": ["repo1", "repo2"]
+                    }
+                  ]
                 }
               },
               "additionalProperties": false,
