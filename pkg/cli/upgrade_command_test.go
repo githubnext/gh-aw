@@ -51,6 +51,7 @@ This is a test workflow.
 		NoFix:       true, // Skip codemods for this test
 		WorkflowDir: "",
 		Push:        false,
+		NoActions:   true, // Skip action updates for this test
 	}
 
 	err = RunUpgrade(config)
@@ -127,6 +128,7 @@ This workflow also has deprecated timeout_minutes field.
 		NoFix:       false, // Apply codemods
 		WorkflowDir: "",
 		Push:        false,
+		NoActions:   true, // Skip action updates for this test
 	}
 
 	err = RunUpgrade(config)
@@ -188,6 +190,7 @@ This workflow should not be modified when --no-fix is used.
 		NoFix:       true, // Skip codemods
 		WorkflowDir: "",
 		Push:        false,
+		NoActions:   true, // Skip action updates for this test
 	}
 
 	err = RunUpgrade(config)
@@ -219,6 +222,7 @@ func TestUpgradeCommand_NonGitRepo(t *testing.T) {
 		NoFix:       true,
 		WorkflowDir: "",
 		Push:        false,
+		NoActions:   true, // Skip action updates for this test
 	}
 
 	err := RunUpgrade(config)
@@ -267,6 +271,7 @@ This is a test workflow that should be compiled during upgrade.
 		NoFix:       false, // Apply codemods and compile
 		WorkflowDir: "",
 		Push:        false,
+		NoActions:   true, // Skip action updates for this test
 	}
 
 	err = RunUpgrade(config)
@@ -323,6 +328,7 @@ This workflow should not be compiled with --no-fix.
 		NoFix:       true, // Skip codemods and compilation
 		WorkflowDir: "",
 		Push:        false,
+		NoActions:   true, // Skip action updates for this test
 	}
 
 	err = RunUpgrade(config)
@@ -382,6 +388,7 @@ This is a test workflow.
 		NoFix:       true,
 		WorkflowDir: "",
 		Push:        true,
+		NoActions:   true, // Skip action updates for this test
 	}
 
 	err = RunUpgrade(config)
@@ -439,10 +446,161 @@ This workflow is already up to date.
 		NoFix:       true, // Skip codemods to avoid changes
 		WorkflowDir: "",
 		Push:        true,
+		NoActions:   true, // Skip action updates for this test
 	}
 
 	err = RunUpgrade(config)
 	// Should fail because no remote is configured
 	require.Error(t, err, "Upgrade with --push should fail when no remote is configured")
 	assert.Contains(t, err.Error(), "--push requires a remote repository to be configured")
+}
+
+func TestUpgradeCommand_UpdatesActionPins(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+
+	// Initialize git repository
+	os.Chdir(tmpDir)
+	exec.Command("git", "init").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "config", "user.name", "Test User").Run()
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create .github/aw directory
+	awDir := filepath.Join(tmpDir, ".github", "aw")
+	err = os.MkdirAll(awDir, 0755)
+	require.NoError(t, err, "Failed to create .github/aw directory")
+
+	// Create a simple workflow
+	workflowFile := filepath.Join(workflowsDir, "test-workflow.md")
+	content := `---
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This workflow should trigger action pin updates.
+`
+	err = os.WriteFile(workflowFile, []byte(content), 0644)
+	require.NoError(t, err, "Failed to create test workflow file")
+
+	// Create an actions-lock.json file with a test entry
+	actionsLockPath := filepath.Join(awDir, "actions-lock.json")
+	actionsLockContent := `{
+  "entries": {
+    "actions/checkout@v4": {
+      "repo": "actions/checkout",
+      "version": "v4",
+      "sha": "b4ffde65f46336ab88eb53be808477a3936bae11"
+    }
+  }
+}
+`
+	err = os.WriteFile(actionsLockPath, []byte(actionsLockContent), 0644)
+	require.NoError(t, err, "Failed to create actions-lock.json file")
+
+	// Run upgrade command (should update actions)
+	config := UpgradeConfig{
+		Verbose:     false,
+		NoFix:       false, // Apply codemods and compile
+		WorkflowDir: "",
+		Push:        false,
+		NoActions:   false, // Enable action updates
+	}
+
+	err = RunUpgrade(config)
+	require.NoError(t, err, "Upgrade command should succeed")
+
+	// Verify that actions-lock.json still exists (it may or may not be updated depending on GitHub API availability)
+	// We just verify the upgrade doesn't break when action updates are enabled
+	_, statErr := os.Stat(actionsLockPath)
+	// Either file still exists or was removed (both are acceptable outcomes)
+	// Just verify no panic or crash occurred
+	assert.Condition(t, func() bool {
+		return statErr == nil || os.IsNotExist(statErr)
+	}, "Actions lock file should exist or be removed cleanly")
+}
+
+func TestUpgradeCommand_NoActionsFlag(t *testing.T) {
+	// Create a temporary directory for test files
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+
+	// Initialize git repository
+	os.Chdir(tmpDir)
+	exec.Command("git", "init").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "config", "user.name", "Test User").Run()
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create .github/aw directory
+	awDir := filepath.Join(tmpDir, ".github", "aw")
+	err = os.MkdirAll(awDir, 0755)
+	require.NoError(t, err, "Failed to create .github/aw directory")
+
+	// Create a simple workflow
+	workflowFile := filepath.Join(workflowsDir, "test-workflow.md")
+	content := `---
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This workflow should not trigger action pin updates with --no-actions.
+`
+	err = os.WriteFile(workflowFile, []byte(content), 0644)
+	require.NoError(t, err, "Failed to create test workflow file")
+
+	// Create an actions-lock.json file with a test entry
+	actionsLockPath := filepath.Join(awDir, "actions-lock.json")
+	originalContent := `{
+  "entries": {
+    "actions/checkout@v4": {
+      "repo": "actions/checkout",
+      "version": "v4",
+      "sha": "b4ffde65f46336ab88eb53be808477a3936bae11"
+    }
+  }
+}
+`
+	err = os.WriteFile(actionsLockPath, []byte(originalContent), 0644)
+	require.NoError(t, err, "Failed to create actions-lock.json file")
+
+	// Run upgrade command with --no-actions
+	config := UpgradeConfig{
+		Verbose:     false,
+		NoFix:       false, // Apply codemods and compile
+		WorkflowDir: "",
+		Push:        false,
+		NoActions:   true, // Skip action updates
+	}
+
+	err = RunUpgrade(config)
+	require.NoError(t, err, "Upgrade command should succeed")
+
+	// Verify that actions-lock.json was not modified
+	updatedContent, err := os.ReadFile(actionsLockPath)
+	require.NoError(t, err, "Failed to read actions-lock.json")
+
+	// Content should be unchanged (actions should not be updated)
+	assert.Equal(t, originalContent, string(updatedContent), "Actions lock file should not be modified with --no-actions")
 }

@@ -18,11 +18,12 @@ type UpgradeConfig struct {
 	WorkflowDir string
 	NoFix       bool
 	Push        bool
+	NoActions   bool
 }
 
 // RunUpgrade runs the upgrade command with the given configuration
 func RunUpgrade(config UpgradeConfig) error {
-	return runUpgradeCommand(config.Verbose, config.WorkflowDir, config.NoFix, false, config.Push)
+	return runUpgradeCommand(config.Verbose, config.WorkflowDir, config.NoFix, false, config.Push, config.NoActions)
 }
 
 // NewUpgradeCommand creates the upgrade command
@@ -35,7 +36,8 @@ func NewUpgradeCommand() *cobra.Command {
 This command:
   1. Updates all agent and prompt files to the latest templates (like 'init' command)
   2. Applies automatic codemods to fix deprecated fields in all workflows (like 'fix --write')
-  3. Compiles all workflows to generate lock files (like 'compile' command)
+  3. Updates GitHub Actions versions in .github/aw/actions-lock.json (unless --no-actions is set)
+  4. Compiles all workflows to generate lock files (like 'compile' command)
 
 The upgrade process ensures:
 - GitHub Copilot instructions are up-to-date (.github/aw/github-agentic-workflows.md)
@@ -43,13 +45,15 @@ The upgrade process ensures:
 - All workflow prompts are updated (create, update, debug, upgrade)
 - All workflows use the latest syntax and configuration options
 - Deprecated fields are automatically migrated across all workflows
+- GitHub Actions are pinned to the latest versions
 - All workflows are compiled and lock files are up-to-date
 
 This command always upgrades all Markdown files in .github/workflows.
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` upgrade                    # Upgrade all workflows
-  ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-fix          # Update agent files only (skip codemods and compilation)
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-fix          # Update agent files only (skip codemods, actions, and compilation)
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-actions      # Skip updating GitHub Actions versions
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --push            # Upgrade and automatically commit/push changes
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --dir custom/workflows  # Upgrade workflows in custom directory`,
 		Args: cobra.NoArgs,
@@ -58,13 +62,15 @@ Examples:
 			dir, _ := cmd.Flags().GetString("dir")
 			noFix, _ := cmd.Flags().GetBool("no-fix")
 			push, _ := cmd.Flags().GetBool("push")
+			noActions, _ := cmd.Flags().GetBool("no-actions")
 
-			return runUpgradeCommand(verbose, dir, noFix, false, push)
+			return runUpgradeCommand(verbose, dir, noFix, false, push, noActions)
 		},
 	}
 
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: .github/workflows)")
-	cmd.Flags().Bool("no-fix", false, "Skip applying codemods and compiling workflows (only update agent files)")
+	cmd.Flags().Bool("no-fix", false, "Skip applying codemods, action updates, and compiling workflows (only update agent files)")
+	cmd.Flags().Bool("no-actions", false, "Skip updating GitHub Actions versions")
 	cmd.Flags().Bool("push", false, "Automatically commit and push changes after successful upgrade")
 
 	// Register completions
@@ -74,9 +80,9 @@ Examples:
 }
 
 // runUpgradeCommand executes the upgrade process
-func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile bool, push bool) error {
-	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, push=%v",
-		verbose, workflowDir, noFix, noCompile, push)
+func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile bool, push bool, noActions bool) error {
+	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, push=%v, noActions=%v",
+		verbose, workflowDir, noFix, noCompile, push, noActions)
 
 	// Step 0a: If --push is enabled, ensure git status is clean before starting
 	if push {
@@ -135,7 +141,33 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 		}
 	}
 
-	// Step 3: Compile all workflows (unless --no-fix is specified)
+	// Step 3: Update GitHub Actions versions (unless --no-fix or --no-actions is specified)
+	if !noFix && !noActions {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating GitHub Actions versions..."))
+		upgradeLog.Print("Updating GitHub Actions versions")
+
+		if err := UpdateActions(false, verbose); err != nil {
+			upgradeLog.Printf("Failed to update actions: %v", err)
+			// Don't fail the upgrade if action updates fail - this is non-critical
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update actions: %v", err)))
+		} else if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Updated GitHub Actions versions"))
+		}
+	} else {
+		if noFix {
+			upgradeLog.Print("Skipping action updates (--no-fix specified)")
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping action updates (--no-fix specified)"))
+			}
+		} else if noActions {
+			upgradeLog.Print("Skipping action updates (--no-actions specified)")
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping action updates (--no-actions specified)"))
+			}
+		}
+	}
+
+	// Step 4: Compile all workflows (unless --no-fix is specified)
 	if !noFix {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling all workflows..."))
 		upgradeLog.Print("Compiling all workflows")
@@ -178,7 +210,7 @@ func runUpgradeCommand(verbose bool, workflowDir string, noFix bool, noCompile b
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Upgrade complete"))
 
-	// Step 4: If --push is enabled, commit and push changes
+	// Step 5: If --push is enabled, commit and push changes
 	if push {
 		upgradeLog.Print("Push enabled - preparing to commit and push changes")
 		fmt.Fprintln(os.Stderr, "")
