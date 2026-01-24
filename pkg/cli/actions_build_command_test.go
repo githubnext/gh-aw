@@ -400,7 +400,7 @@ runs:
 
 	// Build the composite action (should succeed without src/index.js)
 	err = buildAction("actions", "test-composite")
-	assert.NoError(t, err, "Should successfully build composite action without JavaScript source")
+	require.NoError(t, err, "Should successfully build composite action without JavaScript source")
 
 	// Verify that no index.js was generated
 	indexPath := filepath.Join(compositeActionPath, "index.js")
