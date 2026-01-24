@@ -110,7 +110,7 @@ func TestValidateNoTemplateInjection(t *testing.T) {
     runs-on: ubuntu-latest
     steps:
       - name: Single line unsafe
-        run: echo "PR title: ${{ github.event.pull_request.title }}"`,
+        run: 'echo "PR title: ${{ github.event.pull_request.title }}"'`,
 			shouldError: true,
 			errorString: "github.event",
 		},
@@ -548,7 +548,7 @@ func TestTemplateInjectionEdgeCases(t *testing.T) {
     runs-on: ubuntu-latest
     steps:
       - name: Test
-        run: echo "Issue: ${{    github.event.issue.title    }}"`,
+        run: 'echo "Issue: ${{    github.event.issue.title    }}"'`,
 			shouldError: true,
 			description: "Expressions with extra whitespace should still be detected",
 		},
@@ -742,6 +742,492 @@ EOF`,
 			if !tt.hasExpr {
 				assert.NotContains(t, got, "${{",
 					"Should not contain expressions after heredoc removal: %s", tt.describe)
+			}
+		})
+	}
+}
+
+// TestTemplateInjectionYAMLKeyOrdering tests that validation correctly handles
+// different YAML key orderings, particularly when env: appears after run:
+func TestTemplateInjectionYAMLKeyOrdering(t *testing.T) {
+	tests := []struct {
+		name        string
+		yaml        string
+		shouldError bool
+		description string
+	}{
+		{
+			name: "safe - env after run with pipe keep indicator",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Use value safely
+        run: |
+          echo "Line 1"
+          echo "Value: $MY_VALUE"
+        env:
+          MY_VALUE: ${{ steps.get_value.outputs.value }}`,
+			shouldError: false,
+			description: "Expression in env block should be safe even when env comes after run",
+		},
+		{
+			name: "safe - env after run with pipe strip indicator",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Use value safely
+        run: |-
+          echo "Line 1"
+          echo "Value: $MY_VALUE"
+        env:
+          MY_VALUE: ${{ steps.get_value.outputs.value }}`,
+			shouldError: false,
+			description: "Expression in env block should be safe with run: |- (strip indicator)",
+		},
+		{
+			name: "safe - env before run (original ordering)",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Use value safely
+        env:
+          MY_VALUE: ${{ steps.get_value.outputs.value }}
+        run: |
+          echo "Value: $MY_VALUE"`,
+			shouldError: false,
+			description: "Expression in env block should be safe when env comes before run",
+		},
+		{
+			name: "safe - multiple YAML keys after run",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Complex step
+        run: |
+          echo "Value: $MY_VALUE"
+        env:
+          MY_VALUE: ${{ steps.get_value.outputs.value }}
+        if: always()
+        continue-on-error: true`,
+			shouldError: false,
+			description: "Multiple YAML keys after run should not be captured",
+		},
+		{
+			name: "safe - with block after run",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Use action
+        run: echo "Running"
+        with:
+          value: ${{ steps.get_value.outputs.value }}`,
+			shouldError: false,
+			description: "with block after run should not be captured as run content",
+		},
+		{
+			name: "unsafe - expression directly in run block",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Unsafe usage
+        run: |
+          echo "Value: ${{ steps.get_value.outputs.value }}"
+        env:
+          OTHER: "safe"`,
+			shouldError: true,
+			description: "Expression directly in run block should still be detected",
+		},
+		{
+			name: "safe - env after run in custom job step",
+			yaml: `jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - id: get_value
+        run: echo "value=test" >> $GITHUB_OUTPUT
+      - name: Sign image
+        run: |
+          echo "Signing image with digest: $DIGEST"
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}`,
+			shouldError: false,
+			description: "Custom job step with env after run should be safe (reproduces issue)",
+		},
+		{
+			name: "safe - if condition after run",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Conditional run
+        run: echo "test"
+        if: ${{ steps.get_value.outputs.value == 'test' }}`,
+			shouldError: false,
+			description: "if condition after run should not be captured",
+		},
+		{
+			name: "safe - timeout-minutes after run",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Timed run
+        run: |
+          echo "Running with timeout"
+        timeout-minutes: 5
+        env:
+          VALUE: ${{ steps.get_value.outputs.value }}`,
+			shouldError: false,
+			description: "timeout-minutes and env after run should not be captured",
+		},
+		{
+			name: "safe - continue-on-error after run",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Allowed failure
+        run: echo "test"
+        continue-on-error: true
+        env:
+          VALUE: ${{ steps.get_value.outputs.value }}`,
+			shouldError: false,
+			description: "continue-on-error and env after run should not be captured",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateNoTemplateInjection(tt.yaml)
+
+			if tt.shouldError {
+				require.Error(t, err, tt.description)
+				assert.Contains(t, err.Error(), "template injection",
+					"Error should mention template injection")
+			} else {
+				assert.NoError(t, err, tt.description)
+			}
+		})
+	}
+}
+
+// TestTemplateInjectionInvalidYAML tests how the validator handles invalid YAML
+func TestTemplateInjectionInvalidYAML(t *testing.T) {
+	tests := []struct {
+		name        string
+		yaml        string
+		shouldError bool
+		description string
+	}{
+		{
+			name: "malformed YAML - missing closing bracket",
+			yaml: `jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test
+        run: echo "${{ github.event.issue.title"`,
+			shouldError: false,
+			description: "Invalid YAML should skip validation gracefully (no error)",
+		},
+		{
+			name: "malformed YAML - invalid indentation",
+			yaml: `jobs:
+  test:
+runs-on: ubuntu-latest
+    steps:
+      - name: Test
+        run: echo "${{ github.event.issue.title }}"`,
+			shouldError: false,
+			description: "Invalid indentation should skip validation gracefully",
+		},
+		{
+			name: "malformed YAML - missing colon",
+			yaml: `jobs
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test
+        run: echo "${{ github.event.issue.title }}"`,
+			shouldError: false,
+			description: "Missing colon should skip validation gracefully",
+		},
+		{
+			name:        "malformed YAML - tabs instead of spaces",
+			yaml:        "jobs:\n\ttest:\n\t\truns-on: ubuntu-latest\n\t\tsteps:\n\t\t\t- name: Test\n\t\t\t\trun: echo \"${{ github.event.issue.title }}\"",
+			shouldError: false,
+			description: "Tabs in YAML should be handled (may or may not parse)",
+		},
+		{
+			name:        "empty YAML",
+			yaml:        "",
+			shouldError: false,
+			description: "Empty YAML should not cause errors",
+		},
+		{
+			name:        "whitespace only YAML",
+			yaml:        "   \n\n   \n",
+			shouldError: false,
+			description: "Whitespace-only YAML should not cause errors",
+		},
+		{
+			name: "malformed YAML - unquoted colon in value",
+			yaml: `jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test
+        run: echo "Issue: ${{ github.event.issue.title }}"`,
+			shouldError: false,
+			description: "Unquoted colon in string value is invalid YAML, should skip gracefully",
+		},
+		{
+			name: "valid YAML with complex nested structure",
+			yaml: `jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: [1, 2, 3]
+    steps:
+      - name: Test with unsafe expression
+        run: 'echo "Version: ${{ github.event.issue.number }}"'`,
+			shouldError: true,
+			description: "Complex nested YAML with unsafe expression should be detected",
+		},
+		{
+			name: "valid YAML with multiple jobs",
+			yaml: `jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build
+        env:
+          TITLE: ${{ github.event.issue.title }}
+        run: echo "$TITLE"
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test unsafe
+        run: 'echo "${{ github.event.issue.body }}"'`,
+			shouldError: true,
+			description: "Multiple jobs with one unsafe expression should be detected",
+		},
+		{
+			name: "YAML with comments and unsafe expression",
+			yaml: `# This is a workflow
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # These are steps
+    steps:
+      - name: Test
+        # Unsafe usage
+        run: 'echo "${{ github.event.issue.title }}"'`,
+			shouldError: true,
+			description: "YAML with comments should parse correctly and detect unsafe patterns",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateNoTemplateInjection(tt.yaml)
+
+			if tt.shouldError {
+				require.Error(t, err, tt.description)
+				assert.Contains(t, err.Error(), "template injection",
+					"Error should mention template injection")
+			} else {
+				assert.NoError(t, err, tt.description)
+			}
+		})
+	}
+}
+
+// TestTemplateInjectionYAMLParsingEdgeCases tests edge cases in YAML parsing
+func TestTemplateInjectionYAMLParsingEdgeCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		yaml        string
+		shouldError bool
+		description string
+	}{
+		{
+			name: "run field with null value",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Test
+        run: null`,
+			shouldError: false,
+			description: "Null run value should not cause errors",
+		},
+		{
+			name: "run field with numeric value (invalid but should handle)",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Test
+        run: 123`,
+			shouldError: false,
+			description: "Non-string run value should be skipped",
+		},
+		{
+			name: "run field with boolean value",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Test
+        run: true`,
+			shouldError: false,
+			description: "Boolean run value should be skipped",
+		},
+		{
+			name: "run field with array value (invalid)",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Test
+        run:
+          - echo "test"
+          - echo "test2"`,
+			shouldError: false,
+			description: "Array run value should be skipped",
+		},
+		{
+			name: "run field with map value (invalid)",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Test
+        run:
+          command: echo "test"`,
+			shouldError: false,
+			description: "Map run value should be skipped",
+		},
+		{
+			name: "deeply nested jobs structure",
+			yaml: `jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:latest
+      options: --privileged
+    services:
+      postgres:
+        image: postgres
+    steps:
+      - name: Test
+        env:
+          VALUE: ${{ steps.test.outputs.value }}
+        run: echo "$VALUE"`,
+			shouldError: false,
+			description: "Deeply nested structure should parse correctly",
+		},
+		{
+			name: "steps with uses instead of run",
+			yaml: `jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20`,
+			shouldError: false,
+			description: "Steps without run fields should not cause errors",
+		},
+		{
+			name: "mix of uses and run steps",
+			yaml: `jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: npm run build
+      - name: Test unsafe
+        run: 'echo "${{ github.event.issue.title }}"'
+      - uses: actions/upload-artifact@v4`,
+			shouldError: true,
+			description: "Mix of uses and run steps should detect unsafe run blocks",
+		},
+		{
+			name: "empty steps array",
+			yaml: `jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps: []`,
+			shouldError: false,
+			description: "Empty steps array should not cause errors",
+		},
+		{
+			name: "missing steps field",
+			yaml: `jobs:
+  test:
+    runs-on: ubuntu-latest`,
+			shouldError: false,
+			description: "Missing steps field should not cause errors",
+		},
+		{
+			name: "run with multiline string using pipe",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Multiline
+        run: |
+          echo "Line 1"
+          echo "${{ github.event.issue.title }}"
+          echo "Line 3"`,
+			shouldError: true,
+			description: "Multiline run with unsafe expression should be detected",
+		},
+		{
+			name: "run with multiline string using greater than",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Folded
+        run: >
+          echo "Line 1"
+          echo "${{ github.event.issue.title }}"
+          echo "Line 3"`,
+			shouldError: true,
+			description: "Folded multiline run with unsafe expression should be detected",
+		},
+		{
+			name: "run with literal block chomping indicators",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Strip chomping
+        run: |-
+          echo "${{ github.event.issue.title }}"`,
+			shouldError: true,
+			description: "Run with strip chomping indicator should detect unsafe patterns",
+		},
+		{
+			name: "run with keep chomping indicator",
+			yaml: `jobs:
+  test:
+    steps:
+      - name: Keep chomping
+        run: |+
+          echo "${{ github.event.issue.title }}"`,
+			shouldError: true,
+			description: "Run with keep chomping indicator should detect unsafe patterns",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateNoTemplateInjection(tt.yaml)
+
+			if tt.shouldError {
+				require.Error(t, err, tt.description)
+				assert.Contains(t, err.Error(), "template injection",
+					"Error should mention template injection")
+			} else {
+				assert.NoError(t, err, tt.description)
 			}
 		})
 	}
