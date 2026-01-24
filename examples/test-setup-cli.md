@@ -6,41 +6,40 @@ on:
   workflow_dispatch:
 
 # This is a test workflow to demonstrate the setup-cli action
-# It shows both tag and SHA-based installation
 
 jobs:
-  test-tag-installation:
+  test-installation:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Install gh-aw using tag
+      - name: Install gh-aw using release tag
+        id: install
         uses: ./actions/setup-cli
         with:
           version: v0.37.18
       
       - name: Verify installation
         run: |
+          echo "Installed version: ${{ steps.install.outputs.installed-version }}"
           gh aw version
           gh aw --help
 
-  test-sha-installation:
+  test-matrix:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: [v0.37.18, v0.37.17]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       
-      # This demonstrates SHA resolution
-      # Note: Replace this SHA with a commit that corresponds to a published release
-      # You can find release SHAs at: https://github.com/githubnext/gh-aw/releases
-      - name: Install gh-aw using SHA
-        id: install
+      - name: Install gh-aw version ${{ matrix.version }}
         uses: ./actions/setup-cli
         with:
-          version: "53a14809f3234d628d47864d48170c48e5bb25b9"  # Example SHA (update as needed)
+          version: ${{ matrix.version }}
       
-      - name: Verify installation and check output
+      - name: Verify installation
         run: |
-          echo "Installed version: ${{ steps.install.outputs.installed-version }}"
           gh aw version

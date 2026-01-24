@@ -1,33 +1,23 @@
 # Setup gh-aw CLI Action
 
-This GitHub Action installs the `gh-aw` CLI extension for a specific version. It supports both release tags and commit SHAs that resolve to releases.
+This GitHub Action installs the `gh-aw` CLI extension for a specific version using release tags.
 
 ## Features
 
 - ✅ **Version validation**: Ensures the specified version exists as a release
-- ✅ **SHA resolution**: Automatically resolves long commit SHAs to their corresponding release tags
 - ✅ **Automatic fallback**: Tries `gh extension install` first, falls back to direct download if needed
 - ✅ **Cross-platform**: Works on Linux, macOS, Windows, and FreeBSD
 - ✅ **Multi-architecture**: Supports amd64, arm64, 386, and arm architectures
 
 ## Usage
 
-### Basic Usage (Release Tag)
+### Basic Usage
 
 ```yaml
 - name: Install gh-aw
   uses: githubnext/gh-aw/actions/setup-cli@main
   with:
     version: v0.37.18
-```
-
-### Using Commit SHA
-
-```yaml
-- name: Install gh-aw from SHA
-  uses: githubnext/gh-aw/actions/setup-cli@main
-  with:
-    version: 0c77d05a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q  # Must be a long SHA that resolves to a release
 ```
 
 ### Complete Workflow Example
@@ -59,27 +49,23 @@ jobs:
 
 ### `version` (required)
 
-The version of gh-aw to install. Can be either:
+The version of gh-aw to install. Must be a release tag.
 
 - **Release tag**: e.g., `v0.37.18`, `v0.37.0`
-- **Long commit SHA**: 40-character hexadecimal SHA that corresponds to a release (e.g., `0c77d05a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q`)
-
-If a commit SHA is provided, the action will automatically resolve it to the corresponding release tag.
 
 ## Outputs
 
 ### `installed-version`
 
-The version tag that was actually installed (useful when providing a SHA as input).
+The version tag that was actually installed.
 
 ## How It Works
 
-1. **Version validation**: Checks if the input is a release tag or long SHA
-2. **SHA resolution**: If a long SHA is provided, resolves it to the corresponding release tag
-3. **Release verification**: Validates that the release exists on GitHub
-4. **Primary installation method**: Attempts to install using `gh extension install githubnext/gh-aw`
-5. **Fallback method**: If primary method fails, downloads the binary directly from GitHub releases
-6. **Verification**: Ensures the installed binary works correctly
+1. **Version validation**: Validates the input is a valid release tag
+2. **Release verification**: Validates that the release exists on GitHub
+3. **Primary installation method**: Attempts to install using `gh extension install githubnext/gh-aw`
+4. **Fallback method**: If primary method fails, downloads the binary directly from GitHub releases
+5. **Verification**: Ensures the installed binary works correctly
 
 ## Requirements
 
@@ -92,7 +78,6 @@ The action will fail if:
 
 - No version is provided
 - The specified release tag doesn't exist
-- The specified SHA doesn't resolve to any release
 - The binary download fails
 - The downloaded binary is not executable or doesn't work
 
@@ -115,14 +100,14 @@ The action will fail if:
     version: v0.37.18
 ```
 
-### Install from SHA and Use Output
+### Use Output
 
 ```yaml
 - name: Install gh-aw
   id: install
   uses: githubnext/gh-aw/actions/setup-cli@main
   with:
-    version: ${{ github.sha }}  # Assuming this SHA corresponds to a release
+    version: v0.37.18
 
 - name: Show installed version
   run: |
@@ -153,9 +138,9 @@ jobs:
 
 Verify the release exists at: https://github.com/githubnext/gh-aw/releases
 
-### "Could not resolve SHA to any release"
+### "Release X does not exist"
 
-The provided commit SHA doesn't correspond to any published release. Only SHAs from release commits can be used.
+Verify the release exists at: https://github.com/githubnext/gh-aw/releases
 
 ### "gh extension install failed"
 

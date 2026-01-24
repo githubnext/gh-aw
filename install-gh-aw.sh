@@ -213,72 +213,9 @@ fetch_release_data() {
     return 1
 }
 
-# Function to check if version looks like a long SHA (40 hex characters)
-is_long_sha() {
-    local ver=$1
-    if [[ $ver =~ ^[0-9a-f]{40}$ ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-# Function to resolve SHA to release tag
-resolve_sha_to_release() {
-    local sha=$1
-    print_info "Resolving commit SHA $sha to release tag..."
-    
-    # Fetch all releases
-    if ! RELEASES=$(fetch_release_data "https://api.github.com/repos/$REPO/releases?per_page=100"); then
-        print_error "Failed to fetch releases to resolve SHA"
-        return 1
-    fi
-    
-    # Extract target_commitish and tag_name, find matching release
-    local found_tag=""
-    local current_tag=""
-    local current_commit=""
-    
-    # Parse JSON line by line looking for tag_name and target_commitish
-    while IFS= read -r line; do
-        if echo "$line" | grep -q '"tag_name"'; then
-            current_tag=$(echo "$line" | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
-        elif echo "$line" | grep -q '"target_commitish"'; then
-            current_commit=$(echo "$line" | sed -E 's/.*"target_commitish": *"([^"]+)".*/\1/')
-            # Check if this commit matches our SHA (full or prefix match)
-            # Supports both full SHA and short SHA prefix
-            if [ "$current_commit" = "$sha" ] || [[ "$current_commit" == "$sha"* ]]; then
-                found_tag="$current_tag"
-                break
-            fi
-        fi
-    done <<< "$RELEASES"
-    
-    if [ -n "$found_tag" ]; then
-        print_success "Resolved SHA $sha to release tag: $found_tag"
-        echo "$found_tag"
-        return 0
-    else
-        print_error "Could not resolve SHA $sha to any release"
-        print_info "The SHA must correspond to a published release"
-        return 1
-    fi
-}
-
 # Get version (use provided version or fetch latest)
 # VERSION is already set from argument parsing
 REPO="githubnext/gh-aw"
-
-# If version is provided and looks like a long SHA, resolve it to a release tag
-if [ -n "$VERSION" ] && is_long_sha "$VERSION"; then
-    ORIGINAL_SHA="$VERSION"
-    print_info "Detected long SHA format: $VERSION"
-    if ! VERSION=$(resolve_sha_to_release "$VERSION"); then
-        print_error "Failed to resolve SHA to release tag"
-        exit 1
-    fi
-    print_info "Resolved to release tag: $VERSION"
-fi
 
 if [ -z "$VERSION" ]; then
     print_info "No version specified, fetching latest release information from GitHub..."

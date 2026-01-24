@@ -4,7 +4,7 @@ author: 'GitHub Next'
 
 inputs:
   version:
-    description: 'Version to install (release tag like v0.37.18 or long commit SHA that resolves to a release)'
+    description: 'Version to install (release tag like v0.37.18)'
     required: true
 
 outputs:
