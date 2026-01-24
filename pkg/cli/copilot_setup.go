@@ -7,10 +7,75 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/goccy/go-yaml"
 )
 
 var copilotSetupLog = logger.New("cli:copilot_setup")
+
+// generateCopilotSetupStepsYAML generates the copilot-setup-steps.yml content based on action mode
+func generateCopilotSetupStepsYAML(actionMode workflow.ActionMode) string {
+	if actionMode.IsRelease() {
+		// Use the actions/setup-cli action in release mode
+		return `name: "Copilot Setup Steps"
+
+# This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  # The job MUST be called 'copilot-setup-steps' to be recognized by GitHub Copilot Agent
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+
+    # Set minimal permissions for setup steps
+    # Copilot Agent receives its own token with appropriate permissions
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install gh-aw extension
+        uses: githubnext/gh-aw/actions/setup-cli@main
+        with:
+          version: v0.37.18
+      - name: Verify gh-aw installation
+        run: gh aw version
+`
+	}
+
+	// Default (dev/script mode): use curl to download install script
+	return `name: "Copilot Setup Steps"
+
+# This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  # The job MUST be called 'copilot-setup-steps' to be recognized by GitHub Copilot Agent
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+
+    # Set minimal permissions for setup steps
+    # Copilot Agent receives its own token with appropriate permissions
+    permissions:
+      contents: read
+
+    steps:
+      - name: Install gh-aw extension
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash
+      - name: Verify gh-aw installation
+        run: gh aw version
+`
+}
 
 const copilotSetupStepsYAML = `name: "Copilot Setup Steps"
 
@@ -63,8 +128,8 @@ type Workflow struct {
 }
 
 // ensureCopilotSetupSteps creates or updates .github/workflows/copilot-setup-steps.yml
-func ensureCopilotSetupSteps(verbose bool) error {
-	copilotSetupLog.Print("Creating copilot-setup-steps.yml")
+func ensureCopilotSetupSteps(verbose bool, actionMode workflow.ActionMode) error {
+	copilotSetupLog.Printf("Creating copilot-setup-steps.yml with action mode: %s", actionMode)
 
 	// Create .github/workflows directory if it doesn't exist
 	workflowsDir := filepath.Join(".github", "workflows")
@@ -86,10 +151,13 @@ func ensureCopilotSetupSteps(verbose bool) error {
 			return fmt.Errorf("failed to read existing copilot-setup-steps.yml: %w", err)
 		}
 
-		// Check if the extension install step is already present (quick check)
+		// Check if the extension install step is already present (check for both modes)
 		contentStr := string(content)
-		if strings.Contains(contentStr, "install-gh-aw.sh") ||
-			(strings.Contains(contentStr, "Install gh-aw extension") && strings.Contains(contentStr, "curl -fsSL")) {
+		hasLegacyInstall := strings.Contains(contentStr, "install-gh-aw.sh") ||
+			(strings.Contains(contentStr, "Install gh-aw extension") && strings.Contains(contentStr, "curl -fsSL"))
+		hasActionInstall := strings.Contains(contentStr, "actions/setup-cli")
+
+		if hasLegacyInstall || hasActionInstall {
 			copilotSetupLog.Print("Extension install step already exists, skipping update")
 			if verbose {
 				fmt.Fprintf(os.Stderr, "Skipping %s (already has gh-aw extension install step)\n", setupStepsPath)
@@ -105,7 +173,7 @@ func ensureCopilotSetupSteps(verbose bool) error {
 
 		// Inject the extension install step
 		copilotSetupLog.Print("Injecting extension install step into existing file")
-		if err := injectExtensionInstallStep(&workflow); err != nil {
+		if err := injectExtensionInstallStep(&workflow, actionMode); err != nil {
 			return fmt.Errorf("failed to inject extension install step: %w", err)
 		}
 
@@ -126,7 +194,7 @@ func ensureCopilotSetupSteps(verbose bool) error {
 		return nil
 	}
 
-	if err := os.WriteFile(setupStepsPath, []byte(copilotSetupStepsYAML), 0600); err != nil {
+	if err := os.WriteFile(setupStepsPath, []byte(generateCopilotSetupStepsYAML(actionMode)), 0600); err != nil {
 		return fmt.Errorf("failed to write copilot-setup-steps.yml: %w", err)
 	}
 	copilotSetupLog.Printf("Created file: %s", setupStepsPath)
@@ -135,12 +203,30 @@ func ensureCopilotSetupSteps(verbose bool) error {
 }
 
 // injectExtensionInstallStep injects the gh-aw extension install and verification steps into an existing workflow
-func injectExtensionInstallStep(workflow *Workflow) error {
-	// Define the extension install and verify steps to inject
-	installStep := CopilotWorkflowStep{
-		Name: "Install gh-aw extension",
-		Run:  "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
+func injectExtensionInstallStep(workflow *Workflow, actionMode workflow.ActionMode) error {
+	var installStep, checkoutStep CopilotWorkflowStep
+
+	if actionMode.IsRelease() {
+		// In release mode, use the actions/setup-cli action
+		checkoutStep = CopilotWorkflowStep{
+			Name: "Checkout repository",
+			Uses: "actions/checkout@v4",
+		}
+		installStep = CopilotWorkflowStep{
+			Name: "Install gh-aw extension",
+			Uses: "githubnext/gh-aw/actions/setup-cli@main",
+			With: map[string]any{
+				"version": "v0.37.18",
+			},
+		}
+	} else {
+		// In dev/script mode, use curl to download install script
+		installStep = CopilotWorkflowStep{
+			Name: "Install gh-aw extension",
+			Run:  "curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash",
+		}
 	}
+
 	verifyStep := CopilotWorkflowStep{
 		Name: "Verify gh-aw installation",
 		Run:  "gh aw version",
@@ -155,11 +241,18 @@ func injectExtensionInstallStep(workflow *Workflow) error {
 	// Insert the extension install and verify steps at the beginning
 	insertPosition := 0
 
-	// Insert both steps at the determined position
-	newSteps := make([]CopilotWorkflowStep, 0, len(job.Steps)+2)
+	// Prepare steps to insert based on mode
+	var stepsToInsert []CopilotWorkflowStep
+	if actionMode.IsRelease() {
+		stepsToInsert = []CopilotWorkflowStep{checkoutStep, installStep, verifyStep}
+	} else {
+		stepsToInsert = []CopilotWorkflowStep{installStep, verifyStep}
+	}
+
+	// Insert steps at the determined position
+	newSteps := make([]CopilotWorkflowStep, 0, len(job.Steps)+len(stepsToInsert))
 	newSteps = append(newSteps, job.Steps[:insertPosition]...)
-	newSteps = append(newSteps, installStep)
-	newSteps = append(newSteps, verifyStep)
+	newSteps = append(newSteps, stepsToInsert...)
 	newSteps = append(newSteps, job.Steps[insertPosition:]...)
 
 	job.Steps = newSteps

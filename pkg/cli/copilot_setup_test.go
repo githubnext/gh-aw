@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/testutil"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 
 	"github.com/goccy/go-yaml"
 )
@@ -156,7 +157,7 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 			}
 
 			// Call the function
-			err = ensureCopilotSetupSteps(tt.verbose)
+			err = ensureCopilotSetupSteps(tt.verbose, workflow.ActionModeDev)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ensureCopilotSetupSteps() error = %v, wantErr %v", err, tt.wantErr)
@@ -258,7 +259,7 @@ func TestInjectExtensionInstallStep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := injectExtensionInstallStep(tt.workflow)
+			err := injectExtensionInstallStep(tt.workflow, workflow.ActionModeDev)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("injectExtensionInstallStep() error = %v, wantErr %v", err, tt.wantErr)
@@ -416,7 +417,7 @@ func TestEnsureCopilotSetupStepsFilePermissions(t *testing.T) {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
-	err = ensureCopilotSetupSteps(false)
+	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev)
 	if err != nil {
 		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
 	}
@@ -516,7 +517,7 @@ func TestEnsureCopilotSetupStepsDirectoryCreation(t *testing.T) {
 	}
 
 	// Call function when .github/workflows doesn't exist
-	err = ensureCopilotSetupSteps(false)
+	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev)
 	if err != nil {
 		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
 	}
@@ -537,5 +538,98 @@ func TestEnsureCopilotSetupStepsDirectoryCreation(t *testing.T) {
 	setupStepsPath := filepath.Join(workflowsDir, "copilot-setup-steps.yml")
 	if _, err := os.Stat(setupStepsPath); os.IsNotExist(err) {
 		t.Error("Expected copilot-setup-steps.yml to be created")
+	}
+}
+
+// TestEnsureCopilotSetupSteps_ReleaseMode tests that release mode uses the actions/setup-cli action
+func TestEnsureCopilotSetupSteps_ReleaseMode(t *testing.T) {
+	// Create temporary directory
+	tmpDir := t.TempDir()
+
+	// Change to temp directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Call function with release mode
+	err = ensureCopilotSetupSteps(false, workflow.ActionModeRelease)
+	if err != nil {
+		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+	}
+
+	// Read generated file
+	setupStepsPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
+	content, err := os.ReadFile(setupStepsPath)
+	if err != nil {
+		t.Fatalf("Failed to read copilot-setup-steps.yml: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify it uses actions/setup-cli
+	if !strings.Contains(contentStr, "actions/setup-cli@main") {
+		t.Error("Expected copilot-setup-steps.yml to use actions/setup-cli action in release mode")
+	}
+
+	// Verify it has checkout step
+	if !strings.Contains(contentStr, "actions/checkout@v4") {
+		t.Error("Expected copilot-setup-steps.yml to have checkout step in release mode")
+	}
+
+	// Verify it doesn't use curl/install-gh-aw.sh
+	if strings.Contains(contentStr, "install-gh-aw.sh") || strings.Contains(contentStr, "curl -fsSL") {
+		t.Error("Expected copilot-setup-steps.yml to NOT use curl method in release mode")
+	}
+}
+
+// TestEnsureCopilotSetupSteps_DevMode tests that dev mode uses curl install method
+func TestEnsureCopilotSetupSteps_DevMode(t *testing.T) {
+	// Create temporary directory
+	tmpDir := t.TempDir()
+
+	// Change to temp directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Call function with dev mode
+	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev)
+	if err != nil {
+		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+	}
+
+	// Read generated file
+	setupStepsPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
+	content, err := os.ReadFile(setupStepsPath)
+	if err != nil {
+		t.Fatalf("Failed to read copilot-setup-steps.yml: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Verify it uses curl method
+	if !strings.Contains(contentStr, "install-gh-aw.sh") {
+		t.Error("Expected copilot-setup-steps.yml to use install-gh-aw.sh in dev mode")
+	}
+
+	// Verify it doesn't use actions/setup-cli
+	if strings.Contains(contentStr, "actions/setup-cli") {
+		t.Error("Expected copilot-setup-steps.yml to NOT use actions/setup-cli in dev mode")
 	}
 }

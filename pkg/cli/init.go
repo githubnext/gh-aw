@@ -76,8 +76,12 @@ func InitRepositoryInteractive(verbose bool, rootCmd CommandProvider) error {
 	if copilotMcp {
 		initLog.Print("Configuring GitHub Copilot Agent MCP integration")
 
+		// Detect action mode for setup steps generation
+		actionMode := workflow.DetectActionMode(GetVersion())
+		initLog.Printf("Using action mode for copilot-setup-steps.yml: %s", actionMode)
+
 		// Create copilot-setup-steps.yml
-		if err := ensureCopilotSetupSteps(verbose); err != nil {
+		if err := ensureCopilotSetupSteps(verbose, actionMode); err != nil {
 			initLog.Printf("Failed to create copilot-setup-steps.yml: %v", err)
 			return fmt.Errorf("failed to create copilot-setup-steps.yml: %w", err)
 		}
@@ -607,8 +611,12 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	if mcp {
 		initLog.Print("Configuring GitHub Copilot Agent MCP integration")
 
+		// Detect action mode for setup steps generation
+		actionMode := workflow.DetectActionMode(GetVersion())
+		initLog.Printf("Using action mode for copilot-setup-steps.yml: %s", actionMode)
+
 		// Create copilot-setup-steps.yml
-		if err := ensureCopilotSetupSteps(verbose); err != nil {
+		if err := ensureCopilotSetupSteps(verbose, actionMode); err != nil {
 			initLog.Printf("Failed to create copilot-setup-steps.yml: %v", err)
 			return fmt.Errorf("failed to create copilot-setup-steps.yml: %w", err)
 		}
