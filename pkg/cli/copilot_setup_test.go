@@ -157,7 +157,7 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 			}
 
 			// Call the function
-			err = ensureCopilotSetupSteps(tt.verbose, workflow.ActionModeDev)
+			err = ensureCopilotSetupSteps(tt.verbose, workflow.ActionModeDev, "dev")
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ensureCopilotSetupSteps() error = %v, wantErr %v", err, tt.wantErr)
@@ -259,7 +259,7 @@ func TestInjectExtensionInstallStep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := injectExtensionInstallStep(tt.workflow, workflow.ActionModeDev)
+			err := injectExtensionInstallStep(tt.workflow, workflow.ActionModeDev, "dev")
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("injectExtensionInstallStep() error = %v, wantErr %v", err, tt.wantErr)
@@ -417,7 +417,7 @@ func TestEnsureCopilotSetupStepsFilePermissions(t *testing.T) {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
-	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev)
+	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev, "dev")
 	if err != nil {
 		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
 	}
@@ -517,7 +517,7 @@ func TestEnsureCopilotSetupStepsDirectoryCreation(t *testing.T) {
 	}
 
 	// Call function when .github/workflows doesn't exist
-	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev)
+	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev, "dev")
 	if err != nil {
 		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
 	}
@@ -560,7 +560,8 @@ func TestEnsureCopilotSetupSteps_ReleaseMode(t *testing.T) {
 	}
 
 	// Call function with release mode
-	err = ensureCopilotSetupSteps(false, workflow.ActionModeRelease)
+	testVersion := "v1.2.3"
+	err = ensureCopilotSetupSteps(false, workflow.ActionModeRelease, testVersion)
 	if err != nil {
 		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
 	}
@@ -574,9 +575,14 @@ func TestEnsureCopilotSetupSteps_ReleaseMode(t *testing.T) {
 
 	contentStr := string(content)
 
-	// Verify it uses actions/setup-cli
-	if !strings.Contains(contentStr, "actions/setup-cli@main") {
-		t.Error("Expected copilot-setup-steps.yml to use actions/setup-cli action in release mode")
+	// Verify it uses actions/setup-cli with the correct version tag
+	if !strings.Contains(contentStr, "actions/setup-cli@v1.2.3") {
+		t.Errorf("Expected copilot-setup-steps.yml to use actions/setup-cli@v1.2.3 in release mode, got:\n%s", contentStr)
+	}
+
+	// Verify it uses the correct version in the with parameter
+	if !strings.Contains(contentStr, "version: v1.2.3") {
+		t.Errorf("Expected copilot-setup-steps.yml to have version: v1.2.3, got:\n%s", contentStr)
 	}
 
 	// Verify it has checkout step
@@ -609,7 +615,7 @@ func TestEnsureCopilotSetupSteps_DevMode(t *testing.T) {
 	}
 
 	// Call function with dev mode
-	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev)
+	err = ensureCopilotSetupSteps(false, workflow.ActionModeDev, "dev")
 	if err != nil {
 		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
 	}

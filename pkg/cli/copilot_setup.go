@@ -14,10 +14,16 @@ import (
 var copilotSetupLog = logger.New("cli:copilot_setup")
 
 // generateCopilotSetupStepsYAML generates the copilot-setup-steps.yml content based on action mode
-func generateCopilotSetupStepsYAML(actionMode workflow.ActionMode) string {
+func generateCopilotSetupStepsYAML(actionMode workflow.ActionMode, version string) string {
+	// Determine the action reference - use version tag in release mode, @main in dev mode
+	actionRef := "@main"
+	if actionMode.IsRelease() && version != "" && version != "dev" {
+		actionRef = "@" + version
+	}
+
 	if actionMode.IsRelease() {
 		// Use the actions/setup-cli action in release mode
-		return `name: "Copilot Setup Steps"
+		return fmt.Sprintf(`name: "Copilot Setup Steps"
 
 # This workflow configures the environment for GitHub Copilot Agent with gh-aw MCP server
 on:
@@ -40,12 +46,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Install gh-aw extension
-        uses: githubnext/gh-aw/actions/setup-cli@main
+        uses: githubnext/gh-aw/actions/setup-cli%s
         with:
-          version: v0.37.18
+          version: %s
       - name: Verify gh-aw installation
         run: gh aw version
-`
+`, actionRef, version)
 	}
 
 	// Default (dev/script mode): use curl to download install script
@@ -128,8 +134,8 @@ type Workflow struct {
 }
 
 // ensureCopilotSetupSteps creates or updates .github/workflows/copilot-setup-steps.yml
-func ensureCopilotSetupSteps(verbose bool, actionMode workflow.ActionMode) error {
-	copilotSetupLog.Printf("Creating copilot-setup-steps.yml with action mode: %s", actionMode)
+func ensureCopilotSetupSteps(verbose bool, actionMode workflow.ActionMode, version string) error {
+	copilotSetupLog.Printf("Creating copilot-setup-steps.yml with action mode: %s, version: %s", actionMode, version)
 
 	// Create .github/workflows directory if it doesn't exist
 	workflowsDir := filepath.Join(".github", "workflows")
@@ -173,7 +179,7 @@ func ensureCopilotSetupSteps(verbose bool, actionMode workflow.ActionMode) error
 
 		// Inject the extension install step
 		copilotSetupLog.Print("Injecting extension install step into existing file")
-		if err := injectExtensionInstallStep(&workflow, actionMode); err != nil {
+		if err := injectExtensionInstallStep(&workflow, actionMode, version); err != nil {
 			return fmt.Errorf("failed to inject extension install step: %w", err)
 		}
 
@@ -194,7 +200,7 @@ func ensureCopilotSetupSteps(verbose bool, actionMode workflow.ActionMode) error
 		return nil
 	}
 
-	if err := os.WriteFile(setupStepsPath, []byte(generateCopilotSetupStepsYAML(actionMode)), 0600); err != nil {
+	if err := os.WriteFile(setupStepsPath, []byte(generateCopilotSetupStepsYAML(actionMode, version)), 0600); err != nil {
 		return fmt.Errorf("failed to write copilot-setup-steps.yml: %w", err)
 	}
 	copilotSetupLog.Printf("Created file: %s", setupStepsPath)
@@ -203,8 +209,14 @@ func ensureCopilotSetupSteps(verbose bool, actionMode workflow.ActionMode) error
 }
 
 // injectExtensionInstallStep injects the gh-aw extension install and verification steps into an existing workflow
-func injectExtensionInstallStep(workflow *Workflow, actionMode workflow.ActionMode) error {
+func injectExtensionInstallStep(workflow *Workflow, actionMode workflow.ActionMode, version string) error {
 	var installStep, checkoutStep CopilotWorkflowStep
+
+	// Determine the action reference - use version tag in release mode, @main in dev mode
+	actionRef := "@main"
+	if actionMode.IsRelease() && version != "" && version != "dev" {
+		actionRef = "@" + version
+	}
 
 	if actionMode.IsRelease() {
 		// In release mode, use the actions/setup-cli action
@@ -214,9 +226,9 @@ func injectExtensionInstallStep(workflow *Workflow, actionMode workflow.ActionMo
 		}
 		installStep = CopilotWorkflowStep{
 			Name: "Install gh-aw extension",
-			Uses: "githubnext/gh-aw/actions/setup-cli@main",
+			Uses: fmt.Sprintf("githubnext/gh-aw/actions/setup-cli%s", actionRef),
 			With: map[string]any{
-				"version": "v0.37.18",
+				"version": version,
 			},
 		}
 	} else {

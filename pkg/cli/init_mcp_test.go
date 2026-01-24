@@ -262,7 +262,7 @@ jobs:
 	}
 
 	// Call ensureCopilotSetupSteps
-	if err := ensureCopilotSetupSteps(false, workflow.ActionModeDev); err != nil {
+	if err := ensureCopilotSetupSteps(false, workflow.ActionModeDev, "dev"); err != nil {
 		t.Fatalf("ensureCopilotSetupSteps() returned error: %v", err)
 	}
 
@@ -343,7 +343,7 @@ jobs:
 	}
 
 	// Call ensureCopilotSetupSteps
-	if err := ensureCopilotSetupSteps(false, workflow.ActionModeDev); err != nil {
+	if err := ensureCopilotSetupSteps(false, workflow.ActionModeDev, "dev"); err != nil {
 		t.Fatalf("ensureCopilotSetupSteps() returned error: %v", err)
 	}
 

@@ -81,7 +81,7 @@ func InitRepositoryInteractive(verbose bool, rootCmd CommandProvider) error {
 		initLog.Printf("Using action mode for copilot-setup-steps.yml: %s", actionMode)
 
 		// Create copilot-setup-steps.yml
-		if err := ensureCopilotSetupSteps(verbose, actionMode); err != nil {
+		if err := ensureCopilotSetupSteps(verbose, actionMode, GetVersion()); err != nil {
 			initLog.Printf("Failed to create copilot-setup-steps.yml: %v", err)
 			return fmt.Errorf("failed to create copilot-setup-steps.yml: %w", err)
 		}
@@ -616,7 +616,7 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		initLog.Printf("Using action mode for copilot-setup-steps.yml: %s", actionMode)
 
 		// Create copilot-setup-steps.yml
-		if err := ensureCopilotSetupSteps(verbose, actionMode); err != nil {
+		if err := ensureCopilotSetupSteps(verbose, actionMode, GetVersion()); err != nil {
 			initLog.Printf("Failed to create copilot-setup-steps.yml: %v", err)
 			return fmt.Errorf("failed to create copilot-setup-steps.yml: %w", err)
 		}
