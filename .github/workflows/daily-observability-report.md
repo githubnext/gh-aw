@@ -273,17 +273,11 @@ runs_with_missing_logs = (firewall_enabled_workflows - firewall_logs_present) + 
 
 Create a summary table of all runs analyzed with their observability status.
 
-## Phase 6: Close Previous Reports
-
-Before creating the new discussion, find and close previous observability reports:
-
-1. Search for discussions with title prefix "[observability]"
-2. Close each found discussion with reason "OUTDATED"
-3. Add a closing comment: "This report has been superseded by a newer observability report."
-
-## Phase 7: Create Discussion Report
+## Phase 6: Create Discussion Report
 
 Create a new discussion with the comprehensive observability report.
+
+**Note**: Previous observability reports with the same `[observability]` prefix will be automatically closed when the new discussion is created. This is handled by the `close-older-discussions: true` setting in the safe-outputs configuration - you don't need to manually close them.
 
 ### Discussion Format
 
