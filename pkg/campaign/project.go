@@ -21,6 +21,8 @@ type ProjectCreationConfig struct {
 	CampaignID   string
 	CampaignName string
 	Owner        string // GitHub org or user
+	LinkRepo     string // Optional: owner/name to link the project to
+	NoLinkRepo   bool   // Disable best-effort repo linking
 	Verbose      bool
 }
 
@@ -61,6 +63,14 @@ func CreateCampaignProject(config ProjectCreationConfig) (*ProjectCreationResult
 
 	console.LogVerbose(config.Verbose, "Created project views")
 
+	// Best-effort: link the project to the current repository.
+	// This should not block campaign creation if linking fails due to permissions.
+	if err := linkProjectToRepo(config, projectURL); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			"Could not link project to repository automatically: "+err.Error(),
+		))
+	}
+
 	// Ensure the Progress Board's typical grouping field (Status) includes a
 	// "Review Required" option, which effectively becomes a new column.
 	if err := ensureStatusOption(config, projectURL, "Review Required"); err != nil {
@@ -73,6 +83,234 @@ func CreateCampaignProject(config ProjectCreationConfig) (*ProjectCreationResult
 	}
 
 	return result, nil
+}
+
+func linkProjectToRepo(config ProjectCreationConfig, projectURL string) error {
+	if config.NoLinkRepo {
+		console.LogVerbose(config.Verbose, "Skipping project-to-repo linking (--no-link-repo)")
+		return nil
+	}
+
+	nameWithOwner := strings.TrimSpace(config.LinkRepo)
+	if nameWithOwner == "" {
+		var err error
+		nameWithOwner, err = getCurrentRepoNameWithOwner()
+		if err != nil {
+			return err
+		}
+	}
+
+	owner, repo, err := parseRepoNameWithOwner(nameWithOwner)
+	if err != nil {
+		return err
+	}
+
+	info, err := parseProjectURL(projectURL)
+	if err != nil {
+		return err
+	}
+
+	// GitHub only allows linking when the project and repository share the same owner.
+	// Avoid calling the mutation to prevent a noisy (and expected) GraphQL validation error.
+	if !strings.EqualFold(info.ownerLogin, owner) {
+		return fmt.Errorf(
+			"project is owned by %q but current repository is %q; GitHub only allows linking projects to repositories owned by the same account/org. Re-run with --owner %s (or --owner @me for personal repos) from the repo you want linked",
+			info.ownerLogin,
+			nameWithOwner,
+			owner,
+		)
+	}
+
+	projectID, err := getProjectID(info)
+	if err != nil {
+		return err
+	}
+
+	repoID, err := getRepositoryID(owner, repo)
+	if err != nil {
+		return err
+	}
+
+	if err := linkProjectV2ToRepository(projectID, repoID); err != nil {
+		return err
+	}
+
+	console.LogVerbose(config.Verbose, fmt.Sprintf("Linked project to repository: %s", nameWithOwner))
+	return nil
+}
+
+func parseRepoNameWithOwner(nameWithOwner string) (string, string, error) {
+	trimmed := strings.TrimSpace(nameWithOwner)
+	owner, repo, ok := strings.Cut(trimmed, "/")
+	owner = strings.TrimSpace(owner)
+	repo = strings.TrimSpace(repo)
+	owner = strings.TrimPrefix(owner, "@")
+	if !ok || owner == "" || repo == "" {
+		return "", "", fmt.Errorf("invalid repository %q; expected format owner/name", nameWithOwner)
+	}
+	return owner, repo, nil
+}
+
+func getCurrentRepoNameWithOwner() (string, error) {
+	cmd := exec.Command("gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("gh repo view failed: %w\nOutput: %s", err, string(out))
+	}
+	nameWithOwner := strings.TrimSpace(string(out))
+	if nameWithOwner == "" {
+		return "", fmt.Errorf("failed to determine current repository (empty nameWithOwner)")
+	}
+	return nameWithOwner, nil
+}
+
+func getRepositoryID(owner, name string) (string, error) {
+	query := `query($owner: String!, $name: String!) {
+		repository(owner: $owner, name: $name) { id }
+	}`
+
+	cmd := exec.Command(
+		"gh",
+		"api",
+		"graphql",
+		"-F",
+		"owner="+owner,
+		"-F",
+		"name="+name,
+		"-f",
+		"query="+query,
+	)
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("gh api graphql failed: %w\nOutput: %s", err, string(out))
+	}
+
+	var resp struct {
+		Data struct {
+			Repository struct {
+				ID string `json:"id"`
+			} `json:"repository"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(out, &resp); err != nil {
+		return "", fmt.Errorf("failed to parse GraphQL response: %w\nOutput: %s", err, string(out))
+	}
+
+	if resp.Data.Repository.ID == "" {
+		return "", fmt.Errorf("failed to find repository ID for %s/%s", owner, name)
+	}
+
+	return resp.Data.Repository.ID, nil
+}
+
+func getProjectID(info projectURLInfo) (string, error) {
+	query := ""
+	if info.scope == "orgs" {
+		query = `query($login: String!, $number: Int!) {
+			organization(login: $login) {
+				projectV2(number: $number) { id }
+			}
+		}`
+	} else {
+		query = `query($login: String!, $number: Int!) {
+			user(login: $login) {
+				projectV2(number: $number) { id }
+			}
+		}`
+	}
+
+	cmd := exec.Command(
+		"gh",
+		"api",
+		"graphql",
+		"-F",
+		"login="+info.ownerLogin,
+		"-F",
+		fmt.Sprintf("number=%d", info.projectNumber),
+		"-f",
+		"query="+query,
+	)
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("gh api graphql failed: %w\nOutput: %s", err, string(out))
+	}
+
+	if info.scope == "orgs" {
+		var resp struct {
+			Data struct {
+				Organization struct {
+					ProjectV2 struct {
+						ID string `json:"id"`
+					} `json:"projectV2"`
+				} `json:"organization"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(out, &resp); err != nil {
+			return "", fmt.Errorf("failed to parse GraphQL response: %w\nOutput: %s", err, string(out))
+		}
+		if resp.Data.Organization.ProjectV2.ID == "" {
+			return "", fmt.Errorf("failed to find project ID in GraphQL response")
+		}
+		return resp.Data.Organization.ProjectV2.ID, nil
+	}
+
+	var resp struct {
+		Data struct {
+			User struct {
+				ProjectV2 struct {
+					ID string `json:"id"`
+				} `json:"projectV2"`
+			} `json:"user"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(out, &resp); err != nil {
+		return "", fmt.Errorf("failed to parse GraphQL response: %w\nOutput: %s", err, string(out))
+	}
+	if resp.Data.User.ProjectV2.ID == "" {
+		return "", fmt.Errorf("failed to find project ID in GraphQL response")
+	}
+	return resp.Data.User.ProjectV2.ID, nil
+}
+
+func linkProjectV2ToRepository(projectID, repositoryID string) error {
+	mutation := `mutation($input: LinkProjectV2ToRepositoryInput!) {
+		linkProjectV2ToRepository(input: $input) {
+			clientMutationId
+		}
+	}`
+
+	requestBody := map[string]any{
+		"query": mutation,
+		"variables": map[string]any{
+			"input": map[string]any{
+				"projectId":    projectID,
+				"repositoryId": repositoryID,
+			},
+		},
+	}
+
+	requestJSON, err := json.Marshal(requestBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal GraphQL request body: %w", err)
+	}
+
+	cmd := exec.Command("gh", "api", "graphql", "--input", "-")
+	cmd.Stdin = bytes.NewReader(requestJSON)
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		// If it's already linked, treat it as success.
+		msg := string(out)
+		if strings.Contains(strings.ToLower(msg), "already") && strings.Contains(strings.ToLower(msg), "link") {
+			return nil
+		}
+		return fmt.Errorf("gh api graphql link failed: %w\nOutput: %s", err, msg)
+	}
+
+	return nil
 }
 
 type projectURLInfo struct {
@@ -427,13 +665,24 @@ func isGHCLIAvailable() bool {
 	return cmd.Run() == nil
 }
 
+func normalizeProjectOwner(owner string) string {
+	trimmed := strings.TrimSpace(owner)
+	if strings.EqualFold(trimmed, "@me") {
+		return "@me"
+	}
+	trimmed = strings.TrimPrefix(trimmed, "@")
+	return trimmed
+}
+
 // createProject creates a new GitHub Project and returns its URL and number
 func createProject(config ProjectCreationConfig) (string, int, error) {
 	projectLog.Printf("Creating project with title: %s", config.CampaignName)
 
+	owner := normalizeProjectOwner(config.Owner)
+
 	// Create project using gh CLI
 	cmd := exec.Command("gh", "project", "create",
-		"--owner", config.Owner,
+		"--owner", owner,
 		"--title", config.CampaignName,
 		"--format", "json")
 
@@ -489,9 +738,11 @@ func createProjectFields(config ProjectCreationConfig, projectNumber int) error 
 func createField(config ProjectCreationConfig, projectNumber int, name, dataType string, options []string) error {
 	projectLog.Printf("Creating field: name=%s, type=%s", name, dataType)
 
+	owner := normalizeProjectOwner(config.Owner)
+
 	args := []string{
 		"project", "field-create", fmt.Sprintf("%d", projectNumber),
-		"--owner", config.Owner,
+		"--owner", owner,
 		"--name", name,
 		"--data-type", dataType,
 	}
