@@ -449,7 +449,8 @@ func addFieldOption(ctx context.Context, client *api.GraphQLClient, projectID, f
 // parseViewSpec parses a view specification string
 // Format: name:layout[:filter]
 func parseViewSpec(spec string) (ProjectViewSpec, error) {
-	parts := strings.Split(spec, ":")
+	// Split only on first two colons to preserve colons in filter
+	parts := strings.SplitN(spec, ":", 3)
 	if len(parts) < 2 {
 		return ProjectViewSpec{}, fmt.Errorf("view spec must have at least name and layout (format: name:layout[:filter])")
 	}
@@ -477,7 +478,7 @@ func parseViewSpec(spec string) (ProjectViewSpec, error) {
 		return ProjectViewSpec{}, fmt.Errorf("invalid layout %q (must be: board, table, or roadmap)", view.Layout)
 	}
 
-	// Optional filter
+	// Optional filter (preserve colons in filter)
 	if len(parts) > 2 {
 		view.Filter = strings.TrimSpace(parts[2])
 	}

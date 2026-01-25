@@ -25,6 +25,13 @@ gh aw campaign status --json      # JSON status output
 gh aw campaign new my-campaign    # Scaffold new spec (advanced)
 gh aw campaign validate           # Validate all specs
 gh aw campaign validate --no-strict  # Report without failing
+
+gh aw campaign create-project     # Create GitHub Project V2
+  --owner myorg                   # Owner (org or user)
+  --title "My Project"            # Project title
+  --org                           # Owner is an organization
+  --view "name:layout[:filter]"   # Add view (repeatable)
+  --field "name:type[:options]"   # Add custom field (repeatable)
 ```
 
 ## List campaigns
@@ -119,11 +126,72 @@ gh aw campaign new my-campaign-id
 
 Creates `.github/workflows/my-campaign-id.campaign.md` with basic structure. You must:
 1. Configure all required fields
-2. Set up project board manually
+2. Set up project board manually (or use `create-project` command)
 3. Compile the spec with `gh aw compile`
 4. Test thoroughly before running
 
 The automated flow handles all this for you.
+
+## Create GitHub Project
+
+Create a GitHub Project V2 for campaign tracking:
+
+```bash
+gh aw campaign create-project --owner myorg --title "Security Q1 2025" --org
+```
+
+This command creates a project and optionally configures views and custom fields:
+
+### Basic project creation
+
+```bash
+gh aw campaign create-project --owner myorg --title "Campaign Tracker" --org
+```
+
+### With views
+
+```bash
+gh aw campaign create-project --owner myorg --title "Campaign Board" --org \
+  --view "Progress:board:is:open" \
+  --view "All Items:table" \
+  --view "Timeline:roadmap"
+```
+
+View format: `name:layout[:filter]`
+- **name**: View name (required)
+- **layout**: `board`, `table`, or `roadmap` (required)
+- **filter**: Optional GitHub search filter (e.g., `is:issue is:pr`)
+
+### With custom fields
+
+```bash
+gh aw campaign create-project --owner myorg --title "Task Tracker" --org \
+  --field "Priority:SINGLE_SELECT:High,Medium,Low" \
+  --field "Size:SINGLE_SELECT:Small,Medium,Large" \
+  --field "Start Date:DATE" \
+  --field "Campaign Id:TEXT"
+```
+
+Field format: `name:type[:options]`
+- **name**: Field name (required)
+- **type**: `TEXT`, `DATE`, `SINGLE_SELECT`, or `NUMBER` (required)
+- **options**: Comma-separated options for `SINGLE_SELECT` fields
+
+### Complete example
+
+```bash
+gh aw campaign create-project --owner myorg --title "Security Campaign" --org \
+  --view "Board:board:is:issue is:pr" \
+  --view "Timeline:roadmap" \
+  --field "Priority:SINGLE_SELECT:High,Medium,Low" \
+  --field "Size:SINGLE_SELECT:Small,Medium,Large" \
+  --field "Start Date:DATE" \
+  --field "End Date:DATE" \
+  --field "Campaign Id:TEXT" \
+  --field "Worker Workflow:TEXT"
+```
+
+The command outputs the project URL, which you can use in your campaign spec's `project-url` field.
 
 ## Common workflows
 
