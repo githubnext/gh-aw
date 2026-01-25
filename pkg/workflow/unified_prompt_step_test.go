@@ -49,10 +49,18 @@ func TestGenerateUnifiedPromptStep_AllSections(t *testing.T) {
 	assert.Contains(t, output, "temp_folder_prompt.md", "Should include temp folder instructions")
 	assert.Contains(t, output, "playwright_prompt.md", "Should include playwright instructions")
 	assert.Contains(t, output, "cache_memory_prompt.md", "Should include cache memory template file")
-	assert.Contains(t, output, "GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory/", "Should include cache dir env var")
 	assert.Contains(t, output, "Repo Memory Available", "Should include repo memory instructions")
 	assert.Contains(t, output, "<safe-outputs>", "Should include safe outputs instructions")
 	assert.Contains(t, output, "<github-context>", "Should include GitHub context")
+	
+	// Verify cache env vars are NOT in the prompt creation step
+	promptStepStart := strings.Index(output, "- name: Create prompt with built-in context")
+	promptStepEnd := strings.Index(output, "- name:")
+	if promptStepEnd <= promptStepStart {
+		promptStepEnd = len(output)
+	}
+	promptStep := output[promptStepStart:promptStepEnd]
+	assert.NotContains(t, promptStep, "GH_AW_CACHE_DIR:", "Cache env vars should not be in prompt creation step")
 
 	// Verify environment variables are declared at the top
 	lines := strings.Split(output, "\n")
