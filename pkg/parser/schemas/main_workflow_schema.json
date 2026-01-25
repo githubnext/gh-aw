@@ -3425,15 +3425,10 @@
                 },
                 "description": "Environment variables"
               },
-              "mode": {
-                "type": "string",
-                "enum": ["stdio", "http", "remote", "local"],
-                "description": "MCP server mode"
-              },
               "type": {
                 "type": "string",
                 "enum": ["stdio", "http", "remote", "local"],
-                "description": "MCP server type"
+                "description": "MCP connection type. Use 'stdio' for command-based or container-based servers, 'http' for HTTP-based servers. 'local' is an alias for 'stdio' and is normalized during parsing."
               },
               "version": {
                 "type": ["string", "number"],
