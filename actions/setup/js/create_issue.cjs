@@ -195,7 +195,7 @@ async function main(config = {}) {
     core.info(`Issue grouping enabled: issues will be grouped as sub-issues`);
   }
   if (closeOlderIssuesEnabled) {
-    core.info(`Close older issues enabled: older issues with same title prefix or labels will be closed`);
+    core.info(`Close older issues enabled: older issues with same workflow-id marker will be closed`);
   }
 
   // Track how many items we've processed for max limit
@@ -421,19 +421,22 @@ async function main(config = {}) {
       core.info(`Stored temporary ID mapping: ${temporaryId} -> ${qualifiedItemRepo}#${issue.number}`);
 
       // Close older issues if enabled
-      if (closeOlderIssuesEnabled && (titlePrefix || envLabels.length > 0)) {
-        core.info(`Attempting to close older issues for ${qualifiedItemRepo}#${issue.number}`);
-        try {
-          const closedIssues = await closeOlderIssues(github, repoParts.owner, repoParts.repo, titlePrefix, envLabels, { number: issue.number, html_url: issue.html_url }, workflowName, runUrl);
-          if (closedIssues.length > 0) {
-            core.info(`Closed ${closedIssues.length} older issue(s)`);
+      if (closeOlderIssuesEnabled) {
+        const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
+        if (workflowId) {
+          core.info(`Attempting to close older issues for ${qualifiedItemRepo}#${issue.number} using workflow-id: ${workflowId}`);
+          try {
+            const closedIssues = await closeOlderIssues(github, repoParts.owner, repoParts.repo, workflowId, { number: issue.number, html_url: issue.html_url }, workflowName, runUrl);
+            if (closedIssues.length > 0) {
+              core.info(`Closed ${closedIssues.length} older issue(s)`);
+            }
+          } catch (error) {
+            // Log error but don't fail the workflow
+            core.warning(`Failed to close older issues: ${getErrorMessage(error)}`);
           }
-        } catch (error) {
-          // Log error but don't fail the workflow
-          core.warning(`Failed to close older issues: ${getErrorMessage(error)}`);
+        } else {
+          core.warning("Close older issues enabled but GH_AW_WORKFLOW_ID environment variable not set - skipping");
         }
-      } else if (closeOlderIssuesEnabled) {
-        core.warning("Close older issues enabled but no title-prefix or labels configured - skipping");
       }
 
       // Handle grouping - find or create parent issue and link sub-issue

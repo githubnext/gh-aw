@@ -29,7 +29,7 @@ describe("close_older_issues", () => {
   });
 
   describe("searchOlderIssues", () => {
-    it("should search for issues with title prefix", async () => {
+    it("should search for issues with workflow-id marker", async () => {
       mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
         data: {
           items: [
@@ -49,13 +49,13 @@ describe("close_older_issues", () => {
         },
       });
 
-      const results = await searchOlderIssues(mockGithub, "owner", "repo", "Weekly Report", [], 125);
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "test-workflow", 125);
 
       expect(results).toHaveLength(2);
       expect(results[0].number).toBe(123);
       expect(results[1].number).toBe(124);
       expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalledWith({
-        q: 'repo:owner/repo is:issue is:open in:title "Weekly Report"',
+        q: 'repo:owner/repo is:issue is:open "gh-aw-workflow-id: test-workflow" in:body',
         per_page: 50,
       });
     });
@@ -80,36 +80,17 @@ describe("close_older_issues", () => {
         },
       });
 
-      const results = await searchOlderIssues(mockGithub, "owner", "repo", "Weekly Report", [], 124);
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "test-workflow", 124);
 
       expect(results).toHaveLength(1);
       expect(results[0].number).toBe(123);
     });
 
-    it("should filter issues by labels (AND logic)", async () => {
-      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
-        data: {
-          items: [
-            {
-              number: 123,
-              title: "Report 1",
-              html_url: "https://github.com/owner/repo/issues/123",
-              labels: [{ name: "report" }, { name: "automation" }],
-            },
-            {
-              number: 124,
-              title: "Report 2",
-              html_url: "https://github.com/owner/repo/issues/124",
-              labels: [{ name: "report" }], // Missing "automation" label
-            },
-          ],
-        },
-      });
+    it("should return empty array if no workflow-id provided", async () => {
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "", 125);
 
-      const results = await searchOlderIssues(mockGithub, "owner", "repo", "", ["report", "automation"], 125);
-
-      expect(results).toHaveLength(1);
-      expect(results[0].number).toBe(123); // Only issue with both labels
+      expect(results).toHaveLength(0);
+      expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
     });
 
     it("should exclude pull requests", async () => {
@@ -133,7 +114,7 @@ describe("close_older_issues", () => {
         },
       });
 
-      const results = await searchOlderIssues(mockGithub, "owner", "repo", "", [], 125);
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "test-workflow", 125);
 
       expect(results).toHaveLength(1);
       expect(results[0].number).toBe(123);
@@ -146,7 +127,7 @@ describe("close_older_issues", () => {
         },
       });
 
-      const results = await searchOlderIssues(mockGithub, "owner", "repo", "Prefix", [], 125);
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "test-workflow", 125);
 
       expect(results).toHaveLength(0);
     });
@@ -241,7 +222,7 @@ describe("close_older_issues", () => {
       });
 
       const newIssue = { number: 125, html_url: "https://github.com/owner/repo/issues/125" };
-      const results = await closeOlderIssues(mockGithub, "owner", "repo", "Prefix", [], newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
+      const results = await closeOlderIssues(mockGithub, "owner", "repo", "test-workflow", newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
 
       expect(results).toHaveLength(1);
       expect(results[0].number).toBe(123);
@@ -273,7 +254,7 @@ describe("close_older_issues", () => {
       });
 
       const newIssue = { number: 20, html_url: "https://github.com/owner/repo/issues/20" };
-      const results = await closeOlderIssues(mockGithub, "owner", "repo", "", [], newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
+      const results = await closeOlderIssues(mockGithub, "owner", "repo", "test-workflow", newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
 
       expect(results).toHaveLength(MAX_CLOSE_COUNT);
       expect(global.core.warning).toHaveBeenCalledWith(`⚠️  Found 15 older issues, but only closing the first ${MAX_CLOSE_COUNT}`);
@@ -312,7 +293,7 @@ describe("close_older_issues", () => {
       });
 
       const newIssue = { number: 125, html_url: "https://github.com/owner/repo/issues/125" };
-      const results = await closeOlderIssues(mockGithub, "owner", "repo", "", [], newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
+      const results = await closeOlderIssues(mockGithub, "owner", "repo", "test-workflow", newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
 
       expect(results).toHaveLength(1);
       expect(results[0].number).toBe(124);
@@ -325,7 +306,7 @@ describe("close_older_issues", () => {
       });
 
       const newIssue = { number: 125, html_url: "https://github.com/owner/repo/issues/125" };
-      const results = await closeOlderIssues(mockGithub, "owner", "repo", "Prefix", [], newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
+      const results = await closeOlderIssues(mockGithub, "owner", "repo", "test-workflow", newIssue, "Test Workflow", "https://github.com/owner/repo/actions/runs/123");
 
       expect(results).toHaveLength(0);
       expect(global.core.info).toHaveBeenCalledWith("✓ No older issues found to close - operation complete");
