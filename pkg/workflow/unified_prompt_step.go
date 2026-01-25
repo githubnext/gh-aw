@@ -93,7 +93,7 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 					for placeholder, value := range section.Substitutions {
 						// Escape single quotes in value for sed
 						escapedValue := strings.ReplaceAll(value, "'", "'\\''")
-						yaml.WriteString(fmt.Sprintf(" | sed 's|%s|%s|g'", placeholder, escapedValue))
+						fmt.Fprintf(yaml, " | sed 's|%s|%s|g'", placeholder, escapedValue)
 					}
 					yaml.WriteString(" >> \"$GH_AW_PROMPT\"\n")
 				} else {
@@ -130,7 +130,7 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 					for placeholder, value := range section.Substitutions {
 						// Escape single quotes in value for sed
 						escapedValue := strings.ReplaceAll(value, "'", "'\\''")
-						yaml.WriteString(fmt.Sprintf(" | sed 's|%s|%s|g'", placeholder, escapedValue))
+						fmt.Fprintf(yaml, " | sed 's|%s|%s|g'", placeholder, escapedValue)
 					}
 					yaml.WriteString(" >> \"$GH_AW_PROMPT\"\n")
 				} else {
@@ -492,7 +492,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 						yaml.WriteString("            " + fmt.Sprintf("cat \"%s\"", promptPath))
 						for placeholder, value := range section.Substitutions {
 							escapedValue := strings.ReplaceAll(value, "'", "'\\''")
-							yaml.WriteString(fmt.Sprintf(" | sed 's|%s|%s|g'", placeholder, escapedValue))
+							fmt.Fprintf(yaml, " | sed 's|%s|%s|g'", placeholder, escapedValue)
 						}
 						yaml.WriteString(" > \"$GH_AW_PROMPT\"\n")
 					} else {
@@ -505,7 +505,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 						yaml.WriteString("            " + fmt.Sprintf("cat \"%s\"", promptPath))
 						for placeholder, value := range section.Substitutions {
 							escapedValue := strings.ReplaceAll(value, "'", "'\\''")
-							yaml.WriteString(fmt.Sprintf(" | sed 's|%s|%s|g'", placeholder, escapedValue))
+							fmt.Fprintf(yaml, " | sed 's|%s|%s|g'", placeholder, escapedValue)
 						}
 						yaml.WriteString(" >> \"$GH_AW_PROMPT\"\n")
 					} else {
@@ -546,7 +546,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 						yaml.WriteString("          " + fmt.Sprintf("cat \"%s\"", promptPath))
 						for placeholder, value := range section.Substitutions {
 							escapedValue := strings.ReplaceAll(value, "'", "'\\''")
-							yaml.WriteString(fmt.Sprintf(" | sed 's|%s|%s|g'", placeholder, escapedValue))
+							fmt.Fprintf(yaml, " | sed 's|%s|%s|g'", placeholder, escapedValue)
 						}
 						yaml.WriteString(" > \"$GH_AW_PROMPT\"\n")
 					} else {
@@ -559,7 +559,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 						yaml.WriteString("          " + fmt.Sprintf("cat \"%s\"", promptPath))
 						for placeholder, value := range section.Substitutions {
 							escapedValue := strings.ReplaceAll(value, "'", "'\\''")
-							yaml.WriteString(fmt.Sprintf(" | sed 's|%s|%s|g'", placeholder, escapedValue))
+							fmt.Fprintf(yaml, " | sed 's|%s|%s|g'", placeholder, escapedValue)
 						}
 						yaml.WriteString(" >> \"$GH_AW_PROMPT\"\n")
 					} else {
