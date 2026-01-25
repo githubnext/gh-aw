@@ -7,40 +7,6 @@ import (
 	"testing"
 )
 
-func TestCreateSpecSkeletonWithGoal(t *testing.T) {
-	tmpDir := t.TempDir()
-	goal := "Reduce critical vulnerabilities across all repositories"
-
-	path, err := CreateSpecSkeletonWithGoal(tmpDir, "test-campaign", goal, false)
-	if err != nil {
-		t.Fatalf("CreateSpecSkeletonWithGoal failed: %v", err)
-	}
-
-	// Verify file was created
-	fullPath := filepath.Join(tmpDir, path)
-	content, err := os.ReadFile(fullPath)
-	if err != nil {
-		t.Fatalf("Failed to read created file: %v", err)
-	}
-
-	contentStr := string(content)
-
-	// Verify goal appears in the file
-	if !strings.Contains(contentStr, goal) {
-		t.Errorf("Created spec should contain goal text, but it doesn't")
-	}
-
-	// Verify the description field is set in YAML frontmatter
-	if !strings.Contains(contentStr, "description: "+goal) {
-		t.Errorf("Created spec should have description field set to goal in frontmatter")
-	}
-
-	// Verify the campaign details section is included
-	if !strings.Contains(contentStr, "## Campaign Details") {
-		t.Errorf("Created spec with goal should include Campaign Details section")
-	}
-}
-
 func TestCreateSpecSkeleton_Basic(t *testing.T) {
 	tmpDir := t.TempDir()
 

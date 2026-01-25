@@ -103,9 +103,6 @@ Markdown body. You can then
 update owners, workflows, memory paths, metrics-glob, and governance
 fields to match your initiative.
 
-With --goal flag, provide a natural language description of the campaign's
-objective and it will be used to populate the spec with a meaningful description.
-
 With --project flag, a GitHub Project will be created with:
 - Required fields: Campaign Id, Worker Workflow, Priority, Size, Start Date, End Date
 - Views: Progress Board (board), Task Tracker (table), Campaign Roadmap (roadmap)
@@ -115,7 +112,6 @@ With --project flag, a GitHub Project will be created with:
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` campaign new security-q1-2025
   ` + string(constants.CLIExtensionPrefix) + ` campaign new modernization-winter2025 --force
-  ` + string(constants.CLIExtensionPrefix) + ` campaign new security-q1-2025 --goal "Reduce critical vulnerabilities across all repos"
   ` + string(constants.CLIExtensionPrefix) + ` campaign new security-q1-2025 --project --owner @me
 	` + string(constants.CLIExtensionPrefix) + ` campaign new modernization --project --owner myorg
 	` + string(constants.CLIExtensionPrefix) + ` campaign new modernization --project --owner myorg --no-link-repo
@@ -144,7 +140,6 @@ Examples:
 
 			id := args[0]
 			force, _ := cmd.Flags().GetBool("force")
-			goal, _ := cmd.Flags().GetString("goal")
 			createProject, _ := cmd.Flags().GetBool("project")
 			owner, _ := cmd.Flags().GetString("owner")
 			repo, _ := cmd.Flags().GetString("repo")
@@ -156,7 +151,7 @@ Examples:
 				return fmt.Errorf("failed to get current working directory: %w", err)
 			}
 
-			path, err := CreateSpecSkeletonWithGoal(cwd, id, goal, force)
+			path, err := CreateSpecSkeleton(cwd, id, force)
 			if err != nil {
 				return err
 			}
@@ -230,7 +225,6 @@ Examples:
 	}
 
 	newCmd.Flags().Bool("force", false, "Overwrite existing spec file if it already exists")
-	newCmd.Flags().StringP("goal", "g", "", "Natural language description of the campaign's objective")
 	newCmd.Flags().Bool("project", false, "Create a GitHub Project with required views and fields")
 	newCmd.Flags().String("owner", "", "GitHub organization or user for the project (required with --project). Use '@me' for personal projects")
 	newCmd.Flags().StringP("repo", "r", "", "Repository to link the created project to (owner/name). Defaults to current repo")
