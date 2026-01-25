@@ -478,9 +478,14 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 
 	// Build configuration for each handler using the registry
 	for handlerName, builder := range handlerRegistry {
-		if handlerConfig := builder(data.SafeOutputs); len(handlerConfig) > 0 {
-			compilerSafeOutputsConfigLog.Printf("Adding %s handler configuration", handlerName)
-			config[handlerName] = handlerConfig
+		handlerConfig := builder(data.SafeOutputs)
+		if handlerConfig != nil {
+			// Always include handlers that exist, even with empty config
+			// (missing_tool and missing_data are auto-enabled and may have empty config)
+			if len(handlerConfig) > 0 || handlerName == "missing_tool" || handlerName == "missing_data" {
+				compilerSafeOutputsConfigLog.Printf("Adding %s handler configuration", handlerName)
+				config[handlerName] = handlerConfig
+			}
 		}
 	}
 
