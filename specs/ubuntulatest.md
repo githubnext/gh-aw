@@ -1,11 +1,11 @@
 # Ubuntu Actions Runner Image Analysis
 
-**Last Updated**: 2026-01-23  
-**Source**: [Ubuntu2404-Readme.md (20260119)](https://github.com/actions/runner-images/blob/releases/ubuntu24/20260119/images/ubuntu/Ubuntu2404-Readme.md)  
+**Last Updated**: 2026-01-25  
+**Source**: [Ubuntu2404-Readme.md (20260119.4)](https://github.com/actions/runner-images/blob/ubuntu24/20260119.4/images/ubuntu/Ubuntu2404-Readme.md)  
 **Ubuntu Version**: 24.04.3 LTS  
 **Image Version**: 20260119.4.1  
 **Runner Version**: 2.331.0  
-**Kernel Version**: 6.11.0-1018-azure  
+**Kernel Version**: 6.8.0-1021-azure  
 **Systemd Version**: 255.4-1ubuntu8.12  
 
 ## Overview
@@ -36,7 +36,7 @@ The Ubuntu 24.04 runner image includes:
 ## Operating System
 
 - **Distribution**: Ubuntu 24.04.3 LTS
-- **Kernel**: 6.11.0-1018-azure
+- **Kernel**: 6.8.0-1021-azure
 - **Architecture**: x86_64
 - **Systemd**: 255.4-1ubuntu8.12
 
