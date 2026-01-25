@@ -415,8 +415,7 @@ A successful run will:
 - ✅ Check all MCP-enabled runs for gateway.jsonl presence
 - ✅ Calculate coverage percentages and identify gaps
 - ✅ Flag any runs missing critical logs as CRITICAL
-- ✅ Close previous observability discussions
-- ✅ Create a new discussion with comprehensive report
+- ✅ Create a new discussion with comprehensive report (previous discussions automatically closed)
 - ✅ Include actionable recommendations
 
 Begin your analysis now. Download the logs, analyze observability coverage, and create the discussion report.
