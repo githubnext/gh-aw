@@ -9,6 +9,13 @@ import (
 
 var compilerSafeOutputsConfigLog = logger.New("workflow:compiler_safe_outputs_config")
 
+// Auto-enabled handlers that should always be included even with empty configs
+// These handlers are enabled by default when safe-outputs is present
+var autoEnabledHandlers = map[string]bool{
+	"missing_tool": true,
+	"missing_data": true,
+}
+
 // handlerConfigBuilder provides a fluent API for building handler configurations
 type handlerConfigBuilder struct {
 	config map[string]any
@@ -479,13 +486,10 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 	// Build configuration for each handler using the registry
 	for handlerName, builder := range handlerRegistry {
 		handlerConfig := builder(data.SafeOutputs)
-		if handlerConfig != nil {
-			// Always include handlers that exist, even with empty config
-			// (missing_tool and missing_data are auto-enabled and may have empty config)
-			if len(handlerConfig) > 0 || handlerName == "missing_tool" || handlerName == "missing_data" {
-				compilerSafeOutputsConfigLog.Printf("Adding %s handler configuration", handlerName)
-				config[handlerName] = handlerConfig
-			}
+		// Include handler if it has configuration OR if it's auto-enabled (even with empty config)
+		if handlerConfig != nil && (len(handlerConfig) > 0 || autoEnabledHandlers[handlerName]) {
+			compilerSafeOutputsConfigLog.Printf("Adding %s handler configuration", handlerName)
+			config[handlerName] = handlerConfig
 		}
 	}
 
