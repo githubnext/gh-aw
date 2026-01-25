@@ -3427,12 +3427,14 @@
               },
               "mode": {
                 "type": "string",
-                "enum": ["stdio", "http", "remote", "local"],
+                "enum": ["stdio", "http", "local"],
+                "$comment": "Note: 'remote' is only valid for the GitHub tool's mode field, not for generic MCP server configurations. Valid types: stdio (command/container), http (URL-based), local (alias for stdio).",
                 "description": "MCP server mode"
               },
               "type": {
                 "type": "string",
-                "enum": ["stdio", "http", "remote", "local"],
+                "enum": ["stdio", "http", "local"],
+                "$comment": "Note: 'remote' is only valid for the GitHub tool's mode field, not for generic MCP server configurations. Valid types: stdio (command/container), http (URL-based), local (alias for stdio).",
                 "description": "MCP server type"
               },
               "version": {
@@ -3471,7 +3473,8 @@
                 "description": "Arguments passed to container entrypoint"
               }
             },
-            "additionalProperties": true
+            "$comment": "Strict validation: additionalProperties set to false to match mcp_config_schema.json and ensure consistent validation of custom MCP tools. Only explicitly defined properties are allowed.",
+            "additionalProperties": false
           }
         ]
       }
