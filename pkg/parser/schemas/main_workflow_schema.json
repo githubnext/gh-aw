@@ -3428,12 +3428,13 @@
               "mode": {
                 "type": "string",
                 "enum": ["stdio", "http", "remote", "local"],
-                "description": "MCP server mode"
+                "description": "DEPRECATED: Use 'type' instead. This field is ignored for custom MCP servers and will be removed in a future version. For GitHub and Serena tools, use the tool-specific 'mode' configuration.",
+                "deprecated": true
               },
               "type": {
                 "type": "string",
                 "enum": ["stdio", "http", "remote", "local"],
-                "description": "MCP server type"
+                "description": "MCP connection type. Use 'stdio' for command-based or container-based servers, 'http' for HTTP-based servers. 'local' is an alias for 'stdio' and is normalized during parsing."
               },
               "version": {
                 "type": ["string", "number"],
