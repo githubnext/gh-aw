@@ -36,16 +36,16 @@ type WorkflowStatus struct {
 func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, labelFilter string, repoOverride string) error {
 	statusLog.Printf("Checking workflow status: pattern=%s, jsonOutput=%v, ref=%s, labelFilter=%s, repo=%s", pattern, jsonOutput, ref, labelFilter, repoOverride)
 	if verbose && !jsonOutput {
-		fmt.Printf("Checking status of workflow files\n")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking status of workflow files"))
 		if pattern != "" {
-			fmt.Printf("Filtering by pattern: %s\n", pattern)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Filtering by pattern: %s", pattern)))
 		}
 	}
 
 	mdFiles, err := getMarkdownWorkflowFiles("")
 	if err != nil {
 		statusLog.Printf("Failed to get markdown workflow files: %v", err)
-		fmt.Println(err.Error())
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 		return nil
 	}
 
@@ -58,13 +58,13 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 			fmt.Println(string(jsonBytes))
 			return nil
 		}
-		fmt.Println("No workflow files found.")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflow files found."))
 		return nil
 	}
 
 	if verbose && !jsonOutput {
-		fmt.Printf("Found %d markdown workflow files\n", len(mdFiles))
-		fmt.Printf("Fetching GitHub workflow status...\n")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d markdown workflow files", len(mdFiles))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching GitHub workflow status..."))
 	}
 
 	// Get GitHub workflows data
@@ -73,16 +73,16 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 	if err != nil {
 		statusLog.Printf("Failed to fetch GitHub workflows: %v", err)
 		if verbose && !jsonOutput {
-			fmt.Printf("Verbose: Failed to fetch GitHub workflows: %v\n", err)
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to fetch GitHub workflows: %v", err)))
 		}
 		if !jsonOutput {
-			fmt.Printf("Warning: Could not fetch GitHub workflow status: %v\n", err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not fetch GitHub workflow status: %v", err)))
 		}
 		githubWorkflows = make(map[string]*GitHubWorkflow)
 	} else {
 		statusLog.Printf("Successfully fetched %d GitHub workflows", len(githubWorkflows))
 		if verbose && !jsonOutput {
-			fmt.Printf("Successfully fetched %d GitHub workflows\n", len(githubWorkflows))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully fetched %d GitHub workflows", len(githubWorkflows))))
 		}
 	}
 
@@ -90,22 +90,22 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, ref string, 
 	var latestRunsByWorkflow map[string]*WorkflowRun
 	if ref != "" {
 		if verbose && !jsonOutput {
-			fmt.Printf("Fetching latest runs for ref: %s\n", ref)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Fetching latest runs for ref: %s", ref)))
 		}
 		latestRunsByWorkflow, err = fetchLatestRunsByRef(ref, repoOverride, verbose && !jsonOutput)
 		if err != nil {
 			statusLog.Printf("Failed to fetch workflow runs for ref %s: %v", ref, err)
 			if verbose && !jsonOutput {
-				fmt.Printf("Verbose: Failed to fetch workflow runs for ref: %v\n", err)
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to fetch workflow runs for ref: %v", err)))
 			}
 			if !jsonOutput {
-				fmt.Printf("Warning: Could not fetch workflow runs for ref '%s': %v\n", ref, err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not fetch workflow runs for ref '%s': %v", ref, err)))
 			}
 			latestRunsByWorkflow = make(map[string]*WorkflowRun)
 		} else {
 			statusLog.Printf("Successfully fetched %d workflow runs for ref %s", len(latestRunsByWorkflow), ref)
 			if verbose && !jsonOutput {
-				fmt.Printf("Successfully fetched %d workflow runs for ref\n", len(latestRunsByWorkflow))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully fetched %d workflow runs for ref", len(latestRunsByWorkflow))))
 			}
 		}
 	}
