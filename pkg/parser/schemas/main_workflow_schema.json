@@ -3473,10 +3473,7 @@
               "registry": {
                 "type": "string",
                 "description": "URI to installation location from MCP registry",
-                "examples": [
-                  "https://api.mcp.github.com/v0/servers/microsoft/markitdown",
-                  "https://registry.npmjs.org/@my/tool"
-                ]
+                "examples": ["https://api.mcp.github.com/v0/servers/microsoft/markitdown", "https://registry.npmjs.org/@my/tool"]
               },
               "allowed": {
                 "type": "array",
@@ -3492,10 +3489,7 @@
               "entrypoint": {
                 "type": "string",
                 "description": "Container entrypoint override (used with container field)",
-                "examples": [
-                  "/bin/sh",
-                  "node"
-                ]
+                "examples": ["/bin/sh", "node"]
               },
               "mounts": {
                 "type": "array",
@@ -3504,10 +3498,7 @@
                   "pattern": "^[^:]+:[^:]+:(ro|rw)$"
                 },
                 "description": "Volume mounts for container in format 'source:dest:mode' where mode is 'ro' or 'rw'",
-                "examples": [
-                  ["/tmp/data:/data:ro"],
-                  ["/workspace:/workspace:rw", "/config:/config:ro"]
-                ]
+                "examples": [["/tmp/data:/data:ro"], ["/workspace:/workspace:rw", "/config:/config:ro"]]
               }
             },
             "additionalProperties": true
@@ -6401,10 +6392,7 @@
             "pattern": "^[^:]+:[^:]+:(ro|rw)$"
           },
           "description": "Volume mounts for container in format 'source:dest:mode' where mode is 'ro' or 'rw'",
-          "examples": [
-            ["/tmp/data:/data:ro"],
-            ["/workspace:/workspace:rw", "/config:/config:ro"]
-          ]
+          "examples": [["/tmp/data:/data:ro"], ["/workspace:/workspace:rw", "/config:/config:ro"]]
         },
         "env": {
           "type": "object",
