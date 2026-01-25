@@ -9,6 +9,471 @@ import (
 
 var compilerSafeOutputsConfigLog = logger.New("workflow:compiler_safe_outputs_config")
 
+// Auto-enabled handlers that should always be included even with empty configs
+// These handlers are enabled by default when safe-outputs is present
+var autoEnabledHandlers = map[string]bool{
+	"missing_tool": true,
+	"missing_data": true,
+}
+
+// handlerConfigBuilder provides a fluent API for building handler configurations
+type handlerConfigBuilder struct {
+	config map[string]any
+}
+
+// newHandlerConfigBuilder creates a new handler config builder
+func newHandlerConfigBuilder() *handlerConfigBuilder {
+	return &handlerConfigBuilder{
+		config: make(map[string]any),
+	}
+}
+
+// AddIfPositive adds an integer field only if the value is greater than 0
+func (b *handlerConfigBuilder) AddIfPositive(key string, value int) *handlerConfigBuilder {
+	if value > 0 {
+		b.config[key] = value
+	}
+	return b
+}
+
+// AddIfNotEmpty adds a string field only if the value is not empty
+func (b *handlerConfigBuilder) AddIfNotEmpty(key string, value string) *handlerConfigBuilder {
+	if value != "" {
+		b.config[key] = value
+	}
+	return b
+}
+
+// AddIfTrue adds a boolean field only if the value is true
+func (b *handlerConfigBuilder) AddIfTrue(key string, value bool) *handlerConfigBuilder {
+	if value {
+		b.config[key] = true
+	}
+	return b
+}
+
+// AddStringSlice adds a string slice field only if the slice is not empty
+func (b *handlerConfigBuilder) AddStringSlice(key string, value []string) *handlerConfigBuilder {
+	if len(value) > 0 {
+		b.config[key] = value
+	}
+	return b
+}
+
+// AddBoolPtr adds a boolean pointer field only if the pointer is not nil
+func (b *handlerConfigBuilder) AddBoolPtr(key string, value *bool) *handlerConfigBuilder {
+	if value != nil {
+		b.config[key] = *value
+	}
+	return b
+}
+
+// AddBoolPtrOrDefault adds a boolean field, using default if pointer is nil
+func (b *handlerConfigBuilder) AddBoolPtrOrDefault(key string, value *bool, defaultValue bool) *handlerConfigBuilder {
+	if value != nil {
+		b.config[key] = *value
+	} else {
+		b.config[key] = defaultValue
+	}
+	return b
+}
+
+// AddStringPtr adds a string pointer field only if the pointer is not nil
+func (b *handlerConfigBuilder) AddStringPtr(key string, value *string) *handlerConfigBuilder {
+	if value != nil {
+		b.config[key] = *value
+	}
+	return b
+}
+
+// AddDefault adds a field with a default value unconditionally
+func (b *handlerConfigBuilder) AddDefault(key string, value any) *handlerConfigBuilder {
+	b.config[key] = value
+	return b
+}
+
+// Build returns the built configuration map
+func (b *handlerConfigBuilder) Build() map[string]any {
+	return b.config
+}
+
+// handlerBuilder is a function that builds a handler config from SafeOutputsConfig
+type handlerBuilder func(*SafeOutputsConfig) map[string]any
+
+// handlerRegistry maps handler names to their builder functions
+var handlerRegistry = map[string]handlerBuilder{
+	"create_issue": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.CreateIssues == nil {
+			return nil
+		}
+		c := cfg.CreateIssues
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddStringSlice("allowed_labels", c.AllowedLabels).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddIfPositive("expires", c.Expires).
+			AddStringSlice("labels", c.Labels).
+			AddIfNotEmpty("title_prefix", c.TitlePrefix).
+			AddStringSlice("assignees", c.Assignees).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddIfTrue("group", c.Group).
+			AddIfTrue("close_older_issues", c.CloseOlderIssues).
+			Build()
+	},
+	"add_comment": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.AddComments == nil {
+			return nil
+		}
+		c := cfg.AddComments
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("target", c.Target).
+			AddIfTrue("hide_older_comments", c.HideOlderComments).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"create_discussion": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.CreateDiscussions == nil {
+			return nil
+		}
+		c := cfg.CreateDiscussions
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("category", c.Category).
+			AddIfNotEmpty("title_prefix", c.TitlePrefix).
+			AddStringSlice("labels", c.Labels).
+			AddStringSlice("allowed_labels", c.AllowedLabels).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddIfTrue("close_older_discussions", c.CloseOlderDiscussions).
+			AddIfNotEmpty("required_category", c.RequiredCategory).
+			AddIfPositive("expires", c.Expires).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			Build()
+	},
+	"close_issue": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.CloseIssues == nil {
+			return nil
+		}
+		c := cfg.CloseIssues
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("target", c.Target).
+			AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"close_discussion": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.CloseDiscussions == nil {
+			return nil
+		}
+		c := cfg.CloseDiscussions
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("target", c.Target).
+			AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"add_labels": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.AddLabels == nil {
+			return nil
+		}
+		c := cfg.AddLabels
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddStringSlice("allowed", c.Allowed).
+			AddIfNotEmpty("target", c.Target).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"remove_labels": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.RemoveLabels == nil {
+			return nil
+		}
+		c := cfg.RemoveLabels
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddStringSlice("allowed", c.Allowed).
+			AddIfNotEmpty("target", c.Target).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"update_issue": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.UpdateIssues == nil {
+			return nil
+		}
+		c := cfg.UpdateIssues
+		builder := newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("target", c.Target)
+		// Boolean pointer fields indicate which fields can be updated
+		if c.Status != nil {
+			builder.AddDefault("allow_status", true)
+		}
+		if c.Title != nil {
+			builder.AddDefault("allow_title", true)
+		}
+		if c.Body != nil {
+			builder.AddDefault("allow_body", true)
+		}
+		return builder.
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"update_discussion": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.UpdateDiscussions == nil {
+			return nil
+		}
+		c := cfg.UpdateDiscussions
+		builder := newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("target", c.Target)
+		// Boolean pointer fields indicate which fields can be updated
+		if c.Title != nil {
+			builder.AddDefault("allow_title", true)
+		}
+		if c.Body != nil {
+			builder.AddDefault("allow_body", true)
+		}
+		if c.Labels != nil {
+			builder.AddDefault("allow_labels", true)
+		}
+		return builder.
+			AddStringSlice("allowed_labels", c.AllowedLabels).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"link_sub_issue": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.LinkSubIssue == nil {
+			return nil
+		}
+		c := cfg.LinkSubIssue
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddStringSlice("parent_required_labels", c.ParentRequiredLabels).
+			AddIfNotEmpty("parent_title_prefix", c.ParentTitlePrefix).
+			AddStringSlice("sub_required_labels", c.SubRequiredLabels).
+			AddIfNotEmpty("sub_title_prefix", c.SubTitlePrefix).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"update_release": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.UpdateRelease == nil {
+			return nil
+		}
+		c := cfg.UpdateRelease
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			Build()
+	},
+	"create_pull_request_review_comment": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.CreatePullRequestReviewComments == nil {
+			return nil
+		}
+		c := cfg.CreatePullRequestReviewComments
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("side", c.Side).
+			AddIfNotEmpty("target", c.Target).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"create_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.CreatePullRequests == nil {
+			return nil
+		}
+		c := cfg.CreatePullRequests
+		maxPatchSize := 1024 // default 1024 KB
+		if cfg.MaximumPatchSize > 0 {
+			maxPatchSize = cfg.MaximumPatchSize
+		}
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("title_prefix", c.TitlePrefix).
+			AddStringSlice("labels", c.Labels).
+			AddBoolPtr("draft", c.Draft).
+			AddIfNotEmpty("if_no_changes", c.IfNoChanges).
+			AddIfTrue("allow_empty", c.AllowEmpty).
+			AddIfTrue("auto_merge", c.AutoMerge).
+			AddIfPositive("expires", c.Expires).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddDefault("base_branch", "${{ github.ref_name }}").
+			AddDefault("max_patch_size", maxPatchSize).
+			Build()
+	},
+	"push_to_pull_request_branch": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.PushToPullRequestBranch == nil {
+			return nil
+		}
+		c := cfg.PushToPullRequestBranch
+		maxPatchSize := 1024 // default 1024 KB
+		if cfg.MaximumPatchSize > 0 {
+			maxPatchSize = cfg.MaximumPatchSize
+		}
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("target", c.Target).
+			AddIfNotEmpty("title_prefix", c.TitlePrefix).
+			AddStringSlice("labels", c.Labels).
+			AddIfNotEmpty("if_no_changes", c.IfNoChanges).
+			AddIfNotEmpty("commit_title_suffix", c.CommitTitleSuffix).
+			AddDefault("base_branch", "${{ github.ref_name }}").
+			AddDefault("max_patch_size", maxPatchSize).
+			Build()
+	},
+	"update_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.UpdatePullRequests == nil {
+			return nil
+		}
+		c := cfg.UpdatePullRequests
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("target", c.Target).
+			AddBoolPtrOrDefault("allow_title", c.Title, true).
+			AddBoolPtrOrDefault("allow_body", c.Body, true).
+			AddStringPtr("default_operation", c.Operation).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"close_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.ClosePullRequests == nil {
+			return nil
+		}
+		c := cfg.ClosePullRequests
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("target", c.Target).
+			AddStringSlice("required_labels", c.RequiredLabels).
+			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"hide_comment": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.HideComment == nil {
+			return nil
+		}
+		c := cfg.HideComment
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddStringSlice("allowed_reasons", c.AllowedReasons).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"dispatch_workflow": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.DispatchWorkflow == nil {
+			return nil
+		}
+		c := cfg.DispatchWorkflow
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddStringSlice("workflows", c.Workflows).
+			Build()
+	},
+	"missing_tool": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.MissingTool == nil {
+			return nil
+		}
+		c := cfg.MissingTool
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			Build()
+	},
+	"missing_data": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.MissingData == nil {
+			return nil
+		}
+		c := cfg.MissingData
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			Build()
+	},
+	"autofix_code_scanning_alert": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.AutofixCodeScanningAlert == nil {
+			return nil
+		}
+		c := cfg.AutofixCodeScanningAlert
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			Build()
+	},
+}
+
+// projectHandlerRegistry maps project handler names to their builder functions
+var projectHandlerRegistry = map[string]handlerBuilder{
+	"create_project": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.CreateProjects == nil {
+			return nil
+		}
+		c := cfg.CreateProjects
+		builder := newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("target_owner", c.TargetOwner).
+			AddIfNotEmpty("title_prefix", c.TitlePrefix).
+			AddIfNotEmpty("github-token", c.GitHubToken)
+		if len(c.Views) > 0 {
+			builder.AddDefault("views", c.Views)
+		}
+		if len(c.FieldDefinitions) > 0 {
+			builder.AddDefault("field_definitions", c.FieldDefinitions)
+		}
+		return builder.Build()
+	},
+	"create_project_status_update": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.CreateProjectStatusUpdates == nil {
+			return nil
+		}
+		c := cfg.CreateProjectStatusUpdates
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			Build()
+	},
+	"update_project": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.UpdateProjects == nil {
+			return nil
+		}
+		c := cfg.UpdateProjects
+		builder := newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("github-token", c.GitHubToken)
+		if len(c.Views) > 0 {
+			builder.AddDefault("views", c.Views)
+		}
+		if len(c.FieldDefinitions) > 0 {
+			builder.AddDefault("field_definitions", c.FieldDefinitions)
+		}
+		return builder.Build()
+	},
+	"copy_project": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.CopyProjects == nil {
+			return nil
+		}
+		c := cfg.CopyProjects
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddIfNotEmpty("github-token", c.GitHubToken).
+			AddIfNotEmpty("source_project", c.SourceProject).
+			AddIfNotEmpty("target_owner", c.TargetOwner).
+			Build()
+	},
+}
+
 func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *WorkflowData) {
 	if data.SafeOutputs == nil {
 		compilerSafeOutputsConfigLog.Print("No safe-outputs configuration, skipping handler manager config")
@@ -18,512 +483,14 @@ func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *Workflow
 	compilerSafeOutputsConfigLog.Print("Building handler manager configuration for safe-outputs")
 	config := make(map[string]map[string]any)
 
-	// Add config for each enabled safe output type with their options
-	// Presence in config = enabled, so no need for "enabled": true field
-	if data.SafeOutputs.CreateIssues != nil {
-		compilerSafeOutputsConfigLog.Print("Adding create_issue handler configuration")
-		cfg := data.SafeOutputs.CreateIssues
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
+	// Build configuration for each handler using the registry
+	for handlerName, builder := range handlerRegistry {
+		handlerConfig := builder(data.SafeOutputs)
+		// Include handler if it has configuration OR if it's auto-enabled (even with empty config)
+		if handlerConfig != nil && (len(handlerConfig) > 0 || autoEnabledHandlers[handlerName]) {
+			compilerSafeOutputsConfigLog.Printf("Adding %s handler configuration", handlerName)
+			config[handlerName] = handlerConfig
 		}
-		if len(cfg.AllowedLabels) > 0 {
-			handlerConfig["allowed_labels"] = cfg.AllowedLabels
-		}
-		if len(cfg.AllowedRepos) > 0 {
-			handlerConfig["allowed_repos"] = cfg.AllowedRepos
-		}
-		if cfg.Expires > 0 {
-			handlerConfig["expires"] = cfg.Expires
-		}
-		// Add labels, title_prefix to config
-		if len(cfg.Labels) > 0 {
-			handlerConfig["labels"] = cfg.Labels
-		}
-		if cfg.TitlePrefix != "" {
-			handlerConfig["title_prefix"] = cfg.TitlePrefix
-		}
-		// Add assignees to config
-		if len(cfg.Assignees) > 0 {
-			handlerConfig["assignees"] = cfg.Assignees
-		}
-		// Add target-repo to config
-		if cfg.TargetRepoSlug != "" {
-			handlerConfig["target-repo"] = cfg.TargetRepoSlug
-		}
-		// Add group flag to config
-		if cfg.Group {
-			handlerConfig["group"] = true
-		}
-		// Add close-older-issues flag to config
-		if cfg.CloseOlderIssues {
-			handlerConfig["close_older_issues"] = true
-		}
-		config["create_issue"] = handlerConfig
-	}
-
-	if data.SafeOutputs.AddComments != nil {
-		cfg := data.SafeOutputs.AddComments
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.Target != "" {
-			handlerConfig["target"] = cfg.Target
-		}
-		if cfg.HideOlderComments {
-			handlerConfig["hide_older_comments"] = true
-		}
-		// Add target-repo to config
-		if cfg.TargetRepoSlug != "" {
-			handlerConfig["target-repo"] = cfg.TargetRepoSlug
-		}
-		if len(cfg.AllowedRepos) > 0 {
-			handlerConfig["allowed_repos"] = cfg.AllowedRepos
-		}
-		// Note: discussion flag is deprecated and not emitted to config
-		// Discussion support is always available in add_comment handler
-		config["add_comment"] = handlerConfig
-	}
-
-	if data.SafeOutputs.CreateDiscussions != nil {
-		cfg := data.SafeOutputs.CreateDiscussions
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.Category != "" {
-			handlerConfig["category"] = cfg.Category
-		}
-		if cfg.TitlePrefix != "" {
-			handlerConfig["title_prefix"] = cfg.TitlePrefix
-		}
-		if len(cfg.Labels) > 0 {
-			handlerConfig["labels"] = cfg.Labels
-		}
-		if len(cfg.AllowedLabels) > 0 {
-			handlerConfig["allowed_labels"] = cfg.AllowedLabels
-		}
-		if len(cfg.AllowedRepos) > 0 {
-			handlerConfig["allowed_repos"] = cfg.AllowedRepos
-		}
-		if cfg.CloseOlderDiscussions {
-			handlerConfig["close_older_discussions"] = true
-		}
-		if cfg.RequiredCategory != "" {
-			handlerConfig["required_category"] = cfg.RequiredCategory
-		}
-		if cfg.Expires > 0 {
-			handlerConfig["expires"] = cfg.Expires
-		}
-		// Add target-repo to config
-		if cfg.TargetRepoSlug != "" {
-			handlerConfig["target-repo"] = cfg.TargetRepoSlug
-		}
-		config["create_discussion"] = handlerConfig
-	}
-
-	if data.SafeOutputs.CloseIssues != nil {
-		cfg := data.SafeOutputs.CloseIssues
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.Target != "" {
-			handlerConfig["target"] = cfg.Target
-		}
-		if len(cfg.RequiredLabels) > 0 {
-			handlerConfig["required_labels"] = cfg.RequiredLabels
-		}
-		if cfg.RequiredTitlePrefix != "" {
-			handlerConfig["required_title_prefix"] = cfg.RequiredTitlePrefix
-		}
-		if cfg.TargetRepoSlug != "" {
-			handlerConfig["target-repo"] = cfg.TargetRepoSlug
-		}
-		if len(cfg.AllowedRepos) > 0 {
-			handlerConfig["allowed_repos"] = cfg.AllowedRepos
-		}
-		config["close_issue"] = handlerConfig
-	}
-
-	if data.SafeOutputs.CloseDiscussions != nil {
-		cfg := data.SafeOutputs.CloseDiscussions
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.Target != "" {
-			handlerConfig["target"] = cfg.Target
-		}
-		if len(cfg.RequiredLabels) > 0 {
-			handlerConfig["required_labels"] = cfg.RequiredLabels
-		}
-		if cfg.RequiredTitlePrefix != "" {
-			handlerConfig["required_title_prefix"] = cfg.RequiredTitlePrefix
-		}
-		if cfg.TargetRepoSlug != "" {
-			handlerConfig["target-repo"] = cfg.TargetRepoSlug
-		}
-		if len(cfg.AllowedRepos) > 0 {
-			handlerConfig["allowed_repos"] = cfg.AllowedRepos
-		}
-		config["close_discussion"] = handlerConfig
-	}
-
-	if data.SafeOutputs.AddLabels != nil {
-		cfg := data.SafeOutputs.AddLabels
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if len(cfg.Allowed) > 0 {
-			handlerConfig["allowed"] = cfg.Allowed
-		}
-		if cfg.Target != "" {
-			handlerConfig["target"] = cfg.Target
-		}
-		if cfg.TargetRepoSlug != "" {
-			handlerConfig["target-repo"] = cfg.TargetRepoSlug
-		}
-		if len(cfg.AllowedRepos) > 0 {
-			handlerConfig["allowed_repos"] = cfg.AllowedRepos
-		}
-		config["add_labels"] = handlerConfig
-	}
-
-	if data.SafeOutputs.RemoveLabels != nil {
-		cfg := data.SafeOutputs.RemoveLabels
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if len(cfg.Allowed) > 0 {
-			handlerConfig["allowed"] = cfg.Allowed
-		}
-		if cfg.Target != "" {
-			handlerConfig["target"] = cfg.Target
-		}
-		if cfg.TargetRepoSlug != "" {
-			handlerConfig["target-repo"] = cfg.TargetRepoSlug
-		}
-		if len(cfg.AllowedRepos) > 0 {
-			handlerConfig["allowed_repos"] = cfg.AllowedRepos
-		}
-		config["remove_labels"] = handlerConfig
-	}
-
-	if data.SafeOutputs.UpdateIssues != nil {
-		cfg := data.SafeOutputs.UpdateIssues
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.Target != "" {
-			handlerConfig["target"] = cfg.Target
-		}
-		// Boolean pointer fields indicate which fields can be updated
-		if cfg.Status != nil {
-			handlerConfig["allow_status"] = true
-		}
-		if cfg.Title != nil {
-			handlerConfig["allow_title"] = true
-		}
-		if cfg.Body != nil {
-			handlerConfig["allow_body"] = true
-		}
-		if cfg.TargetRepoSlug != "" {
-			handlerConfig["target-repo"] = cfg.TargetRepoSlug
-		}
-		if len(cfg.AllowedRepos) > 0 {
-			handlerConfig["allowed_repos"] = cfg.AllowedRepos
-		}
-		config["update_issue"] = handlerConfig
-	}
-
-	if data.SafeOutputs.UpdateDiscussions != nil {
-		cfg := data.SafeOutputs.UpdateDiscussions
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.Target != "" {
-			handlerConfig["target"] = cfg.Target
-		}
-		// Boolean pointer fields indicate which fields can be updated
-		if cfg.Title != nil {
-			handlerConfig["allow_title"] = true
-		}
-		if cfg.Body != nil {
-			handlerConfig["allow_body"] = true
-		}
-		if cfg.Labels != nil {
-			handlerConfig["allow_labels"] = true
-		}
-		if len(cfg.AllowedLabels) > 0 {
-			handlerConfig["allowed_labels"] = cfg.AllowedLabels
-		}
-		if cfg.TargetRepoSlug != "" {
-			handlerConfig["target-repo"] = cfg.TargetRepoSlug
-		}
-		if len(cfg.AllowedRepos) > 0 {
-			handlerConfig["allowed_repos"] = cfg.AllowedRepos
-		}
-		config["update_discussion"] = handlerConfig
-	}
-
-	if data.SafeOutputs.LinkSubIssue != nil {
-		cfg := data.SafeOutputs.LinkSubIssue
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if len(cfg.ParentRequiredLabels) > 0 {
-			handlerConfig["parent_required_labels"] = cfg.ParentRequiredLabels
-		}
-		if cfg.ParentTitlePrefix != "" {
-			handlerConfig["parent_title_prefix"] = cfg.ParentTitlePrefix
-		}
-		if len(cfg.SubRequiredLabels) > 0 {
-			handlerConfig["sub_required_labels"] = cfg.SubRequiredLabels
-		}
-		if cfg.SubTitlePrefix != "" {
-			handlerConfig["sub_title_prefix"] = cfg.SubTitlePrefix
-		}
-		if cfg.TargetRepoSlug != "" {
-			handlerConfig["target-repo"] = cfg.TargetRepoSlug
-		}
-		if len(cfg.AllowedRepos) > 0 {
-			handlerConfig["allowed_repos"] = cfg.AllowedRepos
-		}
-		config["link_sub_issue"] = handlerConfig
-	}
-
-	if data.SafeOutputs.UpdateRelease != nil {
-		cfg := data.SafeOutputs.UpdateRelease
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		config["update_release"] = handlerConfig
-	}
-
-	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
-		cfg := data.SafeOutputs.CreatePullRequestReviewComments
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.Side != "" {
-			handlerConfig["side"] = cfg.Side
-		}
-		if cfg.Target != "" {
-			handlerConfig["target"] = cfg.Target
-		}
-		if cfg.TargetRepoSlug != "" {
-			handlerConfig["target-repo"] = cfg.TargetRepoSlug
-		}
-		if len(cfg.AllowedRepos) > 0 {
-			handlerConfig["allowed_repos"] = cfg.AllowedRepos
-		}
-		config["create_pull_request_review_comment"] = handlerConfig
-	}
-
-	if data.SafeOutputs.CreatePullRequests != nil {
-		cfg := data.SafeOutputs.CreatePullRequests
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.TitlePrefix != "" {
-			handlerConfig["title_prefix"] = cfg.TitlePrefix
-		}
-		if len(cfg.Labels) > 0 {
-			handlerConfig["labels"] = cfg.Labels
-		}
-		if cfg.Draft != nil {
-			handlerConfig["draft"] = *cfg.Draft
-		}
-		if cfg.IfNoChanges != "" {
-			handlerConfig["if_no_changes"] = cfg.IfNoChanges
-		}
-		if cfg.AllowEmpty {
-			handlerConfig["allow_empty"] = cfg.AllowEmpty
-		}
-		if cfg.AutoMerge {
-			handlerConfig["auto_merge"] = cfg.AutoMerge
-		}
-		if cfg.Expires > 0 {
-			handlerConfig["expires"] = cfg.Expires
-		}
-		if cfg.TargetRepoSlug != "" {
-			handlerConfig["target-repo"] = cfg.TargetRepoSlug
-		}
-		if len(cfg.AllowedRepos) > 0 {
-			handlerConfig["allowed_repos"] = cfg.AllowedRepos
-		}
-		// Add base branch (required for git operations)
-		handlerConfig["base_branch"] = "${{ github.ref_name }}"
-		// Add max patch size
-		maxPatchSize := 1024 // default 1024 KB
-		if data.SafeOutputs.MaximumPatchSize > 0 {
-			maxPatchSize = data.SafeOutputs.MaximumPatchSize
-		}
-		handlerConfig["max_patch_size"] = maxPatchSize
-		config["create_pull_request"] = handlerConfig
-	}
-
-	if data.SafeOutputs.PushToPullRequestBranch != nil {
-		cfg := data.SafeOutputs.PushToPullRequestBranch
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.Target != "" {
-			handlerConfig["target"] = cfg.Target
-		}
-		if cfg.TitlePrefix != "" {
-			handlerConfig["title_prefix"] = cfg.TitlePrefix
-		}
-		if len(cfg.Labels) > 0 {
-			handlerConfig["labels"] = cfg.Labels
-		}
-		if cfg.IfNoChanges != "" {
-			handlerConfig["if_no_changes"] = cfg.IfNoChanges
-		}
-		if cfg.CommitTitleSuffix != "" {
-			handlerConfig["commit_title_suffix"] = cfg.CommitTitleSuffix
-		}
-		// Add base branch (required for git operations)
-		handlerConfig["base_branch"] = "${{ github.ref_name }}"
-		// Add max patch size
-		maxPatchSize := 1024 // default 1024 KB
-		if data.SafeOutputs.MaximumPatchSize > 0 {
-			maxPatchSize = data.SafeOutputs.MaximumPatchSize
-		}
-		handlerConfig["max_patch_size"] = maxPatchSize
-		config["push_to_pull_request_branch"] = handlerConfig
-	}
-
-	if data.SafeOutputs.UpdatePullRequests != nil {
-		cfg := data.SafeOutputs.UpdatePullRequests
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.Target != "" {
-			handlerConfig["target"] = cfg.Target
-		}
-		// Boolean pointer fields indicate which fields can be updated
-		// Default to true if not specified (backward compatibility)
-		if cfg.Title != nil {
-			handlerConfig["allow_title"] = *cfg.Title
-		} else {
-			handlerConfig["allow_title"] = true
-		}
-		if cfg.Body != nil {
-			handlerConfig["allow_body"] = *cfg.Body
-		} else {
-			handlerConfig["allow_body"] = true
-		}
-		// Add default operation if specified
-		if cfg.Operation != nil {
-			handlerConfig["default_operation"] = *cfg.Operation
-		}
-		if cfg.TargetRepoSlug != "" {
-			handlerConfig["target-repo"] = cfg.TargetRepoSlug
-		}
-		if len(cfg.AllowedRepos) > 0 {
-			handlerConfig["allowed_repos"] = cfg.AllowedRepos
-		}
-		config["update_pull_request"] = handlerConfig
-	}
-
-	if data.SafeOutputs.ClosePullRequests != nil {
-		cfg := data.SafeOutputs.ClosePullRequests
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.Target != "" {
-			handlerConfig["target"] = cfg.Target
-		}
-		if len(cfg.RequiredLabels) > 0 {
-			handlerConfig["required_labels"] = cfg.RequiredLabels
-		}
-		if cfg.RequiredTitlePrefix != "" {
-			handlerConfig["required_title_prefix"] = cfg.RequiredTitlePrefix
-		}
-		if cfg.TargetRepoSlug != "" {
-			handlerConfig["target-repo"] = cfg.TargetRepoSlug
-		}
-		if len(cfg.AllowedRepos) > 0 {
-			handlerConfig["allowed_repos"] = cfg.AllowedRepos
-		}
-		config["close_pull_request"] = handlerConfig
-	}
-
-	if data.SafeOutputs.HideComment != nil {
-		cfg := data.SafeOutputs.HideComment
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if len(cfg.AllowedReasons) > 0 {
-			handlerConfig["allowed_reasons"] = cfg.AllowedReasons
-		}
-		if cfg.TargetRepoSlug != "" {
-			handlerConfig["target-repo"] = cfg.TargetRepoSlug
-		}
-		if len(cfg.AllowedRepos) > 0 {
-			handlerConfig["allowed_repos"] = cfg.AllowedRepos
-		}
-		config["hide_comment"] = handlerConfig
-	}
-
-	if data.SafeOutputs.DispatchWorkflow != nil {
-		cfg := data.SafeOutputs.DispatchWorkflow
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if len(cfg.Workflows) > 0 {
-			handlerConfig["workflows"] = cfg.Workflows
-		}
-		config["dispatch_workflow"] = handlerConfig
-	}
-
-	// Note: CreateProjects and CreateProjectStatusUpdates are handled by the project handler manager
-	// (see addProjectHandlerManagerConfigEnvVar) because they require GH_AW_PROJECT_GITHUB_TOKEN
-
-	if data.SafeOutputs.MissingTool != nil {
-		cfg := data.SafeOutputs.MissingTool
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		config["missing_tool"] = handlerConfig
-	}
-
-	if data.SafeOutputs.MissingData != nil {
-		cfg := data.SafeOutputs.MissingData
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		config["missing_data"] = handlerConfig
-	}
-
-	if data.SafeOutputs.AutofixCodeScanningAlert != nil {
-		cfg := data.SafeOutputs.AutofixCodeScanningAlert
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.GitHubToken != "" {
-			handlerConfig["github-token"] = cfg.GitHubToken
-		}
-		config["autofix_code_scanning_alert"] = handlerConfig
 	}
 
 	// Only add the env var if there are handlers to configure
@@ -555,77 +522,11 @@ func (c *Compiler) addProjectHandlerManagerConfigEnvVar(steps *[]string, data *W
 	compilerSafeOutputsConfigLog.Print("Building project handler manager configuration")
 	config := make(map[string]map[string]any)
 
-	// Add config for project-related safe output types
-	if data.SafeOutputs.CreateProjects != nil {
-		cfg := data.SafeOutputs.CreateProjects
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
+	// Build configuration for each project handler using the registry
+	for handlerName, builder := range projectHandlerRegistry {
+		if handlerConfig := builder(data.SafeOutputs); len(handlerConfig) > 0 {
+			config[handlerName] = handlerConfig
 		}
-		if cfg.TargetOwner != "" {
-			handlerConfig["target_owner"] = cfg.TargetOwner
-		}
-		if cfg.TitlePrefix != "" {
-			handlerConfig["title_prefix"] = cfg.TitlePrefix
-		}
-		if cfg.GitHubToken != "" {
-			handlerConfig["github-token"] = cfg.GitHubToken
-		}
-		if len(cfg.Views) > 0 {
-			handlerConfig["views"] = cfg.Views
-		}
-		if len(cfg.FieldDefinitions) > 0 {
-			handlerConfig["field_definitions"] = cfg.FieldDefinitions
-		}
-		config["create_project"] = handlerConfig
-	}
-
-	if data.SafeOutputs.CreateProjectStatusUpdates != nil {
-		cfg := data.SafeOutputs.CreateProjectStatusUpdates
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.GitHubToken != "" {
-			handlerConfig["github-token"] = cfg.GitHubToken
-		}
-		config["create_project_status_update"] = handlerConfig
-	}
-
-	if data.SafeOutputs.UpdateProjects != nil {
-		cfg := data.SafeOutputs.UpdateProjects
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.GitHubToken != "" {
-			handlerConfig["github-token"] = cfg.GitHubToken
-		}
-		if len(cfg.Views) > 0 {
-			handlerConfig["views"] = cfg.Views
-		}
-		if len(cfg.FieldDefinitions) > 0 {
-			handlerConfig["field_definitions"] = cfg.FieldDefinitions
-		}
-		config["update_project"] = handlerConfig
-	}
-
-	if data.SafeOutputs.CopyProjects != nil {
-		cfg := data.SafeOutputs.CopyProjects
-		handlerConfig := make(map[string]any)
-		if cfg.Max > 0 {
-			handlerConfig["max"] = cfg.Max
-		}
-		if cfg.GitHubToken != "" {
-			handlerConfig["github-token"] = cfg.GitHubToken
-		}
-		if cfg.SourceProject != "" {
-			handlerConfig["source_project"] = cfg.SourceProject
-		}
-		if cfg.TargetOwner != "" {
-			handlerConfig["target_owner"] = cfg.TargetOwner
-		}
-		config["copy_project"] = handlerConfig
 	}
 
 	// Only add the env var if there are project handlers to configure
