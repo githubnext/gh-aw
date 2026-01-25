@@ -52,7 +52,7 @@ func TestGenerateUnifiedPromptStep_AllSections(t *testing.T) {
 	assert.Contains(t, output, "Repo Memory Available", "Should include repo memory instructions")
 	assert.Contains(t, output, "<safe-outputs>", "Should include safe outputs instructions")
 	assert.Contains(t, output, "<github-context>", "Should include GitHub context")
-	
+
 	// Verify cache env vars are NOT in the prompt creation step
 	promptStepStart := strings.Index(output, "- name: Create prompt with built-in context")
 	promptStepEnd := strings.Index(output, "- name:")
