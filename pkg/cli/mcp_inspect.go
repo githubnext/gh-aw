@@ -810,7 +810,7 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 					} else {
 						// Direct command mode
 						if config.Command == "" {
-							fmt.Fprintln(os.Stderr(console.FormatWarningMessage(fmt.Sprintf("Skipping server %s: no command specified", config.Name)))
+							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping server %s: no command specified", config.Name)))
 							continue
 						}
 						cmd = exec.Command(config.Command, config.Args...)
@@ -837,7 +837,7 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 					go func(serverCmd *exec.Cmd, serverName string) {
 						defer wg.Done()
 						if err := serverCmd.Wait(); err != nil && verbose {
-							fmt.Fprintln(os.Stderr(console.FormatWarningMessage(fmt.Sprintf("Server %s exited with error: %v", serverName, err)))
+							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Server %s exited with error: %v", serverName, err)))
 						}
 					}(cmd, config.Name)
 
@@ -851,7 +851,7 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All stdio servers started successfully"))
 			}
 
-			fmt.Fprintln(os.Stderr(console.FormatInfoMessage("Configuration details for MCP inspector:"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Configuration details for MCP inspector:"))
 			for _, config := range mcpConfigs {
 				fmt.Fprintf(os.Stderr, "\n📡 %s (%s):\n", config.Name, config.Type)
 				switch config.Type {
