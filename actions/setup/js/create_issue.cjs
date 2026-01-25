@@ -380,6 +380,7 @@ async function main(config = {}) {
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+    const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
@@ -393,7 +394,14 @@ async function main(config = {}) {
     // Generate footer and add expiration using helper
     const footer = addExpirationToFooter(generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), expiresHours, "Issue");
 
-    bodyLines.push(``, ``, footer, "");
+    bodyLines.push(``, ``, footer);
+
+    // Add standalone workflow-id marker for searchability (consistent with comments)
+    if (workflowId) {
+      bodyLines.push(``, `<!-- gh-aw-workflow-id: ${workflowId} -->`);
+    }
+
+    bodyLines.push("");
     const body = bodyLines.join("\n").trim();
 
     core.info(`Creating issue in ${qualifiedItemRepo} with title: ${title}`);
@@ -422,7 +430,6 @@ async function main(config = {}) {
 
       // Close older issues if enabled
       if (closeOlderIssuesEnabled) {
-        const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
         if (workflowId) {
           core.info(`Attempting to close older issues for ${qualifiedItemRepo}#${issue.number} using workflow-id: ${workflowId}`);
           try {
