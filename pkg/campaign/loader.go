@@ -203,7 +203,7 @@ func CreateSpecSkeletonWithGoal(rootDir, id, goal string, force bool) (string, e
 	} else {
 		buf.WriteString("# " + id + "\n\n")
 	}
-	
+
 	// If goal was provided, use it as the main description
 	if goal != "" {
 		buf.WriteString(goal + "\n\n")
@@ -213,7 +213,7 @@ func CreateSpecSkeletonWithGoal(rootDir, id, goal string, force bool) (string, e
 	} else {
 		buf.WriteString("Describe this campaign's goals, guardrails, stakeholders, and playbook.\n\n")
 	}
-	
+
 	buf.WriteString("## Quick Start\n\n")
 	buf.WriteString("By default, this campaign will target the current repository. To target additional repositories:\n\n")
 	buf.WriteString("1. **Add allowed-repos** (optional): Specify repositories to target\n")

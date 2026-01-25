@@ -10,7 +10,7 @@ import (
 func TestCreateSpecSkeletonWithGoal(t *testing.T) {
 	tmpDir := t.TempDir()
 	goal := "Reduce critical vulnerabilities across all repositories"
-	
+
 	path, err := CreateSpecSkeletonWithGoal(tmpDir, "test-campaign", goal, false)
 	if err != nil {
 		t.Fatalf("CreateSpecSkeletonWithGoal failed: %v", err)
