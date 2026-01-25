@@ -3407,6 +3407,7 @@
             "properties": {
               "command": {
                 "type": "string",
+                "minLength": 1,
                 "description": "Command to execute for stdio MCP server"
               },
               "args": {
@@ -3419,7 +3420,7 @@
               "env": {
                 "type": "object",
                 "patternProperties": {
-                  "^[A-Za-z_][A-Za-z0-9_]*$": {
+                  "^[A-Z_][A-Z0-9_]*$": {
                     "type": "string"
                   }
                 },
@@ -3448,6 +3449,7 @@
               },
               "url": {
                 "type": "string",
+                "minLength": 1,
                 "description": "URL for HTTP mode MCP servers"
               },
               "headers": {
@@ -3461,6 +3463,7 @@
               },
               "container": {
                 "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
                 "description": "Container image for the MCP server"
               },
               "entrypointArgs": {
