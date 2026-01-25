@@ -106,13 +106,16 @@ fields to match your initiative.
 With --project flag, a GitHub Project will be created with:
 - Required fields: Campaign Id, Worker Workflow, Priority, Size, Start Date, End Date
 - Views: Progress Board (board), Task Tracker (table), Campaign Roadmap (roadmap)
+- Linked to a repository (best-effort): defaults to current repo; override with --repo; disable with --no-link-repo
 - The project URL will be automatically added to the campaign spec
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` campaign new security-q1-2025
   ` + string(constants.CLIExtensionPrefix) + ` campaign new modernization-winter2025 --force
   ` + string(constants.CLIExtensionPrefix) + ` campaign new security-q1-2025 --project --owner @me
-  ` + string(constants.CLIExtensionPrefix) + ` campaign new modernization --project --owner myorg`,
+	` + string(constants.CLIExtensionPrefix) + ` campaign new modernization --project --owner myorg
+	` + string(constants.CLIExtensionPrefix) + ` campaign new modernization --project --owner myorg --no-link-repo
+	` + string(constants.CLIExtensionPrefix) + ` campaign new modernization --project --owner myorg --repo myorg/myrepo`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -139,6 +142,8 @@ Examples:
 			force, _ := cmd.Flags().GetBool("force")
 			createProject, _ := cmd.Flags().GetBool("project")
 			owner, _ := cmd.Flags().GetString("owner")
+			repo, _ := cmd.Flags().GetString("repo")
+			noLinkRepo, _ := cmd.Flags().GetBool("no-link-repo")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 
 			cwd, err := os.Getwd()
@@ -186,6 +191,8 @@ Examples:
 					CampaignID:   id,
 					CampaignName: campaignName,
 					Owner:        owner,
+					LinkRepo:     repo,
+					NoLinkRepo:   noLinkRepo,
 					Verbose:      verbose,
 				}
 
@@ -220,6 +227,8 @@ Examples:
 	newCmd.Flags().Bool("force", false, "Overwrite existing spec file if it already exists")
 	newCmd.Flags().Bool("project", false, "Create a GitHub Project with required views and fields")
 	newCmd.Flags().String("owner", "", "GitHub organization or user for the project (required with --project). Use '@me' for personal projects")
+	newCmd.Flags().StringP("repo", "r", "", "Repository to link the created project to (owner/name). Defaults to current repo")
+	newCmd.Flags().Bool("no-link-repo", false, "Disable best-effort project-to-repo linking")
 	newCmd.Flags().Bool("verbose", false, "Enable verbose output")
 	cmd.AddCommand(newCmd)
 
