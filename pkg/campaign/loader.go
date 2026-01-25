@@ -124,6 +124,14 @@ func FilterSpecs(specs []CampaignSpec, pattern string) []CampaignSpec {
 // .github/workflows/ with a minimal skeleton definition. It returns the
 // relative file path created.
 func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
+	return CreateSpecSkeletonWithGoal(rootDir, id, "", force)
+}
+
+// CreateSpecSkeletonWithGoal creates a new campaign spec YAML file under
+// .github/workflows/ with a minimal skeleton definition. If goal is provided,
+// it will be used as the campaign description. It returns the relative file
+// path created.
+func CreateSpecSkeletonWithGoal(rootDir, id, goal string, force bool) (string, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return "", fmt.Errorf("campaign id is required")
@@ -163,6 +171,7 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	spec := CampaignSpec{
 		ID:          id,
 		Name:        name,
+		Description: goal, // Use goal as description if provided
 		ProjectURL:  "https://github.com/orgs/ORG/projects/1",
 		Version:     "v1",
 		State:       "planned",
@@ -194,7 +203,17 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	} else {
 		buf.WriteString("# " + id + "\n\n")
 	}
-	buf.WriteString("Describe this campaign's goals, guardrails, stakeholders, and playbook.\n\n")
+	
+	// If goal was provided, use it as the main description
+	if goal != "" {
+		buf.WriteString(goal + "\n\n")
+		buf.WriteString("## Campaign Details\n\n")
+		buf.WriteString("This campaign was created with the following objective. ")
+		buf.WriteString("Update the configuration below to define workflows, repositories, and other campaign parameters.\n\n")
+	} else {
+		buf.WriteString("Describe this campaign's goals, guardrails, stakeholders, and playbook.\n\n")
+	}
+	
 	buf.WriteString("## Quick Start\n\n")
 	buf.WriteString("By default, this campaign will target the current repository. To target additional repositories:\n\n")
 	buf.WriteString("1. **Add allowed-repos** (optional): Specify repositories to target\n")
