@@ -48,7 +48,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 	}
 
 	if verbose {
-		fmt.Printf("Running workflow on GitHub Actions: %s\n", workflowIdOrName)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Running workflow on GitHub Actions: %s", workflowIdOrName)))
 	}
 
 	// Check if gh CLI is available
@@ -119,7 +119,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 		wf, err := getWorkflowStatus(workflowIdOrName, repoOverride, verbose)
 		if err != nil {
 			if verbose {
-				fmt.Printf("Warning: Could not check workflow status: %v\n", err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not check workflow status: %v", err)))
 			}
 		}
 
@@ -130,7 +130,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 				wasDisabled = true
 				executionLog.Printf("Workflow %s is disabled, temporarily enabling for this run (id=%d)", workflowIdOrName, wf.ID)
 				if verbose {
-					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Workflow '%s' is disabled, enabling it temporarily...", workflowIdOrName)))
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow '%s' is disabled, enabling it temporarily...", workflowIdOrName)))
 				}
 				// Enable the workflow
 				enableArgs := []string{"workflow", "enable", strconv.FormatInt(wf.ID, 10)}
@@ -142,7 +142,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 					executionLog.Printf("Failed to enable workflow %s: %v", workflowIdOrName, err)
 					return fmt.Errorf("failed to enable workflow '%s': %w", workflowIdOrName, err)
 				}
-				fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Enabled workflow: %s", workflowIdOrName)))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Enabled workflow: %s", workflowIdOrName)))
 			} else {
 				executionLog.Printf("Workflow %s is already enabled (state=%s)", workflowIdOrName, wf.State)
 			}
@@ -199,7 +199,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 	// Recompile workflow if engine override is provided (only for local workflows)
 	if engineOverride != "" && repoOverride == "" {
 		if verbose {
-			fmt.Printf("Recompiling workflow with engine override: %s\n", engineOverride)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Recompiling workflow with engine override: %s", engineOverride)))
 		}
 
 		workflowMarkdownPath := stringutil.LockFileToMarkdown(lockFilePath)
@@ -222,16 +222,16 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 		}
 
 		if verbose {
-			fmt.Printf("Successfully recompiled workflow with engine: %s\n", engineOverride)
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully recompiled workflow with engine: %s", engineOverride)))
 		}
 	} else if engineOverride != "" && repoOverride != "" {
 		if verbose {
-			fmt.Printf("Note: Engine override ignored for remote repository workflows\n")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Note: Engine override ignored for remote repository workflows"))
 		}
 	}
 
 	if verbose {
-		fmt.Printf("Using lock file: %s\n", lockFileName)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using lock file: %s", lockFileName)))
 	}
 
 	// Check for missing or outdated lock files (when not using --push)
@@ -271,7 +271,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 			return fmt.Errorf("failed to push workflow files: %w", err)
 		}
 
-		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Successfully pushed %d file(s) for workflow %s", len(files), workflowIdOrName)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully pushed %d file(s) for workflow %s", len(files), workflowIdOrName)))
 	}
 
 	// Handle secret pushing if requested
@@ -377,7 +377,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 			ref = currentBranch
 			executionLog.Printf("Using current branch for workflow run: %s", ref)
 		} else if verbose {
-			fmt.Printf("Note: Could not determine current branch: %v\n", err)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Note: Could not determine current branch: %v", err)))
 		}
 	}
 	if ref != "" {
@@ -412,7 +412,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 				cmdParts = append(cmdParts, "-f", input)
 			}
 		}
-		fmt.Printf("Executing: %s\n", strings.Join(cmdParts, " "))
+		fmt.Fprintln(os.Stderr, console.FormatCommandMessage(strings.Join(cmdParts, " ")))
 	}
 
 	// Capture both stdout and stderr
@@ -444,23 +444,23 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 	// Display the output from gh workflow run
 	output := strings.TrimSpace(string(stdout))
 	if output != "" {
-		fmt.Println(output)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(output))
 	}
 
-	fmt.Printf("Successfully triggered workflow: %s\n", lockFileName)
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully triggered workflow: %s", lockFileName)))
 	executionLog.Printf("Workflow triggered successfully: %s", lockFileName)
 
 	// Try to get the latest run for this workflow to show a direct link
 	// Add a delay to allow GitHub Actions time to register the new workflow run
 	runInfo, runErr := getLatestWorkflowRunWithRetry(lockFileName, repoOverride, verbose)
 	if runErr == nil && runInfo.URL != "" {
-		fmt.Printf("\n🔗 View workflow run: %s\n", runInfo.URL)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("🔗 View workflow run: %s", runInfo.URL)))
 		executionLog.Printf("Workflow run URL: %s (ID: %d)", runInfo.URL, runInfo.DatabaseID)
 
 		// Suggest audit command for analysis
-		fmt.Printf("\n💡 To analyze this run, use: %s audit %d\n", string(constants.CLIExtensionPrefix), runInfo.DatabaseID)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("💡 To analyze this run, use: %s audit %d", string(constants.CLIExtensionPrefix), runInfo.DatabaseID)))
 	} else if verbose && runErr != nil {
-		fmt.Printf("Note: Could not get workflow run URL: %v\n", runErr)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Note: Could not get workflow run URL: %v", runErr)))
 	}
 
 	// Wait for workflow completion if requested (for --repeat or --auto-merge-prs)
@@ -567,7 +567,7 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCou
 
 	// Function to run all workflows once
 	runAllWorkflows := func() error {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Running %d workflow(s)...", len(workflowNames))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Running %d workflow(s)...", len(workflowNames))))
 
 		// Wait for completion when using --repeat to ensure workflows finish before next iteration
 		waitForCompletion := repeatCount > 0
@@ -582,7 +582,7 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCou
 			}
 
 			if len(workflowNames) > 1 {
-				fmt.Println(console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)))
+				fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)))
 			}
 
 			if err := RunWorkflowOnGitHub(ctx, workflowName, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, push, waitForCompletion, inputs, verbose); err != nil {
@@ -595,7 +595,7 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCou
 			}
 		}
 
-		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Successfully triggered %d workflow(s)", len(workflowNames))))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully triggered %d workflow(s)", len(workflowNames))))
 		return nil
 	}
 
