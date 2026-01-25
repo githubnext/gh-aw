@@ -495,15 +495,15 @@ func buildCacheMemoryPromptSection(config *CacheMemoryConfig) *PromptSection {
 			descriptionText = " " + cache.Description
 		}
 
-		cacheLog.Printf("Building cache memory prompt section with substitutions: cache_dir=%s, description=%s", cacheDir, descriptionText)
+		cacheLog.Printf("Building cache memory prompt section with env vars: cache_dir=%s, description=%s", cacheDir, descriptionText)
 
-		// Return prompt section with template file and substitutions
+		// Return prompt section with template file and environment variables for substitution
 		return &PromptSection{
 			Content: cacheMemoryPromptFile,
 			IsFile:  true,
-			Substitutions: map[string]string{
-				"__CACHE_DIR__":         cacheDir,
-				"__CACHE_DESCRIPTION__": descriptionText,
+			EnvVars: map[string]string{
+				"GH_AW_CACHE_DIR":         cacheDir,
+				"GH_AW_CACHE_DESCRIPTION": descriptionText,
 			},
 		}
 	}

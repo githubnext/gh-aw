@@ -49,7 +49,7 @@ func TestGenerateUnifiedPromptStep_AllSections(t *testing.T) {
 	assert.Contains(t, output, "temp_folder_prompt.md", "Should include temp folder instructions")
 	assert.Contains(t, output, "playwright_prompt.md", "Should include playwright instructions")
 	assert.Contains(t, output, "cache_memory_prompt.md", "Should include cache memory template file")
-	assert.Contains(t, output, "sed 's|__CACHE_DIR__|/tmp/gh-aw/cache-memory/|g'", "Should include cache sed substitution")
+	assert.Contains(t, output, "GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory/", "Should include cache dir env var")
 	assert.Contains(t, output, "Repo Memory Available", "Should include repo memory instructions")
 	assert.Contains(t, output, "<safe-outputs>", "Should include safe outputs instructions")
 	assert.Contains(t, output, "<github-context>", "Should include GitHub context")

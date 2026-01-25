@@ -41,7 +41,8 @@ tools:
 				"key: memory-${{ github.workflow }}-${{ github.run_id }}",
 				"path: /tmp/gh-aw/cache-memory",
 				"cat \"/opt/gh-aw/prompts/cache_memory_prompt.md\"",
-				"sed 's|__CACHE_DIR__|/tmp/gh-aw/cache-memory/|g'",
+				"GH_AW_CACHE_DIR: ${{ '/tmp/gh-aw/cache-memory/' }}",
+				"GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR",
 			},
 			notExpectedInLock: []string{
 				// Should NOT upload artifact when detection is disabled
