@@ -85,8 +85,8 @@ safe-outputs:
     run-success: "🗜️ Docs on a diet! [{workflow_name}]({run_url}) has removed the bloat. Lean and mean! 💪"
     run-failure: "📦 Unbloating paused! [{workflow_name}]({run_url}) {status}. The docs remain... fluffy."
 
-# Timeout (based on avg 6.8min runtime + buffer)
-timeout-minutes: 12
+# Timeout (increased from 12min after timeout issues; aligns with similar doc workflows)
+timeout-minutes: 30
 
 # Build steps for documentation
 steps:
