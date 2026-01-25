@@ -40,10 +40,16 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 	unifiedPromptLog.Printf("Collected %d prompt sections", len(sections))
 
 	// Collect all environment variables from all sections
+	// Only include GitHub Actions expressions in the prompt creation step
+	// Static values should only be in the substitution step
 	allEnvVars := make(map[string]string)
 	for _, section := range sections {
 		for key, value := range section.EnvVars {
-			allEnvVars[key] = value
+			// Only add GitHub Actions expressions to the prompt creation step
+			// Static values (not wrapped in ${{ }}) are for the substitution step only
+			if strings.HasPrefix(value, "${{ ") && strings.HasSuffix(value, " }}") {
+				allEnvVars[key] = value
+			}
 		}
 	}
 
@@ -247,12 +253,10 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 	// 5. Cache memory instructions (if enabled)
 	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
 		unifiedPromptLog.Printf("Adding cache memory section: caches=%d", len(data.CacheMemoryConfig.Caches))
-		var cacheContent strings.Builder
-		generateCacheMemoryPromptSection(&cacheContent, data.CacheMemoryConfig)
-		sections = append(sections, PromptSection{
-			Content: cacheContent.String(),
-			IsFile:  false,
-		})
+		section := buildCacheMemoryPromptSection(data.CacheMemoryConfig)
+		if section != nil {
+			sections = append(sections, *section)
+		}
 	}
 
 	// 6. Repo memory instructions (if enabled)
@@ -367,17 +371,26 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	// Add environment variables and expression mappings from built-in sections
 	for _, section := range builtinSections {
 		for key, value := range section.EnvVars {
-			allEnvVars[key] = value
-
 			// Extract the GitHub expression from the value (e.g., "${{ github.repository }}" -> "github.repository")
 			// This is needed for the substitution step
 			if strings.HasPrefix(value, "${{ ") && strings.HasSuffix(value, " }}") {
 				content := strings.TrimSpace(value[4 : len(value)-3])
+				// Add to both allEnvVars (for prompt creation step) and expressionMappingsMap (for substitution step)
+				allEnvVars[key] = value
 				// Only add if not already present (user prompt expressions take precedence)
 				if _, exists := expressionMappingsMap[key]; !exists {
 					expressionMappingsMap[key] = &ExpressionMapping{
 						EnvVar:  key,
 						Content: content,
+					}
+				}
+			} else {
+				// For static values (not GitHub Actions expressions), only add to expressionMappingsMap
+				// This ensures they're only available in the substitution step, not the prompt creation step
+				if _, exists := expressionMappingsMap[key]; !exists {
+					expressionMappingsMap[key] = &ExpressionMapping{
+						EnvVar:  key,
+						Content: fmt.Sprintf("'%s'", value), // Wrap in quotes for substitution
 					}
 				}
 			}

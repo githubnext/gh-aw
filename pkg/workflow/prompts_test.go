@@ -120,14 +120,20 @@ This is a test workflow with cache-memory enabled.
 		t.Error("Expected 'Create prompt with built-in context' step in generated workflow")
 	}
 
-	// Test 2: Verify the instruction text contains cache folder information
-	if !strings.Contains(lockStr, "Cache Folder Available") {
-		t.Error("Expected 'Cache Folder Available' header in generated workflow")
+	// Test 2: Verify the template file reference and environment variables
+	if !strings.Contains(lockStr, "cache_memory_prompt.md") {
+		t.Error("Expected cache template file reference in generated workflow")
+	}
+	if !strings.Contains(lockStr, "GH_AW_CACHE_DIR: ${{ '/tmp/gh-aw/cache-memory/' }}") {
+		t.Error("Expected GH_AW_CACHE_DIR environment variable in generated workflow")
+	}
+	if !strings.Contains(lockStr, "GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR") {
+		t.Error("Expected GH_AW_CACHE_DIR in substitution step")
 	}
 
-	// Test 3: Verify the instruction text contains the cache directory path
-	if !strings.Contains(lockStr, "/tmp/gh-aw/cache-memory/") {
-		t.Error("Expected '/tmp/gh-aw/cache-memory/' reference in generated workflow")
+	// Test 3: Verify the template file is used (not inline text)
+	if !strings.Contains(lockStr, "/opt/gh-aw/prompts/cache_memory_prompt.md") {
+		t.Error("Expected '/opt/gh-aw/prompts/cache_memory_prompt.md' reference in generated workflow")
 	}
 
 	// Test 4: Verify the instruction mentions persistent cache
@@ -182,8 +188,8 @@ This is a test workflow without cache-memory.
 	// Test: Verify cache memory instructions are NOT included
 	// Note: The "Create prompt with built-in context" step will still exist (for temp_folder etc.)
 	// but the cache-specific content should not be there
-	if strings.Contains(lockStr, "Cache Folder Available") {
-		t.Error("Did not expect 'Cache Folder Available' header in workflow without cache-memory")
+	if strings.Contains(lockStr, "cache_memory_prompt.md") {
+		t.Error("Did not expect cache template file reference in workflow without cache-memory")
 	}
 
 	if strings.Contains(lockStr, "/tmp/gh-aw/cache-memory/") {
