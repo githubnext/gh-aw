@@ -38,7 +38,7 @@ func TestAccessLogParsing(t *testing.T) {
 
 	// Check allowed domains
 	expectedAllowed := []string{"api.github.com", "example.com"}
-	assert.Equal(t, len(expectedAllowed), len(analysis.AllowedDomains), "should extract correct number of allowed domains")
+	assert.Len(t, analysis.AllowedDomains, len(expectedAllowed), "should extract correct number of allowed domains")
 }
 
 func TestMultipleAccessLogAnalysis(t *testing.T) {
@@ -76,11 +76,11 @@ func TestMultipleAccessLogAnalysis(t *testing.T) {
 
 	// Check allowed domains
 	expectedAllowed := []string{"api.github.com", "example.com"}
-	assert.Equal(t, len(expectedAllowed), len(analysis.AllowedDomains), "should extract correct number of allowed domains")
+	assert.Len(t, analysis.AllowedDomains, len(expectedAllowed), "should extract correct number of allowed domains")
 
 	// Check blocked domains
 	expectedDenied := []string{"github.com", "malicious.site"}
-	assert.Equal(t, len(expectedDenied), len(analysis.BlockedDomains), "should extract correct number of blocked domains")
+	assert.Len(t, analysis.BlockedDomains, len(expectedDenied), "should extract correct number of blocked domains")
 }
 
 func TestAnalyzeAccessLogsDirectory(t *testing.T) {
@@ -199,7 +199,7 @@ func TestParseSquidLogLine(t *testing.T) {
 			result, err := parseSquidLogLine(tt.line)
 
 			if tt.shouldErr {
-				assert.Error(t, err, "should return error for invalid line")
+				require.Error(t, err, "should return error for invalid line")
 				assert.Nil(t, result, "should not return entry on error")
 			} else {
 				require.NoError(t, err, "should parse valid log line")
