@@ -148,145 +148,6 @@ func ValidateNonNegativeInt(field string, value int) error {
 	return nil
 }
 
-// isEmptyOrNil checks if a value is considered empty or nil.
-// Returns true if the value is nil, an empty string, zero, or false.
-//
-// This helper consolidates common empty-checking patterns across validation files.
-//
-// Example:
-//
-//	if isEmptyOrNil(config.Name) {
-//	    return NewValidationError("config.name", "", "name cannot be empty", "Provide a valid name")
-//	}
-func isEmptyOrNil(value any) bool {
-	if value == nil {
-		return true
-	}
-
-	switch v := value.(type) {
-	case string:
-		return v == ""
-	case int, int32, int64:
-		return v == 0
-	case bool:
-		return !v
-	case []string:
-		return len(v) == 0
-	case []any:
-		return len(v) == 0
-	case map[string]any:
-		return len(v) == 0
-	default:
-		return false
-	}
-}
-
-// getMapFieldAsString safely extracts a string field from a map[string]any.
-// Returns the string value and a boolean indicating success.
-//
-// This helper consolidates common type assertion patterns for string fields.
-//
-// Example:
-//
-//	if name, ok := getMapFieldAsString(config, "name"); ok {
-//	    // Use name
-//	}
-func getMapFieldAsString(m map[string]any, key string) (string, bool) {
-	if m == nil {
-		return "", false
-	}
-
-	value, exists := m[key]
-	if !exists {
-		return "", false
-	}
-
-	str, ok := value.(string)
-	return str, ok
-}
-
-// getMapFieldAsMap safely extracts a nested map from a map[string]any.
-// Returns the nested map and a boolean indicating success.
-//
-// This helper consolidates common type assertion patterns for nested maps.
-//
-// Example:
-//
-//	if config, ok := getMapFieldAsMap(frontmatter, "tools"); ok {
-//	    // Process tools config
-//	}
-func getMapFieldAsMap(m map[string]any, key string) (map[string]any, bool) {
-	if m == nil {
-		return nil, false
-	}
-
-	value, exists := m[key]
-	if !exists {
-		return nil, false
-	}
-
-	nested, ok := value.(map[string]any)
-	return nested, ok
-}
-
-// getMapFieldAsBool safely extracts a boolean field from a map[string]any.
-// Returns the boolean value and a boolean indicating success.
-//
-// This helper consolidates common type assertion patterns for boolean fields.
-//
-// Example:
-//
-//	if enabled, ok := getMapFieldAsBool(config, "enabled"); ok && enabled {
-//	    // Feature is enabled
-//	}
-func getMapFieldAsBool(m map[string]any, key string) (bool, bool) {
-	if m == nil {
-		return false, false
-	}
-
-	value, exists := m[key]
-	if !exists {
-		return false, false
-	}
-
-	b, ok := value.(bool)
-	return b, ok
-}
-
-// getMapFieldAsInt safely extracts an integer field from a map[string]any.
-// Returns the integer value and a boolean indicating success.
-// Handles both int and float64 types (common in JSON unmarshaling).
-//
-// This helper consolidates common type assertion patterns for integer fields.
-//
-// Example:
-//
-//	if count, ok := getMapFieldAsInt(config, "max_count"); ok {
-//	    // Use count
-//	}
-func getMapFieldAsInt(m map[string]any, key string) (int, bool) {
-	if m == nil {
-		return 0, false
-	}
-
-	value, exists := m[key]
-	if !exists {
-		return 0, false
-	}
-
-	// Handle int type
-	if i, ok := value.(int); ok {
-		return i, true
-	}
-
-	// Handle float64 (common in JSON unmarshaling)
-	if f, ok := value.(float64); ok {
-		return int(f), true
-	}
-
-	return 0, false
-}
-
 // fileExists checks if a file exists at the given path.
 // Returns true if the file exists and is accessible, false otherwise.
 //
@@ -310,25 +171,11 @@ func fileExists(path string) bool {
 	return !info.IsDir()
 }
 
-// dirExists checks if a directory exists at the given path.
-// Returns true if the directory exists and is accessible, false otherwise.
-//
-// This helper is useful for validating directory paths in configuration.
-//
-// Example:
-//
-//	if !dirExists(workspaceDir) {
-//	    return NewValidationError("workspace", workspaceDir, "directory does not exist", "...")
-//	}
-func dirExists(path string) bool {
-	if path == "" {
-		return false
-	}
-
-	info, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-
-	return info.IsDir()
-}
+// The following helper functions are planned for Phase 2 refactoring and will
+// consolidate 70+ duplicate validation patterns identified in the semantic analysis:
+// - isEmptyOrNil() - Check if a value is empty, nil, or zero
+// - getMapFieldAsString() - Safely extract a string field from a map[string]any
+// - getMapFieldAsMap() - Safely extract a nested map from a map[string]any
+// - getMapFieldAsBool() - Safely extract a boolean field from a map[string]any
+// - getMapFieldAsInt() - Safely extract an integer field from a map[string]any
+// - dirExists() - Check if a directory exists at the given path
