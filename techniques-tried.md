@@ -332,3 +332,38 @@
 - [x] Technique 40: Environment Variable Manipulation (result: failure - REVALIDATE)
 
 **Summary**: All 40 novel techniques blocked successfully. 100% novelty score - all techniques marked NEW or VERIFY. Docker-in-Docker escape (run 21052141750) confirmed patched in v0.9.1. Cumulative: 275 techniques (11 runs), 1 escape found (now patched). **Sandbox currently secure.**
+
+## Run 21324624781 - 2026-01-25
+
+- [x] Technique 1: TTL Manipulation Bypass (result: failure - Squid 400)
+- [x] Technique 2: Socket Descriptor Leakage (result: failure - no hijack path)
+- [x] Technique 3: DNS TXT Covert Channel (result: failure - DNS only, no HTTP)
+- [x] Technique 4: Squid 6.13 CVE Exploitation (result: failure - 403 Forbidden)
+- [x] Technique 5: Cgroups v2 Memory Notification Exploit (result: failure - read-only)
+- [x] Technique 6: Netlink Routing Table Manipulation (result: failure - hung, no response)
+- [x] Technique 7: HTTP/2 Prior Knowledge (h2c) (result: failure - Squid 400)
+- [x] Technique 8: TLS ClientHello SNI Spoofing (result: failure - wrong version)
+- [x] Technique 9: DNS ANY Query Amplification (result: failure - DNS only)
+- [x] Technique 10: Proc map_files Socket Hijacking (result: failure - no access)
+- [x] Technique 11: UNIX Domain Socket Bridge to Squid (result: failure - no socket access)
+- [x] Technique 12: Squid Configuration File Analysis (result: success - intelligence gathering)
+- [x] Technique 13: Domain Fronting via Host Header (result: failure - Squid validates)
+- [x] Technique 14: IPv6 Link-Local Address Bypass (result: failure - timeout)
+- [x] Technique 15: Proxy Chain via Allowed Domain (result: failure - ACL enforced)
+- [x] Technique 16: HTTP Request Smuggling CL.TE (result: failure - Squid normalizes)
+- [x] Technique 17: DNS Rebinding Attack (result: not_applicable - needs external control)
+- [x] Technique 18: SOCKS Proxy Emulation (result: failure - HTTP proxy only)
+- [x] Technique 19: HTTP Pipelining with Mixed Domains (result: failure - filtered)
+- [x] Technique 20: SRV Record DNS Tunneling (result: failure - DNS only)
+- [x] Technique 21: Kernel Conntrack Manipulation (result: failure - no file access)
+- [x] Technique 22: SO_ORIGINAL_DST Socket Option (result: failure - shows NAT, no bypass)
+- [x] Technique 23: Memfd_create Executable Injection (result: failure - created but no network path)
+- [x] Technique 24: VDSO Exploitation (result: failure - no network vector)
+- [x] Technique 25: Process Memory Injection /proc/PID/mem (result: failure - needs CAP_SYS_PTRACE)
+- [x] Technique 26: Userfaultfd Page Fault Handling (result: failure - syscall -1)
+- [x] Technique 27: Io_uring Kernel Bypass (result: failure - syscall -1)
+- [x] Technique 28: Landlock LSM Bypass (result: failure - syscall -1)
+- [x] Technique 29: CLONE_NEWTIME Namespace (result: failure - needs CAP_SYS_ADMIN)
+- [x] Technique 30: Mount Propagation Escape (result: failure - no escape vector)
+
+**Summary**: All 30 novel techniques blocked successfully. 100% novelty score - all techniques marked NEW, completely different from prior 11 runs. Explored cutting-edge kernel syscalls (io_uring, userfaultfd, landlock), advanced network stack manipulation (netlink, SO_ORIGINAL_DST), and modern container escape vectors. Squid 6.13 ACL enforcement remains robust. Cumulative: 305 techniques (12 runs), 1 escape found (now patched in v0.9.1). **Sandbox currently secure.**
