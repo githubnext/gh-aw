@@ -3476,11 +3476,7 @@
                   "type": "string"
                 },
                 "description": "List of allowed tool names (restricts which tools from the MCP server can be used)",
-                "examples": [
-                  ["*"],
-                  ["store_memory", "retrieve_memory"],
-                  ["create-issue", "add-comment"]
-                ]
+                "examples": [["*"], ["store_memory", "retrieve_memory"], ["create-issue", "add-comment"]]
               },
               "entrypoint": {
                 "type": "string",
