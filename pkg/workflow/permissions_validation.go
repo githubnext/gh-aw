@@ -10,7 +10,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
-var permissionsValidatorLog = logger.New("workflow:permissions_validator")
+var permissionsValidationLog = logger.New("workflow:permissions_validation")
 
 //go:embed data/github_toolsets_permissions.json
 var githubToolsetsPermissionsJSON []byte
@@ -40,7 +40,7 @@ var toolsetPermissionsMap map[string]GitHubToolsetPermissions
 
 // init loads the GitHub toolsets and permissions from the embedded JSON
 func init() {
-	permissionsValidatorLog.Print("Loading GitHub toolsets permissions from embedded JSON")
+	permissionsValidationLog.Print("Loading GitHub toolsets permissions from embedded JSON")
 
 	var data GitHubToolsetsData
 	if err := json.Unmarshal(githubToolsetsPermissionsJSON, &data); err != nil {
@@ -68,7 +68,7 @@ func init() {
 		}
 	}
 
-	permissionsValidatorLog.Printf("Loaded %d GitHub toolsets from JSON", len(toolsetPermissionsMap))
+	permissionsValidationLog.Printf("Loaded %d GitHub toolsets from JSON", len(toolsetPermissionsMap))
 }
 
 // GetToolsetsData returns the parsed GitHub toolsets data (for use by workflows)
@@ -132,7 +132,7 @@ type PermissionsValidationResult struct {
 // Use ValidatePermissions (this function) for general permission validation against GitHub MCP toolsets.
 // Use ValidateIncludedPermissions (in imports.go) when validating permissions from included/imported workflow files.
 func ValidatePermissions(permissions *Permissions, githubTool ValidatableTool) *PermissionsValidationResult {
-	permissionsValidatorLog.Print("Starting permissions validation")
+	permissionsValidationLog.Print("Starting permissions validation")
 
 	result := &PermissionsValidationResult{
 		MissingPermissions:    make(map[PermissionScope]PermissionLevel),
@@ -142,13 +142,13 @@ func ValidatePermissions(permissions *Permissions, githubTool ValidatableTool) *
 	// If GitHub tool is not configured, no validation needed
 	// Check both for nil interface and nil concrete type
 	if githubTool == nil {
-		permissionsValidatorLog.Print("No GitHub tool configured (nil interface), skipping validation")
+		permissionsValidationLog.Print("No GitHub tool configured (nil interface), skipping validation")
 		return result
 	}
 
 	// Check if concrete type is nil (interface wrapping nil pointer)
 	if config, ok := githubTool.(*GitHubToolConfig); ok && config == nil {
-		permissionsValidatorLog.Print("No GitHub tool configured (nil concrete type), skipping validation")
+		permissionsValidationLog.Print("No GitHub tool configured (nil concrete type), skipping validation")
 		return result
 	}
 
@@ -157,37 +157,37 @@ func ValidatePermissions(permissions *Permissions, githubTool ValidatableTool) *
 	readOnly := githubTool.IsReadOnly()
 	result.ReadOnlyMode = readOnly
 
-	permissionsValidatorLog.Printf("Validating toolsets: %s, read-only: %v", toolsetsStr, readOnly)
+	permissionsValidationLog.Printf("Validating toolsets: %s, read-only: %v", toolsetsStr, readOnly)
 
 	// Parse toolsets
 	toolsets := ParseGitHubToolsets(toolsetsStr)
 	if len(toolsets) == 0 {
-		permissionsValidatorLog.Print("No toolsets to validate")
+		permissionsValidationLog.Print("No toolsets to validate")
 		return result
 	}
 
 	// Collect required permissions for all toolsets
 	requiredPermissions := collectRequiredPermissions(toolsets, readOnly)
-	permissionsValidatorLog.Printf("Required permissions: %v", requiredPermissions)
+	permissionsValidationLog.Printf("Required permissions: %v", requiredPermissions)
 
 	// Check for missing permissions
 	checkMissingPermissions(permissions, requiredPermissions, toolsets, result)
 
 	result.HasValidationIssues = len(result.MissingPermissions) > 0
-	permissionsValidatorLog.Printf("Validation complete: hasIssues=%v, missingCount=%d", result.HasValidationIssues, len(result.MissingPermissions))
+	permissionsValidationLog.Printf("Validation complete: hasIssues=%v, missingCount=%d", result.HasValidationIssues, len(result.MissingPermissions))
 
 	return result
 }
 
 // collectRequiredPermissions collects all required permissions for the given toolsets
 func collectRequiredPermissions(toolsets []string, readOnly bool) map[PermissionScope]PermissionLevel {
-	permissionsValidatorLog.Printf("Collecting required permissions for %d toolsets, read_only=%t", len(toolsets), readOnly)
+	permissionsValidationLog.Printf("Collecting required permissions for %d toolsets, read_only=%t", len(toolsets), readOnly)
 	required := make(map[PermissionScope]PermissionLevel)
 
 	for _, toolset := range toolsets {
 		perms, exists := toolsetPermissionsMap[toolset]
 		if !exists {
-			permissionsValidatorLog.Printf("Unknown toolset: %s", toolset)
+			permissionsValidationLog.Printf("Unknown toolset: %s", toolset)
 			continue
 		}
 
@@ -212,7 +212,7 @@ func collectRequiredPermissions(toolsets []string, readOnly bool) map[Permission
 
 // checkMissingPermissions checks if all required permissions are granted
 func checkMissingPermissions(permissions *Permissions, required map[PermissionScope]PermissionLevel, toolsets []string, result *PermissionsValidationResult) {
-	permissionsValidatorLog.Printf("Checking missing permissions: required_count=%d, toolsets=%v", len(required), toolsets)
+	permissionsValidationLog.Printf("Checking missing permissions: required_count=%d, toolsets=%v", len(required), toolsets)
 	for scope, requiredLevel := range required {
 		grantedLevel, granted := permissions.Get(scope)
 

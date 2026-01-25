@@ -7,7 +7,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
-var mcpSerenaLog = logger.New("workflow:mcp-config-serena")
+var mcpSerenaLog = logger.New("workflow:mcp_config_serena_renderer")
 
 // selectSerenaContainer determines which Serena container image to use based on requested languages
 // Returns the container image path that supports all requested languages
