@@ -54,7 +54,7 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				`"create_issue"`,
 				`"issue_read"`,
 				`"env": {`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
+				`"GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"`,
 				`"GITHUB_TOOLSETS": "default"`,
 			},
 			notFound: []string{

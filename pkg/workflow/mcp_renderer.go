@@ -74,12 +74,8 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 	// Check if remote mode is enabled (type: remote)
 	if githubType == "remote" {
 		// Determine authorization value based on engine requirements
-		// Copilot uses MCP passthrough syntax: "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"
-		// Other engines use shell variable: "Bearer $GITHUB_MCP_SERVER_TOKEN"
+		// Use bash variable expansion for the token
 		authValue := "Bearer $GITHUB_MCP_SERVER_TOKEN"
-		if r.options.IncludeCopilotFields {
-			authValue = "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"
-		}
 
 		RenderGitHubMCPRemoteConfig(yaml, GitHubMCPRemoteOptions{
 			ReadOnly:           readOnly,
@@ -607,13 +603,9 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 	envVars := make(map[string]string)
 
 	// GitHub token (always required)
-	if options.IncludeTypeField {
-		// Copilot engine: use escaped variable for Copilot CLI to interpolate
-		envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "\\${GITHUB_MCP_SERVER_TOKEN}"
-	} else {
-		// Non-Copilot engines (Claude/Custom): use plain shell variable
-		envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "$GITHUB_MCP_SERVER_TOKEN"
-	}
+	// Use plain shell variable for bash expansion in heredoc
+	// The token is available as environment variable and will be expanded when the heredoc is processed
+	envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = "$GITHUB_MCP_SERVER_TOKEN"
 
 	// Read-only mode
 	if options.ReadOnly {
@@ -664,8 +656,7 @@ type GitHubMCPRemoteOptions struct {
 	// Toolsets specifies the GitHub toolsets to enable
 	Toolsets string
 	// AuthorizationValue is the value for the Authorization header
-	// For Claude: "Bearer {effectiveToken}"
-	// For Copilot: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"
+	// For all engines: "Bearer $GITHUB_MCP_SERVER_TOKEN"
 	AuthorizationValue string
 	// IncludeToolsField indicates whether to include the "tools" field (Copilot needs it, Claude doesn't)
 	IncludeToolsField bool
@@ -745,7 +736,7 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	// Add env section if needed (Copilot uses this, Claude doesn't)
 	if options.IncludeEnvSection {
 		yaml.WriteString("                \"env\": {\n")
-		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_MCP_SERVER_TOKEN}\"\n")
+		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"$GITHUB_MCP_SERVER_TOKEN\"\n")
 		yaml.WriteString("                }\n")
 	}
 }
@@ -901,10 +892,6 @@ func prepareConfigForValidation(config string) string {
 	cleaned = strings.ReplaceAll(cleaned, "\"${MCP_GATEWAY_API_KEY}\"", "\"sample-api-key\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_MCP_SERVER_TOKEN\"", "\"sample-token\"")
 	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_MCP_LOCKDOWN\"", "\"1\"")
-
-	// Handle Copilot-style escaped variables: \${VARIABLE} -> sample-value
-	cleaned = strings.ReplaceAll(cleaned, "\\${GITHUB_PERSONAL_ACCESS_TOKEN}", "sample-token")
-	cleaned = strings.ReplaceAll(cleaned, "\\${GITHUB_MCP_SERVER_TOKEN}", "sample-token")
 
 	// Handle shell command substitutions: $([ "$VAR" = "1" ] && echo true || echo false) -> true
 	cleaned = strings.ReplaceAll(cleaned, "\"$([ \\\"$GITHUB_MCP_LOCKDOWN\\\" = \\\"1\\\" ] && echo true || echo false)\"", "\"true\"")

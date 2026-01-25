@@ -63,7 +63,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 			options: GitHubMCPRemoteOptions{
 				ReadOnly:           false,
 				Toolsets:           "default",
-				AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
+				AuthorizationValue: "Bearer $GITHUB_MCP_SERVER_TOKEN",
 				IncludeToolsField:  true,
 				AllowedTools:       []string{"list_issues", "create_issue"},
 				IncludeEnvSection:  true,
@@ -72,7 +72,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				`"type": "http"`,
 				`"url": "https://api.githubcopilot.com/mcp/"`,
 				`"headers": {`,
-				`"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
+				`"Authorization": "Bearer $GITHUB_MCP_SERVER_TOKEN"`,
 				`"X-MCP-Toolsets": "default"`,
 				`"tools": [`,
 				`"list_issues"`,
@@ -89,7 +89,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 			options: GitHubMCPRemoteOptions{
 				ReadOnly:           false,
 				Toolsets:           "all",
-				AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
+				AuthorizationValue: "Bearer $GITHUB_MCP_SERVER_TOKEN",
 				IncludeToolsField:  true,
 				AllowedTools:       nil, // Empty array should result in wildcard
 				IncludeEnvSection:  true,
@@ -98,7 +98,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				`"type": "http"`,
 				`"url": "https://api.githubcopilot.com/mcp/"`,
 				`"headers": {`,
-				`"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
+				`"Authorization": "Bearer $GITHUB_MCP_SERVER_TOKEN"`,
 				`"X-MCP-Toolsets": "all"`,
 				`"tools": ["*"]`,
 				`"env": {`,
@@ -113,7 +113,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 			options: GitHubMCPRemoteOptions{
 				ReadOnly:           true,
 				Toolsets:           "repos",
-				AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
+				AuthorizationValue: "Bearer $GITHUB_MCP_SERVER_TOKEN",
 				IncludeToolsField:  true,
 				AllowedTools:       []string{"list_repositories", "get_repository"},
 				IncludeEnvSection:  true,
@@ -122,7 +122,7 @@ func TestRenderGitHubMCPRemoteConfig(t *testing.T) {
 				`"type": "http"`,
 				`"url": "https://api.githubcopilot.com/mcp/"`,
 				`"headers": {`,
-				`"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
+				`"Authorization": "Bearer $GITHUB_MCP_SERVER_TOKEN"`,
 				`"X-MCP-Readonly": "true"`,
 				`"X-MCP-Toolsets": "repos"`,
 				`"tools": [`,
