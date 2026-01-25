@@ -3469,6 +3469,45 @@
                   "type": "string"
                 },
                 "description": "Arguments passed to container entrypoint"
+              },
+              "registry": {
+                "type": "string",
+                "description": "URI to installation location from MCP registry",
+                "examples": [
+                  "https://api.mcp.github.com/v0/servers/microsoft/markitdown",
+                  "https://registry.npmjs.org/@my/tool"
+                ]
+              },
+              "allowed": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List of allowed tool names (restricts which tools from the MCP server can be used)",
+                "examples": [
+                  ["create-issue", "add-comment"],
+                  ["read-file", "write-file"]
+                ]
+              },
+              "entrypoint": {
+                "type": "string",
+                "description": "Container entrypoint override (used with container field)",
+                "examples": [
+                  "/bin/sh",
+                  "node"
+                ]
+              },
+              "mounts": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[^:]+:[^:]+:(ro|rw)$"
+                },
+                "description": "Volume mounts for container in format 'source:dest:mode' where mode is 'ro' or 'rw'",
+                "examples": [
+                  ["/tmp/data:/data:ro"],
+                  ["/workspace:/workspace:rw", "/config:/config:ro"]
+                ]
               }
             },
             "additionalProperties": true
@@ -6343,12 +6382,29 @@
           },
           "description": "Arguments for command or container execution"
         },
+        "entrypoint": {
+          "type": "string",
+          "description": "Container entrypoint override (used with container field)",
+          "examples": ["/bin/sh", "node"]
+        },
         "entrypointArgs": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "description": "Arguments to add after the container image (container entrypoint arguments)"
+        },
+        "mounts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^:]+:[^:]+:(ro|rw)$"
+          },
+          "description": "Volume mounts for container in format 'source:dest:mode' where mode is 'ro' or 'rw'",
+          "examples": [
+            ["/tmp/data:/data:ro"],
+            ["/workspace:/workspace:rw", "/config:/config:ro"]
+          ]
         },
         "env": {
           "type": "object",
