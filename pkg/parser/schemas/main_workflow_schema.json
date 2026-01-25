@@ -3425,12 +3425,6 @@
                 },
                 "description": "Environment variables"
               },
-              "mode": {
-                "type": "string",
-                "enum": ["stdio", "http", "remote", "local"],
-                "description": "DEPRECATED: Use 'type' instead. This field is ignored for custom MCP servers and will be removed in a future version. For GitHub and Serena tools, use the tool-specific 'mode' configuration.",
-                "deprecated": true
-              },
               "type": {
                 "type": "string",
                 "enum": ["stdio", "http", "remote", "local"],
