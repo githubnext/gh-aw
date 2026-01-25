@@ -148,11 +148,11 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 		// Security fix for CWE-312, CWE-315, CWE-359: Avoid logging detailed error messages
 		// that could contain sensitive information from secret references
 		mcpAddLog.Print("Workflow compilation failed")
-		fmt.Println(console.FormatWarningMessage("Workflow compilation failed. Please check your workflow configuration."))
-		fmt.Println(console.FormatInfoMessage("You can fix the issues and run 'gh aw compile' manually"))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow compilation failed. Please check your workflow configuration."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("You can fix the issues and run 'gh aw compile' manually"))
 	} else {
 		mcpAddLog.Print("Workflow compiled successfully")
-		fmt.Println(console.FormatSuccessMessage("Workflow compiled successfully"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow compiled successfully"))
 	}
 
 	return nil
