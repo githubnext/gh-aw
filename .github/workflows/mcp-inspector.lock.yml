@@ -23,21 +23,6 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/arxiv.md
-#     - shared/mcp/ast-grep.md
-#     - shared/mcp/brave.md
-#     - shared/mcp/context7.md
-#     - shared/mcp/datadog.md
-#     - shared/mcp/deepwiki.md
-#     - shared/mcp/fabric-rti.md
-#     - shared/mcp/gh-aw.md
-#     - shared/mcp/markitdown.md
-#     - shared/mcp/microsoft-docs.md
-#     - shared/mcp/notion.md
-#     - shared/mcp/sentry.md
-#     - shared/mcp/server-memory.md
-#     - shared/mcp/slack.md
-#     - shared/mcp/tavily.md
 #     - shared/reporting.md
 
 name: "MCP Inspector Agent"
@@ -124,35 +109,8 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - name: Setup Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        with:
-          node-version: '24'
-          package-manager-cache: false
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.12'
-      - name: Setup uv
-        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      - name: Setup Go
-        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
-        with:
-          cache: true
-          go-version-file: go.mod
-      - name: Install dependencies
-        run: make deps-dev
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Install binary as 'gh-aw'
-        run: "# Check if gh-aw extension is already installed\nif gh extension list | grep -q \"githubnext/gh-aw\"; then\n  echo \"gh-aw extension already installed, skipping installation...\"\nelse\n  # Check if a different extension provides the 'aw' command\n  # gh extension list format: NAME  COMMAND  VERSION\n  EXISTING_EXTENSION=$(gh extension list | awk '$2 == \"aw\" {print $1}' | head -n1)\n  if [ -n \"$EXISTING_EXTENSION\" ]; then\n    echo \"Found conflicting extension providing 'aw' command: $EXISTING_EXTENSION\"\n    echo \"Removing conflicting extension...\"\n    gh extension remove \"$EXISTING_EXTENSION\" || true\n  fi\n  \n  # Install the extension\n  echo \"Installing gh-aw extension...\"\n  make install\nfi\n\n# Verify installation\ngh aw --version\n"
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Start MCP server
-        run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Robust health check with TCP connection test\necho \"Waiting for MCP server to start (PID: $MCP_PID)...\"\nfor i in {1..15}; do\n  # Check if process is still running\n  if ! kill -0 $MCP_PID 2>/dev/null; then\n    echo \"Error: MCP server process died unexpectedly\"\n    exit 1\n  fi\n  \n  # Try to connect to the server port\n  if timeout 1 bash -c \"echo > /dev/tcp/localhost/8765\" 2>/dev/null; then\n    echo \"MCP server is accepting connections on port 8765\"\n    echo \"MCP server started successfully with PID $MCP_PID\"\n    exit 0\n  fi\n  \n  echo \"Waiting for server to accept connections... (attempt $i/15)\"\n  sleep 1\ndone\n\necho \"Error: MCP server failed to accept connections after 15 seconds\"\nexit 1\n"
-
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash /opt/gh-aw/actions/create_cache_memory_dir.sh
@@ -208,14 +166,14 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh docker.io/mcp/brave-search ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.78 mcp/arxiv-mcp-server mcp/ast-grep:latest mcp/context7 mcp/markitdown mcp/memory mcp/notion node:lts-alpine python:alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.78 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"notion-add-comment":{"description":"Add a comment to a Notion page","inputs":{"comment":{"default":null,"description":"The comment text to add","required":true,"type":"string"}},"output":"Comment added to Notion successfully!"},"post-to-slack-channel":{"description":"Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, \u003equote, and links \u003curl|text\u003e. Requires GH_AW_SLACK_CHANNEL_ID environment variable to be set.","inputs":{"message":{"default":null,"description":"The message to post (max 200 characters, supports Slack markdown)","required":true,"type":"string"}},"output":"Message posted to Slack successfully!"}}
+          {"create_discussion":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -313,40 +271,6 @@ jobs:
                 "type": "object"
               },
               "name": "missing_data"
-            },
-            {
-              "description": "Add a comment to a Notion page",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "comment": {
-                    "description": "The comment text to add",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "comment"
-                ],
-                "type": "object"
-              },
-              "name": "notion_add_comment"
-            },
-            {
-              "description": "Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, \u003equote, and links \u003curl|text\u003e. Requires GH_AW_SLACK_CHANNEL_ID environment variable to be set.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "message": {
-                    "description": "The message to post (max 200 characters, supports Slack markdown)",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "message"
-                ],
-                "type": "object"
-              },
-              "name": "post_to_slack_channel"
             }
           ]
           EOF
@@ -453,23 +377,11 @@ jobs:
       - name: Start MCP gateway
         id: start-mcp-gateway
         env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
-          CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
-          DD_API_KEY: ${{ secrets.DD_API_KEY }}
-          DD_APPLICATION_KEY: ${{ secrets.DD_APPLICATION_KEY }}
-          DD_SITE: ${{ secrets.DD_SITE || 'datadoghq.com' }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-start.outputs.api_key }}
           GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-start.outputs.port }}
           GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
-          SENTRY_ACCESS_TOKEN: ${{ secrets.SENTRY_ACCESS_TOKEN }}
-          SENTRY_OPENAI_API_KEY: ${{ secrets.SENTRY_OPENAI_API_KEY }}
-          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
         run: |
           set -eo pipefail
           mkdir -p /tmp/gh-aw/mcp-config
@@ -484,114 +396,12 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -e AZURE_CLIENT_ID -e AZURE_CLIENT_SECRET -e AZURE_TENANT_ID -e BRAVE_API_KEY -e CONTEXT7_API_KEY -e DD_API_KEY -e DD_APPLICATION_KEY -e DD_SITE -e NOTION_API_TOKEN -e SENTRY_ACCESS_TOKEN -e SENTRY_OPENAI_API_KEY -e TAVILY_API_KEY -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.78'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.78'
           
           mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
-              "arxiv": {
-                "type": "stdio",
-                "container": "mcp/arxiv-mcp-server",
-                "tools": [
-                  "search_arxiv",
-                  "get_paper_details",
-                  "get_paper_pdf"
-                ]
-              },
-              "ast-grep": {
-                "type": "stdio",
-                "container": "mcp/ast-grep:latest",
-                "tools": [
-                  "*"
-                ]
-              },
-              "brave-search": {
-                "type": "stdio",
-                "container": "docker.io/mcp/brave-search",
-                "tools": [
-                  "*"
-                ],
-                "env": {
-                  "BRAVE_API_KEY": "${{ secrets.BRAVE_API_KEY }}"
-                }
-              },
-              "context7": {
-                "type": "stdio",
-                "container": "mcp/context7",
-                "tools": [
-                  "get-library-docs",
-                  "resolve-library-id"
-                ],
-                "env": {
-                  "CONTEXT7_API_KEY": "${{ secrets.CONTEXT7_API_KEY }}"
-                }
-              },
-              "datadog": {
-                "type": "http",
-                "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
-                "headers": {
-                  "DD_API_KEY": "\${DD_API_KEY}",
-                  "DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}",
-                  "DD_SITE": "\${DD_SITE}"
-                },
-                "tools": [
-                  "search_datadog_dashboards",
-                  "search_datadog_slos",
-                  "search_datadog_metrics",
-                  "get_datadog_metric"
-                ],
-                "env": {
-                  "DD_API_KEY": "\${DD_API_KEY}",
-                  "DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}",
-                  "DD_SITE": "\${DD_SITE}"
-                }
-              },
-              "deepwiki": {
-                "type": "http",
-                "url": "https://mcp.deepwiki.com/sse",
-                "tools": [
-                  "read_wiki_structure",
-                  "read_wiki_contents",
-                  "ask_question"
-                ]
-              },
-              "fabric-rti": {
-                "type": "stdio",
-                "container": "python:alpine",
-                "entrypoint": "uvx",
-                "entrypointArgs": [
-                  "uvx",
-                  "microsoft-fabric-rti-mcp"
-                ],
-                "tools": [
-                  "kusto_known_services",
-                  "kusto_query",
-                  "kusto_list_databases",
-                  "kusto_list_tables",
-                  "kusto_get_entities_schema",
-                  "kusto_get_table_schema",
-                  "kusto_get_function_schema",
-                  "kusto_sample_table_data",
-                  "kusto_sample_function_data",
-                  "kusto_get_shots",
-                  "list_eventstreams",
-                  "get_eventstream",
-                  "get_eventstream_definition"
-                ],
-                "env": {
-                  "AZURE_CLIENT_ID": "${{ secrets.AZURE_CLIENT_ID }}",
-                  "AZURE_CLIENT_SECRET": "${{ secrets.AZURE_CLIENT_SECRET }}",
-                  "AZURE_TENANT_ID": "${{ secrets.AZURE_TENANT_ID }}"
-                }
-              },
-              "gh-aw": {
-                "type": "http",
-                "url": "http://host.docker.internal:8765",
-                "tools": [
-                  "*"
-                ]
-              },
               "github": {
                 "type": "stdio",
                 "container": "ghcr.io/github/github-mcp-server:v0.29.0",
@@ -602,82 +412,11 @@ jobs:
                   "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
                 }
               },
-              "markitdown": {
-                "type": "stdio",
-                "container": "mcp/markitdown",
-                "tools": [
-                  "*"
-                ]
-              },
-              "memory": {
-                "type": "stdio",
-                "container": "mcp/memory",
-                "args": [
-                  "-v",
-                  "/tmp/gh-aw/cache-memory:/app/dist"
-                ],
-                "tools": [
-                  "store_memory",
-                  "retrieve_memory",
-                  "list_memories",
-                  "delete_memory"
-                ]
-              },
-              "microsoftdocs": {
-                "type": "http",
-                "url": "https://learn.microsoft.com/api/mcp",
-                "tools": [
-                  "*"
-                ]
-              },
-              "notion": {
-                "type": "stdio",
-                "container": "mcp/notion",
-                "tools": [
-                  "search_pages",
-                  "get_page",
-                  "get_database",
-                  "query_database"
-                ],
-                "env": {
-                  "NOTION_API_TOKEN": "${{ secrets.NOTION_API_TOKEN }}"
-                }
-              },
               "safeoutputs": {
                 "type": "http",
                 "url": "http://host.docker.internal:$GH_AW_SAFE_OUTPUTS_PORT",
                 "headers": {
                   "Authorization": "\${GH_AW_SAFE_OUTPUTS_API_KEY}"
-                }
-              },
-              "sentry": {
-                "type": "stdio",
-                "container": "node:lts-alpine",
-                "entrypoint": "npx",
-                "entrypointArgs": [
-                  "npx",
-                  "@sentry/mcp-server@0.27.0"
-                ],
-                "tools": [
-                  "whoami",
-                  "find_organizations",
-                  "find_teams",
-                  "find_projects",
-                  "find_releases",
-                  "get_issue_details",
-                  "get_trace_details",
-                  "get_event_attachment",
-                  "search_events",
-                  "search_issues",
-                  "find_dsns",
-                  "analyze_issue_with_seer",
-                  "search_docs requires SENTRY_OPENAI_API_KEY",
-                  "get_doc"
-                ],
-                "env": {
-                  "OPENAI_API_KEY": "${{ secrets.SENTRY_OPENAI_API_KEY }}",
-                  "SENTRY_ACCESS_TOKEN": "${{ secrets.SENTRY_ACCESS_TOKEN }}",
-                  "SENTRY_HOST": "${{ env.SENTRY_HOST }}"
                 }
               },
               "serena": {
@@ -687,19 +426,6 @@ jobs:
                 "entrypoint": "serena",
                 "entrypointArgs": ["start-mcp-server", "--context", "codex", "--project", "${{ github.workspace }}"],
                 "mounts": ["${{ github.workspace }}:${{ github.workspace }}:rw"]
-              },
-              "tavily": {
-                "type": "http",
-                "url": "https://mcp.tavily.com/mcp/",
-                "headers": {
-                  "Authorization": "Bearer \${TAVILY_API_KEY}"
-                },
-                "tools": [
-                  "*"
-                ],
-                "env": {
-                  "TAVILY_API_KEY": "\${TAVILY_API_KEY}"
-                }
               }
             },
             "gateway": {
@@ -807,7 +533,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: create_discussion, missing_tool, noop, notion-add-comment, post-to-slack-channel
+          **Available tools**: create_discussion, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -845,146 +571,6 @@ jobs:
           </system>
           PROMPT_EOF
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          
-          
-          ## ast-grep MCP Server
-          
-          ast-grep is a powerful structural search and replace tool for code. It uses tree-sitter grammars to parse and search code based on its structure rather than just text patterns.
-          
-          ### Available Tools
-          
-          The ast-grep MCP server provides MCP tools for structural code analysis. The specific tools exposed by the server can be discovered using the MCP protocol. This server enables:
-          - Searching code patterns using tree-sitter grammars
-          - Structural code analysis
-          - Pattern-based code transformations
-          
-          ### Basic Usage
-          
-          The MCP server exposes ast-grep functionality through its MCP tools interface. When using ast-grep in your workflow, you can perform structural searches across multiple programming languages (Go, JavaScript, TypeScript, Python, etc.) with pattern matching based on code structure rather than text.
-          
-          **Example patterns that can be searched:**
-          
-          1. **Unmarshal with dash tag** (problematic Go pattern):
-             - Pattern: `json:"-"`
-             - Reference: https://ast-grep.github.io/catalog/go/unmarshal-tag-is-dash.html
-          
-          2. **Error handling patterns:**
-             - Pattern: `if err != nil { $$$A }`
-          
-          3. **Function call patterns:**
-             - Pattern: `functionName($$$ARGS)`
-          
-          ### More Information
-          
-          - Documentation: https://ast-grep.github.io/
-          - Go patterns catalog: https://ast-grep.github.io/catalog/go/
-          - Pattern syntax guide: https://ast-grep.github.io/guide/pattern-syntax.html
-          - Docker image: https://hub.docker.com/r/mcp/ast-grep
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          ## Slack Integration
-          
-          This shared configuration provides a custom safe-job for posting messages to Slack channels.
-          
-          ### Safe Job: post-to-slack-channel
-          
-          The `post-to-slack-channel` safe-job allows agentic workflows to post messages to Slack channels through the Slack API.
-          
-          **Agent Output Format:**
-          
-          The agent should output JSON with items of type `post_to_slack_channel`:
-          
-          ```json
-          {
-            "items": [
-              {
-                "type": "post_to_slack_channel",
-                "message": "Your message here (max 200 characters)"
-              }
-            ]
-          }
-          ```
-          
-          **Required Environment Variable:**
-          - `GH_AW_SLACK_CHANNEL_ID`: The Slack channel ID (e.g., C1234567890) where messages will be posted
-          
-          **Message Field:**
-          - `message`: The message text to post (maximum 200 characters)
-          
-          **Message Length Limit:**
-          Messages are limited to 200 characters to ensure concise, focused updates. Items with messages exceeding this limit will be skipped with a warning.
-          
-          **Supported Slack Markdown:**
-          The message supports basic Slack markdown syntax:
-          - `*bold*` - Bold text
-          - `_italic_` - Italic text
-          - `~strike~` - Strikethrough text
-          - `` `code` `` - Inline code
-          - ` ```code block``` ` - Code block
-          - `>quote` - Block quote
-          - `<url|text>` - Hyperlink with custom text
-          
-          **Example Usage in Workflow:**
-          
-          ```
-          Please post a summary using the post_to_slack_channel output type.
-          Keep the message under 200 characters.
-          ```
-          
-          Note: The `GH_AW_SLACK_CHANNEL_ID` environment variable must be set in your workflow configuration or repository environment variables.
-          
-          **Staged Mode Support:**
-          
-          This safe-job fully supports staged mode. When `staged: true` is set in the workflow's safe-outputs configuration, messages will be previewed in the step summary instead of being posted to Slack.
-          
-          ### Setup
-          
-          1. **Create a Slack App** with a Bot User OAuth Token:
-             - Go to https://api.slack.com/apps
-             - Create a new app or select an existing one
-             - Navigate to "OAuth & Permissions"
-             - Add the `chat:write` bot token scope
-             - Install the app to your workspace
-             - Copy the "Bot User OAuth Token" (starts with `xoxb-`)
-          
-          2. **Add the bot to your channel**:
-             - In Slack, go to the channel where you want to post messages
-             - Type `/invite @YourBotName` to add the bot
-             - Get the channel ID from the channel details
-          
-          3. **Configure GitHub Secrets and Environment Variables**:
-             - Add `SLACK_BOT_TOKEN` secret to your repository with the Bot User OAuth Token
-             - Add `GH_AW_SLACK_CHANNEL_ID` as an environment variable or repository variable with the Slack channel ID
-          
-          4. **Include this configuration in your workflow**:
-             ```yaml
-             imports:
-               - shared/mcp/slack.md
-             ```
-          
-          
-          
           ## Report Structure Guidelines
           
           ### 1. Header Levels
@@ -1150,72 +736,8 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        # --allow-tool arxiv
-        # --allow-tool arxiv(get_paper_details)
-        # --allow-tool arxiv(get_paper_pdf)
-        # --allow-tool arxiv(search_arxiv)
-        # --allow-tool ast-grep
-        # --allow-tool ast-grep(*)
-        # --allow-tool brave-search
-        # --allow-tool brave-search(*)
-        # --allow-tool context7
-        # --allow-tool context7(get-library-docs)
-        # --allow-tool context7(resolve-library-id)
-        # --allow-tool datadog
-        # --allow-tool datadog(get_datadog_metric)
-        # --allow-tool datadog(search_datadog_dashboards)
-        # --allow-tool datadog(search_datadog_metrics)
-        # --allow-tool datadog(search_datadog_slos)
-        # --allow-tool deepwiki
-        # --allow-tool deepwiki(ask_question)
-        # --allow-tool deepwiki(read_wiki_contents)
-        # --allow-tool deepwiki(read_wiki_structure)
-        # --allow-tool fabric-rti
-        # --allow-tool fabric-rti(get_eventstream)
-        # --allow-tool fabric-rti(get_eventstream_definition)
-        # --allow-tool fabric-rti(kusto_get_entities_schema)
-        # --allow-tool fabric-rti(kusto_get_function_schema)
-        # --allow-tool fabric-rti(kusto_get_shots)
-        # --allow-tool fabric-rti(kusto_get_table_schema)
-        # --allow-tool fabric-rti(kusto_known_services)
-        # --allow-tool fabric-rti(kusto_list_databases)
-        # --allow-tool fabric-rti(kusto_list_tables)
-        # --allow-tool fabric-rti(kusto_query)
-        # --allow-tool fabric-rti(kusto_sample_function_data)
-        # --allow-tool fabric-rti(kusto_sample_table_data)
-        # --allow-tool fabric-rti(list_eventstreams)
-        # --allow-tool gh-aw
         # --allow-tool github
-        # --allow-tool markitdown
-        # --allow-tool markitdown(*)
-        # --allow-tool memory
-        # --allow-tool memory(delete_memory)
-        # --allow-tool memory(list_memories)
-        # --allow-tool memory(retrieve_memory)
-        # --allow-tool memory(store_memory)
-        # --allow-tool microsoftdocs
-        # --allow-tool microsoftdocs(*)
-        # --allow-tool notion
-        # --allow-tool notion(get_database)
-        # --allow-tool notion(get_page)
-        # --allow-tool notion(query_database)
-        # --allow-tool notion(search_pages)
         # --allow-tool safeoutputs
-        # --allow-tool sentry
-        # --allow-tool sentry(analyze_issue_with_seer)
-        # --allow-tool sentry(find_dsns)
-        # --allow-tool sentry(find_organizations)
-        # --allow-tool sentry(find_projects)
-        # --allow-tool sentry(find_releases)
-        # --allow-tool sentry(find_teams)
-        # --allow-tool sentry(get_doc)
-        # --allow-tool sentry(get_event_attachment)
-        # --allow-tool sentry(get_issue_details)
-        # --allow-tool sentry(get_trace_details)
-        # --allow-tool sentry(search_docs requires SENTRY_OPENAI_API_KEY)
-        # --allow-tool sentry(search_events)
-        # --allow-tool sentry(search_issues)
-        # --allow-tool sentry(whoami)
         # --allow-tool shell(cat)
         # --allow-tool shell(date)
         # --allow-tool shell(echo)
@@ -1228,21 +750,16 @@ jobs:
         # --allow-tool shell(uniq)
         # --allow-tool shell(wc)
         # --allow-tool shell(yq)
-        # --allow-tool tavily
-        # --allow-tool tavily(*)
         # --allow-tool write
         timeout-minutes: 20
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains '*.docker.com,*.docker.io,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,auth.docker.io,azure.archive.ubuntu.com,bun.sh,cdn.jsdelivr.net,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,dl.k8s.io,fonts.googleapis.com,fonts.gstatic.com,gcr.io,get.pnpm.io,ghcr.io,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,learn.microsoft.com,localhost,mcp.datadoghq.com,mcp.deepwiki.com,mcp.tavily.com,mcr.microsoft.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pkgs.k8s.io,ppa.launchpad.net,production.cloudflare.docker.com,quay.io,raw.githubusercontent.com,registry.bower.io,registry.hub.docker.com,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.10.0 \
-            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool arxiv --allow-tool 'arxiv(get_paper_details)' --allow-tool 'arxiv(get_paper_pdf)' --allow-tool 'arxiv(search_arxiv)' --allow-tool ast-grep --allow-tool 'ast-grep(*)' --allow-tool brave-search --allow-tool 'brave-search(*)' --allow-tool context7 --allow-tool 'context7(get-library-docs)' --allow-tool 'context7(resolve-library-id)' --allow-tool datadog --allow-tool 'datadog(get_datadog_metric)' --allow-tool 'datadog(search_datadog_dashboards)' --allow-tool 'datadog(search_datadog_metrics)' --allow-tool 'datadog(search_datadog_slos)' --allow-tool deepwiki --allow-tool 'deepwiki(ask_question)' --allow-tool 'deepwiki(read_wiki_contents)' --allow-tool 'deepwiki(read_wiki_structure)' --allow-tool fabric-rti --allow-tool 'fabric-rti(get_eventstream)' --allow-tool 'fabric-rti(get_eventstream_definition)' --allow-tool 'fabric-rti(kusto_get_entities_schema)' --allow-tool 'fabric-rti(kusto_get_function_schema)' --allow-tool 'fabric-rti(kusto_get_shots)' --allow-tool 'fabric-rti(kusto_get_table_schema)' --allow-tool 'fabric-rti(kusto_known_services)' --allow-tool 'fabric-rti(kusto_list_databases)' --allow-tool 'fabric-rti(kusto_list_tables)' --allow-tool 'fabric-rti(kusto_query)' --allow-tool 'fabric-rti(kusto_sample_function_data)' --allow-tool 'fabric-rti(kusto_sample_table_data)' --allow-tool 'fabric-rti(list_eventstreams)' --allow-tool gh-aw --allow-tool github --allow-tool markitdown --allow-tool 'markitdown(*)' --allow-tool memory --allow-tool 'memory(delete_memory)' --allow-tool 'memory(list_memories)' --allow-tool 'memory(retrieve_memory)' --allow-tool 'memory(store_memory)' --allow-tool microsoftdocs --allow-tool 'microsoftdocs(*)' --allow-tool notion --allow-tool 'notion(get_database)' --allow-tool 'notion(get_page)' --allow-tool 'notion(query_database)' --allow-tool 'notion(search_pages)' --allow-tool safeoutputs --allow-tool sentry --allow-tool 'sentry(analyze_issue_with_seer)' --allow-tool 'sentry(find_dsns)' --allow-tool 'sentry(find_organizations)' --allow-tool 'sentry(find_projects)' --allow-tool 'sentry(find_releases)' --allow-tool 'sentry(find_teams)' --allow-tool 'sentry(get_doc)' --allow-tool 'sentry(get_event_attachment)' --allow-tool 'sentry(get_issue_details)' --allow-tool 'sentry(get_trace_details)' --allow-tool 'sentry(search_docs requires SENTRY_OPENAI_API_KEY)' --allow-tool 'sentry(search_events)' --allow-tool 'sentry(search_issues)' --allow-tool 'sentry(whoami)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains '*.docker.com,*.docker.io,api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,auth.docker.io,azure.archive.ubuntu.com,bun.sh,cdn.jsdelivr.net,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,dl.k8s.io,fonts.googleapis.com,fonts.gstatic.com,gcr.io,get.pnpm.io,ghcr.io,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,mcr.microsoft.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pkgs.k8s.io,ppa.launchpad.net,production.cloudflare.docker.com,quay.io,raw.githubusercontent.com,registry.bower.io,registry.hub.docker.com,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com' --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.10.0 \
+            -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          DD_API_KEY: ${{ secrets.DD_API_KEY }}
-          DD_APPLICATION_KEY: ${{ secrets.DD_APPLICATION_KEY }}
-          DD_SITE: ${{ secrets.DD_SITE || 'datadoghq.com' }}
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1251,7 +768,6 @@ jobs:
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
-          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           XDG_CONFIG_HOME: /home/runner
       - name: Copy Copilot session state files to logs
         if: always()
@@ -1289,23 +805,11 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/redact_secrets.cjs');
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'AZURE_CLIENT_ID,AZURE_CLIENT_SECRET,AZURE_TENANT_ID,BRAVE_API_KEY,CONTEXT7_API_KEY,COPILOT_GITHUB_TOKEN,DD_API_KEY,DD_APPLICATION_KEY,DD_SITE,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,NOTION_API_TOKEN,SENTRY_ACCESS_TOKEN,SENTRY_OPENAI_API_KEY,TAVILY_API_KEY'
-          SECRET_AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          SECRET_AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          SECRET_AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          SECRET_BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
-          SECRET_CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
+          GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          SECRET_DD_API_KEY: ${{ secrets.DD_API_KEY }}
-          SECRET_DD_APPLICATION_KEY: ${{ secrets.DD_APPLICATION_KEY }}
-          SECRET_DD_SITE: ${{ secrets.DD_SITE }}
           SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SECRET_NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
-          SECRET_SENTRY_ACCESS_TOKEN: ${{ secrets.SENTRY_ACCESS_TOKEN }}
-          SECRET_SENTRY_OPENAI_API_KEY: ${{ secrets.SENTRY_OPENAI_API_KEY }}
-          SECRET_TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -1397,8 +901,6 @@ jobs:
       - activation
       - agent
       - detection
-      - notion_add_comment
-      - post_to_slack_channel
       - safe_outputs
       - update_cache_memory
     if: (always()) && (needs.agent.result != 'skipped')
@@ -1655,280 +1157,6 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
-
-  notion_add_comment:
-    needs:
-      - agent
-      - detection
-    if: >
-      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'notion_add_comment'))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: agent-output
-          path: /opt/gh-aw/safe-jobs/
-      - name: Setup Safe Job Environment Variables
-        run: |
-          find "/opt/gh-aw/safe-jobs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/opt/gh-aw/safe-jobs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Add comment to Notion page
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
-          NOTION_PAGE_ID: ${{ vars.NOTION_PAGE_ID }}
-        with:
-          script: |-
-            const fs = require('fs');
-            const notionToken = process.env.NOTION_API_TOKEN;
-            const pageId = process.env.NOTION_PAGE_ID;
-            const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === 'true';
-            const outputContent = process.env.GH_AW_AGENT_OUTPUT;
-
-            if (!notionToken) {
-              core.setFailed('NOTION_API_TOKEN secret is not configured');
-              return;
-            }
-            if (!pageId) {
-              core.setFailed('NOTION_PAGE_ID variable is not set');
-              return;
-            }
-
-            // Read and parse agent output
-            if (!outputContent) {
-              core.info('No GH_AW_AGENT_OUTPUT environment variable found');
-              return;
-            }
-
-            let agentOutputData;
-            try {
-              const fileContent = fs.readFileSync(outputContent, 'utf8');
-              agentOutputData = JSON.parse(fileContent);
-            } catch (error) {
-              core.setFailed(`Error reading or parsing agent output: ${error instanceof Error ? error.message : String(error)}`);
-              return;
-            }
-
-            if (!agentOutputData.items || !Array.isArray(agentOutputData.items)) {
-              core.info('No valid items found in agent output');
-              return;
-            }
-
-            // Filter for notion_add_comment items
-            const notionCommentItems = agentOutputData.items.filter(item => item.type === 'notion_add_comment');
-
-            if (notionCommentItems.length === 0) {
-              core.info('No notion_add_comment items found in agent output');
-              return;
-            }
-
-            core.info(`Found ${notionCommentItems.length} notion_add_comment item(s)`);
-
-            // Process each comment item
-            for (let i = 0; i < notionCommentItems.length; i++) {
-              const item = notionCommentItems[i];
-              const comment = item.comment;
-
-              if (!comment) {
-                core.warning(`Item ${i + 1}: Missing comment field, skipping`);
-                continue;
-              }
-
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Notion Comment Preview\n\n";
-                summaryContent += "The following comment would be added to Notion if staged mode was disabled:\n\n";
-                summaryContent += `**Page ID:** ${pageId}\n\n`;
-                summaryContent += `**Comment:**\n${comment}\n\n`;
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Notion comment preview written to step summary");
-                continue;
-              }
-
-              core.info(`Adding comment ${i + 1}/${notionCommentItems.length} to Notion page: ${pageId}`);
-
-              try {
-                const response = await fetch('https://api.notion.com/v1/comments', {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${notionToken}`,
-                    'Notion-Version': '2022-06-28',
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    parent: {
-                      page_id: pageId
-                    },
-                    rich_text: [{
-                      type: 'text',
-                      text: {
-                        content: comment
-                      }
-                    }]
-                  })
-                });
-
-                if (!response.ok) {
-                  const errorData = await response.text();
-                  core.setFailed(`Notion API error (${response.status}): ${errorData}`);
-                  return;
-                }
-
-                const data = await response.json();
-                core.info(`✅ Comment ${i + 1} added successfully`);
-                core.info(`Comment ID: ${data.id}`);
-              } catch (error) {
-                core.setFailed(`Failed to add comment ${i + 1}: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-            }
-
-  post_to_slack_channel:
-    needs:
-      - agent
-      - detection
-    if: >
-      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'post_to_slack_channel'))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: agent-output
-          path: /opt/gh-aw/safe-jobs/
-      - name: Setup Safe Job Environment Variables
-        run: |
-          find "/opt/gh-aw/safe-jobs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/opt/gh-aw/safe-jobs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Post message to Slack
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL_ID: ${{ env.GH_AW_SLACK_CHANNEL_ID }}
-        with:
-          script: |-
-            const fs = require('fs');
-            const slackBotToken = process.env.SLACK_BOT_TOKEN;
-            const slackChannelId = process.env.SLACK_CHANNEL_ID;
-            const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === 'true';
-            const outputContent = process.env.GH_AW_AGENT_OUTPUT;
-
-            // Validate required environment variables
-            if (!slackBotToken) {
-              core.setFailed('SLACK_BOT_TOKEN secret is not configured. Please add it to your repository secrets.');
-              return;
-            }
-
-            if (!slackChannelId) {
-              core.setFailed('GH_AW_SLACK_CHANNEL_ID environment variable is required');
-              return;
-            }
-
-            // Read and parse agent output
-            if (!outputContent) {
-              core.info('No GH_AW_AGENT_OUTPUT environment variable found');
-              return;
-            }
-
-            let agentOutputData;
-            try {
-              const fileContent = fs.readFileSync(outputContent, 'utf8');
-              agentOutputData = JSON.parse(fileContent);
-            } catch (error) {
-              core.setFailed(`Error reading or parsing agent output: ${error instanceof Error ? error.message : String(error)}`);
-              return;
-            }
-
-            if (!agentOutputData.items || !Array.isArray(agentOutputData.items)) {
-              core.info('No valid items found in agent output');
-              return;
-            }
-
-            // Filter for post_to_slack_channel items
-            const slackMessageItems = agentOutputData.items.filter(item => item.type === 'post_to_slack_channel');
-
-            if (slackMessageItems.length === 0) {
-              core.info('No post_to_slack_channel items found in agent output');
-              return;
-            }
-
-            core.info(`Found ${slackMessageItems.length} post_to_slack_channel item(s)`);
-
-            // Process each message item
-            for (let i = 0; i < slackMessageItems.length; i++) {
-              const item = slackMessageItems[i];
-              const message = item.message;
-
-              if (!message) {
-                core.warning(`Item ${i + 1}: Missing message field, skipping`);
-                continue;
-              }
-
-              // Validate message length (max 200 characters)
-              const maxLength = 200;
-              if (message.length > maxLength) {
-                core.warning(`Item ${i + 1}: Message length (${message.length} characters) exceeds maximum allowed length of ${maxLength} characters, skipping`);
-                continue;
-              }
-
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Slack Message Preview\n\n";
-                summaryContent += "The following message would be posted to Slack if staged mode was disabled:\n\n";
-                summaryContent += `**Channel ID:** ${slackChannelId}\n\n`;
-                summaryContent += `**Message:** ${message}\n\n`;
-                summaryContent += `**Message Length:** ${message.length} characters\n\n`;
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Slack message preview written to step summary");
-                continue;
-              }
-
-              core.info(`Posting message ${i + 1}/${slackMessageItems.length} to Slack channel: ${slackChannelId}`);
-              core.info(`Message length: ${message.length} characters`);
-
-              try {
-                const response = await fetch('https://slack.com/api/chat.postMessage', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json; charset=utf-8',
-                    'Authorization': `Bearer ${slackBotToken}`
-                  },
-                  body: JSON.stringify({
-                    channel: slackChannelId,
-                    text: message
-                  })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                  core.setFailed(`Slack API HTTP error (${response.status}): ${response.statusText}`);
-                  return;
-                }
-
-                if (!data.ok) {
-                  core.setFailed(`Slack API error: ${data.error || 'Unknown error'}`);
-                  if (data.error === 'invalid_auth') {
-                    core.error('Authentication failed. Please verify your SLACK_BOT_TOKEN is correct.');
-                  } else if (data.error === 'channel_not_found') {
-                    core.error('Channel not found. Please verify the GH_AW_SLACK_CHANNEL_ID environment variable is correct and the bot has access to it.');
-                  }
-                  return;
-                }
-
-                core.info(`✅ Message ${i + 1} posted successfully to Slack`);
-                core.info(`Message timestamp: ${data.ts}`);
-                core.info(`Channel: ${data.channel}`);
-              } catch (error) {
-                core.setFailed(`Failed to post message ${i + 1} to Slack: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-            }
 
   safe_outputs:
     needs:

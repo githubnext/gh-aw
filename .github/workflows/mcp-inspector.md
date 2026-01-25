@@ -27,22 +27,8 @@ safe-outputs:
 timeout-minutes: 20
 strict: true
 imports:
-  - shared/mcp/arxiv.md
-  - shared/mcp/ast-grep.md
-  # Note: azure.md excluded due to schema validation issue with entrypointArgs
-  - shared/mcp/brave.md
-  - shared/mcp/context7.md
-  - shared/mcp/datadog.md
-  - shared/mcp/deepwiki.md
-  - shared/mcp/fabric-rti.md
-  - shared/mcp/gh-aw.md
-  - shared/mcp/markitdown.md
-  - shared/mcp/microsoft-docs.md
-  - shared/mcp/notion.md
-  - shared/mcp/sentry.md
-  - shared/mcp/server-memory.md
-  - shared/mcp/slack.md
-  - shared/mcp/tavily.md
+  # MCP Inspector only needs to READ the MCP config files, not USE the servers
+  # All shared/mcp/*.md imports removed to avoid timeout during MCP gateway startup
   - shared/reporting.md
 tools:
   serena: ["go"]
