@@ -530,27 +530,8 @@ jobs:
           PROMPT_EOF
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
           cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/cache_memory_prompt.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-          
-          ---
-          
-          ## Cache Folder Available
-          
-          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
-          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
-          
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
           <important>
@@ -1194,24 +1175,77 @@ jobs:
           
           ---
           
+          ## 📝 Report Formatting Guidelines
+          
+          **CRITICAL**: Follow these formatting guidelines to create well-structured, readable reports:
+          
+          ### 1. Header Levels
+          **Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
+          
+          The discussion title serves as h1, so all content headers should start at h3:
+          - Use `###` for main sections (e.g., "### Weekly Overview", "### Key Trends")
+          - Use `####` for subsections (e.g., "#### Issue Breakdown by Label")
+          - Never use `##` (h2) or `#` (h1) in the report body
+          
+          ### 2. Progressive Disclosure
+          **Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+          
+          Use collapsible sections for:
+          - Full issue lists with titles and descriptions
+          - Detailed breakdowns by label or type
+          - Historical comparisons or verbose data
+          
+          Example:
+          ```markdown
+          <details>
+          <summary><b>Full Issue List</b></summary>
+          
+          [Long list of issues...]
+          
+          </details>
+          ```
+          
+          ### 3. Report Structure Pattern
+          
+          Your report should follow this structure for optimal readability:
+          
+          1. **Weekly Overview** (always visible): 1-2 paragraph summary of the week's issue activity, highlighting key trends
+          2. **Key Trends** (always visible): Notable patterns like increased activity, common issue types, or emerging topics
+          3. **Summary Statistics** (always visible): Total counts, comparisons to previous week, breakdown by state/label
+          4. **Detailed Issue Breakdown** (in `<details>` tags): Complete list of issues with titles, numbers, authors, and labels
+          5. **Recommendations for Upcoming Week** (always visible): Actionable suggestions based on the analysis
+          
+          ### Design Principles
+          
+          Create reports that:
+          - **Build trust through clarity**: Most important info (overview, trends, key stats) immediately visible
+          - **Exceed expectations**: Add helpful context, week-over-week comparisons, trend analysis
+          - **Create delight**: Use progressive disclosure to reduce overwhelm for detailed data
+          - **Maintain consistency**: Follow the same patterns as other reporting workflows
+          
+          ---
+          
           ## Weekly Analysis
           
           Analyze all issues opened in the repository __GH_AW_GITHUB_REPOSITORY__ over the last 7 days.
-          
-          **Report Structure**: Use h3 (###) or lower for all headers in your summary report.
           
           Create a comprehensive summary that includes:
           - Total number of issues opened
           - List of issue titles with their numbers and authors
           - Any notable patterns or trends (common labels, types of issues, etc.)
           
-          Format the summary clearly with proper markdown formatting for easy reading.
+          Follow the **Report Formatting Guidelines** above to structure your report with:
+          - h3 (###) for main section headers
+          - Detailed issue lists wrapped in `<details>` tags
+          - Critical information (overview, trends, statistics, recommendations) always visible
           
           PROMPT_EOF
       - name: Substitute placeholders
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_CACHE_DESCRIPTION: ${{ '' }}
+          GH_AW_CACHE_DIR: ${{ '/tmp/gh-aw/cache-memory/' }}
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
@@ -1228,6 +1262,8 @@ jobs:
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
+                GH_AW_CACHE_DESCRIPTION: process.env.GH_AW_CACHE_DESCRIPTION,
+                GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR,
                 GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
                 GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
                 GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,

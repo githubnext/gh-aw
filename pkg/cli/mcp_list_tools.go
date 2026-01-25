@@ -80,10 +80,9 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 	}
 
 	// Connect to the MCP server and get its tools
-	fmt.Printf("%s %s (%s)\n",
-		console.FormatInfoMessage("📡 Connecting to MCP server:"),
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("📡 Connecting to MCP server: %s (%s)",
 		targetConfig.Name,
-		targetConfig.Type)
+		targetConfig.Type)))
 
 	info, err := connectToMCPServer(*targetConfig, verbose)
 	if err != nil {
@@ -140,7 +139,7 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 		return
 	}
 
-	fmt.Printf("\n%s\n", console.FormatInfoMessage(fmt.Sprintf("🛠️  Available Tools (%d total)", len(info.Tools))))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\n🛠️  Available Tools (%d total)", len(info.Tools))))
 
 	// Configure options based on verbose flag
 	opts := MCPToolTableOptions{

@@ -152,6 +152,47 @@ mcp-servers:
       API_KEY: "${{ secrets.MCP_API_KEY }}"
 ```
 
+### Deprecated `mode` Field in Custom MCP Servers
+
+**Error Message:**
+
+```text
+Additional property mode is not allowed
+```
+
+**Cause:** The `mode` field was removed from custom MCP server configurations. This field was previously used to specify the MCP server transport type but has been deprecated.
+
+**Solution:** Remove the `mode` field from your custom MCP server configurations. The transport type is now automatically detected based on the configuration:
+
+```yaml wrap
+# Before (deprecated)
+mcp-servers:
+  my-server:
+    command: "npx"
+    args: ["@myorg/mcp-server"]
+    mode: "stdio"  # Remove this line
+    allowed: ["*"]
+
+# After (correct)
+mcp-servers:
+  my-server:
+    command: "npx"
+    args: ["@myorg/mcp-server"]
+    allowed: ["*"]
+```
+
+**Automatic Migration:** Run `gh aw fix --write` to automatically remove deprecated `mode` fields from all workflow files:
+
+```bash wrap
+gh aw fix --write
+```
+
+The `fix` command applies the `mcp-mode-to-type` codemod which removes the `mode` field while preserving all other configuration.
+
+> [!NOTE]
+> GitHub MCP Server Configuration
+> The `mode` field is still valid for the GitHub MCP server (`tools.github.mode`) to choose between `local` (Docker-based) and `remote` (hosted) modes. This deprecation only affects custom MCP servers defined in the `mcp-servers:` section.
+
 ### Playwright Network Access Denied
 
 Add blocked domains to the `allowed_domains` list:
