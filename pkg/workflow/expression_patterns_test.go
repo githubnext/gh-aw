@@ -10,8 +10,8 @@ import (
 // TestExpressionPattern tests the basic expression matching pattern
 func TestExpressionPattern(t *testing.T) {
 	tests := []struct {
-		name    string
-		input   string
+		name      string
+		input     string
 		wantMatch bool
 		wantValue string
 	}{
@@ -204,27 +204,27 @@ func TestWorkflowCallInputsPattern(t *testing.T) {
 // TestSecretExpressionPattern tests the secrets expression pattern
 func TestSecretExpressionPattern(t *testing.T) {
 	tests := []struct {
-		name         string
-		input        string
-		wantMatch    bool
+		name           string
+		input          string
+		wantMatch      bool
 		wantSecretName string
 	}{
 		{
-			name:         "simple secret",
-			input:        "${{ secrets.GITHUB_TOKEN }}",
-			wantMatch:    true,
+			name:           "simple secret",
+			input:          "${{ secrets.GITHUB_TOKEN }}",
+			wantMatch:      true,
 			wantSecretName: "GITHUB_TOKEN",
 		},
 		{
-			name:         "secret with fallback",
-			input:        "${{ secrets.MY_TOKEN || 'default' }}",
-			wantMatch:    true,
+			name:           "secret with fallback",
+			input:          "${{ secrets.MY_TOKEN || 'default' }}",
+			wantMatch:      true,
 			wantSecretName: "MY_TOKEN",
 		},
 		{
-			name:         "secret with underscore prefix",
-			input:        "${{ secrets._INTERNAL_SECRET }}",
-			wantMatch:    true,
+			name:           "secret with underscore prefix",
+			input:          "${{ secrets._INTERNAL_SECRET }}",
+			wantMatch:      true,
 			wantSecretName: "_INTERNAL_SECRET",
 		},
 		{
