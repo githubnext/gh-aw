@@ -746,7 +746,7 @@ Use collapsible sections for:
 Example:
 ```markdown
 <details>
-<summary><b>Full Performance Metrics</b></summary>
+<summary><b>Detailed Benchmark Results</b></summary>
 
 [Long performance data...]
 
@@ -858,8 +858,8 @@ Create a new discussion with the comprehensive performance report.
 3. [Priority action item if needed]
 
 ---
-*Report generated automatically by the Daily Performance Summary workflow*  
-*Data source: ${{ github.repository }} - Last 90 days*  
+*Report generated automatically by the Daily Performance Summary workflow*
+*Data source: ${{ github.repository }} - Last 90 days*
 *Powered by **Safe-Input Tools** - GitHub queries exposed as MCP tools*
 ```
 

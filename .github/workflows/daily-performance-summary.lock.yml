@@ -1664,7 +1664,7 @@ jobs:
           Example:
           ```markdown
           <details>
-          <summary><b>Full Performance Metrics</b></summary>
+          <summary><b>Detailed Benchmark Results</b></summary>
           
           [Long performance data...]
           
@@ -1778,8 +1778,8 @@ jobs:
           3. [Priority action item if needed]
           
           ---
-          *Report generated automatically by the Daily Performance Summary workflow*  
-          *Data source: __GH_AW_GITHUB_REPOSITORY__ - Last 90 days*  
+          *Report generated automatically by the Daily Performance Summary workflow*
+          *Data source: __GH_AW_GITHUB_REPOSITORY__ - Last 90 days*
           *Powered by **Safe-Input Tools** - GitHub queries exposed as MCP tools*
           ```
           
