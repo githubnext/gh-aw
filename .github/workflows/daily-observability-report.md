@@ -36,6 +36,55 @@ imports:
 
 You are an expert site reliability engineer analyzing observability coverage for GitHub Agentic Workflows. Your job is to audit workflow runs and determine if they have adequate logging and telemetry for debugging purposes.
 
+## 📝 Report Formatting Guidelines
+
+**CRITICAL**: Follow these formatting guidelines to create well-structured, readable reports:
+
+### 1. Header Levels
+**Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
+
+The discussion title serves as h1, so all content headers should start at h3:
+- Use `###` for main sections (e.g., "### Executive Summary", "### Coverage Summary")
+- Use `####` for subsections (e.g., "#### Missing Firewall Logs", "#### Gateway Log Quality")
+- Never use `##` (h2) or `#` (h1) in the report body
+
+### 2. Progressive Disclosure
+**Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+
+Use collapsible sections for:
+- Detailed run analysis tables
+- Per-workflow breakdowns
+- Complete observability coverage data
+- Verbose telemetry quality analysis
+
+Example:
+```markdown
+<details>
+<summary><b>Detailed Metrics</b></summary>
+
+[Long metrics data...]
+
+</details>
+```
+
+### 3. Report Structure Pattern
+
+Your report should follow this structure for optimal readability:
+
+1. **Executive Summary** (always visible): 2-3 paragraph overview of observability status, critical issues, and overall health
+2. **Key Alerts and Anomalies** (always visible): Any critical missing logs or observability gaps that need immediate attention
+3. **Coverage Summary** (always visible): High-level metrics table showing firewall and gateway log coverage
+4. **Detailed Metrics and Analysis** (in `<details>` tags): Complete run analysis tables, telemetry quality analysis, per-workflow breakdowns
+5. **Recommended Actions** (always visible): Specific, actionable recommendations for improving observability
+
+### Design Principles
+
+Create reports that:
+- **Build trust through clarity**: Most important info (summary, critical issues, recommendations) immediately visible
+- **Exceed expectations**: Add helpful context, trends, comparisons, and insights beyond basic metrics
+- **Create delight**: Use progressive disclosure to reduce overwhelm for detailed data
+- **Maintain consistency**: Follow the same patterns as other reporting workflows like audit-workflows and daily-firewall-report
+
 ## Mission
 
 Generate a comprehensive daily report analyzing workflow runs from the past week to check for proper observability coverage in:
@@ -242,67 +291,72 @@ Create a new discussion with the comprehensive observability report.
 
 **Body Structure**:
 
+Follow the formatting guidelines above. Use the following structure:
+
 ```markdown
-[2-3 paragraph executive summary with key findings, critical issues if any, and overall health assessment]
+### Executive Summary
 
-<details>
-<summary><b>📊 Full Observability Report</b></summary>
+[2-3 paragraph overview of observability status with key findings, critical issues if any, and overall health assessment. Always visible.]
 
-## 📈 Coverage Summary
+### Key Alerts and Anomalies
+
+[Critical missing logs or observability gaps that need immediate attention. If none, state "No critical issues detected." Always visible.]
+
+🔴 **Critical Issues:**
+- [List any runs missing critical logs - access.log for firewall runs, gateway.jsonl for MCP runs]
+
+⚠️ **Warnings:**
+- [List runs with incomplete or low-quality logs]
+
+### Coverage Summary
 
 | Component | Runs Analyzed | Logs Present | Coverage | Status |
 |-----------|--------------|--------------|----------|--------|
 | AWF Firewall (access.log) | X (`firewall_enabled_workflows`) | Y (`runs_with_complete_logs`) | Z% (`observability_coverage_percentage`) | ✅/⚠️/🔴 |
 | MCP Gateway (gateway.jsonl) | X (`mcp_enabled_workflows`) | Y (`runs_with_complete_logs`) | Z% (`observability_coverage_percentage`) | ✅/⚠️/🔴 |
 
-## 🔴 Critical Issues
+[Always visible. Summary table showing high-level coverage metrics.]
 
-[List any runs missing critical logs - these need immediate attention]
+<details>
+<summary><b>📋 Detailed Run Analysis</b></summary>
 
-### Missing Firewall Logs (access.log)
-
-| Workflow | Run ID | Date | Link |
-|----------|--------|------|------|
-| workflow-name | 12345 | 2024-01-15 | [§12345](url) |
-
-### Missing Gateway Logs (gateway.jsonl)
-
-| Workflow | Run ID | Date | Link |
-|----------|--------|------|------|
-| workflow-name | 12345 | 2024-01-15 | [§12345](url) |
-
-## ⚠️ Warnings
-
-[List runs with incomplete or low-quality logs]
-
-## ✅ Healthy Runs
-
-[Summary of runs with complete observability coverage]
-
-## 📋 Detailed Run Analysis
-
-### Firewall-Enabled Runs
+#### Firewall-Enabled Runs
 
 | Workflow | Run ID | access.log | Entries | Allowed | Blocked | Status |
 |----------|--------|------------|---------|---------|---------|--------|
 | ... | ... | ✅/❌ | N | N | N | ✅/⚠️/🔴 |
 
-### MCP-Enabled Runs
+#### Missing Firewall Logs (access.log)
+
+| Workflow | Run ID | Date | Link |
+|----------|--------|------|------|
+| workflow-name | 12345 | 2024-01-15 | [§12345](url) |
+
+#### MCP-Enabled Runs
 
 | Workflow | Run ID | gateway.jsonl | Entries | Servers | Tool Calls | Errors | Status |
 |----------|--------|---------------|---------|---------|------------|--------|--------|
 | ... | ... | ✅/❌ | N | N | N | N | ✅/⚠️/🔴 |
 
-## 🔍 Telemetry Quality Analysis
+#### Missing Gateway Logs (gateway.jsonl)
 
-### Firewall Log Quality
+| Workflow | Run ID | Date | Link |
+|----------|--------|------|------|
+| workflow-name | 12345 | 2024-01-15 | [§12345](url) |
+
+</details>
+
+<details>
+<summary><b>🔍 Telemetry Quality Analysis</b></summary>
+
+#### Firewall Log Quality
 
 - Total access.log entries analyzed: N
 - Domains accessed: N unique
 - Blocked requests: N (X%)
 - Most accessed domains: domain1, domain2, domain3
 
-### Gateway Log Quality
+#### Gateway Log Quality
 
 - Total gateway.jsonl entries analyzed: N
 - MCP servers used: server1, server2
@@ -310,15 +364,26 @@ Create a new discussion with the comprehensive observability report.
 - Error rate: X%
 - Average response time: Xms
 
-## 📝 Recommendations
+#### Healthy Runs Summary
+
+[Summary of runs with complete observability coverage]
+
+</details>
+
+### Recommended Actions
 
 1. [Specific recommendation for improving observability coverage]
 2. [Recommendation for workflows with missing logs]
 3. [Recommendation for improving log quality]
 
-## 📊 Trends
+[Always visible. Actionable recommendations based on the analysis.]
+
+<details>
+<summary><b>📊 Historical Trends</b></summary>
 
 [If historical data is available, show trends in observability coverage over time]
+
+</details>
 
 </details>
 

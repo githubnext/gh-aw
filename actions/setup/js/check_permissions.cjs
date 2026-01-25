@@ -4,7 +4,8 @@
 const { parseRequiredPermissions, checkRepositoryPermission } = require("./check_permissions_utils.cjs");
 
 async function main() {
-  const { eventName } = context;
+  const { eventName, actor, repo } = context;
+  const { owner, repo: repoName } = repo;
 
   // skip check for safe events
   // workflow_run is intentionally excluded due to HIGH security risks:
@@ -21,8 +22,6 @@ async function main() {
     return;
   }
 
-  const actor = context.actor;
-  const { owner, repo } = context.repo;
   const requiredPermissions = parseRequiredPermissions();
 
   if (!requiredPermissions || requiredPermissions.length === 0) {
@@ -32,7 +31,7 @@ async function main() {
   }
 
   // Check if the actor has the required repository permissions
-  const result = await checkRepositoryPermission(actor, owner, repo, requiredPermissions);
+  const result = await checkRepositoryPermission(actor, owner, repoName, requiredPermissions);
 
   if (result.error) {
     core.setFailed(`Repository permission check failed: ${result.error}`);

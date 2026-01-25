@@ -89,6 +89,43 @@ curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.s
 
 Installs to `~/.local/share/gh/extensions/gh-aw/gh-aw` and works with all `gh aw` commands. Supports Linux, macOS, FreeBSD, and Windows.
 
+### GitHub Actions Setup Action
+
+Install the CLI in GitHub Actions workflows using the `setup-cli` action:
+
+``````yaml wrap
+- name: Install gh-aw CLI
+  uses: githubnext/gh-aw/actions/setup-cli@main
+  with:
+    version: v0.37.18
+``````
+
+The action automatically installs the specified version with checksum verification and platform detection. Useful for CI/CD pipelines, workflow testing, and automation scripts.
+
+**Features:**
+- Version validation against GitHub releases
+- SHA256 checksum verification for security
+- Automatic platform and architecture detection
+- Fallback installation methods for reliability
+- Works on Linux, macOS, Windows, and FreeBSD
+
+**Example with verification:**
+
+``````yaml wrap
+- name: Install gh-aw CLI
+  id: install
+  uses: githubnext/gh-aw/actions/setup-cli@main
+  with:
+    version: v0.37.18
+
+- name: Verify installation
+  run: |
+    gh aw version
+    echo "Installed: ${{ steps.install.outputs.installed-version }}"
+``````
+
+See the [setup-cli action README](https://github.com/githubnext/gh-aw/blob/main/actions/setup-cli/README.md) for complete documentation and examples.
+
 ### GitHub Enterprise Server Support
 
 Configure for GitHub Enterprise Server deployments:

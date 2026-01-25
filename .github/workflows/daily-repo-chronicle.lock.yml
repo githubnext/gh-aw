@@ -1200,6 +1200,56 @@ jobs:
           
           ---
           
+          ## 📝 Report Formatting Guidelines
+          
+          **CRITICAL**: Follow these formatting guidelines to create well-structured, readable reports:
+          
+          ### 1. Header Levels
+          **Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
+          
+          The discussion title serves as h1, so all content headers should start at h3:
+          - Use `###` for main sections (e.g., "### 🗞️ Headline News", "### 📊 Development Desk")
+          - Use `####` for subsections (e.g., "#### Featured Story", "#### Notable Commits")
+          - Never use `##` (h2) or `#` (h1) in the report body
+          
+          ### 2. Progressive Disclosure
+          **Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+          
+          Use collapsible sections for:
+          - Detailed commit lists and changelogs
+          - Full PR descriptions and review discussions
+          - Complete issue activity logs
+          - Verbose contributor statistics
+          
+          Example:
+          ```markdown
+          <details>
+          <summary><b>Full Activity Details</b></summary>
+          
+          [Long detailed content here...]
+          
+          </details>
+          ```
+          
+          ### 3. Report Structure Pattern
+          
+          Your report should follow this structure for optimal readability:
+          
+          1. **Brief Daily Summary** (always visible): 1-2 paragraph headline news overview
+          2. **Key Highlights and Metrics** (always visible): Quick stats, top contributors, notable trends
+          3. **Detailed Commit/PR/Issue Activity** (in `<details>` tags): Per-contributor breakdowns, full PR lists, commit histories
+          4. **Notable Changes or Trends** (always visible): Significant insights, emerging patterns, editorial commentary
+          
+          ### Design Principles
+          
+          Create reports that:
+          - **Build trust through clarity**: Most important info (headline news, key metrics) immediately visible
+          - **Exceed expectations**: Add helpful context, trends, comparisons to previous days
+          - **Create delight**: Use progressive disclosure to reduce overwhelm for detailed data
+          - **Maintain consistency**: Follow the same patterns as other reporting workflows
+          
+          ---
+          
           ## Your Mission
           
           Transform the last 24 hours of repository activity into a compelling narrative that reads like a daily newspaper. This is NOT a bulleted list - it's a story with drama, intrigue, and personality.
@@ -1222,22 +1272,20 @@ jobs:
           
           ## Editorial Guidelines
           
-          **Structure your newspaper with distinct sections:**
+          **Structure your newspaper with distinct sections (using h3 headers):**
           
-          ### 🗞️ HEADLINE NEWS
-          Open with the most significant event from the past 24 hours. Was there a major PR merged? A critical bug discovered? A heated discussion? Lead with drama and impact.
+          **Main section headers** (use h3 `###`):
           
-          ### 📊 DEVELOPMENT DESK
-          Weave the story of pull requests - who's building what, conflicts brewing, reviews pending. Connect the PRs into a narrative. **Remember**: PRs by bots were triggered by humans - mention who assigned the work, who reviewed, who merged. Example: "Senior developer @alice leveraged Copilot to deliver three PRs addressing the authentication system, while @bob reviewed and merged the changes..."
+          - **### 🗞️ Headline News**: Open with the most significant event from the past 24 hours. Was there a major PR merged? A critical bug discovered? A heated discussion? Lead with drama and impact.
           
-          ### 🔥 ISSUE TRACKER BEAT
-          Report on new issues, closed victories, and ongoing investigations. Give them life: "A mysterious bug reporter emerged at dawn with issue #XXX, sparking a flurry of investigation..."
+          - **### 📊 Development Desk**: Weave the story of pull requests - who's building what, conflicts brewing, reviews pending. Connect the PRs into a narrative. **Remember**: PRs by bots were triggered by humans - mention who assigned the work, who reviewed, who merged. Example: "Senior developer @alice leveraged Copilot to deliver three PRs addressing the authentication system, while @bob reviewed and merged the changes..."
           
-          ### 💻 COMMIT CHRONICLES  
-          Tell the story through commits - the late-night pushes, the refactoring efforts, the quick fixes. Paint the picture of developer activity. **Attribution matters**: If commits are from bots, identify the human who initiated the work (issue assigner, PR reviewer, workflow trigger).
+          - **### 🔥 Issue Tracker Beat**: Report on new issues, closed victories, and ongoing investigations. Give them life: "A mysterious bug reporter emerged at dawn with issue #XXX, sparking a flurry of investigation..."
           
-          ### 📈 THE NUMBERS
-          End with a brief statistical snapshot, but keep it snappy.
+          - **### 💻 Commit Chronicles**: Tell the story through commits - the late-night pushes, the refactoring efforts, the quick fixes. Paint the picture of developer activity. **Attribution matters**: If commits are from bots, identify the human who initiated the work (issue assigner, PR reviewer, workflow trigger).
+            - For detailed commit logs and full changelogs, **wrap in `<details>` tags** to reduce scrolling
+            
+          - **### 📈 The Numbers**: End with a brief statistical snapshot, but keep it snappy. Keep key metrics visible, wrap verbose statistics in `<details>` tags.
           
           ## Writing Style
           

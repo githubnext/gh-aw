@@ -159,5 +159,43 @@ const mockCore = {
           await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
           expect(mockCore.info).toHaveBeenCalledWith("✅ Event schedule does not require validation"),
           expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled());
+      }),
+      it("should correctly extract owner and repo from context.repo", async () => {
+        ((process.env.GH_AW_REQUIRED_ROLES = "admin"),
+          (global.context.eventName = "issues"),
+          (global.context.repo = { owner: "custom-owner", repo: "custom-repo" }),
+          mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "admin" } }),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
+          expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({ owner: "custom-owner", repo: "custom-repo", username: "testuser" }),
+          expect(mockCore.info).toHaveBeenCalledWith("Checking if user 'testuser' has required permissions for custom-owner/custom-repo"));
+      }),
+      it("should handle context with different repo names correctly", async () => {
+        ((process.env.GH_AW_REQUIRED_ROLES = "write"),
+          (global.context.eventName = "pull_request"),
+          (global.context.actor = "contributor"),
+          (global.context.repo = { owner: "org-name", repo: "project-name" }),
+          mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "write" } }),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
+          expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({ owner: "org-name", repo: "project-name", username: "contributor" }),
+          expect(mockCore.info).toHaveBeenCalledWith("✅ User has write access to repository"));
+      }),
+      it("should correctly destructure context properties in safe event", async () => {
+        ((process.env.GH_AW_REQUIRED_ROLES = "admin"),
+          (global.context.eventName = "workflow_dispatch"),
+          (global.context.actor = "dispatch-user"),
+          (global.context.repo = { owner: "test-org", repo: "test-repo" }),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
+          expect(mockCore.info).toHaveBeenCalledWith("✅ Event workflow_dispatch does not require validation"),
+          expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled());
+      }),
+      it("should handle repo names with hyphens and underscores", async () => {
+        ((process.env.GH_AW_REQUIRED_ROLES = "maintainer"),
+          (global.context.eventName = "push"),
+          (global.context.actor = "test-user"),
+          (global.context.repo = { owner: "my-org", repo: "my_test-repo" }),
+          mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "maintain" } }),
+          await eval(`(async () => { ${checkPermissionsScript}; await main(); })()`),
+          expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({ owner: "my-org", repo: "my_test-repo", username: "test-user" }),
+          expect(mockCore.info).toHaveBeenCalledWith("✅ User has maintain access to repository"));
       }));
   }));

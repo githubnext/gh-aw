@@ -1175,18 +1175,69 @@ jobs:
           
           ---
           
+          ## 📝 Report Formatting Guidelines
+          
+          **CRITICAL**: Follow these formatting guidelines to create well-structured, readable reports:
+          
+          ### 1. Header Levels
+          **Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
+          
+          The discussion title serves as h1, so all content headers should start at h3:
+          - Use `###` for main sections (e.g., "### Weekly Overview", "### Key Trends")
+          - Use `####` for subsections (e.g., "#### Issue Breakdown by Label")
+          - Never use `##` (h2) or `#` (h1) in the report body
+          
+          ### 2. Progressive Disclosure
+          **Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+          
+          Use collapsible sections for:
+          - Full issue lists with titles and descriptions
+          - Detailed breakdowns by label or type
+          - Historical comparisons or verbose data
+          
+          Example:
+          ```markdown
+          <details>
+          <summary><b>Full Issue List</b></summary>
+          
+          [Long list of issues...]
+          
+          </details>
+          ```
+          
+          ### 3. Report Structure Pattern
+          
+          Your report should follow this structure for optimal readability:
+          
+          1. **Weekly Overview** (always visible): 1-2 paragraph summary of the week's issue activity, highlighting key trends
+          2. **Key Trends** (always visible): Notable patterns like increased activity, common issue types, or emerging topics
+          3. **Summary Statistics** (always visible): Total counts, comparisons to previous week, breakdown by state/label
+          4. **Detailed Issue Breakdown** (in `<details>` tags): Complete list of issues with titles, numbers, authors, and labels
+          5. **Recommendations for Upcoming Week** (always visible): Actionable suggestions based on the analysis
+          
+          ### Design Principles
+          
+          Create reports that:
+          - **Build trust through clarity**: Most important info (overview, trends, key stats) immediately visible
+          - **Exceed expectations**: Add helpful context, week-over-week comparisons, trend analysis
+          - **Create delight**: Use progressive disclosure to reduce overwhelm for detailed data
+          - **Maintain consistency**: Follow the same patterns as other reporting workflows
+          
+          ---
+          
           ## Weekly Analysis
           
           Analyze all issues opened in the repository __GH_AW_GITHUB_REPOSITORY__ over the last 7 days.
-          
-          **Report Structure**: Use h3 (###) or lower for all headers in your summary report.
           
           Create a comprehensive summary that includes:
           - Total number of issues opened
           - List of issue titles with their numbers and authors
           - Any notable patterns or trends (common labels, types of issues, etc.)
           
-          Format the summary clearly with proper markdown formatting for easy reading.
+          Follow the **Report Formatting Guidelines** above to structure your report with:
+          - h3 (###) for main section headers
+          - Detailed issue lists wrapped in `<details>` tags
+          - Critical information (overview, trends, statistics, recommendations) always visible
           
           PROMPT_EOF
       - name: Substitute placeholders

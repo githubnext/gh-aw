@@ -1621,6 +1621,57 @@ jobs:
           2. Close each found discussion with reason "OUTDATED"
           3. Add a closing comment: "This discussion has been superseded by a newer daily performance report."
           
+          ## Phase 5.5: Report Formatting Guidelines
+          
+          **CRITICAL**: Follow these formatting guidelines to create well-structured, readable reports:
+          
+          ### 1. Header Levels
+          **Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
+          
+          The discussion title serves as h1, so all content headers should start at h3:
+          - Use `###` for main sections (e.g., "### Performance Overview", "### Key Metrics")
+          - Use `####` for subsections (e.g., "#### Pull Requests", "#### Issues")
+          - Never use `##` (h2) or `#` (h1) in the report body
+          
+          ### 2. Progressive Disclosure
+          **Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+          
+          Use collapsible sections for:
+          - Detailed benchmark results and performance data
+          - Full performance metrics tables
+          - Verbose statistics and historical comparisons
+          - Technical implementation details
+          
+          Example:
+          ```markdown
+          <details>
+          <summary><b>Detailed Benchmark Results</b></summary>
+          
+          [Long performance data...]
+          
+          </details>
+          ```
+          
+          ### 3. Report Structure Pattern
+          
+          Your report should follow this structure for optimal readability:
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          
+          1. **Performance Overview** (always visible): Brief executive summary highlighting overall project health, key achievements, and critical issues
+          2. **Key Highlights** (always visible): Most important metrics and trends that stakeholders need to see immediately
+          3. **Critical Performance Issues** (always visible): Any problems that require immediate attention with severity indicators
+          4. **Detailed Benchmark Results** (in `<details>` tags): Comprehensive performance data, metrics tables, and historical comparisons
+          5. **Optimization Recommendations** (always visible): Actionable insights and suggested improvements
+          
+          ### Design Principles
+          
+          Create reports that:
+          - **Build trust through clarity**: Most important info (overview, critical issues, recommendations) immediately visible
+          - **Exceed expectations**: Add helpful context, trends, comparisons to give stakeholders the full picture
+          - **Create delight**: Use progressive disclosure to reduce overwhelm while keeping details accessible
+          - **Maintain consistency**: Follow the same patterns as other reporting workflows in this repository
+          
           ## Phase 6: Create Discussion Report
           
           Create a new discussion with the comprehensive performance report.
@@ -1632,46 +1683,55 @@ jobs:
           **Body**:
           
           ```markdown
-          Brief 2-3 paragraph executive summary highlighting:
-          - Overall project health and activity levels
-          - Key achievements (PRs merged, issues resolved)
-          - Areas needing attention
+          ### Performance Overview
           
-          <details>
-          <summary><b>📊 Full Performance Report</b></summary>
+          [Brief 2-3 paragraph executive summary highlighting overall project health and activity levels]
           
-          ## 📈 Activity Overview
+          ### Key Highlights
+          
+          - ✅ **[NUMBER]** PRs merged in the last 90 days
+          - 📊 **[NUMBER]** issues resolved  
+          - 💬 **[NUMBER]** discussions answered
+          - ⏱️ Average merge time: **[HOURS]** hours
+          - 👥 **[NUMBER]** unique contributors
+          
+          ### 🚨 Critical Performance Issues
+          
+          [List any critical issues that require immediate attention. If none, state "No critical performance issues detected."]
+          
+          ### 📈 Activity Overview
           
           ![Activity Overview](URL_FROM_UPLOAD_ASSET_CHART_1)
           
-          [Brief analysis of activity distribution across PRs, issues, and discussions]
+          [Brief 2-3 sentence analysis of activity distribution across PRs, issues, and discussions]
           
-          ## 🎯 Resolution Metrics
+          <details>
+          <summary><b>📊 Detailed Benchmark Results</b></summary>
+          
+          #### 🎯 Resolution Metrics
           
           ![Resolution Metrics](URL_FROM_UPLOAD_ASSET_CHART_2)
           
           [Analysis of PR merge rates and issue resolution rates]
           
-          ## ⚡ Velocity Metrics
+          #### ⚡ Velocity Metrics
           
           ![Velocity Metrics](URL_FROM_UPLOAD_ASSET_CHART_3)
           
           [Analysis of response times, contributor activity, and discussion engagement]
           
-          ## 📊 Key Performance Indicators
+          #### 📊 Complete Performance Data
           
-          ### Pull Requests
+          ##### Pull Requests
           | Metric | Value |
           |--------|-------|
           | Total PRs | [NUMBER] |
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           | Merged | [NUMBER] |
           | Open | [NUMBER] |
           | Avg Merge Time | [HOURS] hours |
           | Unique Contributors | [NUMBER] |
           
-          ### Issues
+          ##### Issues
           | Metric | Value |
           |--------|-------|
           | Total Issues | [NUMBER] |
@@ -1679,20 +1739,24 @@ jobs:
           | Open | [NUMBER] |
           | Avg Resolution Time | [HOURS] hours |
           
-          ### Discussions
+          ##### Discussions
           | Metric | Value |
           |--------|-------|
           | Total Discussions | [NUMBER] |
           | Answered | [NUMBER] |
           | Answer Rate | [PERCENT]% |
           
-          ## 💡 Insights & Recommendations
+          #### 📈 Historical Comparisons
           
-          1. [Key insight based on the data]
-          2. [Recommendation for improvement]
-          3. [Action item if needed]
+          [Compare with previous periods if historical data is available]
           
           </details>
+          
+          ### 💡 Optimization Recommendations
+          
+          1. [Actionable recommendation based on the data]
+          2. [Specific suggestion for improvement]
+          3. [Priority action item if needed]
           
           ---
           *Report generated automatically by the Daily Performance Summary workflow*

@@ -230,7 +230,45 @@ mcp-servers:
     allowed: ["send_message", "get_channel_history"]
 ```
 
-**Options**: `command` + `args` (process-based), `container` (Docker image), `url` + `headers` (HTTP endpoint), `env` (environment variables), `allowed` (tool restrictions). See [MCPs Guide](/gh-aw/guides/mcps/) for setup.
+**Options**: `command` + `args` (process-based), `container` (Docker image), `url` + `headers` (HTTP endpoint), `registry` (MCP registry URI), `env` (environment variables), `allowed` (tool restrictions). See [MCPs Guide](/gh-aw/guides/mcps/) for setup.
+
+### Registry Field
+
+The `registry` field specifies the URI to an MCP server's installation location in an MCP registry. This is useful for documenting the source of an MCP server and can be used by tooling to discover and install MCP servers:
+
+```yaml wrap
+mcp-servers:
+  markitdown:
+    registry: "https://api.mcp.github.com/v0/servers/microsoft/markitdown"
+    command: "npx"
+    args: ["-y", "@microsoft/markitdown"]
+```
+
+**When to use**:
+- **Document server source**: Include `registry` to indicate where the MCP server is published
+- **Registry-aware tooling**: Some tools may use the registry URI for discovery and version management
+- **Both stdio and HTTP servers**: Works with both `command`-based stdio servers and `url`-based HTTP servers
+
+**Examples**:
+
+```yaml wrap
+# Stdio server with registry
+mcp-servers:
+  filesystem:
+    registry: "https://api.mcp.github.com/v0/servers/modelcontextprotocol/filesystem"
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-filesystem"]
+
+# HTTP server with registry
+mcp-servers:
+  custom-api:
+    registry: "https://registry.example.com/servers/custom-api"
+    url: "https://api.example.com/mcp"
+    headers:
+      Authorization: "Bearer ${{ secrets.API_TOKEN }}"
+```
+
+The `registry` field is informational and does not affect server execution. It complements other configuration fields like `command`, `args`, `container`, or `url`.
 
 ## Related Documentation
 

@@ -3425,15 +3425,10 @@
                 },
                 "description": "Environment variables"
               },
-              "mode": {
-                "type": "string",
-                "enum": ["stdio", "http", "remote", "local"],
-                "description": "MCP server mode"
-              },
               "type": {
                 "type": "string",
                 "enum": ["stdio", "http", "remote", "local"],
-                "description": "MCP server type"
+                "description": "MCP connection type. Use 'stdio' for command-based or container-based servers, 'http' for HTTP-based servers. 'local' is an alias for 'stdio' and is normalized during parsing."
               },
               "version": {
                 "type": ["string", "number"],
@@ -3469,6 +3464,33 @@
                   "type": "string"
                 },
                 "description": "Arguments passed to container entrypoint"
+              },
+              "registry": {
+                "type": "string",
+                "description": "URI to installation location from MCP registry",
+                "examples": ["https://api.mcp.github.com/v0/servers/microsoft/markitdown", "https://registry.npmjs.org/@my/tool"]
+              },
+              "allowed": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List of allowed tool names (restricts which tools from the MCP server can be used)",
+                "examples": [["*"], ["store_memory", "retrieve_memory"], ["create-issue", "add-comment"]]
+              },
+              "entrypoint": {
+                "type": "string",
+                "description": "Optional entrypoint override for container (equivalent to docker run --entrypoint)",
+                "examples": ["/bin/sh", "/custom/entrypoint.sh", "python"]
+              },
+              "mounts": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[^:]+:[^:]+:(ro|rw)$"
+                },
+                "description": "Volume mounts for container in format 'source:dest:mode' where mode is 'ro' or 'rw'",
+                "examples": [["/tmp/data:/data:ro"], ["/workspace:/workspace:rw", "/config:/config:ro"]]
               }
             },
             "additionalProperties": true
@@ -6317,7 +6339,8 @@
         },
         "registry": {
           "type": "string",
-          "description": "URI to the installation location when MCP is installed from a registry"
+          "description": "URI to the installation location when MCP is installed from a registry",
+          "examples": ["https://api.mcp.github.com/v0/servers/microsoft/markitdown"]
         },
         "command": {
           "type": "string",
@@ -6343,12 +6366,26 @@
           },
           "description": "Arguments for command or container execution"
         },
+        "entrypoint": {
+          "type": "string",
+          "description": "Optional entrypoint override for container (equivalent to docker run --entrypoint)",
+          "examples": ["/bin/sh", "/custom/entrypoint.sh", "python"]
+        },
         "entrypointArgs": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "description": "Arguments to add after the container image (container entrypoint arguments)"
+        },
+        "mounts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^:]+:[^:]+:(ro|rw)$"
+          },
+          "description": "Volume mounts for container in format 'source:dest:mode' where mode is 'ro' or 'rw'",
+          "examples": [["/tmp/data:/data:ro"], ["/workspace:/workspace:rw", "/config:/config:ro"]]
         },
         "env": {
           "type": "object",
@@ -6389,10 +6426,11 @@
         },
         "allowed": {
           "type": "array",
-          "description": "List of allowed tool functions",
+          "description": "List of allowed tool names for this MCP server",
           "items": {
             "type": "string"
-          }
+          },
+          "examples": [["*"], ["store_memory", "retrieve_memory"], ["brave_web_search"]]
         }
       },
       "additionalProperties": false,
@@ -6451,7 +6489,8 @@
         },
         "registry": {
           "type": "string",
-          "description": "URI to the installation location when MCP is installed from a registry"
+          "description": "URI to the installation location when MCP is installed from a registry",
+          "examples": ["https://api.mcp.github.com/v0/servers/microsoft/markitdown"]
         },
         "url": {
           "type": "string",
@@ -6470,10 +6509,11 @@
         },
         "allowed": {
           "type": "array",
-          "description": "List of allowed tool functions",
+          "description": "List of allowed tool names for this MCP server",
           "items": {
             "type": "string"
-          }
+          },
+          "examples": [["*"], ["store_memory", "retrieve_memory"], ["brave_web_search"]]
         }
       },
       "required": ["url"],
