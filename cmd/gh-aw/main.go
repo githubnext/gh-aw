@@ -551,6 +551,8 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	mcpServerCmd := cli.NewMCPServerCommand()
 	prCmd := cli.NewPRCommand()
 	campaignCmd := campaign.NewCommand()
+	// Add create-project subcommand (defined in pkg/cli to avoid circular deps)
+	campaignCmd.AddCommand(cli.NewCampaignCreateProjectCommand())
 	secretsCmd := cli.NewSecretsCommand()
 	fixCmd := cli.NewFixCommand()
 	upgradeCmd := cli.NewUpgradeCommand()

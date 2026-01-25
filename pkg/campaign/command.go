@@ -38,9 +38,10 @@ workflows, repo-memory paths, and risk level). This command provides a
 single place to see all campaigns configured for the repo.
 
 Available subcommands:
-	• status   - Show live status for campaigns (compiled workflows, repo-memory)
-  • new      - Create a new campaign spec file
-  • validate - Validate campaign spec files for common issues
+	• status         - Show live status for campaigns (compiled workflows, repo-memory)
+	• new            - Create a new campaign spec file
+	• create-project - Create a GitHub Project with views and custom fields
+	• validate       - Validate campaign spec files for common issues
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` campaign                      # List all campaigns
@@ -182,6 +183,9 @@ Examples:
 	validateCmd.Flags().Bool("json", false, "Output campaign validation results in JSON format")
 	validateCmd.Flags().Bool("strict", true, "Exit with non-zero status if any problems are found")
 	cmd.AddCommand(validateCmd)
+
+	// Note: The create-project subcommand is defined in pkg/cli/campaign_create_project_command.go
+	// and added to the campaign command in cmd/gh-aw/main.go to avoid circular dependencies
 
 	return cmd
 }
