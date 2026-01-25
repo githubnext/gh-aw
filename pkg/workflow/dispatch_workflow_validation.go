@@ -191,12 +191,6 @@ func getCurrentWorkflowName(workflowPath string) string {
 	return filename
 }
 
-// fileExists checks if a file exists
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
 // isPathWithinDir checks if a path is within a given directory (prevents path traversal)
 func isPathWithinDir(path, dir string) bool {
 	// Get absolute paths
