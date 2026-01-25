@@ -6,7 +6,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
-var mcpPlaywrightLog = logger.New("workflow:mcp-config-playwright")
+var mcpPlaywrightLog = logger.New("workflow:mcp_config_playwright_renderer")
 
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration
 // Uses Docker container to launch Playwright MCP for consistent browser environment
