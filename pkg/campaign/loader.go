@@ -124,6 +124,7 @@ func FilterSpecs(specs []CampaignSpec, pattern string) []CampaignSpec {
 // .github/workflows/ with a minimal skeleton definition. It returns the
 // relative file path created.
 func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
+	// Empty string means no goal - use default template text
 	return CreateSpecSkeletonWithGoal(rootDir, id, "", force)
 }
 
