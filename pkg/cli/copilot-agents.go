@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -44,7 +45,7 @@ func ensureFileMatchesTemplate(subdir, fileName, templateContent, fileType strin
 	if strings.TrimSpace(existingContent) == expectedContent {
 		copilotAgentsLog.Printf("File is up-to-date: %s", targetPath)
 		if verbose {
-			fmt.Printf("%s is up-to-date: %s\n", fileType, targetPath)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("%s is up-to-date: %s", fileType, targetPath)))
 		}
 		return nil
 	}
@@ -64,9 +65,9 @@ func ensureFileMatchesTemplate(subdir, fileName, templateContent, fileType strin
 
 	if verbose {
 		if existingContent == "" {
-			fmt.Printf("Created %s: %s\n", fileType, targetPath)
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created %s: %s", fileType, targetPath)))
 		} else {
-			fmt.Printf("Updated %s: %s\n", fileType, targetPath)
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s: %s", fileType, targetPath)))
 		}
 	}
 
@@ -100,7 +101,7 @@ func cleanupOldPromptFile(promptFileName string, verbose bool) error {
 			return fmt.Errorf("failed to remove old prompt file: %w", err)
 		}
 		if verbose {
-			fmt.Printf("Removed old prompt file: %s\n", oldPath)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed old prompt file: %s", oldPath)))
 		}
 	}
 
@@ -139,7 +140,7 @@ func cleanupOldCopilotInstructions(verbose bool) error {
 			return fmt.Errorf("failed to remove old instructions file: %w", err)
 		}
 		if verbose {
-			fmt.Printf("Removed old instructions file: %s\n", oldPath)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed old instructions file: %s", oldPath)))
 		}
 	}
 

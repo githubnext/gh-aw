@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -102,9 +103,16 @@ Markdown body. You can then
 update owners, workflows, memory paths, metrics-glob, and governance
 fields to match your initiative.
 
+With --project flag, a GitHub Project will be created with:
+- Required fields: Campaign Id, Worker Workflow, Priority, Size, Start Date, End Date
+- Views: Progress Board (board), Task Tracker (table), Campaign Roadmap (roadmap)
+- The project URL will be automatically added to the campaign spec
+
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` campaign new security-q1-2025
-  ` + string(constants.CLIExtensionPrefix) + ` campaign new modernization-winter2025 --force`,
+  ` + string(constants.CLIExtensionPrefix) + ` campaign new modernization-winter2025 --force
+  ` + string(constants.CLIExtensionPrefix) + ` campaign new security-q1-2025 --project --owner @me
+  ` + string(constants.CLIExtensionPrefix) + ` campaign new modernization --project --owner myorg`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -129,6 +137,9 @@ Examples:
 
 			id := args[0]
 			force, _ := cmd.Flags().GetBool("force")
+			createProject, _ := cmd.Flags().GetBool("project")
+			owner, _ := cmd.Flags().GetString("owner")
+			verbose, _ := cmd.Flags().GetBool("verbose")
 
 			cwd, err := os.Getwd()
 			if err != nil {
@@ -141,13 +152,75 @@ Examples:
 			}
 
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(
-				"Created campaign spec at "+path+". Open this file and fill in owners, workflows, memory-paths, and other details.",
+				"Created campaign spec at "+path,
 			))
+
+			// Create project if requested
+			if createProject {
+				if owner == "" {
+					return fmt.Errorf("--owner is required when using --project flag. Use '@me' for your personal projects or specify an organization name")
+				}
+
+				// Load the spec to get the campaign name
+				specs, err := LoadSpecs(cwd)
+				if err != nil {
+					return fmt.Errorf("failed to load campaign spec: %w", err)
+				}
+
+				// Find the newly created spec
+				var campaignName string
+				for _, spec := range specs {
+					if spec.ID == id {
+						campaignName = spec.Name
+						break
+					}
+				}
+
+				if campaignName == "" {
+					campaignName = id
+				}
+
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Creating GitHub Project..."))
+
+				projectConfig := ProjectCreationConfig{
+					CampaignID:   id,
+					CampaignName: campaignName,
+					Owner:        owner,
+					Verbose:      verbose,
+				}
+
+				result, err := CreateCampaignProject(projectConfig)
+				if err != nil {
+					return fmt.Errorf("failed to create project: %w", err)
+				}
+
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(
+					fmt.Sprintf("Created project: %s", result.ProjectURL),
+				))
+
+				// Update the spec file with the project URL
+				fullPath := filepath.Join(cwd, path)
+				if err := UpdateSpecWithProjectURL(fullPath, result.ProjectURL); err != nil {
+					return fmt.Errorf("failed to update spec with project URL: %w", err)
+				}
+
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(
+					"Updated campaign spec with project URL",
+				))
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+					"Open the file and fill in owners, workflows, memory-paths, and other details.",
+				))
+			}
+
 			return nil
 		},
 	}
 
 	newCmd.Flags().Bool("force", false, "Overwrite existing spec file if it already exists")
+	newCmd.Flags().Bool("project", false, "Create a GitHub Project with required views and fields")
+	newCmd.Flags().String("owner", "", "GitHub organization or user for the project (required with --project). Use '@me' for personal projects")
+	newCmd.Flags().Bool("verbose", false, "Enable verbose output")
 	cmd.AddCommand(newCmd)
 
 	// Subcommand: campaign validate

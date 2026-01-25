@@ -12,11 +12,13 @@ var shLog = logger.New("workflow:sh")
 
 // Prompt file paths at runtime (copied by setup action)
 const (
-	promptsDir           = "/opt/gh-aw/prompts"
-	prContextPromptFile  = "pr_context_prompt.md"
-	tempFolderPromptFile = "temp_folder_prompt.md"
-	playwrightPromptFile = "playwright_prompt.md"
-	markdownPromptFile   = "markdown.md"
+	promptsDir                 = "/opt/gh-aw/prompts"
+	prContextPromptFile        = "pr_context_prompt.md"
+	tempFolderPromptFile       = "temp_folder_prompt.md"
+	playwrightPromptFile       = "playwright_prompt.md"
+	markdownPromptFile         = "markdown.md"
+	cacheMemoryPromptFile      = "cache_memory_prompt.md"
+	cacheMemoryPromptMultiFile = "cache_memory_prompt_multi.md"
 )
 
 // GitHub context prompt is kept embedded because it contains GitHub Actions expressions
