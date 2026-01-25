@@ -3477,14 +3477,15 @@
                 },
                 "description": "List of allowed tool names (restricts which tools from the MCP server can be used)",
                 "examples": [
-                  ["create-issue", "add-comment"],
-                  ["read-file", "write-file"]
+                  ["*"],
+                  ["store_memory", "retrieve_memory"],
+                  ["create-issue", "add-comment"]
                 ]
               },
               "entrypoint": {
                 "type": "string",
-                "description": "Container entrypoint override (used with container field)",
-                "examples": ["/bin/sh", "node"]
+                "description": "Optional entrypoint override for container (equivalent to docker run --entrypoint)",
+                "examples": ["/bin/sh", "/custom/entrypoint.sh", "python"]
               },
               "mounts": {
                 "type": "array",
@@ -6342,7 +6343,8 @@
         },
         "registry": {
           "type": "string",
-          "description": "URI to the installation location when MCP is installed from a registry"
+          "description": "URI to the installation location when MCP is installed from a registry",
+          "examples": ["https://api.mcp.github.com/v0/servers/microsoft/markitdown"]
         },
         "command": {
           "type": "string",
@@ -6370,8 +6372,8 @@
         },
         "entrypoint": {
           "type": "string",
-          "description": "Container entrypoint override (used with container field)",
-          "examples": ["/bin/sh", "node"]
+          "description": "Optional entrypoint override for container (equivalent to docker run --entrypoint)",
+          "examples": ["/bin/sh", "/custom/entrypoint.sh", "python"]
         },
         "entrypointArgs": {
           "type": "array",
@@ -6428,10 +6430,11 @@
         },
         "allowed": {
           "type": "array",
-          "description": "List of allowed tool functions",
+          "description": "List of allowed tool names for this MCP server",
           "items": {
             "type": "string"
-          }
+          },
+          "examples": [["*"], ["store_memory", "retrieve_memory"], ["brave_web_search"]]
         }
       },
       "additionalProperties": false,
@@ -6490,7 +6493,8 @@
         },
         "registry": {
           "type": "string",
-          "description": "URI to the installation location when MCP is installed from a registry"
+          "description": "URI to the installation location when MCP is installed from a registry",
+          "examples": ["https://api.mcp.github.com/v0/servers/microsoft/markitdown"]
         },
         "url": {
           "type": "string",
@@ -6509,10 +6513,11 @@
         },
         "allowed": {
           "type": "array",
-          "description": "List of allowed tool functions",
+          "description": "List of allowed tool names for this MCP server",
           "items": {
             "type": "string"
-          }
+          },
+          "examples": [["*"], ["store_memory", "retrieve_memory"], ["brave_web_search"]]
         }
       },
       "required": ["url"],
