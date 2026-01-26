@@ -521,8 +521,7 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 			},
 			mcpTools: []string{"github", "playwright"},
 			options: JSONMCPConfigOptions{
-				ConfigPath:     "/tmp/test-config.json",
-				SkipValidation: true, // Skip validation in tests
+				ConfigPath: "/tmp/test-config.json",
 				Renderers: MCPToolRenderers{
 					RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 						yaml.WriteString("              \"github\": { \"test\": true }")
@@ -561,8 +560,7 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 			},
 			mcpTools: []string{"github", "cache-memory"},
 			options: JSONMCPConfigOptions{
-				ConfigPath:     "/tmp/filtered-config.json",
-				SkipValidation: true, // Skip validation in tests
+				ConfigPath: "/tmp/filtered-config.json",
 				Renderers: MCPToolRenderers{
 					RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 						yaml.WriteString("              \"github\": { \"filtered\": true }")
@@ -598,8 +596,7 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 			},
 			mcpTools: []string{"github"},
 			options: JSONMCPConfigOptions{
-				ConfigPath:     "/tmp/debug-config.json",
-				SkipValidation: true, // Skip validation in tests
+				ConfigPath: "/tmp/debug-config.json",
 				Renderers: MCPToolRenderers{
 					RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 						yaml.WriteString("              \"github\": {}\n")
@@ -629,8 +626,7 @@ func TestRenderJSONMCPConfig(t *testing.T) {
 			tools:    map[string]any{},
 			mcpTools: []string{"web-fetch"},
 			options: JSONMCPConfigOptions{
-				ConfigPath:     "/tmp/web-fetch-config.json",
-				SkipValidation: true, // Skip validation in tests
+				ConfigPath: "/tmp/web-fetch-config.json",
 				Renderers: MCPToolRenderers{
 					RenderGitHub:           func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {},
 					RenderPlaywright:       func(yaml *strings.Builder, playwrightTool any, isLast bool) {},
@@ -691,8 +687,7 @@ func TestRenderJSONMCPConfig_IsLastHandling(t *testing.T) {
 	var isLastValues []bool
 
 	options := JSONMCPConfigOptions{
-		ConfigPath:     "/tmp/test.json",
-		SkipValidation: true, // Skip validation in tests
+		ConfigPath: "/tmp/test.json",
 		Renderers: MCPToolRenderers{
 			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 				callOrder = append(callOrder, "github")
