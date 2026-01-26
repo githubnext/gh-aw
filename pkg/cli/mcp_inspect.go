@@ -250,7 +250,7 @@ func buildFrontmatterFromWorkflowData(workflowData *workflow.WorkflowData) map[s
 	frontmatter := make(map[string]any)
 
 	// Add tools section if present
-	if workflowData.Tools != nil && len(workflowData.Tools) > 0 {
+	if len(workflowData.Tools) > 0 {
 		frontmatter["tools"] = workflowData.Tools
 	}
 
