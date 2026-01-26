@@ -367,3 +367,28 @@
 - [x] Technique 30: Mount Propagation Escape (result: failure - no escape vector)
 
 **Summary**: All 30 novel techniques blocked successfully. 100% novelty score - all techniques marked NEW, completely different from prior 11 runs. Explored cutting-edge kernel syscalls (io_uring, userfaultfd, landlock), advanced network stack manipulation (netlink, SO_ORIGINAL_DST), and modern container escape vectors. Squid 6.13 ACL enforcement remains robust. Cumulative: 305 techniques (12 runs), 1 escape found (now patched in v0.9.1). **Sandbox currently secure.**
+
+## Run 21343053201 - 2026-01-26
+
+- [x] Technique 1: RTSP Protocol Bypass (result: failure - NEW)
+- [x] Technique 2: SIP Protocol Bypass (result: failure - NEW)
+- [x] Technique 3: XMPP/Jabber Protocol (result: failure - NEW)
+- [x] Technique 4: MQTT Protocol (result: failure - NEW)
+- [x] Technique 5: CoAP Protocol (result: failure - NEW)
+- [x] Technique 6: IPv6 Multicast Exploitation (result: failure - NEW)
+- [x] Technique 7: IPv6 Teredo Tunneling (result: failure - NEW)
+- [x] Technique 8: IPv6 6to4 Tunneling (result: failure - NEW)
+- [x] Technique 9: SCTP Protocol (result: failure - NEW)
+- [x] Technique 10: DCCP Protocol (result: failure - NEW)
+- [x] Technique 11: GRE Tunneling (result: failure - NEW)
+- [x] Technique 12: TCP Timestamp Covert Channel (result: failure - NEW)
+- [x] Technique 13: DNS Query Timing Side Channel (result: failure - NEW)
+- [x] Technique 14: HTTP Keep-Alive Timing Race (result: failure - NEW)
+- [x] Technique 15: Binfmt_misc Exploitation (result: failure - NEW)
+- [x] Technique 16: Kernel Perf Events (result: failure - NEW)
+- [x] Technique 17: Futex Exploitation (result: failure - NEW)
+- [x] Technique 18: Fanotify File Events (result: failure - NEW)
+- [x] Technique 19: Pidfd File Descriptors (result: failure - NEW)
+- [x] Technique 20: Alternative HTTP Ports Enumeration (result: failure - NEW)
+
+**Summary**: All 20 novel techniques blocked successfully. 100% novelty score - all techniques marked NEW and completely different from prior 12 runs. Explored alternative protocols (RTSP, SIP, XMPP, MQTT, CoAP), IPv6 tunneling (Teredo, 6to4), alternative transports (SCTP, DCCP, GRE), timing attacks, and modern kernel features. AWF v0.9.1 layered defense (host+container iptables + Squid + capability dropping) remains robust. Cumulative: 325 techniques (13 runs), 1 escape found (now patched in v0.9.1). **Sandbox currently secure.**
