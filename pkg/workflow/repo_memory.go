@@ -26,6 +26,12 @@ import (
 
 var repoMemoryLog = logger.New("workflow:repo_memory")
 
+// Pre-compiled regexes for performance (avoid recompilation in hot paths)
+var (
+	// branchPrefixValidPattern matches valid branch prefix characters (alphanumeric, hyphens, underscores)
+	branchPrefixValidPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+)
+
 // RepoMemoryConfig holds configuration for repo-memory functionality
 type RepoMemoryConfig struct {
 	BranchPrefix string            `yaml:"branch-prefix,omitempty"` // branch prefix (default: "memory")
@@ -74,8 +80,8 @@ func validateBranchPrefix(prefix string) error {
 	}
 
 	// Check for alphanumeric and branch-friendly characters (alphanumeric, hyphens, underscores)
-	validPattern := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
-	if !validPattern.MatchString(prefix) {
+	// Use pre-compiled regex from package level for performance
+	if !branchPrefixValidPattern.MatchString(prefix) {
 		return fmt.Errorf("branch-prefix must contain only alphanumeric characters, hyphens, and underscores, got '%s'", prefix)
 	}
 
