@@ -1,13 +1,23 @@
 ---
-on: 
+on:
   workflow_dispatch:
 name: Dev
 description: Build and test this project
-timeout-minutes: 15
+timeout-minutes: 30
 strict: false
 sandbox:
   agent: awf
 engine: copilot
+network:
+  allowed:
+    - defaults
+    - ghcr.io
+    - pkg-containers.githubusercontent.com
+    - proxy.golang.org
+    - sum.golang.org
+    - storage.googleapis.com
+    - objects.githubusercontent.com
+    - codeload.github.com
 
 permissions:
   contents: read
