@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -447,7 +448,7 @@ func attemptSetSecret(secretName, repoSlug string, verbose bool) error {
 }
 
 // InitRepository initializes the repository for agentic workflows
-func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine string, codespaceRepos []string, codespaceEnabled bool, completions bool, push bool, rootCmd CommandProvider) error {
+func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine string, codespaceRepos []string, codespaceEnabled bool, completions bool, push bool, createPullRequest bool, rootCmd CommandProvider) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
 
 	// If --push is enabled, ensure git status is clean before starting
@@ -456,6 +457,24 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		if err := checkCleanWorkingDirectory(verbose); err != nil {
 			initLog.Printf("Git status check failed: %v", err)
 			return fmt.Errorf("--push requires a clean working directory: %w", err)
+		}
+	}
+
+	// If creating a PR, check prerequisites
+	if createPullRequest {
+		// Check if GitHub CLI is available
+		if !isGHCLIAvailable() {
+			return fmt.Errorf("GitHub CLI (gh) is required for PR creation but not available")
+		}
+
+		// Check if we're in a git repository
+		if !isGitRepo() {
+			return fmt.Errorf("not in a git repository - PR creation requires a git repository")
+		}
+
+		// Check no other changes are present
+		if err := checkCleanWorkingDirectory(verbose); err != nil {
+			return fmt.Errorf("working directory is not clean: %w", err)
 		}
 	}
 
@@ -678,6 +697,60 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	}
 
 	initLog.Print("Repository initialization completed successfully")
+
+	// If --create-pull-request is enabled, create a PR with changes
+	if createPullRequest {
+		initLog.Print("PR creation enabled - preparing to create pull request")
+		fmt.Fprintln(os.Stderr, "")
+
+		// Get current branch for restoration later
+		currentBranch, err := getCurrentBranch()
+		if err != nil {
+			return fmt.Errorf("failed to get current branch: %w", err)
+		}
+
+		// Create temporary branch
+		branchName := fmt.Sprintf("init-agentic-workflows-%d", rand.Intn(9000)+1000)
+		if err := createAndSwitchBranch(branchName, verbose); err != nil {
+			return fmt.Errorf("failed to create branch %s: %w", branchName, err)
+		}
+
+		// Ensure we switch back to the original branch on any error
+		defer func() {
+			if err := switchBranch(currentBranch, verbose); err != nil {
+				initLog.Printf("Warning: failed to switch back to branch %s: %v", currentBranch, err)
+			}
+		}()
+
+		// Commit changes
+		commitMessage := "chore: initialize agentic workflows"
+		if err := commitChanges(commitMessage, verbose); err != nil {
+			// Check if it's the "no changes" case
+			hasChanges, checkErr := hasChangesToCommit()
+			if checkErr == nil && !hasChanges {
+				initLog.Print("No changes to commit")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No changes to commit - skipping PR creation"))
+				return nil
+			}
+			return fmt.Errorf("failed to commit changes: %w", err)
+		}
+
+		// Push branch
+		if err := pushBranch(branchName, verbose); err != nil {
+			return fmt.Errorf("failed to push branch %s: %w", branchName, err)
+		}
+
+		// Create PR
+		prTitle := "Initialize agentic workflows"
+		prBody := "This PR initializes the repository for agentic workflows."
+		if err := createPR(branchName, prTitle, prBody, verbose); err != nil {
+			return fmt.Errorf("failed to create pull request: %w", err)
+		}
+
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Pull request created successfully"))
+		fmt.Fprintln(os.Stderr, "")
+	}
 
 	// If --push is enabled, commit and push changes
 	if push {
