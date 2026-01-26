@@ -82,6 +82,36 @@ func LoadSpecs(rootDir string) ([]CampaignSpec, error) {
 			spec.Name = spec.ID
 		}
 
+		// Default state to "active" if not specified
+		if strings.TrimSpace(spec.State) == "" {
+			spec.State = "active"
+			log.Printf("Defaulted state to 'active' for campaign '%s'", spec.ID)
+		}
+
+		// Default tracker-label based on campaign ID if not specified
+		if strings.TrimSpace(spec.TrackerLabel) == "" {
+			spec.TrackerLabel = fmt.Sprintf("z_campaign_%s", spec.ID)
+			log.Printf("Defaulted tracker-label to '%s' for campaign '%s'", spec.TrackerLabel, spec.ID)
+		}
+
+		// Default memory-paths based on campaign ID if not specified
+		if len(spec.MemoryPaths) == 0 {
+			spec.MemoryPaths = []string{fmt.Sprintf("memory/campaigns/%s/**", spec.ID)}
+			log.Printf("Defaulted memory-paths to '%s' for campaign '%s'", spec.MemoryPaths[0], spec.ID)
+		}
+
+		// Default metrics-glob based on campaign ID if not specified
+		if strings.TrimSpace(spec.MetricsGlob) == "" {
+			spec.MetricsGlob = fmt.Sprintf("memory/campaigns/%s/metrics/*.json", spec.ID)
+			log.Printf("Defaulted metrics-glob to '%s' for campaign '%s'", spec.MetricsGlob, spec.ID)
+		}
+
+		// Default cursor-glob based on campaign ID if not specified
+		if strings.TrimSpace(spec.CursorGlob) == "" {
+			spec.CursorGlob = fmt.Sprintf("memory/campaigns/%s/cursor.json", spec.ID)
+			log.Printf("Defaulted cursor-glob to '%s' for campaign '%s'", spec.CursorGlob, spec.ID)
+		}
+
 		// Default allowed-repos to current repository if not specified
 		if len(spec.AllowedRepos) == 0 {
 			currentRepo, err := getCurrentRepository()
@@ -91,6 +121,12 @@ func LoadSpecs(rootDir string) ([]CampaignSpec, error) {
 				spec.AllowedRepos = []string{currentRepo}
 				log.Printf("Defaulted allowed-repos to current repository for campaign '%s': %s", spec.ID, currentRepo)
 			}
+		}
+
+		// Default discovery-repos to allowed-repos if not specified
+		if len(spec.DiscoveryRepos) == 0 && len(spec.DiscoveryOrgs) == 0 {
+			spec.DiscoveryRepos = spec.AllowedRepos
+			log.Printf("Defaulted discovery-repos to allowed-repos for campaign '%s'", spec.ID)
 		}
 
 		spec.ConfigPath = filepath.ToSlash(filepath.Join(".github", "workflows", name))
@@ -199,7 +235,7 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	buf.WriteString("By default, this campaign will target the current repository. To target additional repositories:\n\n")
 	buf.WriteString("1. **Add allowed-repos** (optional): Specify repositories to target\n")
 	buf.WriteString("2. **Define workflows**: List workflows to execute (e.g., `vulnerability-scanner`)\n")
-	buf.WriteString("3. **Add objective & KPIs**: Define measurable success criteria\n")
+	buf.WriteString("3. **Add narrative context**: Define campaign goals, workflows, and timeline in the markdown body\n")
 	buf.WriteString("4. **Set owners**: Specify who is responsible for this campaign\n")
 	buf.WriteString("5. **Compile**: Run `gh aw compile` to generate the orchestrator\n\n")
 	buf.WriteString("## Example Configuration\n\n")

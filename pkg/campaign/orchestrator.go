@@ -212,32 +212,6 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// Track whether we have any meaningful campaign details
 	hasDetails := false
 
-	if strings.TrimSpace(spec.Objective) != "" {
-		fmt.Fprintf(markdownBuilder, "- Objective: %s\n", strings.TrimSpace(spec.Objective))
-		hasDetails = true
-	}
-	if len(spec.KPIs) > 0 {
-		markdownBuilder.WriteString("- KPIs:\n")
-		for _, kpi := range spec.KPIs {
-			name := strings.TrimSpace(kpi.Name)
-			if name == "" {
-				name = "(unnamed)"
-			}
-			priority := strings.TrimSpace(kpi.Priority)
-			if priority == "" && len(spec.KPIs) == 1 {
-				priority = "primary"
-			}
-			unit := strings.TrimSpace(kpi.Unit)
-			if unit != "" {
-				unit = " " + unit
-			}
-			if priority != "" {
-				priority = " (" + priority + ")"
-			}
-			fmt.Fprintf(markdownBuilder, "  - %s%s: baseline %.4g → target %.4g over %d days%s\n", name, priority, kpi.Baseline, kpi.Target, kpi.TimeWindowDays, unit)
-		}
-		hasDetails = true
-	}
 	if len(spec.Workflows) > 0 {
 		markdownBuilder.WriteString("- Associated workflows: ")
 		markdownBuilder.WriteString(strings.Join(spec.Workflows, ", "))
@@ -309,14 +283,10 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	promptData := CampaignPromptData{
 		CampaignID:   spec.ID,
 		CampaignName: spec.Name,
-		Objective:    strings.TrimSpace(spec.Objective),
 		ProjectURL:   strings.TrimSpace(spec.ProjectURL),
 		CursorGlob:   strings.TrimSpace(spec.CursorGlob),
 		MetricsGlob:  strings.TrimSpace(spec.MetricsGlob),
 		Workflows:    spec.Workflows,
-	}
-	if len(spec.KPIs) > 0 {
-		promptData.KPIs = spec.KPIs
 	}
 	if spec.Governance != nil {
 		promptData.MaxDiscoveryItemsPerRun = spec.Governance.MaxDiscoveryItemsPerRun

@@ -5,47 +5,44 @@ banner:
   content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
 ---
 
-Campaign specs are YAML frontmatter configuration files at `.github/workflows/<id>.campaign.md`. The frontmatter defines campaign metadata, goals, workers, and governance. The body can contain narrative context.
+Campaign specs are YAML frontmatter configuration files at `.github/workflows/<id>.campaign.md`. The frontmatter defines pure configuration (id, project-url, workflows, governance, etc.), while the markdown body contains narrative context including objectives, KPIs, timelines, and strategy.
 
 ## Spec structure
+
+A minimal campaign spec requires only `id`, `project-url`, and `workflows`. Most fields have sensible defaults.
 
 ```yaml
 ---
 id: framework-upgrade
 name: "Framework Upgrade"
-description: "Move services to Framework vNext"
-state: active
-
 project-url: "https://github.com/orgs/ORG/projects/1"
-tracker-label: "z_campaign_framework-upgrade"
-
-discovery-repos:
-  - "myorg/service-a"
-  - "myorg/service-b"
-
-objective: "Upgrade all services to Framework vNext with zero downtime."
-kpis:
-  - id: services_upgraded
-    name: "Services upgraded"
-    priority: primary
-    unit: count
-    baseline: 0
-    target: 50
-    time-window-days: 30
-    direction: "increase"
 
 workflows:
   - framework-upgrade-scanner
 
 governance:
   max-project-updates-per-run: 10
-  max-discovery-items-per-run: 50
-
-owners:
-  - "platform-team"
 ---
 
-Additional narrative context about the campaign...
+# Framework Upgrade Campaign
+
+## Objective
+
+Upgrade all services to Framework vNext with zero downtime.
+
+## Key Performance Indicators (KPIs)
+
+### Primary KPI: Services Upgraded
+- **Baseline**: 0 services
+- **Target**: 50 services
+- **Time Window**: 30 days
+- **Direction**: Increase
+
+## Timeline
+
+- **Phase 1** (Weeks 1-2): Discovery and planning
+- **Phase 2** (Weeks 3-6): Incremental upgrades
+- **Phase 3** (Week 7+): Validation and monitoring
 ```
 
 ## Required fields
@@ -55,107 +52,109 @@ Additional narrative context about the campaign...
 **id** - Stable identifier for file naming and reporting
 - Format: lowercase letters, digits, hyphens only
 - Example: `security-audit-2025`
+- Auto-generates defaults for: tracker-label, memory-paths, metrics-glob, cursor-glob
 
 **name** - Human-friendly display name
 - Example: `"Security Audit 2025"`
+- Default: Uses `id` if not specified
 
 **project-url** - GitHub Project board URL for tracking
 - Format: `https://github.com/orgs/ORG/projects/N`
 - Example: `https://github.com/orgs/mycompany/projects/1`
 
-### Discovery scope
+**workflows** - Worker workflows that implement the campaign
+- Format: List of workflow IDs (file names without .md extension)
+- Example: `["security-scanner", "dependency-fixer"]`
 
-At least one of these is required when using `workflows` or `tracker-label`:
+## Fields with defaults
+
+Many fields have automatic defaults based on the campaign ID:
+
+**state** - Lifecycle stage
+- Default: `active`
+- Values: `planned`, `active`, `paused`, `completed`, `archived`
+
+**tracker-label** - Label for discovering worker outputs
+- Default: `z_campaign_{id}` (e.g., `z_campaign_security-audit`)
+- Can be customized if needed
+
+**memory-paths** - Where campaign writes repo-memory
+- Default: `["memory/campaigns/{id}/**"]`
+
+**metrics-glob** - Glob for JSON metrics snapshots
+- Default: `memory/campaigns/{id}/metrics/*.json`
+
+**cursor-glob** - Glob for durable cursor/checkpoint file
+- Default: `memory/campaigns/{id}/cursor.json`
+
+**allowed-repos** - Repositories campaign can operate on
+- Default: Current repository (where campaign is defined)
+
+**discovery-repos** - Repositories to search for worker outputs
+- Default: Same as `allowed-repos`
+
+### Discovery scope (optional)
+
+Override discovery scope when operating across multiple repositories:
 
 **discovery-repos** - Specific repositories to search
 - Format: List of `owner/repo` strings
 - Example: `["myorg/api", "myorg/web"]`
+- Default: Same as `allowed-repos` (current repository)
 
 **discovery-orgs** - Organizations to search (all repos)
 - Format: List of organization names
 - Example: `["myorg"]`
-
-## Common fields
-
-**objective** - One-sentence success definition
-- Example: `"Eliminate all critical security vulnerabilities"`
-
-**kpis** - Key performance indicators (1-3 maximum)
-- See [KPI specification](#kpi-specification) below
-
-**workflows** - Worker workflows to dispatch
-- Format: List of workflow IDs (file names without extension)
-- Example: `["security-scanner", "dependency-fixer"]`
-
-**tracker-label** - Label for discovering worker outputs
-- Format: `campaign:<id>`
-- Example: `campaign:security-audit`
-
-**state** - Lifecycle state
-- Values: `planned`, `active`, `paused`, `completed`, `archived`
-- Default: `planned`
-
-**governance** - Pacing and safety limits
-- See [Governance fields](#governance-fields) below
+- Overrides `discovery-repos` when specified
 
 ## Optional fields
 
 **description** - Brief campaign description
+- Provides context in listings and dashboards
 
 **version** - Spec format version
 - Default: `v1`
+- Usually not needed in specs
 
 **owners** - Primary human owners
 - Format: List of team or user names
+- Example: `["@security-team", "alice"]`
 
-**allowed-repos** - Repositories campaign can modify
-- Default: Repository containing the spec
-- Format: List of `owner/repo` strings
+**governance** - Pacing and safety limits
+- See [Governance fields](#governance-fields) below
 
 **allowed-orgs** - Organizations campaign can modify
 - Format: List of organization names
+- Alternative to specifying individual `allowed-repos`
 
 **project-github-token** - Custom token for Projects API
 - Format: Token expression like `${{ secrets.TOKEN_NAME }}`
 - Use when default `GITHUB_TOKEN` lacks Projects permissions
 
-## KPI specification
+## Markdown body content
 
-Each KPI requires these fields:
+The markdown body contains narrative context and goals. Include:
 
-```yaml
-kpis:
-  - id: vulnerabilities_fixed          # Stable identifier
-    name: "Vulnerabilities resolved"    # Display name
-    priority: primary                    # One KPI must be primary
-    unit: count                          # Measurement unit
-    baseline: 50                         # Starting value
-    target: 0                            # Goal value
-    time-window-days: 30                 # Measurement period
-    direction: "decrease"                # Improvement direction
-```
+**Objective** - Clear statement of what the campaign aims to achieve
+- Example: "Reduce all critical security vulnerabilities to zero"
+- Can include multiple paragraphs with context and rationale
 
-### Required KPI fields
+**Key Performance Indicators (KPIs)** - Measurable success metrics
+- Define 1 primary KPI + up to 2 supporting KPIs
+- Include baseline, target, time window, direction for each
+- Example format:
+  ```markdown
+  ### Primary KPI: Critical Vulnerabilities
+  - **Baseline**: 15 issues
+  - **Target**: 0 issues
+  - **Time Window**: 90 days
+  - **Direction**: Decrease
+  ```
 
-- **name** - Human-readable name
-- **baseline** - Starting value
-- **target** - Goal value
-- **time-window-days** - Rolling window (7, 14, 30, or 90 days)
-
-### Optional KPI fields
-
-- **id** - Stable identifier (defaults to sanitized name)
-- **priority** - `primary` or `supporting` (exactly one primary)
-- **unit** - Measurement unit (`count`, `percent`, `days`, `hours`)
-- **direction** - `increase` or `decrease`
-- **source** - Signal source (`ci`, `pull_requests`, `code_security`, `custom`)
-
-### KPI guidelines
-
-- Define 1 primary KPI + up to 2 supporting KPIs (3 maximum)
-- Always pair `objective` with `kpis` (define both or neither)
-- Use concrete, measurable targets
-- Choose realistic time windows
+**Timeline** - Campaign phases and milestones
+**Worker Workflows** - Descriptions of automated workflows
+**Success Criteria** - Concrete conditions for completion
+**Risk Management** - Mitigation strategies and approvals
 
 ## Governance fields
 
@@ -236,46 +235,51 @@ gh aw campaign validate
 
 Common validation errors:
 
-- Missing required fields (`id`, `name`, `project-url`)
-- Missing discovery scope when using `workflows` or `tracker-label`
-- Invalid KPI configuration (no primary, too many KPIs)
+- Missing required fields (`id`, `project-url`, `workflows`)
 - Invalid `state` value
 - Malformed URLs or identifiers
 
-## Example: Security audit campaign
+## Minimal example
+
+The simplest possible campaign:
 
 ```yaml
 ---
 id: security-audit-q1
-version: "v1"
+name: "Security Audit Q1 2025"
+project-url: "https://github.com/orgs/myorg/projects/5"
+
+workflows:
+  - security-scanner
+  - dependency-updater
+---
+
+# Security Audit Q1 2025 Campaign
+
+Document your objectives, KPIs, timeline, and strategy here...
+```
+
+This automatically gets:
+- `state: active`
+- `tracker-label: z_campaign_security-audit-q1`
+- `memory-paths: ["memory/campaigns/security-audit-q1/**"]`
+- `metrics-glob: memory/campaigns/security-audit-q1/metrics/*.json`
+- `cursor-glob: memory/campaigns/security-audit-q1/cursor.json`
+- `allowed-repos` and `discovery-repos`: current repository
+
+## Full example
+
+With governance and multi-org scope:
+
+```yaml
+---
+id: security-audit-q1
 name: "Security Audit Q1 2025"
 description: "Quarterly security review and remediation"
-state: active
-
 project-url: "https://github.com/orgs/myorg/projects/5"
-tracker-label: "campaign:security-audit-q1"
 
 discovery-orgs:
   - "myorg"
-
-objective: "Resolve all high and critical security vulnerabilities"
-kpis:
-  - id: critical_vulns
-    name: "Critical vulnerabilities"
-    priority: primary
-    unit: count
-    baseline: 15
-    target: 0
-    time-window-days: 90
-    direction: "decrease"
-  - id: mttr
-    name: "Mean time to resolution"
-    priority: supporting
-    unit: days
-    baseline: 14
-    target: 3
-    time-window-days: 30
-    direction: "decrease"
 
 workflows:
   - security-scanner
@@ -290,8 +294,29 @@ owners:
   - "security-team"
 ---
 
-This campaign runs weekly to scan for vulnerabilities and track remediation.
-Workers create issues with severity labels and automated fix PRs where possible.
+# Security Audit Q1 2025 Campaign
+
+## Objective
+
+Resolve all high and critical security vulnerabilities across the organization.
+
+## Key Performance Indicators (KPIs)
+
+### Primary KPI: Critical Vulnerabilities
+- **Baseline**: 15 vulnerabilities
+- **Target**: 0 vulnerabilities
+- **Time Window**: 90 days
+- **Direction**: Decrease
+
+### Supporting KPI: Mean Time to Resolution
+- **Baseline**: 14 days
+- **Target**: 3 days
+- **Time Window**: 30 days
+- **Direction**: Decrease
+
+## Timeline
+
+This campaign runs weekly to scan for vulnerabilities and track remediation. Workers create issues with severity labels and automated fix PRs where possible.
 ```
 
 ## Further reading

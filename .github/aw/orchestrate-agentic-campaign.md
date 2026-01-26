@@ -128,8 +128,6 @@ and synchronizing campaign state into a GitHub Project board.
      body: |
        ## Campaign Overview
        
-       {{ if .Objective }}**Objective**: {{.Objective}}{{ end }}
-       
        This Epic issue tracks the overall progress of the campaign. All work items are sub-issues of this Epic.
        
        **Campaign Details:**
@@ -242,7 +240,7 @@ Every campaign run MUST create a status update using `create-project-status-upda
 
 - **Most Important Findings**: Highlight the 2-3 most critical discoveries, insights, or blockers from this run
 - **What Was Learned**: Document key learnings, patterns observed, or insights gained during this run
-- **KPI Trends**: Report progress on EACH campaign KPI{{ if .KPIs }} ({{ range $i, $kpi := .KPIs }}{{if $i}}, {{end}}{{ $kpi.Name }}{{end}}){{ end }} with baseline → current → target format, including direction and velocity
+- **Campaign Progress**: Report on campaign metrics and trends with baseline → current → target format, including direction and velocity
 - **Campaign Summary**: Tasks completed, in progress, blocked, and overall completion percentage
 - **Next Steps**: Clear action items and priorities for the next run
 
@@ -250,13 +248,6 @@ Every campaign run MUST create a status update using `create-project-status-upda
 - Set appropriate status: ON_TRACK, AT_RISK, OFF_TRACK, or COMPLETE
 - Use today's date for start_date and target_date (or appropriate future date for target)
 - Body must be comprehensive yet concise (target: 200-400 words)
-
-{{ if .KPIs }}
-**Campaign KPIs to Report:**
-{{ range .KPIs }}
-- **{{ .Name }}**{{ if .Priority }} ({{ .Priority }}){{ end }}: baseline {{ .Baseline }}{{ if .Unit }} {{ .Unit }}{{ end }} → target {{ .Target }}{{ if .Unit }} {{ .Unit }}{{ end }} over {{ .TimeWindowDays }} days{{ if .Direction }} ({{ .Direction }}){{ end }}
-{{ end }}
-{{ end }}
 
 Example status update:
 ```yaml
@@ -284,19 +275,19 @@ create-project-status-update:
     - Documentation updates tied to code changes have higher accuracy and completeness
     - Users report fewer issues when examples include error handling patterns
 
-    ## KPI Trends
+    ## Campaign Progress
 
-    **Documentation Coverage** (Primary KPI):
+    **Documentation Coverage** (Primary Metric):
     - Baseline: 85% → Current: 88% → Target: 95%
     - Direction: ↑ Increasing (+3% this week, +1% velocity/week)
     - Status: ON TRACK - At current velocity, will reach 95% in 7 weeks
 
-    **Accessibility Score** (Supporting KPI):
+    **Accessibility Score** (Supporting Metric):
     - Baseline: 90% → Current: 91% → Target: 98%
     - Direction: ↑ Increasing (+1% this month)
     - Status: AT RISK - Slower progress than expected, may need dedicated focus
 
-    **User-Reported Issues** (Supporting KPI):
+    **User-Reported Issues** (Supporting Metric):
     - Baseline: 15/month → Current: 12/month → Target: 5/month
     - Direction: ↓ Decreasing (-3 this month, -20% velocity)
     - Status: ON TRACK - Trending toward target
