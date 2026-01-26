@@ -12,11 +12,13 @@
 // # Implementation
 //
 // This spinner uses idiomatic Bubble Tea patterns with tea.NewProgram() for proper
-// message handling and rendering pipeline integration. This approach:
-//   - Simplified state management (single enabled flag, no running state)
-//   - No mutex required (Bubble Tea handles concurrency via message passing)
-//   - Leverages Bubble Tea's framerate optimization
-//   - Provides standard architecture consistent with other console components
+// message handling and rendering pipeline integration. It includes thread-safe
+// lifecycle management:
+//   - Thread-safe start/stop tracking with mutex protection
+//   - Safe to call Stop/StopWithMessage before Start (no-op or message-only)
+//   - Prevents multiple concurrent Start calls
+//   - No deadlock when stopping before goroutine initializes
+//   - Leverages Bubble Tea's message passing for updates
 //
 // # Usage Example
 //
@@ -37,6 +39,7 @@ package console
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
@@ -77,6 +80,8 @@ func (m spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 type SpinnerWrapper struct {
 	program *tea.Program
 	enabled bool
+	running bool
+	mu      sync.Mutex
 }
 
 // NewSpinner creates a new spinner with the given message using MiniDot style.
@@ -97,27 +102,58 @@ func NewSpinner(message string) *SpinnerWrapper {
 
 func (s *SpinnerWrapper) Start() {
 	if s.enabled && s.program != nil {
+		s.mu.Lock()
+		if s.running {
+			s.mu.Unlock()
+			return
+		}
+		s.running = true
+		s.mu.Unlock()
 		go func() { _, _ = s.program.Run() }()
 	}
 }
 
 func (s *SpinnerWrapper) Stop() {
 	if s.enabled && s.program != nil {
-		s.program.Quit()
-		fmt.Fprint(os.Stderr, "\r\033[K")
+		s.mu.Lock()
+		if s.running {
+			s.running = false
+			s.mu.Unlock()
+			s.program.Quit()
+			fmt.Fprint(os.Stderr, "\r\033[K")
+		} else {
+			s.mu.Unlock()
+		}
 	}
 }
 
 func (s *SpinnerWrapper) StopWithMessage(msg string) {
 	if s.enabled && s.program != nil {
-		s.program.Quit()
-		fmt.Fprintf(os.Stderr, "\r\033[K%s\n", msg)
+		s.mu.Lock()
+		if s.running {
+			s.running = false
+			s.mu.Unlock()
+			s.program.Quit()
+			fmt.Fprintf(os.Stderr, "\r\033[K%s\n", msg)
+		} else {
+			s.mu.Unlock()
+			// Still print the message even if spinner wasn't running
+			fmt.Fprintf(os.Stderr, "%s\n", msg)
+		}
+	} else if msg != "" {
+		// If spinner is disabled, still print the message for user feedback
+		fmt.Fprintf(os.Stderr, "%s\n", msg)
 	}
 }
 
 func (s *SpinnerWrapper) UpdateMessage(message string) {
 	if s.enabled && s.program != nil {
-		s.program.Send(updateMessageMsg(message))
+		s.mu.Lock()
+		running := s.running
+		s.mu.Unlock()
+		if running {
+			s.program.Send(updateMessageMsg(message))
+		}
 	}
 }
 
