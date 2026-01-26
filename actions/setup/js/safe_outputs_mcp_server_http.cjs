@@ -1,6 +1,12 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createLogger } = require("./mcp_logger.cjs");
+const moduleLogger = createLogger("safe_outputs_mcp_server_http");
+
+// Log immediately at module load time (before any requires)
+moduleLogger.debug("Module is being loaded");
+
 /**
  * Safe Outputs MCP Server with HTTP Transport
  *
@@ -19,14 +25,23 @@
  */
 
 const http = require("http");
+moduleLogger.debug("Loaded http");
 const { randomUUID } = require("crypto");
+moduleLogger.debug("Loaded crypto");
 const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
-const { createLogger } = require("./mcp_logger.cjs");
+moduleLogger.debug("Loaded mcp_http_transport.cjs");
+const { createLogger: createMCPLogger } = require("./mcp_logger.cjs");
+moduleLogger.debug("Loaded mcp_logger.cjs");
 const { bootstrapSafeOutputsServer, cleanupConfigFile } = require("./safe_outputs_bootstrap.cjs");
+moduleLogger.debug("Loaded safe_outputs_bootstrap.cjs");
 const { createAppendFunction } = require("./safe_outputs_append.cjs");
+moduleLogger.debug("Loaded safe_outputs_append.cjs");
 const { createHandlers } = require("./safe_outputs_handlers.cjs");
+moduleLogger.debug("Loaded safe_outputs_handlers.cjs");
 const { attachHandlers, registerPredefinedTools, registerDynamicTools } = require("./safe_outputs_tools_loader.cjs");
+moduleLogger.debug("Loaded safe_outputs_tools_loader.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+moduleLogger.debug("All modules loaded successfully");
 
 /**
  * Create and configure the MCP server with tools
@@ -36,7 +51,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  */
 function createMCPServer(options = {}) {
   // Create logger early
-  const logger = createLogger("safeoutputs");
+  const logger = createMCPLogger("safeoutputs");
 
   logger.debug(`=== Creating MCP Server ===`);
 
@@ -176,8 +191,9 @@ async function startHttpServer(options = {}) {
   const port = options.port || 3000;
   const stateless = options.stateless || false;
 
-  const logger = createLogger("safe-outputs-startup");
+  const logger = createMCPLogger("safe-outputs-startup");
 
+  logger.debug(`startHttpServer called with port=${port}, stateless=${stateless}`);
   logger.debug(`=== Starting Safe Outputs MCP HTTP Server ===`);
   logger.debug(`Port: ${port}`);
   logger.debug(`Mode: ${stateless ? "stateless" : "stateful"}`);
@@ -185,6 +201,7 @@ async function startHttpServer(options = {}) {
 
   // Create the MCP server
   try {
+    logger.debug(`About to call createMCPServer...`);
     const { server, config, logger: mcpLogger } = createMCPServer({ logDir: options.logDir });
 
     // Use the MCP logger for subsequent messages
@@ -206,7 +223,9 @@ async function startHttpServer(options = {}) {
 
     // Connect server to transport
     logger.debug(`Connecting server to transport...`);
+    logger.debug(`About to call server.connect(transport)...`);
     await server.connect(transport);
+    logger.debug(`server.connect(transport) completed successfully`);
     logger.debug(`Server connected to transport successfully`);
 
     // Create HTTP server

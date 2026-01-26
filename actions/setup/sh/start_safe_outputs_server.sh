@@ -87,9 +87,9 @@ node mcp-server.cjs >> /tmp/gh-aw/mcp-logs/safeoutputs/server.log 2>&1 &
 SERVER_PID=$!
 echo "Started safe-outputs MCP server with PID $SERVER_PID"
 
-# Wait for server to be ready (max 10 seconds)
+# Wait for server to be ready (max 60 seconds)
 echo "Waiting for server to become ready..."
-for i in {1..10}; do
+for i in {1..60}; do
   # Check if process is still running
   if ! kill -0 $SERVER_PID 2>/dev/null; then
     echo "ERROR: Server process $SERVER_PID has died"
@@ -100,12 +100,12 @@ for i in {1..10}; do
   
   # Check if server is responding
   if curl -s -f "http://localhost:$GH_AW_SAFE_OUTPUTS_PORT/health" > /dev/null 2>&1; then
-    echo "Safe Outputs MCP server is ready (attempt $i/10)"
+    echo "Safe Outputs MCP server is ready (attempt $i/60)"
     break
   fi
   
-  if [ "$i" -eq 10 ]; then
-    echo "ERROR: Safe Outputs MCP server failed to start after 10 seconds"
+  if [ "$i" -eq 60 ]; then
+    echo "ERROR: Safe Outputs MCP server failed to start after 60 seconds"
     echo "Process status: $(pgrep -f 'mcp-server.cjs' || echo 'not running')"
     echo "Server log contents:"
     cat /tmp/gh-aw/mcp-logs/safeoutputs/server.log
@@ -114,7 +114,7 @@ for i in {1..10}; do
     exit 1
   fi
   
-  echo "Waiting for server... (attempt $i/10)"
+  echo "Waiting for server... (attempt $i/60)"
   sleep 1
 done
 
