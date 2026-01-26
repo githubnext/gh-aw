@@ -6,6 +6,10 @@ inputs:
   version:
     description: 'Version to install (release tag like v0.37.18)'
     required: true
+  github-token:
+    description: 'GitHub token for authentication (used for gh CLI and API calls)'
+    required: false
+    default: ${{ github.token }}
 
 outputs:
   installed-version:
@@ -18,6 +22,7 @@ runs:
       shell: bash
       env:
         INPUT_VERSION: ${{ inputs.version }}
+        GH_TOKEN: ${{ inputs.github-token }}
       run: ${{ github.action_path }}/install.sh
 
 branding:
