@@ -11,6 +11,8 @@ In this guide you will add the automated [**Daily Status Report**](https://githu
 
 Remember the aim here is _automated AI_: to install something that will run _automatically_ every day, in the context of your repository, and create a fresh status report issue in your repository without any further manual intervention.
 
+There are hundreds of other ways to use GitHub Agentic Workflows too, which you can explore in [Peli's Agent Factory](https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/). This workflow is just the start of what's possible, to get you familiar with the installation and setup process.
+
 ## Prerequisites
 
 Before installing, ensure you have:
