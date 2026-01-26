@@ -1,6 +1,12 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createLogger } = require("./mcp_logger.cjs");
+const moduleLogger = createLogger("mcp_http_transport");
+
+// Log immediately at module load time
+moduleLogger.debug("Module is being loaded");
+
 /**
  * MCP HTTP Transport Implementation
  *
@@ -74,9 +80,14 @@ class MCPServer {
    * @param {any} transport - Transport instance (must have setServer and start methods)
    */
   async connect(transport) {
+    const logger = createLogger("MCPServer");
+    logger.debug("Starting connect...");
     this.transport = transport;
+    logger.debug("Set transport");
     transport.setServer(this);
+    logger.debug("Called setServer");
     await transport.start();
+    logger.debug("Transport.start() completed");
   }
 
   /**
@@ -126,10 +137,13 @@ class MCPHTTPTransport {
    * Start the transport
    */
   async start() {
+    const logger = createLogger("MCPHTTPTransport");
+    logger.debug(`Called, started=${this.started}`);
     if (this.started) {
       throw new Error("Transport already started");
     }
     this.started = true;
+    logger.debug("Set started=true");
   }
 
   /**
