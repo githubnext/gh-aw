@@ -897,10 +897,6 @@ jobs:
           
           This workflow orchestrates the 'Security Alert Burndown' campaign.
           
-          - Objective: Systematically reduce security alerts (code scanning, Dependabot, secret scanning) to zero critical issues and fewer than 5 high-severity issues
-          - KPIs:
-            - Critical Security Alerts (primary): baseline 5 → target 0 over 90 days alerts
-            - High-Severity Alerts (supporting): baseline 15 → target 5 over 90 days alerts
           - Associated workflows: code-scanning-fixer, security-fix-pr, dependabot-bundler, secret-scanning-triage
           - Memory paths: memory/campaigns/security-alert-burndown/**
           - Metrics glob: `memory/campaigns/security-alert-burndown/metrics/*.json`
@@ -1339,8 +1335,6 @@ jobs:
                body: |
                  ## Campaign Overview
                  
-                 **Objective**: Systematically reduce security alerts (code scanning, Dependabot, secret scanning) to zero critical issues and fewer than 5 high-severity issues
-                 
                  This Epic issue tracks the overall progress of the campaign. All work items are sub-issues of this Epic.
                  
                  **Campaign Details:**
@@ -1377,8 +1371,6 @@ jobs:
           
           4) **Record the Epic issue number** in repo-memory for reference (e.g., in cursor file or metadata).
           
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           **Note:** This step typically runs only on the first orchestrator execution. On subsequent runs, verify the Epic exists and is on the board, but do not recreate it.
           
           ---
@@ -1389,6 +1381,8 @@ jobs:
           
           1) Read the precomputed discovery manifest: `./.gh-aw/campaign.discovery.json`
              - This manifest contains all discovered worker outputs with normalized metadata
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
              - Schema version: v1
              - Fields: campaign_id, generated_at, discovery (total_items, cursor info), summary (counts), items (array of normalized items)
           
@@ -1455,7 +1449,7 @@ jobs:
           
           - **Most Important Findings**: Highlight the 2-3 most critical discoveries, insights, or blockers from this run
           - **What Was Learned**: Document key learnings, patterns observed, or insights gained during this run
-          - **KPI Trends**: Report progress on EACH campaign KPI (Critical Security Alerts, High-Severity Alerts) with baseline → current → target format, including direction and velocity
+          - **Campaign Progress**: Report on campaign metrics and trends with baseline → current → target format, including direction and velocity
           - **Campaign Summary**: Tasks completed, in progress, blocked, and overall completion percentage
           - **Next Steps**: Clear action items and priorities for the next run
           
@@ -1463,15 +1457,6 @@ jobs:
           - Set appropriate status: ON_TRACK, AT_RISK, OFF_TRACK, or COMPLETE
           - Use today's date for start_date and target_date (or appropriate future date for target)
           - Body must be comprehensive yet concise (target: 200-400 words)
-          
-          
-          **Campaign KPIs to Report:**
-          
-          - **Critical Security Alerts** (primary): baseline 5 alerts → target 0 alerts over 90 days
-          
-          - **High-Severity Alerts** (supporting): baseline 15 alerts → target 5 alerts over 90 days
-          
-          
           
           Example status update:
           ```yaml
@@ -1499,19 +1484,19 @@ jobs:
               - Documentation updates tied to code changes have higher accuracy and completeness
               - Users report fewer issues when examples include error handling patterns
           
-              ## KPI Trends
+              ## Campaign Progress
           
-              **Documentation Coverage** (Primary KPI):
+              **Documentation Coverage** (Primary Metric):
               - Baseline: 85% → Current: 88% → Target: 95%
               - Direction: ↑ Increasing (+3% this week, +1% velocity/week)
               - Status: ON TRACK - At current velocity, will reach 95% in 7 weeks
           
-              **Accessibility Score** (Supporting KPI):
+              **Accessibility Score** (Supporting Metric):
               - Baseline: 90% → Current: 91% → Target: 98%
               - Direction: ↑ Increasing (+1% this month)
               - Status: AT RISK - Slower progress than expected, may need dedicated focus
           
-              **User-Reported Issues** (Supporting KPI):
+              **User-Reported Issues** (Supporting Metric):
               - Baseline: 15/month → Current: 12/month → Target: 5/month
               - Direction: ↓ Decreasing (-3 this month, -20% velocity)
               - Status: ON TRACK - Trending toward target
