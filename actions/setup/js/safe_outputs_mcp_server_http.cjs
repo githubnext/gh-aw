@@ -1,8 +1,11 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createLogger } = require("./mcp_logger.cjs");
+const moduleLogger = createLogger("safe_outputs_mcp_server_http");
+
 // Log immediately at module load time (before any requires)
-process.stderr.write("[safe_outputs_mcp_server_http] Module is being loaded\n");
+moduleLogger.debug("Module is being loaded");
 
 /**
  * Safe Outputs MCP Server with HTTP Transport
@@ -22,23 +25,23 @@ process.stderr.write("[safe_outputs_mcp_server_http] Module is being loaded\n");
  */
 
 const http = require("http");
-process.stderr.write("[safe_outputs_mcp_server_http] Loaded http\n");
+moduleLogger.debug("Loaded http");
 const { randomUUID } = require("crypto");
-process.stderr.write("[safe_outputs_mcp_server_http] Loaded crypto\n");
+moduleLogger.debug("Loaded crypto");
 const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
-process.stderr.write("[safe_outputs_mcp_server_http] Loaded mcp_http_transport.cjs\n");
-const { createLogger } = require("./mcp_logger.cjs");
-process.stderr.write("[safe_outputs_mcp_server_http] Loaded mcp_logger.cjs\n");
+moduleLogger.debug("Loaded mcp_http_transport.cjs");
+const { createLogger: createMCPLogger } = require("./mcp_logger.cjs");
+moduleLogger.debug("Loaded mcp_logger.cjs");
 const { bootstrapSafeOutputsServer, cleanupConfigFile } = require("./safe_outputs_bootstrap.cjs");
-process.stderr.write("[safe_outputs_mcp_server_http] Loaded safe_outputs_bootstrap.cjs\n");
+moduleLogger.debug("Loaded safe_outputs_bootstrap.cjs");
 const { createAppendFunction } = require("./safe_outputs_append.cjs");
-process.stderr.write("[safe_outputs_mcp_server_http] Loaded safe_outputs_append.cjs\n");
+moduleLogger.debug("Loaded safe_outputs_append.cjs");
 const { createHandlers } = require("./safe_outputs_handlers.cjs");
-process.stderr.write("[safe_outputs_mcp_server_http] Loaded safe_outputs_handlers.cjs\n");
+moduleLogger.debug("Loaded safe_outputs_handlers.cjs");
 const { attachHandlers, registerPredefinedTools, registerDynamicTools } = require("./safe_outputs_tools_loader.cjs");
-process.stderr.write("[safe_outputs_mcp_server_http] Loaded safe_outputs_tools_loader.cjs\n");
+moduleLogger.debug("Loaded safe_outputs_tools_loader.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-process.stderr.write("[safe_outputs_mcp_server_http] All modules loaded successfully\n");
+moduleLogger.debug("All modules loaded successfully");
 
 /**
  * Create and configure the MCP server with tools
@@ -48,7 +51,7 @@ process.stderr.write("[safe_outputs_mcp_server_http] All modules loaded successf
  */
 function createMCPServer(options = {}) {
   // Create logger early
-  const logger = createLogger("safeoutputs");
+  const logger = createMCPLogger("safeoutputs");
 
   logger.debug(`=== Creating MCP Server ===`);
 
@@ -188,11 +191,9 @@ async function startHttpServer(options = {}) {
   const port = options.port || 3000;
   const stateless = options.stateless || false;
 
-  // Add immediate synchronous logging
-  process.stderr.write(`[safe-outputs-startup] startHttpServer called with port=${port}, stateless=${stateless}\n`);
+  const logger = createMCPLogger("safe-outputs-startup");
 
-  const logger = createLogger("safe-outputs-startup");
-
+  logger.debug(`startHttpServer called with port=${port}, stateless=${stateless}`);
   logger.debug(`=== Starting Safe Outputs MCP HTTP Server ===`);
   logger.debug(`Port: ${port}`);
   logger.debug(`Mode: ${stateless ? "stateless" : "stateful"}`);
@@ -222,9 +223,9 @@ async function startHttpServer(options = {}) {
 
     // Connect server to transport
     logger.debug(`Connecting server to transport...`);
-    process.stderr.write(`[safe-outputs-startup] About to call server.connect(transport)...\n`);
+    logger.debug(`About to call server.connect(transport)...`);
     await server.connect(transport);
-    process.stderr.write(`[safe-outputs-startup] server.connect(transport) completed successfully\n`);
+    logger.debug(`server.connect(transport) completed successfully`);
     logger.debug(`Server connected to transport successfully`);
 
     // Create HTTP server
