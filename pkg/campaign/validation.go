@@ -338,10 +338,10 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 	}
 
 	validationSpec := CampaignSpecForValidation{
-		ID:          spec.ID,
-		Name:        spec.Name,
-		Description: spec.Description,
-		ProjectURL:  spec.ProjectURL,
+		ID:                 spec.ID,
+		Name:               spec.Name,
+		Description:        spec.Description,
+		ProjectURL:         spec.ProjectURL,
 		ProjectGitHubToken: spec.ProjectGitHubToken,
 		Version:            spec.Version,
 		Workflows:          spec.Workflows,

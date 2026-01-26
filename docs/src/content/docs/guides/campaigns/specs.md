@@ -5,7 +5,7 @@ banner:
   content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
 ---
 
-Campaign specs are YAML frontmatter configuration files at `.github/workflows/<id>.campaign.md`. The frontmatter defines campaign metadata, goals, workers, and governance. The body can contain narrative context.
+Campaign specs are YAML frontmatter configuration files at `.github/workflows/<id>.campaign.md`. The frontmatter defines pure configuration (id, project-url, workflows, governance, etc.), while the markdown body contains narrative context including objectives, KPIs, timelines, and strategy.
 
 ## Spec structure
 
@@ -23,17 +23,6 @@ discovery-repos:
   - "myorg/service-a"
   - "myorg/service-b"
 
-objective: "Upgrade all services to Framework vNext with zero downtime."
-kpis:
-  - id: services_upgraded
-    name: "Services upgraded"
-    priority: primary
-    unit: count
-    baseline: 0
-    target: 50
-    time-window-days: 30
-    direction: "increase"
-
 workflows:
   - framework-upgrade-scanner
 
@@ -45,7 +34,30 @@ owners:
   - "platform-team"
 ---
 
-Additional narrative context about the campaign...
+# Framework Upgrade Campaign
+
+## Objective
+
+Upgrade all services to Framework vNext with zero downtime.
+
+## Key Performance Indicators (KPIs)
+
+### Primary KPI: Services Upgraded
+- **Baseline**: 0 services
+- **Target**: 50 services
+- **Time Window**: 30 days
+- **Direction**: Increase
+
+## Timeline
+
+- **Phase 1** (Weeks 1-2): Discovery and planning
+- **Phase 2** (Weeks 3-6): Incremental upgrades
+- **Phase 3** (Week 7+): Validation and monitoring
+
+## Worker Workflows
+
+### framework-upgrade-scanner
+Scans repositories to identify services that need upgrading...
 ```
 
 ## Required fields
@@ -76,12 +88,6 @@ At least one of these is required when using `workflows` or `tracker-label`:
 - Example: `["myorg"]`
 
 ## Common fields
-
-**objective** - One-sentence success definition
-- Example: `"Eliminate all critical security vulnerabilities"`
-
-**kpis** - Key performance indicators (1-3 maximum)
-- See [KPI specification](#kpi-specification) below
 
 **workflows** - Worker workflows to dispatch
 - Format: List of workflow IDs (file names without extension)
@@ -119,43 +125,30 @@ At least one of these is required when using `workflows` or `tracker-label`:
 - Format: Token expression like `${{ secrets.TOKEN_NAME }}`
 - Use when default `GITHUB_TOKEN` lacks Projects permissions
 
-## KPI specification
+## Markdown body content
 
-Each KPI requires these fields:
+The markdown body contains narrative context and goals. Include:
 
-```yaml
-kpis:
-  - id: vulnerabilities_fixed          # Stable identifier
-    name: "Vulnerabilities resolved"    # Display name
-    priority: primary                    # One KPI must be primary
-    unit: count                          # Measurement unit
-    baseline: 50                         # Starting value
-    target: 0                            # Goal value
-    time-window-days: 30                 # Measurement period
-    direction: "decrease"                # Improvement direction
-```
+**Objective** - Clear statement of what the campaign aims to achieve
+- Example: "Reduce all critical security vulnerabilities to zero"
+- Can include multiple paragraphs with context and rationale
 
-### Required KPI fields
+**Key Performance Indicators (KPIs)** - Measurable success metrics
+- Define 1 primary KPI + up to 2 supporting KPIs
+- Include baseline, target, time window, direction for each
+- Example format:
+  ```markdown
+  ### Primary KPI: Critical Vulnerabilities
+  - **Baseline**: 15 issues
+  - **Target**: 0 issues
+  - **Time Window**: 90 days
+  - **Direction**: Decrease
+  ```
 
-- **name** - Human-readable name
-- **baseline** - Starting value
-- **target** - Goal value
-- **time-window-days** - Rolling window (7, 14, 30, or 90 days)
-
-### Optional KPI fields
-
-- **id** - Stable identifier (defaults to sanitized name)
-- **priority** - `primary` or `supporting` (exactly one primary)
-- **unit** - Measurement unit (`count`, `percent`, `days`, `hours`)
-- **direction** - `increase` or `decrease`
-- **source** - Signal source (`ci`, `pull_requests`, `code_security`, `custom`)
-
-### KPI guidelines
-
-- Define 1 primary KPI + up to 2 supporting KPIs (3 maximum)
-- Always pair `objective` with `kpis` (define both or neither)
-- Use concrete, measurable targets
-- Choose realistic time windows
+**Timeline** - Campaign phases and milestones
+**Worker Workflows** - Descriptions of automated workflows
+**Success Criteria** - Concrete conditions for completion
+**Risk Management** - Mitigation strategies and approvals
 
 ## Governance fields
 
@@ -238,7 +231,6 @@ Common validation errors:
 
 - Missing required fields (`id`, `name`, `project-url`)
 - Missing discovery scope when using `workflows` or `tracker-label`
-- Invalid KPI configuration (no primary, too many KPIs)
 - Invalid `state` value
 - Malformed URLs or identifiers
 
@@ -258,25 +250,6 @@ tracker-label: "campaign:security-audit-q1"
 discovery-orgs:
   - "myorg"
 
-objective: "Resolve all high and critical security vulnerabilities"
-kpis:
-  - id: critical_vulns
-    name: "Critical vulnerabilities"
-    priority: primary
-    unit: count
-    baseline: 15
-    target: 0
-    time-window-days: 90
-    direction: "decrease"
-  - id: mttr
-    name: "Mean time to resolution"
-    priority: supporting
-    unit: days
-    baseline: 14
-    target: 3
-    time-window-days: 30
-    direction: "decrease"
-
 workflows:
   - security-scanner
   - dependency-updater
@@ -290,8 +263,29 @@ owners:
   - "security-team"
 ---
 
-This campaign runs weekly to scan for vulnerabilities and track remediation.
-Workers create issues with severity labels and automated fix PRs where possible.
+# Security Audit Q1 2025 Campaign
+
+## Objective
+
+Resolve all high and critical security vulnerabilities across the organization.
+
+## Key Performance Indicators (KPIs)
+
+### Primary KPI: Critical Vulnerabilities
+- **Baseline**: 15 vulnerabilities
+- **Target**: 0 vulnerabilities
+- **Time Window**: 90 days
+- **Direction**: Decrease
+
+### Supporting KPI: Mean Time to Resolution
+- **Baseline**: 14 days
+- **Target**: 3 days
+- **Time Window**: 30 days
+- **Direction**: Decrease
+
+## Timeline
+
+This campaign runs weekly to scan for vulnerabilities and track remediation. Workers create issues with severity labels and automated fix PRs where possible.
 ```
 
 ## Further reading
