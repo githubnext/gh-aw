@@ -91,7 +91,7 @@ timeout-minutes: 30
 # Build steps for documentation
 steps:
   - name: Checkout repository
-    uses: actions/checkout@v5
+    uses: actions/checkout@v6
     with:
       persist-credentials: false
 
