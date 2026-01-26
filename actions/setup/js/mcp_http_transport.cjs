@@ -77,9 +77,13 @@ class MCPServer {
    * @param {any} transport - Transport instance (must have setServer and start methods)
    */
   async connect(transport) {
+    process.stderr.write("[MCPServer.connect] Starting connect...\n");
     this.transport = transport;
+    process.stderr.write("[MCPServer.connect] Set transport\n");
     transport.setServer(this);
+    process.stderr.write("[MCPServer.connect] Called setServer\n");
     await transport.start();
+    process.stderr.write("[MCPServer.connect] Transport.start() completed\n");
   }
 
   /**
@@ -129,10 +133,12 @@ class MCPHTTPTransport {
    * Start the transport
    */
   async start() {
+    process.stderr.write("[MCPHTTPTransport.start] Called, started=" + this.started + "\n");
     if (this.started) {
       throw new Error("Transport already started");
     }
     this.started = true;
+    process.stderr.write("[MCPHTTPTransport.start] Set started=true\n");
   }
 
   /**
