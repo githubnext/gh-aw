@@ -11,7 +11,11 @@ banner:
 
 **[Agentic campaigns](/gh-aw/reference/glossary/#agentic-campaign)** are initiatives that coordinate multiple [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) toward a shared goal.
 
-In practice, a campaign runs on a schedule, kicks off worker workflows in small batches, and tracks progress in [GitHub Projects](/gh-aw/reference/glossary/#github-projects-projects-v2).
+When you need to roll out changes across many repositories—like upgrading dependencies, fixing security issues, or standardizing configurations—campaigns provide the orchestration layer you need to do that efficiently.
+
+They run on a schedule to work through repositories systematically, dispatch workers in batches to control load and avoid rate limits, and track all progress centrally in [GitHub Projects](/gh-aw/reference/glossary/#github-projects-projects-v2).
+
+You get complete visibility into what's done, what's in progress, and what's blocked—all in one place.
 
 ## When to use Campaigns
 
@@ -22,9 +26,9 @@ Choose a campaign when you need coordination across repos or multiple workflows,
 - **Track progress in one place** (a single [GitHub Project](/gh-aw/reference/glossary/#github-projects-projects-v2))
 - **Roll out changes in batches across repos** (repeatable runs with per-run limits and central tracking)
 
-If you only need one workflow in one repo, a single scheduled agentic workflow is usually simpler.
+**Don't need a campaign?** A single scheduled workflow is simpler if you're just automating work in one repository.
 
-If you're not sure yet, start small (one repo, one worker), then expand scope or add workers once you know what you need.
+**Not sure?** Start with one repository and one worker workflow, then scale up once you see how it works.
 
 ## Campaign Specs
 
