@@ -1,11 +1,11 @@
 ---
 title: Creating Campaigns
-description: How to create agentic campaigns using issue-based workflow or CLI commands
+description: How to create agentic campaigns using custom agent, interactive CLI wizard, or manual commands
 banner:
   content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
 ---
 
-There are two ways to create a campaign:
+There are three ways to create a campaign:
 
 ## Recommended: Custom agent (via Copilot Chat)
 
@@ -28,9 +28,27 @@ The custom agent analyzes your goal description, discovers relevant workflows, a
 
 See [Getting started](/gh-aw/guides/campaigns/getting-started/) for a detailed walkthrough.
 
-## Advanced: CLI-based creation
+## CLI-based creation
 
-For advanced users who prefer manual control:
+### Interactive mode
+
+Use the interactive wizard for guided campaign creation:
+
+```bash
+gh aw campaign new --interactive
+```
+
+The wizard prompts you for:
+- Campaign objective and description
+- Repository scope (current repo, multiple repos, or org-wide)
+- Workflow discovery and selection
+- Owners and stakeholders
+- Risk level assessment
+- Project board creation
+
+### Manual mode
+
+For advanced users who prefer direct control:
 
 ```bash
 # Create campaign spec and GitHub Project
