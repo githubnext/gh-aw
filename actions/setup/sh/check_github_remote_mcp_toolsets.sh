@@ -85,6 +85,9 @@ echo "Verifying GitHub MCP tools are available..."
 echo "Sending tools/list request to gateway..."
 
 # Make the request with authentication
+# Note: Authorization header is extracted from gateway config and not validated here
+# to maintain consistency with gateway behavior. The header value is redacted in logs
+# by GitHub Actions secret masking.
 AUTH_HEADER=$(echo "$GITHUB_CONFIG" | jq -r '.headers.Authorization // empty')
 
 if [ -n "$AUTH_HEADER" ] && [ "$AUTH_HEADER" != "null" ]; then
@@ -166,8 +169,8 @@ if [ -z "$TOOLS_LIST" ]; then
   exit 1
 fi
 
-# Count available tools
-TOOLS_COUNT=$(echo "$TOOLS_LIST" | wc -l | tr -d ' ')
+# Count available tools (handle empty list correctly)
+TOOLS_COUNT=$(echo "$TOOLS_LIST" | grep -c '^.' || echo 0)
 
 echo ""
 echo "✓ GitHub Remote MCP is working correctly"
@@ -182,27 +185,29 @@ if [ -n "$ALLOWED_TOOLS" ] && [ "$ALLOWED_TOOLS" != "null" ]; then
   echo "Verifying allowed tools are available..."
   MISSING_TOOLS=""
   
-  # Split comma-separated allowed tools
-  IFS=',' read -ra TOOLS_ARRAY <<< "$ALLOWED_TOOLS"
-  for TOOL in "${TOOLS_ARRAY[@]}"; do
-    TOOL=$(echo "$TOOL" | tr -d ' ')
-    if ! echo "$TOOLS_LIST" | grep -q "^${TOOL}$"; then
-      MISSING_TOOLS="${MISSING_TOOLS}${TOOL},"
+  # Split comma-separated allowed tools (use local IFS to avoid global modification)
+  (
+    IFS=',' read -ra TOOLS_ARRAY <<< "$ALLOWED_TOOLS"
+    for TOOL in "${TOOLS_ARRAY[@]}"; do
+      TOOL=$(echo "$TOOL" | tr -d ' ')
+      if ! echo "$TOOLS_LIST" | grep -q "^${TOOL}$"; then
+        MISSING_TOOLS="${MISSING_TOOLS}${TOOL},"
+      fi
+    done
+    
+    if [ -n "$MISSING_TOOLS" ]; then
+      # Remove trailing comma
+      MISSING_TOOLS="${MISSING_TOOLS%,}"
+      echo ""
+      echo "WARNING: Some allowed tools are not available: $MISSING_TOOLS" >&2
+      echo "This may cause the agent to fail when trying to use these tools." >&2
+      echo ""
+      # Don't fail - just warn. The agent will handle missing tools via safe-outputs
+    else
+      echo "✓ All allowed tools are available"
+      echo ""
     fi
-  done
-  
-  if [ -n "$MISSING_TOOLS" ]; then
-    # Remove trailing comma
-    MISSING_TOOLS="${MISSING_TOOLS%,}"
-    echo ""
-    echo "WARNING: Some allowed tools are not available: $MISSING_TOOLS" >&2
-    echo "This may cause the agent to fail when trying to use these tools." >&2
-    echo ""
-    # Don't fail - just warn. The agent will handle missing tools via safe-outputs
-  else
-    echo "✓ All allowed tools are available"
-    echo ""
-  fi
+  )
 fi
 
 echo "GitHub Remote MCP toolsets check PASSED"

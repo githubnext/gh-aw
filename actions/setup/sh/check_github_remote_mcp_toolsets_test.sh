@@ -2,15 +2,20 @@
 # Test script for check_github_remote_mcp_toolsets.sh
 set -e
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CHECK_SCRIPT="$SCRIPT_DIR/check_github_remote_mcp_toolsets.sh"
+
 TEST_DIR=$(mktemp -d)
 trap "rm -rf $TEST_DIR" EXIT
 
 echo "Running check_github_remote_mcp_toolsets.sh tests..."
+echo "Script location: $CHECK_SCRIPT"
 echo ""
 
 # Test 1: Missing arguments
 echo "Test 1: Missing arguments"
-if bash actions/setup/sh/check_github_remote_mcp_toolsets.sh 2>&1 | grep -q "Usage:"; then
+if bash "$CHECK_SCRIPT" 2>&1 | grep -q "Usage:"; then
   echo "✓ Test 1 passed: Correctly rejects missing arguments"
 else
   echo "✗ Test 1 failed: Should reject missing arguments"
@@ -20,7 +25,7 @@ echo ""
 
 # Test 2: Non-existent config file
 echo "Test 2: Non-existent config file"
-if bash actions/setup/sh/check_github_remote_mcp_toolsets.sh /nonexistent/config.json http://localhost:8080 test-key 2>&1 | grep -q "ERROR: Gateway configuration file not found"; then
+if bash "$CHECK_SCRIPT" /nonexistent/config.json http://localhost:8080 test-key 2>&1 | grep -q "ERROR: Gateway configuration file not found"; then
   echo "✓ Test 2 passed: Correctly detects missing config file"
 else
   echo "✗ Test 2 failed: Should detect missing config file"
@@ -41,7 +46,7 @@ cat > $TEST_DIR/config-no-github.json <<EOF
 }
 EOF
 
-if bash actions/setup/sh/check_github_remote_mcp_toolsets.sh $TEST_DIR/config-no-github.json http://localhost:8080 test-key 2>&1 | grep -q "GitHub MCP server not configured"; then
+if bash "$CHECK_SCRIPT" $TEST_DIR/config-no-github.json http://localhost:8080 test-key 2>&1 | grep -q "GitHub MCP server not configured"; then
   echo "✓ Test 3 passed: Skips check when GitHub MCP not configured"
 else
   echo "✗ Test 3 failed: Should skip check when GitHub MCP not configured"
@@ -62,7 +67,7 @@ cat > $TEST_DIR/config-local.json <<EOF
 }
 EOF
 
-if bash actions/setup/sh/check_github_remote_mcp_toolsets.sh $TEST_DIR/config-local.json http://localhost:8080 test-key 2>&1 | grep -q "not using HTTP"; then
+if bash "$CHECK_SCRIPT" $TEST_DIR/config-local.json http://localhost:8080 test-key 2>&1 | grep -q "not using HTTP"; then
   echo "✓ Test 4 passed: Skips check for local mode"
 else
   echo "✗ Test 4 failed: Should skip check for local mode"
@@ -83,7 +88,7 @@ cat > $TEST_DIR/config-custom-remote.json <<EOF
 }
 EOF
 
-if bash actions/setup/sh/check_github_remote_mcp_toolsets.sh $TEST_DIR/config-custom-remote.json http://localhost:8080 test-key 2>&1 | grep -q "not using remote mode"; then
+if bash "$CHECK_SCRIPT" $TEST_DIR/config-custom-remote.json http://localhost:8080 test-key 2>&1 | grep -q "not using remote mode"; then
   echo "✓ Test 5 passed: Skips check for non-githubcopilot.com URLs"
 else
   echo "✗ Test 5 failed: Should skip check for non-githubcopilot.com URLs"

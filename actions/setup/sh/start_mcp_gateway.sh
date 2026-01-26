@@ -334,11 +334,12 @@ fi
 echo ""
 
 # Check GitHub Remote MCP toolsets availability (if configured)
-if [ -f /opt/gh-aw/actions/check_github_remote_mcp_toolsets.sh ]; then
+CHECK_SCRIPT="/opt/gh-aw/actions/check_github_remote_mcp_toolsets.sh"
+if [ -f "$CHECK_SCRIPT" ]; then
   echo "Checking GitHub Remote MCP toolsets availability..."
   # Run the check and capture exit code
   set +e
-  bash /opt/gh-aw/actions/check_github_remote_mcp_toolsets.sh \
+  bash "$CHECK_SCRIPT" \
     /tmp/gh-aw/mcp-config/gateway-output.json \
     "http://localhost:${MCP_GATEWAY_PORT}" \
     "${MCP_GATEWAY_API_KEY}" 2>&1 | tee -a /tmp/gh-aw/mcp-logs/start-gateway.log
@@ -364,7 +365,7 @@ if [ -f /opt/gh-aw/actions/check_github_remote_mcp_toolsets.sh ]; then
     echo "GitHub Remote MCP toolsets check passed"
   fi
 else
-  echo "GitHub Remote MCP toolset check script not found, skipping check"
+  echo "GitHub Remote MCP toolset check script not found at: $CHECK_SCRIPT, skipping check"
 fi
 echo ""
 
