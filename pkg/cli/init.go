@@ -39,18 +39,9 @@ func InitRepositoryInteractive(verbose bool, rootCmd CommandProvider) error {
 
 	// Prompt for engine selection
 	var selectedEngine string
-	engineOptions := []struct {
-		value       string
-		label       string
-		description string
-	}{
-		{string(constants.CopilotEngine), "GitHub Copilot", "GitHub Copilot CLI with agent support"},
-		{string(constants.ClaudeEngine), "Claude", "Anthropic Claude Code coding agent"},
-		{string(constants.CodexEngine), "Codex", "OpenAI Codex/GPT engine"},
-	}
 
 	// Use interactive prompt to select engine
-	form := createEngineSelectionForm(&selectedEngine, engineOptions)
+	form := createEngineSelectionForm(&selectedEngine, constants.EngineOptions)
 	if err := form.Run(); err != nil {
 		return fmt.Errorf("engine selection failed: %w", err)
 	}
@@ -138,22 +129,18 @@ func InitRepositoryInteractive(verbose bool, rootCmd CommandProvider) error {
 }
 
 // createEngineSelectionForm creates an interactive form for engine selection
-func createEngineSelectionForm(selectedEngine *string, engineOptions []struct {
-	value       string
-	label       string
-	description string
-}) *huh.Form {
+func createEngineSelectionForm(selectedEngine *string, engineOptions []constants.EngineOption) *huh.Form {
 	// Build options for huh.Select
 	var options []huh.Option[string]
 	for _, opt := range engineOptions {
-		options = append(options, huh.NewOption(fmt.Sprintf("%s - %s", opt.label, opt.description), opt.value))
+		options = append(options, huh.NewOption(fmt.Sprintf("%s - %s", opt.Label, opt.Description), opt.Value))
 	}
 
 	return huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
-				Title("Which AI engine would you like to use?").
-				Description("Select the AI engine that will power your agentic workflows").
+				Title("Which coding agent would you like to use?").
+				Description("Select the coding agent that will power your agentic workflows").
 				Options(options...).
 				Value(selectedEngine),
 		),
@@ -732,7 +719,7 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 			"- Configuring .gitattributes\n" +
 			"- Creating GitHub Copilot custom instructions\n" +
 			"- Setting up workflow prompts and agents"
-		if err := createPR(branchName, prTitle, prBody, verbose); err != nil {
+		if _, _, err := createPR(branchName, prTitle, prBody, verbose); err != nil {
 			// Switch back to original branch before returning error
 			_ = switchBranch(currentBranch, verbose)
 			return fmt.Errorf("failed to create PR: %w", err)

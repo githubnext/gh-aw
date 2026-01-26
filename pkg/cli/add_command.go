@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
@@ -12,11 +13,49 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/tty"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
 var addLog = logger.New("cli:add_command")
+
+// AddWorkflowsResult contains the result of adding workflows
+type AddWorkflowsResult struct {
+	// PRNumber is the PR number if a PR was created, or 0 if no PR was created
+	PRNumber int
+	// PRURL is the URL of the created PR, or empty if no PR was created
+	PRURL string
+	// HasWorkflowDispatch is true if any of the added workflows has a workflow_dispatch trigger
+	HasWorkflowDispatch bool
+}
+
+// ResolvedWorkflow contains metadata about a workflow that has been resolved and is ready to add
+type ResolvedWorkflow struct {
+	// Spec is the parsed workflow specification
+	Spec *WorkflowSpec
+	// Content is the raw workflow content
+	Content []byte
+	// SourceInfo contains source metadata (package path, commit SHA)
+	SourceInfo *WorkflowSourceInfo
+	// Description is the workflow description extracted from frontmatter
+	Description string
+	// Engine is the preferred engine extracted from frontmatter (empty if not specified)
+	Engine string
+	// HasWorkflowDispatch indicates if the workflow has workflow_dispatch trigger
+	HasWorkflowDispatch bool
+}
+
+// ResolvedWorkflows contains all resolved workflows ready to be added
+type ResolvedWorkflows struct {
+	// Workflows is the list of resolved workflows
+	Workflows []*ResolvedWorkflow
+	// HasWildcard indicates if any of the original specs contained wildcards
+	HasWildcard bool
+	// HasWorkflowDispatch is true if any of the workflows has a workflow_dispatch trigger
+	HasWorkflowDispatch bool
+}
 
 // NewAddCommand creates the add command
 func NewAddCommand(validateEngine func(string) error) *cobra.Command {
@@ -25,9 +64,18 @@ func NewAddCommand(validateEngine func(string) error) *cobra.Command {
 		Short: "Add agentic workflows from repositories to .github/workflows",
 		Long: `Add one or more workflows from repositories to .github/workflows.
 
+By default, this command runs in interactive mode, which guides you through:
+  - Selecting an AI engine (Copilot, Claude, or Codex)
+  - Configuring API keys and secrets
+  - Creating a pull request with the workflow
+  - Optionally running the workflow
+
+Use --non-interactive to skip the guided setup and add workflows directly.
+
 Examples:
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/daily-repo-status        # Interactive setup (recommended)
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics                           # List available workflows
-  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor                # Add specific workflow
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --non-interactive  # Skip interactive mode
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor@v1.0.0         # Add with version
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/workflows/ci-doctor.md@main
   ` + string(constants.CLIExtensionPrefix) + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
@@ -50,6 +98,7 @@ The --dir flag allows you to specify a subdirectory under .github/workflows/ whe
 The --create-pull-request flag (or --pr) automatically creates a pull request with the workflow changes.
 The --push flag automatically commits and pushes changes after successful workflow addition.
 The --force flag overwrites existing workflow files.
+The --non-interactive flag skips the guided setup and uses traditional behavior.
 
 Note: To create a new workflow from scratch, use the 'new' command instead.`,
 		Args: cobra.MinimumNArgs(1),
@@ -69,16 +118,43 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			workflowDir, _ := cmd.Flags().GetString("dir")
 			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 			stopAfter, _ := cmd.Flags().GetString("stop-after")
+			nonInteractive, _ := cmd.Flags().GetBool("non-interactive")
 
 			if err := validateEngine(engineOverride); err != nil {
 				return err
 			}
 
-			// Handle normal mode
+			// Determine if we should use interactive mode
+			// Interactive mode is the default for TTY unless:
+			// - --non-interactive flag is set
+			// - Any of the batch/automation flags are set (--create-pull-request, --force, --name, --number > 1, --append)
+			// - Not a TTY (piped input/output)
+			// - In CI environment
+			// - This is a repo-only spec (listing workflows)
+			useInteractive := !nonInteractive &&
+				!prFlag &&
+				!forceFlag &&
+				nameFlag == "" &&
+				numberFlag == 1 &&
+				appendText == "" &&
+				tty.IsStdoutTerminal() &&
+				os.Getenv("CI") == "" &&
+				os.Getenv("GO_TEST_MODE") != "true" &&
+				!isRepoOnlySpec(workflows[0])
+
+			if useInteractive {
+				addLog.Print("Using interactive mode")
+				ctx := context.Background()
+				return RunAddInteractive(ctx, workflows, verbose, engineOverride, noGitattributes, workflowDir, noStopAfter, stopAfter)
+			}
+
+			// Handle normal (non-interactive) mode
 			if prFlag {
-				return AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, true, pushFlag, noGitattributes, workflowDir, noStopAfter, stopAfter)
+				_, err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, true, pushFlag, noGitattributes, workflowDir, noStopAfter, stopAfter)
+				return err
 			} else {
-				return AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, false, pushFlag, noGitattributes, workflowDir, noStopAfter, stopAfter)
+				_, err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, false, pushFlag, noGitattributes, workflowDir, noStopAfter, stopAfter)
+				return err
 			}
 		},
 	}
@@ -121,6 +197,9 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	// Add stop-after flag to add command
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 
+	// Add non-interactive flag to add command
+	cmd.Flags().Bool("non-interactive", false, "Skip interactive setup and use traditional behavior (for CI/automation)")
+
 	// Register completions for add command
 	RegisterEngineFlagCompletion(cmd)
 	RegisterDirFlagCompletion(cmd, "dir")
@@ -128,69 +207,40 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	return cmd
 }
 
-// AddWorkflows adds one or more workflows from components to .github/workflows
-// with optional repository installation and PR creation
-func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, name string, force bool, appendText string, createPR bool, push bool, noGitattributes bool, workflowDir string, noStopAfter bool, stopAfter string) error {
-	addLog.Printf("Adding workflows: count=%d, engineOverride=%s, createPR=%v, push=%v, noGitattributes=%v, workflowDir=%s, noStopAfter=%v, stopAfter=%s", len(workflows), engineOverride, createPR, push, noGitattributes, workflowDir, noStopAfter, stopAfter)
+// ResolveWorkflows resolves workflow specifications by parsing specs, installing repositories,
+// expanding wildcards, and fetching workflow content (including descriptions).
+// This is useful for showing workflow information before actually adding them.
+func ResolveWorkflows(workflows []string, verbose bool) (*ResolvedWorkflows, error) {
+	addLog.Printf("Resolving workflows: count=%d", len(workflows))
 
 	if len(workflows) == 0 {
-		return fmt.Errorf("at least one workflow name is required")
+		return nil, fmt.Errorf("at least one workflow name is required")
 	}
 
 	for i, workflow := range workflows {
 		if workflow == "" {
-			return fmt.Errorf("workflow name cannot be empty (workflow %d)", i+1)
-		}
-	}
-
-	// Check if this is a repo-only specification (owner/repo instead of owner/repo/workflow)
-	// If so, list available workflows and exit
-	if len(workflows) == 1 && isRepoOnlySpec(workflows[0]) {
-		return handleRepoOnlySpec(workflows[0], verbose)
-	}
-
-	// If creating a PR or pushing, check prerequisites
-	if createPR || push {
-		// Check if we're in a git repository
-		if !isGitRepo() {
-			if createPR {
-				return fmt.Errorf("not in a git repository - PR creation requires a git repository")
-			}
-			return fmt.Errorf("not in a git repository - push requires a git repository")
-		}
-
-		// Check no other changes are present
-		if err := checkCleanWorkingDirectory(verbose); err != nil {
-			if createPR {
-				return fmt.Errorf("working directory is not clean: %w", err)
-			}
-			return fmt.Errorf("--push requires a clean working directory: %w", err)
-		}
-
-		// Check if GitHub CLI is available (only for PR)
-		if createPR && !isGHCLIAvailable() {
-			return fmt.Errorf("GitHub CLI (gh) is required for PR creation but not available")
+			return nil, fmt.Errorf("workflow name cannot be empty (workflow %d)", i+1)
 		}
 	}
 
 	// Parse workflow specifications and group by repository
 	repoVersions := make(map[string]string) // repo -> version
-	processedWorkflows := []*WorkflowSpec{} // List of processed workflow specs
+	parsedSpecs := []*WorkflowSpec{}        // List of parsed workflow specs
 
 	for _, workflow := range workflows {
 		spec, err := parseWorkflowSpec(workflow)
 		if err != nil {
-			return fmt.Errorf("invalid workflow specification '%s': %w", workflow, err)
+			return nil, fmt.Errorf("invalid workflow specification '%s': %w", workflow, err)
 		}
 
 		// Handle repository installation and workflow name extraction
 		if existing, exists := repoVersions[spec.RepoSlug]; exists && existing != spec.Version {
-			return fmt.Errorf("conflicting versions for repository %s: %s vs %s", spec.RepoSlug, existing, spec.Version)
+			return nil, fmt.Errorf("conflicting versions for repository %s: %s vs %s", spec.RepoSlug, existing, spec.Version)
 		}
 		repoVersions[spec.RepoSlug] = spec.Version
 
 		// Create qualified name for processing
-		processedWorkflows = append(processedWorkflows, spec)
+		parsedSpecs = append(parsedSpecs, spec)
 	}
 
 	// Check if any workflow is from the current repository
@@ -198,14 +248,14 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 	currentRepoSlug, repoErr := GetCurrentRepoSlug()
 	if repoErr == nil {
 		// We successfully determined the current repository, check all workflow specs
-		for _, spec := range processedWorkflows {
+		for _, spec := range parsedSpecs {
 			// Skip local workflow specs (starting with "./")
 			if strings.HasPrefix(spec.WorkflowPath, "./") {
 				continue
 			}
 
 			if spec.RepoSlug == currentRepoSlug {
-				return fmt.Errorf("cannot add workflows from the current repository (%s). The 'add' command is for installing workflows from other repositories", currentRepoSlug)
+				return nil, fmt.Errorf("cannot add workflows from the current repository (%s). The 'add' command is for installing workflows from other repositories", currentRepoSlug)
 			}
 		}
 	}
@@ -227,13 +277,13 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 		// Install as global package (not local) to match the behavior expected
 		if err := InstallPackage(repoWithVersion, verbose); err != nil {
 			addLog.Printf("Failed to install repository %s: %v", repoWithVersion, err)
-			return fmt.Errorf("failed to install repository %s: %w", repoWithVersion, err)
+			return nil, fmt.Errorf("failed to install repository %s: %w", repoWithVersion, err)
 		}
 	}
 
 	// Check if any workflow specs contain wildcards before expansion
 	hasWildcard := false
-	for _, spec := range processedWorkflows {
+	for _, spec := range parsedSpecs {
 		if spec.IsWildcard {
 			hasWildcard = true
 			break
@@ -242,20 +292,120 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 
 	// Expand wildcards after installation
 	var err error
-	processedWorkflows, err = expandWildcardWorkflows(processedWorkflows, verbose)
+	parsedSpecs, err = expandWildcardWorkflows(parsedSpecs, verbose)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	// Fetch workflow content and metadata for each workflow
+	resolvedWorkflows := make([]*ResolvedWorkflow, 0, len(parsedSpecs))
+	hasWorkflowDispatch := false
+
+	for _, spec := range parsedSpecs {
+		// Fetch workflow content
+		content, sourceInfo, err := findWorkflowInPackageForRepo(spec, verbose)
+		if err != nil {
+			return nil, fmt.Errorf("workflow '%s' not found: %w", spec.WorkflowPath, err)
+		}
+
+		// Extract description from content
+		description := ExtractWorkflowDescription(string(content))
+
+		// Extract engine from content (if specified in frontmatter)
+		engine := ExtractWorkflowEngine(string(content))
+
+		// Check for workflow_dispatch trigger
+		workflowHasDispatch := checkWorkflowHasDispatch(spec, verbose)
+		if workflowHasDispatch {
+			hasWorkflowDispatch = true
+		}
+
+		resolvedWorkflows = append(resolvedWorkflows, &ResolvedWorkflow{
+			Spec:                spec,
+			Content:             content,
+			SourceInfo:          sourceInfo,
+			Description:         description,
+			Engine:              engine,
+			HasWorkflowDispatch: workflowHasDispatch,
+		})
+	}
+
+	return &ResolvedWorkflows{
+		Workflows:           resolvedWorkflows,
+		HasWildcard:         hasWildcard,
+		HasWorkflowDispatch: hasWorkflowDispatch,
+	}, nil
+}
+
+// AddWorkflows adds one or more workflows from components to .github/workflows
+// with optional repository installation and PR creation.
+// Returns AddWorkflowsResult containing PR number (if created) and other metadata.
+func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, name string, force bool, appendText string, createPR bool, push bool, noGitattributes bool, workflowDir string, noStopAfter bool, stopAfter string) (*AddWorkflowsResult, error) {
+	// Check if this is a repo-only specification (owner/repo instead of owner/repo/workflow)
+	// If so, list available workflows and exit
+	if len(workflows) == 1 && isRepoOnlySpec(workflows[0]) {
+		return &AddWorkflowsResult{}, handleRepoOnlySpec(workflows[0], verbose)
+	}
+
+	// Resolve workflows first
+	resolved, err := ResolveWorkflows(workflows, verbose)
+	if err != nil {
+		return nil, err
+	}
+
+	return AddResolvedWorkflows(workflows, resolved, number, verbose, false, engineOverride, name, force, appendText, createPR, push, noGitattributes, workflowDir, noStopAfter, stopAfter)
+}
+
+// AddResolvedWorkflows adds workflows using pre-resolved workflow data.
+// This allows callers to resolve workflows early (e.g., to show descriptions) and then add them later.
+// The quiet parameter suppresses detailed output (useful for interactive mode where output is already shown).
+func AddResolvedWorkflows(workflowStrings []string, resolved *ResolvedWorkflows, number int, verbose bool, quiet bool, engineOverride string, name string, force bool, appendText string, createPR bool, push bool, noGitattributes bool, workflowDir string, noStopAfter bool, stopAfter string) (*AddWorkflowsResult, error) {
+	addLog.Printf("Adding workflows: count=%d, engineOverride=%s, createPR=%v, noGitattributes=%v, workflowDir=%s, noStopAfter=%v, stopAfter=%s", len(workflowStrings), engineOverride, createPR, noGitattributes, workflowDir, noStopAfter, stopAfter)
+
+	result := &AddWorkflowsResult{}
+
+	// If creating a PR, check prerequisites
+	if createPR {
+		// Check if GitHub CLI is available
+		if !isGHCLIAvailable() {
+			return nil, fmt.Errorf("GitHub CLI (gh) is required for PR creation but not available")
+		}
+
+		// Check if we're in a git repository
+		if !isGitRepo() {
+			return nil, fmt.Errorf("not in a git repository - PR creation requires a git repository")
+		}
+
+		// Check no other changes are present
+		if err := checkCleanWorkingDirectory(verbose); err != nil {
+			return nil, fmt.Errorf("working directory is not clean: %w", err)
+		}
+	}
+
+	// Extract the workflow specs for processing
+	processedWorkflows := make([]*WorkflowSpec, len(resolved.Workflows))
+	for i, rw := range resolved.Workflows {
+		processedWorkflows[i] = rw.Spec
+	}
+
+	// Set workflow_dispatch result
+	result.HasWorkflowDispatch = resolved.HasWorkflowDispatch
 
 	// Handle PR creation workflow
 	if createPR {
 		addLog.Print("Creating workflow with PR")
-		return addWorkflowsWithPR(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, hasWildcard, workflowDir, noStopAfter, stopAfter)
+		prNumber, prURL, err := addWorkflowsWithPR(processedWorkflows, number, verbose, quiet, engineOverride, name, force, appendText, push, noGitattributes, resolved.HasWildcard, workflowDir, noStopAfter, stopAfter)
+		if err != nil {
+			return nil, err
+		}
+		result.PRNumber = prNumber
+		result.PRURL = prURL
+		return result, nil
 	}
 
 	// Handle normal workflow addition
 	addLog.Print("Adding workflows normally without PR")
-	return addWorkflowsNormal(processedWorkflows, number, verbose, engineOverride, name, force, appendText, push, noGitattributes, hasWildcard, workflowDir, noStopAfter, stopAfter)
+	return result, addWorkflowsNormal(processedWorkflows, number, verbose, quiet, engineOverride, name, force, appendText, push, noGitattributes, resolved.HasWildcard, workflowDir, noStopAfter, stopAfter)
 }
 
 // handleRepoOnlySpec handles the case when user provides only owner/repo without workflow name
@@ -410,7 +560,7 @@ func displayAvailableWorkflows(repoSlug, version string, verbose bool) error {
 }
 
 // addWorkflowsNormal handles normal workflow addition without PR creation
-func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, push bool, noGitattributes bool, fromWildcard bool, workflowDir string, noStopAfter bool, stopAfter string) error {
+func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, quiet bool, engineOverride string, name string, force bool, appendText string, push bool, noGitattributes bool, fromWildcard bool, workflowDir string, noStopAfter bool, stopAfter string) error {
 	// Create file tracker for all operations
 	tracker, err := NewFileTracker()
 	if err != nil {
@@ -435,13 +585,13 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 		}
 	}
 
-	if len(workflows) > 1 {
+	if !quiet && len(workflows) > 1 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding %d workflow(s)...", len(workflows))))
 	}
 
 	// Add each workflow
 	for i, workflow := range workflows {
-		if len(workflows) > 1 {
+		if !quiet && len(workflows) > 1 {
 			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Adding workflow %d/%d: %s", i+1, len(workflows), workflow.WorkflowName)))
 		}
 
@@ -451,12 +601,12 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 			currentName = name
 		}
 
-		if err := addWorkflowWithTracking(workflow, number, verbose, engineOverride, currentName, force, appendText, tracker, fromWildcard, workflowDir, noStopAfter, stopAfter); err != nil {
+		if err := addWorkflowWithTracking(workflow, number, verbose, quiet, engineOverride, currentName, force, appendText, tracker, fromWildcard, workflowDir, noStopAfter, stopAfter); err != nil {
 			return fmt.Errorf("failed to add workflow '%s': %w", workflow.String(), err)
 		}
 	}
 
-	if len(workflows) > 1 {
+	if !quiet && len(workflows) > 1 {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully added all %d workflows", len(workflows))))
 	}
 
@@ -512,12 +662,12 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 	return nil
 }
 
-// addWorkflowsWithPR handles workflow addition with PR creation
-func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool, fromWildcard bool, workflowDir string, noStopAfter bool, stopAfter string) error {
+// addWorkflowsWithPR handles workflow addition with PR creation and returns the PR number and URL
+func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, quiet bool, engineOverride string, name string, force bool, appendText string, push bool, noGitattributes bool, fromWildcard bool, workflowDir string, noStopAfter bool, stopAfter string) (int, string, error) {
 	// Get current branch for restoration later
 	currentBranch, err := getCurrentBranch()
 	if err != nil {
-		return fmt.Errorf("failed to get current branch: %w", err)
+		return 0, "", fmt.Errorf("failed to get current branch: %w", err)
 	}
 
 	// Create temporary branch with random 4-digit number
@@ -525,13 +675,13 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 	branchName := fmt.Sprintf("add-workflow-%s-%04d", strings.ReplaceAll(workflows[0].WorkflowPath, "/", "-"), randomNum)
 
 	if err := createAndSwitchBranch(branchName, verbose); err != nil {
-		return fmt.Errorf("failed to create branch %s: %w", branchName, err)
+		return 0, "", fmt.Errorf("failed to create branch %s: %w", branchName, err)
 	}
 
 	// Create file tracker for rollback capability
 	tracker, err := NewFileTracker()
 	if err != nil {
-		return fmt.Errorf("failed to create file tracker: %w", err)
+		return 0, "", fmt.Errorf("failed to create file tracker: %w", err)
 	}
 
 	// Ensure we switch back to original branch on exit
@@ -542,12 +692,12 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 	}()
 
 	// Add workflows using the normal function logic
-	if err := addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force, appendText, false, noGitattributes, fromWildcard, workflowDir, noStopAfter, stopAfter); err != nil {
+	if err := addWorkflowsNormal(workflows, number, verbose, quiet, engineOverride, name, force, appendText, push, noGitattributes, fromWildcard, workflowDir, noStopAfter, stopAfter); err != nil {
 		// Rollback on error
 		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
 		}
-		return fmt.Errorf("failed to add workflows: %w", err)
+		return 0, "", fmt.Errorf("failed to add workflows: %w", err)
 	}
 
 	// Stage all files before creating PR
@@ -555,7 +705,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
 		}
-		return fmt.Errorf("failed to stage workflow files: %w", err)
+		return 0, "", fmt.Errorf("failed to stage workflow files: %w", err)
 	}
 
 	// Update .gitattributes and stage it if modified
@@ -586,7 +736,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
 		}
-		return fmt.Errorf("failed to commit files: %w", err)
+		return 0, "", fmt.Errorf("failed to commit files: %w", err)
 	}
 
 	// Push branch
@@ -594,34 +744,31 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
 		}
-		return fmt.Errorf("failed to push branch %s: %w", branchName, err)
+		return 0, "", fmt.Errorf("failed to push branch %s: %w", branchName, err)
 	}
 
 	// Create PR
-	if err := createPR(branchName, prTitle, prBody, verbose); err != nil {
+	prNumber, prURL, err := createPR(branchName, prTitle, prBody, verbose)
+	if err != nil {
 		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
 		}
-		return fmt.Errorf("failed to create PR: %w", err)
+		return 0, "", fmt.Errorf("failed to create PR: %w", err)
 	}
 
 	// Success - no rollback needed
 
 	// Switch back to original branch
 	if err := switchBranch(currentBranch, verbose); err != nil {
-		return fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err)
+		return prNumber, prURL, fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err)
 	}
 
-	if len(workflows) == 1 {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created PR for workflow: %s", workflows[0].WorkflowName)))
-	} else {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created PR for workflows: %s", joinedNames)))
-	}
-	return nil
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created pull request %s", prURL)))
+	return prNumber, prURL, nil
 }
 
 // addWorkflowWithTracking adds a workflow from components to .github/workflows with file tracking
-func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, tracker *FileTracker, fromWildcard bool, workflowDir string, noStopAfter bool, stopAfter string) error {
+func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, quiet bool, engineOverride string, name string, force bool, appendText string, tracker *FileTracker, fromWildcard bool, workflowDir string, noStopAfter bool, stopAfter string) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding workflow: %s", workflow.String())))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Number of copies: %d", number)))
@@ -848,23 +995,26 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 			return fmt.Errorf("failed to write destination file '%s': %w", destFile, err)
 		}
 
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added workflow: %s", destFile)))
+		// Show detailed output only when not in quiet mode
+		if !quiet {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added workflow: %s", destFile)))
 
-		// Extract and display description if present
-		if description := ExtractWorkflowDescription(content); description != "" {
-			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(description))
-			fmt.Fprintln(os.Stderr, "")
+			// Extract and display description if present
+			if description := ExtractWorkflowDescription(content); description != "" {
+				fmt.Fprintln(os.Stderr, "")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(description))
+				fmt.Fprintln(os.Stderr, "")
+			}
 		}
 
 		// Try to compile the workflow and track generated files
 		if tracker != nil {
-			if err := compileWorkflowWithTracking(destFile, verbose, engineOverride, tracker); err != nil {
+			if err := compileWorkflowWithTracking(destFile, verbose, quiet, engineOverride, tracker); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			}
 		} else {
 			// Fall back to basic compilation without tracking
-			if err := compileWorkflow(destFile, verbose, engineOverride); err != nil {
+			if err := compileWorkflow(destFile, verbose, quiet, engineOverride); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			}
 		}
@@ -894,14 +1044,15 @@ func updateWorkflowTitle(content string, number int) string {
 	return strings.Join(lines, "\n")
 }
 
-func compileWorkflow(filePath string, verbose bool, engineOverride string) error {
-	return compileWorkflowWithRefresh(filePath, verbose, engineOverride, false)
+func compileWorkflow(filePath string, verbose bool, quiet bool, engineOverride string) error {
+	return compileWorkflowWithRefresh(filePath, verbose, quiet, engineOverride, false)
 }
 
-func compileWorkflowWithRefresh(filePath string, verbose bool, engineOverride string, refreshStopTime bool) error {
+func compileWorkflowWithRefresh(filePath string, verbose bool, quiet bool, engineOverride string, refreshStopTime bool) error {
 	// Create compiler and compile the workflow
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
 	compiler.SetRefreshStopTime(refreshStopTime)
+	compiler.SetQuiet(quiet)
 	if err := CompileWorkflowWithValidation(compiler, filePath, verbose, false, false, false, false, false); err != nil {
 		return err
 	}
@@ -920,11 +1071,11 @@ func compileWorkflowWithRefresh(filePath string, verbose bool, engineOverride st
 }
 
 // compileWorkflowWithTracking compiles a workflow and tracks generated files
-func compileWorkflowWithTracking(filePath string, verbose bool, engineOverride string, tracker *FileTracker) error {
-	return compileWorkflowWithTrackingAndRefresh(filePath, verbose, engineOverride, tracker, false)
+func compileWorkflowWithTracking(filePath string, verbose bool, quiet bool, engineOverride string, tracker *FileTracker) error {
+	return compileWorkflowWithTrackingAndRefresh(filePath, verbose, quiet, engineOverride, tracker, false)
 }
 
-func compileWorkflowWithTrackingAndRefresh(filePath string, verbose bool, engineOverride string, tracker *FileTracker, refreshStopTime bool) error {
+func compileWorkflowWithTrackingAndRefresh(filePath string, verbose bool, quiet bool, engineOverride string, tracker *FileTracker, refreshStopTime bool) error {
 	// Generate the expected lock file path
 	lockFile := stringutil.MarkdownToLockFile(filePath)
 
@@ -963,6 +1114,7 @@ func compileWorkflowWithTrackingAndRefresh(filePath string, verbose bool, engine
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
 	compiler.SetFileTracker(tracker)
 	compiler.SetRefreshStopTime(refreshStopTime)
+	compiler.SetQuiet(quiet)
 	if err := CompileWorkflowWithValidation(compiler, filePath, verbose, false, false, false, false, false); err != nil {
 		return err
 	}
@@ -1019,4 +1171,63 @@ func expandWildcardWorkflows(specs []*WorkflowSpec, verbose bool) ([]*WorkflowSp
 	}
 
 	return expandedWorkflows, nil
+}
+
+// checkWorkflowsHaveDispatch checks if any of the workflows have a workflow_dispatch trigger
+func checkWorkflowsHaveDispatch(workflows []*WorkflowSpec, verbose bool) bool {
+	for _, spec := range workflows {
+		if checkWorkflowHasDispatch(spec, verbose) {
+			return true
+		}
+	}
+	return false
+}
+
+// checkWorkflowHasDispatch checks if a single workflow has a workflow_dispatch trigger
+func checkWorkflowHasDispatch(spec *WorkflowSpec, verbose bool) bool {
+	addLog.Printf("Checking if workflow %s has workflow_dispatch trigger", spec.WorkflowName)
+
+	// Find and read the workflow content
+	sourceContent, _, err := findWorkflowInPackageForRepo(spec, verbose)
+	if err != nil {
+		addLog.Printf("Could not fetch workflow content: %v", err)
+		return false
+	}
+
+	// Parse frontmatter to check on: triggers
+	result, err := parser.ExtractFrontmatterFromContent(string(sourceContent))
+	if err != nil {
+		addLog.Printf("Could not parse workflow frontmatter: %v", err)
+		return false
+	}
+
+	// Check if 'on' section exists and contains workflow_dispatch
+	onSection, exists := result.Frontmatter["on"]
+	if !exists {
+		addLog.Print("No 'on' section found in workflow")
+		return false
+	}
+
+	// Handle different on: formats
+	switch on := onSection.(type) {
+	case map[string]any:
+		_, hasDispatch := on["workflow_dispatch"]
+		addLog.Printf("workflow_dispatch in on map: %v", hasDispatch)
+		return hasDispatch
+	case string:
+		hasDispatch := strings.Contains(strings.ToLower(on), "workflow_dispatch")
+		addLog.Printf("workflow_dispatch in on string: %v", hasDispatch)
+		return hasDispatch
+	case []any:
+		for _, item := range on {
+			if str, ok := item.(string); ok && strings.ToLower(str) == "workflow_dispatch" {
+				addLog.Print("workflow_dispatch found in on array")
+				return true
+			}
+		}
+		return false
+	default:
+		addLog.Printf("Unknown on: section type: %T", onSection)
+		return false
+	}
 }

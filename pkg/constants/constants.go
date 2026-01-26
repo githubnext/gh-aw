@@ -560,6 +560,33 @@ const (
 // Note: This remains a string slice for backward compatibility with existing code
 var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine)}
 
+// EngineOption represents a selectable AI engine with its display metadata and secret configuration
+type EngineOption struct {
+	Value       string
+	Label       string
+	Description string
+	SecretName  string // The name of the secret required for this engine (e.g., "COPILOT_GITHUB_TOKEN")
+	EnvVarName  string // Alternative environment variable name if different from SecretName (optional)
+	KeyURL      string // URL where users can obtain their API key (empty for engines with special setup like Copilot)
+}
+
+// EngineOptions provides the list of available AI engines for user selection
+var EngineOptions = []EngineOption{
+	{string(CopilotEngine), "GitHub Copilot", "GitHub Copilot CLI with agent support", "COPILOT_GITHUB_TOKEN", "", ""},
+	{string(ClaudeEngine), "Claude", "Anthropic Claude Code coding agent", "ANTHROPIC_API_KEY", "", "https://console.anthropic.com/settings/keys"},
+	{string(CodexEngine), "Codex", "OpenAI Codex/GPT engine", "OPENAI_API_KEY", "", "https://platform.openai.com/api-keys"},
+}
+
+// GetEngineOption returns the EngineOption for the given engine value, or nil if not found
+func GetEngineOption(engineValue string) *EngineOption {
+	for i := range EngineOptions {
+		if EngineOptions[i].Value == engineValue {
+			return &EngineOptions[i]
+		}
+	}
+	return nil
+}
+
 // DefaultReadOnlyGitHubTools defines the default read-only GitHub MCP tools.
 // This list is shared by both local (Docker) and remote (hosted) modes.
 // Currently, both modes use identical tool lists, but this may diverge in the future

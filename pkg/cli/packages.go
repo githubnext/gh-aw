@@ -80,7 +80,7 @@ func InstallPackage(repoSpec string, verbose bool) error {
 	if _, err := os.Stat(targetDir); err == nil {
 		entries, err := os.ReadDir(targetDir)
 		if err == nil && len(entries) > 0 {
-			fmt.Fprintf(os.Stderr, "Package %s already exists. Updating...\n", spec.RepoSlug)
+			packagesLog.Printf("Package %s already exists. Updating...\n", spec.RepoSlug)
 			// Remove existing content
 			if err := os.RemoveAll(targetDir); err != nil {
 				return fmt.Errorf("failed to remove existing package: %w", err)
@@ -99,7 +99,6 @@ func InstallPackage(repoSpec string, verbose bool) error {
 	}
 
 	packagesLog.Printf("Successfully installed package: %s", spec.RepoSlug)
-	fmt.Fprintf(os.Stderr, "Successfully installed package: %s\n", spec.RepoSlug)
 	return nil
 }
 
@@ -792,6 +791,22 @@ func ExtractWorkflowDescription(content string) string {
 	if desc, ok := result.Frontmatter["description"]; ok {
 		if descStr, ok := desc.(string); ok {
 			return descStr
+		}
+	}
+
+	return ""
+}
+
+// ExtractWorkflowEngine extracts the engine field from workflow content string
+func ExtractWorkflowEngine(content string) string {
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return ""
+	}
+
+	if engine, ok := result.Frontmatter["engine"]; ok {
+		if engineStr, ok := engine.(string); ok {
+			return engineStr
 		}
 	}
 
