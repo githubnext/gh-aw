@@ -10,6 +10,12 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: hourly-ci-cleaner
+# Token Budget Guardrails:
+# - Prompt optimization: Added efficiency guidelines and early termination
+# - Early exit: Already optimized with check_ci_status job
+# - Target: Focus on systematic fix application with minimal iteration
+# - Budget target: 15-20 turns for typical CI fixes
+# Note: max-turns not available for Copilot engine (Claude only)
 engine: copilot
 network:
   allowed:
@@ -127,11 +133,19 @@ The CI workflow has failed on the main branch. Follow the instructions from the 
 
 ## Execution Guidelines
 
-- Work through each step systematically
-- Fix issues as you encounter them
-- Re-run checks after fixes to verify
-- Only proceed to next step when current step passes
+- **Be systematic and focused**: Work through each step methodically
+- **Fix efficiently**: Address issues directly without over-analyzing
+- **Verify quickly**: Re-run checks after fixes to confirm, then move on
+- **One issue at a time**: Only proceed to next step when current step passes
+- **Be concise**: Keep analysis brief and actionable
+- **Early termination**: If all checks pass, stop immediately and create PR
 - **Create a pull request with all fixes using the safe-outputs create-pull-request tool**
+
+**Token Budget Awareness:**
+- Aim to complete fixes within 15-20 conversation turns
+- Avoid verbose explanations - focus on actions
+- If stuck on a single issue after 3 attempts, document it and move on
+- Prioritize formatting and linting fixes over complex test failures
 
 ## Pull Request Guidelines
 
