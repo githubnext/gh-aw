@@ -9,9 +9,9 @@ Campaign specs are YAML frontmatter configuration files at `.github/workflows/<i
 
 ## Spec structure
 
-A minimal campaign spec requires only `id`, `project-url`, and `workflows`. Most fields have sensible defaults.
+A minimal campaign spec is a `.github/workflows/<id>.campaign.md` file with YAML frontmatter plus a markdown body. Most fields have sensible defaults.
 
-```yaml
+```markdown
 ---
 id: framework-upgrade
 name: "Framework Upgrade"
@@ -53,6 +53,7 @@ Upgrade all services to Framework vNext with zero downtime.
 - Format: lowercase letters, digits, hyphens only
 - Example: `security-audit-2025`
 - Auto-generates defaults for: tracker-label, memory-paths, metrics-glob, cursor-glob
+- If omitted, defaults to the filename basename (e.g. `security-audit.campaign.md` → `security-audit`)
 
 **name** - Human-friendly display name
 - Example: `"Security Audit 2025"`
@@ -65,6 +66,8 @@ Upgrade all services to Framework vNext with zero downtime.
 **workflows** - Worker workflows that implement the campaign
 - Format: List of workflow IDs (file names without .md extension)
 - Example: `["security-scanner", "dependency-fixer"]`
+
+`workflows` is strongly recommended for most campaigns (and `gh aw campaign validate` will flag empty workflows). It can be omitted for campaigns that only do coordination/discovery work.
 
 ## Fields with defaults
 
@@ -243,7 +246,7 @@ Common validation errors:
 
 The simplest possible campaign:
 
-```yaml
+```markdown
 ---
 id: security-audit-q1
 name: "Security Audit Q1 2025"

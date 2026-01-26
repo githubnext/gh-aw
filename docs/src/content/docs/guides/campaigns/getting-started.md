@@ -33,7 +33,7 @@ The pull request creates three components:
 
 **Project board** - GitHub Project for tracking campaign progress with custom fields and views.
 
-**Campaign spec** - Configuration file at `.github/workflows/<id>.campaign.md` defining goals, workers, and governance.
+**Campaign spec** - Configuration file at `.github/workflows/<id>.campaign.md` defining campaign configuration (project URL, workflows, scope, governance). The markdown body contains narrative goals and success criteria.
 
 **Orchestrator workflow** - Compiled workflow at `.github/workflows/<id>.campaign.lock.yml` that executes the campaign logic.
 

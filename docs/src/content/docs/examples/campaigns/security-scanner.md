@@ -3,8 +3,16 @@ title: Security Scanner Workflow Example
 name: Security Scanner
 description: Scan repositories for security vulnerabilities
 on:
-  schedule:
-    - cron: "0 9 * * 1" # Every Monday at 9 AM
+  workflow_dispatch:
+    inputs:
+      campaign_id:
+        description: "Campaign identifier"
+        required: true
+        type: string
+      payload:
+        description: "JSON payload with work details"
+        required: true
+        type: string
 permissions:
   contents: read
   security-events: write
@@ -33,29 +41,18 @@ Scan the repository for security vulnerabilities and create issues for any findi
        - CVE ID (if available)
        - Recommended fix
        - References and resources
-     - Labels: security, <severity-level>
-     - Body can optionally include tracker-id marker for campaign discovery
+     - Labels: security, <severity-level>, plus the campaign tracker label (defaults to `z_campaign_<campaign_id>`)
 4. For medium and low-severity findings:
    - Group similar findings into a single issue
    - Include all details in the issue description
 5. Add comments to existing security issues if new information is discovered
-
-## Output Format (Optional)
-
-When creating issues, you can optionally include the tracker-id in the issue body to help campaign orchestrators discover and track work items:
-
-```
-tracker-id: security-scanner
-```
-
-Note: This is optional. Campaign orchestrators can also discover worker items using labels, so tracker-id is not required.
 
 ## Example Issue
 
 **Title**: [Security] SQL Injection vulnerability in user authentication
 
 **Body**:
-```markdown
+````markdown
 ## Vulnerability Details
 
 **Severity**: High
@@ -71,16 +68,14 @@ SQL injection vulnerability in user authentication logic allows attackers to byp
 
 Use parameterized queries instead of string concatenation:
 
-\```javascript
+```javascript
 const query = 'SELECT * FROM users WHERE username = ? AND password = ?';
 db.query(query, [username, hashedPassword]);
-\```
+```
 
 ## References
 
 - https://cwe.mitre.org/data/definitions/89.html
 - https://owasp.org/www-community/attacks/SQL_Injection
 
----
-tracker-id: security-scanner
-```
+````

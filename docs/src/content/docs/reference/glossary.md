@@ -285,7 +285,7 @@ See the [ProjectOps Guide](/gh-aw/examples/issue-pr-events/projectops/) for impl
 
 A finite, enterprise-scale initiative with explicit ownership, approval gates, and executive visibility. Agentic campaigns orchestrate business outcomes (security remediation, dependency updates, compliance enforcement) across multiple repositories with governance, accountability, and ROI tracking.
 
-Campaigns use `.campaign.md` specification files to define objectives, KPIs, and governance. The orchestrator discovers and tracks work, executes workflows sequentially, and can create missing workflows if needed.
+Campaigns use `.campaign.md` files where YAML frontmatter defines configuration (project URL, workflows, scope, governance) and the markdown body defines narrative context (objective, KPIs, timeline). The orchestrator discovers and tracks work, executes workflows sequentially, and can create missing workflows if needed.
 
 ```yaml
 # Campaign example
@@ -294,10 +294,19 @@ project-url: "https://github.com/orgs/ORG/projects/1"
 workflows:
   - framework-scanner   # Will be created if missing
   - framework-upgrader  # Will be created if missing
-objective: "Upgrade all services to Framework vNext"
-kpis:
-  - name: "Services upgraded"
-    target: 50
+```
+
+```markdown
+# Framework Upgrade
+
+## Objective
+
+Upgrade all services to Framework vNext.
+
+## KPIs
+
+### Primary KPI: Services upgraded
+- **Target**: 50
 ```
 
 **Key characteristics:**

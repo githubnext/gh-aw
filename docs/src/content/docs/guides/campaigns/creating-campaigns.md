@@ -75,7 +75,7 @@ Here's what a campaign spec looks like after creation:
 
 **Generated [campaign spec](/gh-aw/guides/campaigns/specs/)**:
 
-```yaml
+```markdown
 ---
 id: security-alert-burndown
 name: "Security Alert Burndown"
@@ -83,16 +83,6 @@ description: "Drive the code security alerts backlog to zero"
 
 # GitHub Project for tracking
 project-url: "https://github.com/orgs/ORG/projects/1"
-tracker-label: "campaign:security-alert-burndown"
-
-# Strategic goals
-objective: "Reduce open code security alerts to zero without breaking CI."
-kpis:
-  - id: open_alerts
-    name: "Open alerts"
-    priority: primary
-    direction: "decrease"
-    target: 0
 
 # Worker workflows to dispatch
 workflows:
@@ -102,8 +92,29 @@ workflows:
 governance:
   max-project-updates-per-run: 10
   max-comments-per-run: 10
+
+owners:
+  - "@security-team"
 ---
+
+# Security Alert Burndown
+
+## Objective
+
+Reduce open code security alerts to zero without breaking CI.
+
+## Key Performance Indicators (KPIs)
+
+### Primary KPI: Open alerts
+- **Baseline**: (fill in)
+- **Target**: 0
+- **Time Window**: (fill in)
+- **Direction**: Decrease
 ```
+
+Notes:
+- `tracker-label` is optional; when omitted it defaults to `z_campaign_<id>`.
+- Campaign narrative (objective, KPIs, timeline) belongs in the markdown body.
 
 The spec compiles into a campaign orchestrator workflow (`.campaign.lock.yml`) that GitHub Actions executes on schedule. The orchestrator [dispatches workers, tracks outputs, updates the Project board, and reports progress](/gh-aw/guides/campaigns/lifecycle/).
 
