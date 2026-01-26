@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { getWorkflowIdMarkerContent } = require("./generate_footer.cjs");
 
 /**
  * Maximum number of older issues to close
@@ -23,44 +24,32 @@ function delay(ms) {
 }
 
 /**
- * Search for open issues with a matching title prefix and/or labels
+ * Search for open issues with a matching workflow-id marker
  * @param {any} github - GitHub REST API instance
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
- * @param {string} titlePrefix - Title prefix to match (empty string to skip prefix matching)
- * @param {string[]} labels - Labels to match (empty array to skip label matching)
+ * @param {string} workflowId - Workflow ID to match in the marker
  * @param {number} excludeNumber - Issue number to exclude (the newly created one)
  * @returns {Promise<Array<{number: number, title: string, html_url: string, labels: Array<{name: string}>}>>} Matching issues
  */
-async function searchOlderIssues(github, owner, repo, titlePrefix, labels, excludeNumber) {
+async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber) {
   core.info(`Starting search for older issues in ${owner}/${repo}`);
-  core.info(`  Title prefix: ${titlePrefix || "(none)"}`);
-  core.info(`  Labels: ${labels && labels.length > 0 ? labels.join(", ") : "(none)"}`);
+  core.info(`  Workflow ID: ${workflowId || "(none)"}`);
   core.info(`  Exclude issue number: ${excludeNumber}`);
 
+  if (!workflowId) {
+    core.info("No workflow ID provided - cannot search for older issues");
+    return [];
+  }
+
   // Build REST API search query
-  // Search for open issues, optionally with title prefix or labels
-  let searchQuery = `repo:${owner}/${repo} is:issue is:open`;
+  // Search for open issues with the workflow-id marker in the body
+  const workflowIdMarker = getWorkflowIdMarkerContent(workflowId);
+  // Escape quotes in workflow ID to prevent query injection
+  const escapedMarker = workflowIdMarker.replace(/"/g, '\\"');
+  const searchQuery = `repo:${owner}/${repo} is:issue is:open "${escapedMarker}" in:body`;
 
-  if (titlePrefix) {
-    // Escape quotes in title prefix to prevent query injection
-    const escapedPrefix = titlePrefix.replace(/"/g, '\\"');
-    searchQuery += ` in:title "${escapedPrefix}"`;
-    core.info(`  Added title filter to query: in:title "${escapedPrefix}"`);
-  }
-
-  // Add label filters to the search query
-  // Note: GitHub search uses AND logic for multiple labels, so issues must have ALL labels.
-  // We add each label as a separate filter and also validate client-side for extra safety.
-  if (labels && labels.length > 0) {
-    for (const label of labels) {
-      // Escape quotes in label names to prevent query injection
-      const escapedLabel = label.replace(/"/g, '\\"');
-      searchQuery += ` label:"${escapedLabel}"`;
-      core.info(`  Added label filter to query: label:"${escapedLabel}"`);
-    }
-  }
-
+  core.info(`  Added workflow-id marker filter to query: "${escapedMarker}" in:body`);
   core.info(`Executing GitHub search with query: ${searchQuery}`);
 
   const result = await github.rest.search.issuesAndPullRequests({
@@ -78,14 +67,10 @@ async function searchOlderIssues(github, owner, repo, titlePrefix, labels, exclu
   // Filter results:
   // 1. Must not be the excluded issue (newly created one)
   // 2. Must not be a pull request
-  // 3. If titlePrefix is specified, must have title starting with the prefix
-  // 4. If labels are specified, must have ALL specified labels (AND logic, not OR)
   core.info("Filtering search results...");
   let filteredCount = 0;
   let pullRequestCount = 0;
   let excludedCount = 0;
-  let titleMismatchCount = 0;
-  let labelMismatchCount = 0;
 
   const filtered = result.data.items
     .filter(item => {
@@ -100,25 +85,6 @@ async function searchOlderIssues(github, owner, repo, titlePrefix, labels, exclu
         excludedCount++;
         core.info(`  Excluding issue #${item.number} (the newly created issue)`);
         return false;
-      }
-
-      // Check title prefix if specified
-      if (titlePrefix && item.title && !item.title.startsWith(titlePrefix)) {
-        titleMismatchCount++;
-        core.info(`  Excluding issue #${item.number}: title "${item.title}" does not start with "${titlePrefix}"`);
-        return false;
-      }
-
-      // Check labels if specified - requires ALL labels to match (AND logic)
-      // This is intentional: we only want to close issues that have ALL the specified labels
-      if (labels && labels.length > 0) {
-        const issueLabels = item.labels?.map(l => l.name) || [];
-        const hasAllLabels = labels.every(label => issueLabels.includes(label));
-        if (!hasAllLabels) {
-          labelMismatchCount++;
-          core.info(`  Excluding issue #${item.number}: labels [${issueLabels.join(", ")}] do not include all required labels [${labels.join(", ")}]`);
-          return false;
-        }
       }
 
       filteredCount++;
@@ -136,8 +102,6 @@ async function searchOlderIssues(github, owner, repo, titlePrefix, labels, exclu
   core.info(`  - Matched issues: ${filteredCount}`);
   core.info(`  - Excluded pull requests: ${pullRequestCount}`);
   core.info(`  - Excluded new issue: ${excludedCount}`);
-  core.info(`  - Excluded title mismatches: ${titleMismatchCount}`);
-  core.info(`  - Excluded label mismatches: ${labelMismatchCount}`);
 
   return filtered;
 }
@@ -219,33 +183,28 @@ function getCloseOlderIssueMessage({ newIssueUrl, newIssueNumber, workflowName, 
 }
 
 /**
- * Close older issues that match the title prefix and/or labels
+ * Close older issues that match the workflow-id marker
  * @param {any} github - GitHub REST API instance
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
- * @param {string} titlePrefix - Title prefix to match (empty string to skip)
- * @param {string[]} labels - Labels to match (empty array to skip)
+ * @param {string} workflowId - Workflow ID to match in the marker
  * @param {{number: number, html_url: string}} newIssue - The newly created issue
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
  * @returns {Promise<Array<{number: number, html_url: string}>>} List of closed issues
  */
-async function closeOlderIssues(github, owner, repo, titlePrefix, labels, newIssue, workflowName, runUrl) {
+async function closeOlderIssues(github, owner, repo, workflowId, newIssue, workflowName, runUrl) {
   core.info("=".repeat(70));
   core.info("Starting closeOlderIssues operation");
   core.info("=".repeat(70));
 
-  // Build search criteria description for logging
-  const searchCriteria = [];
-  if (titlePrefix) searchCriteria.push(`title prefix: "${titlePrefix}"`);
-  if (labels && labels.length > 0) searchCriteria.push(`labels: [${labels.join(", ")}]`);
-  core.info(`Search criteria: ${searchCriteria.length > 0 ? searchCriteria.join(" and ") : "(none specified)"}`);
+  core.info(`Search criteria: workflow-id marker: "${getWorkflowIdMarkerContent(workflowId)}"`);
   core.info(`New issue reference: #${newIssue.number} (${newIssue.html_url})`);
   core.info(`Workflow: ${workflowName}`);
   core.info(`Run URL: ${runUrl}`);
   core.info("");
 
-  const olderIssues = await searchOlderIssues(github, owner, repo, titlePrefix, labels, newIssue.number);
+  const olderIssues = await searchOlderIssues(github, owner, repo, workflowId, newIssue.number);
 
   if (olderIssues.length === 0) {
     core.info("✓ No older issues found to close - operation complete");

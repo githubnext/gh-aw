@@ -3753,7 +3753,7 @@
                 },
                 "close-older-issues": {
                   "type": "boolean",
-                  "description": "When true, automatically close older issues matching the same title prefix or labels as 'not planned' with a comment linking to the new issue. Requires title-prefix or labels to be set. Maximum 10 issues will be closed. Only runs if issue creation succeeds.",
+                  "description": "When true, automatically close older issues with the same workflow-id marker as 'not planned' with a comment linking to the new issue. Searches for issues containing the workflow-id marker in their body. Maximum 10 issues will be closed. Only runs if issue creation succeeds.",
                   "default": false
                 }
               },
