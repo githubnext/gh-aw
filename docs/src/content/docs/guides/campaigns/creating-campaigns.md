@@ -7,9 +7,27 @@ banner:
 
 There are three ways to create a campaign:
 
-## Recommended: Custom agent (via Copilot Chat)
+## Recommended: CLI Interactive wizard
 
-The easiest way is to use the custom agent in GitHub Copilot Chat:
+Use the interactive wizard for guided campaign creation:
+
+```bash
+gh aw campaign new --interactive
+```
+
+The wizard prompts you for:
+- Campaign objective and description
+- Repository scope (current repo, multiple repos, or org-wide)
+- Workflow discovery and selection
+- Owners and stakeholders
+- Risk level assessment
+- Project board creation
+
+This is the easiest way to create a well-configured campaign with all required fields.
+
+## Alternative: Custom agent (via Copilot Chat)
+
+You can also use the custom agent in GitHub Copilot Chat:
 
 1. **Open Copilot Chat** in your repository
 2. **Type `/agent` with your campaign goal**, for example:
@@ -29,22 +47,6 @@ The custom agent analyzes your goal description, discovers relevant workflows, a
 See [Getting started](/gh-aw/guides/campaigns/getting-started/) for a detailed walkthrough.
 
 ## CLI-based creation
-
-### Interactive mode
-
-Use the interactive wizard for guided campaign creation:
-
-```bash
-gh aw campaign new --interactive
-```
-
-The wizard prompts you for:
-- Campaign objective and description
-- Repository scope (current repo, multiple repos, or org-wide)
-- Workflow discovery and selection
-- Owners and stakeholders
-- Risk level assessment
-- Project board creation
 
 ### Manual mode
 
