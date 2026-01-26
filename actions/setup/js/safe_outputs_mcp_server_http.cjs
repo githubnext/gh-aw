@@ -176,6 +176,9 @@ async function startHttpServer(options = {}) {
   const port = options.port || 3000;
   const stateless = options.stateless || false;
 
+  // Add immediate synchronous logging
+  process.stderr.write(`[safe-outputs-startup] startHttpServer called with port=${port}, stateless=${stateless}\n`);
+
   const logger = createLogger("safe-outputs-startup");
 
   logger.debug(`=== Starting Safe Outputs MCP HTTP Server ===`);
@@ -185,6 +188,7 @@ async function startHttpServer(options = {}) {
 
   // Create the MCP server
   try {
+    logger.debug(`About to call createMCPServer...`);
     const { server, config, logger: mcpLogger } = createMCPServer({ logDir: options.logDir });
 
     // Use the MCP logger for subsequent messages
@@ -206,7 +210,9 @@ async function startHttpServer(options = {}) {
 
     // Connect server to transport
     logger.debug(`Connecting server to transport...`);
+    process.stderr.write(`[safe-outputs-startup] About to call server.connect(transport)...\n`);
     await server.connect(transport);
+    process.stderr.write(`[safe-outputs-startup] server.connect(transport) completed successfully\n`);
     logger.debug(`Server connected to transport successfully`);
 
     // Create HTTP server
