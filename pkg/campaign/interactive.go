@@ -212,7 +212,8 @@ func promptForWorkflowDiscovery(config *InteractiveCampaignConfig, rootDir strin
 		return fmt.Errorf("discovery type selection failed: %w", err)
 	}
 
-	if discoveryType == "repos" || discoveryType == "both" {
+	switch discoveryType {
+	case "repos", "both":
 		var reposInput string
 		reposForm := huh.NewForm(
 			huh.NewGroup(
@@ -237,9 +238,12 @@ func promptForWorkflowDiscovery(config *InteractiveCampaignConfig, rootDir strin
 				}
 			}
 		}
-	}
 
-	if discoveryType == "orgs" || discoveryType == "both" {
+		if discoveryType == "repos" {
+			break
+		}
+		fallthrough
+	case "orgs":
 		var orgsInput string
 		orgsForm := huh.NewForm(
 			huh.NewGroup(
@@ -291,7 +295,8 @@ func promptForRepositoryScope(config *InteractiveCampaignConfig) error {
 
 	config.Scope = scopeType
 
-	if scopeType == "multiple" {
+	switch scopeType {
+	case "multiple":
 		var reposInput string
 		reposForm := huh.NewForm(
 			huh.NewGroup(
@@ -320,7 +325,7 @@ func promptForRepositoryScope(config *InteractiveCampaignConfig) error {
 				config.AllowedRepos = append(config.AllowedRepos, repo)
 			}
 		}
-	} else if scopeType == "org-wide" {
+	case "org-wide":
 		var orgsInput string
 		orgsForm := huh.NewForm(
 			huh.NewGroup(
