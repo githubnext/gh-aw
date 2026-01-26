@@ -17,7 +17,7 @@ jobs:
       found_patterns: ${{ steps.detect.outputs.found_patterns }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Install ast-grep
