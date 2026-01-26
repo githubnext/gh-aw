@@ -112,12 +112,11 @@ jobs:
         run: mkdir -p ./.gh-aw
       - env:
           GH_AW_CAMPAIGN_ID: security-alert-burndown
-          GH_AW_CURSOR_PATH: /tmp/gh-aw/repo-memory/campaigns/security-alert-burndown/cursor.json
-          GH_AW_DISCOVERY_REPOS: githubnext/gh-aw
+          GH_AW_CURSOR_PATH: ""
           GH_AW_MAX_DISCOVERY_ITEMS: "100"
           GH_AW_MAX_DISCOVERY_PAGES: "5"
           GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/134
-          GH_AW_TRACKER_LABEL: z_campaign_security-alert-burndown
+          GH_AW_TRACKER_LABEL: ""
           GH_AW_WORKFLOWS: code-scanning-fixer,security-fix-pr,dependabot-bundler,secret-scanning-triage
         id: discovery
         name: Run campaign discovery precomputation
@@ -898,9 +897,6 @@ jobs:
           This workflow orchestrates the 'Security Alert Burndown' campaign.
           
           - Associated workflows: code-scanning-fixer, security-fix-pr, dependabot-bundler, secret-scanning-triage
-          - Memory paths: memory/campaigns/security-alert-burndown/**
-          - Metrics glob: `memory/campaigns/security-alert-burndown/metrics/*.json`
-          - Cursor glob: `memory/campaigns/security-alert-burndown/cursor.json`
           - Project URL: https://github.com/orgs/githubnext/projects/134
           - Governance: max new items per run: 3
           - Governance: max discovery items per run: 100
@@ -1224,33 +1220,7 @@ jobs:
           - On throttling (HTTP 429 / rate-limit 403), do not retry aggressively; back off and end the run after reporting what remains.
           
           
-          **Cursor file (repo-memory)**: `memory/campaigns/security-alert-burndown/cursor.json`  
-          **File system path**: `/tmp/gh-aw/repo-memory/campaigns/security-alert-burndown/cursor.json`  
-          - If it exists: read first and continue from its boundary.  
-          - If it does not exist: create it by end of run.  
-          - Always write the updated cursor back to the same path.
           
-          
-          
-          **Metrics snapshots (repo-memory)**: `memory/campaigns/security-alert-burndown/metrics/*.json`  
-          **File system path**: `/tmp/gh-aw/repo-memory/campaigns/security-alert-burndown/metrics/*.json`  
-          - Persist one append-only JSON metrics snapshot per run (new file per run; do not rewrite history).
-          - Use UTC date (`YYYY-MM-DD`) in the filename (example: `metrics/2025-12-22.json`).
-          - Each snapshot MUST include ALL required fields (even if zero):
-            - `campaign_id` (string): The campaign identifier
-            - `date` (string): UTC date in YYYY-MM-DD format
-            - `tasks_total` (number): Total number of tasks (>= 0, even if 0)
-            - `tasks_completed` (number): Completed task count (>= 0, even if 0)
-          - Optional fields (include only if available): `tasks_in_progress`, `tasks_blocked`, `velocity_per_day`, `estimated_completion`
-          - Example minimum valid snapshot:
-            ```json
-            {
-              "campaign_id": "security-alert-burndown",
-              "date": "2025-12-22",
-              "tasks_total": 0,
-              "tasks_completed": 0
-            }
-            ```
           
           
           
@@ -1381,8 +1351,6 @@ jobs:
           
           1) Read the precomputed discovery manifest: `./.gh-aw/campaign.discovery.json`
              - This manifest contains all discovered worker outputs with normalized metadata
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
              - Schema version: v1
              - Fields: campaign_id, generated_at, discovery (total_items, cursor info), summary (counts), items (array of normalized items)
           
@@ -1413,6 +1381,8 @@ jobs:
           - `start_date`: format `created_at` as `YYYY-MM-DD`
           - `end_date`:
             - if closed/merged → format `closed_at`/`merged_at` as `YYYY-MM-DD`
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
             - if open → **today's date** formatted `YYYY-MM-DD` (required for roadmap view)
           
           **Why use today for open items?** - GitHub Projects requires end_date for roadmap views. Using today's date shows the item is actively tracked and updates automatically each run until completion.
