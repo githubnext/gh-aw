@@ -21,7 +21,6 @@ imports:
   - shared/mcp/tavily.md
   - shared/mcp/microsoft-docs.md
   - shared/mcp/deepwiki.md
-  - shared/mcp/context7.md
   - shared/mcp/markitdown.md
   - shared/jqschema.md
 tools:
@@ -75,7 +74,6 @@ When invoked with the `/scout` command in an issue or pull request comment, OR m
   - **Tavily**: Web search for technical documentation, best practices, recent developments
   - **DeepWiki**: GitHub repository documentation and Q&A for specific projects
   - **Microsoft Docs**: Official Microsoft documentation and guides
-  - **Context7**: Semantic search over stored knowledge and documentation
   - **arXiv**: Academic research papers and preprints for scientific and technical topics
 - Conduct multiple searches from different angles if needed
 
