@@ -16,22 +16,22 @@ var interactiveLog = logger.New("campaign:interactive")
 
 // InteractiveCampaignConfig holds the configuration for interactive campaign creation
 type InteractiveCampaignConfig struct {
-	ID               string
-	Name             string
-	Description      string
-	Scope            string // "current", "multiple", "org-wide"
-	AllowedRepos     []string
-	AllowedOrgs      []string
-	DiscoveryRepos   []string
-	DiscoveryOrgs    []string
-	Workflows        []string
-	Owners           []string
-	RiskLevel        string
-	CreateProject    bool
-	ProjectOwner     string
-	LinkRepo         string
-	Objective        string
-	Force            bool
+	ID             string
+	Name           string
+	Description    string
+	Scope          string // "current", "multiple", "org-wide"
+	AllowedRepos   []string
+	AllowedOrgs    []string
+	DiscoveryRepos []string
+	DiscoveryOrgs  []string
+	Workflows      []string
+	Owners         []string
+	RiskLevel      string
+	CreateProject  bool
+	ProjectOwner   string
+	LinkRepo       string
+	Objective      string
+	Force          bool
 }
 
 // RunInteractiveCampaignCreation runs an interactive wizard to create a campaign spec
@@ -543,7 +543,7 @@ func generateCampaignFromConfig(rootDir string, config *InteractiveCampaignConfi
 	buf.WriteString("---\n\n")
 	buf.WriteString("# " + config.Name + "\n\n")
 	buf.WriteString(config.Description + "\n\n")
-	
+
 	buf.WriteString("## Workflows\n\n")
 	if len(config.Workflows) > 0 {
 		for _, workflow := range config.Workflows {

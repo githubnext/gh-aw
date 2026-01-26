@@ -130,20 +130,20 @@ Examples:
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			interactive, _ := cmd.Flags().GetBool("interactive")
-			
+
 			// Interactive mode doesn't require campaign ID as argument
 			if interactive {
 				force, _ := cmd.Flags().GetBool("force")
 				verbose, _ := cmd.Flags().GetBool("verbose")
-				
+
 				cwd, err := os.Getwd()
 				if err != nil {
 					return fmt.Errorf("failed to get current working directory: %w", err)
 				}
-				
+
 				return RunInteractiveCampaignCreation(cwd, force, verbose)
 			}
-			
+
 			// Non-interactive mode requires campaign ID
 			if len(args) == 0 {
 				// Build an error message with suggestions but without the leading
