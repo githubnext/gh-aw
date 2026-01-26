@@ -49,8 +49,6 @@ jobs:
         uses: githubnext/gh-aw/actions/setup-cli%s
         with:
           version: %s
-      - name: Verify gh-aw installation
-        run: gh aw version
 `, actionRef, version)
 	}
 
@@ -78,8 +76,6 @@ jobs:
       - name: Install gh-aw extension
         run: |
           curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash
-      - name: Verify gh-aw installation
-        run: gh aw version
 `
 }
 
@@ -106,8 +102,6 @@ jobs:
       - name: Install gh-aw extension
         run: |
           curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash
-      - name: Verify gh-aw installation
-        run: gh aw version
 `
 
 // CopilotWorkflowStep represents a GitHub Actions workflow step for Copilot setup scaffolding
@@ -239,26 +233,21 @@ func injectExtensionInstallStep(workflow *Workflow, actionMode workflow.ActionMo
 		}
 	}
 
-	verifyStep := CopilotWorkflowStep{
-		Name: "Verify gh-aw installation",
-		Run:  "gh aw version",
-	}
-
 	// Find the copilot-setup-steps job
 	job, exists := workflow.Jobs["copilot-setup-steps"]
 	if !exists {
 		return fmt.Errorf("copilot-setup-steps job not found in workflow")
 	}
 
-	// Insert the extension install and verify steps at the beginning
+	// Insert the extension install step at the beginning
 	insertPosition := 0
 
 	// Prepare steps to insert based on mode
 	var stepsToInsert []CopilotWorkflowStep
 	if actionMode.IsRelease() {
-		stepsToInsert = []CopilotWorkflowStep{checkoutStep, installStep, verifyStep}
+		stepsToInsert = []CopilotWorkflowStep{checkoutStep, installStep}
 	} else {
-		stepsToInsert = []CopilotWorkflowStep{installStep, verifyStep}
+		stepsToInsert = []CopilotWorkflowStep{installStep}
 	}
 
 	// Insert steps at the determined position
