@@ -271,8 +271,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			awfLogLevel = firewallConfig.LogLevel
 		}
 
-		// Get allowed domains (Claude defaults + network permissions + HTTP MCP server URLs)
-		allowedDomains := GetClaudeAllowedDomainsWithTools(workflowData.NetworkPermissions, workflowData.Tools)
+		// Get allowed domains (Claude defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
+		allowedDomains := GetClaudeAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 
 		// Build AWF arguments: mount points + standard flags + custom args from config
 		var awfArgs []string

@@ -238,8 +238,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			awfLogLevel = firewallConfig.LogLevel
 		}
 
-		// Get allowed domains (copilot defaults + network permissions + HTTP MCP server URLs)
-		allowedDomains := GetCopilotAllowedDomainsWithTools(workflowData.NetworkPermissions, workflowData.Tools)
+		// Get allowed domains (copilot defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
+		allowedDomains := GetCopilotAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 
 		// Build AWF arguments: mount points + standard flags + custom args from config
 		var awfArgs []string
