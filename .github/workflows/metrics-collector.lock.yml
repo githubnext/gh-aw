@@ -37,8 +37,6 @@ run-name: "Metrics Collector - Infrastructure Agent"
 
 jobs:
   activation:
-    needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -769,36 +767,6 @@ jobs:
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/agent-stdio.log
           if-no-files-found: ignore
-
-  pre_activation:
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-    outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
-      - name: Check team membership for workflow
-        id: check_membership
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_REQUIRED_ROLES: admin,maintainer,write
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
-            await main();
 
   push_repo_memory:
     needs: agent
