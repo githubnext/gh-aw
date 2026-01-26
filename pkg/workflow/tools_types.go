@@ -268,7 +268,18 @@ type GitHubToolConfig struct {
 	GitHubToken string             `yaml:"github-token,omitempty"`
 	Toolset     GitHubToolsets     `yaml:"toolsets,omitempty"`
 	Lockdown    bool               `yaml:"lockdown,omitempty"`
-	App         *GitHubAppConfig   `yaml:"app,omitempty"` // GitHub App configuration for token minting
+	App         *GitHubAppConfig   `yaml:"app,omitempty"`     // GitHub App configuration for token minting
+	Options     *GitHubToolOptions `yaml:"options,omitempty"` // Additional options for tool behavior
+}
+
+// GitHubToolOptions represents additional configuration options for GitHub MCP tool behavior
+// These options can be used to optimize response payloads and reduce token usage
+type GitHubToolOptions struct {
+	// ResponseMode controls the verbosity of tool responses
+	// - "summary" or "minimal": Returns only essential fields (recommended for reducing token usage)
+	// - "full" or "complete": Returns complete response objects
+	// - Empty/unset: Uses server default behavior
+	ResponseMode string `yaml:"response-mode,omitempty"`
 }
 
 // PlaywrightDomain represents a domain name allowed for Playwright browser automation

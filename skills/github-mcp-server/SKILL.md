@@ -167,6 +167,10 @@ This section maps individual tools to their respective toolsets to help with mig
 - `get_code_scanning_alert` - Get details of a specific alert
 - `create_code_scanning_alert` - Create a code scanning alert
 
+:::caution[High Token Usage]
+`list_code_scanning_alerts` returns large payloads (~24,000 tokens per call). Use targeted queries and limit results to reduce token consumption. See [Token Usage Optimization](../../docs/guides/optimizing-token-usage.md).
+:::
+
 ### Discussions Toolset
 - `list_discussions` - List discussions in a repository
 - `create_discussion` - Create a new discussion
@@ -217,6 +221,22 @@ The local mode uses environment variables:
 - `GITHUB_TOOLSETS=<comma-separated-list>` - Optional, specifies enabled toolsets
 
 ## Best Practices
+
+### Token Usage Optimization
+
+Some GitHub MCP tools return large payloads that consume excessive tokens:
+
+**High Token Usage Tools:**
+- `list_code_scanning_alerts` - ~24,000 tokens (97KB per call)
+- `list_pull_requests` - Duplicates repository objects
+
+**Recommendations:**
+1. **Use targeted queries** instead of listing all results
+2. **Limit result counts** through pagination or filtering
+3. **Request specific fields** in your prompts
+4. **Avoid listing when direct access is possible**
+
+See the [Token Usage Optimization Guide](../../docs/guides/optimizing-token-usage.md) for detailed strategies.
 
 ### Toolset Selection
 

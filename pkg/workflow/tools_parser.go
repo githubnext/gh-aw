@@ -229,12 +229,36 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			config.App = parseAppConfig(app)
 		}
 
+		// Parse options configuration for tool behavior customization
+		if options, ok := configMap["options"].(map[string]any); ok {
+			config.Options = parseGitHubToolOptions(options)
+		}
+
 		return config
 	}
 
 	return &GitHubToolConfig{
 		ReadOnly: true, // default to read-only for security
 	}
+}
+
+// parseGitHubToolOptions converts raw GitHub tool options configuration to GitHubToolOptions
+func parseGitHubToolOptions(optionsMap map[string]any) *GitHubToolOptions {
+	if optionsMap == nil {
+		return nil
+	}
+
+	toolsParserLog.Print("Parsing GitHub tool options configuration")
+	options := &GitHubToolOptions{}
+
+	// Parse response-mode (or response_mode for compatibility)
+	if responseMode, ok := optionsMap["response-mode"].(string); ok {
+		options.ResponseMode = responseMode
+	} else if responseMode, ok := optionsMap["response_mode"].(string); ok {
+		options.ResponseMode = responseMode
+	}
+
+	return options
 }
 
 // parseBashTool converts raw bash tool configuration to BashToolConfig
