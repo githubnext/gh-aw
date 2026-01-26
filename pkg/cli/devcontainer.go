@@ -37,10 +37,18 @@ type DevcontainerRepoPermissions struct {
 // DevcontainerFeatures represents features to install in the devcontainer
 type DevcontainerFeatures map[string]any
 
+// DevcontainerBuild represents the build configuration for a devcontainer
+type DevcontainerBuild struct {
+	Dockerfile string `json:"dockerfile,omitempty"`
+	Context    string `json:"context,omitempty"`
+	Args       map[string]string `json:"args,omitempty"`
+}
+
 // DevcontainerConfig represents the structure of devcontainer.json
 type DevcontainerConfig struct {
 	Name              string                      `json:"name"`
-	Image             string                      `json:"image"`
+	Image             string                      `json:"image,omitempty"`
+	Build             *DevcontainerBuild          `json:"build,omitempty"`
 	Customizations    *DevcontainerCustomizations `json:"customizations,omitempty"`
 	Features          DevcontainerFeatures        `json:"features,omitempty"`
 	PostCreateCommand string                      `json:"postCreateCommand,omitempty"`
