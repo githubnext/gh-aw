@@ -39,8 +39,8 @@ type DevcontainerFeatures map[string]any
 
 // DevcontainerBuild represents the build configuration for a devcontainer
 type DevcontainerBuild struct {
-	Dockerfile string `json:"dockerfile,omitempty"`
-	Context    string `json:"context,omitempty"`
+	Dockerfile string            `json:"dockerfile,omitempty"`
+	Context    string            `json:"context,omitempty"`
 	Args       map[string]string `json:"args,omitempty"`
 }
 
