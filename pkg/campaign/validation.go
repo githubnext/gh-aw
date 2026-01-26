@@ -80,14 +80,6 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		}
 	}
 
-	// Validate that campaigns with workflows or tracker-label have discovery-repos or discovery-orgs
-	// This ensures discovery is properly scoped
-	hasDiscovery := len(spec.Workflows) > 0 || spec.TrackerLabel != ""
-	hasDiscoveryScope := len(spec.DiscoveryRepos) > 0 || len(spec.DiscoveryOrgs) > 0
-	if hasDiscovery && !hasDiscoveryScope {
-		problems = append(problems, "campaigns with workflows or tracker-label must specify discovery-repos or discovery-orgs for discovery scoping - configure at least one to define where the campaign can discover worker items")
-	}
-
 	// Validate discovery-repos format if provided
 	if len(spec.DiscoveryRepos) > 0 {
 		// Validate each repository format

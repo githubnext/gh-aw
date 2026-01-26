@@ -2,18 +2,12 @@
 id: simple-upgrade-example
 name: "Simple Framework Upgrade Campaign"
 description: "Example showing how campaigns execute workflows to upgrade services"
-version: v1
-state: active
-
 project-url: "https://github.com/orgs/myorg/projects/999"
-tracker-label: "campaign:framework-upgrade"
 
-# Workflows to execute
 workflows:
   - framework-scanner
   - framework-upgrader
 
-# Governance
 governance:
   max-project-updates-per-run: 20
 

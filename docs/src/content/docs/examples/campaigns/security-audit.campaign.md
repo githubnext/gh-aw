@@ -2,24 +2,13 @@
 title: Security Audit Campaign Example
 id: security-audit-2026
 name: Security Audit 2026
-version: v1
-state: planned
 project-url: https://github.com/orgs/example/projects/42
-tracker-label: z_campaign_security-audit-2026
 
-# Worker workflows that will be discovered and dispatched
 workflows:
   - security-scanner
   - dependency-updater
   - vulnerability-reporter
 
-# Campaign memory storage
-memory-paths:
-  - memory/campaigns/security-audit-2026/**
-metrics-glob: memory/campaigns/security-audit-2026/metrics/*.json
-cursor-glob: memory/campaigns/security-audit-2026/cursor.json
-
-# Governance
 governance:
   max-new-items-per-run: 10
   max-discovery-items-per-run: 100
@@ -30,7 +19,6 @@ governance:
     - no-campaign
     - no-bot
 
-# Team
 owners:
   - "@security-team"
 executive-sponsors:

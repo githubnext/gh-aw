@@ -283,29 +283,6 @@ func TestValidateSpec_MissingAllowedReposIsValid(t *testing.T) {
 	}
 }
 
-func TestValidateSpec_MissingAllowedReposWithWorkflowsIsInvalid(t *testing.T) {
-	spec := &CampaignSpec{
-		ID:         "test-campaign",
-		Name:       "Test Campaign",
-		ProjectURL: "https://github.com/orgs/org/projects/1",
-		Workflows:  []string{"workflow1"},
-		// DiscoveryRepos intentionally omitted - should fail because workflows need scoping
-	}
-
-	problems := ValidateSpec(spec)
-	// Should have validation problems for missing scope
-	hasDiscoveryScopeError := false
-	for _, p := range problems {
-		if strings.Contains(p, "campaigns with workflows or tracker-label must specify discovery-repos or discovery-orgs") {
-			hasDiscoveryScopeError = true
-			break
-		}
-	}
-	if !hasDiscoveryScopeError {
-		t.Errorf("Expected validation error for missing scope with workflows, got: %v", problems)
-	}
-}
-
 func TestValidateSpec_InvalidAllowedReposFormat(t *testing.T) {
 	spec := &CampaignSpec{
 		ID:             "test-campaign",
@@ -345,29 +322,6 @@ func TestValidateSpec_EmptyAllowedReposIsValid(t *testing.T) {
 	// Should have one problem: missing workflows
 	if len(problems) != 1 {
 		t.Errorf("Expected 1 validation problem (workflows), got: %v", problems)
-	}
-}
-
-func TestValidateSpec_EmptyAllowedReposWithWorkflowsIsInvalid(t *testing.T) {
-	spec := &CampaignSpec{
-		ID:             "test-campaign",
-		Name:           "Test Campaign",
-		ProjectURL:     "https://github.com/orgs/org/projects/1",
-		Workflows:      []string{"workflow1"},
-		DiscoveryRepos: []string{}, // Empty list - should fail with workflows
-	}
-
-	problems := ValidateSpec(spec)
-	// Should have validation problems for missing scope
-	hasDiscoveryScopeError := false
-	for _, p := range problems {
-		if strings.Contains(p, "campaigns with workflows or tracker-label must specify discovery-repos or discovery-orgs") {
-			hasDiscoveryScopeError = true
-			break
-		}
-	}
-	if !hasDiscoveryScopeError {
-		t.Errorf("Expected validation error for empty scope with workflows, got: %v", problems)
 	}
 }
 

@@ -9,29 +9,19 @@ Campaign specs are YAML frontmatter configuration files at `.github/workflows/<i
 
 ## Spec structure
 
+A minimal campaign spec requires only `id`, `project-url`, and `workflows`. Most fields have sensible defaults.
+
 ```yaml
 ---
 id: framework-upgrade
 name: "Framework Upgrade"
-description: "Move services to Framework vNext"
-state: active
-
 project-url: "https://github.com/orgs/ORG/projects/1"
-tracker-label: "z_campaign_framework-upgrade"
-
-discovery-repos:
-  - "myorg/service-a"
-  - "myorg/service-b"
 
 workflows:
   - framework-upgrade-scanner
 
 governance:
   max-project-updates-per-run: 10
-  max-discovery-items-per-run: 50
-
-owners:
-  - "platform-team"
 ---
 
 # Framework Upgrade Campaign
@@ -53,11 +43,6 @@ Upgrade all services to Framework vNext with zero downtime.
 - **Phase 1** (Weeks 1-2): Discovery and planning
 - **Phase 2** (Weeks 3-6): Incremental upgrades
 - **Phase 3** (Week 7+): Validation and monitoring
-
-## Worker Workflows
-
-### framework-upgrade-scanner
-Scans repositories to identify services that need upgrading...
 ```
 
 ## Required fields
@@ -67,59 +52,80 @@ Scans repositories to identify services that need upgrading...
 **id** - Stable identifier for file naming and reporting
 - Format: lowercase letters, digits, hyphens only
 - Example: `security-audit-2025`
+- Auto-generates defaults for: tracker-label, memory-paths, metrics-glob, cursor-glob
 
 **name** - Human-friendly display name
 - Example: `"Security Audit 2025"`
+- Default: Uses `id` if not specified
 
 **project-url** - GitHub Project board URL for tracking
 - Format: `https://github.com/orgs/ORG/projects/N`
 - Example: `https://github.com/orgs/mycompany/projects/1`
 
-### Discovery scope
+**workflows** - Worker workflows that implement the campaign
+- Format: List of workflow IDs (file names without .md extension)
+- Example: `["security-scanner", "dependency-fixer"]`
 
-At least one of these is required when using `workflows` or `tracker-label`:
+## Fields with defaults
+
+Many fields have automatic defaults based on the campaign ID:
+
+**state** - Lifecycle stage
+- Default: `active`
+- Values: `planned`, `active`, `paused`, `completed`, `archived`
+
+**tracker-label** - Label for discovering worker outputs
+- Default: `z_campaign_{id}` (e.g., `z_campaign_security-audit`)
+- Can be customized if needed
+
+**memory-paths** - Where campaign writes repo-memory
+- Default: `["memory/campaigns/{id}/**"]`
+
+**metrics-glob** - Glob for JSON metrics snapshots
+- Default: `memory/campaigns/{id}/metrics/*.json`
+
+**cursor-glob** - Glob for durable cursor/checkpoint file
+- Default: `memory/campaigns/{id}/cursor.json`
+
+**allowed-repos** - Repositories campaign can operate on
+- Default: Current repository (where campaign is defined)
+
+**discovery-repos** - Repositories to search for worker outputs
+- Default: Same as `allowed-repos`
+
+### Discovery scope (optional)
+
+Override discovery scope when operating across multiple repositories:
 
 **discovery-repos** - Specific repositories to search
 - Format: List of `owner/repo` strings
 - Example: `["myorg/api", "myorg/web"]`
+- Default: Same as `allowed-repos` (current repository)
 
 **discovery-orgs** - Organizations to search (all repos)
 - Format: List of organization names
 - Example: `["myorg"]`
-
-## Common fields
-
-**workflows** - Worker workflows to dispatch
-- Format: List of workflow IDs (file names without extension)
-- Example: `["security-scanner", "dependency-fixer"]`
-
-**tracker-label** - Label for discovering worker outputs
-- Format: `campaign:<id>`
-- Example: `campaign:security-audit`
-
-**state** - Lifecycle state
-- Values: `planned`, `active`, `paused`, `completed`, `archived`
-- Default: `planned`
-
-**governance** - Pacing and safety limits
-- See [Governance fields](#governance-fields) below
+- Overrides `discovery-repos` when specified
 
 ## Optional fields
 
 **description** - Brief campaign description
+- Provides context in listings and dashboards
 
 **version** - Spec format version
 - Default: `v1`
+- Usually not needed in specs
 
 **owners** - Primary human owners
 - Format: List of team or user names
+- Example: `["@security-team", "alice"]`
 
-**allowed-repos** - Repositories campaign can modify
-- Default: Repository containing the spec
-- Format: List of `owner/repo` strings
+**governance** - Pacing and safety limits
+- See [Governance fields](#governance-fields) below
 
 **allowed-orgs** - Organizations campaign can modify
 - Format: List of organization names
+- Alternative to specifying individual `allowed-repos`
 
 **project-github-token** - Custom token for Projects API
 - Format: Token expression like `${{ secrets.TOKEN_NAME }}`
@@ -229,23 +235,48 @@ gh aw campaign validate
 
 Common validation errors:
 
-- Missing required fields (`id`, `name`, `project-url`)
-- Missing discovery scope when using `workflows` or `tracker-label`
+- Missing required fields (`id`, `project-url`, `workflows`)
 - Invalid `state` value
 - Malformed URLs or identifiers
 
-## Example: Security audit campaign
+## Minimal example
+
+The simplest possible campaign:
 
 ```yaml
 ---
 id: security-audit-q1
-version: "v1"
+name: "Security Audit Q1 2025"
+project-url: "https://github.com/orgs/myorg/projects/5"
+
+workflows:
+  - security-scanner
+  - dependency-updater
+---
+
+# Security Audit Q1 2025 Campaign
+
+Document your objectives, KPIs, timeline, and strategy here...
+```
+
+This automatically gets:
+- `state: active`
+- `tracker-label: z_campaign_security-audit-q1`
+- `memory-paths: ["memory/campaigns/security-audit-q1/**"]`
+- `metrics-glob: memory/campaigns/security-audit-q1/metrics/*.json`
+- `cursor-glob: memory/campaigns/security-audit-q1/cursor.json`
+- `allowed-repos` and `discovery-repos`: current repository
+
+## Full example
+
+With governance and multi-org scope:
+
+```yaml
+---
+id: security-audit-q1
 name: "Security Audit Q1 2025"
 description: "Quarterly security review and remediation"
-state: active
-
 project-url: "https://github.com/orgs/myorg/projects/5"
-tracker-label: "campaign:security-audit-q1"
 
 discovery-orgs:
   - "myorg"

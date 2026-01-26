@@ -3,22 +3,11 @@ id: security-alert-burndown
 name: Security Alert Burndown
 description: Systematically burns down code security alerts with focus on file write issues
 project-url: https://github.com/orgs/githubnext/projects/134
-version: v1
-state: planned
 workflows:
   - code-scanning-fixer
   - security-fix-pr
   - dependabot-bundler
   - secret-scanning-triage
-allowed-repos:
-  - githubnext/gh-aw
-discovery-repos:
-  - githubnext/gh-aw
-tracker-label: z_campaign_security-alert-burndown
-memory-paths:
-  - memory/campaigns/security-alert-burndown/**
-metrics-glob: memory/campaigns/security-alert-burndown/metrics/*.json
-cursor-glob: memory/campaigns/security-alert-burndown/cursor.json
 governance:
   max-new-items-per-run: 3
   max-discovery-items-per-run: 100
@@ -32,18 +21,6 @@ governance:
 owners:
   - "@mnkiefer"
 risk-level: high
-allowed-safe-outputs:
-  - create-pull-request
-  - create-issue
-  - autofix-code-scanning-alert
-  - add-comment
-  - update-project
-tags:
-  - security
-  - automated-fixes
-  - code-scanning
-  - dependabot
-  - secret-scanning
 ---
 
 # Security Alert Burndown Campaign
