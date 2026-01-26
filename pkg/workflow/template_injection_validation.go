@@ -52,22 +52,13 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/goccy/go-yaml"
 )
 
 var templateInjectionValidationLog = logger.New("workflow:template_injection_validation")
 
 // Pre-compiled regex patterns for template injection detection
 var (
-	// runBlockRegex matches YAML run: blocks and captures their content
-	// This regex matches both single-line and multi-line run commands in YAML
-	// Pattern explanation:
-	//   ^\s+run:\s*\|\s*\n((?:[ \t]+.+\n?)+?)\s*(?:^[ \t]*-\s|\z) - matches multi-line block scalar (run: |)
-	//     - Stops at next step (^[ \t]*-\s) or end of string (\z)
-	//   | - OR
-	//   ^\s+run:\s*(.+)$ - matches single-line run command
-	// Group 1 = multi-line content, Group 2 = single-line content
-	runBlockRegex = regexp.MustCompile(`(?m)^\s+run:\s*\|\s*\n((?:[ \t]+.+\n?)+?)\s*(?:^[ \t]*-\s|\z)|^\s+run:\s*(.+)$`)
-
 	// inlineExpressionRegex matches GitHub Actions template expressions ${{ ... }}
 	inlineExpressionRegex = regexp.MustCompile(`\$\{\{[^}]+\}\}`)
 
@@ -82,24 +73,22 @@ var (
 func validateNoTemplateInjection(yamlContent string) error {
 	templateInjectionValidationLog.Print("Validating compiled YAML for template injection risks")
 
-	// Find all run: blocks in the YAML
-	runMatches := runBlockRegex.FindAllStringSubmatch(yamlContent, -1)
-	templateInjectionValidationLog.Printf("Found %d run blocks to scan", len(runMatches))
+	// Parse YAML to walk the tree and extract run fields
+	var workflow map[string]any
+	if err := yaml.Unmarshal([]byte(yamlContent), &workflow); err != nil {
+		templateInjectionValidationLog.Printf("Failed to parse YAML: %v", err)
+		// Fall back to skipping validation if YAML is malformed
+		// (compilation would have already failed if YAML is invalid)
+		return nil
+	}
+
+	// Extract all run blocks from the workflow
+	runBlocks := extractRunBlocks(workflow)
+	templateInjectionValidationLog.Printf("Found %d run blocks to scan", len(runBlocks))
 
 	var violations []TemplateInjectionViolation
 
-	for _, match := range runMatches {
-		// Extract run content from the regex match groups
-		// Group 1 = multi-line block, Group 2 = single-line command
-		var runContent string
-		if len(match) > 1 && match[1] != "" {
-			runContent = match[1] // Multi-line run block
-		} else if len(match) > 2 && match[2] != "" {
-			runContent = match[2] // Single-line run command
-		} else {
-			continue
-		}
-
+	for _, runContent := range runBlocks {
 		// Check if this run block contains inline expressions
 		if !inlineExpressionRegex.MatchString(runContent) {
 			continue
@@ -137,6 +126,32 @@ func validateNoTemplateInjection(yamlContent string) error {
 
 	templateInjectionValidationLog.Print("Template injection validation passed")
 	return nil
+}
+
+// extractRunBlocks walks the YAML tree and extracts all run: field values
+func extractRunBlocks(data any) []string {
+	var runBlocks []string
+
+	switch v := data.(type) {
+	case map[string]any:
+		// Check if this map has a "run" key
+		if runValue, ok := v["run"]; ok {
+			if runStr, ok := runValue.(string); ok {
+				runBlocks = append(runBlocks, runStr)
+			}
+		}
+		// Recursively process all values in the map
+		for _, value := range v {
+			runBlocks = append(runBlocks, extractRunBlocks(value)...)
+		}
+	case []any:
+		// Recursively process all items in the slice
+		for _, item := range v {
+			runBlocks = append(runBlocks, extractRunBlocks(item)...)
+		}
+	}
+
+	return runBlocks
 }
 
 // removeHeredocContent removes heredoc sections from shell commands

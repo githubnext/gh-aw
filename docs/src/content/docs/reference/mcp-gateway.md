@@ -225,6 +225,7 @@ Each server configuration MUST support:
 | `env` | object | No | Environment variables for the server process |
 | `type` | string | No | Transport type: "stdio" or "http" (default: "stdio") |
 | `url` | string | Conditional** | HTTP endpoint URL for HTTP servers |
+| `registry` | string | No | URI to the installation location when MCP is installed from a registry. This is an informational field used for documentation and tooling discovery. Applies to both stdio and HTTP servers. Example: `"https://api.mcp.github.com/v0/servers/microsoft/markitdown"` |
 | `tools` | array[string] | No | Tool filter for the MCP server. Use `["*"]` to allow all tools (default), or specify a list of tool names to allow. This field is passed through to agent configurations and applies to both stdio and http servers. |
 | `headers` | object | No | HTTP headers to include in requests (HTTP servers only). Commonly used for authentication to external HTTP servers. Values may contain variable expressions. |
 
@@ -1180,6 +1181,48 @@ Implementations SHOULD provide:
   }
 }
 ```
+
+#### A.5 Servers with Registry Field
+
+The `registry` field documents the MCP server's installation location in an MCP registry. This is useful for tooling discovery and version management.
+
+```json
+{
+  "mcpServers": {
+    "markitdown": {
+      "registry": "https://api.mcp.github.com/v0/servers/microsoft/markitdown",
+      "container": "node:lts-alpine",
+      "entrypointArgs": ["npx", "-y", "@microsoft/markitdown"],
+      "type": "stdio"
+    },
+    "filesystem": {
+      "registry": "https://api.mcp.github.com/v0/servers/modelcontextprotocol/filesystem",
+      "container": "node:lts-alpine",
+      "entrypointArgs": ["npx", "-y", "@modelcontextprotocol/server-filesystem"],
+      "type": "stdio"
+    },
+    "custom-api": {
+      "registry": "https://registry.example.com/servers/custom-api/v1",
+      "type": "http",
+      "url": "https://api.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}"
+      }
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "gateway-secret-token"
+  }
+}
+```
+
+**Notes**:
+- The `registry` field is informational and does not affect server execution
+- It can be used with both stdio (containerized) and HTTP servers
+- Registry-aware tooling can use this field for discovery and version management
+- The field complements other configuration fields like `container`, `entrypointArgs`, or `url`
 
 ### Appendix B: Gateway Lifecycle Examples
 

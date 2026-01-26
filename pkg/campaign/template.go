@@ -50,12 +50,6 @@ type CampaignPromptData struct {
 	// CampaignName is the human-readable name of this campaign.
 	CampaignName string
 
-	// Objective is the campaign objective statement.
-	Objective string
-
-	// KPIs is the KPI definition list for this campaign.
-	KPIs []CampaignKPI
-
 	// ProjectURL is the GitHub Project URL
 	ProjectURL string
 

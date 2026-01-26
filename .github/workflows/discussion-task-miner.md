@@ -2,8 +2,8 @@
 description: Scans AI-generated discussions to extract actionable code quality improvement tasks
 on:
   schedule:
-    # Daily (fuzzy time distribution)
-    - cron: daily
+    # Every 4 hours (fuzzy time distribution)
+    - cron: every 4h
   workflow_dispatch:
 
 permissions:

@@ -38,7 +38,7 @@ An AI-powered workflow that can reason, make decisions, and take autonomous acti
 
 ### Agentic Campaign
 
-A coordinated, multi-workflow effort that orchestrates one or more agentic workflows to achieve a shared goal, often across many repositories.
+An initiative that coordinates multiple agentic workflows toward a shared goal.
 
 ### Agentic Engine or Coding Agent
 
@@ -267,6 +267,7 @@ Persistent storage for workflows that preserves data between runs. Configured us
 AI-powered GitHub Projects board management that automates issue triage, routing, and field updates. ProjectOps workflows analyze issue/PR content and make intelligent decisions about project assignment, status, priority, and custom field values. Uses the `update-project` safe output for secure board updates without elevated permissions.
 
 **Key capabilities:**
+
 - Content-based routing to appropriate project boards
 - AI-driven priority and effort estimation
 - Automated status transitions and field updates
@@ -283,9 +284,9 @@ See the [ProjectOps Guide](/gh-aw/examples/issue-pr-events/projectops/) for impl
 
 ### Agentic campaign
 
-A finite, enterprise-scale initiative with explicit ownership, approval gates, and executive visibility. Agentic campaigns orchestrate business outcomes (security remediation, dependency updates, compliance enforcement) across multiple repositories with governance, accountability, and ROI tracking.
+An initiative that coordinates multiple agentic workflows toward a shared goal. Agentic campaigns can be enterprise-scale, with explicit ownership, approval gates, and executive visibility.
 
-Campaigns use `.campaign.md` specification files to define objectives, KPIs, and governance. The orchestrator discovers and tracks work, executes workflows sequentially, and can create missing workflows if needed.
+Campaigns use `.campaign.md` files where YAML frontmatter defines configuration (project URL, workflows, scope, governance) and the markdown body defines narrative context (objective, KPIs, timeline). The orchestrator discovers and tracks work, executes workflows sequentially, and can create missing workflows if needed.
 
 ```yaml
 # Campaign example
@@ -294,10 +295,19 @@ project-url: "https://github.com/orgs/ORG/projects/1"
 workflows:
   - framework-scanner   # Will be created if missing
   - framework-upgrader  # Will be created if missing
-objective: "Upgrade all services to Framework vNext"
-kpis:
-  - name: "Services upgraded"
-    target: 50
+```
+
+```markdown
+# Framework Upgrade
+
+## Objective
+
+Upgrade all services to Framework vNext.
+
+## KPIs
+
+### Primary KPI: Services upgraded
+- **Target**: 50
 ```
 
 **Key characteristics:**

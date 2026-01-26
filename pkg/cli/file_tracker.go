@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -87,10 +88,10 @@ func (ft *FileTracker) StageAllFiles(verbose bool) error {
 		return nil
 	}
 
+	console.LogVerbose(verbose, fmt.Sprintf("Staging %d files...", len(allFiles)))
 	if verbose {
-		fmt.Printf("Staging %d files...\n", len(allFiles))
 		for _, file := range allFiles {
-			fmt.Printf("  - %s\n", file)
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("  - %s", file)))
 		}
 	}
 
@@ -114,15 +115,11 @@ func (ft *FileTracker) RollbackCreatedFiles(verbose bool) error {
 	}
 
 	fileTrackerLog.Printf("Rolling back %d created files", len(ft.CreatedFiles))
-	if verbose {
-		fmt.Printf("Rolling back %d created files...\n", len(ft.CreatedFiles))
-	}
+	console.LogVerbose(verbose, fmt.Sprintf("Rolling back %d created files...", len(ft.CreatedFiles)))
 
 	var errors []string
 	for _, file := range ft.CreatedFiles {
-		if verbose {
-			fmt.Printf("  - Deleting %s\n", file)
-		}
+		console.LogVerbose(verbose, fmt.Sprintf("  - Deleting %s", file))
 		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
 			fileTrackerLog.Printf("Failed to delete %s: %v", file, err)
 			errors = append(errors, fmt.Sprintf("failed to delete %s: %v", file, err))
@@ -143,15 +140,11 @@ func (ft *FileTracker) RollbackModifiedFiles(verbose bool) error {
 		return nil
 	}
 
-	if verbose {
-		fmt.Printf("Rolling back %d modified files...\n", len(ft.ModifiedFiles))
-	}
+	console.LogVerbose(verbose, fmt.Sprintf("Rolling back %d modified files...", len(ft.ModifiedFiles)))
 
 	var errors []string
 	for _, file := range ft.ModifiedFiles {
-		if verbose {
-			fmt.Printf("  - Restoring %s\n", file)
-		}
+		console.LogVerbose(verbose, fmt.Sprintf("  - Restoring %s", file))
 
 		// Restore original content if we have it
 		if originalContent, exists := ft.OriginalContent[file]; exists {
@@ -161,7 +154,7 @@ func (ft *FileTracker) RollbackModifiedFiles(verbose bool) error {
 			}
 		} else {
 			if verbose {
-				fmt.Printf("    Warning: No original content stored for %s\n", file)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No original content stored for %s", file)))
 			}
 		}
 	}

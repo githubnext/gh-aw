@@ -23,7 +23,7 @@ safe-outputs:
     category: "audits"
     max: 1
     close-older-discussions: true
-timeout-minutes: 15
+timeout-minutes: 30
 strict: true
 imports:
   - shared/reporting.md

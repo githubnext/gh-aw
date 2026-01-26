@@ -5,26 +5,23 @@ banner:
   content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
 ---
 
-Campaign orchestrators execute on a schedule to coordinate worker workflows, discover outputs, and update project boards. This page explains the execution model, state management, and workflow coordination.
+Campaign orchestrators execute on a schedule to coordinate worker workflows and discover outputs. Orchestrators are dispatch-only: they can coordinate, but all GitHub writes (Projects, issues/PRs, comments) happen in worker workflows.
 
 ## Execution flow
 
 ```mermaid
 graph TD
-    A[Orchestrator Triggered] --> B[Phase 0: Dispatch Workers]
-    B --> C[Phase 1: Discover Items]
-    C --> D[Phase 2: Plan Updates]
-    D --> E[Phase 3: Apply Updates]
-    E --> F[Phase 4: Status Report]
+  A[Orchestrator Triggered] --> B[Pre-step: Discovery Precomputation]
+  B --> C[Agent: Decide & Dispatch Workers]
+  C --> D[Workers: Apply Side Effects]
+  D --> E[Next Run: Discover Outputs]
 ```
 
 Each run follows this sequence:
 
-1. **Phase 0** - Dispatches worker workflows via `workflow_dispatch` (if configured)
-2. **Phase 1** - Discovers issues and pull requests with campaign tracker labels
-3. **Phase 2** - Plans project board updates within governance limits
-4. **Phase 3** - Applies updates to project board
-5. **Phase 4** - Posts status update to project with progress summary
+1. **Pre-step** - A deterministic discovery script runs (via `actions/github-script`) and writes `./.gh-aw/campaign.discovery.json`
+2. **Agent** - Reads the discovery manifest and campaign spec, then dispatches worker workflows via `safe-outputs.dispatch-workflow`
+3. **Workers** - Create/update issues/PRs, apply labels, and update Project boards using their own safe-outputs
 
 ## Campaign states
 
@@ -50,7 +47,7 @@ Worker workflows in the campaign's `workflows` list must:
 
 - Accept `workflow_dispatch` as the **only** trigger
 - Remove all other triggers (`schedule`, `push`, `pull_request`)
-- Label created items with `campaign:<id>`
+- Label created items with the campaign tracker label (defaults to `z_campaign_<campaign-id>`)
 - Accept standardized inputs: `campaign_id` (string) and `payload` (string JSON)
 
 ```yaml
@@ -74,11 +71,12 @@ Workflows not in the `workflows` list can keep their original triggers. The camp
 
 ```yaml
 # Campaign spec
-tracker-label: "campaign:security-audit"
 workflows:
   - vulnerability-scanner  # Orchestrator controls this one
   # dependency-check runs independently with its cron schedule
 ```
+
+`tracker-label` is optional; when omitted it defaults to `z_campaign_<campaign-id>`.
 
 ## Discovery and governance
 
@@ -139,9 +137,9 @@ Completed 2025-03-15. Final metrics:
 - Confirm discovery scope includes correct repos/orgs
 
 **Project updates hit limit**
-- Increase `max-project-updates-per-run` in governance
+- Increase `max-project-updates-per-run` in governance (used as a pacing signal for generated instructions)
 - Accept incremental processing across multiple runs
-- Verify project token has required permissions
+- Verify the worker workflow token has required Projects permissions
 
 **Items processed multiple times**
 - Ensure workers use deterministic keys

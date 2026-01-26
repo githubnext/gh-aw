@@ -368,3 +368,91 @@ func ResolveRelativeDate(dateStr string, baseTime time.Time) (string, error) {
 	// Return full ISO 8601 timestamp for precise filtering
 	return absoluteTime.Format(time.RFC3339), nil
 }
+
+// parseExpiresFromConfig parses expires value from config map.
+// Supports both integer (hours or days) and string formats like "2h", "7d", "2w", "1m", "1y"
+// Returns the number of hours, or 0 if invalid or not present
+// Note: For uint64 values, returns 0 if the value would overflow int.
+// Note: Integer values without units are treated as days and converted to hours (for backward compatibility)
+func parseExpiresFromConfig(configMap map[string]any) int {
+	timeDeltaLog.Printf("DEBUG: parseExpiresFromConfig called with configMap: %+v", configMap)
+	if expires, exists := configMap["expires"]; exists {
+		// Try numeric types first
+		switch v := expires.(type) {
+		case int:
+			// Integer values without units are treated as days for backward compatibility
+			return v * 24
+		case int64:
+			return int(v) * 24
+		case float64:
+			return int(v) * 24
+		case uint64:
+			// Check for overflow before converting uint64 to int
+			const maxInt = int(^uint(0) >> 1)
+			if v > uint64(maxInt/24) {
+				timeDeltaLog.Printf("uint64 value %d for expires exceeds max int value, returning 0", v)
+				return 0
+			}
+			return int(v) * 24
+		case string:
+			// Parse relative time specification like "2h", "7d", "2w", "1m", "1y"
+			return parseRelativeTimeSpec(v)
+		}
+	}
+	return 0
+}
+
+// parseRelativeTimeSpec parses a relative time specification string.
+// Supports: h (hours), d (days), w (weeks), m (months ~30 days), y (years ~365 days)
+// Examples: "2h" = 2 hours, "7d" = 168 hours, "2w" = 336 hours, "1m" = 720 hours, "1y" = 8760 hours
+// Returns 0 if the format is invalid or if the duration is less than 2 hours
+func parseRelativeTimeSpec(spec string) int {
+	timeDeltaLog.Printf("DEBUG: parseRelativeTimeSpec called with spec: %s", spec)
+	if spec == "" {
+		return 0
+	}
+
+	// Get the last character (unit)
+	unit := spec[len(spec)-1:]
+	// Get the number part
+	numStr := spec[:len(spec)-1]
+
+	// Parse the number
+	var num int
+	_, err := fmt.Sscanf(numStr, "%d", &num)
+	if err != nil || num <= 0 {
+		timeDeltaLog.Printf("Invalid expires time spec number: %s", spec)
+		return 0
+	}
+
+	// Convert to hours based on unit
+	switch unit {
+	case "h", "H":
+		// Reject durations less than 2 hours
+		if num < 2 {
+			timeDeltaLog.Printf("Invalid expires duration: %d hours is less than the minimum 2 hours", num)
+			return 0
+		}
+		timeDeltaLog.Printf("Parsed %d hours from spec: %s", num, spec)
+		return num
+	case "d", "D":
+		hours := num * 24
+		timeDeltaLog.Printf("Converted %d days to %d hours", num, hours)
+		return hours
+	case "w", "W":
+		hours := num * 7 * 24
+		timeDeltaLog.Printf("Converted %d weeks to %d hours", num, hours)
+		return hours
+	case "m", "M":
+		hours := num * 30 * 24 // months to hours (approximate)
+		timeDeltaLog.Printf("Converted %d months to %d hours", num, hours)
+		return hours
+	case "y", "Y":
+		hours := num * 365 * 24 // years to hours (approximate)
+		timeDeltaLog.Printf("Converted %d years to %d hours", num, hours)
+		return hours
+	default:
+		timeDeltaLog.Printf("Invalid expires time spec unit: %s", spec)
+		return 0
+	}
+}

@@ -114,7 +114,7 @@ When **either budget** is exhausted:
 Possible reasons:
 1. **No worker workflows have run yet** - Campaign may be newly created
 2. **Worker outputs lack required labels** - Items not tagged with `z_campaign_security-alert-burndown`
-3. **Items outside discovery scope** - Workers created items in repos not in `discovery-repos`
+3. **Items outside campaign scope** - Workers created items in repos not in `scope`
 4. **Search query too restrictive** - Label search didn't match existing items
 5. **Budget exhausted before reaching relevant items** - Items exist but are on page 4+ (beyond 3-page budget)
 
@@ -124,7 +124,7 @@ Possible reasons:
 
 ```yaml
 # From .github/workflows/security-alert-burndown.campaign.md
-discovery-repos:
+scope:
   - githubnext/gh-aw  # Only searching this repo
 
 workflows:

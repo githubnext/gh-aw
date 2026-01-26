@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
-const { generateFooter } = require("./generate_footer.cjs");
+const { generateFooter, generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
@@ -195,7 +195,7 @@ async function main(config = {}) {
     core.info(`Issue grouping enabled: issues will be grouped as sub-issues`);
   }
   if (closeOlderIssuesEnabled) {
-    core.info(`Close older issues enabled: older issues with same title prefix or labels will be closed`);
+    core.info(`Close older issues enabled: older issues with same workflow-id marker will be closed`);
   }
 
   // Track how many items we've processed for max limit
@@ -380,6 +380,7 @@ async function main(config = {}) {
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+    const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
@@ -393,7 +394,14 @@ async function main(config = {}) {
     // Generate footer and add expiration using helper
     const footer = addExpirationToFooter(generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), expiresHours, "Issue");
 
-    bodyLines.push(``, ``, footer, "");
+    bodyLines.push(``, ``, footer);
+
+    // Add standalone workflow-id marker for searchability (consistent with comments)
+    if (workflowId) {
+      bodyLines.push(``, generateWorkflowIdMarker(workflowId));
+    }
+
+    bodyLines.push("");
     const body = bodyLines.join("\n").trim();
 
     core.info(`Creating issue in ${qualifiedItemRepo} with title: ${title}`);
@@ -421,19 +429,21 @@ async function main(config = {}) {
       core.info(`Stored temporary ID mapping: ${temporaryId} -> ${qualifiedItemRepo}#${issue.number}`);
 
       // Close older issues if enabled
-      if (closeOlderIssuesEnabled && (titlePrefix || envLabels.length > 0)) {
-        core.info(`Attempting to close older issues for ${qualifiedItemRepo}#${issue.number}`);
-        try {
-          const closedIssues = await closeOlderIssues(github, repoParts.owner, repoParts.repo, titlePrefix, envLabels, { number: issue.number, html_url: issue.html_url }, workflowName, runUrl);
-          if (closedIssues.length > 0) {
-            core.info(`Closed ${closedIssues.length} older issue(s)`);
+      if (closeOlderIssuesEnabled) {
+        if (workflowId) {
+          core.info(`Attempting to close older issues for ${qualifiedItemRepo}#${issue.number} using workflow-id: ${workflowId}`);
+          try {
+            const closedIssues = await closeOlderIssues(github, repoParts.owner, repoParts.repo, workflowId, { number: issue.number, html_url: issue.html_url }, workflowName, runUrl);
+            if (closedIssues.length > 0) {
+              core.info(`Closed ${closedIssues.length} older issue(s)`);
+            }
+          } catch (error) {
+            // Log error but don't fail the workflow
+            core.warning(`Failed to close older issues: ${getErrorMessage(error)}`);
           }
-        } catch (error) {
-          // Log error but don't fail the workflow
-          core.warning(`Failed to close older issues: ${getErrorMessage(error)}`);
+        } else {
+          core.warning("Close older issues enabled but GH_AW_WORKFLOW_ID environment variable not set - skipping");
         }
-      } else if (closeOlderIssuesEnabled) {
-        core.warning("Close older issues enabled but no title-prefix or labels configured - skipping");
       }
 
       // Handle grouping - find or create parent issue and link sub-issue

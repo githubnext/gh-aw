@@ -23,6 +23,7 @@ gh aw campaign status incident    # Filter status by ID or name
 gh aw campaign status --json      # JSON status output
 
 gh aw campaign new my-campaign    # Scaffold new spec (advanced)
+gh aw campaign new my-campaign --project --owner @me  # Create with GitHub Project
 gh aw campaign validate           # Validate all specs
 gh aw campaign validate --no-strict  # Report without failing
 ```
@@ -122,6 +123,26 @@ Creates `.github/workflows/my-campaign-id.campaign.md` with basic structure. You
 2. Set up project board manually
 3. Compile the spec with `gh aw compile`
 4. Test thoroughly before running
+
+### Create campaign with project board
+
+Create a campaign spec and automatically generate a GitHub Project with required fields and views:
+
+```bash
+gh aw campaign new my-campaign-id --project --owner @me
+```
+
+Or for an organization:
+
+```bash
+gh aw campaign new my-campaign-id --project --owner myorg
+```
+
+This creates:
+- Campaign spec file at `.github/workflows/my-campaign-id.campaign.md`
+- GitHub Project with standard views (Progress Board, Task Tracker, Campaign Roadmap)
+- Required custom fields (Campaign Id, Worker Workflow, Priority, Size, Start Date, End Date)
+- Updates the spec file with the project URL
 
 The automated flow handles all this for you.
 

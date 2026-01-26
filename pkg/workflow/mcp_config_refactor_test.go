@@ -212,7 +212,9 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 				`"container": "alpine:latest"`,
 				`"entrypoint": "/opt/gh-aw/gh-aw"`,
 				`"entrypointArgs": ["mcp-server"]`,
-				`"mounts": ["/opt/gh-aw:/opt/gh-aw:ro"]`,
+				`"/opt/gh-aw:/opt/gh-aw:ro"`,                           // gh-aw binary mount (read-only)
+				`"${{ github.workspace }}:${{ github.workspace }}:rw"`, // workspace mount (read-write)
+				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                           // temp directory mount (read-write)
 				`"GITHUB_TOKEN": "\${GITHUB_TOKEN}"`,
 				`              },`,
 			},
@@ -230,7 +232,9 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 				`"container": "alpine:latest"`,
 				`"entrypoint": "/opt/gh-aw/gh-aw"`,
 				`"entrypointArgs": ["mcp-server"]`,
-				`"mounts": ["/opt/gh-aw:/opt/gh-aw:ro"]`,
+				`"/opt/gh-aw:/opt/gh-aw:ro"`,                           // gh-aw binary mount (read-only)
+				`"${{ github.workspace }}:${{ github.workspace }}:rw"`, // workspace mount (read-write)
+				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                           // temp directory mount (read-write)
 				// Security fix: Now uses shell variable instead of GitHub secret expression
 				`"GITHUB_TOKEN": "$GITHUB_TOKEN"`,
 				`              }`,
@@ -381,7 +385,9 @@ func TestRenderAgenticWorkflowsMCPConfigTOML(t *testing.T) {
 		`container = "alpine:latest"`,
 		`entrypoint = "/opt/gh-aw/gh-aw"`,
 		`entrypointArgs = ["mcp-server"]`,
-		`mounts = ["/opt/gh-aw:/opt/gh-aw:ro"]`,
+		`"/opt/gh-aw:/opt/gh-aw:ro"`,                           // gh-aw binary mount (read-only)
+		`"${{ github.workspace }}:${{ github.workspace }}:rw"`, // workspace mount (read-write)
+		`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                           // temp directory mount (read-write)
 		`env_vars = ["GITHUB_TOKEN"]`,
 	}
 

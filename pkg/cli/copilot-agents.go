@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
@@ -44,7 +45,7 @@ func ensureFileMatchesTemplate(subdir, fileName, templateContent, fileType strin
 	if strings.TrimSpace(existingContent) == expectedContent {
 		copilotAgentsLog.Printf("File is up-to-date: %s", targetPath)
 		if verbose {
-			fmt.Printf("%s is up-to-date: %s\n", fileType, targetPath)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("%s is up-to-date: %s", fileType, targetPath)))
 		}
 		return nil
 	}
@@ -64,9 +65,9 @@ func ensureFileMatchesTemplate(subdir, fileName, templateContent, fileType strin
 
 	if verbose {
 		if existingContent == "" {
-			fmt.Printf("Created %s: %s\n", fileType, targetPath)
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created %s: %s", fileType, targetPath)))
 		} else {
-			fmt.Printf("Updated %s: %s\n", fileType, targetPath)
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s: %s", fileType, targetPath)))
 		}
 	}
 
@@ -100,7 +101,7 @@ func cleanupOldPromptFile(promptFileName string, verbose bool) error {
 			return fmt.Errorf("failed to remove old prompt file: %w", err)
 		}
 		if verbose {
-			fmt.Printf("Removed old prompt file: %s\n", oldPath)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed old prompt file: %s", oldPath)))
 		}
 	}
 
@@ -139,7 +140,7 @@ func cleanupOldCopilotInstructions(verbose bool) error {
 			return fmt.Errorf("failed to remove old instructions file: %w", err)
 		}
 		if verbose {
-			fmt.Printf("Removed old instructions file: %s\n", oldPath)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Removed old instructions file: %s", oldPath)))
 		}
 	}
 
@@ -301,42 +302,33 @@ func deleteOldAgentFiles(verbose bool) error {
 		return nil // Not in a git repository, skip
 	}
 
-	agentFiles := []string{
-		"create-agentic-workflow.agent.md",
-		"debug-agentic-workflow.agent.md",
-		"create-shared-agentic-workflow.agent.md",
+	// Map of subdirectory to list of files to delete
+	filesToDelete := map[string][]string{
+		"agents": {
+			"create-agentic-workflow.agent.md",
+			"debug-agentic-workflow.agent.md",
+			"create-shared-agentic-workflow.agent.md",
+			"create-shared-agentic-workflow.md",
+			"create-agentic-workflow.md",
+			"setup-agentic-workflows.md",
+			"update-agentic-workflows.md",
+			"upgrade-agentic-workflows.md",
+		},
+		"aw": {
+			"upgrade-agentic-workflow.md", // singular form (typo/duplicate)
+		},
 	}
 
-	// Also delete the dangling singular form file from .github/aw/
-	awFiles := []string{
-		"upgrade-agentic-workflow.md", // singular form (typo/duplicate)
-	}
-
-	for _, agentFile := range agentFiles {
-		agentPath := filepath.Join(gitRoot, ".github", "agents", agentFile)
-
-		// Check if the file exists and remove it
-		if _, err := os.Stat(agentPath); err == nil {
-			if err := os.Remove(agentPath); err != nil {
-				return fmt.Errorf("failed to remove old agent file %s: %w", agentFile, err)
-			}
-			if verbose {
-				fmt.Fprintf(os.Stderr, "Removed old agent file: %s\n", agentPath)
-			}
-		}
-	}
-
-	// Delete dangling files from .github/aw/
-	for _, awFile := range awFiles {
-		awPath := filepath.Join(gitRoot, ".github", "aw", awFile)
-
-		// Check if the file exists and remove it
-		if _, err := os.Stat(awPath); err == nil {
-			if err := os.Remove(awPath); err != nil {
-				return fmt.Errorf("failed to remove old aw file %s: %w", awFile, err)
-			}
-			if verbose {
-				fmt.Fprintf(os.Stderr, "Removed old aw file: %s\n", awPath)
+	for subdir, files := range filesToDelete {
+		for _, file := range files {
+			path := filepath.Join(gitRoot, ".github", subdir, file)
+			if _, err := os.Stat(path); err == nil {
+				if err := os.Remove(path); err != nil {
+					return fmt.Errorf("failed to remove old %s file %s: %w", subdir, file, err)
+				}
+				if verbose {
+					fmt.Fprintf(os.Stderr, "Removed old %s file: %s\n", subdir, path)
+				}
 			}
 		}
 	}

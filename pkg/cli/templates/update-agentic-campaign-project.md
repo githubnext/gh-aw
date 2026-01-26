@@ -10,7 +10,8 @@ If any other instructions conflict with this file, THIS FILE TAKES PRECEDENCE fo
 
 ## 0) Hard Requirements (Do Not Deviate)
 
-- Writes MUST use only the `update-project` safe-output.
+- Orchestrators are dispatch-only and MUST NOT perform project writes directly.
+- Worker workflows performing project writes MUST use only the `update-project` safe-output.
 - All writes MUST target exactly:
   - **Project URL**: `{{.ProjectURL}}`
 - Every item MUST include:

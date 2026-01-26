@@ -305,7 +305,7 @@ func FilterEnvForSecrets(env map[string]string, allowedSecrets []string) map[str
 		if strings.Contains(value, "${{ secrets.") {
 			// Extract the secret name from the expression
 			// Format: ${{ secrets.SECRET_NAME }} or ${{ secrets.SECRET_NAME || ... }}
-			secretName := extractSecretName(value)
+			secretName := ExtractSecretName(value)
 			if secretName != "" && !allowedSet[secretName] {
 				engineHelpersLog.Printf("Removing unauthorized secret from env: %s (secret: %s)", key, secretName)
 				secretsRemoved++
@@ -317,32 +317,4 @@ func FilterEnvForSecrets(env map[string]string, allowedSecrets []string) map[str
 
 	engineHelpersLog.Printf("Filtered environment variables: kept=%d, removed=%d", len(filtered), secretsRemoved)
 	return filtered
-}
-
-// extractSecretName extracts the secret name from a GitHub Actions secret expression
-// Example inputs:
-//   - "${{ secrets.COPILOT_GITHUB_TOKEN }}" -> "COPILOT_GITHUB_TOKEN"
-//   - "${{ secrets.API_KEY || secrets.FALLBACK_KEY }}" -> "API_KEY"
-//   - "${{ env.NOT_A_SECRET }}" -> ""
-func extractSecretName(expr string) string {
-	// Look for "${{ secrets.NAME" pattern
-	prefix := "${{ secrets."
-	idx := strings.Index(expr, prefix)
-	if idx == -1 {
-		return ""
-	}
-
-	// Extract everything after "${{ secrets."
-	rest := expr[idx+len(prefix):]
-
-	// Find the end of the secret name (space, }, or ||)
-	endIdx := len(rest)
-	for i, ch := range rest {
-		if ch == ' ' || ch == '}' || ch == '|' {
-			endIdx = i
-			break
-		}
-	}
-
-	return rest[:endIdx]
 }

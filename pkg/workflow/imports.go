@@ -112,7 +112,6 @@ func (c *Compiler) MergeNetworkPermissions(topNetwork *NetworkPermissions, impor
 	// Start with top-level network or create a new one
 	result := &NetworkPermissions{}
 	if topNetwork != nil {
-		result.Mode = topNetwork.Mode
 		result.Allowed = make([]string, len(topNetwork.Allowed))
 		copy(result.Allowed, topNetwork.Allowed)
 		importsLog.Printf("Starting with %d top-level allowed domains", len(topNetwork.Allowed))

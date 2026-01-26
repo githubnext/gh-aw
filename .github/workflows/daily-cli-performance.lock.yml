@@ -50,7 +50,7 @@ jobs:
       comment_repo: ""
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout: |
             actions
@@ -60,7 +60,7 @@ jobs:
         with:
           destination: /opt/gh-aw/actions
       - name: Check workflow file timestamps
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_WORKFLOW_FILE: "daily-cli-performance.lock.yml"
         with:
@@ -96,7 +96,7 @@ jobs:
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout: |
             actions
@@ -106,7 +106,7 @@ jobs:
         with:
           destination: /opt/gh-aw/actions
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
       - name: Create gh-aw temp directory
@@ -134,7 +134,7 @@ jobs:
       - name: Checkout PR branch
         if: |
           github.event.pull_request
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         with:
@@ -150,9 +150,9 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.389
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.394
       - name: Install awf binary
-        run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.10.0
+        run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.11.2
       - name: Determine automatic lockdown mode for GitHub MCP server
         id: determine-automatic-lockdown
         env:
@@ -164,7 +164,7 @@ jobs:
             const determineAutomaticLockdown = require('/opt/gh-aw/actions/determine_automatic_lockdown.cjs');
             await determineAutomaticLockdown(github, context, core);
       - name: Download container images
-        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.76 node:lts-alpine
+        run: bash /opt/gh-aw/actions/download_docker_images.sh ghcr.io/github/github-mcp-server:v0.29.0 ghcr.io/githubnext/gh-aw-mcpg:v0.0.78 node:lts-alpine
       - name: Write Safe Outputs Config
         run: |
           mkdir -p /opt/gh-aw/safeoutputs
@@ -576,7 +576,7 @@ jobs:
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_API_KEY}"
           export GH_AW_ENGINE="copilot"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_INPUTS_PORT -e GH_AW_SAFE_INPUTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.76'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e DEBUG="*" -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_LOCKDOWN -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_INPUTS_PORT -e GH_AW_SAFE_INPUTS_API_KEY -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/githubnext/gh-aw-mcpg:v0.0.78'
           
           mkdir -p /home/runner/.copilot
           cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh
@@ -616,7 +616,7 @@ jobs:
           MCPCONFIG_EOF
       - name: Generate agentic run info
         id: generate_aw_info
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require('fs');
@@ -626,7 +626,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.389",
+              agent_version: "0.0.394",
               workflow_name: "Daily CLI Performance Agent",
               experimental: false,
               supports_tools_allowlist: true,
@@ -640,11 +640,10 @@ jobs:
               actor: context.actor,
               event_name: context.eventName,
               staged: false,
-              network_mode: "defaults",
-              allowed_domains: [],
+              allowed_domains: ["defaults"],
               firewall_enabled: true,
-              awf_version: "v0.10.0",
-              awmg_version: "v0.0.76",
+              awf_version: "v0.11.2",
+              awmg_version: "v0.0.78",
               steps: {
                 firewall: "squid"
               },
@@ -660,7 +659,7 @@ jobs:
             // Set model as output for reuse in other steps/jobs
             core.setOutput('model', awInfo.model);
       - name: Generate workflow overview
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const { generateWorkflowOverview } = require('/opt/gh-aw/actions/generate_workflow_overview.cjs');
@@ -1154,42 +1153,46 @@ jobs:
           **Issue template:**
           
           ```markdown
-          # Performance Regression Detected
+          ### 📊 Performance Regression Detected
           
-          ## Benchmark: [BenchmarkName]
+          #### Benchmark: [BenchmarkName]
           
           **Current Performance**: [current_ns] ns/op  
           **Historical Average**: [avg_historical_ns] ns/op  
           **Change**: [change_percent]% slower
           
-          ## Details
+          <details>
+          <summary><b>📈 Detailed Performance Metrics</b></summary>
           
-          This benchmark has regressed by more than 10% compared to the 7-day historical average.
-          
-          ### Performance Metrics
+          #### Performance Comparison
           
           - **ns/op**: [current_ns] (was [avg_historical_ns])
           - **Change**: +[change_percent]%
           - **Historical Data Points**: [data_points]
           
-          ### Baseline Targets
+          #### Baseline Targets
           
           - Simple workflows: <100ms
           - Complex workflows: <500ms
           - MCP-heavy workflows: <1s
           
-          ## Recommended Actions
+          </details>
+          
+          ### 💡 Recommended Actions
           
           1. Review recent changes to the compilation pipeline
           2. Run `make bench-memory` to generate memory profiles
           3. Use `go tool pprof` to identify hotspots
           4. Compare with previous benchmark results: `benchstat`
           
-          ## Additional Context
+          <details>
+          <summary><b>📋 Additional Context</b></summary>
           
           - **Run ID**: __GH_AW_GITHUB_RUN_ID__
           - **Date**: [date]
           - **Workflow**: [Daily CLI Performance](__GH_AW_GITHUB_SERVER_URL__/__GH_AW_GITHUB_REPOSITORY__/actions/runs/__GH_AW_GITHUB_RUN_ID__)
+          
+          </details>
           
           ---
           *Automatically generated by Daily CLI Performance workflow*
@@ -1249,17 +1252,47 @@ jobs:
           
           ## Phase 5: Generate Performance Report
           
-          ### 5.1 Create Summary Report
+          ### 5.1 Report Formatting Guidelines
+          
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          When generating your performance report, follow these markdown formatting guidelines:
+          
+          #### Header Levels
+          Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. The issue or discussion title serves as h1, so all content headers should start at h3.
+          
+          #### Progressive Disclosure
+          Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling. This creates a more navigable report that doesn't overwhelm readers with information.
+          
+          **Example structure:**
+          ```markdown
+          <details>
+          <summary><b>Full Performance Details</b></summary>
+          
+          [Long detailed content here...]
+          
+          </details>
+          ```
+          
+          #### Suggested Report Structure
+          Structure your performance report with these sections:
+          - **Brief summary** (always visible): Key findings, overall status, critical issues
+          - **Key performance metrics** (always visible): Most important numbers and comparisons
+          - **Detailed benchmark results** (in `<details>` tags): Complete benchmark data, raw numbers
+          - **Historical comparisons** (in `<details>` tags): Trend analysis, historical context
+          - **Recommendations** (always visible): Specific actionable items
+          
+          This structure follows design principles of building trust through clarity, exceeding expectations with helpful context, creating delight through progressive disclosure, and maintaining consistency with other reporting workflows.
+          
+          ### 5.2 Create Summary Report
           
           Generate a comprehensive summary of today's benchmark run:
           
           ```bash
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           cat > /tmp/gh-aw/benchmarks/generate_report.py << 'EOF'
           #!/usr/bin/env python3
           """
-          Generate performance summary report
+          Generate performance summary report with proper markdown formatting
           """
           import json
           
@@ -1284,6 +1317,9 @@ jobs:
               with open(CURRENT_FILE, 'r') as f:
                   current = json.load(f)
               
+              summary = analysis['summary']
+              
+              # Print terminal output (for logs)
               print("\n" + "="*70)
               print("  DAILY CLI PERFORMANCE BENCHMARK REPORT")
               print("="*70)
@@ -1293,39 +1329,111 @@ jobs:
               print("\n" + "-"*70)
               print("SUMMARY")
               print("-"*70)
-              summary = analysis['summary']
               print(f"Total Benchmarks: {summary['total']}")
               print(f"  ✅ Stable: {summary['stable']}")
               print(f"  ⚡ Warnings: {summary['warnings']}")
               print(f"  ⚠️  Regressions: {summary['regressions']}")
               print(f"  ✨ Improvements: {summary['improvements']}")
               
-              print("\n" + "-"*70)
-              print("DETAILED RESULTS")
-              print("-"*70)
-              
-              for name, result in sorted(analysis['benchmarks'].items()):
-                  metrics = current['benchmarks'][name]
-                  status_icon = {
-                      'regression': '⚠️ ',
-                      'warning': '⚡',
-                      'improvement': '✨',
-                      'stable': '✓',
-                      'baseline': 'ℹ️ '
-                  }.get(result['status'], '?')
+              # Generate markdown report following formatting guidelines
+              with open('/tmp/gh-aw/benchmarks/report.md', 'w') as f:
+                  # Brief summary (always visible)
+                  f.write("### 📊 Performance Summary\n\n")
+                  f.write(f"**Date**: {analysis['date']}  \n")
+                  f.write(f"**Analysis Status**: ")
                   
-                  print(f"\n{status_icon} {name}")
-                  print(f"  Current: {format_ns(result['current_ns'])}")
-                  if result['avg_historical_ns']:
-                      print(f"  Historical Avg: {format_ns(result['avg_historical_ns'])}")
-                      print(f"  Change: {result['change_percent']:+.1f}%")
-                  print(f"  Memory: {metrics['bytes_per_op']} B/op")
-                  print(f"  Allocations: {metrics['allocs_per_op']} allocs/op")
-                  if result['status'] != 'baseline':
-                      print(f"  {result['message']}")
+                  if summary['regressions'] > 0:
+                      f.write(f"⚠️ {summary['regressions']} regression(s) detected\n\n")
+                  elif summary['warnings'] > 0:
+                      f.write(f"⚡ {summary['warnings']} warning(s) detected\n\n")
+                  elif summary['improvements'] > 0:
+                      f.write(f"✨ {summary['improvements']} improvement(s) detected\n\n")
+                  else:
+                      f.write("✅ All benchmarks stable\n\n")
+                  
+                  # Key performance metrics (always visible)
+                  f.write("### 🎯 Key Metrics\n\n")
+                  f.write(f"- **Total Benchmarks**: {summary['total']}\n")
+                  f.write(f"- **Stable**: {summary['stable']}\n")
+                  f.write(f"- **Warnings**: {summary['warnings']}\n")
+                  f.write(f"- **Regressions**: {summary['regressions']}\n")
+                  f.write(f"- **Improvements**: {summary['improvements']}\n\n")
+                  
+                  # Detailed benchmark results (in details tag)
+                  f.write("<details>\n")
+                  f.write("<summary><b>📈 Detailed Benchmark Results</b></summary>\n\n")
+                  
+                  for name, result in sorted(analysis['benchmarks'].items()):
+                      metrics = current['benchmarks'][name]
+                      status_icon = {
+                          'regression': '⚠️',
+                          'warning': '⚡',
+                          'improvement': '✨',
+                          'stable': '✓',
+                          'baseline': 'ℹ️'
+                      }.get(result['status'], '?')
+                      
+                      f.write(f"#### {status_icon} {name}\n\n")
+                      f.write(f"- **Current**: {format_ns(result['current_ns'])}\n")
+                      if result['avg_historical_ns']:
+                          f.write(f"- **Historical Average**: {format_ns(result['avg_historical_ns'])}\n")
+                          f.write(f"- **Change**: {result['change_percent']:+.1f}%\n")
+                      f.write(f"- **Memory**: {metrics['bytes_per_op']} B/op\n")
+                      f.write(f"- **Allocations**: {metrics['allocs_per_op']} allocs/op\n")
+                      if result['status'] != 'baseline':
+                          f.write(f"- **Status**: {result['message']}\n")
+                      f.write("\n")
+                  
+                  f.write("</details>\n\n")
+                  
+                  # Historical comparisons (in details tag)
+                  f.write("<details>\n")
+                  f.write("<summary><b>📉 Historical Comparisons</b></summary>\n\n")
+                  f.write("### Trend Analysis\n\n")
+                  
+                  # Group by status
+                  regressions = [(name, res) for name, res in analysis['benchmarks'].items() if res['status'] == 'regression']
+                  warnings = [(name, res) for name, res in analysis['benchmarks'].items() if res['status'] == 'warning']
+                  improvements = [(name, res) for name, res in analysis['benchmarks'].items() if res['status'] == 'improvement']
+                  
+                  if regressions:
+                      f.write("#### ⚠️ Regressions\n\n")
+                      for name, res in regressions:
+                          f.write(f"- **{name}**: {res['change_percent']:+.1f}% slower (was {format_ns(res['avg_historical_ns'])}, now {format_ns(res['current_ns'])})\n")
+                      f.write("\n")
+                  
+                  if warnings:
+                      f.write("#### ⚡ Warnings\n\n")
+                      for name, res in warnings:
+                          f.write(f"- **{name}**: {res['change_percent']:+.1f}% slower (was {format_ns(res['avg_historical_ns'])}, now {format_ns(res['current_ns'])})\n")
+                      f.write("\n")
+                  
+                  if improvements:
+                      f.write("#### ✨ Improvements\n\n")
+                      for name, res in improvements:
+                          f.write(f"- **{name}**: {res['change_percent']:+.1f}% faster (was {format_ns(res['avg_historical_ns'])}, now {format_ns(res['current_ns'])})\n")
+                      f.write("\n")
+                  
+                  f.write("</details>\n\n")
+                  
+                  # Recommendations (always visible)
+                  f.write("### 💡 Recommendations\n\n")
+                  if summary['regressions'] > 0:
+                      f.write("1. Review recent changes to the compilation pipeline\n")
+                      f.write("2. Run `make bench-memory` to generate memory profiles\n")
+                      f.write("3. Use `go tool pprof` to identify performance hotspots\n")
+                      f.write("4. Compare with previous benchmark results using `benchstat`\n")
+                  elif summary['warnings'] > 0:
+                      f.write("1. Monitor the warned benchmarks closely in upcoming runs\n")
+                      f.write("2. Consider running manual profiling if warnings persist\n")
+                  elif summary['improvements'] > 0:
+                      f.write("1. Document the changes that led to these improvements\n")
+                      f.write("2. Consider applying similar optimizations to other areas\n")
+                  else:
+                      f.write("1. Continue monitoring performance daily\n")
+                      f.write("2. Performance is stable - good work!\n")
               
-              print("\n" + "="*70)
-              print()
+              print("\n✅ Markdown report generated at /tmp/gh-aw/benchmarks/report.md")
           
           if __name__ == '__main__':
               main()
@@ -1333,6 +1441,11 @@ jobs:
           
           chmod +x /tmp/gh-aw/benchmarks/generate_report.py
           python3 /tmp/gh-aw/benchmarks/generate_report.py
+          
+          # Display the generated markdown report
+          echo ""
+          echo "=== Generated Markdown Report ==="
+          cat /tmp/gh-aw/benchmarks/report.md
           ```
           
           ## Success Criteria
@@ -1382,7 +1495,7 @@ jobs:
           
           PROMPT_EOF
       - name: Substitute placeholders
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
@@ -1414,7 +1527,7 @@ jobs:
               }
             });
       - name: Interpolate variables and render templates
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
@@ -1456,7 +1569,7 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.10.0 \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.11.2 --agent-image act \
             -- /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeinputs --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
@@ -1499,7 +1612,7 @@ jobs:
           bash /opt/gh-aw/actions/stop_mcp_gateway.sh "$GATEWAY_PID"
       - name: Redact secrets in logs
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1514,17 +1627,17 @@ jobs:
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: safe-output
           path: ${{ env.GH_AW_SAFE_OUTPUTS }}
           if-no-files-found: warn
       - name: Ingest agent output
         id: collect_output
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,github.com,host.docker.internal,raw.githubusercontent.com,registry.npmjs.org"
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -1535,13 +1648,13 @@ jobs:
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: agent-output
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
       - name: Upload engine output files
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: agent_outputs
           path: |
@@ -1550,7 +1663,7 @@ jobs:
           if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/sandbox/agent/logs/
         with:
@@ -1561,7 +1674,7 @@ jobs:
             await main();
       - name: Parse safe-inputs logs for step summary
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1570,7 +1683,7 @@ jobs:
             await main();
       - name: Parse MCP gateway logs for step summary
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1590,7 +1703,7 @@ jobs:
       # Upload repo memory as artifacts for push job
       - name: Upload repo-memory artifact (default)
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: repo-memory-default
           path: /tmp/gh-aw/repo-memory/default
@@ -1599,7 +1712,7 @@ jobs:
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: agent-artifacts
           path: |
@@ -1631,7 +1744,7 @@ jobs:
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout: |
             actions
@@ -1653,7 +1766,7 @@ jobs:
           echo "Agent Conclusion: $AGENT_CONCLUSION"
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: agent-output
           path: /tmp/gh-aw/safeoutputs/
@@ -1664,7 +1777,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Process No-Op Messages
         id: noop
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
@@ -1679,7 +1792,7 @@ jobs:
             await main();
       - name: Record Missing Tool
         id: missing_tool
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Daily CLI Performance Agent"
@@ -1693,7 +1806,7 @@ jobs:
             await main();
       - name: Handle Agent Failure
         id: handle_agent_failure
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Daily CLI Performance Agent"
@@ -1710,7 +1823,7 @@ jobs:
             await main();
       - name: Update reaction comment with completion status
         id: conclusion
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
@@ -1740,7 +1853,7 @@ jobs:
       success: ${{ steps.parse_results.outputs.success }}
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout: |
             actions
@@ -1751,13 +1864,13 @@ jobs:
           destination: /opt/gh-aw/actions
       - name: Download agent artifacts
         continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: agent-artifacts
           path: /tmp/gh-aw/threat-detection/
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: agent-output
           path: /tmp/gh-aw/threat-detection/
@@ -1767,7 +1880,7 @@ jobs:
         run: |
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
       - name: Setup threat detection
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Daily CLI Performance Agent"
           WORKFLOW_DESCRIPTION: "Daily CLI Performance - Runs benchmarks, tracks performance trends, and reports regressions"
@@ -1830,7 +1943,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.389
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.394
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -1862,7 +1975,7 @@ jobs:
           XDG_CONFIG_HOME: /home/runner
       - name: Parse threat detection results
         id: parse_results
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -1871,7 +1984,7 @@ jobs:
             await main();
       - name: Upload threat detection log
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
@@ -1887,7 +2000,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout: |
             actions
@@ -1897,7 +2010,7 @@ jobs:
         with:
           destination: /opt/gh-aw/actions
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
           sparse-checkout: .
@@ -1913,14 +2026,14 @@ jobs:
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Download repo-memory artifact (default)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         continue-on-error: true
         with:
           name: repo-memory-default
           path: /tmp/gh-aw/repo-memory/default
       - name: Push repo-memory changes (default)
         if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_RUN_ID: ${{ github.run_id }}
@@ -1960,7 +2073,7 @@ jobs:
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
       - name: Checkout actions folder
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout: |
             actions
@@ -1971,7 +2084,7 @@ jobs:
           destination: /opt/gh-aw/actions
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: agent-output
           path: /tmp/gh-aw/safeoutputs/
@@ -1982,7 +2095,7 @@ jobs:
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Process Safe Outputs
         id: process_safe_outputs
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":5},\"create_issue\":{\"group\":true,\"labels\":[\"performance\",\"automation\",\"cookie\"],\"max\":3,\"title_prefix\":\"[performance] \"},\"missing_data\":{},\"missing_tool\":{}}"

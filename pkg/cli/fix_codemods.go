@@ -32,5 +32,6 @@ func GetAllCodemods() []Codemod {
 		getGrepToolRemovalCodemod(),
 		getMCPNetworkMigrationCodemod(),
 		getDiscussionFlagRemovalCodemod(),
+		getMCPModeToTypeCodemod(),
 	}
 }

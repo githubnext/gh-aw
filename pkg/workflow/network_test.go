@@ -90,11 +90,11 @@ This workflow has no network permissions.`
 			t.Fatalf("Failed to parse workflow: %v", err)
 		}
 
-		// When no network field is specified, should default to Mode: "defaults"
+		// When no network field is specified, should default to Allowed: ["defaults"]
 		if workflowData.NetworkPermissions == nil {
-			t.Error("Expected network permissions to default to 'defaults' mode when not specified")
-		} else if workflowData.NetworkPermissions.Mode != "defaults" {
-			t.Errorf("Expected default mode to be 'defaults', got '%s'", workflowData.NetworkPermissions.Mode)
+			t.Error("Expected network permissions to default to 'defaults' ecosystem when not specified")
+		} else if len(workflowData.NetworkPermissions.Allowed) != 1 || workflowData.NetworkPermissions.Allowed[0] != "defaults" {
+			t.Errorf("Expected default allowed to be ['defaults'], got %v", workflowData.NetworkPermissions.Allowed)
 		}
 	})
 
@@ -272,7 +272,7 @@ func TestNetworkPermissionsUtilities(t *testing.T) {
 		}
 
 		// Test with defaults mode - should return default allow-list
-		defaultsPerms := &NetworkPermissions{Mode: "defaults"}
+		defaultsPerms := &NetworkPermissions{Allowed: []string{"defaults"}}
 		domains = GetAllowedDomains(defaultsPerms)
 		if len(domains) == 0 {
 			t.Errorf("Expected default allow-list domains for defaults mode, got %d", len(domains))

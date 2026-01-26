@@ -179,6 +179,42 @@ async function closeDiscussionAsOutdated(github, discussionId) {
   return result.closeDiscussion.discussion;
 }
 
+/**
+ * Check if a discussion already has an expiration comment and fetch its closed state
+ * @param {any} github - GitHub GraphQL instance
+ * @param {string} discussionId - Discussion node ID
+ * @returns {Promise<{hasComment: boolean, isClosed: boolean}>} Object with comment existence and closed state
+ */
+async function hasExpirationComment(github, discussionId) {
+  const result = await github.graphql(
+    `
+    query($dId: ID!) {
+      node(id: $dId) {
+        ... on Discussion {
+          closed
+          comments(first: 100) {
+            nodes {
+              body
+            }
+          }
+        }
+      }
+    }`,
+    { dId: discussionId }
+  );
+
+  if (!result || !result.node) {
+    return { hasComment: false, isClosed: false };
+  }
+
+  const isClosed = result.node.closed || false;
+  const comments = result.node.comments?.nodes || [];
+  const expirationCommentPattern = /<!--\s*gh-aw-closed\s*-->/;
+  const hasComment = comments.some(comment => comment.body && expirationCommentPattern.test(comment.body));
+
+  return { hasComment, isClosed };
+}
+
 async function main() {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
@@ -281,31 +317,72 @@ async function main() {
   const closedDiscussions = [];
   const failedDiscussions = [];
 
+  let skippedCount = 0;
+  const skippedDiscussions = [];
+
   for (let i = 0; i < discussionsToClose.length; i++) {
     const discussion = discussionsToClose[i];
 
     core.info(`[${i + 1}/${discussionsToClose.length}] Processing discussion #${discussion.number}: ${discussion.url}`);
 
     try {
-      const closingMessage = `This discussion was automatically closed because it expired on ${discussion.expirationDate.toISOString()}.`;
+      // Check if an expiration comment already exists and if discussion is closed
+      core.info(`  Checking for existing expiration comment and closed state on discussion #${discussion.number}`);
+      const { hasComment, isClosed } = await hasExpirationComment(github, discussion.id);
 
-      // Add comment first
-      core.info(`  Adding closing comment to discussion #${discussion.number}`);
-      await addDiscussionComment(github, discussion.id, closingMessage);
-      core.info(`  ✓ Comment added successfully`);
+      if (isClosed) {
+        core.warning(`  Discussion #${discussion.number} is already closed, skipping`);
+        skippedDiscussions.push({
+          number: discussion.number,
+          url: discussion.url,
+          title: discussion.title,
+        });
+        skippedCount++;
+        continue;
+      }
 
-      // Then close the discussion as outdated
-      core.info(`  Closing discussion #${discussion.number} as outdated`);
-      await closeDiscussionAsOutdated(github, discussion.id);
-      core.info(`  ✓ Discussion closed successfully`);
+      if (hasComment) {
+        core.warning(`  Discussion #${discussion.number} already has an expiration comment, skipping to avoid duplicate`);
+        skippedDiscussions.push({
+          number: discussion.number,
+          url: discussion.url,
+          title: discussion.title,
+        });
+        skippedCount++;
 
-      closedDiscussions.push({
-        number: discussion.number,
-        url: discussion.url,
-        title: discussion.title,
-      });
+        // Still try to close it if it's somehow still open
+        core.info(`  Attempting to close discussion #${discussion.number} without adding another comment`);
+        await closeDiscussionAsOutdated(github, discussion.id);
+        core.info(`  ✓ Discussion closed successfully`);
 
-      closedCount++;
+        closedDiscussions.push({
+          number: discussion.number,
+          url: discussion.url,
+          title: discussion.title,
+        });
+        closedCount++;
+      } else {
+        const closingMessage = `This discussion was automatically closed because it expired on ${discussion.expirationDate.toISOString()}.\n\n<!-- gh-aw-closed -->`;
+
+        // Add comment first
+        core.info(`  Adding closing comment to discussion #${discussion.number}`);
+        await addDiscussionComment(github, discussion.id, closingMessage);
+        core.info(`  ✓ Comment added successfully`);
+
+        // Then close the discussion as outdated
+        core.info(`  Closing discussion #${discussion.number} as outdated`);
+        await closeDiscussionAsOutdated(github, discussion.id);
+        core.info(`  ✓ Discussion closed successfully`);
+
+        closedDiscussions.push({
+          number: discussion.number,
+          url: discussion.url,
+          title: discussion.title,
+        });
+
+        closedCount++;
+      }
+
       core.info(`✓ Successfully processed discussion #${discussion.number}: ${discussion.url}`);
     } catch (error) {
       core.error(`✗ Failed to close discussion #${discussion.number}: ${getErrorMessage(error)}`);
@@ -336,6 +413,9 @@ async function main() {
 
   summaryContent += `**Closing Summary**\n`;
   summaryContent += `- Successfully closed: ${closedCount} discussion(s)\n`;
+  if (skippedCount > 0) {
+    summaryContent += `- Skipped (already had comment): ${skippedCount} discussion(s)\n`;
+  }
   if (failedDiscussions.length > 0) {
     summaryContent += `- Failed to close: ${failedDiscussions.length} discussion(s)\n`;
   }
@@ -348,6 +428,14 @@ async function main() {
     summaryContent += `### Successfully Closed Discussions\n\n`;
     for (const closed of closedDiscussions) {
       summaryContent += `- Discussion #${closed.number}: [${closed.title}](${closed.url})\n`;
+    }
+    summaryContent += `\n`;
+  }
+
+  if (skippedCount > 0) {
+    summaryContent += `### Skipped (Already Had Comment)\n\n`;
+    for (const skipped of skippedDiscussions) {
+      summaryContent += `- Discussion #${skipped.number}: [${skipped.title}](${skipped.url})\n`;
     }
     summaryContent += `\n`;
   }

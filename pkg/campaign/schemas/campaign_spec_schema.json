@@ -20,78 +20,11 @@
       "type": "string",
       "description": "Brief description of the campaign"
     },
-    "objective": {
-      "type": "string",
-      "description": "Outcome-owned objective statement for the campaign (what success means)",
-      "minLength": 1
-    },
-    "kpis": {
-      "type": "array",
-      "description": "Up to 3 KPIs used to measure the campaign objective",
-      "minItems": 1,
-      "maxItems": 3,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Optional stable identifier for the KPI (lowercase letters, digits, and hyphens)",
-            "pattern": "^[a-z0-9-]+$",
-            "minLength": 1
-          },
-          "name": {
-            "type": "string",
-            "description": "Human-readable KPI name",
-            "minLength": 1
-          },
-          "priority": {
-            "type": "string",
-            "description": "KPI priority: primary (exactly one per campaign) or supporting",
-            "enum": ["primary", "supporting"]
-          },
-          "unit": {
-            "type": "string",
-            "description": "Optional KPI unit (e.g., percent, days, count)",
-            "minLength": 1
-          },
-          "baseline": {
-            "type": "number",
-            "description": "Baseline KPI value"
-          },
-          "target": {
-            "type": "number",
-            "description": "Target KPI value"
-          },
-          "time-window-days": {
-            "type": "integer",
-            "description": "Rolling time window, in days, used for KPI measurement (e.g., 7, 14, 30)",
-            "minimum": 1
-          },
-          "direction": {
-            "type": "string",
-            "description": "Whether improvement means increasing or decreasing the KPI",
-            "enum": ["increase", "decrease"]
-          },
-          "source": {
-            "type": "string",
-            "description": "Signal source used to compute this KPI",
-            "enum": ["ci", "pull_requests", "code_security", "custom"]
-          }
-        },
-        "required": ["name", "baseline", "target", "time-window-days"]
-      }
-    },
     "project-url": {
       "type": "string",
       "description": "URL of the GitHub Project used as the primary campaign dashboard",
       "format": "uri",
       "pattern": "/projects/",
-      "minLength": 1
-    },
-    "project-github-token": {
-      "type": "string",
-      "description": "Optional GitHub token expression used for GitHub Projects v2 operations (e.g., ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }})",
       "minLength": 1
     },
     "version": {
@@ -109,43 +42,28 @@
       },
       "minItems": 1
     },
-    "discovery-repos": {
+    "scope": {
       "type": "array",
-      "description": "List of repositories (in owner/repo format) where worker workflows are discovered. This controls the scope of GitHub searches for issues/PRs created by worker workflows.",
+      "description": "Optional scope selectors defining which repositories and organizations this campaign is allowed to discover and operate on. When omitted, defaults to the current repository where the campaign is defined.",
       "items": {
         "type": "string",
-        "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        "minLength": 1
+        "minLength": 1,
+        "anyOf": [
+          {
+            "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
+            "description": "Repository selector: owner/repo"
+          },
+          {
+            "pattern": "^org:[a-zA-Z0-9_.-]+$",
+            "description": "Organization selector: org:<name>"
+          },
+          {
+            "pattern": "^[a-zA-Z0-9_.-]+/\\*$",
+            "description": "Organization selector (sugar): <org>/*"
+          }
+        ]
       },
       "minItems": 1
-    },
-    "discovery-orgs": {
-      "type": "array",
-      "description": "List of GitHub organizations where worker workflows are discovered. When specified, any repository within these organizations is searched for worker-created issues/PRs.",
-      "items": {
-        "type": "string",
-        "pattern": "^[a-zA-Z0-9_.-]+$",
-        "minLength": 1
-      }
-    },
-    "allowed-repos": {
-      "type": "array",
-      "description": "Optional list of repositories (in owner/repo format) that this campaign is allowed to discover and operate on. When omitted, defaults to the current repository where the campaign is defined.",
-      "items": {
-        "type": "string",
-        "pattern": "^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$",
-        "minLength": 1
-      },
-      "minItems": 1
-    },
-    "allowed-orgs": {
-      "type": "array",
-      "description": "Optional list of GitHub organizations that this campaign is allowed to discover and operate on",
-      "items": {
-        "type": "string",
-        "pattern": "^[a-zA-Z0-9_.-]+$",
-        "minLength": 1
-      }
     },
     "memory-paths": {
       "type": "array",

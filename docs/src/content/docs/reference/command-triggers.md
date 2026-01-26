@@ -78,6 +78,17 @@ on:
 
 **Note**: You cannot combine `slash_command` with `issues`, `issue_comment`, or `pull_request` as they would conflict.
 
+**Exception for Label-Only Events**: You CAN combine `slash_command` with `issues` or `pull_request` if those events are configured for label-only triggers (`labeled` or `unlabeled` types only). This allows workflows to respond to slash commands while also reacting to label changes.
+
+```yaml wrap
+on:
+  slash_command: deploy
+  issues:
+    types: [labeled, unlabeled]  # Valid: label-only triggers don't conflict
+```
+
+This pattern is useful when you want a workflow that can be triggered both manually via commands and automatically when labels change.
+
 ## Filtering Command Events
 
 By default, command triggers respond to `/command-name` mentions in all comment-related contexts. Use the `events:` field to restrict where commands are active:

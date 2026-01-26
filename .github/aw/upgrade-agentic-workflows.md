@@ -19,6 +19,7 @@ Read the ENTIRE content of this file carefully before proceeding. Follow the ins
 
 **Key Commands Available**
 
+- `upgrade` → upgrade repository to latest version (combines all steps below)
 - `fix` → apply automatic codemods to fix deprecated fields
 - `compile` → compile all workflows
 - `compile <workflow-name>` → compile a specific workflow
@@ -27,10 +28,11 @@ Read the ENTIRE content of this file carefully before proceeding. Follow the ins
 > **Command Execution**
 >
 > When running in GitHub Copilot Cloud, you don't have direct access to `gh aw` CLI commands. Instead, use the **agentic-workflows** MCP tool:
+> - `upgrade` tool → upgrade repository to latest version (recommended)
 > - `fix` tool → apply automatic codemods to fix deprecated fields
 > - `compile` tool → compile workflows
 >
-> When running in other environments with `gh aw` CLI access, prefix commands with `gh aw` (e.g., `gh aw compile`).
+> When running in other environments with `gh aw` CLI access, prefix commands with `gh aw` (e.g., `gh aw upgrade`, `gh aw compile`).
 >
 > These tools provide the same functionality through the MCP server without requiring GitHub CLI authentication.
 
@@ -53,7 +55,42 @@ Before upgrading, always review what's new:
      - ⚠️ Deprecations (plan to update)
      - 📖 Migration guides (follow instructions)
 
-### 2. Apply Automatic Fixes with Codemods
+### 2. Run the Upgrade Command
+
+**The primary and recommended way to upgrade is to use the `gh aw upgrade` command**, which automates all the upgrade steps in one command:
+
+1. **Run the Upgrade Command**
+
+   ```bash
+   gh aw upgrade
+   ```
+
+   This single command will automatically:
+   - Update all agent and prompt files to the latest templates (like `gh aw init`)
+   - Apply automatic codemods to fix deprecated fields in all workflows (like `gh aw fix --write`)
+   - Update GitHub Actions versions in `.github/aw/actions-lock.json`
+   - Compile all workflows to generate lock files (like `gh aw compile`)
+
+2. **Optional Flags**
+
+   - `gh aw upgrade --push` - Automatically commit and push changes after successful upgrade
+   - `gh aw upgrade --no-fix` - Update agent files only (skip codemods, actions, and compilation)
+   - `gh aw upgrade --no-actions` - Skip updating GitHub Actions versions
+   - `gh aw upgrade --dir custom/workflows` - Upgrade workflows in custom directory
+
+3. **Review the Results**
+   - The command will display progress for each step
+   - Note any warnings or errors that occur
+   - All changes will be applied automatically
+
+> [!TIP]
+> **Use `gh aw upgrade` for most upgrade scenarios.** It combines all necessary steps and ensures consistency. Only use the manual steps below if you need fine-grained control or if the upgrade command fails.
+
+### 3. Manual Upgrade Steps (Fallback)
+
+If the `gh aw upgrade` command is not available or you need more control, follow these manual steps:
+
+#### 3.1. Apply Automatic Fixes with Codemods
 
 Before attempting to compile, apply automatic codemods:
 
@@ -70,7 +107,7 @@ Before attempting to compile, apply automatic codemods:
    - Note which workflows were updated by the codemods
    - These automatic fixes handle common deprecations
 
-### 3. Attempt Recompilation
+#### 3.2. Attempt Recompilation
 
 Try to compile all workflows:
 
@@ -141,12 +178,8 @@ After fixing all errors:
    - Ensure all workflows have corresponding `.lock.yml` files
    - Check that lock files are valid GitHub Actions YAML
 
-3. **Refresh Agent and Instruction Files**
-   
-   After successfully upgrading workflows, refresh the agent files and instructions to ensure you have the latest versions:
-   - Run `gh aw init --push` to update all agent files (`.github/agents/*.md`) and instruction files (`.github/aw/github-agentic-workflows.md`), then automatically commit and push the changes
-   - This ensures that agents and instructions are aligned with the new gh-aw version
-   - The command will preserve your existing configuration while updating to the latest templates
+> [!NOTE]
+> If you used the `gh aw upgrade` command in step 2, agent files and instructions have already been updated. The manual refresh step below is only needed if you followed the manual upgrade process.
 
 ## Creating Outputs
 
@@ -177,13 +210,16 @@ Upgraded all agentic workflows to gh-aw version [VERSION].
 ### Workflows Updated
 - [List all workflow files that were modified]
 
-### Automatic Fixes Applied (via codemods)
-- [List changes made by the `fix` tool with `--write` flag]
-- [Reference which deprecated fields were updated]
+### Upgrade Method
+- Used `gh aw upgrade` command to automatically apply all changes
 
-### Manual Fixes Applied
-- [Describe any manual changes made to fix compilation errors]
-- [Reference specific breaking changes that required fixes]
+### Automatic Fixes Applied
+- [List changes made by the upgrade command]
+- [Reference which deprecated fields were updated by codemods]
+
+### Manual Fixes Applied (if any)
+- [Describe any manual changes made to fix compilation errors after upgrade]
+- [Reference specific breaking changes that required manual fixes]
 
 ### Testing
 - ✅ All workflows compile successfully
@@ -191,12 +227,13 @@ Upgraded all agentic workflows to gh-aw version [VERSION].
 - ✅ No compilation errors or warnings
 
 ### Post-Upgrade Steps
-- ✅ Refreshed agent files and instructions with `gh aw init --push`
+- ✅ Ran `gh aw upgrade` to update all components
+- ✅ All agent files and instructions updated automatically
 
 ## Files Changed
 - Updated `.md` workflow files: [LIST]
 - Generated `.lock.yml` files: [LIST]
-- Updated agent files: [LIST] (if `gh aw init --push` was run)
+- Updated agent files: [LIST]
 ```
 
 ### If Compilation Errors Cannot Be Fixed

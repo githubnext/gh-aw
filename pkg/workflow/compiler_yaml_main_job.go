@@ -145,6 +145,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add GitHub MCP lockdown detection step if needed
 	c.generateGitHubMCPLockdownDetectionStep(yaml, data)
 
+	// Add GitHub MCP app token minting step if configured
+	c.generateGitHubMCPAppTokenMintingStep(yaml, data)
+
 	// Add MCP setup
 	c.generateMCPSetup(yaml, data.Tools, engine, data)
 
@@ -323,6 +326,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Generate single unified artifact upload with all collected paths
 	c.generateUnifiedArtifactUpload(yaml, artifactPaths)
+
+	// Add GitHub MCP app token invalidation step if configured (runs always, even on failure)
+	c.generateGitHubMCPAppTokenInvalidationStep(yaml, data)
 
 	// Validate step ordering - this is a compiler check to ensure security
 	if err := c.stepOrderTracker.ValidateStepOrdering(); err != nil {

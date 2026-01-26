@@ -19,7 +19,7 @@ all: build
 
 # Build the binary, run make deps before this
 .PHONY: build
-build: sync-templates sync-action-pins
+build: sync-templates sync-action-pins sync-action-scripts
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
 
 # Build for all platforms
@@ -612,6 +612,14 @@ sync-action-pins:
 		echo "⚠ Warning: .github/aw/actions-lock.json does not exist yet"; \
 	fi
 
+# Sync action scripts
+.PHONY: sync-action-scripts
+sync-action-scripts:
+	@echo "Syncing install-gh-aw.sh to actions/setup-cli/install.sh..."
+	@cp install-gh-aw.sh actions/setup-cli/install.sh
+	@chmod +x actions/setup-cli/install.sh
+	@echo "✓ Action scripts synced successfully"
+
 # Recompile all workflow files
 .PHONY: recompile
 recompile: sync-templates build
@@ -737,6 +745,7 @@ help:
 	@echo "  install          - Install binary locally"
 	@echo "  sync-templates   - Sync templates from .github to pkg/cli/templates (runs automatically during build)"
 	@echo "  sync-action-pins - Sync actions-lock.json from .github/aw to pkg/workflow/data (runs automatically during build)"
+	@echo "  sync-action-scripts - Sync install-gh-aw.sh to actions/setup-cli/install.sh (runs automatically during build)"
 	@echo "  update           - Update GitHub Actions and workflows, sync action pins, and rebuild binary"
 	@echo "  fix              - Apply automatic codemod-style fixes to workflow files (depends on build)"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"

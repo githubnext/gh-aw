@@ -411,7 +411,7 @@ async function main() {
 
     // RUNTIME GUARD: Campaigns MUST be scoped
     if (!config.repos?.length && !config.orgs?.length) {
-      throw new Error("campaigns MUST be scoped: GH_AW_DISCOVERY_REPOS or GH_AW_DISCOVERY_ORGS is required. Configure allowed-repos or allowed-orgs in the campaign spec.");
+      throw new Error("campaigns MUST be scoped: GH_AW_DISCOVERY_REPOS or GH_AW_DISCOVERY_ORGS is required. Configure scope in the campaign spec.");
     }
 
     if (!config.workflows?.length && !config.trackerLabel) {

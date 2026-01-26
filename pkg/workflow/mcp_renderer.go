@@ -715,15 +715,32 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	writeHeadersToYAML(yaml, headers, "                  ")
 
 	// Close headers section
-	if options.IncludeEnvSection {
+	if options.IncludeToolsField || options.IncludeEnvSection {
 		yaml.WriteString("                },\n")
 	} else {
 		yaml.WriteString("                }\n")
 	}
 
-	// Note: tools field is NOT included here - the converter script adds it back
-	// for Copilot (see convert_gateway_config_copilot.sh). This keeps the gateway
-	// config compatible with the schema which doesn't have the tools field.
+	// Add tools field if requested (Copilot needs it, Claude doesn't)
+	// Note: This is added here when IncludeToolsField is true, but in some cases
+	// the converter script also adds it back (see convert_gateway_config_copilot.sh).
+	if options.IncludeToolsField && len(options.AllowedTools) > 0 {
+		yaml.WriteString("                \"tools\": [\n")
+		for i, tool := range options.AllowedTools {
+			yaml.WriteString("                  \"")
+			yaml.WriteString(tool)
+			yaml.WriteString("\"")
+			if i < len(options.AllowedTools)-1 {
+				yaml.WriteString(",")
+			}
+			yaml.WriteString("\n")
+		}
+		if options.IncludeEnvSection {
+			yaml.WriteString("                ],\n")
+		} else {
+			yaml.WriteString("                ]\n")
+		}
+	}
 
 	// Add env section if needed (Copilot uses this, Claude doesn't)
 	if options.IncludeEnvSection {

@@ -37,6 +37,8 @@ global.context = mockContext;
 describe("generate_footer.cjs", () => {
   let generateFooter;
   let generateXMLMarker;
+  let generateWorkflowIdMarker;
+  let getWorkflowIdMarkerContent;
   let testPromptsDir;
   let originalEnv;
 
@@ -65,11 +67,14 @@ describe("generate_footer.cjs", () => {
     delete process.env.GH_AW_ENGINE_VERSION;
     delete process.env.GH_AW_ENGINE_MODEL;
     delete process.env.GH_AW_TRACKER_ID;
+    delete process.env.GH_AW_WORKFLOW_ID;
 
     // Dynamic import to get fresh module state
     const module = await import("./generate_footer.cjs");
     generateFooter = module.generateFooter;
     generateXMLMarker = module.generateXMLMarker;
+    generateWorkflowIdMarker = module.generateWorkflowIdMarker;
+    getWorkflowIdMarkerContent = module.getWorkflowIdMarkerContent;
   });
 
   afterEach(() => {
@@ -259,6 +264,87 @@ describe("generate_footer.cjs", () => {
       const result = freshModule.generateXMLMarker("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
       expect(result).toBe("<!-- gh-aw-agentic-workflow: Test Workflow, gh-aw-tracker-id: workflow-2024-q1, engine: copilot, version: 1.0.0, model: gpt-5, run: https://github.com/test/repo/actions/runs/123 -->");
+    });
+  });
+
+  describe("generateWorkflowIdMarker", () => {
+    it("should generate workflow-id XML comment marker", () => {
+      const result = generateWorkflowIdMarker("test-workflow");
+
+      expect(result).toBe("<!-- gh-aw-workflow-id: test-workflow -->");
+    });
+
+    it("should handle workflow IDs with special characters", () => {
+      const result = generateWorkflowIdMarker("daily-report-v2");
+
+      expect(result).toBe("<!-- gh-aw-workflow-id: daily-report-v2 -->");
+    });
+
+    it("should handle workflow IDs with spaces", () => {
+      const result = generateWorkflowIdMarker("my workflow");
+
+      expect(result).toBe("<!-- gh-aw-workflow-id: my workflow -->");
+    });
+
+    it("should handle empty workflow ID", () => {
+      const result = generateWorkflowIdMarker("");
+
+      expect(result).toBe("<!-- gh-aw-workflow-id:  -->");
+    });
+
+    it("should be consistent with format used in comments", () => {
+      const workflowId = "smoke-copilot";
+      const result = generateWorkflowIdMarker(workflowId);
+
+      // Should match the format: <!-- gh-aw-workflow-id: {id} -->
+      expect(result).toMatch(/^<!-- gh-aw-workflow-id: .+ -->$/);
+      expect(result).toContain(workflowId);
+    });
+  });
+
+  describe("getWorkflowIdMarkerContent", () => {
+    it("should return marker content without XML wrapper", () => {
+      const result = getWorkflowIdMarkerContent("test-workflow");
+
+      expect(result).toBe("gh-aw-workflow-id: test-workflow");
+      expect(result).not.toContain("<!--");
+      expect(result).not.toContain("-->");
+    });
+
+    it("should handle workflow IDs with special characters", () => {
+      const result = getWorkflowIdMarkerContent("daily-report-v2");
+
+      expect(result).toBe("gh-aw-workflow-id: daily-report-v2");
+    });
+
+    it("should be usable in search queries", () => {
+      const workflowId = "smoke-copilot";
+      const markerContent = getWorkflowIdMarkerContent(workflowId);
+
+      // Should be the format used in search: gh-aw-workflow-id: {id}
+      expect(markerContent).toBe(`gh-aw-workflow-id: ${workflowId}`);
+
+      // Should not contain XML comment markers
+      expect(markerContent).not.toContain("<!--");
+      expect(markerContent).not.toContain("-->");
+    });
+
+    it("should match the content inside generateWorkflowIdMarker", () => {
+      const workflowId = "test-workflow";
+      const fullMarker = generateWorkflowIdMarker(workflowId);
+      const content = getWorkflowIdMarkerContent(workflowId);
+
+      // The full marker should contain the content
+      expect(fullMarker).toContain(content);
+
+      // The full marker should wrap the content in XML comments
+      expect(fullMarker).toBe(`<!-- ${content} -->`);
+    });
+
+    it("should handle empty workflow ID", () => {
+      const result = getWorkflowIdMarkerContent("");
+
+      expect(result).toBe("gh-aw-workflow-id: ");
     });
   });
 });

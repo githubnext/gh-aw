@@ -58,7 +58,7 @@ cargo install ast-grep --locked
 sg --pattern 'json:"-"' --lang go .
 ```
 
-If patterns are found, it triggers the second phase where the coding agent analyzes the detected patterns, reviews context around each match, determines if patterns are problematic, and creates issues with specific recommendations. This architecture is efficient: fast AST scanning uses minimal resources, expensive AI analysis only runs when needed, false positives don't consume AI budget, and the approach scales to frequent checks without cost concerns. This architecture is efficient: fast AST scanning uses minimal resources, expensive AI analysis only runs when needed, false positives don't consume AI budget, and the approach scales to frequent checks without cost concerns.
+If patterns are found, it triggers the second phase where the coding agent analyzes the detected patterns, reviews context around each match, determines if patterns are problematic, and creates issues with specific recommendations. This architecture is efficient: fast AST scanning uses minimal resources, expensive AI analysis only runs when needed, false positives don't consume AI budget, and the approach scales to frequent checks without cost concerns.
 
 The workflow is designed to be extended with additional pattern checks - common anti-patterns like ignored errors or global state, project-specific conventions, performance anti-patterns, and security-sensitive patterns.
 

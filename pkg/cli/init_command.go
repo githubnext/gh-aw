@@ -60,9 +60,8 @@ With --codespaces flag:
 - Use without value (--codespaces) for current repo only, or with comma-separated repos (--codespaces repo1,repo2)
 
 With --campaign flag:
-- Adds (or reuses) .github/workflows/agentic-campaign-generator.md source and compiles .github/workflows/agentic-campaign-generator.lock.yml for creating campaigns from issues
-- Creates a 'create-agentic-campaign' label in your repository for triggering campaign workflows
 - Enables campaign-related prompts and functionality for multi-workflow coordination
+- Note: Campaign creation is now handled through the agentic-campaign-designer custom agent (use @agentic-campaign-designer in Copilot Chat)
 
 With --completions flag:
 - Automatically detects your shell (bash, zsh, fish, or PowerShell)
@@ -85,7 +84,8 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` init --codespaces                   # Configure Codespaces
   ` + string(constants.CLIExtensionPrefix) + ` init --codespaces repo1,repo2       # Codespaces with additional repos
   ` + string(constants.CLIExtensionPrefix) + ` init --completions                  # Install shell completions
-  ` + string(constants.CLIExtensionPrefix) + ` init --push                         # Initialize and automatically commit/push`,
+  ` + string(constants.CLIExtensionPrefix) + ` init --push                         # Initialize and automatically commit/push
+  ` + string(constants.CLIExtensionPrefix) + ` init --create-pull-request          # Initialize and create a pull request`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcpFlag, _ := cmd.Flags().GetBool("mcp")
@@ -97,6 +97,9 @@ Examples:
 			codespaceEnabled := cmd.Flags().Changed("codespaces")
 			completions, _ := cmd.Flags().GetBool("completions")
 			push, _ := cmd.Flags().GetBool("push")
+			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
+			prFlagAlias, _ := cmd.Flags().GetBool("pr")
+			createPR := createPRFlag || prFlagAlias // Support both --create-pull-request and --pr
 
 			// Determine MCP state: default true, unless --no-mcp is specified
 			// --mcp flag is kept for backward compatibility (hidden from help)
@@ -124,15 +127,16 @@ Examples:
 			if !cmd.Flags().Changed("mcp") && !cmd.Flags().Changed("no-mcp") &&
 				!cmd.Flags().Changed("campaign") && !cmd.Flags().Changed("tokens") &&
 				!cmd.Flags().Changed("engine") && !cmd.Flags().Changed("codespaces") &&
-				!cmd.Flags().Changed("completions") && !cmd.Flags().Changed("push") {
+				!cmd.Flags().Changed("completions") && !cmd.Flags().Changed("push") &&
+				!cmd.Flags().Changed("create-pull-request") && !cmd.Flags().Changed("pr") {
 
 				// Enter interactive mode
 				initCommandLog.Print("Entering interactive mode")
 				return InitRepositoryInteractive(verbose, cmd.Root())
 			}
 
-			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, campaign=%v, tokens=%v, engine=%v, codespaces=%v, codespaceEnabled=%v, completions=%v, push=%v", verbose, mcp, campaign, tokens, engine, codespaceRepos, codespaceEnabled, completions, push)
-			if err := InitRepository(verbose, mcp, campaign, tokens, engine, codespaceRepos, codespaceEnabled, completions, push, cmd.Root()); err != nil {
+			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, campaign=%v, tokens=%v, engine=%v, codespaces=%v, codespaceEnabled=%v, completions=%v, push=%v, createPR=%v", verbose, mcp, campaign, tokens, engine, codespaceRepos, codespaceEnabled, completions, push, createPR)
+			if err := InitRepository(verbose, mcp, campaign, tokens, engine, codespaceRepos, codespaceEnabled, completions, push, createPR, cmd.Root()); err != nil {
 				initCommandLog.Printf("Init command failed: %v", err)
 				return err
 			}
@@ -151,6 +155,9 @@ Examples:
 	cmd.Flags().Lookup("codespaces").NoOptDefVal = " "
 	cmd.Flags().Bool("completions", false, "Install shell completion for the detected shell (bash, zsh, fish, or PowerShell)")
 	cmd.Flags().Bool("push", false, "Automatically commit and push changes after successful initialization")
+	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the initialization changes")
+	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
+	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 
 	// Hide the deprecated --mcp flag from help (kept for backward compatibility)
 	_ = cmd.Flags().MarkHidden("mcp")

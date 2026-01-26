@@ -2,12 +2,12 @@ package cli
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/huh"
-	"github.com/githubnext/gh-aw/pkg/campaign"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -76,8 +76,12 @@ func InitRepositoryInteractive(verbose bool, rootCmd CommandProvider) error {
 	if copilotMcp {
 		initLog.Print("Configuring GitHub Copilot Agent MCP integration")
 
+		// Detect action mode for setup steps generation
+		actionMode := workflow.DetectActionMode(GetVersion())
+		initLog.Printf("Using action mode for copilot-setup-steps.yml: %s", actionMode)
+
 		// Create copilot-setup-steps.yml
-		if err := ensureCopilotSetupSteps(verbose); err != nil {
+		if err := ensureCopilotSetupSteps(verbose, actionMode, GetVersion()); err != nil {
 			initLog.Printf("Failed to create copilot-setup-steps.yml: %v", err)
 			return fmt.Errorf("failed to create copilot-setup-steps.yml: %w", err)
 		}
@@ -444,15 +448,29 @@ func attemptSetSecret(secretName, repoSlug string, verbose bool) error {
 }
 
 // InitRepository initializes the repository for agentic workflows
-func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine string, codespaceRepos []string, codespaceEnabled bool, completions bool, push bool, rootCmd CommandProvider) error {
+func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine string, codespaceRepos []string, codespaceEnabled bool, completions bool, push bool, shouldCreatePR bool, rootCmd CommandProvider) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
 
-	// If --push is enabled, ensure git status is clean before starting
-	if push {
-		initLog.Print("Checking for clean working directory (--push enabled)")
+	// If --push or --create-pull-request is enabled, ensure git status is clean before starting
+	if push || shouldCreatePR {
+		if shouldCreatePR {
+			initLog.Print("Checking for clean working directory (--create-pull-request enabled)")
+		} else {
+			initLog.Print("Checking for clean working directory (--push enabled)")
+		}
 		if err := checkCleanWorkingDirectory(verbose); err != nil {
 			initLog.Printf("Git status check failed: %v", err)
+			if shouldCreatePR {
+				return fmt.Errorf("--create-pull-request requires a clean working directory: %w", err)
+			}
 			return fmt.Errorf("--push requires a clean working directory: %w", err)
+		}
+	}
+
+	// If creating a PR, check GitHub CLI is available
+	if shouldCreatePR {
+		if !isGHCLIAvailable() {
+			return fmt.Errorf("GitHub CLI (gh) is required for PR creation but not available")
 		}
 	}
 
@@ -584,31 +602,18 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created campaign instruction files"))
 		}
-
-		// Add campaign-generator workflow from gh-aw repository
-		initLog.Print("Adding campaign-generator workflow")
-		if err := addCampaignGeneratorWorkflow(verbose); err != nil {
-			initLog.Printf("Failed to add campaign-generator workflow: %v", err)
-			return fmt.Errorf("failed to add campaign-generator workflow: %w", err)
-		}
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added campaign-generator workflow"))
-		}
-
-		// Create the 'create-agentic-campaign' label
-		initLog.Print("Creating 'create-agentic-campaign' label")
-		if err := createCampaignLabel(verbose); err != nil {
-			// Label creation is non-fatal, just log the error
-			initLog.Printf("Label creation encountered an issue: %v", err)
-		}
 	}
 
 	// Configure MCP if requested
 	if mcp {
 		initLog.Print("Configuring GitHub Copilot Agent MCP integration")
 
+		// Detect action mode for setup steps generation
+		actionMode := workflow.DetectActionMode(GetVersion())
+		initLog.Printf("Using action mode for copilot-setup-steps.yml: %s", actionMode)
+
 		// Create copilot-setup-steps.yml
-		if err := ensureCopilotSetupSteps(verbose); err != nil {
+		if err := ensureCopilotSetupSteps(verbose, actionMode, GetVersion()); err != nil {
 			initLog.Printf("Failed to create copilot-setup-steps.yml: %v", err)
 			return fmt.Errorf("failed to create copilot-setup-steps.yml: %w", err)
 		}
@@ -689,8 +694,58 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 
 	initLog.Print("Repository initialization completed successfully")
 
-	// If --push is enabled, commit and push changes
-	if push {
+	// If --create-pull-request is enabled, create branch, commit, push, and create PR
+	if shouldCreatePR {
+		initLog.Print("Create PR enabled - preparing to create branch, commit, push, and create PR")
+		fmt.Fprintln(os.Stderr, "")
+
+		// Get current branch for restoration later
+		currentBranch, err := getCurrentBranch()
+		if err != nil {
+			return fmt.Errorf("failed to get current branch: %w", err)
+		}
+
+		// Create temporary branch
+		branchName := fmt.Sprintf("init-agentic-workflows-%d", rand.Intn(9000)+1000)
+		if err := createAndSwitchBranch(branchName, verbose); err != nil {
+			return fmt.Errorf("failed to create branch %s: %w", branchName, err)
+		}
+
+		// Commit changes
+		commitMessage := "chore: initialize agentic workflows"
+		if err := commitChanges(commitMessage, verbose); err != nil {
+			// Switch back to original branch before returning error
+			_ = switchBranch(currentBranch, verbose)
+			return fmt.Errorf("failed to commit changes: %w", err)
+		}
+
+		// Push branch
+		if err := pushBranch(branchName, verbose); err != nil {
+			// Switch back to original branch before returning error
+			_ = switchBranch(currentBranch, verbose)
+			return fmt.Errorf("failed to push branch %s: %w", branchName, err)
+		}
+
+		// Create PR
+		prTitle := "Initialize agentic workflows"
+		prBody := "This PR initializes the repository for agentic workflows by:\n" +
+			"- Configuring .gitattributes\n" +
+			"- Creating GitHub Copilot custom instructions\n" +
+			"- Setting up workflow prompts and agents"
+		if err := createPR(branchName, prTitle, prBody, verbose); err != nil {
+			// Switch back to original branch before returning error
+			_ = switchBranch(currentBranch, verbose)
+			return fmt.Errorf("failed to create PR: %w", err)
+		}
+
+		// Switch back to original branch
+		if err := switchBranch(currentBranch, verbose); err != nil {
+			return fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err)
+		}
+
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created PR for initialization"))
+	} else if push {
+		// If --push is enabled, commit and push changes
 		initLog.Print("Push enabled - preparing to commit and push changes")
 		fmt.Fprintln(os.Stderr, "")
 
@@ -754,306 +809,6 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	fmt.Fprintln(os.Stderr, "")
 
 	return nil
-}
-
-// addCampaignGeneratorWorkflow generates and compiles the agentic-campaign-generator workflow
-func addCampaignGeneratorWorkflow(verbose bool) error {
-	initLog.Print("Generating agentic-campaign-generator workflow")
-
-	// Get the git root directory
-	gitRoot, err := findGitRoot()
-	if err != nil {
-		initLog.Printf("Failed to find git root: %v", err)
-		return fmt.Errorf("failed to find git root: %w", err)
-	}
-
-	// Keep the campaign generator source next to its lock file for consistency.
-	workflowsDir := filepath.Join(gitRoot, ".github", "workflows")
-	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
-		initLog.Printf("Failed to create workflows directory: %v", err)
-		return fmt.Errorf("failed to create workflows directory: %w", err)
-	}
-
-	// Build the agentic-campaign-generator workflow
-	data := campaign.BuildCampaignGenerator()
-	workflowPath := filepath.Join(workflowsDir, "agentic-campaign-generator.md")
-
-	// Render the workflow to markdown
-	content := renderCampaignGeneratorMarkdown(data)
-
-	// Write markdown file with restrictive permissions
-	if err := os.WriteFile(workflowPath, []byte(content), 0600); err != nil {
-		initLog.Printf("Failed to write agentic-campaign-generator.md: %v", err)
-		return fmt.Errorf("failed to write agentic-campaign-generator.md: %w", err)
-	}
-
-	if verbose {
-		fmt.Fprintf(os.Stderr, "Created agentic-campaign-generator workflow: %s\n", workflowPath)
-	}
-
-	// Compile to lock file using the standard compiler.
-	compiler := workflow.NewCompiler(verbose, "", GetVersion())
-	if err := CompileWorkflowWithValidation(compiler, workflowPath, verbose, false, false, false, false, false); err != nil {
-		initLog.Printf("Failed to compile agentic-campaign-generator: %v", err)
-		return fmt.Errorf("failed to compile agentic-campaign-generator: %w", err)
-	}
-
-	if verbose {
-		fmt.Fprintf(os.Stderr, "Compiled agentic-campaign-generator workflow\n")
-	}
-
-	initLog.Print("Agentic-campaign-generator workflow generated successfully")
-	return nil
-}
-
-// createCampaignLabel creates the 'create-agentic-campaign' label in the repository
-func createCampaignLabel(verbose bool) error {
-	initLog.Print("Creating 'create-agentic-campaign' label")
-
-	// Get the current repository
-	repo, err := getCurrentRepositoryForInit()
-	if err != nil {
-		initLog.Printf("Could not determine repository: %v", err)
-		// Don't fail if we can't determine the repository
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not determine repository for label creation: %v", err)))
-		}
-		return nil
-	}
-
-	initLog.Printf("Creating label for repository: %s", repo)
-
-	// Split repo into owner and name
-	parts := strings.Split(repo, "/")
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		initLog.Printf("Invalid repository format: %s", repo)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Invalid repository format: %s", repo)))
-		}
-		return nil
-	}
-
-	// Create the label using gh api
-	// See https://docs.github.com/en/rest/issues/labels?apiVersion=2022-11-28#create-a-label
-	cmd := workflow.ExecGH("api",
-		fmt.Sprintf("repos/%s/labels", repo),
-		"-X", "POST",
-		"-f", "name=create-agentic-campaign",
-		"-f", "color=0E8A16",
-		"-f", "description=Create a new agentic campaign")
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		outputStr := string(output)
-		// Check if the error is because the label already exists
-		if strings.Contains(outputStr, "already_exists") {
-			initLog.Print("Label 'create-agentic-campaign' already exists")
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Label 'create-agentic-campaign' already exists"))
-			}
-			return nil
-		}
-
-		// For other errors, log but don't fail the init
-		initLog.Printf("Failed to create label (non-fatal): %v (output: %s)", err, outputStr)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to create label 'create-agentic-campaign': %v", err)))
-		}
-		return nil
-	}
-
-	initLog.Print("Successfully created label 'create-agentic-campaign'")
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created label 'create-agentic-campaign'"))
-	}
-
-	return nil
-}
-
-// getCurrentRepositoryForInit gets the current repository for init command
-func getCurrentRepositoryForInit() (string, error) {
-	initLog.Print("Getting current repository for init")
-
-	// Use the same approach as repository_features_validation.go
-	// Try to get the repository using gh CLI
-	cmd := workflow.ExecGH("repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to get current repository: %w", err)
-	}
-
-	repo := strings.TrimSpace(string(output))
-	if repo == "" {
-		return "", fmt.Errorf("repository name is empty")
-	}
-
-	initLog.Printf("Current repository: %s", repo)
-	return repo, nil
-}
-
-// renderCampaignGeneratorMarkdown converts WorkflowData to markdown format for campaign-generator
-func renderCampaignGeneratorMarkdown(data *workflow.WorkflowData) string {
-	var b strings.Builder
-
-	b.WriteString("---\n")
-	if strings.TrimSpace(data.Name) != "" {
-		fmt.Fprintf(&b, "name: %q\n", data.Name)
-	}
-	if strings.TrimSpace(data.Description) != "" {
-		fmt.Fprintf(&b, "description: %q\n", data.Description)
-	}
-	if strings.TrimSpace(data.On) != "" {
-		b.WriteString(strings.TrimSuffix(data.On, "\n"))
-		b.WriteString("\n")
-	}
-	if strings.TrimSpace(data.Permissions) != "" {
-		b.WriteString(strings.TrimSuffix(data.Permissions, "\n"))
-		b.WriteString("\n")
-	}
-
-	// Engine configuration
-	engineID := "copilot"
-	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
-		engineID = data.EngineConfig.ID
-	}
-	fmt.Fprintf(&b, "engine: %s\n", engineID)
-
-	// Tools
-	if len(data.Tools) > 0 {
-		b.WriteString("tools:\n")
-		if gh, ok := data.Tools["github"].(map[string]any); ok {
-			b.WriteString("  github:\n")
-			if toolsets, ok := gh["toolsets"].([]any); ok {
-				b.WriteString("    toolsets: [")
-				for i, ts := range toolsets {
-					if i > 0 {
-						b.WriteString(", ")
-					}
-					fmt.Fprintf(&b, "%v", ts)
-				}
-				b.WriteString("]\n")
-			}
-		}
-	}
-
-	// Safe outputs
-	if data.SafeOutputs != nil {
-		b.WriteString("safe-outputs:\n")
-
-		if data.SafeOutputs.AddComments != nil {
-			b.WriteString("  add-comment:\n")
-			b.WriteString("    max: 10\n")
-		}
-
-		if data.SafeOutputs.UpdateIssues != nil {
-			b.WriteString("  update-issue:\n")
-		}
-
-		if data.SafeOutputs.AssignToAgent != nil {
-			b.WriteString("  assign-to-agent:\n")
-		}
-
-		if data.SafeOutputs.CreateProjects != nil {
-			b.WriteString("  create-project:\n")
-			b.WriteString("    max: 1\n")
-			if data.SafeOutputs.CreateProjects.GitHubToken != "" {
-				fmt.Fprintf(&b, "    github-token: \"%s\"\n", data.SafeOutputs.CreateProjects.GitHubToken)
-			}
-			if data.SafeOutputs.CreateProjects.TargetOwner != "" {
-				fmt.Fprintf(&b, "    target-owner: \"%s\"\n", data.SafeOutputs.CreateProjects.TargetOwner)
-			}
-			if len(data.SafeOutputs.CreateProjects.Views) > 0 {
-				b.WriteString("    views:\n")
-				for _, view := range data.SafeOutputs.CreateProjects.Views {
-					fmt.Fprintf(&b, "      - name: \"%s\"\n", view.Name)
-					fmt.Fprintf(&b, "        layout: \"%s\"\n", view.Layout)
-					fmt.Fprintf(&b, "        filter: \"%s\"\n", view.Filter)
-				}
-			}
-			if len(data.SafeOutputs.CreateProjects.FieldDefinitions) > 0 {
-				b.WriteString("    field-definitions:\n")
-				for _, field := range data.SafeOutputs.CreateProjects.FieldDefinitions {
-					fmt.Fprintf(&b, "      - name: \"%s\"\n", field.Name)
-					fmt.Fprintf(&b, "        data-type: \"%s\"\n", field.DataType)
-					if len(field.Options) > 0 {
-						b.WriteString("        options:\n")
-						for _, opt := range field.Options {
-							fmt.Fprintf(&b, "          - \"%s\"\n", opt)
-						}
-					}
-				}
-			}
-		}
-
-		if data.SafeOutputs.UpdateProjects != nil {
-			b.WriteString("  update-project:\n")
-			b.WriteString("    max: 10\n")
-			if data.SafeOutputs.UpdateProjects.GitHubToken != "" {
-				fmt.Fprintf(&b, "    github-token: \"%s\"\n", data.SafeOutputs.UpdateProjects.GitHubToken)
-			}
-			if len(data.SafeOutputs.UpdateProjects.Views) > 0 {
-				b.WriteString("    views:\n")
-				for _, view := range data.SafeOutputs.UpdateProjects.Views {
-					fmt.Fprintf(&b, "      - name: \"%s\"\n", view.Name)
-					fmt.Fprintf(&b, "        layout: \"%s\"\n", view.Layout)
-					if strings.TrimSpace(view.Filter) != "" {
-						fmt.Fprintf(&b, "        filter: \"%s\"\n", view.Filter)
-					}
-					if strings.TrimSpace(view.Description) != "" {
-						fmt.Fprintf(&b, "        description: \"%s\"\n", view.Description)
-					}
-					if len(view.VisibleFields) > 0 {
-						b.WriteString("        visible-fields:\n")
-						for _, fieldIndex := range view.VisibleFields {
-							fmt.Fprintf(&b, "          - %d\n", fieldIndex)
-						}
-					}
-				}
-			}
-			if len(data.SafeOutputs.UpdateProjects.FieldDefinitions) > 0 {
-				b.WriteString("    field-definitions:\n")
-				for _, field := range data.SafeOutputs.UpdateProjects.FieldDefinitions {
-					fmt.Fprintf(&b, "      - name: \"%s\"\n", field.Name)
-					fmt.Fprintf(&b, "        data-type: \"%s\"\n", field.DataType)
-					if len(field.Options) > 0 {
-						b.WriteString("        options:\n")
-						for _, opt := range field.Options {
-							fmt.Fprintf(&b, "          - \"%s\"\n", opt)
-						}
-					}
-				}
-			}
-		}
-
-		if data.SafeOutputs.Messages != nil {
-			b.WriteString("  messages:\n")
-			if data.SafeOutputs.Messages.Footer != "" {
-				fmt.Fprintf(&b, "    footer: \"%s\"\n", data.SafeOutputs.Messages.Footer)
-			}
-			if data.SafeOutputs.Messages.RunStarted != "" {
-				fmt.Fprintf(&b, "    run-started: \"%s\"\n", data.SafeOutputs.Messages.RunStarted)
-			}
-			if data.SafeOutputs.Messages.RunSuccess != "" {
-				fmt.Fprintf(&b, "    run-success: \"%s\"\n", data.SafeOutputs.Messages.RunSuccess)
-			}
-			if data.SafeOutputs.Messages.RunFailure != "" {
-				fmt.Fprintf(&b, "    run-failure: \"%s\"\n", data.SafeOutputs.Messages.RunFailure)
-			}
-		}
-	}
-
-	if strings.TrimSpace(data.TimeoutMinutes) != "" {
-		fmt.Fprintf(&b, "timeout-minutes: %s\n", data.TimeoutMinutes)
-	}
-
-	b.WriteString("---\n\n")
-
-	// Write the prompt/body
-	if strings.TrimSpace(data.MarkdownContent) != "" {
-		b.WriteString(data.MarkdownContent)
-	}
-
-	return b.String()
 }
 
 // ensureMaintenanceWorkflow checks existing workflows for expires field and generates/updates

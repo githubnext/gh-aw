@@ -125,7 +125,7 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions
 	var steps []string
 
 	steps = append(steps, "      - name: Generate GitHub App token\n")
-	steps = append(steps, "        id: app-token\n")
+	steps = append(steps, "        id: safe-outputs-app-token\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          app-id: %s\n", app.AppID))
@@ -238,9 +238,9 @@ func (c *Compiler) buildGitHubAppTokenInvalidationStep() []string {
 	var steps []string
 
 	steps = append(steps, "      - name: Invalidate GitHub App token\n")
-	steps = append(steps, "        if: always() && steps.app-token.outputs.token != ''\n")
+	steps = append(steps, "        if: always() && steps.safe-outputs-app-token.outputs.token != ''\n")
 	steps = append(steps, "        env:\n")
-	steps = append(steps, "          TOKEN: ${{ steps.app-token.outputs.token }}\n")
+	steps = append(steps, "          TOKEN: ${{ steps.safe-outputs-app-token.outputs.token }}\n")
 	steps = append(steps, "        run: |\n")
 	steps = append(steps, "          echo \"Revoking GitHub App installation token...\"\n")
 	steps = append(steps, "          # GitHub CLI will auth with the token being revoked.\n")

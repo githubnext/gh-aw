@@ -14,6 +14,7 @@ const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } =
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
+const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 
 /**
  * Fetch repository ID and discussion categories for a repository
@@ -255,6 +256,7 @@ async function main(config = {}) {
     }
 
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+    const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
@@ -266,7 +268,14 @@ async function main(config = {}) {
       entityType: "Discussion",
     });
 
-    bodyLines.push(``, ``, footer, "");
+    bodyLines.push(``, ``, footer);
+
+    // Add standalone workflow-id marker for searchability (consistent with comments)
+    if (workflowId) {
+      bodyLines.push(``, generateWorkflowIdMarker(workflowId));
+    }
+
+    bodyLines.push("");
     const body = bodyLines.join("\n").trim();
 
     core.info(`Creating discussion in ${qualifiedItemRepo} with title: ${title}`);

@@ -148,7 +148,7 @@
           "description": "Complex trigger configuration with event-specific filters and options",
           "properties": {
             "slash_command": {
-              "description": "Special slash command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically.",
+              "description": "Special slash command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically. Note: Can be combined with issues/pull_request events if those events only use 'labeled' or 'unlabeled' types.",
               "oneOf": [
                 {
                   "type": "null",
@@ -2504,7 +2504,7 @@
             [
               {
                 "name": "Verify Post-Steps Execution",
-                "run": "echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
+                "run": "echo \"\u2705 Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
               },
               {
                 "name": "Upload Test Results",
@@ -2697,6 +2697,44 @@
                     "description": "Mount specification in format 'host:container:mode'"
                   },
                   "examples": [["/data:/data:ro", "/tmp:/tmp:rw"], ["/opt:/opt:ro"]]
+                },
+                "app": {
+                  "type": "object",
+                  "description": "GitHub App configuration for token minting. When configured, a GitHub App installation access token is minted at workflow start and used instead of the default token. This token overrides any custom github-token setting and provides fine-grained permissions matching the agent job requirements.",
+                  "properties": {
+                    "app-id": {
+                      "type": "string",
+                      "description": "GitHub App ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App token."
+                    },
+                    "private-key": {
+                      "type": "string",
+                      "description": "GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to mint a GitHub App token."
+                    },
+                    "owner": {
+                      "type": "string",
+                      "description": "Optional owner of the GitHub App installation (defaults to current repository owner if not specified)"
+                    },
+                    "repositories": {
+                      "type": "array",
+                      "description": "Optional list of repositories to grant access to (defaults to current repository if not specified)",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": ["app-id", "private-key"],
+                  "additionalProperties": false,
+                  "examples": [
+                    {
+                      "app-id": "${{ vars.APP_ID }}",
+                      "private-key": "${{ secrets.APP_PRIVATE_KEY }}"
+                    },
+                    {
+                      "app-id": "${{ vars.APP_ID }}",
+                      "private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+                      "repositories": ["repo1", "repo2"]
+                    }
+                  ]
                 }
               },
               "additionalProperties": false,
@@ -3387,15 +3425,10 @@
                 },
                 "description": "Environment variables"
               },
-              "mode": {
-                "type": "string",
-                "enum": ["stdio", "http", "remote", "local"],
-                "description": "MCP server mode"
-              },
               "type": {
                 "type": "string",
                 "enum": ["stdio", "http", "remote", "local"],
-                "description": "MCP server type"
+                "description": "MCP connection type. Use 'stdio' for command-based or container-based servers, 'http' for HTTP-based servers. 'local' is an alias for 'stdio' and is normalized during parsing."
               },
               "version": {
                 "type": ["string", "number"],
@@ -3431,6 +3464,33 @@
                   "type": "string"
                 },
                 "description": "Arguments passed to container entrypoint"
+              },
+              "registry": {
+                "type": "string",
+                "description": "URI to installation location from MCP registry",
+                "examples": ["https://api.mcp.github.com/v0/servers/microsoft/markitdown", "https://registry.npmjs.org/@my/tool"]
+              },
+              "allowed": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List of allowed tool names (restricts which tools from the MCP server can be used)",
+                "examples": [["*"], ["store_memory", "retrieve_memory"], ["create-issue", "add-comment"]]
+              },
+              "entrypoint": {
+                "type": "string",
+                "description": "Optional entrypoint override for container (equivalent to docker run --entrypoint)",
+                "examples": ["/bin/sh", "/custom/entrypoint.sh", "python"]
+              },
+              "mounts": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[^:]+:[^:]+:(ro|rw)$"
+                },
+                "description": "Volume mounts for container in format 'source:dest:mode' where mode is 'ro' or 'rw'",
+                "examples": [["/tmp/data:/data:ro"], ["/workspace:/workspace:rw", "/config:/config:ro"]]
               }
             },
             "additionalProperties": true
@@ -3693,7 +3753,7 @@
                 },
                 "close-older-issues": {
                   "type": "boolean",
-                  "description": "When true, automatically close older issues matching the same title prefix or labels as 'not planned' with a comment linking to the new issue. Requires title-prefix or labels to be set. Maximum 10 issues will be closed. Only runs if issue creation succeeds.",
+                  "description": "When true, automatically close older issues with the same workflow-id marker as 'not planned' with a comment linking to the new issue. Searches for issues containing the workflow-id marker in their body. Maximum 10 issues will be closed. Only runs if issue creation succeeds.",
                   "default": false
                 }
               },
@@ -5675,8 +5735,8 @@
             },
             "staged-title": {
               "type": "string",
-              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '🎭 Preview: {operation}'",
-              "examples": ["🎭 Preview: {operation}", "## Staged Mode: {operation}"]
+              "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '\ud83c\udfad Preview: {operation}'",
+              "examples": ["\ud83c\udfad Preview: {operation}", "## Staged Mode: {operation}"]
             },
             "staged-description": {
               "type": "string",
@@ -5690,18 +5750,18 @@
             },
             "run-success": {
               "type": "string",
-              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '✅ Agentic [{workflow_name}]({run_url}) completed successfully.'",
-              "examples": ["✅ Agentic [{workflow_name}]({run_url}) completed successfully.", "✅ [{workflow_name}]({run_url}) finished."]
+              "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.'",
+              "examples": ["\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.", "\u2705 [{workflow_name}]({run_url}) finished."]
             },
             "run-failure": {
               "type": "string",
-              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
-              "examples": ["❌ Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "❌ [{workflow_name}]({run_url}) {status}."]
+              "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
+              "examples": ["\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "\u274c [{workflow_name}]({run_url}) {status}."]
             },
             "detection-failure": {
               "type": "string",
-              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
-              "examples": ["⚠️ Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "⚠️ Detection job failed in [{workflow_name}]({run_url})."]
+              "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
+              "examples": ["\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."]
             },
             "append-only-comments": {
               "type": "boolean",
@@ -5754,6 +5814,48 @@
         "runs-on": {
           "type": "string",
           "description": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest', 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'. See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/"
+        },
+        "dispatch-workflow": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for dispatching workflow_dispatch events to other workflows. Orchestrators use this to delegate work to worker workflows.",
+              "properties": {
+                "workflows": {
+                  "type": "array",
+                  "description": "List of workflow names (without .md extension) to allow dispatching. Each workflow must exist in .github/workflows/.",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of workflow dispatch operations per run (default: 1, max: 3)",
+                  "minimum": 1,
+                  "maximum": 3,
+                  "default": 1
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for dispatching workflows. Overrides global github-token if specified."
+                }
+              },
+              "required": ["workflows"],
+              "additionalProperties": false
+            },
+            {
+              "type": "array",
+              "description": "Shorthand array format: list of workflow names (without .md extension) to allow dispatching",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            }
+          ],
+          "description": "Dispatch workflow_dispatch events to other workflows. Used by orchestrators to delegate work to worker workflows with controlled maximum dispatch count."
         }
       },
       "additionalProperties": false
@@ -5781,12 +5883,12 @@
       "additionalProperties": false
     },
     "roles": {
-      "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
+      "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
       "oneOf": [
         {
           "type": "string",
           "enum": ["all"],
-          "description": "Allow any authenticated user to trigger the workflow (⚠️ disables permission checking entirely - use with caution)"
+          "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
         },
         {
           "type": "array",
@@ -6279,7 +6381,8 @@
         },
         "registry": {
           "type": "string",
-          "description": "URI to the installation location when MCP is installed from a registry"
+          "description": "URI to the installation location when MCP is installed from a registry",
+          "examples": ["https://api.mcp.github.com/v0/servers/microsoft/markitdown"]
         },
         "command": {
           "type": "string",
@@ -6305,12 +6408,26 @@
           },
           "description": "Arguments for command or container execution"
         },
+        "entrypoint": {
+          "type": "string",
+          "description": "Optional entrypoint override for container (equivalent to docker run --entrypoint)",
+          "examples": ["/bin/sh", "/custom/entrypoint.sh", "python"]
+        },
         "entrypointArgs": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "description": "Arguments to add after the container image (container entrypoint arguments)"
+        },
+        "mounts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^:]+:[^:]+:(ro|rw)$"
+          },
+          "description": "Volume mounts for container in format 'source:dest:mode' where mode is 'ro' or 'rw'",
+          "examples": [["/tmp/data:/data:ro"], ["/workspace:/workspace:rw", "/config:/config:ro"]]
         },
         "env": {
           "type": "object",
@@ -6351,10 +6468,11 @@
         },
         "allowed": {
           "type": "array",
-          "description": "List of allowed tool functions",
+          "description": "List of allowed tool names for this MCP server",
           "items": {
             "type": "string"
-          }
+          },
+          "examples": [["*"], ["store_memory", "retrieve_memory"], ["brave_web_search"]]
         }
       },
       "additionalProperties": false,
@@ -6413,7 +6531,8 @@
         },
         "registry": {
           "type": "string",
-          "description": "URI to the installation location when MCP is installed from a registry"
+          "description": "URI to the installation location when MCP is installed from a registry",
+          "examples": ["https://api.mcp.github.com/v0/servers/microsoft/markitdown"]
         },
         "url": {
           "type": "string",
@@ -6432,10 +6551,11 @@
         },
         "allowed": {
           "type": "array",
-          "description": "List of allowed tool functions",
+          "description": "List of allowed tool names for this MCP server",
           "items": {
             "type": "string"
-          }
+          },
+          "examples": [["*"], ["store_memory", "retrieve_memory"], ["brave_web_search"]]
         }
       },
       "required": ["url"],

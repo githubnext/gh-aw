@@ -491,6 +491,14 @@ func ClearScreen() {
 	}
 }
 
+// ClearLine clears the current line in the terminal if stderr is a TTY
+// Uses ANSI escape codes: \r moves cursor to start, \033[K clears to end of line
+func ClearLine() {
+	if tty.IsStderrTerminal() {
+		fmt.Fprint(os.Stderr, "\r\033[K")
+	}
+}
+
 // TreeNode represents a node in a hierarchical tree structure
 type TreeNode struct {
 	Value    string

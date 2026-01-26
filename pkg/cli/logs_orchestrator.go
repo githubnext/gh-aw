@@ -775,7 +775,7 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 
 	// Clear progress bar silently - detailed summary shown at the end
 	if progressBar != nil {
-		fmt.Fprint(os.Stderr, "\r\033[K") // Clear the line
+		console.ClearLine() // Clear the line
 	}
 
 	if verbose {

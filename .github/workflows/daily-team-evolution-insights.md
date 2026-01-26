@@ -25,7 +25,7 @@ safe-outputs:
     category: "general"
     max: 1
     close-older-discussions: true
-timeout-minutes: 45
+timeout-minutes: 90
 imports:
   - shared/reporting.md
 ---

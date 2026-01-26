@@ -132,7 +132,7 @@ Test workflow with app token minting.
 	assert.Contains(t, stepsStr, "/installation/token", "Should call token invalidation endpoint")
 
 	// Verify token is used in github-script step
-	assert.Contains(t, stepsStr, "${{ steps.app-token.outputs.token }}", "Should use app token in github-script")
+	assert.Contains(t, stepsStr, "${{ steps.safe-outputs-app-token.outputs.token }}", "Should use app token in github-script")
 }
 
 // TestSafeOutputsAppTokenMintingStepWithRepositories tests token minting with repositories

@@ -165,7 +165,7 @@ Workers guarantee outputs are discoverable via:
 
 #### Tracker Label
 
-Format: `campaign:{campaign_id}`
+Format: `z_campaign_{campaign_id}`
 
 - Applied to ALL worker-created items
 - Enables discovery by campaign orchestrator
@@ -232,7 +232,7 @@ workers:
     idempotency-strategy: pr-title-based
     priority: 10
 
-tracker-label: campaign:security-q1-2025
+tracker-label: z_campaign_security-q1-2025
 ```
 
 Note: The tracker-label is defined once at the campaign level and automatically applied by all workers.
@@ -244,7 +244,7 @@ Note: The tracker-label is defined once at the campaign level and automatically 
    - Dispatches `security-scanner` with `{severity: "high", max-alerts: 20}`
    - Scanner finds 15 high-severity alerts
    - Scanner creates 15 issues with:
-     - Label: `campaign:security-q1-2025`
+    - Label: `z_campaign_security-q1-2025`
      - Title: `[scan-owner-repo] High severity alerts found`
    
 2. **Run 2: Discovery (discovery = 15)**

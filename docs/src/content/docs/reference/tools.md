@@ -128,6 +128,48 @@ tools:
 
 See [Automatic GitHub Lockdown](/gh-aw/guides/security/#automatic-github-lockdown-on-public-repositories) for security implications.
 
+### GitHub App Authentication
+
+Use GitHub App tokens for enhanced security with short-lived, automatically-revoked credentials:
+
+```yaml wrap
+tools:
+  github:
+    mode: remote
+    toolsets: [repos, issues, pull_requests]
+    app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      owner: "my-org"                    # Optional: defaults to current repo owner
+      repositories: ["repo1", "repo2"]   # Optional: defaults to current repo only
+```
+
+**Shared workflow pattern** (recommended):
+
+```yaml wrap
+imports:
+  - shared/github-mcp-app.md  # Centralized GitHub App configuration
+
+permissions:
+  contents: read
+  issues: write
+
+tools:
+  github:
+    toolsets: [repos, issues]
+```
+
+**Benefits**:
+- On-demand token minting at workflow start
+- Automatic token revocation at workflow end (even on failure)
+- Permissions automatically mapped from agent job `permissions` field
+- Works with both local (Docker) and remote (hosted) modes
+- Isolated from safe-outputs token configuration
+
+See [GitHub App Tokens for GitHub MCP Server](/gh-aw/reference/tokens/#github-app-tokens-for-github-mcp-server) for complete setup and configuration details.
+
+**Token precedence**: GitHub App → `github-token` → `GH_AW_GITHUB_MCP_SERVER_TOKEN` → `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN`
+
 ## Playwright Tool (`playwright:`)
 
 Enables containerized browser automation with domain-based access control:
@@ -188,7 +230,45 @@ mcp-servers:
     allowed: ["send_message", "get_channel_history"]
 ```
 
-**Options**: `command` + `args` (process-based), `container` (Docker image), `url` + `headers` (HTTP endpoint), `env` (environment variables), `allowed` (tool restrictions). See [MCPs Guide](/gh-aw/guides/mcps/) for setup.
+**Options**: `command` + `args` (process-based), `container` (Docker image), `url` + `headers` (HTTP endpoint), `registry` (MCP registry URI), `env` (environment variables), `allowed` (tool restrictions). See [MCPs Guide](/gh-aw/guides/mcps/) for setup.
+
+### Registry Field
+
+The `registry` field specifies the URI to an MCP server's installation location in an MCP registry. This is useful for documenting the source of an MCP server and can be used by tooling to discover and install MCP servers:
+
+```yaml wrap
+mcp-servers:
+  markitdown:
+    registry: "https://api.mcp.github.com/v0/servers/microsoft/markitdown"
+    command: "npx"
+    args: ["-y", "@microsoft/markitdown"]
+```
+
+**When to use**:
+- **Document server source**: Include `registry` to indicate where the MCP server is published
+- **Registry-aware tooling**: Some tools may use the registry URI for discovery and version management
+- **Both stdio and HTTP servers**: Works with both `command`-based stdio servers and `url`-based HTTP servers
+
+**Examples**:
+
+```yaml wrap
+# Stdio server with registry
+mcp-servers:
+  filesystem:
+    registry: "https://api.mcp.github.com/v0/servers/modelcontextprotocol/filesystem"
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-filesystem"]
+
+# HTTP server with registry
+mcp-servers:
+  custom-api:
+    registry: "https://registry.example.com/servers/custom-api"
+    url: "https://api.example.com/mcp"
+    headers:
+      Authorization: "Bearer ${{ secrets.API_TOKEN }}"
+```
+
+The `registry` field is informational and does not affect server execution. It complements other configuration fields like `command`, `args`, `container`, or `url`.
 
 ## Related Documentation
 

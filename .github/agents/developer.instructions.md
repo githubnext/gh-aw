@@ -725,4 +725,4 @@ For detailed specifications, see individual files in `specs/`:
 
 ---
 
-**Last Updated**: 2026-01-22
+**Last Updated**: 2026-01-24

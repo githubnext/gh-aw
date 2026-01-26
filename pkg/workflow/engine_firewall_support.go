@@ -11,21 +11,23 @@ var engineFirewallSupportLog = logger.New("workflow:engine_firewall_support")
 
 // hasNetworkRestrictions checks if the workflow has network restrictions defined
 // Network restrictions exist if:
-// - network.allowed has domains specified (non-empty list)
+// - network.allowed has domains specified (non-empty list) AND it's not just "defaults"
 func hasNetworkRestrictions(networkPermissions *NetworkPermissions) bool {
 	if networkPermissions == nil {
 		return false
 	}
 
-	// If allowed domains are specified, we have restrictions
+	// If allowed domains are specified and it's not just the defaults ecosystem, we have restrictions
 	if len(networkPermissions.Allowed) > 0 {
+		// Check if it's ONLY "defaults" (which means use default ecosystem, not a restriction)
+		if len(networkPermissions.Allowed) == 1 && networkPermissions.Allowed[0] == "defaults" {
+			return false
+		}
 		return true
 	}
 
-	// Empty network object {} means deny-all, which is also a restriction
-	// But mode "defaults" is not a restriction
-	if networkPermissions.Mode == "" && len(networkPermissions.Allowed) == 0 {
-		// Empty object {} - this is a restriction (deny-all)
+	// Empty allowed list [] means deny-all, which is a restriction
+	if networkPermissions.ExplicitlyDefined && len(networkPermissions.Allowed) == 0 {
 		return true
 	}
 

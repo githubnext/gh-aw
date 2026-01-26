@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -102,11 +103,48 @@ Markdown body. You can then
 update owners, workflows, memory paths, metrics-glob, and governance
 fields to match your initiative.
 
+With --interactive flag, enter an interactive wizard to create a comprehensive
+campaign spec with guided prompts for:
+- Campaign objective and description
+- Workflow discovery (optional: scan additional repos/orgs for worker workflows)
+- Repository scope (current, multiple repos, or org-wide)
+- Workflow selection
+- Owners and stakeholders
+- Risk level assessment
+- Project board creation
+
+With --project flag, a GitHub Project will be created with:
+- Required fields: Campaign Id, Worker Workflow, Priority, Size, Start Date, End Date
+- Views: Progress Board (board), Task Tracker (table), Campaign Roadmap (roadmap)
+- Linked to a repository (best-effort): defaults to current repo; override with --repo; disable with --no-link-repo
+- The project URL will be automatically added to the campaign spec
+
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` campaign new security-q1-2025
-  ` + string(constants.CLIExtensionPrefix) + ` campaign new modernization-winter2025 --force`,
+  ` + string(constants.CLIExtensionPrefix) + ` campaign new modernization-winter2025 --force
+  ` + string(constants.CLIExtensionPrefix) + ` campaign new --interactive                    # Interactive wizard
+  ` + string(constants.CLIExtensionPrefix) + ` campaign new security-q1-2025 --project --owner @me
+	` + string(constants.CLIExtensionPrefix) + ` campaign new modernization --project --owner myorg
+	` + string(constants.CLIExtensionPrefix) + ` campaign new modernization --project --owner myorg --no-link-repo
+	` + string(constants.CLIExtensionPrefix) + ` campaign new modernization --project --owner myorg --repo myorg/myrepo`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			interactive, _ := cmd.Flags().GetBool("interactive")
+
+			// Interactive mode doesn't require campaign ID as argument
+			if interactive {
+				force, _ := cmd.Flags().GetBool("force")
+				verbose, _ := cmd.Flags().GetBool("verbose")
+
+				cwd, err := os.Getwd()
+				if err != nil {
+					return fmt.Errorf("failed to get current working directory: %w", err)
+				}
+
+				return RunInteractiveCampaignCreation(cwd, force, verbose)
+			}
+
+			// Non-interactive mode requires campaign ID
 			if len(args) == 0 {
 				// Build an error message with suggestions but without the leading
 				// error prefix icon; the main CLI handler will add that.
@@ -129,6 +167,11 @@ Examples:
 
 			id := args[0]
 			force, _ := cmd.Flags().GetBool("force")
+			createProject, _ := cmd.Flags().GetBool("project")
+			owner, _ := cmd.Flags().GetString("owner")
+			repo, _ := cmd.Flags().GetString("repo")
+			noLinkRepo, _ := cmd.Flags().GetBool("no-link-repo")
+			verbose, _ := cmd.Flags().GetBool("verbose")
 
 			cwd, err := os.Getwd()
 			if err != nil {
@@ -141,13 +184,80 @@ Examples:
 			}
 
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(
-				"Created campaign spec at "+path+". Open this file and fill in owners, workflows, memory-paths, and other details.",
+				"Created campaign spec at "+path,
 			))
+
+			// Create project if requested
+			if createProject {
+				if owner == "" {
+					return fmt.Errorf("--owner is required when using --project flag. Use '@me' for your personal projects or specify an organization name")
+				}
+
+				// Load the spec to get the campaign name
+				specs, err := LoadSpecs(cwd)
+				if err != nil {
+					return fmt.Errorf("failed to load campaign spec: %w", err)
+				}
+
+				// Find the newly created spec
+				var campaignName string
+				for _, spec := range specs {
+					if spec.ID == id {
+						campaignName = spec.Name
+						break
+					}
+				}
+
+				if campaignName == "" {
+					campaignName = id
+				}
+
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Creating GitHub Project..."))
+
+				projectConfig := ProjectCreationConfig{
+					CampaignID:   id,
+					CampaignName: campaignName,
+					Owner:        owner,
+					LinkRepo:     repo,
+					NoLinkRepo:   noLinkRepo,
+					Verbose:      verbose,
+				}
+
+				result, err := CreateCampaignProject(projectConfig)
+				if err != nil {
+					return fmt.Errorf("failed to create project: %w", err)
+				}
+
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(
+					fmt.Sprintf("Created project: %s", result.ProjectURL),
+				))
+
+				// Update the spec file with the project URL
+				fullPath := filepath.Join(cwd, path)
+				if err := UpdateSpecWithProjectURL(fullPath, result.ProjectURL); err != nil {
+					return fmt.Errorf("failed to update spec with project URL: %w", err)
+				}
+
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(
+					"Updated campaign spec with project URL",
+				))
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+					"Open the file and fill in owners, workflows, memory-paths, and other details.",
+				))
+			}
+
 			return nil
 		},
 	}
 
 	newCmd.Flags().Bool("force", false, "Overwrite existing spec file if it already exists")
+	newCmd.Flags().BoolP("interactive", "i", false, "Enter interactive mode to create campaign with guided prompts")
+	newCmd.Flags().Bool("project", false, "Create a GitHub Project with required views and fields")
+	newCmd.Flags().String("owner", "", "GitHub organization or user for the project (required with --project). Use '@me' for personal projects")
+	newCmd.Flags().StringP("repo", "r", "", "Repository to link the created project to (owner/name). Defaults to current repo")
+	newCmd.Flags().Bool("no-link-repo", false, "Disable best-effort project-to-repo linking")
+	newCmd.Flags().Bool("verbose", false, "Enable verbose output")
 	cmd.AddCommand(newCmd)
 
 	// Subcommand: campaign validate

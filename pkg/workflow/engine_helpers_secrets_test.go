@@ -99,63 +99,6 @@ func TestFilterEnvForSecrets(t *testing.T) {
 	}
 }
 
-// TestExtractSecretName tests the extractSecretName function
-func TestExtractSecretName(t *testing.T) {
-	tests := []struct {
-		name string
-		expr string
-		want string
-	}{
-		{
-			name: "simple secret reference",
-			expr: "${{ secrets.COPILOT_GITHUB_TOKEN }}",
-			want: "COPILOT_GITHUB_TOKEN",
-		},
-		{
-			name: "secret with fallback",
-			expr: "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
-			want: "CODEX_API_KEY",
-		},
-		{
-			name: "secret with spaces",
-			expr: "${{ secrets.API_KEY }}",
-			want: "API_KEY",
-		},
-		{
-			name: "non-secret expression",
-			expr: "${{ env.NORMAL_VAR }}",
-			want: "",
-		},
-		{
-			name: "plain string",
-			expr: "just-a-value",
-			want: "",
-		},
-		{
-			name: "empty string",
-			expr: "",
-			want: "",
-		},
-		{
-			name: "secret with underscore and numbers",
-			expr: "${{ secrets.API_KEY_123 }}",
-			want: "API_KEY_123",
-		},
-		{
-			name: "secret at start of complex expression",
-			expr: "${{ secrets.TOKEN || 'default' }}",
-			want: "TOKEN",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := extractSecretName(tt.expr)
-			assert.Equal(t, tt.want, got, "extractSecretName(%q) = %q, want %q", tt.expr, got, tt.want)
-		})
-	}
-}
-
 // TestGetRequiredSecretNames_Copilot tests CopilotEngine.GetRequiredSecretNames
 func TestGetRequiredSecretNames_Copilot(t *testing.T) {
 	engine := NewCopilotEngine()

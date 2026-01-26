@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var errorHelpersLog = logger.New("workflow:error_helpers")
 
 // WorkflowValidationError represents an error that occurred during input validation
 type WorkflowValidationError struct {
@@ -42,6 +46,7 @@ func (e *WorkflowValidationError) Error() string {
 
 // NewValidationError creates a new validation error with context
 func NewValidationError(field, value, reason, suggestion string) *WorkflowValidationError {
+	errorHelpersLog.Printf("Creating validation error: field=%s, reason=%s", field, reason)
 	return &WorkflowValidationError{
 		Field:      field,
 		Value:      value,
@@ -93,6 +98,10 @@ func (e *OperationError) Unwrap() error {
 
 // NewOperationError creates a new operation error with context
 func NewOperationError(operation, entityType, entityID string, cause error, suggestion string) *OperationError {
+	if errorHelpersLog.Enabled() {
+		errorHelpersLog.Printf("Creating operation error: operation=%s, entityType=%s, entityID=%s, cause=%v",
+			operation, entityType, entityID, cause)
+	}
 	return &OperationError{
 		Operation:  operation,
 		EntityType: entityType,
@@ -142,6 +151,7 @@ func (e *ConfigurationError) Error() string {
 
 // NewConfigurationError creates a new configuration error with context
 func NewConfigurationError(configKey, value, reason, suggestion string) *ConfigurationError {
+	errorHelpersLog.Printf("Creating configuration error: configKey=%s, reason=%s", configKey, reason)
 	return &ConfigurationError{
 		ConfigKey:  configKey,
 		Value:      value,
@@ -156,6 +166,8 @@ func EnhanceError(err error, context, suggestion string) error {
 	if err == nil {
 		return nil
 	}
+
+	errorHelpersLog.Printf("Enhancing error with context: context=%s", context)
 
 	timestamp := time.Now().Format(time.RFC3339)
 

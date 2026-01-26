@@ -224,6 +224,11 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			config.Lockdown = lockdown
 		}
 
+		// Parse app configuration for GitHub App token minting
+		if app, ok := configMap["app"].(map[string]any); ok {
+			config.App = parseAppConfig(app)
+		}
+
 		return config
 	}
 

@@ -80,90 +80,12 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		}
 	}
 
-	// Validate that campaigns with workflows or tracker-label have discovery-repos or discovery-orgs
-	// This ensures discovery is properly scoped
-	hasDiscovery := len(spec.Workflows) > 0 || spec.TrackerLabel != ""
-	hasDiscoveryScope := len(spec.DiscoveryRepos) > 0 || len(spec.DiscoveryOrgs) > 0
-	if hasDiscovery && !hasDiscoveryScope {
-		problems = append(problems, "campaigns with workflows or tracker-label must specify discovery-repos or discovery-orgs for discovery scoping - configure at least one to define where the campaign can discover worker items")
-	}
+	parsedScope, scopeProblems := parseScopeSelectors(spec.Scope)
+	problems = append(problems, scopeProblems...)
 
-	// Validate discovery-repos format if provided
-	if len(spec.DiscoveryRepos) > 0 {
-		// Validate each repository format
-		for _, repo := range spec.DiscoveryRepos {
-			trimmed := strings.TrimSpace(repo)
-			if trimmed == "" {
-				problems = append(problems, "discovery-repos must not contain empty entries - remove empty strings from the list")
-				continue
-			}
-			// Validate owner/repo format
-			parts := strings.Split(trimmed, "/")
-			if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-				problems = append(problems, fmt.Sprintf("discovery-repos entry '%s' must be in 'owner/repo' format - example: 'github/docs' or 'myorg/myrepo'", trimmed))
-			}
-			// Warn about common mistakes
-			if strings.Contains(trimmed, "*") {
-				problems = append(problems, fmt.Sprintf("discovery-repos entry '%s' cannot contain wildcards - list each repository explicitly or use discovery-orgs for organization-wide scope", trimmed))
-			}
-		}
-	}
-
-	// Validate discovery-orgs if provided
-	if len(spec.DiscoveryOrgs) > 0 {
-		for _, org := range spec.DiscoveryOrgs {
-			trimmed := strings.TrimSpace(org)
-			if trimmed == "" {
-				problems = append(problems, "discovery-orgs must not contain empty entries - remove empty strings from the list")
-				continue
-			}
-			// Validate organization name format (no slashes, valid GitHub org name)
-			if strings.Contains(trimmed, "/") {
-				problems = append(problems, fmt.Sprintf("discovery-orgs entry '%s' must be an organization name only (not owner/repo format) - example: 'github' not 'github/docs'", trimmed))
-			}
-			if strings.Contains(trimmed, "*") {
-				problems = append(problems, fmt.Sprintf("discovery-orgs entry '%s' cannot contain wildcards - use the organization name directly (e.g., 'myorg')", trimmed))
-			}
-		}
-	}
-
-	// Validate allowed-repos format if provided (now optional - defaults to current repo)
-	if len(spec.AllowedRepos) > 0 {
-		// Validate each repository format
-		for _, repo := range spec.AllowedRepos {
-			trimmed := strings.TrimSpace(repo)
-			if trimmed == "" {
-				problems = append(problems, "allowed-repos must not contain empty entries - remove empty strings from the list")
-				continue
-			}
-			// Validate owner/repo format
-			parts := strings.Split(trimmed, "/")
-			if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-				problems = append(problems, fmt.Sprintf("allowed-repos entry '%s' must be in 'owner/repo' format - example: 'github/docs' or 'myorg/myrepo'", trimmed))
-			}
-			// Warn about common mistakes
-			if strings.Contains(trimmed, "*") {
-				problems = append(problems, fmt.Sprintf("allowed-repos entry '%s' cannot contain wildcards - list each repository explicitly or use allowed-orgs for organization-wide scope", trimmed))
-			}
-		}
-	}
-
-	// Validate allowed-orgs if provided (optional)
-	if len(spec.AllowedOrgs) > 0 {
-		for _, org := range spec.AllowedOrgs {
-			trimmed := strings.TrimSpace(org)
-			if trimmed == "" {
-				problems = append(problems, "allowed-orgs must not contain empty entries - remove empty strings from the list")
-				continue
-			}
-			// Validate organization name format (no slashes, valid GitHub org name)
-			if strings.Contains(trimmed, "/") {
-				problems = append(problems, fmt.Sprintf("allowed-orgs entry '%s' must be an organization name only (not owner/repo format) - example: 'github' not 'github/docs'", trimmed))
-			}
-			if strings.Contains(trimmed, "*") {
-				problems = append(problems, fmt.Sprintf("allowed-orgs entry '%s' cannot contain wildcards - use the organization name directly (e.g., 'myorg')", trimmed))
-			}
-		}
+	// Campaigns that do discovery (workflows or tracker-label) must be scoped.
+	if (len(spec.Workflows) > 0 || strings.TrimSpace(spec.TrackerLabel) != "") && len(parsedScope.Repos) == 0 && len(parsedScope.Orgs) == 0 {
+		problems = append(problems, "campaigns with workflows must be scoped via scope")
 	}
 
 	if strings.TrimSpace(spec.ProjectURL) == "" {
@@ -210,74 +132,10 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		}
 	}
 
-	// Goals/KPIs: optional, but when provided they must be consistent and well-formed.
-	problems = append(problems, validateObjectiveAndKPIs(spec)...)
-
 	if len(problems) == 0 {
 		validationLog.Printf("Campaign spec '%s' validation passed with no problems", spec.ID)
 	} else {
 		validationLog.Printf("Campaign spec '%s' validation completed with %d problems", spec.ID, len(problems))
-	}
-
-	return problems
-}
-
-func validateObjectiveAndKPIs(spec *CampaignSpec) []string {
-	var problems []string
-
-	objective := strings.TrimSpace(spec.Objective)
-	if objective == "" && len(spec.KPIs) > 0 {
-		problems = append(problems, "objective should be set when kpis are provided - describe what success looks like for this campaign")
-	}
-	if objective != "" && len(spec.KPIs) == 0 {
-		problems = append(problems, "kpis should include at least one KPI when objective is provided - add measurable metrics (e.g., 'Pull requests merged: 0 → 100 over 30 days')")
-	}
-	if len(spec.KPIs) == 0 {
-		return problems
-	}
-
-	primaryCount := 0
-	for _, kpi := range spec.KPIs {
-		name := strings.TrimSpace(kpi.Name)
-		if name == "" {
-			name = "(unnamed)"
-		}
-		if strings.TrimSpace(kpi.Priority) == "primary" {
-			primaryCount++
-		}
-		if kpi.TimeWindowDays < 1 {
-			problems = append(problems, fmt.Sprintf("kpi '%s': time-window-days must be >= 1 - specify the rolling time window in days (e.g., 30 for monthly)", name))
-		}
-		if dir := strings.TrimSpace(kpi.Direction); dir != "" {
-			switch dir {
-			case "increase", "decrease":
-				// ok
-			default:
-				problems = append(problems, fmt.Sprintf("kpi '%s': direction must be one of: 'increase' or 'decrease' - got '%s'", name, dir))
-			}
-		}
-		if src := strings.TrimSpace(kpi.Source); src != "" {
-			switch src {
-			case "ci", "pull_requests", "code_security", "custom":
-				// ok
-			default:
-				problems = append(problems, fmt.Sprintf("kpi '%s': source must be one of: 'ci', 'pull_requests', 'code_security', or 'custom' - got '%s'", name, src))
-			}
-		}
-	}
-
-	// Semantic rule: exactly one primary KPI when there are multiple KPIs.
-	// If there is only one KPI and priority is omitted, treat it as implicitly primary.
-	if len(spec.KPIs) == 1 {
-		if strings.TrimSpace(spec.KPIs[0].Priority) == "" {
-			return problems
-		}
-	}
-	if primaryCount == 0 {
-		problems = append(problems, "kpis must include exactly one primary KPI (priority: primary) - mark your main success metric as primary")
-	}
-	if primaryCount > 1 {
-		problems = append(problems, fmt.Sprintf("kpis must include exactly one primary KPI (found %d primary KPIs) - choose one main success metric and mark others as 'supporting'", primaryCount))
 	}
 
 	return problems
@@ -376,32 +234,14 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		MaxCommentsPerRun       int      `json:"max-comments-per-run,omitempty"`
 	}
 
-	type CampaignKPIForValidation struct {
-		ID             string  `json:"id,omitempty"`
-		Name           string  `json:"name"`
-		Priority       string  `json:"priority,omitempty"`
-		Unit           string  `json:"unit,omitempty"`
-		Baseline       float64 `json:"baseline"`
-		Target         float64 `json:"target"`
-		TimeWindowDays int     `json:"time-window-days"`
-		Direction      string  `json:"direction,omitempty"`
-		Source         string  `json:"source,omitempty"`
-	}
-
 	type CampaignSpecForValidation struct {
 		ID                 string                                 `json:"id"`
 		Name               string                                 `json:"name"`
 		Description        string                                 `json:"description,omitempty"`
-		Objective          string                                 `json:"objective,omitempty"`
-		KPIs               []CampaignKPIForValidation             `json:"kpis,omitempty"`
 		ProjectURL         string                                 `json:"project-url,omitempty"`
-		ProjectGitHubToken string                                 `json:"project-github-token,omitempty"`
 		Version            string                                 `json:"version,omitempty"`
 		Workflows          []string                               `json:"workflows,omitempty"`
-		DiscoveryRepos     []string                               `json:"discovery-repos,omitempty"`
-		DiscoveryOrgs      []string                               `json:"discovery-orgs,omitempty"`
-		AllowedRepos       []string                               `json:"allowed-repos,omitempty"`
-		AllowedOrgs        []string                               `json:"allowed-orgs,omitempty"`
+		Scope              []string                               `json:"scope,omitempty"`
 		MemoryPaths        []string                               `json:"memory-paths,omitempty"`
 		MetricsGlob        string                                 `json:"metrics-glob,omitempty"`
 		CursorGlob         string                                 `json:"cursor-glob,omitempty"`
@@ -416,38 +256,13 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 	}
 
 	validationSpec := CampaignSpecForValidation{
-		ID:          spec.ID,
-		Name:        spec.Name,
-		Description: spec.Description,
-		Objective:   strings.TrimSpace(spec.Objective),
-		KPIs: func() []CampaignKPIForValidation {
-			if len(spec.KPIs) == 0 {
-				return nil
-			}
-			out := make([]CampaignKPIForValidation, 0, len(spec.KPIs))
-			for _, kpi := range spec.KPIs {
-				out = append(out, CampaignKPIForValidation{
-					ID:             strings.TrimSpace(kpi.ID),
-					Name:           strings.TrimSpace(kpi.Name),
-					Priority:       strings.TrimSpace(kpi.Priority),
-					Unit:           strings.TrimSpace(kpi.Unit),
-					Baseline:       kpi.Baseline,
-					Target:         kpi.Target,
-					TimeWindowDays: kpi.TimeWindowDays,
-					Direction:      strings.TrimSpace(kpi.Direction),
-					Source:         strings.TrimSpace(kpi.Source),
-				})
-			}
-			return out
-		}(),
+		ID:                 spec.ID,
+		Name:               spec.Name,
+		Description:        spec.Description,
 		ProjectURL:         spec.ProjectURL,
-		ProjectGitHubToken: spec.ProjectGitHubToken,
 		Version:            spec.Version,
 		Workflows:          spec.Workflows,
-		DiscoveryRepos:     spec.DiscoveryRepos,
-		DiscoveryOrgs:      spec.DiscoveryOrgs,
-		AllowedRepos:       spec.AllowedRepos,
-		AllowedOrgs:        spec.AllowedOrgs,
+		Scope:              spec.Scope,
 		MemoryPaths:        spec.MemoryPaths,
 		MetricsGlob:        spec.MetricsGlob,
 		CursorGlob:         spec.CursorGlob,

@@ -419,6 +419,20 @@ func TestClearScreen(t *testing.T) {
 	})
 }
 
+func TestClearLine(t *testing.T) {
+	// ClearLine should not panic when called
+	// It only clears if stderr is a TTY, so we can't easily test the output
+	// but we can verify it doesn't panic
+	t.Run("clear line does not panic", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("ClearLine() panicked: %v", r)
+			}
+		}()
+		ClearLine()
+	})
+}
+
 func TestRenderTree(t *testing.T) {
 	tests := []struct {
 		name     string

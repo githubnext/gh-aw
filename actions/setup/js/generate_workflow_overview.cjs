@@ -41,7 +41,6 @@ async function generateWorkflowOverview(core) {
     "#### Network Configuration\n" +
     "| Property | Value |\n" +
     "|----------|-------|\n" +
-    `| Mode | ${awInfo.network_mode || "defaults"} |\n` +
     `| Firewall | ${awInfo.firewall_enabled ? "✅ Enabled" : "❌ Disabled"} |\n` +
     `| Firewall Version | ${awInfo.awf_version || "(latest)"} |\n` +
     "\n" +

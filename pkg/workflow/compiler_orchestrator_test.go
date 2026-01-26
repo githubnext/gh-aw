@@ -250,13 +250,13 @@ func TestParseWorkflowFile_NetworkPermissions(t *testing.T) {
 		name               string
 		includeNetwork     bool
 		networkConfig      string
-		expectedMode       string
+		expectedAllowed    []string
 		expectedHasAllowed bool
 	}{
 		{
-			name:           "default network mode",
-			includeNetwork: false,
-			expectedMode:   "defaults",
+			name:            "default network (no network field)",
+			includeNetwork:  false,
+			expectedAllowed: []string{"defaults"},
 		},
 		{
 			name:           "explicit allowed domains",
@@ -266,7 +266,6 @@ network:
   allowed:
     - github.com
     - api.example.com`,
-			expectedMode:       "defaults",
 			expectedHasAllowed: true,
 		},
 	}
@@ -289,8 +288,10 @@ network:
 			require.NotNil(t, workflowData)
 			require.NotNil(t, workflowData.NetworkPermissions)
 
-			assert.Equal(t, tt.expectedMode, workflowData.NetworkPermissions.Mode,
-				"Network mode should be %s", tt.expectedMode)
+			if len(tt.expectedAllowed) > 0 {
+				assert.Equal(t, tt.expectedAllowed, workflowData.NetworkPermissions.Allowed,
+					"Network allowed list should match expected")
+			}
 
 			if tt.expectedHasAllowed {
 				assert.NotEmpty(t, workflowData.NetworkPermissions.Allowed,
@@ -480,4 +481,198 @@ func TestDetectTextOutputUsageInOrchestrator(t *testing.T) {
 				"Text output detection should return %v for test %s", tt.expectedOutput, tt.name)
 		})
 	}
+}
+
+// TestExtractYAMLSections tests the extractYAMLSections helper function
+func TestExtractYAMLSections(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "extract-yaml")
+
+	testContent := `---
+on: push
+engine: copilot
+timeout-minutes: 30
+strict: false
+permissions:
+  contents: read
+  issues: read
+network:
+  allowed:
+    - github.com
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+run-name: Test Run
+env:
+  NODE_ENV: production
+features:
+  safe-inputs: true
+if: github.event_name == 'push'
+runs-on: ubuntu-latest
+environment: staging
+container: node:18
+cache:
+  - key: ${{ runner.os }}-node
+    path: node_modules
+---
+
+# Test Workflow
+
+Test content
+`
+
+	testFile := filepath.Join(tmpDir, "yaml-test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler(false, "", "test")
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	require.NoError(t, err)
+	require.NotNil(t, workflowData)
+
+	// Verify all YAML sections were extracted
+	assert.NotEmpty(t, workflowData.On, "On section should be extracted")
+	assert.NotEmpty(t, workflowData.Permissions, "Permissions should be extracted")
+	assert.NotEmpty(t, workflowData.Network, "Network should be extracted")
+	assert.NotEmpty(t, workflowData.Concurrency, "Concurrency should be extracted")
+	assert.NotEmpty(t, workflowData.RunName, "RunName should be extracted")
+	assert.NotEmpty(t, workflowData.Env, "Env should be extracted")
+	assert.NotEmpty(t, workflowData.Features, "Features should be extracted")
+	assert.NotEmpty(t, workflowData.If, "If condition should be extracted")
+	assert.NotEmpty(t, workflowData.TimeoutMinutes, "TimeoutMinutes should be extracted")
+	assert.NotEmpty(t, workflowData.RunsOn, "RunsOn should be extracted")
+	assert.NotEmpty(t, workflowData.Environment, "Environment should be extracted")
+	assert.NotEmpty(t, workflowData.Container, "Container should be extracted")
+	assert.NotEmpty(t, workflowData.Cache, "Cache should be extracted")
+}
+
+// TestProcessAndMergeSteps tests the processAndMergeSteps helper function
+func TestProcessAndMergeSteps(t *testing.T) {
+	// Skip complex import testing - covered by existing integration tests
+	t.Skip("Import/merge functionality tested through existing integration tests")
+}
+
+// TestProcessAndMergePostSteps tests the processAndMergePostSteps helper function
+func TestProcessAndMergePostSteps(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "merge-post-steps")
+
+	testContent := `---
+on: push
+engine: copilot
+post-steps:
+  - name: Cleanup
+    run: echo "cleanup"
+---
+
+# Test Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "post-steps.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler(false, "", "test")
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	require.NoError(t, err)
+	require.NotNil(t, workflowData)
+
+	// Verify post-steps were extracted
+	assert.NotEmpty(t, workflowData.PostSteps, "Post-steps should be extracted")
+	assert.Contains(t, workflowData.PostSteps, "Cleanup", "Should contain cleanup step")
+}
+
+// TestProcessAndMergeServices tests the processAndMergeServices helper function
+func TestProcessAndMergeServices(t *testing.T) {
+	// Skip complex import testing - covered by existing integration tests
+	t.Skip("Import/merge functionality tested through existing integration tests")
+}
+
+// TestExtractAdditionalConfigurations tests the extractAdditionalConfigurations helper function
+func TestExtractAdditionalConfigurations(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "additional-configs")
+
+	testContent := `---
+on: push
+engine: copilot
+roles:
+  - admin
+bots:
+  - copilot
+---
+
+# Test Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "configs.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler(false, "", "test")
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	require.NoError(t, err)
+	require.NotNil(t, workflowData)
+
+	// Verify basic configurations were extracted
+	assert.NotEmpty(t, workflowData.Roles, "Roles should be extracted")
+	assert.NotEmpty(t, workflowData.Bots, "Bots should be extracted")
+}
+
+// TestProcessOnSectionAndFilters tests the processOnSectionAndFilters helper function
+func TestProcessOnSectionAndFilters(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "on-section-filters")
+
+	testContent := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+    draft: false
+engine: copilot
+---
+
+# Test Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "filters.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler(false, "", "test")
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	require.NoError(t, err)
+	require.NotNil(t, workflowData)
+
+	// Verify on section was processed
+	assert.NotEmpty(t, workflowData.On, "On section should be processed")
+	assert.Contains(t, workflowData.On, "pull_request", "Should contain pull_request trigger")
+}
+
+// TestBuildInitialWorkflowData tests the buildInitialWorkflowData helper function
+func TestBuildInitialWorkflowData(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "build-initial")
+
+	testContent := `---
+on: push
+engine: copilot
+name: Test Workflow
+description: Test description
+source: test-source
+github-token: ${{ secrets.GITHUB_TOKEN }}
+---
+
+# Test Workflow
+
+Test content
+`
+
+	testFile := filepath.Join(tmpDir, "initial.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler(false, "", "test")
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	require.NoError(t, err)
+	require.NotNil(t, workflowData)
+
+	// Verify initial workflow data was built correctly
+	assert.Equal(t, "Test Workflow", workflowData.FrontmatterName, "Name should be set")
+	assert.Equal(t, "Test description", workflowData.Description, "Description should be set")
+	assert.Equal(t, "test-source", workflowData.Source, "Source should be set")
+	assert.Equal(t, "${{ secrets.GITHUB_TOKEN }}", workflowData.GitHubToken, "GitHub token should be set")
+	assert.Equal(t, "copilot", workflowData.AI, "AI engine should be set")
+	assert.NotNil(t, workflowData.EngineConfig, "EngineConfig should be set")
+	assert.NotNil(t, workflowData.ParsedTools, "ParsedTools should be initialized")
 }

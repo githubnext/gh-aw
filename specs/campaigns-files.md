@@ -71,7 +71,7 @@ state: active
 
 # Project integration
 project-url: https://github.com/orgs/ORG/projects/1
-tracker-label: campaign:security-q1-2025
+tracker-label: z_campaign_security-q1-2025
 
 # Associated workflows
 workflows:
@@ -136,13 +136,13 @@ steps:
     env:
       GH_AW_CAMPAIGN_ID: security-q1-2025
       GH_AW_WORKFLOWS: "vulnerability-scanner,dependency-updater"
-      GH_AW_TRACKER_LABEL: campaign:security-q1-2025
+      GH_AW_TRACKER_LABEL: z_campaign_security-q1-2025
       GH_AW_PROJECT_URL: https://github.com/orgs/ORG/projects/1
       GH_AW_MAX_DISCOVERY_ITEMS: 200
       GH_AW_MAX_DISCOVERY_PAGES: 10
       GH_AW_CURSOR_PATH: /tmp/gh-aw/repo-memory/campaigns/security-q1-2025/cursor.json
     with:
-      github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN || secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
       script: |
         const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
         setupGlobals(core, github, context, exec, io);
@@ -169,9 +169,6 @@ data := &workflow.WorkflowData{
 
 ```go
 Tools: map[string]any{
-    "github": map[string]any{
-        "toolsets": []any{"default", "actions", "code_security"},
-    },
     "repo-memory": []any{
         map[string]any{
             "id":          "campaigns",
@@ -185,20 +182,24 @@ Tools: map[string]any{
 }
 ```
 
+Note: orchestrators deliberately omit GitHub tool access. All writes and GitHub API operations should be performed by dispatched worker workflows.
+
 #### D. Safe Outputs Configuration
 
 ```go
-safeOutputs := &workflow.SafeOutputsConfig{
-    CreateIssues:             &workflow.CreateIssuesConfig{Max: 1},
-    AddComments:              &workflow.AddCommentsConfig{Max: maxComments},
-    UpdateProjects:           &workflow.UpdateProjectConfig{Max: maxProjectUpdates},
-    CreateProjectStatusUpdates: &workflow.CreateProjectStatusUpdateConfig{Max: 1},
+safeOutputs := &workflow.SafeOutputsConfig{}
+
+// Campaign orchestrators are dispatch-only: they may only dispatch allowlisted
+// workflows via the dispatch-workflow safe output.
+if len(spec.Workflows) > 0 {
+  safeOutputs.DispatchWorkflow = &workflow.DispatchWorkflowConfig{
+    BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 3},
+    Workflows:            spec.Workflows,
+  }
 }
 ```
 
-Custom GitHub tokens for Projects v2 operations:
-- If `spec.ProjectGitHubToken` is set, it's passed to `UpdateProjects` and `CreateProjectStatusUpdates`
-- Allows using a different token with appropriate project permissions
+Workers are responsible for side effects (Projects, issues/PRs, comments) using their own tool configuration and safe-outputs.
 
 #### E. Prompt Section
 
@@ -279,30 +280,22 @@ The discovery script is copied to `/opt/gh-aw/actions/` during the `actions/setu
    }
    ```
 
-3. **Search for items by tracker-id**:
-   ```javascript
-   // For each workflow in spec.workflows:
-   const searchQuery = `"tracker-id: ${trackerId}" type:issue`;
-   const response = await octokit.rest.search.issuesAndPullRequests({
-     q: searchQuery,
-     per_page: 100,
-     page: page,
-     sort: "updated",
-     order: "asc",  // Stable ordering
-   });
-   ```
+3. **Primary discovery: search by campaign-specific label**:
+  - Derived label: `z_campaign_<campaign-id>`
+  - Query: `label:"z_campaign_<campaign-id>"` scoped to repos/orgs
 
-4. **Search for items by tracker label** (if configured):
-   ```javascript
-   const searchQuery = `label:"${label}"`;
-   const response = await octokit.rest.search.issuesAndPullRequests({
-     q: searchQuery,
-     per_page: 100,
-     page: page,
-     sort: "updated",
-     order: "asc",
-   });
-   ```
+4. **Secondary discovery: search by generic `agentic-campaign` label**:
+  - Query: `label:"agentic-campaign"` scoped to repos/orgs
+
+5. **Fallback discovery: search by tracker-id markers**:
+  ```javascript
+  // For each workflow in spec.workflows:
+  const searchQuery = `"gh-aw-tracker-id: ${trackerId}" type:issue`;
+  // (scoped with repo:<owner/repo> and/or org:<org> terms)
+  ```
+
+6. **Legacy discovery: search by configured tracker label** (if provided):
+  - Query: `label:"${label}"`
 
 5. **Normalize discovered items**:
    ```javascript
@@ -437,44 +430,22 @@ memory/campaigns/<campaign-id>/cursor.json
 
 ### Campaign Item Protection
 
-Campaign items are protected from being picked up by other workflows to prevent conflicts and ensure proper campaign orchestration.
+The current campaign system’s primary tracking label format is:
 
-**Protection Mechanism**:
-- Items with `campaign:*` labels are automatically excluded from non-campaign workflows
-- The `update-project` safe output automatically applies `campaign:<id>` labels when adding items to campaign projects
-- Workflows like `issue-monster` check for campaign labels and skip those issues
-- Additional opt-out labels (`no-bot`, `no-campaign`) provide manual protection
-
-**Label Format**:
 ```
-campaign:my-campaign-id
-campaign:security-q1-2025
-campaign:docs-quality-maintenance-project73
+z_campaign_<campaign-id>
 ```
 
-**How it's enforced**:
+Workers should apply this label to all created issues/PRs so discovery can find them reliably.
 
-1. **Automatic labeling**: When campaign orchestrators add items to projects, they apply the `campaign:<id>` label
-2. **Workflow filtering**: Other workflows (like issue-monster) filter out issues with `campaign:` prefix
-3. **Opt-out labels**: Items with `no-bot` or `no-campaign` labels are also excluded
+Some workflows in this repo also treat `campaign:*` labels as a “do not touch” signal (legacy convention). If you need that compatibility, have workers apply both labels:
 
-**Example filtering logic** (from issue-monster workflow):
-```javascript
-// Exclude issues with campaign labels (campaign:*)
-// Campaign items are managed by campaign orchestrators
-if (issueLabels.some(label => label.startsWith('campaign:'))) {
-  core.info(`Skipping #${issue.number}: has campaign label (managed by campaign orchestrator)`);
-  return false;
-}
+```
+z_campaign_<campaign-id>
+campaign:<campaign-id>
 ```
 
-**Governance Configuration**:
-```yaml
-governance:
-  opt-out-labels: ["no-campaign", "no-bot"]
-```
-
-This ensures that campaign items remain under the control of their respective campaign orchestrators and aren't interfered with by other automated workflows.
+Campaign specs can also define `governance.opt-out-labels` (for example: `no-bot`, `no-campaign`) to let humans opt items out of automated handling.
 
 ## Campaign Workers
 
@@ -603,8 +574,8 @@ Before creating a new branch:
 ```yaml
 # In worker prompt
 Use a deterministic PR title prefix:
-- Format: `[campaign:${campaign_id}] ${work_item_description}`
-- Example: `[campaign:security-q1-2025] Fix SQL injection in user.go`
+- Format: `[campaign-${campaign_id}] ${work_item_description}`
+- Example: `[campaign-security-q1-2025] Fix SQL injection in user.go`
 
 Before creating a PR:
 1. Search for open PRs with this title prefix in the target repo
@@ -622,7 +593,7 @@ Use a deterministic issue title with key:
 
 Before creating an issue:
 1. Search for issues with `[${work_item_id}]` in title
-2. Filter by label: `campaign:${campaign_id}`
+2. Filter by label: `z_campaign_${campaign_id}`
 3. If found: Update existing issue with new information
 4. If not: Create new issue
 ```
@@ -760,7 +731,7 @@ gh extension install githubnext/gh-aw
    name: My Campaign
    version: v1
    project-url: https://github.com/orgs/ORG/projects/1
-   tracker-label: campaign:my-campaign
+  tracker-label: z_campaign_my-campaign
    workflows:
      - my-worker-workflow
    memory-paths:

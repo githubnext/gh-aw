@@ -528,15 +528,16 @@ func TestGenerateUnifiedPromptCreationStep_CacheAndRepoMemory(t *testing.T) {
 
 	output := yaml.String()
 
-	// Verify cache and repo memory content
-	assert.Contains(t, output, "Cache Folder Available", "Should have cache memory prompt")
+	// Verify cache template file reference and environment variables
+	assert.Contains(t, output, "cache_memory_prompt.md", "Should reference cache template file")
+	assert.Contains(t, output, "GH_AW_CACHE_DIR: ${{ '/tmp/gh-aw/cache-memory/' }}", "Should have cache dir env var")
+	assert.Contains(t, output, "GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR", "Should have cache dir in substitution")
 	assert.Contains(t, output, "Repo Memory Available", "Should have repo memory prompt")
-	assert.Contains(t, output, "/tmp/gh-aw/cache-memory/", "Should reference cache directory")
 	assert.Contains(t, output, "/tmp/gh-aw/repo-memory/", "Should reference repo memory directory")
 
 	// Verify ordering within system tags
 	systemOpenPos := strings.Index(output, "<system>")
-	cachePos := strings.Index(output, "Cache Folder Available")
+	cachePos := strings.Index(output, "cache_memory_prompt.md")
 	repoPos := strings.Index(output, "Repo Memory Available")
 	systemClosePos := strings.Index(output, "</system>")
 	userPos := strings.Index(output, "# User Task")
@@ -622,7 +623,9 @@ func TestGenerateUnifiedPromptCreationStep_AllToolsCombined(t *testing.T) {
 	// Verify all sections are present
 	assert.Contains(t, output, "temp_folder_prompt.md", "Should have temp folder")
 	assert.Contains(t, output, "playwright_prompt.md", "Should have playwright")
-	assert.Contains(t, output, "Cache Folder Available", "Should have cache memory")
+	assert.Contains(t, output, "cache_memory_prompt.md", "Should have cache memory template")
+	assert.Contains(t, output, "GH_AW_CACHE_DIR: ${{ '/tmp/gh-aw/cache-memory/' }}", "Should have cache dir env var")
+	assert.Contains(t, output, "GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR", "Should have cache dir in substitution")
 	assert.Contains(t, output, "Repo Memory Available", "Should have repo memory")
 	assert.Contains(t, output, "<safe-outputs>", "Should have safe outputs")
 	assert.Contains(t, output, "<github-context>", "Should have GitHub context")

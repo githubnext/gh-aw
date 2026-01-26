@@ -93,16 +93,21 @@ func buildDiscoverySteps(spec *CampaignSpec) []map[string]any {
 		"GH_AW_CURSOR_PATH":         getCursorPath(spec),
 	}
 
-	// Add GH_AW_DISCOVERY_REPOS from spec.DiscoveryRepos
-	if len(spec.DiscoveryRepos) > 0 {
-		envVars["GH_AW_DISCOVERY_REPOS"] = strings.Join(spec.DiscoveryRepos, ",")
-		orchestratorLog.Printf("Setting GH_AW_DISCOVERY_REPOS from discovery-repos: %v", spec.DiscoveryRepos)
+	// Campaign scope uses scope selectors as the single source of truth.
+	// We export discovery scope to the action via GH_AW_DISCOVERY_*.
+	parsedScope, scopeProblems := parseScopeSelectors(spec.Scope)
+	if len(scopeProblems) > 0 {
+		orchestratorLog.Printf("Warning: invalid scope selectors for campaign '%s': %v", spec.ID, scopeProblems)
 	}
 
-	// Add GH_AW_DISCOVERY_ORGS from spec.DiscoveryOrgs if provided
-	if len(spec.DiscoveryOrgs) > 0 {
-		envVars["GH_AW_DISCOVERY_ORGS"] = strings.Join(spec.DiscoveryOrgs, ",")
-		orchestratorLog.Printf("Setting GH_AW_DISCOVERY_ORGS from discovery-orgs: %v", spec.DiscoveryOrgs)
+	if len(parsedScope.Repos) > 0 {
+		envVars["GH_AW_DISCOVERY_REPOS"] = strings.Join(parsedScope.Repos, ",")
+		orchestratorLog.Printf("Setting GH_AW_DISCOVERY_REPOS from scope: %v", parsedScope.Repos)
+	}
+
+	if len(parsedScope.Orgs) > 0 {
+		envVars["GH_AW_DISCOVERY_ORGS"] = strings.Join(parsedScope.Orgs, ",")
+		orchestratorLog.Printf("Setting GH_AW_DISCOVERY_ORGS from scope: %v", parsedScope.Orgs)
 	}
 
 	steps := []map[string]any{
@@ -212,32 +217,6 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// Track whether we have any meaningful campaign details
 	hasDetails := false
 
-	if strings.TrimSpace(spec.Objective) != "" {
-		fmt.Fprintf(markdownBuilder, "- Objective: %s\n", strings.TrimSpace(spec.Objective))
-		hasDetails = true
-	}
-	if len(spec.KPIs) > 0 {
-		markdownBuilder.WriteString("- KPIs:\n")
-		for _, kpi := range spec.KPIs {
-			name := strings.TrimSpace(kpi.Name)
-			if name == "" {
-				name = "(unnamed)"
-			}
-			priority := strings.TrimSpace(kpi.Priority)
-			if priority == "" && len(spec.KPIs) == 1 {
-				priority = "primary"
-			}
-			unit := strings.TrimSpace(kpi.Unit)
-			if unit != "" {
-				unit = " " + unit
-			}
-			if priority != "" {
-				priority = " (" + priority + ")"
-			}
-			fmt.Fprintf(markdownBuilder, "  - %s%s: baseline %.4g → target %.4g over %d days%s\n", name, priority, kpi.Baseline, kpi.Target, kpi.TimeWindowDays, unit)
-		}
-		hasDetails = true
-	}
 	if len(spec.Workflows) > 0 {
 		markdownBuilder.WriteString("- Associated workflows: ")
 		markdownBuilder.WriteString(strings.Join(spec.Workflows, ", "))
@@ -309,14 +288,10 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	promptData := CampaignPromptData{
 		CampaignID:   spec.ID,
 		CampaignName: spec.Name,
-		Objective:    strings.TrimSpace(spec.Objective),
 		ProjectURL:   strings.TrimSpace(spec.ProjectURL),
 		CursorGlob:   strings.TrimSpace(spec.CursorGlob),
 		MetricsGlob:  strings.TrimSpace(spec.MetricsGlob),
 		Workflows:    spec.Workflows,
-	}
-	if len(spec.KPIs) > 0 {
-		promptData.KPIs = spec.KPIs
 	}
 	if spec.Governance != nil {
 		promptData.MaxDiscoveryItemsPerRun = spec.Governance.MaxDiscoveryItemsPerRun
@@ -400,46 +375,13 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		appendPromptSection(markdownBuilder, "CLOSING INSTRUCTIONS (HIGHEST PRIORITY)", closingInstructions)
 	}
 
-	// Enable safe outputs needed for campaign coordination.
+	// Campaign orchestrators are dispatch-only: they may only dispatch allowlisted
+	// workflows via the dispatch-workflow safe output. All side effects (Projects,
+	// issues/PRs, comments) must be performed by dispatched worker workflows.
+	//
 	// Note: Campaign orchestrators intentionally omit explicit `permissions:` from
 	// the generated markdown; safe-output jobs have their own scoped permissions.
-	maxComments := 10
-	maxProjectUpdates := 10
-	if spec.Governance != nil {
-		if spec.Governance.MaxCommentsPerRun > 0 {
-			maxComments = spec.Governance.MaxCommentsPerRun
-		}
-		if spec.Governance.MaxProjectUpdatesPerRun > 0 {
-			maxProjectUpdates = spec.Governance.MaxProjectUpdatesPerRun
-		}
-	}
-
 	safeOutputs := &workflow.SafeOutputsConfig{}
-	// Allow creating the Epic issue for the campaign (max: 1, only created once).
-	safeOutputs.CreateIssues = &workflow.CreateIssuesConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 1}}
-	// Allow commenting on related issues/PRs as part of campaign coordination.
-	safeOutputs.AddComments = &workflow.AddCommentsConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: maxComments}}
-	// Allow updating the campaign's GitHub Project dashboard.
-	updateProjectConfig := &workflow.UpdateProjectConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: maxProjectUpdates}}
-	// If the campaign spec specifies a custom GitHub token for Projects v2 operations,
-	// pass it to the update-project configuration.
-	if strings.TrimSpace(spec.ProjectGitHubToken) != "" {
-		updateProjectConfig.GitHubToken = strings.TrimSpace(spec.ProjectGitHubToken)
-		orchestratorLog.Printf("Campaign orchestrator '%s' configured with custom GitHub token for update-project", spec.ID)
-	}
-	safeOutputs.UpdateProjects = updateProjectConfig
-
-	// Allow creating project status updates for campaign summaries.
-	statusUpdateConfig := &workflow.CreateProjectStatusUpdateConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 1}}
-	// Use the same custom GitHub token for status updates as for project operations.
-	if strings.TrimSpace(spec.ProjectGitHubToken) != "" {
-		statusUpdateConfig.GitHubToken = strings.TrimSpace(spec.ProjectGitHubToken)
-		orchestratorLog.Printf("Campaign orchestrator '%s' configured with custom GitHub token for create-project-status-update", spec.ID)
-	}
-	safeOutputs.CreateProjectStatusUpdates = statusUpdateConfig
-
-	// Add dispatch_workflow if workflows are configured
-	// This allows the orchestrator to dispatch worker workflows for the campaign
 	if len(spec.Workflows) > 0 {
 		dispatchWorkflowConfig := &workflow.DispatchWorkflowConfig{
 			BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 3},
@@ -449,7 +391,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		orchestratorLog.Printf("Campaign orchestrator '%s' configured with dispatch_workflow for %d workflows", spec.ID, len(spec.Workflows))
 	}
 
-	orchestratorLog.Printf("Campaign orchestrator '%s' built successfully with safe outputs enabled", spec.ID)
+	orchestratorLog.Printf("Campaign orchestrator '%s' built successfully with dispatch-workflow safe output", spec.ID)
 
 	// Extract file-glob patterns from memory-paths or metrics-glob to support
 	// multiple directory structures (e.g., both dated "campaign-id-*/**" and non-dated "campaign-id/**")
@@ -468,6 +410,21 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		orchestratorLog.Printf("Campaign orchestrator '%s' using default engine: %s", spec.ID, engineID)
 	}
 
+	tools := map[string]any{
+		"repo-memory": []any{
+			map[string]any{
+				"id":          "campaigns",
+				"branch-name": "memory/campaigns",
+				"file-glob":   convertStringsToAny(fileGlobPatterns),
+				"campaign-id": spec.ID,
+			},
+		},
+		"bash": []any{"*"},
+		"edit": nil,
+	}
+	// Deliberately omit GitHub tool access from orchestrators. All writes and GitHub
+	// API operations should be performed by dispatched worker workflows.
+
 	data := &workflow.WorkflowData{
 		Name:            name,
 		Description:     description,
@@ -484,21 +441,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		EngineConfig: &workflow.EngineConfig{
 			ID: engineID,
 		},
-		Tools: map[string]any{
-			"github": map[string]any{
-				"toolsets": []any{"default", "actions", "code_security"},
-			},
-			"repo-memory": []any{
-				map[string]any{
-					"id":          "campaigns",
-					"branch-name": "memory/campaigns",
-					"file-glob":   convertStringsToAny(fileGlobPatterns),
-					"campaign-id": spec.ID,
-				},
-			},
-			"bash": []any{"*"},
-			"edit": nil,
-		},
+		Tools:       tools,
 		SafeOutputs: safeOutputs,
 	}
 

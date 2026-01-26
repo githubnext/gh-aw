@@ -14,14 +14,6 @@ type CampaignSpec struct {
 	Name        string `yaml:"name" json:"name" console:"header:Name,maxlen:30"`
 	Description string `yaml:"description,omitempty" json:"description,omitempty" console:"header:Description,omitempty,maxlen:60"`
 
-	// Objective is an optional outcome-owned statement describing what success means
-	// for this campaign.
-	Objective string `yaml:"objective,omitempty" json:"objective,omitempty" console:"header:Objective,omitempty,maxlen:60"`
-
-	// KPIs is an optional list of KPIs used to measure progress toward the objective.
-	// Recommended: 1 primary KPI plus up to 2 supporting KPIs.
-	KPIs []CampaignKPI `yaml:"kpis,omitempty" json:"kpis,omitempty"`
-
 	// ProjectURL points to the GitHub Project used as the primary campaign
 	// dashboard.
 	ProjectURL string `yaml:"project-url,omitempty" json:"project_url,omitempty" console:"header:Project URL,omitempty,maxlen:40"`
@@ -39,25 +31,15 @@ type CampaignSpec struct {
 	// step will search for items with this label.
 	TrackerLabel string `yaml:"tracker-label,omitempty" json:"tracker_label,omitempty" console:"header:Tracker Label,omitempty,maxlen:40"`
 
-	// DiscoveryRepos defines the explicit list of repositories (in owner/repo format)
-	// where worker workflows are discovered. This controls the scope of GitHub searches
-	// for issues/PRs created by worker workflows.
-	DiscoveryRepos []string `yaml:"discovery-repos,omitempty" json:"discovery_repos,omitempty" console:"header:Discovery Repos,omitempty,maxlen:60"`
-
-	// DiscoveryOrgs optionally defines the list of GitHub organizations where worker
-	// workflows are discovered. When specified, any repository within these organizations
-	// is searched for worker-created issues/PRs.
-	DiscoveryOrgs []string `yaml:"discovery-orgs,omitempty" json:"discovery_orgs,omitempty" console:"header:Discovery Orgs,omitempty,maxlen:40"`
-
-	// AllowedRepos defines the explicit list of repositories (in owner/repo format)
-	// that this campaign is allowed to discover and operate on. When omitted, defaults
-	// to the current repository where the campaign is defined.
-	AllowedRepos []string `yaml:"allowed-repos,omitempty" json:"allowed_repos,omitempty" console:"header:Allowed Repos,omitempty,maxlen:60"`
-
-	// AllowedOrgs optionally defines the list of GitHub organizations that this
-	// campaign is allowed to discover and operate on. When specified, any repository
-	// within these organizations is considered in-scope.
-	AllowedOrgs []string `yaml:"allowed-orgs,omitempty" json:"allowed_orgs,omitempty" console:"header:Allowed Orgs,omitempty,maxlen:40"`
+	// Scope defines the explicit set of repositories and organizations that this
+	// campaign is allowed to discover and operate on.
+	//
+	// Supported selectors:
+	//   - "owner/repo" (specific repository)
+	//   - "org:<name>" (all repositories in an organization)
+	//
+	// When omitted, it defaults to the current repository where the campaign is defined.
+	Scope []string `yaml:"scope,omitempty" json:"scope,omitempty" console:"header:Scope,omitempty,maxlen:60"`
 
 	// MemoryPaths documents where this campaign writes its repo-memory
 	// (for example: memory/campaigns/incident-response/**).
@@ -101,12 +83,6 @@ type CampaignSpec struct {
 	// enforced by validation in the future.
 	AllowedSafeOutputs []string `yaml:"allowed-safe-outputs,omitempty" json:"allowed_safe_outputs,omitempty" console:"header:Allowed Safe Outputs,omitempty,maxlen:30"`
 
-	// ProjectGitHubToken is an optional GitHub token expression (e.g.,
-	// ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}) used for GitHub Projects v2
-	// operations. When specified, this token is passed to the update-project
-	// safe output configuration in the generated orchestrator workflow.
-	ProjectGitHubToken string `yaml:"project-github-token,omitempty" json:"project_github_token,omitempty" console:"header:Project Token,omitempty,maxlen:30"`
-
 	// Governance configures lightweight pacing and opt-out policies for campaign
 	// orchestrator workflows. These guardrails are primarily enforced through
 	// generated prompts and safe-output maxima.
@@ -134,39 +110,6 @@ type CampaignSpec struct {
 	// ConfigPath is populated at load time with the relative path of
 	// the YAML file on disk, to help users locate definitions.
 	ConfigPath string `yaml:"-" json:"config_path" console:"header:Config Path,maxlen:60"`
-}
-
-// CampaignKPI defines a single KPI used for campaign measurement.
-type CampaignKPI struct {
-	// ID is an optional stable identifier for this KPI.
-	ID string `yaml:"id,omitempty" json:"id,omitempty"`
-
-	// Name is a human-readable KPI name.
-	Name string `yaml:"name" json:"name"`
-
-	// Priority indicates whether this KPI is the primary KPI or a supporting KPI.
-	// Expected values: primary, supporting.
-	Priority string `yaml:"priority,omitempty" json:"priority,omitempty"`
-
-	// Unit is an optional unit string (e.g., percent, days, count).
-	Unit string `yaml:"unit,omitempty" json:"unit,omitempty"`
-
-	// Baseline is the baseline KPI value.
-	Baseline float64 `yaml:"baseline" json:"baseline"`
-
-	// Target is the target KPI value.
-	Target float64 `yaml:"target" json:"target"`
-
-	// TimeWindowDays is the rolling time window (in days) used to compute the KPI.
-	TimeWindowDays int `yaml:"time-window-days" json:"time-window-days"`
-
-	// Direction indicates whether improvement means increasing or decreasing.
-	// Expected values: increase, decrease.
-	Direction string `yaml:"direction,omitempty" json:"direction,omitempty"`
-
-	// Source describes the signal source used to compute the KPI.
-	// Expected values: ci, pull_requests, code_security, custom.
-	Source string `yaml:"source,omitempty" json:"source,omitempty"`
 }
 
 // CampaignGovernancePolicy captures lightweight pacing and opt-out policies.

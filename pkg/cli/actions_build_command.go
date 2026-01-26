@@ -212,6 +212,17 @@ func buildAction(actionsDir, actionName string) error {
 		return buildSetupAction(actionsDir, actionName)
 	}
 
+	// Check if this is a composite action (doesn't need JavaScript bundling)
+	isComposite, err := isCompositeAction(actionPath)
+	if err != nil {
+		return fmt.Errorf("failed to check action type: %w", err)
+	}
+
+	if isComposite {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Composite action - no JavaScript bundling needed"))
+		return nil
+	}
+
 	srcPath := filepath.Join(actionPath, "src", "index.js")
 	outputPath := filepath.Join(actionPath, "index.js")
 
@@ -268,6 +279,18 @@ func buildAction(actionsDir, actionName string) error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Embedded %d files", len(files))))
 
 	return nil
+}
+
+// isCompositeAction checks if an action uses the 'composite' runtime
+func isCompositeAction(actionPath string) (bool, error) {
+	ymlPath := filepath.Join(actionPath, "action.yml")
+	content, err := os.ReadFile(ymlPath)
+	if err != nil {
+		return false, fmt.Errorf("failed to read action.yml: %w", err)
+	}
+
+	contentStr := string(content)
+	return strings.Contains(contentStr, "using: 'composite'") || strings.Contains(contentStr, "using: \"composite\""), nil
 }
 
 // buildSetupAction builds the setup action by checking that source files exist.
