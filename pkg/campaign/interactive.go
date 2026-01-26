@@ -30,7 +30,6 @@ type InteractiveCampaignConfig struct {
 	CreateProject  bool
 	ProjectOwner   string
 	LinkRepo       string
-	Objective      string
 	Force          bool
 }
 
@@ -168,8 +167,7 @@ func promptForObjective(config *InteractiveCampaignConfig) error {
 	}
 
 	config.Description = strings.TrimSpace(objective)
-	config.Objective = config.Description
-	interactiveLog.Printf("Campaign objective: %s", config.Objective)
+	interactiveLog.Printf("Campaign description: %s", config.Description)
 	return nil
 }
 
@@ -512,7 +510,6 @@ func generateCampaignFromConfig(rootDir string, config *InteractiveCampaignConfi
 		ID:             config.ID,
 		Name:           config.Name,
 		Description:    config.Description,
-		Objective:      config.Objective,
 		ProjectURL:     "https://github.com/orgs/ORG/projects/1", // Placeholder
 		Version:        "v1",
 		State:          "planned",

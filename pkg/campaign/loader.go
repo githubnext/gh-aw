@@ -199,7 +199,7 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	buf.WriteString("By default, this campaign will target the current repository. To target additional repositories:\n\n")
 	buf.WriteString("1. **Add allowed-repos** (optional): Specify repositories to target\n")
 	buf.WriteString("2. **Define workflows**: List workflows to execute (e.g., `vulnerability-scanner`)\n")
-	buf.WriteString("3. **Add objective & KPIs**: Define measurable success criteria\n")
+	buf.WriteString("3. **Add narrative context**: Define campaign goals, workflows, and timeline in the markdown body\n")
 	buf.WriteString("4. **Set owners**: Specify who is responsible for this campaign\n")
 	buf.WriteString("5. **Compile**: Run `gh aw compile` to generate the orchestrator\n\n")
 	buf.WriteString("## Example Configuration\n\n")
