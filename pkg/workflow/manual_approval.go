@@ -9,8 +9,17 @@ import (
 var manualApprovalLog = logger.New("workflow:manual_approval")
 
 // extractManualApprovalFromOn extracts the manual-approval value from the on: section
-func (c *Compiler) extractManualApprovalFromOn(frontmatter map[string]any) (string, error) {
-	onSection, exists := frontmatter["on"]
+func (c *Compiler) extractManualApprovalFromOn(frontmatter map[string]any, workflowData *WorkflowData) (string, error) {
+	// Use cached On field from ParsedFrontmatter if available, otherwise fall back to map access
+	var onSection any
+	var exists bool
+	if workflowData != nil && workflowData.ParsedFrontmatter != nil && workflowData.ParsedFrontmatter.On != nil {
+		onSection = workflowData.ParsedFrontmatter.On
+		exists = true
+	} else {
+		onSection, exists = frontmatter["on"]
+	}
+	
 	if !exists {
 		manualApprovalLog.Print("No on: section found in frontmatter")
 		return "", nil
@@ -42,8 +51,8 @@ func (c *Compiler) extractManualApprovalFromOn(frontmatter map[string]any) (stri
 func (c *Compiler) processManualApprovalConfiguration(frontmatter map[string]any, workflowData *WorkflowData) error {
 	manualApprovalLog.Print("Processing manual-approval configuration")
 
-	// Extract manual-approval from the on: section
-	manualApproval, err := c.extractManualApprovalFromOn(frontmatter)
+	// Extract manual-approval from the on: section (uses cached ParsedFrontmatter.On if available)
+	manualApproval, err := c.extractManualApprovalFromOn(frontmatter, workflowData)
 	if err != nil {
 		manualApprovalLog.Printf("Failed to extract manual-approval: %v", err)
 		return err

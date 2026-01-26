@@ -69,7 +69,7 @@ func TestExtractManualApprovalFromOn(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Compiler{}
-			got, err := c.extractManualApprovalFromOn(tt.frontmatter)
+			got, err := c.extractManualApprovalFromOn(tt.frontmatter, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("extractManualApprovalFromOn() error = %v, wantErr %v", err, tt.wantErr)
 				return

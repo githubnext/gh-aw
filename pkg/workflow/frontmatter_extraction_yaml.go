@@ -124,12 +124,22 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 // commentOutProcessedFieldsInOnSection comments out draft, fork, forks, names, manual-approval, stop-after, skip-if-match, skip-if-no-match, reaction, and lock-for-agent fields in the on section
 // These fields are processed separately and should be commented for documentation
 // Exception: names fields in sections with __gh_aw_native_label_filter__ marker in frontmatter are NOT commented out
-func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmatter map[string]any) string {
+func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmatter map[string]any, workflowData ...*WorkflowData) string {
 	frontmatterLog.Print("Processing 'on' section to comment out processed fields")
+
+	// Use cached On field from ParsedFrontmatter if available (when workflowData is provided)
+	var onValue any
+	var exists bool
+	if len(workflowData) > 0 && workflowData[0] != nil && workflowData[0].ParsedFrontmatter != nil && workflowData[0].ParsedFrontmatter.On != nil {
+		onValue = workflowData[0].ParsedFrontmatter.On
+		exists = true
+	} else {
+		onValue, exists = frontmatter["on"]
+	}
 
 	// Check frontmatter for native label filter markers
 	nativeLabelFilterSections := make(map[string]bool)
-	if onValue, exists := frontmatter["on"]; exists {
+	if exists {
 		if onMap, ok := onValue.(map[string]any); ok {
 			for _, sectionKey := range []string{"issues", "pull_request", "discussion", "issue_comment"} {
 				if sectionValue, hasSec := onMap[sectionKey]; hasSec {
@@ -507,10 +517,20 @@ func (c *Compiler) extractExpressionFromIfString(ifString string) string {
 }
 
 // extractCommandConfig extracts command configuration from frontmatter including name and events
-func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandNames []string, commandEvents []string) {
+func (c *Compiler) extractCommandConfig(frontmatter map[string]any, workflowData ...*WorkflowData) (commandNames []string, commandEvents []string) {
+	// Use cached On field from ParsedFrontmatter if available (when workflowData is provided)
+	var onValue any
+	var exists bool
+	if len(workflowData) > 0 && workflowData[0] != nil && workflowData[0].ParsedFrontmatter != nil && workflowData[0].ParsedFrontmatter.On != nil {
+		onValue = workflowData[0].ParsedFrontmatter.On
+		exists = true
+	} else {
+		onValue, exists = frontmatter["on"]
+	}
+
 	// Check new format: on.slash_command or on.slash_command.name (preferred)
 	// Also check legacy format: on.command or on.command.name (deprecated)
-	if onValue, exists := frontmatter["on"]; exists {
+	if exists {
 		if onMap, ok := onValue.(map[string]any); ok {
 			var commandValue any
 			var hasCommand bool

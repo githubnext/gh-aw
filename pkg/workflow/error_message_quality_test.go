@@ -28,7 +28,7 @@ func TestErrorMessageQuality(t *testing.T) {
 						"manual-approval": 123, // Wrong type
 					},
 				}
-				_, err := c.extractManualApprovalFromOn(frontmatter)
+				_, err := c.extractManualApprovalFromOn(frontmatter, nil)
 				return err
 			},
 			shouldContain: []string{
@@ -45,7 +45,7 @@ func TestErrorMessageQuality(t *testing.T) {
 				frontmatter := map[string]any{
 					"on": []string{"invalid"}, // Wrong type
 				}
-				_, err := c.extractManualApprovalFromOn(frontmatter)
+				_, err := c.extractManualApprovalFromOn(frontmatter, nil)
 				return err
 			},
 			shouldContain: []string{

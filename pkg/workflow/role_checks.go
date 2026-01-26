@@ -133,8 +133,18 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 		return true
 	}
 
+	// Use cached On field from ParsedFrontmatter if available, otherwise fall back to map access
+	var onValue any
+	var exists bool
+	if data.ParsedFrontmatter != nil && data.ParsedFrontmatter.On != nil {
+		onValue = data.ParsedFrontmatter.On
+		exists = true
+	} else {
+		onValue, exists = frontmatter["on"]
+	}
+
 	// Parse the "on" section to determine events
-	if onValue, exists := frontmatter["on"]; exists {
+	if exists {
 		if onMap, ok := onValue.(map[string]any); ok {
 			// Check if only safe events are present
 			hasUnsafeEvents := false
@@ -210,13 +220,24 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 }
 
 // hasWorkflowRunTrigger checks if the agentic workflow's frontmatter declares a workflow_run trigger
-func (c *Compiler) hasWorkflowRunTrigger(frontmatter map[string]any) bool {
+// If workflowData is provided and has ParsedFrontmatter, uses the cached On field
+func (c *Compiler) hasWorkflowRunTrigger(frontmatter map[string]any, workflowData ...*WorkflowData) bool {
 	if frontmatter == nil {
 		return false
 	}
 
+	// Use cached On field from ParsedFrontmatter if available (when workflowData is provided)
+	var onValue any
+	var exists bool
+	if len(workflowData) > 0 && workflowData[0] != nil && workflowData[0].ParsedFrontmatter != nil && workflowData[0].ParsedFrontmatter.On != nil {
+		onValue = workflowData[0].ParsedFrontmatter.On
+		exists = true
+	} else {
+		onValue, exists = frontmatter["on"]
+	}
+
 	// Check the "on" section in frontmatter
-	if onValue, exists := frontmatter["on"]; exists {
+	if exists {
 		// Handle map format (most common)
 		if onMap, ok := onValue.(map[string]any); ok {
 			_, hasWorkflowRun := onMap["workflow_run"]

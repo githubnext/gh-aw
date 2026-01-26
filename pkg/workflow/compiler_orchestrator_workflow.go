@@ -329,7 +329,7 @@ func (c *Compiler) extractAdditionalConfigurations(
 	workflowData.RepoMemoryConfig = repoMemoryConfig
 
 	// Extract and process safe-inputs and safe-outputs
-	workflowData.Command, workflowData.CommandEvents = c.extractCommandConfig(frontmatter)
+	workflowData.Command, workflowData.CommandEvents = c.extractCommandConfig(frontmatter, workflowData)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(frontmatter)
 	workflowData.Roles = c.extractRoles(frontmatter)
 	workflowData.Bots = c.extractBots(frontmatter)
