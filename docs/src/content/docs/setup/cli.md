@@ -15,14 +15,23 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 > New to gh-aw?
 > Start here! These commands cover the essential workflow lifecycle from setup to monitoring.
 
-| Command | When to Use | Details |
-|---------|-------------|---------|
-| **`gh aw init`** | Set up your repository for agentic workflows | [→ Documentation](#init) |
-| **`gh aw add (workflow)`** | Add workflows from The Agentics collection or other repositories | [→ Documentation](#add) |
-| **`gh aw list`** | Quick listing of all workflows without status checks | [→ Documentation](#list) |
-| **`gh aw status`** | Check current state of all workflows | [→ Documentation](#status) |
-| **`gh aw compile`** | Convert markdown to GitHub Actions YAML | [→ Documentation](#compile) |
-| **`gh aw run (workflow)`** | Execute workflows immediately in GitHub Actions | [→ Documentation](#run) |
+- **`gh aw init`** - Set up your repository for agentic workflows  
+  [→ Documentation](#init)
+
+- **`gh aw add (workflow)`** - Add workflows from The Agentics collection or other repositories  
+  [→ Documentation](#add)
+
+- **`gh aw list`** - Quick listing of all workflows without status checks  
+  [→ Documentation](#list)
+
+- **`gh aw status`** - Check current state of all workflows  
+  [→ Documentation](#status)
+
+- **`gh aw compile`** - Convert markdown to GitHub Actions YAML  
+  [→ Documentation](#compile)
+
+- **`gh aw run (workflow)`** - Execute workflows immediately in GitHub Actions  
+  [→ Documentation](#run)
 
 **Complete command reference below** ↓
 
