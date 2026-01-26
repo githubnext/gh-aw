@@ -151,11 +151,12 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	}
 
 	if !agenticEngine.SupportsToolsAllowlist() {
-		// For engines that don't support tool allowlists (like codex), ignore tools section and provide warnings
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), engineSetting)))
+		// For engines that don't support tool allowlists (like custom engine), ignore tools section and provide warnings
+		orchestratorToolsLog.Printf("Engine doesn't support tools allowlist: engineSetting=%s, agenticEngine.GetID()=%s, agenticEngine.GetDisplayName()=%s, cleanPath=%s", engineSetting, agenticEngine.GetID(), agenticEngine.GetDisplayName(), cleanPath)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), agenticEngine.GetID())))
 		c.IncrementWarningCount()
 		if _, hasTools := result.Frontmatter["tools"]; hasTools {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("'tools' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", engineSetting, agenticEngine.GetDisplayName())))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("'tools' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", agenticEngine.GetID(), agenticEngine.GetDisplayName())))
 			c.IncrementWarningCount()
 		}
 		tools = map[string]any{}
