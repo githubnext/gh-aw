@@ -274,10 +274,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		awfArgs = append(awfArgs, "--mount", "/home/runner/.copilot:/home/runner/.copilot:rw")
 		copilotExecLog.Print("Added gh CLI, copilot binary, and .copilot config directory mounts to AWF container")
 
-		// Mount the hostedtoolcache go directory (where actions/setup-go installs Go)
-		// This includes the go binary and all Go tooling
-		awfArgs = append(awfArgs, "--mount", "/opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro")
-		copilotExecLog.Print("Added hostedtoolcache go mount to AWF container")
+		// Mount the hostedtoolcache directory (where actions/setup-* installs tools like Go, Node, Python, etc.)
+		// The PATH is already passed via --env-all, so tools installed by setup actions are accessible
+		awfArgs = append(awfArgs, "--mount", "/opt/hostedtoolcache:/opt/hostedtoolcache:ro")
+		copilotExecLog.Print("Added hostedtoolcache mount to AWF container")
 
 		// Mount /opt/gh-aw as readonly for script and configuration files
 		awfArgs = append(awfArgs, "--mount", "/opt/gh-aw:/opt/gh-aw:ro")

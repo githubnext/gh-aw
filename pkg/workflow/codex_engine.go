@@ -211,15 +211,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"")
 		codexEngineLog.Print("Added workspace mount to AWF")
 
-		// Mount the hostedtoolcache node directory (where actions/setup-node installs everything)
-		// This includes node binary, npm, and all global packages including Codex
-		awfArgs = append(awfArgs, "--mount", "/opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro")
-		codexEngineLog.Print("Added hostedtoolcache node mount to AWF container")
-
-		// Mount the hostedtoolcache go directory (where actions/setup-go installs Go)
-		// This includes the go binary and all Go tooling
-		awfArgs = append(awfArgs, "--mount", "/opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro")
-		codexEngineLog.Print("Added hostedtoolcache go mount to AWF container")
+		// Mount the hostedtoolcache directory (where actions/setup-* installs tools like Go, Node, Python, etc.)
+		// The PATH is already passed via --env-all, so tools installed by setup actions are accessible
+		awfArgs = append(awfArgs, "--mount", "/opt/hostedtoolcache:/opt/hostedtoolcache:ro")
+		codexEngineLog.Print("Added hostedtoolcache mount to AWF container")
 
 		// Mount /opt/gh-aw as readonly for script and configuration files
 		awfArgs = append(awfArgs, "--mount", "/opt/gh-aw:/opt/gh-aw:ro")
