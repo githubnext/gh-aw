@@ -1,8 +1,7 @@
-## Flagged Items for Monitoring (2026-01-23)
+## Flagged Items for Monitoring (2026-01-26)
 
-- sandbox.mcp.port lacks runtime validation despite schema constraints; critical gap open 15+ days.
-- tools.timeout and tools.startup-timeout minimums are not enforced at runtime; risk of invalid values.
-- MCP auth-test failures due to missing MCP tool bindings in runtime (not server auth errors).
-- Safe output add_comment 404s from deleted discussions should be downgraded to warnings to avoid false failure rates.
-- list_code_scanning_alerts remains an outlier for MCP payload size and usefulness score.
-- Issue Monster shows high failure rate despite frequent runs; investigate error clusters if trend persists.
+- GitHub remote MCP auth-test continues failing due to toolset loading; verify MCP server initialization and consider local fallback.
+- CI lint failures from staticcheck QF1003 in pkg/campaign/interactive.go plus missing origin/main for incremental linting.
+- list_code_scanning_alerts remains the largest MCP payload (24K tokens, 97KB); list_pull_requests also heavy due to duplicated repo objects.
+- High-cost Copilot workflows (Agent Persona Explorer, CI Cleaner) remain outliers for tokens/run and total spend.
+- Orchestration sessions still dominate Copilot session metrics, masking true task completion rates.

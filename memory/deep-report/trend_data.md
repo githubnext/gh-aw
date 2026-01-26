@@ -1,8 +1,8 @@
-## Trend Data (as of 2026-01-23T15:14:27Z)
+## Trend Data (as of 2026-01-26T15:14:22Z)
 
-- Copilot token report (30 days ending 2026-01-23): 114,462,428 tokens, $343.39, 211 runs, 52 workflows; top spenders CI Cleaner (21.1M), Agent Persona Explorer (18.4M), Code Scanning Fixer (7.8M).
-- Copilot session insights (2026-01-23): 50 sessions, 28% completion rate (+6pp day-over-day), 54% skipped, 0 loops, 0 context issues, 88% log availability.
-- Safe outputs health (2026-01-22): 9 jobs, 77.78% success due to add_comment 404 race condition; all other operations succeeded.
-- Lockfile corpus (2026-01-23): 139 workflows, avg size 74.2 KB, avg 8.1 jobs / 71.6 steps, 100% concurrency adoption, 69% schedule+workflow_dispatch.
-- Issues (last 7 days dataset): 448 total, 66 open / 382 closed; last 3 days 222 created vs 227 closed; 35 unlabeled total, 0 open unlabeled.
-- Top issue labels: automation (124), agentic-workflows (82), testing (63), cookie (56), enhancement (42).
+- Copilot token report (30 days ending 2026-01-26): 187,385,020 tokens, $7,026.94, 339 runs, 58 workflows; top spenders Agent Persona Explorer (30.2M), CI Cleaner (26.9M), Code Scanning Fixer (12.6M).
+- Copilot session insights (2026-01-26): 50 sessions, 20% completion rate (+16pp day-over-day), 62% skipped, 0 fails, 90.9% recovery success; 80% orchestration sessions skew totals.
+- Workflow analysis (Jan 19-26): 150+ runs, 97.6% overall success; CI workflow at 83.3% due to 2 lint failures (staticcheck) and origin/main diff issue.
+- Lockfile corpus (2026-01-26): 139 workflows (+5 since Jan 22), avg size 74.8 KB, 100% concurrency, 76% scheduled, 91% workflow_dispatch, 70% schedule+dispatch.
+- Issues (last 7 days dataset): 431 total, 49 open / 382 closed; last 3 days 108 created vs 124 closed; 41 unlabeled total, 0 open unlabeled.
+- Top issue labels (7 days): automation (150), cookie (115), testing (65), enhancement (55), code-quality (51), agentic-workflows (45), bug (42), documentation (40).
