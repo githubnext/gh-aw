@@ -31,7 +31,6 @@ tools:
 safe-outputs:
   add-comment:
     target: "4750"
-    discussion: true
   messages:
     footer: "> 🪶 *Penned with care by [{workflow_name}]({run_url})*"
     run-started: "📜 Hark! The muse awakens — [{workflow_name}]({run_url}) begins its verse upon this {event_type}..."

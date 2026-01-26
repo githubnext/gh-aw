@@ -1,24 +1,10 @@
-# GitHub Agentic Workflows: Interactive Setup Wizard
+# Setup Guide for GitHub Agentic Workflows
 
-You are an AI assistant helping the user set up **GitHub Agentic Workflows (gh-aw)** in their repository.
-
-## How to Conduct This Interactive Session
-
-This is an **interactive agentic setup session**. You should be proactive and conversational:
-
-- **Ask questions** to understand the user's context (e.g., "Which repository are you setting up?", "Do you already have a Copilot subscription?")
-- **Give progress updates** after each step (e.g., "Great! I can see gh-aw is installed. Let's move to initializing your repository.")
-- **Explain what's happening** before running commands (e.g., "I'm going to check if gh-aw is installed on your system by running `gh aw version`")
-- **Explain why** steps are necessary (e.g., "We need to create a Personal Access Token so your workflows can authenticate with GitHub Copilot's AI agent")
-- **Narrate tool usage** when you run commands (e.g., "Let me run `gh aw init` to set up your repository structure...")
-- **Check for understanding** and offer help (e.g., "Did that work? Let me know if you see any errors.")
-- **Adapt to user responses** - if they already have something set up, skip ahead; if they're stuck, provide more detail
-
-Your goal is to guide the user smoothly through setup, not just execute a script. Be helpful, clear, and responsive to their needs.
+This guide is designed for **GitHub Copilot agents** helping users configure their repository to use GitHub Agentic Workflows (gh-aw).
 
 ## What is GitHub Agentic Workflows?
 
-GitHub Agentic Workflows lets you write AI-powered automation in natural language markdown files that run as GitHub Actions. Instead of complex YAML workflows, you write instructions in plain English, and AI agents (like GitHub Copilot) execute them.
+GitHub Agentic Workflows lets you write AI-powered automation in natural language markdown files that run as GitHub Actions. Instead of complex YAML, write instructions in plain English that AI agents (like GitHub Copilot) execute.
 
 **Example workflow:**
 
@@ -39,295 +25,238 @@ Analyze the current issue and ask for additional details if the issue is unclear
 
 This markdown compiles to a GitHub Actions workflow that automatically responds to new issues.
 
-## Setup Overview
+## Quick Setup
 
-This wizard will guide you through:
+**For a GitHub Copilot agent helping a user**, follow this streamlined process:
 
-1. ✅ Installing gh-aw extension
-2. 🔧 Initializing your repository
-3. 🔑 Configuring AI engine secrets
-4. 🚀 Adding your first workflow
-5. ✨ Running and testing it
+### Prerequisites
 
-**Assumptions:** You have basic GitHub and command line knowledge, but have never used Agentic Workflows before.
+- ✅ GitHub CLI (`gh`) installed and authenticated
+- ✅ Repository cloned locally
+- ✅ User has write access to the repository
 
-Let's get started! 🎯
+**Note:** Do NOT attempt to run `gh auth login` for the user. If authentication is needed, guide them to follow [GitHub CLI authentication documentation](https://cli.github.com/manual/gh_auth_login).
 
-## Step 1: Install gh-aw Extension
-
-**Important:** This setup assumes the user already has GitHub CLI (`gh`) installed and authenticated. Do NOT run `gh auth login` or attempt to authenticate the user. If they encounter authentication issues, guide them to authenticate on their own following [GitHub CLI authentication documentation](https://cli.github.com/manual/gh_auth_login).
-
-First, let's check if gh-aw is already installed:
+### 1. Check if gh-aw is installed
 
 ```bash
 gh aw version
 ```
 
-**✅ Success if you see:** A version number like `gh-aw version 1.x.x`  
-**❌ Not installed if you see:** `unknown command "aw"` or `gh-aw not found`
-
-### Install gh-aw
-
-Run this script to install the `gh aw` extension:
+**If not installed**, run the installation script:
 
 ```bash
 curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
 ```
 
-**✨ Checkpoint:** Before proceeding, confirm you can run `gh aw version` successfully.
+Verify installation with `gh aw version`.
 
-## Step 2: Initialize Your Repository
+### 2. Run `gh aw init`
 
-Run:
+This is the **primary command** that configures the repository:
+
+```bash
+gh aw init
+```
+
+**What `gh aw init` does:**
+
+When run without flags, `gh aw init` enters **interactive mode** and will:
+
+1. **Prompt for AI engine selection** (Copilot, Claude, or Codex)
+2. **Configure repository structure**:
+   - `.gitattributes` - marks `.lock.yml` files as generated
+   - `.github/aw/github-agentic-workflows.md` - comprehensive documentation
+   - `.github/agents/agentic-workflows.agent.md` - AI assistant for workflows
+   - `.github/aw/*.md` - specialized prompts for creating, updating, debugging workflows
+   - `.vscode/settings.json` - VSCode configuration
+   - `.vscode/mcp.json` - MCP server configuration (if Copilot selected)
+   - `.github/workflows/copilot-setup-steps.yml` - setup instructions for Copilot agents
+
+3. **Detect and validate secrets** from your environment
+4. **Configure repository secrets** automatically if environment variables are detected
+5. **Guide you through any missing setup** interactively
+
+**Alternative: Non-Interactive Mode**
+
+For automated setups or when you already know the configuration:
 
 ```bash
 gh aw init --tokens --engine copilot
 ```
 
-**What this does:**
+This will:
+- Configure the repository for Copilot engine
+- Check which secrets are configured
+- Show commands to set up missing secrets
+- Skip interactive prompts
 
-- ✅ Configures `.gitattributes` to mark `.lock.yml` files as generated (these are compiled workflows)
-- ✅ Creates `.github/aw/github-agentic-workflows.md` with comprehensive gh-aw documentation
-- ✅ Creates `.github/agents/*.agent.md` files with specialized AI assistants for workflow creation and debugging
-- ✅ Updates copilot setup steps to install the gh aw extension and setup the Agentic Workflows MCP server (enabled by default)
-- ✅ Validates which secrets are configured and shows commands to set up missing ones
-- ✅ Prepares your repository structure for agentic workflows
+**Common flags:**
+- `--engine copilot` - Configure for GitHub Copilot (also: `claude`, `codex`)
+- `--tokens` - Validate and configure required secrets
+- `--no-mcp` - Skip MCP server configuration
+- `--push` - Automatically commit and push changes
+- `--create-pull-request` - Create a PR with initialization changes
 
-Note: MCP server integration is enabled by default. Use `--no-mcp` if you want to skip MCP configuration.
+### 3. Configure Missing Secrets (If Needed)
 
-**Expected output:**
+If `gh aw init` reports missing secrets, configure them:
 
-```text
-✓ .gitattributes configured
-✓ Created .github/aw/github-agentic-workflows.md
-✓ Created .github/agents/agentic-workflows.agent.md
+#### For GitHub Copilot Engine
 
-ℹ Checking recommended gh-aw token secrets in <your-repo>...
-ℹ Checking tokens for engine: copilot
-✗ Required gh-aw token secrets are missing:
+**Required:** `COPILOT_GITHUB_TOKEN` - A fine-grained personal access token with "Copilot Requests" permission
 
-ℹ Secret: COPILOT_GITHUB_TOKEN
-ℹ When needed: Copilot workflows (CLI, engine, agent sessions, etc.)
-ℹ Recommended scopes: PAT with Copilot Requests permission and repo access
-⚡ gh aw secret set COPILOT_GITHUB_TOKEN --owner <owner> --repo <repo>
+**Create the token:**
+1. Visit <https://github.com/settings/personal-access-tokens/new>
+2. Select **Resource owner**: Your user account
+3. Select **Repository access**: "Public repositories" (enables Copilot Requests permission)
+4. Under **Account permissions**: Set "Copilot Requests" to "Read-only"
+5. Generate and copy the token
 
-✓ Repository initialized for agentic workflows!
-```
-
-**✨ Checkpoint:** Verify that `.github/aw/` and `.github/agents/` directories were created with the files listed above. If you see missing secrets listed, continue to Step 3 to configure them.
-
-## Step 3: Configure Missing Secrets
-
-If the `gh aw init` command showed missing secrets, you'll need to add them to your repository.
-
-### For GitHub Copilot Engine (COPILOT_GITHUB_TOKEN)
-
-### Prerequisites
-
-- ✅ Active GitHub Copilot subscription (individual or organization)
-- ✅ Admin or write access to your repository
-
-### Create a Personal Access Token (PAT)
-
-**Important:** The token needs the **"Copilot Requests"** permission to communicate with GitHub Copilot's AI agent.
-
-1. **Create a fine-grained personal access token:** Visit <https://github.com/settings/personal-access-tokens/new>
-
-   *Note: You must create a "fine-grained" token (not a "classic" token) as the Copilot Requests permission is only available for fine-grained tokens.*
-
-2. **Configure the token:**
-   - **Resource owner:** Select your personal user account (not an organization)
-   - **Repository access:** Select "Public repositories"
-
-     *Note: This setting is required for the "Copilot Requests" permission option to appear in the permissions list during token creation. Once the token is created with Copilot Requests permission, you can use it as a secret in any repository (public or private) where you have access.*
-
-   - **Permissions:** Scroll down and click "Account permissions", then select **"Copilot Requests"** from the dropdown and set it to "Read-only"
-
-3. **Generate and copy the token** (you'll use it in the next step)
-
-**⚠️ Troubleshooting:** Can't find "Copilot Requests" permission?
-
-- Ensure you have an [active Copilot subscription](https://github.com/settings/copilot)
-- Verify you selected your **user account** (not an organization) as Resource owner
-- Confirm you're creating a **fine-grained token** (not a classic token)
-- Check that **"Public repositories"** is selected under Repository access
-
-### Add the Secret to Your Repository
-
-**⚠️ Security Warning:** Never paste your token in this chat or commit it to your repository.
-
-Use the new `gh aw secret set` command to add the token securely:
+**Add the secret:**
 
 ```bash
-# You'll be prompted to enter the token value via stdin
-gh aw secret set COPILOT_GITHUB_TOKEN --owner <your-org> --repo <your-repo>
+gh aw secret set COPILOT_GITHUB_TOKEN --owner <owner> --repo <repo>
 ```
 
-Or add it via the GitHub.com interface:
+You'll be prompted to enter the token securely.
 
-1. Navigate to your repository on GitHub.com
-2. Click **Settings** (in the repository menu)
-3. In the left sidebar, click **Secrets and variables**, then click **Actions**
-4. Click **New repository secret**
-5. For **Name**, enter `COPILOT_GITHUB_TOKEN`
-6. For **Secret**, paste your personal access token
-7. Click **Add secret**
-
-**Expected result:** You should see `COPILOT_GITHUB_TOKEN` listed in your repository secrets.
-
-**✨ Checkpoint:** Verify the secret was added by running:
+**Verify:**
 
 ```bash
 gh aw tokens bootstrap --engine copilot
 ```
 
-This should now show that all required secrets are present.
+### 4. Add Your First Workflow
 
-**📚 Reference:** [GitHub Copilot CLI documentation](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli)
+After initialization, you have several options:
 
-## Step 4: Add Your First Workflow
-
-Now you're ready to add a workflow! You have two options:
-
-### Option A: Add a Workflow from the Agentics Catalog (Recommended for First-Time Users)
-
-The [agentics catalog](https://github.com/githubnext/agentics) contains proven, ready-to-use workflows.
-
-**Browse available workflows:**
+**Option A: Browse and add from the catalog**
 
 ```bash
 gh aw add githubnext/agentics
 ```
 
-This shows an interactive list of available workflows. You can also visit the catalog directly at: <https://github.com/githubnext/agentics>
-
-**Add a specific workflow:**
-
-For example, to add a daily team status workflow:
+This shows available workflows. Add one:
 
 ```bash
 gh aw add githubnext/agentics/daily-team-status --create-pull-request
 ```
 
-This creates a pull request that adds:
+**Option B: Use the AI agent to create workflows**
 
-- `.github/workflows/daily-team-status.md` (the human-readable workflow)
-- `.github/workflows/daily-team-status.lock.yml` (the compiled GitHub Actions workflow)
-
-**Review and merge the PR** to add the workflow to your repository.
-
-**Other useful commands:**
-
-```bash
-# Add all workflows from the catalog
-gh aw add githubnext/agentics/*
-
-# Add a specific version
-gh aw add githubnext/agentics/ci-doctor@v1.0.0
-```
-
-**✨ Checkpoint:** After merging the PR, verify the workflow files exist:
-
-```bash
-ls .github/workflows/
-```
-
-You should see both the `.md` and `.lock.yml` files.
-
-### Option B: Create a New Workflow with AI Assistance
-
-If you want to create a custom workflow, use the unified workflow agent and specify your intent:
+Use the unified workflow agent:
 
 ```bash
 activate .github/agents/agentic-workflows.agent.md
 ```
 
-This will load the interactive workflow agent that intelligently routes your request based on your intent. You can:
+Then describe what you want:
+- "create a workflow that triages issues"
+- "add a PR reviewer workflow"
+- "design a weekly research automation"
 
-- **Create** a new workflow: "create a workflow that triages issues"
-- **Debug** an existing workflow: "debug why my workflow is failing"
-- **Update** a workflow: "update my workflow to add web-fetch tool"
-- **Upgrade** workflows: "upgrade all workflows to latest version"
-
-The agent will guide you through the appropriate process for your task.
-
-**Alternative:** You can also manually create a workflow file at `.github/workflows/my-workflow.md` and then compile it:
+**Option C: Create manually**
 
 ```bash
-gh aw compile my-workflow
+gh aw new my-workflow
 ```
 
-## Step 5: Test Your Workflow
+This creates `.github/workflows/my-workflow.md` which you can edit and compile.
 
-Once you've added a workflow, test it to ensure everything works:
+### 5. Test the Workflow
 
-### Trigger the workflow manually
+Run the workflow:
 
 ```bash
 gh aw run <workflow-name>
 ```
 
-For example:
-
-```bash
-gh aw run daily-team-status
-```
-
-### Check the workflow status
+Check status:
 
 ```bash
 gh aw status
 ```
 
-### View detailed logs
+View logs:
 
 ```bash
 gh aw logs <workflow-name>
 ```
 
-**✅ Success:** Your workflow should complete and perform its intended action (create an issue comment, discussion post, etc.)
+## After Setup
 
-**❌ Troubleshooting:** If the workflow fails:
+**For users:** After `gh aw init` completes:
+- ✅ Your repository is configured for agentic workflows
+- ✅ Documentation is available in `.github/aw/github-agentic-workflows.md`
+- ✅ AI assistants are ready in `.github/agents/`
+- ✅ MCP server (if configured) is ready for Copilot Chat integration
 
-1. **Check the logs:**
+**Next steps:**
+- Add workflows from the [agentics catalog](https://github.com/githubnext/agentics)
+- Create custom workflows with `/agent` → `agentic-workflows` in Copilot Chat
+- Edit workflows in `.github/workflows/*.md` and recompile with `gh aw compile`
 
-   ```bash
-   gh aw logs <workflow-name>
-   ```
+## Troubleshooting
 
-2. **Common issues:**
-   - **Authentication error:** Verify your `COPILOT_GITHUB_TOKEN` secret is set correctly
-   - **Permission denied:** Check that your workflow has the necessary permissions in the frontmatter
-   - **Compilation error:** Run `gh aw compile <workflow-name> --strict` to validate
+### Installation Issues
 
-3. **Get AI help debugging:**
+**Problem:** `gh aw version` shows "unknown command"
 
-   ```
-   activate .github/agents/agentic-workflows.agent.md
-   ```
+**Solution:** 
+- Ensure GitHub CLI is installed: `gh --version`
+- Re-run installation script
+- Check `~/.local/bin` is in your PATH
 
-   Then describe the issue: "debug why my workflow is failing" and the agent will help you investigate logs, identify issues, and suggest fixes.
+### Secret Configuration Issues
 
-## Next Steps
+**Problem:** Can't find "Copilot Requests" permission
 
-🎉 **Congratulations!** You've successfully set up GitHub Agentic Workflows.
+**Solution:**
+- Verify active [Copilot subscription](https://github.com/settings/copilot)
+- Use **user account** as Resource owner (not organization)
+- Create **fine-grained token** (not classic)
+- Select "Public repositories" for Repository access
 
-**Learn more:**
+### Workflow Failures
 
-- 📖 Read `.github/aw/github-agentic-workflows.md` in your repository for comprehensive documentation
-- 🔍 Explore the [agentics catalog](https://github.com/githubnext/agentics) for more workflow examples
-- 📚 Visit the [official documentation](https://githubnext.github.io/gh-aw/) for guides and references
-- 💬 Join the [GitHub Next Discord](https://gh.io/next-discord) #continuous-ai channel for support
+**Problem:** Workflow runs but fails with authentication error
 
-**Customize your workflows:**
+**Solution:**
+- Verify `COPILOT_GITHUB_TOKEN` is set: `gh aw tokens bootstrap --engine copilot`
+- Check token has Copilot Requests permission
+- Ensure token hasn't expired
 
-- Edit the `.md` files in `.github/workflows/`
-- Recompile after changes: `gh aw compile <workflow-name>`
-- Test your changes: `gh aw run <workflow-name>`
+**Problem:** Workflow fails with missing tool error
 
-**Security reminders:**
+**Solution:**
+- Check workflow frontmatter has correct `tools` configuration
+- Use the debug agent: `activate .github/agents/agentic-workflows.agent.md` → "debug my workflow"
+- View detailed logs: `gh aw logs <workflow-name> -v`
+
+## Agent Guidelines
+
+When helping users set up gh-aw:
+
+1. **Start with `gh aw init`** - This is the primary setup command
+2. **Be conversational** - Explain what's happening and why
+3. **Handle errors gracefully** - Check output and guide the user through issues
+4. **Use interactive mode by default** - It provides the best experience
+5. **Adapt to context** - If parts are already set up, skip ahead
+6. **Verify each step** - Check that commands succeed before moving on
+7. **Never commit secrets** - Always use `gh aw secret set` or GitHub UI
+
+## Additional Resources
+
+- 📖 [Official Documentation](https://githubnext.github.io/gh-aw/)
+- 🔍 [Agentics Catalog](https://github.com/githubnext/agentics) - Ready-to-use workflows
+- 💬 [GitHub Next Discord](https://gh.io/next-discord) - #continuous-ai channel
+- 🎯 [Quick Start Guide](https://githubnext.github.io/gh-aw/setup/quick-start/)
+
+## Security Best Practices
 
 - ⚠️ Always use `permissions: read-all` by default
 - ⚠️ Use `safe-outputs` instead of write permissions when possible
-- ⚠️ Review all AI-generated outputs before they're published
+- ⚠️ Review AI-generated outputs before they're published
 - ⚠️ Never commit secrets to your repository
+- ⚠️ Use fine-grained tokens with minimal required permissions
