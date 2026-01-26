@@ -174,7 +174,7 @@ jobs:
           ORGANIZATION: ${{ env.ORGANIZATION }}
         id: stale-repos
         name: Run stale_repos tool
-        uses: github/stale-repos@6084a41431c4ce8842a7e879b1a15082b88742ae # v3
+        uses: github/stale-repos@3477b6488008d9411aaf22a0924ec7c1f6a69980 # v3
       - env:
           INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
         name: Save stale repos output
