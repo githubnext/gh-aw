@@ -1,5 +1,9 @@
 package workflow
 
+import "github.com/githubnext/gh-aw/pkg/logger"
+
+var safeOutputsConfigGenLog = logger.New("workflow:safe_outputs_config_generation_helpers")
+
 // ========================================
 // Safe Output Configuration Generation Helpers
 // ========================================
@@ -94,6 +98,10 @@ func generateMaxWithReviewersConfig(max int, defaultMax int, reviewers []string)
 
 // generateAssignToAgentConfig creates a config with optional max, default_agent, target, and allowed
 func generateAssignToAgentConfig(max int, defaultAgent string, target string, allowed []string) map[string]any {
+	if safeOutputsConfigGenLog.Enabled() {
+		safeOutputsConfigGenLog.Printf("Generating assign-to-agent config: max=%d, defaultAgent=%s, target=%s, allowed_count=%d",
+			max, defaultAgent, target, len(allowed))
+	}
 	config := make(map[string]any)
 	if max > 0 {
 		config["max"] = max
@@ -112,6 +120,8 @@ func generateAssignToAgentConfig(max int, defaultAgent string, target string, al
 
 // generatePullRequestConfig creates a config with allowed_labels, allow_empty, and auto_merge
 func generatePullRequestConfig(allowedLabels []string, allowEmpty bool, autoMerge bool) map[string]any {
+	safeOutputsConfigGenLog.Printf("Generating pull request config: allowEmpty=%t, autoMerge=%t, labels_count=%d",
+		allowEmpty, autoMerge, len(allowedLabels))
 	config := make(map[string]any)
 	// Note: max is always 1 for pull requests, not configurable
 	if len(allowedLabels) > 0 {
