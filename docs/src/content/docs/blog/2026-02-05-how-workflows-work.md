@@ -93,54 +93,11 @@ Include:
 
 ### Frontmatter: Declarative Configuration
 
-The YAML frontmatter defines **how** the workflow runs:
-
-**Triggers** (`on:`):
-
-- Schedule: `schedule: "0 9 * * 1-5"` (weekdays at 9am)
-- Events: `workflow_run`, `issues`, `pull_request`
-- Manual: `workflow_dispatch`
-- Comments: `issue_comment` with body filters
-
-**Permissions** (`permissions:`):
-
-- Start with `contents: read` (always!)
-- Add write permissions sparingly
-- Scope to specific resources
-
-**Tools** (`tools:`):
-
-- GitHub API toolsets
-- Bash commands (explicitly listed)
-- MCP servers for specialized capabilities
-- Each tool is explicitly enumerated (no wildcards!)
-
-**Network** (`network:`):
-
-- Allowlisted domains only
-- Prevents data exfiltration
-- Enforced at infrastructure level
-
-**Safe Outputs** (`safe_outputs:`):
-
-- Templates for creating issues/PRs
-- Built-in guardrails (max_items, expire, etc.)
-- All writes go through safe outputs
+The YAML frontmatter defines **how** the workflow runs. Configure triggers (schedule, events, manual, or comments), permissions (start with `contents: read`, add write access sparingly), tools (GitHub API, bash commands, MCP servers - all explicitly enumerated), network access (allowlisted domains only), and safe outputs (templates with built-in guardrails for creating issues/PRs).
 
 ### Prompt: Natural Language Instructions
 
-The Markdown content after frontmatter is the **agent's prompt** - natural language instructions describing what the agent should do, how it should behave, and what outputs to create.
-
-**Effective prompts:**
-
-- Start with clear objective
-- Provide step-by-step guidance
-- Include examples of good outputs
-- Set tone and personality
-- Reference available tools
-- Specify output format
-
-This is where you get to be creative! The prompt is your chance to give the agent personality and clear direction.
+The Markdown content after frontmatter is the **agent's prompt** - natural language instructions describing what the agent should do, how it should behave, and what outputs to create. Effective prompts start with a clear objective, provide step-by-step guidance, include output examples, and reference available tools. This is where you give the agent personality and clear direction.
 
 ## Stage 2: Compile to Secure Workflows
 
@@ -176,66 +133,13 @@ The `gh aw compile` command transforms natural language workflows into GitHub Ac
 
 ### What Compilation Does
 
-**1. Schema Validation**
+Compilation performs five key operations:
 
-Ensures frontmatter conforms to GitHub Agentic Workflows schema:
-
-- Valid trigger syntax
-- Recognized permissions
-- Known tool configurations
-- Correct safe output templates
-
-**2. Security Validation**
-
-Enforces security policies:
-
-- Permissions don't exceed requirements
-- Tools are explicitly listed (no wildcards in strict mode)
-- Network access is constrained
-- Safe outputs have appropriate limits
-
-**3. Import Resolution**
-
-Loads and merges imported components:
-
-- Fetch shared component files
-- Merge tool configurations
-- Combine prompt instructions
-- Resolve version pins
-
-**4. Job Generation**
-
-Creates GitHub Actions jobs:
-
-**Setup Job**: Prepares environment
-
-- Installs required tools
-- Configures MCP servers
-- Sets up network restrictions
-- Prepares safe output infrastructure
-
-**Agent Job**: Runs AI agent
-
-- Provides access to tools
-- Executes prompt against AI engine
-- Captures outputs
-- Handles errors gracefully
-
-**Safe Output Jobs**: Applies changes
-
-- Processes safe output requests
-- Validates against templates
-- Applies guardrails (max_items, etc.)
-- Creates issues/PRs/comments
-
-**5. Lock File Generation**
-
-Produces a `.lock.yml` file:
-
-- Contains complete GitHub Actions workflow
-- Includes security validations
-- Embeds prompt and configuration
-- Ready for deployment
+1. **Schema Validation** - Ensures frontmatter conforms to valid trigger syntax, permissions, tool configurations, and safe output templates
+2. **Security Validation** - Enforces that permissions don't exceed requirements, tools are explicitly listed, network access is constrained, and safe outputs have appropriate limits
+3. **Import Resolution** - Loads and merges shared component files, tool configurations, prompt instructions, and version pins
+4. **Job Generation** - Creates Setup (environment prep), Agent (AI execution), and Safe Output (writes) jobs
+5. **Lock File Generation** - Produces a complete, validated `.lock.yml` file ready for deployment
 
 ### Example Compilation
 
@@ -243,15 +147,7 @@ Produces a `.lock.yml` file:
 
 **Output: `ci-doctor.lock.yml`** (300 lines of validated YAML)
 
-The lock file includes:
-
-- All environment setup
-- Tool installations
-- Security controls
-- Agent execution logic
-- Safe output processing
-- Error handling
-- Cleanup steps
+The lock file includes environment setup, tool installations, security controls, agent execution logic, safe output processing, error handling, and cleanup steps.
 
 ## Stage 3: Run and Produce Artifacts
 
@@ -285,35 +181,11 @@ Workflow Triggered
 
 ### Agent Execution Environment
 
-The agent runs in a sandboxed environment with:
-
-**Tools Available:**
-
-- GitHub API (via MCP toolsets)
-- Bash commands (allowlisted)
-- File system access (repository only)
-- MCP servers (as configured)
-
-**Context Provided:**
-
-- Trigger event details
-- Repository state
-- Recent issues/PRs
-- Relevant files
-- Previous workflow runs
-
-**Constraints Applied:**
-
-- Network allowlist enforced
-- Tool restrictions active
-- Permission boundaries set
-- Safe output templates ready
+The agent runs in a sandboxed environment with access to GitHub API (via MCP), allowlisted bash commands, repository file system, and configured MCP servers. Context includes trigger event details, repository state, recent issues/PRs, relevant files, and previous workflow runs. Constraints enforce network allowlists, tool restrictions, permission boundaries, and safe output templates.
 
 ### Output Types
 
-Agents produce several types of outputs:
-
-**1. Issues**
+Agents produce issues, pull requests, comments, discussions, and artifacts (charts, data files, reports) through safe output templates:
 
 ```yaml
 safe_outputs:
@@ -321,164 +193,28 @@ safe_outputs:
     title: "CI failure in test suite"
     body: "Detailed analysis..."
     labels: ["ci", "automated"]
-```
-
-**2. Pull Requests**
-
-```yaml
-safe_outputs:
   create_pull_request:
     title: "Fix dependency vulnerability"
     body: "Updates package X..."
     branch: "agent/fix-vuln-123"
 ```
 
-**3. Comments**
-
-```yaml
-safe_outputs:
-  add_comment:
-    issue_number: 42
-    body: "Analysis complete..."
-```
-
-**4. Discussions**
-
-```yaml
-safe_outputs:
-  create_discussion:
-    title: "Weekly Metrics Report"
-    body: "## Report\n..."
-    category: "Reports"
-```
-
-**5. Artifacts**
-
-- Charts and visualizations
-- Data files (CSV, JSON)
-- Reports (PDF, HTML)
-- Logs and debug info
-
 ### Auditable Artifacts
 
-Every agent action creates a permanent record:
-
-**Workflow Runs**: Full execution logs
-
-- Start/end times
-- Tool invocations
-- API calls made
-- Errors encountered
-
-**Issues/PRs/Comments**: Timestamped, attributed
-
-- Who triggered (user or schedule)
-- What workflow ran
-- When it executed
-- What it created
-
-**Discussions**: Permanent, searchable
-
-- Historical reports
-- Trend analysis
-- Team knowledge base
-
-**Artifacts**: Versioned, downloadable
-
-- Charts and data files
-- Debug logs
-- Intermediate results
+Every agent action creates a permanent record. Workflow runs include full execution logs with start/end times, tool invocations, API calls, and errors. Issues, PRs, and comments are timestamped and attributed, showing who triggered the workflow, when it executed, and what it created. Discussions provide searchable historical reports, and artifacts offer versioned, downloadable charts, data files, and debug logs.
 
 ## The AI Engine Interface
 
-Workflows can use different AI engines:
-
-### Copilot Engine (Default)
+Workflows support multiple AI engines. **Copilot** (default) provides code-aware context and GitHub API integration with usage tracked in your subscription. **Claude** offers long context windows and strong reasoning via ANTHROPIC_API_KEY. **Codex** provides enterprise integration with Azure OpenAI. **Custom** engines let you bring your own AI provider with full control over the stack.
 
 ```yaml
-engine: copilot
-model: claude-sonnet-4  # or other models
-```
-
-GitHub Copilot provides:
-
-- Code-aware context
-- GitHub API integration
-- Secure execution environment
-- Usage tracked in Copilot subscription
-
-### Claude Engine
-
-```yaml
-engine: claude
+engine: copilot  # or claude, codex, custom
 model: claude-sonnet-4
 ```
 
-Anthropic Claude (via API key) provides:
-
-- Long context windows
-- Strong reasoning
-- Detailed analysis
-- Requires ANTHROPIC_API_KEY secret
-
-### Codex Engine
-
-```yaml
-engine: codex
-```
-
-Azure OpenAI Codex provides:
-
-- Enterprise integration
-- Fine-tuned models
-- Compliance features
-- Requires Azure credentials
-
-### Custom Engine
-
-```yaml
-engine: custom
-endpoint: "https://my-ai.example.com"
-```
-
-Bring your own AI provider:
-
-- Custom endpoints
-- Proprietary models
-- Specialized fine-tuning
-- Full control over AI stack
-
 ## Tool Architecture: MCP Servers
 
-Model Context Protocol (MCP) servers provide specialized capabilities:
-
-### How MCP Works
-
-```
-Agent ─────> MCP Gateway ─────> MCP Servers
-                                 ├─► GitHub API
-                                 ├─► Bash commands
-                                 ├─► Serena (code analysis)
-                                 ├─► Tavily (web search)
-                                 └─► Custom tools
-```
-
-### MCP Server Types
-
-**Built-in Servers:**
-
-- `github` - GitHub API operations
-- `bash` - Shell command execution
-- `filesystem` - File operations
-
-**External Servers:**
-
-- `serena` - Semantic code analysis
-- `tavily` - Web search
-- `markitdown` - Document conversion
-- `ast-grep` - Structural code search
-
-### MCP Configuration
+Model Context Protocol (MCP) servers provide specialized capabilities through a gateway. Built-in servers include `github` (API operations), `bash` (shell commands), and `filesystem` (file operations). External servers like `serena` (code analysis), `tavily` (web search), and `ast-grep` (structural search) extend functionality.
 
 ```yaml
 tools:
@@ -493,83 +229,11 @@ tools:
 
 ## Error Handling and Debugging
 
-When workflows fail, several debugging mechanisms help:
-
-### Workflow Logs
-
-Every run produces detailed logs:
-
-- Job-level logs (setup, agent, outputs)
-- Step-level logs (individual actions)
-- Tool invocation logs (what tools were called)
-- Error messages (when things fail)
-
-### Safe Output Validation Errors
-
-If safe output validation fails:
-
-- Clear error messages explain why
-- Template requirements highlighted
-- Example corrections provided
-- Workflow continues (fail gracefully)
-
-### MCP Server Diagnostics
-
-The [`mcp-inspector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mcp-inspector.md) workflow validates:
-
-- Server availability
-- Authentication status
-- Network connectivity
-- Configuration correctness
-
-### Meta-Agent Monitoring
-
-The [`audit-workflows`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md) agent:
-
-- Tracks all workflow runs
-- Classifies failures
-- Identifies patterns
-- Creates issues for persistent problems
+When workflows fail, detailed logs capture job, step, tool invocation, and error information. Safe output validation provides clear error messages and example corrections while allowing workflows to fail gracefully. The [`mcp-inspector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/mcp-inspector.md) workflow validates server availability and configuration. The [`audit-workflows`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/audit-workflows.md) agent tracks runs, classifies failures, and creates issues for persistent problems.
 
 ## Performance Considerations
 
-### Execution Time
-
-Typical workflow execution:
-
-- Setup: 30-60 seconds
-- Agent execution: 1-5 minutes
-- Safe outputs: 10-30 seconds
-- **Total**: 2-6 minutes per run
-
-### Cost Factors
-
-Workflow costs include:
-
-- GitHub Actions compute (free tier or paid)
-- AI engine API calls (per-token pricing)
-- MCP server usage (varies by provider)
-- Storage (for artifacts)
-
-### Optimization Strategies
-
-**Reduce API calls:**
-
-- Cache repeated queries
-- Batch operations
-- Use repo-memory for persistence
-
-**Optimize prompts:**
-
-- Be concise but complete
-- Avoid redundant context
-- Use imports for shared logic
-
-**Limit tool scope:**
-
-- Request only needed permissions
-- Use specific GitHub API toolsets
-- Constrain bash commands
+Typical workflows run in 2-6 minutes (30-60s setup, 1-5m agent execution, 10-30s safe outputs). Costs include GitHub Actions compute, AI engine API calls, MCP server usage, and artifact storage. Optimize by caching queries, batching operations, using concise prompts, and requesting only needed permissions.
 
 ## What's Next?
 
