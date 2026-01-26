@@ -25,15 +25,10 @@
       "version": "v5.0.2",
       "sha": "8b402f58fbc84540c8b491a91e594a4576fec3d7"
     },
-    "actions/checkout@v5.0.1": {
+    "actions/checkout@v5": {
       "repo": "actions/checkout",
-      "version": "v5.0.1",
+      "version": "v5",
       "sha": "93cb6efe18208431cddfb8368fd83d5badbf9bfd"
-    },
-    "actions/checkout@v6": {
-      "repo": "actions/checkout",
-      "version": "v6",
-      "sha": "8e8c483db84b4bee98b60c0593521ed34d9990e8"
     },
     "actions/checkout@v6.0.2": {
       "repo": "actions/checkout",
