@@ -46,11 +46,6 @@ gh aw init --engine copilot
 - Creates MCP server configuration in `.vscode/mcp.json`
 - Creates `.github/workflows/copilot-setup-steps.yml` with setup instructions
 
-**Alternative**: If you want to skip MCP server configuration:
-```bash
-gh aw init --engine copilot --no-mcp
-```
-
 **Note**: The command may prompt for additional configuration or secrets. If secrets are needed, `gh aw init` will provide instructions for setting them up. You don't need to configure secrets as part of this initial setup.
 
 ## Step 3: Review Changes
@@ -77,16 +72,6 @@ Commit the initialization changes:
 git add .
 git commit -m "Initialize repository for GitHub Agentic Workflows"
 git push
-```
-
-**Alternative**: Use the `--push` flag to automate this step:
-```bash
-gh aw init --engine copilot --push
-```
-
-Or create a pull request instead:
-```bash
-gh aw init --engine copilot --create-pull-request
 ```
 
 ## Troubleshooting
