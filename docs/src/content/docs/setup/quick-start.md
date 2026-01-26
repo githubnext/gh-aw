@@ -5,18 +5,31 @@ sidebar:
   order: 1
 ---
 
-> [!WARNING]
-> Using agentic workflows means giving AI agents the ability to make decisions and take actions in your repository. This requires careful attention to security considerations and human supervision.
-> Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
-
-> [!TIP]
-> **New to agentic workflows?**
->
-> This guide uses terminology like "frontmatter", "MCP", "compilation", and "lock files" throughout. If you encounter unfamiliar terms, see the [**Key Concepts Glossary**](/gh-aw/reference/glossary/) for clear definitions of all core concepts.
-
 ## Adding a Daily Status Workflow to Your Repo
 
-This is a happy path guide to get you started with automated daily team status reports in an existing GitHub repository you have admin or write access to. If you stumble on one of these steps, go to the [Prerequisites](#prerequisites) section for setup instructions.
+In this guide you will add the automated [**Daily Status Report**](https://github.com/githubnext/agentics/blob/main/workflows/daily-team-status.md?plain=1) to an existing GitHub repository where you are a maintainer.
+
+Remember the aim here is _automated AI_: to install something that will run _automatically_ every day, in the context of your repository, and create a fresh status report discussion in your repository without any further manual intervention.
+
+## Prerequisites
+
+Before installing, ensure you have:
+
+- ✅ **AI Account:** A GitHub Copilot, Anthropic Claude or OpenAI Codex subscription
+- ✅ **GitHub Repository** you are a maintainer on
+- ✅ **[GitHub Actions](https://docs.github.com/actions)** enabled in your repository
+- ✅ **[GitHub Discussions](https://docs.github.com/discussions)** enabled in your repository
+- ✅ **GitHub CLI** (`gh`) - A command-line tool for GitHub operations. [Install here](https://cli.github.com) v2.0.0+ and authenticate with `gh auth login`
+- ✅ **Git** installed on your machine
+- ✅ **Operating System:** Linux, macOS, or Windows with WSL
+
+**Verify your setup:**
+
+```bash
+gh --version      # Should show version 2.0.0 or higher
+gh auth status    # Should show "Logged in to github.com"
+git --version     # Should show git version 2.x or higher
+```
 
 ### Step 1 — Install the extension
 
@@ -29,42 +42,47 @@ gh extension install githubnext/gh-aw
 > [!TIP]
 > Working in GitHub Codespaces?
 >
-> If you're working in a GitHub Codespace, the extension installation *may* fail due to restricted permissions that prevent global npm installs. Use the standalone installer instead:
+> If you're working in a GitHub Codespace, use the standalone installer instead:
 >
 > ```bash wrap
 > curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
 > ```
->
 
-### Step 2 — Initialize your repository
+### Step 2 — Initialize Agentic Workflows support in your repository
 
-Initialize your repository to configure custom agents and [MCP](/gh-aw/reference/glossary/#mcp-model-context-protocol) server:
+Initialize agentic workflows in your repository, to configure optional additional supporting files and settings:
 
 ```bash wrap
 gh aw init --push
 ```
 
-This command installs agents and tools for GitHub Copilot and automatically commits and pushes the changes to your repository.
+This command installs tools and automatically commits and pushes the changes to your repository.
+
+> [!TIP]
+>
+> If you have branch protection rules enabled, replace `--push` with `--create-pull-request`, then review and merge the pull request.
 
 ### Step 3 — Add a sample workflow
 
 Add a sample from the [agentics](https://github.com/githubnext/agentics) collection. From your repository root run:
 
 ```bash wrap
-gh aw add githubnext/agentics/daily-team-status --create-pull-request
+gh aw add githubnext/agentics/daily-team-status --push
 ```
 
-This creates a pull request that adds `.github/workflows/daily-team-status.md` and the [compiled](/gh-aw/reference/glossary/#compilation) (translated from markdown to GitHub Actions YAML) `.lock.yml` (the generated GitHub Actions workflow file). 
-   - Review and merge the PR into your repo.
-   - Pull the changes into your (local) repo.
+This adds `.github/workflows/daily-team-status.md` and `.github/workflows/daily-team-status.lock.yml` to your repository.  The second file is the [compiled](/gh-aw/reference/glossary/#compilation) GitHub Actions workflow file corresponding to the agentic workflow.
 
-### Step 4 — Add an AI secret
+> [!TIP]
+>
+> If you have branch protection rules enabled, replace `--push` with `--create-pull-request`, then review and merge the pull request.
 
-[Agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) (AI-powered workflows) need to authenticate with an AI service to execute your natural language instructions. By default, they use **GitHub Copilot** as the coding agent (the AI system that executes your instructions).
+### Step 4 — Add an AI secret (Copilot Users)
 
-To allow your workflows to use Copilot, you'll create a token and add it as a repository secret.
+[Agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) need to authenticate with an AI service to execute. By default, they use **GitHub Copilot** as the AI service, but you can also use **Anthropic Claude** or **OpenAI Codex**.
 
-#### Create a Personal Access Token (PAT)
+The instructions below assume you have an active [GitHub Copilot subscription](https://github.com/settings/copilot). Claude/Codex Users see [AI Engines](/gh-aw/reference/engines/).
+
+#### Copilot Users: Create a Personal Access Token (PAT)
 
 Create a [Personal Access Token](/gh-aw/reference/glossary/#personal-access-token-pat) to authenticate your workflows with GitHub Copilot:
 
@@ -82,7 +100,7 @@ Create a [Personal Access Token](/gh-aw/reference/glossary/#personal-access-toke
 > [!TIP]
 > Can't find Copilot Requests permission?
 >
-> Requires an active [GitHub Copilot subscription](https://github.com/settings/copilot), a fine-grained token (not classic), personal account as Resource owner, and "Public repositories" or "All repositories" selected. Contact your GitHub administrator if Copilot is managed by your organization.
+> This requires an active [GitHub Copilot subscription](https://github.com/settings/copilot), a fine-grained token (not classic), personal account as Resource owner, and "Public repositories" or "All repositories" selected. Contact your GitHub administrator if Copilot is managed by your organization.
 >
 
 #### Add the token to your repository
@@ -119,8 +137,7 @@ This confirms the workflow is compiled, enabled, and scheduled correctly.
 > [!TIP]
 > Troubleshooting
 >
-> If the workflow isn't listed, run `gh aw compile` and verify `.github/workflows/daily-team-status.md` exists. If errors occur when running, verify the `COPILOT_GITHUB_TOKEN` secret is set with "Copilot Requests" permission and hasn't expired. Run `gh aw secrets bootstrap --engine copilot` to check configuration.
->
+> If the workflow isn't listed, run `gh aw compile` and verify `.github/workflows/daily-team-status.md` exists, and add and push it to your repo. If errors occur when running, verify the `COPILOT_GITHUB_TOKEN` secret is set with "Copilot Requests" permission and hasn't expired. Run `gh aw secrets bootstrap --engine copilot` to check configuration.
 
 ### Step 5 — Trigger a workflow run
 
@@ -138,130 +155,8 @@ gh aw status
 
 Once complete, a new issue will be created in your repository with a daily team status report! The report will be automatically generated by the AI based on recent activity in your repository, including issues, PRs, discussions, releases, and code changes.
 
-## Prerequisites
-
-Before installing, ensure you have:
-
-- ✅ **GitHub CLI** (`gh`) - A command-line tool for GitHub operations. [Install here](https://cli.github.com) v2.0.0+ and authenticate with `gh auth login`
-- ✅ **GitHub account** with admin or write access to a repository
-- ✅ **[GitHub Actions](https://docs.github.com/en/actions)** (GitHub's automation platform) enabled in your repository
-- ✅ **Git** installed on your machine
-- ✅ **Operating System:** Linux, macOS, or Windows with WSL
-
-**Verify your setup:**
-
-```bash
-gh --version      # Should show version 2.0.0 or higher
-gh auth status    # Should show "Logged in to github.com"
-git --version     # Should show git version 2.x or higher
-```
-
-## How Agentic Workflows Work
-
-Before installing anything, it helps to understand the workflow lifecycle:
-
-```text
-1. You write       2. Compile           3. GitHub Actions runs
-   .md file    →    gh aw compile   →    .lock.yml file
-   (natural         (translates to        (GitHub Actions
-   language)        GitHub Actions)       executes)
-```
-
-**Why two files?**
-
-- **`.md` file**: Human-friendly markdown with natural language instructions and simple YAML [frontmatter](/gh-aw/reference/glossary/#frontmatter) (configuration at the top between `---` markers). This is what you write and edit.
-- **[`.lock.yml` file](/gh-aw/reference/glossary/#workflow-lock-file-lockyml)**: Machine-ready GitHub Actions YAML with security hardening applied. This is what GitHub Actions runs.
-- **[Compilation](/gh-aw/reference/glossary/#compilation)**: The `gh aw compile` command translates your markdown into validated, secure GitHub Actions YAML.
-
-Think of it like writing code in a high-level language (Python, JavaScript) that gets compiled to machine code. You write natural language, GitHub runs the compiled workflow.
-
-> [!CAUTION]
-> Important
-> **Never edit [`.lock.yml` files](/gh-aw/reference/glossary/#workflow-lock-file-lockyml) directly.** These are auto-generated. Always edit the `.md` file and recompile with `gh aw compile`.
-
-## Understanding Your First Workflow
-
-The daily team status workflow creates a status report daily and posts it as an issue. The workflow file has two parts:
-
-- **[Frontmatter](/gh-aw/reference/glossary/#frontmatter)** (YAML configuration section between `---` markers) — Configures when the workflow runs and what it can do
-- **Markdown instructions** — Natural language task descriptions for the AI
-
-```aw wrap
----
-on:
-  schedule: daily
-  workflow_dispatch:
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
-network: defaults
-tools:
-  github:
-safe-outputs:
-  create-issue:
-    title-prefix: "[team-status] "
-    labels: [report, daily-status]
-    close-older-issues: true
----
-
-# Daily Team Status
-
-Create an upbeat daily status report for the team as a GitHub issue.
-
-## What to include
-
-- Recent repository activity (issues, PRs, discussions, releases, code changes)
-- Team productivity suggestions and improvement ideas
-- Community engagement highlights
-- Project investment and feature recommendations
-
-## Style
-
-- Be positive, encouraging, and helpful 🌟
-- Use emojis moderately for engagement
-- Keep it concise - adjust length based on actual activity
-
-## Process
-
-1. Gather recent activity from the repository
-2. Create a new GitHub issue with your findings and insights
-```
-
-**Key configuration elements:**
-
-- **[`schedule: daily`](/gh-aw/reference/schedule-syntax/)** — Runs once per day at a randomized time to distribute load
-- **[`tools:`](/gh-aw/reference/tools/)** — Capabilities the AI can use (like GitHub API access)
-- **[`safe-outputs:`](/gh-aw/reference/safe-outputs/)** (pre-approved GitHub operations) — Allows creating issues without giving the AI write permissions
-
-## Customize Your Workflow
-
-Edit the `.md` file and recompile with `gh aw compile`. For AI-assisted customization, you can use the custom agents installed by `gh aw init`.
-
-### Using VS Code with GitHub Copilot
-
-In VS Code with GitHub Copilot Chat, use the `/agent` command to access the `agentic-workflows` agent and specify your intent:
-
-```
-/agent agentic-workflows
-> update add more details to @.github/workflows/daily-team-status.md
-```
-
-### Using Interactive Copilot CLI
-
-To use the interactive Copilot CLI session with custom agents:
-
-```bash wrap
-npm install -g @github/copilot-cli
-copilot
-```
-
-Then in the interactive Copilot session, use the `/agent` command with your intent:
-```
-/agent agentic-workflows
-> update edit @.github/workflows/daily-team-status.md to include more metrics
-```
+You have successfully installed your first automated agentic workflow into your repository.
 
 ## What's next?
 
-Use [Authoring Agentic Workflows](/gh-aw/setup/agentic-authoring/) to create workflows with AI assistance, explore more samples in the [agentics](https://github.com/githubnext/agentics) repository, and learn about workflow management in [Packaging & Distribution](/gh-aw/guides/packaging-imports/). To understand how agentic workflows work, read [How They Work](/gh-aw/introduction/how-they-work/).
+Next up is [Authoring Agentic Workflows](/gh-aw/setup/agentic-authoring/) where you will learn how to create automated workflows with AI assistance. You can also explore the samples in [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/). To understand how agentic workflows work, read [How They Work](/gh-aw/introduction/how-they-work/).
