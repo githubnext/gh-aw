@@ -13,6 +13,13 @@ import (
 
 var expressionExtractionLog = logger.New("workflow:expression_extraction")
 
+// Pre-compiled regexes for performance (avoid recompilation in hot paths)
+var (
+	// expressionExtractionRegex matches GitHub Actions expressions: ${{ ... }}
+	// Uses (?s) flag for dotall mode, non-greedy matching
+	expressionExtractionRegex = regexp.MustCompile(`\$\{\{(.*?)\}\}`)
+)
+
 // ExpressionMapping represents a mapping between a GitHub expression and its environment variable
 type ExpressionMapping struct {
 	Original string // The original ${{ ... }} expression
@@ -40,11 +47,8 @@ func NewExpressionExtractor() *ExpressionExtractor {
 func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*ExpressionMapping, error) {
 	expressionExtractionLog.Printf("Extracting expressions from markdown: content_length=%d", len(markdown))
 
-	// Regular expression to match GitHub Actions expressions: ${{ ... }}
-	// Use (?s) flag for dotall mode, non-greedy matching
-	expressionRegex := regexp.MustCompile(`\$\{\{(.*?)\}\}`)
-
-	matches := expressionRegex.FindAllStringSubmatch(markdown, -1)
+	// Use pre-compiled regex from package level for performance
+	matches := expressionExtractionRegex.FindAllStringSubmatch(markdown, -1)
 	expressionExtractionLog.Printf("Found %d expression matches", len(matches))
 
 	for _, match := range matches {

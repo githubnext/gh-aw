@@ -17,6 +17,12 @@ import (
 
 var compilerJobsLog = logger.New("workflow:compiler_jobs")
 
+// Pre-compiled regexes for performance (avoid recompilation in hot paths)
+var (
+	// runtimeImportMacroRe matches runtime-import macros: {{#runtime-import filepath}} or {{#runtime-import? filepath}}
+	runtimeImportMacroRe = regexp.MustCompile(`\{\{#runtime-import\??[ \t]+([^\}]+)\}\}`)
+)
+
 // This file contains job building functions extracted from compiler.go
 // These functions are responsible for constructing the various jobs that make up
 // a compiled agentic workflow, including activation, main, safe outputs, and custom jobs.
@@ -449,11 +455,8 @@ func containsRuntimeImports(markdownContent string) bool {
 		return false
 	}
 
-	// Pattern: {{#runtime-import filepath}} or {{#runtime-import? filepath}}
-	// Match any runtime-import macro
-	macroPattern := `\{\{#runtime-import\??[ \t]+([^\}]+)\}\}`
-	macroRe := regexp.MustCompile(macroPattern)
-	matches := macroRe.FindAllStringSubmatch(markdownContent, -1)
+	// Use pre-compiled regex from package level for performance
+	matches := runtimeImportMacroRe.FindAllStringSubmatch(markdownContent, -1)
 	for _, match := range matches {
 		if len(match) > 1 {
 			filepath := strings.TrimSpace(match[1])

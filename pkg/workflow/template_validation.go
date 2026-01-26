@@ -39,16 +39,19 @@ import (
 
 var templateValidationLog = logger.New("workflow:template_validation")
 
+// Pre-compiled regexes for performance (avoid recompilation in hot paths)
+var (
+	// templateRegionPattern matches template conditional blocks with their content
+	// Uses (?s) for dotall mode, .*? (non-greedy) with \s* to handle expressions with or without trailing spaces
+	templateRegionPattern = regexp.MustCompile(`(?s)\{\{#if\s+.*?\s*\}\}(.*?)\{\{/if\}\}`)
+)
+
 // validateNoIncludesInTemplateRegions checks that import directives
 // are not used inside template conditional blocks ({{#if...}}{{/if}})
 func validateNoIncludesInTemplateRegions(markdown string) error {
 	templateValidationLog.Print("Validating that imports are not inside template regions")
 
-	// Find all template regions by matching {{#if...}}...{{/if}} blocks
-	// This regex matches template conditional blocks with their content
-	// Uses .*? (non-greedy) with \s* to handle expressions with or without trailing spaces
-	templateRegionPattern := regexp.MustCompile(`(?s)\{\{#if\s+.*?\s*\}\}(.*?)\{\{/if\}\}`)
-
+	// Use pre-compiled regex from package level for performance
 	matches := templateRegionPattern.FindAllStringSubmatch(markdown, -1)
 	templateValidationLog.Printf("Found %d template regions to validate", len(matches))
 
