@@ -85,6 +85,31 @@ func TestNewInitCommand(t *testing.T) {
 	if codespaceFlag.NoOptDefVal != " " {
 		t.Errorf("Expected codespaces flag NoOptDefVal to be ' ' (space), got %q", codespaceFlag.NoOptDefVal)
 	}
+
+	// Check push flag
+	pushFlag := cmd.Flags().Lookup("push")
+	if pushFlag == nil {
+		t.Error("Expected 'push' flag to be defined")
+		return
+	}
+
+	// Check create-pull-request flags
+	createPRFlag := cmd.Flags().Lookup("create-pull-request")
+	if createPRFlag == nil {
+		t.Error("Expected 'create-pull-request' flag to be defined")
+		return
+	}
+
+	prFlag := cmd.Flags().Lookup("pr")
+	if prFlag == nil {
+		t.Error("Expected 'pr' flag to be defined (alias)")
+		return
+	}
+
+	// Verify --pr flag is hidden
+	if !prFlag.Hidden {
+		t.Error("Expected 'pr' flag to be hidden")
+	}
 }
 
 func TestInitCommandHelp(t *testing.T) {

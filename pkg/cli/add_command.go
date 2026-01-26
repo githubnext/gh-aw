@@ -32,6 +32,7 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/workflows/ci-doctor.md@main
   ` + string(constants.CLIExtensionPrefix) + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --create-pull-request --force
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --push         # Add and push changes
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/*
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/*@v1.0.0
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --dir shared   # Add to .github/workflows/shared/
@@ -47,6 +48,7 @@ Workflow specifications:
 The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
 The --dir flag allows you to specify a subdirectory under .github/workflows/ where the workflow will be added.
 The --create-pull-request flag (or --pr) automatically creates a pull request with the workflow changes.
+The --push flag automatically commits and pushes changes after successful workflow addition.
 The --force flag overwrites existing workflow files.
 
 Note: To create a new workflow from scratch, use the 'new' command instead.`,
@@ -59,6 +61,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			prFlag := createPRFlag || prFlagAlias // Support both --create-pull-request and --pr
+			pushFlag, _ := cmd.Flags().GetBool("push")
 			forceFlag, _ := cmd.Flags().GetBool("force")
 			appendText, _ := cmd.Flags().GetString("append")
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -73,9 +76,9 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 
 			// Handle normal mode
 			if prFlag {
-				return AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, true, noGitattributes, workflowDir, noStopAfter, stopAfter)
+				return AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, true, pushFlag, noGitattributes, workflowDir, noStopAfter, stopAfter)
 			} else {
-				return AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, false, noGitattributes, workflowDir, noStopAfter, stopAfter)
+				return AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, false, pushFlag, noGitattributes, workflowDir, noStopAfter, stopAfter)
 			}
 		},
 	}
@@ -96,6 +99,9 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the workflow changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
+
+	// Add push flag to add command
+	cmd.Flags().Bool("push", false, "Automatically commit and push changes after successful workflow addition")
 
 	// Add force flag to add command
 	cmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")
@@ -124,8 +130,8 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 
 // AddWorkflows adds one or more workflows from components to .github/workflows
 // with optional repository installation and PR creation
-func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, name string, force bool, appendText string, createPR bool, noGitattributes bool, workflowDir string, noStopAfter bool, stopAfter string) error {
-	addLog.Printf("Adding workflows: count=%d, engineOverride=%s, createPR=%v, noGitattributes=%v, workflowDir=%s, noStopAfter=%v, stopAfter=%s", len(workflows), engineOverride, createPR, noGitattributes, workflowDir, noStopAfter, stopAfter)
+func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, name string, force bool, appendText string, createPR bool, push bool, noGitattributes bool, workflowDir string, noStopAfter bool, stopAfter string) error {
+	addLog.Printf("Adding workflows: count=%d, engineOverride=%s, createPR=%v, push=%v, noGitattributes=%v, workflowDir=%s, noStopAfter=%v, stopAfter=%s", len(workflows), engineOverride, createPR, push, noGitattributes, workflowDir, noStopAfter, stopAfter)
 
 	if len(workflows) == 0 {
 		return fmt.Errorf("at least one workflow name is required")
@@ -143,21 +149,27 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 		return handleRepoOnlySpec(workflows[0], verbose)
 	}
 
-	// If creating a PR, check prerequisites
-	if createPR {
-		// Check if GitHub CLI is available
-		if !isGHCLIAvailable() {
-			return fmt.Errorf("GitHub CLI (gh) is required for PR creation but not available")
-		}
-
+	// If creating a PR or pushing, check prerequisites
+	if createPR || push {
 		// Check if we're in a git repository
 		if !isGitRepo() {
-			return fmt.Errorf("not in a git repository - PR creation requires a git repository")
+			if createPR {
+				return fmt.Errorf("not in a git repository - PR creation requires a git repository")
+			}
+			return fmt.Errorf("not in a git repository - push requires a git repository")
 		}
 
 		// Check no other changes are present
 		if err := checkCleanWorkingDirectory(verbose); err != nil {
-			return fmt.Errorf("working directory is not clean: %w", err)
+			if createPR {
+				return fmt.Errorf("working directory is not clean: %w", err)
+			}
+			return fmt.Errorf("--push requires a clean working directory: %w", err)
+		}
+
+		// Check if GitHub CLI is available (only for PR)
+		if createPR && !isGHCLIAvailable() {
+			return fmt.Errorf("GitHub CLI (gh) is required for PR creation but not available")
 		}
 	}
 
@@ -243,7 +255,7 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 
 	// Handle normal workflow addition
 	addLog.Print("Adding workflows normally without PR")
-	return addWorkflowsNormal(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, hasWildcard, workflowDir, noStopAfter, stopAfter)
+	return addWorkflowsNormal(processedWorkflows, number, verbose, engineOverride, name, force, appendText, push, noGitattributes, hasWildcard, workflowDir, noStopAfter, stopAfter)
 }
 
 // handleRepoOnlySpec handles the case when user provides only owner/repo without workflow name
@@ -398,7 +410,7 @@ func displayAvailableWorkflows(repoSlug, version string, verbose bool) error {
 }
 
 // addWorkflowsNormal handles normal workflow addition without PR creation
-func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool, fromWildcard bool, workflowDir string, noStopAfter bool, stopAfter string) error {
+func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, push bool, noGitattributes bool, fromWildcard bool, workflowDir string, noStopAfter bool, stopAfter string) error {
 	// Create file tracker for all operations
 	tracker, err := NewFileTracker()
 	if err != nil {
@@ -446,6 +458,55 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 
 	if len(workflows) > 1 {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully added all %d workflows", len(workflows))))
+	}
+
+	// If --push is enabled, commit and push changes
+	if push {
+		addLog.Print("Push enabled - preparing to commit and push changes")
+		fmt.Fprintln(os.Stderr, "")
+
+		// Check if we're on the default branch
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking current branch..."))
+		if err := checkOnDefaultBranch(verbose); err != nil {
+			addLog.Printf("Default branch check failed: %v", err)
+			return fmt.Errorf("cannot push: %w", err)
+		}
+
+		// Confirm with user (skip in CI)
+		if err := confirmPushOperation(verbose); err != nil {
+			addLog.Printf("Push operation not confirmed: %v", err)
+			return fmt.Errorf("push operation cancelled: %w", err)
+		}
+
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Preparing to commit and push changes..."))
+
+		// Create commit message
+		commitMessage := "chore: add agentic workflows"
+		if len(workflows) == 1 {
+			commitMessage = fmt.Sprintf("chore: add workflow %s", workflows[0].WorkflowName)
+		} else {
+			commitMessage = fmt.Sprintf("chore: add %d workflows", len(workflows))
+		}
+
+		// Use the helper function to orchestrate the full workflow
+		if err := commitAndPushChanges(commitMessage, verbose); err != nil {
+			// Check if it's the "no changes" case
+			hasChanges, checkErr := hasChangesToCommit()
+			if checkErr == nil && !hasChanges {
+				addLog.Print("No changes to commit")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No changes to commit"))
+			} else {
+				return err
+			}
+		} else {
+			// Print success messages based on whether remote exists
+			fmt.Fprintln(os.Stderr, "")
+			if hasRemote() {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes pushed to remote"))
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Changes committed locally (no remote configured)"))
+			}
+		}
 	}
 
 	return nil
