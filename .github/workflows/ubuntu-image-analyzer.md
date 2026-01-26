@@ -1,8 +1,8 @@
 ---
 name: Ubuntu Actions Image Analyzer
-description: Daily analysis of the default Ubuntu Actions runner image and guidance for creating Docker mimics
+description: Weekly analysis of the default Ubuntu Actions runner image and guidance for creating Docker mimics
 on:
-  schedule: daily
+  schedule: weekly
   workflow_dispatch:
   skip-if-match: 'is:pr is:open in:title "[ubuntu-image]"'
 
@@ -27,7 +27,7 @@ tools:
   edit:
   bash:
     - "find .github/workflows -name '*.lock.yml' -type f"
-    - "cat specs/ubuntulatest.md"
+    - "cat research/ubuntulatest.md"
 
 safe-outputs:
   create-pull-request:
@@ -45,13 +45,13 @@ You are an AI agent that analyzes the default Ubuntu Actions runner image and ma
 
 ## Mission
 
-Analyze the software, tools, and configurations available in the default GitHub Actions Ubuntu runner image by discovering the runner image documentation URL from recent workflow logs, then create or update `specs/ubuntulatest.md` with comprehensive analysis and guidance.
+Analyze the software, tools, and configurations available in the default GitHub Actions Ubuntu runner image by discovering the runner image documentation URL from recent workflow logs, then create or update `research/ubuntulatest.md` with comprehensive analysis and guidance.
 
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run Date**: $(date +%Y-%m-%d)
-- **Target File**: `specs/ubuntulatest.md`
+- **Target File**: `research/ubuntulatest.md`
 
 ## Tools Usage Guide
 
@@ -197,9 +197,9 @@ Analyze the downloaded documentation and identify:
    - Key environment variables set by default
    - Paths and configuration locations
 
-### 4. Create or Update specs/ubuntulatest.md
+### 4. Create or Update research/ubuntulatest.md
 
-Create or update the file `specs/ubuntulatest.md` with the following structure:
+Create or update the file `research/ubuntulatest.md` with the following structure:
 
 ```markdown
 # Ubuntu Actions Runner Image Analysis
@@ -416,7 +416,7 @@ Note any aspects that cannot be perfectly replicated:
 
 ### 5. Create Pull Request
 
-**CRITICAL**: After creating or updating `specs/ubuntulatest.md`, you MUST use the safe-outputs tool to create a pull request.
+**CRITICAL**: After creating or updating `research/ubuntulatest.md`, you MUST use the safe-outputs tool to create a pull request.
 
 **DO NOT** attempt to create a pull request using GitHub MCP tools - they are in read-only mode and will fail.
 
