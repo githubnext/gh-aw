@@ -8,6 +8,8 @@ workflows:
   - security-fix-pr
   - dependabot-bundler
   - secret-scanning-triage
+scope:
+  - githubnext/gh-aw
 governance:
   max-new-items-per-run: 3
   max-discovery-items-per-run: 100

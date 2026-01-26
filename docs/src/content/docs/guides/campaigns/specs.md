@@ -9,9 +9,9 @@ Campaign specs are YAML frontmatter configuration files at `.github/workflows/<i
 
 ## Spec structure
 
-A minimal campaign spec requires only `id`, `project-url`, and `workflows`. Most fields have sensible defaults.
+A minimal campaign spec is a `.github/workflows/<id>.campaign.md` file with YAML frontmatter plus a markdown body. Most fields have sensible defaults.
 
-```yaml
+```markdown
 ---
 id: framework-upgrade
 name: "Framework Upgrade"
@@ -53,6 +53,7 @@ Upgrade all services to Framework vNext with zero downtime.
 - Format: lowercase letters, digits, hyphens only
 - Example: `security-audit-2025`
 - Auto-generates defaults for: tracker-label, memory-paths, metrics-glob, cursor-glob
+- If omitted, defaults to the filename basename (e.g. `security-audit.campaign.md` → `security-audit`)
 
 **name** - Human-friendly display name
 - Example: `"Security Audit 2025"`
@@ -65,6 +66,8 @@ Upgrade all services to Framework vNext with zero downtime.
 **workflows** - Worker workflows that implement the campaign
 - Format: List of workflow IDs (file names without .md extension)
 - Example: `["security-scanner", "dependency-fixer"]`
+
+`workflows` is strongly recommended for most campaigns (and `gh aw campaign validate` will flag empty workflows). It can be omitted for campaigns that only do coordination/discovery work.
 
 ## Fields with defaults
 
@@ -87,25 +90,15 @@ Many fields have automatic defaults based on the campaign ID:
 **cursor-glob** - Glob for durable cursor/checkpoint file
 - Default: `memory/campaigns/{id}/cursor.json`
 
-**allowed-repos** - Repositories campaign can operate on
+**scope** - Repositories and organizations this campaign can operate on
 - Default: Current repository (where campaign is defined)
 
-**discovery-repos** - Repositories to search for worker outputs
-- Default: Same as `allowed-repos`
+Campaign scope is defined once and used for both discovery and execution:
 
-### Discovery scope (optional)
-
-Override discovery scope when operating across multiple repositories:
-
-**discovery-repos** - Specific repositories to search
-- Format: List of `owner/repo` strings
-- Example: `["myorg/api", "myorg/web"]`
-- Default: Same as `allowed-repos` (current repository)
-
-**discovery-orgs** - Organizations to search (all repos)
-- Format: List of organization names
-- Example: `["myorg"]`
-- Overrides `discovery-repos` when specified
+**scope** - Scope selectors
+- Repository selector: `owner/repo`
+- Organization selector: `org:<name>`
+- Example: `["myorg/api", "myorg/web", "org:myorg"]`
 
 ## Optional fields
 
@@ -123,13 +116,12 @@ Override discovery scope when operating across multiple repositories:
 **governance** - Pacing and safety limits
 - See [Governance fields](#governance-fields) below
 
-**allowed-orgs** - Organizations campaign can modify
-- Format: List of organization names
-- Alternative to specifying individual `allowed-repos`
+No other scope fields are needed; use `scope`.
 
-**project-github-token** - Custom token for Projects API
-- Format: Token expression like `${{ secrets.TOKEN_NAME }}`
-- Use when default `GITHUB_TOKEN` lacks Projects permissions
+Campaign orchestrators are **dispatch-only by design**:
+- The orchestrator can make decisions and coordinate work.
+- The orchestrator may only *act* by dispatching allowlisted worker workflows via `safe-outputs.dispatch-workflow`.
+- All side effects (Projects, issues/PRs, comments) happen in worker workflows with their own safe-outputs.
 
 ## Markdown body content
 
@@ -195,34 +187,14 @@ governance:
 - Default: `["no-bot", "no-campaign"]`
 
 ## Discovery configuration
-
-### Repository-scoped discovery
+Campaign discovery uses the same `scope` as execution.
 
 ```yaml
-discovery-repos:
+scope:
   - "myorg/frontend"
   - "myorg/backend"
   - "myorg/api"
-```
-
-Searches only specified repositories for issues and pull requests with tracker labels.
-
-### Organization-scoped discovery
-
-```yaml
-discovery-orgs:
-  - "myorg"
-```
-
-Searches all repositories in the organization. Use carefully - can be expensive for large organizations.
-
-### Hybrid approach
-
-```yaml
-discovery-repos:
-  - "myorg/critical-service"  # Always scan this one
-discovery-orgs:
-  - "myorg"                    # Scan all others
+  - "org:myorg"        # optional org-wide scope
 ```
 
 ## Validation
@@ -243,7 +215,7 @@ Common validation errors:
 
 The simplest possible campaign:
 
-```yaml
+```markdown
 ---
 id: security-audit-q1
 name: "Security Audit Q1 2025"
@@ -265,11 +237,11 @@ This automatically gets:
 - `memory-paths: ["memory/campaigns/security-audit-q1/**"]`
 - `metrics-glob: memory/campaigns/security-audit-q1/metrics/*.json`
 - `cursor-glob: memory/campaigns/security-audit-q1/cursor.json`
-- `allowed-repos` and `discovery-repos`: current repository
+- `scope`: current repository
 
 ## Full example
 
-With governance and multi-org scope:
+With governance and org scope:
 
 ```yaml
 ---
@@ -278,8 +250,8 @@ name: "Security Audit Q1 2025"
 description: "Quarterly security review and remediation"
 project-url: "https://github.com/orgs/myorg/projects/5"
 
-discovery-orgs:
-  - "myorg"
+scope:
+  - "org:myorg"
 
 workflows:
   - security-scanner

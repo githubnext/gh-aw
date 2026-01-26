@@ -78,7 +78,7 @@ Generates weekly security status reports:
 
 The campaign orchestrator will:
 
-1. **Discover** security issues created by worker workflows via tracker-id
+1. **Discover** security issues created by worker workflows via tracker-label
 2. **Coordinate** by adding discovered items to the project board
 3. **Track Progress** using KPIs and project board status fields
 4. **Dispatch** worker workflows as needed to maintain campaign momentum

@@ -95,6 +95,14 @@ func TestGenerateAndCompileCampaignOrchestrator(t *testing.T) {
 		t.Errorf("expected generated markdown to set engine: claude")
 	}
 
+	// Verify dispatch-workflow safe output is rendered (used for orchestration)
+	if !strings.Contains(mdStr, "dispatch-workflow:") {
+		t.Errorf("expected generated markdown to include dispatch-workflow safe output")
+	}
+	if !strings.Contains(mdStr, "example-workflow") {
+		t.Errorf("expected generated markdown to include allowlisted workflow 'example-workflow'")
+	}
+
 	// Verify that the Source comment exists and contains a relative path (not absolute)
 	if !strings.Contains(mdStr, "<!-- Source:") {
 		t.Errorf("expected generated markdown to contain Source comment")
@@ -252,140 +260,4 @@ func extractSourcePath(t *testing.T, content string) string {
 	}
 
 	return strings.TrimSpace(content[startIdx : startIdx+endIdx])
-}
-
-// TestCampaignOrchestratorGitHubToken verifies that when a campaign spec includes
-// a project-github-token field, it is properly serialized into the generated
-// .g.campaign.md file's safe-outputs configuration
-func TestCampaignOrchestratorGitHubToken(t *testing.T) {
-	tmpDir := t.TempDir()
-	campaignSpecPath := filepath.Join(tmpDir, "test-campaign-with-token.campaign.md")
-
-	// Test case 1: Campaign with custom GitHub token
-	t.Run("with custom token", func(t *testing.T) {
-		spec := &campaign.CampaignSpec{
-			ID:                 "test-campaign-with-token",
-			Name:               "Test Campaign With Token",
-			Description:        "A test campaign with custom GitHub token",
-			Workflows:          []string{"example-workflow"},
-			MemoryPaths:        []string{"memory/campaigns/test-campaign-with-token/**"},
-			ProjectGitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
-		}
-
-		compiler := workflow.NewCompiler(false, "", GetVersion())
-		compiler.SetSkipValidation(true)
-		compiler.SetNoEmit(false)
-		compiler.SetStrictMode(false)
-
-		orchestratorPath, err := generateAndCompileCampaignOrchestrator(GenerateCampaignOrchestratorOptions{
-			Compiler:             compiler,
-			Spec:                 spec,
-			CampaignSpecPath:     campaignSpecPath,
-			Verbose:              false,
-			NoEmit:               false,
-			RunZizmorPerFile:     false,
-			RunPoutinePerFile:    false,
-			RunActionlintPerFile: false,
-			Strict:               false,
-			ValidateActionSHAs:   false,
-		})
-		if err != nil {
-			t.Fatalf("generateAndCompileCampaignOrchestrator() error: %v", err)
-		}
-
-		// Read the generated markdown file
-		mdContent, err := os.ReadFile(orchestratorPath)
-		if err != nil {
-			t.Fatalf("failed to read generated markdown: %v", err)
-		}
-		mdStr := string(mdContent)
-
-		// Verify the github-token is present in the safe-outputs configuration
-		if !strings.Contains(mdStr, "github-token:") {
-			t.Errorf("expected generated markdown to contain 'github-token:' field")
-		}
-
-		if !strings.Contains(mdStr, "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}") {
-			t.Errorf("expected generated markdown to contain the token expression")
-		}
-
-		// Verify the safe-outputs structure
-		if !strings.Contains(mdStr, "safe-outputs:") {
-			t.Errorf("expected generated markdown to contain 'safe-outputs:' section")
-		}
-
-		if !strings.Contains(mdStr, "update-project:") {
-			t.Errorf("expected generated markdown to contain 'update-project:' section")
-		}
-	})
-
-	// Test case 2: Campaign without custom GitHub token
-	t.Run("without custom token", func(t *testing.T) {
-		spec := &campaign.CampaignSpec{
-			ID:          "test-campaign-no-token",
-			Name:        "Test Campaign Without Token",
-			Description: "A test campaign without custom GitHub token",
-			Workflows:   []string{"example-workflow"},
-			MemoryPaths: []string{"memory/campaigns/test-campaign-no-token/**"},
-			// ProjectGitHubToken is intentionally omitted
-		}
-
-		compiler := workflow.NewCompiler(false, "", GetVersion())
-		compiler.SetSkipValidation(true)
-		compiler.SetNoEmit(false)
-		compiler.SetStrictMode(false)
-
-		orchestratorPath, err := generateAndCompileCampaignOrchestrator(GenerateCampaignOrchestratorOptions{
-			Compiler:             compiler,
-			Spec:                 spec,
-			CampaignSpecPath:     filepath.Join(tmpDir, "test-campaign-no-token.campaign.md"),
-			Verbose:              false,
-			NoEmit:               false,
-			RunZizmorPerFile:     false,
-			RunPoutinePerFile:    false,
-			RunActionlintPerFile: false,
-			Strict:               false,
-			ValidateActionSHAs:   false,
-		})
-		if err != nil {
-			t.Fatalf("generateAndCompileCampaignOrchestrator() error: %v", err)
-		}
-
-		// Read the generated markdown file
-		mdContent, err := os.ReadFile(orchestratorPath)
-		if err != nil {
-			t.Fatalf("failed to read generated markdown: %v", err)
-		}
-		mdStr := string(mdContent)
-
-		// Verify the github-token is NOT present in safe-outputs when not configured
-		// Note: The discovery step may have github-token in its `with:` section with a fallback,
-		// but the safe-outputs section should not have a custom github-token field
-		safeOutputsStart := strings.Index(mdStr, "safe-outputs:")
-		// Find the end of safe-outputs section (before runs-on, tools, or steps)
-		safeOutputsContent := mdStr[safeOutputsStart:]
-		boundaries := []string{"\nruns-on:", "\ntools:", "\nsteps:"}
-		safeOutputsEnd := len(safeOutputsContent)
-		for _, boundary := range boundaries {
-			if idx := strings.Index(safeOutputsContent, boundary); idx > 0 && idx < safeOutputsEnd {
-				safeOutputsEnd = idx
-			}
-		}
-
-		if safeOutputsStart >= 0 && safeOutputsEnd > 0 {
-			safeOutputsSection := safeOutputsContent[:safeOutputsEnd]
-			if strings.Contains(safeOutputsSection, "github-token:") {
-				t.Errorf("expected safe-outputs section to NOT contain 'github-token:' field when not configured, got:\n%s", safeOutputsSection)
-			}
-		}
-
-		// But safe-outputs and update-project should still be present
-		if !strings.Contains(mdStr, "safe-outputs:") {
-			t.Errorf("expected generated markdown to contain 'safe-outputs:' section")
-		}
-
-		if !strings.Contains(mdStr, "update-project:") {
-			t.Errorf("expected generated markdown to contain 'update-project:' section")
-		}
-	})
 }

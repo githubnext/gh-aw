@@ -69,11 +69,9 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
       issues: read
       pull-requests: read
-      security-events: read
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
     env:
@@ -113,6 +111,7 @@ jobs:
       - env:
           GH_AW_CAMPAIGN_ID: security-alert-burndown
           GH_AW_CURSOR_PATH: ""
+          GH_AW_DISCOVERY_REPOS: githubnext/gh-aw
           GH_AW_MAX_DISCOVERY_ITEMS: "100"
           GH_AW_MAX_DISCOVERY_PAGES: "5"
           GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/134
@@ -196,71 +195,10 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":3},"create_issue":{"max":1},"create_project_status_update":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_project":{"max":10}}
+          {"dispatch_workflow":{"max":3,"workflows":["code-scanning-fixer","security-fix-pr","dependabot-bundler","secret-scanning-triage"]},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
-            {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.",
-                    "type": "string"
-                  },
-                  "labels": {
-                    "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.",
-                    "items": {
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
-                  "parent": {
-                    "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
-                  },
-                  "temporary_id": {
-                    "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.",
-                    "type": "string"
-                  },
-                  "title": {
-                    "description": "Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "title",
-                  "body"
-                ],
-                "type": "object"
-              },
-              "name": "create_issue"
-            },
-            {
-              "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. CONSTRAINTS: Maximum 3 comment(s) can be added.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "The comment text in Markdown format. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation.",
-                    "type": "string"
-                  },
-                  "item_number": {
-                    "description": "The issue, pull request, or discussion number to comment on. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123). If omitted, the tool will attempt to resolve the target from the current workflow context (triggering issue, PR, or discussion).",
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "body"
-                ],
-                "type": "object"
-              },
-              "name": "add_comment"
-            },
             {
               "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
               "inputSchema": {
@@ -304,133 +242,6 @@ jobs:
               "name": "noop"
             },
             {
-              "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number. Use campaign_id to group related items.\n\nThree usage modes:\n1. Add/update project item: Requires project + content_type. For 'issue' or 'pull_request', also requires content_number. For 'draft_issue', requires draft_title.\n2. Create project fields: Requires project + operation='create_fields' + field_definitions.\n3. Create project view: Requires project + operation='create_view' + view.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "campaign_id": {
-                    "description": "Campaign identifier to group related project items. Used to track items created by the same campaign or workflow run.",
-                    "type": "string"
-                  },
-                  "content_number": {
-                    "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456). Required when content_type is 'issue' or 'pull_request'.",
-                    "type": "number"
-                  },
-                  "content_type": {
-                    "description": "Type of item to add to the project. Use 'issue' or 'pull_request' to add existing repo content, or 'draft_issue' to create a draft item inside the project. Required when operation is not specified.",
-                    "enum": [
-                      "issue",
-                      "pull_request",
-                      "draft_issue"
-                    ],
-                    "type": "string"
-                  },
-                  "create_if_missing": {
-                    "description": "Whether to create the project if it doesn't exist. Defaults to false. Requires projects:write permission when true.",
-                    "type": "boolean"
-                  },
-                  "draft_body": {
-                    "description": "Optional body for a Projects v2 draft issue (markdown). Only used when content_type is 'draft_issue'.",
-                    "type": "string"
-                  },
-                  "draft_title": {
-                    "description": "Title for a Projects v2 draft issue. Required when content_type is 'draft_issue'.",
-                    "type": "string"
-                  },
-                  "field_definitions": {
-                    "description": "Field definitions to create when operation is create_fields. Required when operation='create_fields'.",
-                    "items": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "data_type": {
-                          "description": "Field type. Use SINGLE_SELECT with options for enumerated values.",
-                          "enum": [
-                            "TEXT",
-                            "NUMBER",
-                            "DATE",
-                            "SINGLE_SELECT",
-                            "ITERATION"
-                          ],
-                          "type": "string"
-                        },
-                        "name": {
-                          "description": "Field name to create (e.g., 'size', 'priority').",
-                          "type": "string"
-                        },
-                        "options": {
-                          "description": "Options for SINGLE_SELECT fields.",
-                          "items": {
-                            "type": "string"
-                          },
-                          "type": "array"
-                        }
-                      },
-                      "required": [
-                        "name",
-                        "data_type"
-                      ],
-                      "type": "object"
-                    },
-                    "type": "array"
-                  },
-                  "fields": {
-                    "description": "Custom field values to set on the project item (e.g., {'Status': 'In Progress', 'Priority': 'High'}). Field names must match custom fields defined in the project.",
-                    "type": "object"
-                  },
-                  "operation": {
-                    "description": "Optional operation mode. Use create_fields to create required campaign fields up-front, or create_view to add a project view. When omitted, the tool adds/updates project items.",
-                    "enum": [
-                      "create_fields",
-                      "create_view"
-                    ],
-                    "type": "string"
-                  },
-                  "project": {
-                    "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted.",
-                    "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
-                    "type": "string"
-                  },
-                  "view": {
-                    "additionalProperties": false,
-                    "description": "View definition to create when operation is create_view. Required when operation='create_view'.",
-                    "properties": {
-                      "filter": {
-                        "type": "string"
-                      },
-                      "layout": {
-                        "enum": [
-                          "table",
-                          "board",
-                          "roadmap"
-                        ],
-                        "type": "string"
-                      },
-                      "name": {
-                        "type": "string"
-                      },
-                      "visible_fields": {
-                        "description": "Field IDs to show in the view (table/board only).",
-                        "items": {
-                          "type": "number"
-                        },
-                        "type": "array"
-                      }
-                    },
-                    "required": [
-                      "name",
-                      "layout"
-                    ],
-                    "type": "object"
-                  }
-                },
-                "required": [
-                  "project"
-                ],
-                "type": "object"
-              },
-              "name": "update_project"
-            },
-            {
               "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
               "inputSchema": {
                 "additionalProperties": false,
@@ -458,139 +269,55 @@ jobs:
               "name": "missing_data"
             },
             {
-              "description": "Create a status update on a GitHub Projects v2 board to communicate project progress. Use this when you need to provide stakeholder updates with status indicators, timeline information, and progress summaries. Status updates create a historical record of project progress tracked over time. Requires project URL, status indicator, dates, and markdown body describing progress/trends/findings.",
+              "_workflow_name": "code-scanning-fixer",
+              "description": "Dispatch the 'code-scanning-fixer' workflow with workflow_dispatch trigger. This workflow must support workflow_dispatch and be in the same repository.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              },
+              "name": "code_scanning_fixer"
+            },
+            {
+              "_workflow_name": "security-fix-pr",
+              "description": "Dispatch the 'security-fix-pr' workflow with workflow_dispatch trigger. This workflow must support workflow_dispatch and be in the same repository.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
-                  "body": {
-                    "description": "Status update body in markdown format describing progress, findings, trends, and next steps. Should provide stakeholders with clear understanding of project state.",
-                    "type": "string"
-                  },
-                  "project": {
-                    "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted.",
-                    "pattern": "^https://github\\\\.com/(orgs|users)/[^/]+/projects/\\\\d+$",
-                    "type": "string"
-                  },
-                  "start_date": {
-                    "description": "Optional project start date in YYYY-MM-DD format (e.g., '2026-01-06').",
-                    "pattern": "^\\\\d{4}-\\\\d{2}-\\\\d{2}$",
-                    "type": "string"
-                  },
-                  "status": {
-                    "description": "Status indicator for the project. Defaults to ON_TRACK. Values: ON_TRACK (progressing well), AT_RISK (has issues/blockers), OFF_TRACK (significantly behind), COMPLETE (finished), INACTIVE (paused/cancelled).",
-                    "enum": [
-                      "ON_TRACK",
-                      "AT_RISK",
-                      "OFF_TRACK",
-                      "COMPLETE",
-                      "INACTIVE"
-                    ],
-                    "type": "string"
-                  },
-                  "target_date": {
-                    "description": "Optional project target/end date in YYYY-MM-DD format (e.g., '2026-12-31').",
-                    "pattern": "^\\\\d{4}-\\\\d{2}-\\\\d{2}$",
+                  "security_url": {
+                    "default": "",
+                    "description": "Security alert URL (e.g., https://github.com/owner/repo/security/code-scanning/123)",
                     "type": "string"
                   }
                 },
-                "required": [
-                  "project",
-                  "body"
-                ],
                 "type": "object"
               },
-              "name": "create_project_status_update"
+              "name": "security_fix_pr"
+            },
+            {
+              "_workflow_name": "dependabot-bundler",
+              "description": "Dispatch the 'dependabot-bundler' workflow with workflow_dispatch trigger. This workflow must support workflow_dispatch and be in the same repository.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              },
+              "name": "dependabot_bundler"
+            },
+            {
+              "_workflow_name": "secret-scanning-triage",
+              "description": "Dispatch the 'secret-scanning-triage' workflow with workflow_dispatch trigger. This workflow must support workflow_dispatch and be in the same repository.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              },
+              "name": "secret_scanning_triage"
             }
           ]
           EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'EOF'
           {
-            "add_comment": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "item_number": {
-                  "issueOrPRNumber": true
-                }
-              }
-            },
-            "create_issue": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "labels": {
-                  "type": "array",
-                  "itemType": "string",
-                  "itemSanitize": true,
-                  "itemMaxLength": 128
-                },
-                "parent": {
-                  "issueOrPRNumber": true
-                },
-                "repo": {
-                  "type": "string",
-                  "maxLength": 256
-                },
-                "temporary_id": {
-                  "type": "string"
-                },
-                "title": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                }
-              }
-            },
-            "create_project_status_update": {
-              "defaultMax": 10,
-              "fields": {
-                "body": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65536
-                },
-                "project": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 512,
-                  "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+",
-                  "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"
-                },
-                "start_date": {
-                  "type": "string",
-                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                  "patternError": "must be in YYYY-MM-DD format"
-                },
-                "status": {
-                  "type": "string",
-                  "enum": [
-                    "INACTIVE",
-                    "ON_TRACK",
-                    "AT_RISK",
-                    "OFF_TRACK",
-                    "COMPLETE"
-                  ]
-                },
-                "target_date": {
-                  "type": "string",
-                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                  "patternError": "must be in YYYY-MM-DD format"
-                }
-              }
-            },
             "missing_tool": {
               "defaultMax": 20,
               "fields": {
@@ -621,43 +348,6 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 65000
-                }
-              }
-            },
-            "update_project": {
-              "defaultMax": 10,
-              "fields": {
-                "campaign_id": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 128
-                },
-                "content_number": {
-                  "optionalPositiveInteger": true
-                },
-                "content_type": {
-                  "type": "string",
-                  "enum": [
-                    "issue",
-                    "pull_request"
-                  ]
-                },
-                "fields": {
-                  "type": "object"
-                },
-                "issue": {
-                  "optionalPositiveInteger": true
-                },
-                "project": {
-                  "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 512,
-                  "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+",
-                  "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"
-                },
-                "pull_request": {
-                  "optionalPositiveInteger": true
                 }
               }
             }
@@ -733,7 +423,7 @@ jobs:
                   "GITHUB_LOCKDOWN_MODE": "$GITHUB_MCP_LOCKDOWN",
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN",
                   "GITHUB_READ_ONLY": "1",
-                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests,actions,code_security"
+                  "GITHUB_TOOLSETS": "context,repos,issues,pull_requests"
                 }
               },
               "safeoutputs": {
@@ -851,7 +541,7 @@ jobs:
           <instructions>
           To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
           
-          **Available tools**: add_comment, create_issue, create_project_status_update, missing_tool, noop, update_project
+          **Available tools**: dispatch_workflow, missing_tool, noop
           
           **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
           </instructions>
@@ -1203,11 +893,11 @@ jobs:
           ---
           # Orchestrator Instructions
           
-          This orchestrator coordinates a single campaign by discovering worker outputs, making deterministic decisions,
-          and synchronizing campaign state into a GitHub Project board.
+          This orchestrator coordinates a single campaign by discovering worker outputs and making deterministic decisions.
           
-          **Scope:** orchestration only (discovery, planning, pacing, reporting).  
-          **Write authority:** all project write semantics are governed by **Project Update Instructions** and MUST be followed.
+          **Scope:** orchestration only (discovery, planning, pacing, reporting).
+          **Actuation model:** **dispatch-only** — the orchestrator may only act by dispatching allowlisted worker workflows.
+          **Write authority:** all GitHub writes (Projects, issues/PRs, comments, status updates) must happen in worker workflows.
           
           ---
           
@@ -1230,12 +920,6 @@ jobs:
           **Read budget**: max discovery pages per run: 5
           
           
-          **Write budget**: max project updates per run: 10
-          
-          
-          **Write budget**: max project comments per run: 3
-          
-          
           ---
           
           ## Core Principles
@@ -1245,128 +929,26 @@ jobs:
           3. Correlation is explicit (tracker-id AND labels)
           4. Reads and writes are separate steps (never interleave)
           5. Idempotent operation is mandatory (safe to re-run)
-          6. Only predefined project fields may be updated
-          7. **Project Update Instructions take precedence for all project writes**
-          8. **Campaign items MUST be labeled** for discovery and isolation
-          
-          ---
-          
-          ## Campaign Label Requirements
-          
-          **All campaign-related issues, PRs, and discussions MUST have two labels:**
-          
-          1. **`agentic-campaign`** - Generic label marking content as part of ANY campaign
-             - Prevents other workflows from processing campaign items
-             - Enables campaign-wide queries and filters
-          
-          2. **`z_campaign_security-alert-burndown`** - Campaign-specific label
-             - Enables precise discovery of items belonging to THIS campaign
-             - Format: `z_campaign_<campaign-id>` (lowercase, hyphen-separated)
-             - Example: `z_campaign_security-q1-2025`
-          
-          **Worker Responsibilities:**
-          - Workers creating issues/PRs as campaign output MUST add both labels
-          - Workers SHOULD use `create-issue` or `create-pr` safe outputs with labels configuration
-          - If workers cannot add labels automatically, campaign orchestrator will attempt to add them during discovery
-          
-          **Non-Campaign Workflow Responsibilities:**
-          - Workflows triggered by issues/PRs SHOULD skip items with `agentic-campaign` label
-          - Use `skip-if-match` configuration to filter out campaign items:
-            ```yaml
-            on:
-              issues:
-                types: [opened, labeled]
-                skip-if-match:
-                  query: "label:agentic-campaign"
-                  max: 0  # Skip if ANY campaign items match
-            ```
+          6. Orchestrators do not write GitHub state directly
           
           ---
           
           ## Execution Steps (Required Order)
-          
-          ### Step 0 — Epic Issue Initialization [FIRST RUN ONLY]
-          
-          **Campaign Epic Issue Requirements:**
-          - Each project board MUST have exactly ONE Epic issue representing the campaign
-          - The Epic serves as the parent for all campaign work issues
-          - The Epic is narrative-only and tracks overall campaign progress
-          
-          **On every run, before other steps:**
-          
-          1) **Check for existing Epic issue** by searching the repository for:
-             - An open issue with label `epic` or `type:epic`
-             - Body text containing: `campaign_id: security-alert-burndown`
-          
-          2) **If no Epic issue exists**, create it using `create-issue`:
-             ```yaml
-             create-issue:
-               title: "Security Alert Burndown"
-               body: |
-                 ## Campaign Overview
-                 
-                 This Epic issue tracks the overall progress of the campaign. All work items are sub-issues of this Epic.
-                 
-                 **Campaign Details:**
-                 - Campaign ID: `security-alert-burndown`
-                 - Project Board: https://github.com/orgs/githubnext/projects/134
-                 - Worker Workflows: `code-scanning-fixer`, `security-fix-pr`, `dependabot-bundler`, `secret-scanning-triage`
-                 
-                 ---
-                 `campaign_id: security-alert-burndown`
-               labels:
-                 - agentic-campaign
-                 - z_campaign_security-alert-burndown
-                 - epic
-                 - type:epic
-             ```
-          
-          3) **After creating the Epic** (or if Epic exists but not on board), add it to the project board:
-             ```yaml
-             update-project:
-               project: "https://github.com/orgs/githubnext/projects/134"
-               campaign_id: "security-alert-burndown"
-               content_type: "issue"
-               content_number: <EPIC_ISSUE_NUMBER>
-               fields:
-                 status: "In Progress"
-                 campaign_id: "security-alert-burndown"
-                 worker_workflow: "unknown"
-                 repository: "<OWNER/REPO>"
-                 priority: "High"
-                 size: "Large"
-                 start_date: "<EPIC_CREATED_DATE_YYYY-MM-DD>"
-                 end_date: "<TODAY_YYYY-MM-DD>"
-             ```
-          
-          4) **Record the Epic issue number** in repo-memory for reference (e.g., in cursor file or metadata).
-          
-          **Note:** This step typically runs only on the first orchestrator execution. On subsequent runs, verify the Epic exists and is on the board, but do not recreate it.
-          
-          ---
           
           ### Step 1 — Read State (Discovery) [NO WRITES]
           
           **IMPORTANT**: Discovery has been precomputed. Read the discovery manifest instead of performing GitHub-wide searches.
           
           1) Read the precomputed discovery manifest: `./.gh-aw/campaign.discovery.json`
-             - This manifest contains all discovered worker outputs with normalized metadata
-             - Schema version: v1
-             - Fields: campaign_id, generated_at, discovery (total_items, cursor info), summary (counts), items (array of normalized items)
           
-          2) Read current GitHub Project board state (items + required fields).
-          
-          3) Parse discovered items from the manifest:
+          2) Parse discovered items from the manifest:
              - Each item has: url, content_type (issue/pull_request/discussion), number, repo, created_at, updated_at, state
              - Closed items have: closed_at (for issues) or merged_at (for PRs)
              - Items are pre-sorted by updated_at for deterministic processing
           
-          4) Check the manifest summary for work counts:
-             - `needs_add_count`: Number of items that need to be added to the project
-             - `needs_update_count`: Number of items that need status updates
-             - If both are 0, you may skip to reporting step
+          3) Check the manifest summary for work counts.
           
-          5) Discovery cursor is maintained automatically in repo-memory; do not modify it manually.
+          4) Discovery cursor is maintained automatically in repo-memory; do not modify it manually.
           
           ### Step 2 — Make Decisions (Planning) [NO WRITES]
           
@@ -1375,68 +957,27 @@ jobs:
           - Closed (issue/discussion) → `Done`
           - Merged (PR) → `Done`
           
-          **Why use explicit GitHub state?** - GitHub is the source of truth for work status. Inferring status from other signals (labels, comments) would be unreliable and could cause incorrect tracking.
-          
-          6) Calculate required date fields for each item (per Project Update Instructions):
+          6) Calculate required date fields (for workers that sync Projects):
           - `start_date`: format `created_at` as `YYYY-MM-DD`
           - `end_date`:
             - if closed/merged → format `closed_at`/`merged_at` as `YYYY-MM-DD`
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
-            - if open → **today's date** formatted `YYYY-MM-DD` (required for roadmap view)
+            - if open → **today's date** formatted `YYYY-MM-DD`
           
-          **Why use today for open items?** - GitHub Projects requires end_date for roadmap views. Using today's date shows the item is actively tracked and updates automatically each run until completion.
+          7) Reads and writes are separate steps (never interleave).
           
-          7) Do NOT implement idempotency by comparing against the board. You may compare for reporting only.
+          ### Step 3 — Dispatch Workers (Execution) [DISPATCH ONLY]
           
-          **Why no comparison for idempotency?** - The safe-output system handles deduplication. Comparing would add complexity and potential race conditions. Trust the infrastructure.
+          8) For each selected unit of work, dispatch a worker workflow using `dispatch-workflow`.
           
-          8) Apply write budget:
-          - If `MaxProjectUpdatesPerRun > 0`, select at most that many items this run using deterministic order
-            (e.g., oldest `updated_at` first; tie-break by ID/number).
-          - Defer remaining items to next run via cursor.
+          Constraints:
+          - Only dispatch allowlisted workflows.
+          - Keep within the dispatch-workflow max for this run.
           
-          **Why use deterministic order?** - Ensures predictable behavior and prevents starvation. Oldest items are processed first, ensuring fair treatment of all work items. The cursor saves progress for next run.
+          ### Step 4 — Report (No Writes)
           
-          ### Step 3 — Write State (Execution) [WRITES ONLY]
+          9) Summarize what you dispatched, what remains, and what should run next.
           
-          9) For each selected item, send an `update-project` request.
-          - Do NOT interleave reads.
-          - Do NOT pre-check whether the item is on the board.
-          - **All write semantics MUST follow Project Update Instructions**, including:
-            - first add → full required fields (status, campaign_id, worker_workflow, repo, priority, size, start_date, end_date)
-            - existing item → status-only update unless explicit backfill is required
-          
-          10) Record per-item outcome: success/failure + error details.
-          
-          ### Step 4 — Report & Status Update
-          
-          11) **REQUIRED: Create a project status update summarizing this run**
-          
-          Every campaign run MUST create a status update using `create-project-status-update` safe output. This is the primary communication mechanism for conveying campaign progress to stakeholders.
-          
-          **Required Sections:**
-          
-          - **Most Important Findings**: Highlight the 2-3 most critical discoveries, insights, or blockers from this run
-          - **What Was Learned**: Document key learnings, patterns observed, or insights gained during this run
-          - **Campaign Progress**: Report on campaign metrics and trends with baseline → current → target format, including direction and velocity
-          - **Campaign Summary**: Tasks completed, in progress, blocked, and overall completion percentage
-          - **Next Steps**: Clear action items and priorities for the next run
-          
-          **Configuration:**
-          - Set appropriate status: ON_TRACK, AT_RISK, OFF_TRACK, or COMPLETE
-          - Use today's date for start_date and target_date (or appropriate future date for target)
-          - Body must be comprehensive yet concise (target: 200-400 words)
-          
-          Example status update:
-          ```yaml
-          create-project-status-update:
-            project: "https://github.com/orgs/githubnext/projects/134"
-            status: "ON_TRACK"
-            start_date: "2026-01-06"
-            target_date: "2026-01-31"
-            body: |
-              ## Campaign Run Summary
+          If a status update is required on the GitHub Project, dispatch a dedicated reporting/sync worker to perform that write.
           
               **Discovered:** 25 items (15 issues, 10 PRs)
               **Processed:** 10 items added to project, 5 updated
@@ -1506,7 +1047,8 @@ jobs:
           
           ## 0) Hard Requirements (Do Not Deviate)
           
-          - Writes MUST use only the `update-project` safe-output.
+          - Orchestrators are dispatch-only and MUST NOT perform project writes directly.
+          - Worker workflows performing project writes MUST use only the `update-project` safe-output.
           - All writes MUST target exactly:
             - **Project URL**: `https://github.com/orgs/githubnext/projects/134`
           - Every item MUST include:
@@ -1531,6 +1073,8 @@ jobs:
           | `start_date` | date | `YYYY-MM-DD` |
           | `end_date` | date | `YYYY-MM-DD` |
           
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           Field names are case-sensitive.
           
           ---
@@ -1748,13 +1292,13 @@ jobs:
           
           1. Read State (no writes)
           2. Make Decisions (no writes)
-          3. Write State (update-project only)
+          3. Dispatch Workers (dispatch-workflow only)
           4. Report
           
           The following rules are mandatory and override inferred behavior:
           
           - The GitHub Project board is the single source of truth.
-          - All project writes MUST comply with `project_update_instructions.md`.
+          - All project writes MUST comply with the Project Update Instructions (in workers).
           - State reads and state writes MUST NOT be interleaved.
           - Do NOT infer missing data or invent values.
           - Do NOT reorganize hierarchy.
@@ -2355,18 +1899,13 @@ jobs:
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
-      contents: read
-      discussions: write
-      issues: write
-      pull-requests: write
+      actions: write
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "claude"
       GH_AW_WORKFLOW_ID: "security-alert-burndown.campaign.g"
       GH_AW_WORKFLOW_NAME: "Security Alert Burndown"
     outputs:
-      process_project_safe_outputs_processed_count: ${{ steps.process_project_safe_outputs.outputs.processed_count }}
-      process_project_safe_outputs_temporary_project_map: ${{ steps.process_project_safe_outputs.outputs.temporary_project_map }}
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
@@ -2391,27 +1930,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Process Project-Related Safe Outputs
-        id: process_project_safe_outputs
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_PROJECT_HANDLER_CONFIG: "{\"create_project_status_update\":{\"max\":1},\"update_project\":{\"max\":10}}"
-          GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
-        with:
-          github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/safe_output_project_handler_manager.cjs');
-            await main();
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_TEMPORARY_PROJECT_MAP: ${{ steps.process_project_safe_outputs.outputs.temporary_project_map }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"max\":3},\"create_issue\":{\"max\":1},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"dispatch_workflow\":{\"max\":3,\"workflows\":[\"code-scanning-fixer\",\"security-fix-pr\",\"dependabot-bundler\",\"secret-scanning-triage\"]},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

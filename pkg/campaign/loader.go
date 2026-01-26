@@ -112,21 +112,15 @@ func LoadSpecs(rootDir string) ([]CampaignSpec, error) {
 			log.Printf("Defaulted cursor-glob to '%s' for campaign '%s'", spec.CursorGlob, spec.ID)
 		}
 
-		// Default allowed-repos to current repository if not specified
-		if len(spec.AllowedRepos) == 0 {
+		// Default scope to current repository if not specified
+		if len(spec.Scope) == 0 {
 			currentRepo, err := getCurrentRepository()
 			if err != nil {
-				log.Printf("Warning: Could not determine current repository for campaign '%s': %v. Campaign will require explicit allowed-repos.", spec.ID, err)
+				log.Printf("Warning: Could not determine current repository for campaign '%s': %v. Campaign will require explicit scope.", spec.ID, err)
 			} else {
-				spec.AllowedRepos = []string{currentRepo}
-				log.Printf("Defaulted allowed-repos to current repository for campaign '%s': %s", spec.ID, currentRepo)
+				spec.Scope = []string{currentRepo}
+				log.Printf("Defaulted scope to current repository for campaign '%s': %s", spec.ID, currentRepo)
 			}
-		}
-
-		// Default discovery-repos to allowed-repos if not specified
-		if len(spec.DiscoveryRepos) == 0 && len(spec.DiscoveryOrgs) == 0 {
-			spec.DiscoveryRepos = spec.AllowedRepos
-			log.Printf("Defaulted discovery-repos to allowed-repos for campaign '%s'", spec.ID)
 		}
 
 		spec.ConfigPath = filepath.ToSlash(filepath.Join(".github", "workflows", name))
@@ -233,7 +227,7 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	buf.WriteString("Describe this campaign's goals, guardrails, stakeholders, and playbook.\n\n")
 	buf.WriteString("## Quick Start\n\n")
 	buf.WriteString("By default, this campaign will target the current repository. To target additional repositories:\n\n")
-	buf.WriteString("1. **Add allowed-repos** (optional): Specify repositories to target\n")
+	buf.WriteString("1. **Add scope** (optional): Specify repositories and/or organizations to target\n")
 	buf.WriteString("2. **Define workflows**: List workflows to execute (e.g., `vulnerability-scanner`)\n")
 	buf.WriteString("3. **Add narrative context**: Define campaign goals, workflows, and timeline in the markdown body\n")
 	buf.WriteString("4. **Set owners**: Specify who is responsible for this campaign\n")
@@ -242,37 +236,19 @@ func CreateSpecSkeleton(rootDir, id string, force bool) (string, error) {
 	buf.WriteString("```yaml\n")
 	buf.WriteString("# Add to the frontmatter above:\n")
 	buf.WriteString("\n")
-	buf.WriteString("# Optional: Target specific repositories (defaults to current repo)\n")
-	buf.WriteString("# allowed-repos:\n")
+	buf.WriteString("# Optional: Target specific repositories and/or organizations (defaults to current repo)\n")
+	buf.WriteString("# scope:\n")
 	buf.WriteString("#   - myorg/backend\n")
 	buf.WriteString("#   - myorg/frontend\n")
-	buf.WriteString("# Or use allowed-orgs for organization-wide scope:\n")
-	buf.WriteString("# allowed-orgs:\n")
-	buf.WriteString("#   - myorg\n")
+	buf.WriteString("#   - org:myorg\n")
 	buf.WriteString("\n")
-	buf.WriteString("# Where to discover worker workflows (required for campaigns with workflows)\n")
-	buf.WriteString("discovery-repos:\n")
-	buf.WriteString("  - myorg/backend\n")
-	buf.WriteString("  - myorg/frontend\n")
-	buf.WriteString("# Or use discovery-orgs for organization-wide discovery:\n")
-	buf.WriteString("# discovery-orgs:\n")
-	buf.WriteString("#   - myorg\n")
+	buf.WriteString("# Campaigns with workflows MUST be scoped via scope\n")
 	buf.WriteString("\n")
-	buf.WriteString("objective: \"Reduce security vulnerabilities across all repositories\"\n")
 	buf.WriteString("workflows:\n")
 	buf.WriteString("  - vulnerability-scanner\n")
 	buf.WriteString("  - dependency-updater\n")
 	buf.WriteString("owners:\n")
 	buf.WriteString("  - @security-team\n")
-	buf.WriteString("kpis:\n")
-	buf.WriteString("  - name: \"Critical vulnerabilities resolved\"\n")
-	buf.WriteString("    priority: primary\n")
-	buf.WriteString("    unit: count\n")
-	buf.WriteString("    baseline: 0\n")
-	buf.WriteString("    target: 50\n")
-	buf.WriteString("    time-window-days: 30\n")
-	buf.WriteString("    direction: increase\n")
-	buf.WriteString("    source: code_security\n")
 	buf.WriteString("```\n")
 
 	// Use restrictive permissions (0644) for proper git tracking

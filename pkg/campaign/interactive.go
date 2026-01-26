@@ -20,10 +20,7 @@ type InteractiveCampaignConfig struct {
 	Name           string
 	Description    string
 	Scope          string // "current", "multiple", "org-wide"
-	AllowedRepos   []string
-	AllowedOrgs    []string
-	DiscoveryRepos []string
-	DiscoveryOrgs  []string
+	ScopeSelectors []string
 	Workflows      []string
 	Owners         []string
 	RiskLevel      string
@@ -60,32 +57,27 @@ func RunInteractiveCampaignCreation(rootDir string, force bool, verbose bool) er
 		return err
 	}
 
-	// Step 3: Workflow discovery (EARLY) - optional step
-	if err := promptForWorkflowDiscovery(config, rootDir); err != nil {
-		return err
-	}
-
-	// Step 4: Repository scope
+	// Step 3: Repository scope
 	if err := promptForRepositoryScope(config); err != nil {
 		return err
 	}
 
-	// Step 5: Workflow selection (after discovery)
+	// Step 4: Workflow selection
 	if err := promptForWorkflows(config); err != nil {
 		return err
 	}
 
-	// Step 6: Owners/stakeholders
+	// Step 5: Owners/stakeholders
 	if err := promptForOwners(config); err != nil {
 		return err
 	}
 
-	// Step 7: Risk level
+	// Step 6: Risk level
 	if err := promptForRiskLevel(config); err != nil {
 		return err
 	}
 
-	// Step 8: Project board creation
+	// Step 7: Project board creation
 	if err := promptForProjectCreation(config); err != nil {
 		return err
 	}
@@ -171,107 +163,6 @@ func promptForObjective(config *InteractiveCampaignConfig) error {
 	return nil
 }
 
-func promptForWorkflowDiscovery(config *InteractiveCampaignConfig, rootDir string) error {
-	var expandDiscovery bool
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewConfirm().
-				Title("Expand workflow discovery?").
-				Description("Scan additional repositories or organizations for worker workflows (optional)").
-				Value(&expandDiscovery),
-		),
-	)
-
-	if err := form.Run(); err != nil {
-		return fmt.Errorf("workflow discovery prompt failed: %w", err)
-	}
-
-	if !expandDiscovery {
-		interactiveLog.Print("User opted to skip expanded workflow discovery")
-		return nil
-	}
-
-	// Ask for discovery scope
-	var discoveryType string
-	discoveryForm := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Where should we discover workflows?").
-				Options(
-					huh.NewOption("Specific repositories", "repos"),
-					huh.NewOption("Organization-wide", "orgs"),
-					huh.NewOption("Both", "both"),
-				).
-				Value(&discoveryType),
-		),
-	)
-
-	if err := discoveryForm.Run(); err != nil {
-		return fmt.Errorf("discovery type selection failed: %w", err)
-	}
-
-	switch discoveryType {
-	case "repos", "both":
-		var reposInput string
-		reposForm := huh.NewForm(
-			huh.NewGroup(
-				huh.NewText().
-					Title("Discovery repositories").
-					Description("Enter repositories to scan (comma-separated, e.g., 'owner/repo1, owner/repo2')").
-					Placeholder("owner/repo1, owner/repo2").
-					Value(&reposInput),
-			),
-		)
-
-		if err := reposForm.Run(); err != nil {
-			return fmt.Errorf("discovery repos input failed: %w", err)
-		}
-
-		if strings.TrimSpace(reposInput) != "" {
-			repos := strings.Split(reposInput, ",")
-			for _, repo := range repos {
-				repo = strings.TrimSpace(repo)
-				if repo != "" {
-					config.DiscoveryRepos = append(config.DiscoveryRepos, repo)
-				}
-			}
-		}
-
-		if discoveryType == "repos" {
-			break
-		}
-		fallthrough
-	case "orgs":
-		var orgsInput string
-		orgsForm := huh.NewForm(
-			huh.NewGroup(
-				huh.NewInput().
-					Title("Discovery organizations").
-					Description("Enter organizations to scan (comma-separated, e.g., 'org1, org2')").
-					Placeholder("myorg").
-					Value(&orgsInput),
-			),
-		)
-
-		if err := orgsForm.Run(); err != nil {
-			return fmt.Errorf("discovery orgs input failed: %w", err)
-		}
-
-		if strings.TrimSpace(orgsInput) != "" {
-			orgs := strings.Split(orgsInput, ",")
-			for _, org := range orgs {
-				org = strings.TrimSpace(org)
-				if org != "" {
-					config.DiscoveryOrgs = append(config.DiscoveryOrgs, org)
-				}
-			}
-		}
-	}
-
-	interactiveLog.Printf("Discovery repos: %v, orgs: %v", config.DiscoveryRepos, config.DiscoveryOrgs)
-	return nil
-}
-
 func promptForRepositoryScope(config *InteractiveCampaignConfig) error {
 	var scopeType string
 	form := huh.NewForm(
@@ -294,6 +185,13 @@ func promptForRepositoryScope(config *InteractiveCampaignConfig) error {
 	config.Scope = scopeType
 
 	switch scopeType {
+	case "current":
+		currentRepo, err := getCurrentRepository()
+		if err != nil {
+			interactiveLog.Printf("Warning: could not determine current repository for scope: %v", err)
+			break
+		}
+		config.ScopeSelectors = []string{currentRepo}
 	case "multiple":
 		var reposInput string
 		reposForm := huh.NewForm(
@@ -320,7 +218,7 @@ func promptForRepositoryScope(config *InteractiveCampaignConfig) error {
 		for _, repo := range repos {
 			repo = strings.TrimSpace(repo)
 			if repo != "" {
-				config.AllowedRepos = append(config.AllowedRepos, repo)
+				config.ScopeSelectors = append(config.ScopeSelectors, repo)
 			}
 		}
 	case "org-wide":
@@ -347,11 +245,11 @@ func promptForRepositoryScope(config *InteractiveCampaignConfig) error {
 
 		org := strings.TrimSpace(orgsInput)
 		if org != "" {
-			config.AllowedOrgs = append(config.AllowedOrgs, org)
+			config.ScopeSelectors = append(config.ScopeSelectors, "org:"+org)
 		}
 	}
 
-	interactiveLog.Printf("Scope: %s, allowed repos: %v, orgs: %v", config.Scope, config.AllowedRepos, config.AllowedOrgs)
+	interactiveLog.Printf("Scope: %s, selectors: %v", config.Scope, config.ScopeSelectors)
 	return nil
 }
 
@@ -507,22 +405,19 @@ func generateCampaignFromConfig(rootDir string, config *InteractiveCampaignConfi
 
 	// Build the spec
 	spec := CampaignSpec{
-		ID:             config.ID,
-		Name:           config.Name,
-		Description:    config.Description,
-		ProjectURL:     "https://github.com/orgs/ORG/projects/1", // Placeholder
-		Version:        "v1",
-		State:          "planned",
-		Workflows:      config.Workflows,
-		AllowedRepos:   config.AllowedRepos,
-		AllowedOrgs:    config.AllowedOrgs,
-		DiscoveryRepos: config.DiscoveryRepos,
-		DiscoveryOrgs:  config.DiscoveryOrgs,
-		Owners:         config.Owners,
-		RiskLevel:      config.RiskLevel,
-		MemoryPaths:    []string{"memory/campaigns/" + config.ID + "/**"},
-		MetricsGlob:    "memory/campaigns/" + config.ID + "/metrics/*.json",
-		CursorGlob:     "memory/campaigns/" + config.ID + "/cursor.json",
+		ID:          config.ID,
+		Name:        config.Name,
+		Description: config.Description,
+		ProjectURL:  "https://github.com/orgs/ORG/projects/1", // Placeholder
+		Version:     "v1",
+		State:       "planned",
+		Workflows:   config.Workflows,
+		Scope:       config.ScopeSelectors,
+		Owners:      config.Owners,
+		RiskLevel:   config.RiskLevel,
+		MemoryPaths: []string{"memory/campaigns/" + config.ID + "/**"},
+		MetricsGlob: "memory/campaigns/" + config.ID + "/metrics/*.json",
+		CursorGlob:  "memory/campaigns/" + config.ID + "/cursor.json",
 		Governance: &CampaignGovernancePolicy{
 			MaxNewItemsPerRun:       25,
 			MaxDiscoveryItemsPerRun: 200,

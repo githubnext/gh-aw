@@ -50,7 +50,7 @@ Worker workflows in the campaign's `workflows` list must:
 
 - Accept `workflow_dispatch` as the **only** trigger
 - Remove all other triggers (`schedule`, `push`, `pull_request`)
-- Label created items with `campaign:<id>`
+- Label created items with the campaign tracker label (defaults to `z_campaign_<campaign-id>`)
 - Accept standardized inputs: `campaign_id` (string) and `payload` (string JSON)
 
 ```yaml
@@ -74,11 +74,12 @@ Workflows not in the `workflows` list can keep their original triggers. The camp
 
 ```yaml
 # Campaign spec
-tracker-label: "campaign:security-audit"
 workflows:
   - vulnerability-scanner  # Orchestrator controls this one
   # dependency-check runs independently with its cron schedule
 ```
+
+`tracker-label` is optional; when omitted it defaults to `z_campaign_<campaign-id>`.
 
 ## Discovery and governance
 

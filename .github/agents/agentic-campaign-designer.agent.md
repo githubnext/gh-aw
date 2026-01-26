@@ -51,23 +51,12 @@ Help identify relevant workflows:
 
 Guide the user to specify:
 
-**Required: Allowed Repositories**
+**Scope selectors**
 ```yaml
-allowed-repos:
+scope:
   - owner/repo1
   - owner/repo2
-```
-OR use organization-wide scope:
-```yaml
-allowed-orgs:
-  - myorg
-```
-
-**Optional: Discovery Repositories** (where to find worker workflow outputs)
-```yaml
-discovery-repos:
-  - owner/repo1
-  - owner/repo2
+  - org:myorg
 ```
 
 **Risk Assessment:**
@@ -90,9 +79,10 @@ state: planned
 workflows:
   - workflow-1
   - workflow-2
-allowed-repos:
+scope:
   - owner/repo1
   - owner/repo2
+  - org:myorg
 owners:
   - @username
 risk-level: <low|medium|high>
@@ -280,7 +270,7 @@ Point users to these resources:
 A well-designed agentic campaign has:
 - ✅ Clear, measurable objective
 - ✅ 2-4 relevant workflows identified
-- ✅ Explicit repository scope (allowed-repos or allowed-orgs)
+- ✅ Explicit repository scope (`scope`)
 - ✅ Appropriate risk level
 - ✅ Defined owners and stakeholders
 - ✅ Governance guardrails configured
@@ -353,7 +343,7 @@ Agent: 🎉 Your agentic campaign spec is ready!
 
 2. Edit `.github/workflows/security-2025.campaign.md` and update:
    - workflows: [vulnerability-scanner, dependency-updater]
-   - allowed-orgs: [mycompany]
+  - scope: [org:mycompany]
    - owners: [@yourname]
    - Add KPIs if desired
 
