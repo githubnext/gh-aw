@@ -186,9 +186,35 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 
 	// Parse current version
 	currentVer := parseVersion(currentVersion)
+
+	// Find all valid semantic version releases and sort by semver
+	type releaseWithVersion struct {
+		tag     string
+		version *semanticVersion
+	}
+	var validReleases []releaseWithVersion
+	for _, release := range releases {
+		releaseVer := parseVersion(release)
+		if releaseVer != nil {
+			validReleases = append(validReleases, releaseWithVersion{
+				tag:     release,
+				version: releaseVer,
+			})
+		}
+	}
+
+	if len(validReleases) == 0 {
+		return "", "", fmt.Errorf("no valid semantic version releases found")
+	}
+
+	// Sort releases by semver in descending order (highest first)
+	sort.Slice(validReleases, func(i, j int) bool {
+		return validReleases[i].version.isNewer(validReleases[j].version)
+	})
+
+	// If current version is not valid, return the highest semver release
 	if currentVer == nil {
-		// If current version is not a valid semantic version, just return the latest release
-		latestRelease := releases[0]
+		latestRelease := validReleases[0].tag
 		sha, err := getActionSHAForTag(baseRepo, latestRelease)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to get SHA for %s: %w", latestRelease, err)
@@ -196,34 +222,29 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 		return latestRelease, sha, nil
 	}
 
-	// Find the latest compatible release
+	// Find the highest compatible release (respecting major version if !allowMajor)
 	var latestCompatible string
 	var latestCompatibleVersion *semanticVersion
 
-	for _, release := range releases {
-		releaseVer := parseVersion(release)
-		if releaseVer == nil {
-			continue
-		}
-
+	for _, rel := range validReleases {
 		// Check if compatible based on major version
-		if !allowMajor && releaseVer.major != currentVer.major {
+		if !allowMajor && rel.version.major != currentVer.major {
 			continue
 		}
 
-		// Check if this is newer than what we have
-		if latestCompatibleVersion == nil || releaseVer.isNewer(latestCompatibleVersion) {
-			latestCompatible = release
-			latestCompatibleVersion = releaseVer
-		} else if !releaseVer.isNewer(latestCompatibleVersion) &&
-			releaseVer.major == latestCompatibleVersion.major &&
-			releaseVer.minor == latestCompatibleVersion.minor &&
-			releaseVer.patch == latestCompatibleVersion.patch {
+		// Since releases are sorted by semver descending, first match is highest
+		if latestCompatibleVersion == nil || rel.version.isNewer(latestCompatibleVersion) {
+			latestCompatible = rel.tag
+			latestCompatibleVersion = rel.version
+		} else if !rel.version.isNewer(latestCompatibleVersion) &&
+			rel.version.major == latestCompatibleVersion.major &&
+			rel.version.minor == latestCompatibleVersion.minor &&
+			rel.version.patch == latestCompatibleVersion.patch {
 			// If versions are equal, prefer the less precise one (e.g., "v8" over "v8.0.0")
 			// This follows GitHub Actions convention of using major version tags
-			if !releaseVer.isPreciseVersion() && latestCompatibleVersion.isPreciseVersion() {
-				latestCompatible = release
-				latestCompatibleVersion = releaseVer
+			if !rel.version.isPreciseVersion() && latestCompatibleVersion.isPreciseVersion() {
+				latestCompatible = rel.tag
+				latestCompatibleVersion = rel.version
 			}
 		}
 	}
@@ -286,44 +307,65 @@ func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbo
 
 	// Parse current version
 	currentVer := parseVersion(currentVersion)
+
+	// Find all valid semantic version releases and sort by semver
+	type releaseWithVersion struct {
+		tag     string
+		version *semanticVersion
+	}
+	var validReleases []releaseWithVersion
+	for _, release := range releases {
+		releaseVer := parseVersion(release)
+		if releaseVer != nil {
+			validReleases = append(validReleases, releaseWithVersion{
+				tag:     release,
+				version: releaseVer,
+			})
+		}
+	}
+
+	if len(validReleases) == 0 {
+		return "", "", fmt.Errorf("no valid semantic version releases found")
+	}
+
+	// Sort releases by semver in descending order (highest first)
+	sort.Slice(validReleases, func(i, j int) bool {
+		return validReleases[i].version.isNewer(validReleases[j].version)
+	})
+
+	// If current version is not valid, return the highest semver release
 	if currentVer == nil {
-		// If current version is not a valid semantic version, just return the first release
-		latestRelease := releases[0]
+		latestRelease := validReleases[0].tag
 		sha := tagToSHA[latestRelease]
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Current version is not valid, using first release: %s (via git)", latestRelease)))
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Current version is not valid, using highest semver release: %s (via git)", latestRelease)))
 		}
 		return latestRelease, sha, nil
 	}
 
-	// Find the latest compatible release
+	// Find the highest compatible release (respecting major version if !allowMajor)
 	var latestCompatible string
 	var latestCompatibleVersion *semanticVersion
 
-	for _, release := range releases {
-		releaseVer := parseVersion(release)
-		if releaseVer == nil {
-			continue
-		}
-
+	for _, rel := range validReleases {
 		// Check if compatible based on major version
-		if !allowMajor && releaseVer.major != currentVer.major {
+		if !allowMajor && rel.version.major != currentVer.major {
 			continue
 		}
 
-		// Check if this is newer than what we have
-		if latestCompatibleVersion == nil || releaseVer.isNewer(latestCompatibleVersion) {
-			latestCompatible = release
-			latestCompatibleVersion = releaseVer
-		} else if !releaseVer.isNewer(latestCompatibleVersion) &&
-			releaseVer.major == latestCompatibleVersion.major &&
-			releaseVer.minor == latestCompatibleVersion.minor &&
-			releaseVer.patch == latestCompatibleVersion.patch {
+		// Since releases are sorted by semver descending, first match is highest
+		if latestCompatibleVersion == nil || rel.version.isNewer(latestCompatibleVersion) {
+			latestCompatible = rel.tag
+			latestCompatibleVersion = rel.version
+		} else if !rel.version.isNewer(latestCompatibleVersion) &&
+			rel.version.major == latestCompatibleVersion.major &&
+			rel.version.minor == latestCompatibleVersion.minor &&
+			rel.version.patch == latestCompatibleVersion.patch {
 			// If versions are equal, prefer the less precise one (e.g., "v8" over "v8.0.0")
 			// This follows GitHub Actions convention of using major version tags
-			if !releaseVer.isPreciseVersion() && latestCompatibleVersion.isPreciseVersion() {
-				latestCompatible = release
-				latestCompatibleVersion = releaseVer
+			if !rel.version.isPreciseVersion() && latestCompatibleVersion.isPreciseVersion() {
+				latestCompatible = rel.tag
+				latestCompatibleVersion = rel.version
 			}
 		}
 	}
