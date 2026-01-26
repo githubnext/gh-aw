@@ -238,8 +238,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			awfLogLevel = firewallConfig.LogLevel
 		}
 
-		// Get allowed domains (copilot defaults + network permissions + HTTP MCP server URLs)
-		allowedDomains := GetCopilotAllowedDomainsWithTools(workflowData.NetworkPermissions, workflowData.Tools)
+		// Get allowed domains (copilot defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
+		allowedDomains := GetCopilotAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 
 		// Build AWF arguments: mount points + standard flags + custom args from config
 		var awfArgs []string
@@ -273,6 +273,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Mount host /home/runner/.copilot to container /home/runner/.copilot with read-write access for CLI state/logs
 		awfArgs = append(awfArgs, "--mount", "/home/runner/.copilot:/home/runner/.copilot:rw")
 		copilotExecLog.Print("Added gh CLI, copilot binary, and .copilot config directory mounts to AWF container")
+
+		// Mount the hostedtoolcache directory (where actions/setup-* installs tools like Go, Node, Python, etc.)
+		// The PATH is already passed via --env-all, so tools installed by setup actions are accessible
+		awfArgs = append(awfArgs, "--mount", "/opt/hostedtoolcache:/opt/hostedtoolcache:ro")
+		copilotExecLog.Print("Added hostedtoolcache mount to AWF container")
 
 		// Mount /opt/gh-aw as readonly for script and configuration files
 		awfArgs = append(awfArgs, "--mount", "/opt/gh-aw:/opt/gh-aw:ro")
@@ -315,6 +320,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
 		copilotExecLog.Printf("Pinned AWF image tag to %s", awfImageTag)
 
+		// Use ACT agent container for GitHub Actions parity
+		awfArgs = append(awfArgs, "--agent-image", "act")
+		copilotExecLog.Print("Using ACT agent container for GitHub Actions parity")
+
 		// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
 		sslBumpArgs := getSSLBumpArgs(firewallConfig)
 		awfArgs = append(awfArgs, sslBumpArgs...)
@@ -343,10 +352,20 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Build the full AWF command with proper argument separation
 		// AWF v0.2.0 uses -- to separate AWF args from the actual command
 		// The command arguments should be passed as individual shell arguments, not as a single string
+
+		// Add PATH setup to find tools installed via actions/setup-* in hostedtoolcache
+		// The hostedtoolcache directory structure is: /opt/hostedtoolcache/<tool>/<version>/<arch>/bin
+		// We need to add these bin directories to PATH so the agent can find go, node, python, etc.
+		// This is done by adding PATH entries before running the copilot command inside the container
+		pathSetup := `export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"`
+
+		// Wrap copilot command with PATH setup
+		copilotCommandWithPath := fmt.Sprintf(`%s && %s`, pathSetup, copilotCommand)
+
 		command = fmt.Sprintf(`set -o pipefail
 %s %s \
   -- %s \
-  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), copilotCommand, shellEscapeArg(logFile))
+  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), copilotCommandWithPath, shellEscapeArg(logFile))
 	} else {
 		// Run copilot command without AWF wrapper
 		command = fmt.Sprintf(`set -o pipefail
