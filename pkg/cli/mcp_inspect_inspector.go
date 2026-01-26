@@ -11,6 +11,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 // spawnMCPInspector launches the official @modelcontextprotocol/inspector tool
@@ -42,32 +43,20 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 			workflowPath = filepath.Join(cwd, workflowPath)
 		}
 
-		// Parse the workflow file to extract MCP configurations
-		content, err := os.ReadFile(workflowPath)
+		// Use the compiler to parse the workflow file
+		// This automatically handles imports, merging, and validation
+		compiler := workflow.NewCompiler(verbose, "", "")
+		workflowData, err := compiler.ParseWorkflowFile(workflowPath)
 		if err != nil {
 			return err
 		}
 
-		workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
-		if err != nil {
-			return err
-		}
+		// Build frontmatter map from WorkflowData for MCP extraction
+		// This includes all merged imports and tools
+		frontmatterForMCP := buildFrontmatterFromWorkflowData(workflowData)
 
-		// Process imports from frontmatter to merge imported MCP servers
-		markdownDir := filepath.Dir(workflowPath)
-		importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(workflowData.Frontmatter, markdownDir, nil)
-		if err != nil {
-			return fmt.Errorf("failed to process imports from frontmatter: %w", err)
-		}
-
-		// Apply imported MCP servers to frontmatter
-		frontmatterWithImports, err := applyImportsToFrontmatter(workflowData.Frontmatter, importsResult)
-		if err != nil {
-			return fmt.Errorf("failed to apply imports: %w", err)
-		}
-
-		// Extract MCP configurations from frontmatter with imports applied
-		mcpConfigs, err = parser.ExtractMCPConfigurations(frontmatterWithImports, serverFilter)
+		// Extract MCP configurations from the merged frontmatter
+		mcpConfigs, err = parser.ExtractMCPConfigurations(frontmatterForMCP, serverFilter)
 		if err != nil {
 			return err
 		}
