@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestShellQuote(t *testing.T) {
@@ -67,6 +68,21 @@ func TestShellQuote(t *testing.T) {
 			input:    "echo 'hello' \"world\" $VAR `cmd`",
 			expected: "'echo '\\''hello'\\'' \"world\" $VAR `cmd`'",
 		},
+		{
+			name:     "command injection attempt with semicolon",
+			input:    "file; rm -rf /",
+			expected: "'file; rm -rf /'",
+		},
+		{
+			name:     "command injection attempt with pipe",
+			input:    "file | cat /etc/passwd",
+			expected: "'file | cat /etc/passwd'",
+		},
+		{
+			name:     "multiple single quotes",
+			input:    "it's a test's file",
+			expected: "'it'\\''s a test'\\''s file'",
+		},
 	}
 
 	for _, tt := range tests {
@@ -128,6 +144,16 @@ func TestBuildDockerCommandWithExpandableVars(t *testing.T) {
 			input:    "",
 			expected: "",
 		},
+		{
+			name:     "injection attempt in GITHUB_WORKSPACE context",
+			input:    "${GITHUB_WORKSPACE}; rm -rf /",
+			expected: "''\"${GITHUB_WORKSPACE}\"'; rm -rf /'",
+		},
+		{
+			name:     "multiple variables mixed with GITHUB_WORKSPACE",
+			input:    "${GITHUB_WORKSPACE}/src ${OTHER_VAR}/dst",
+			expected: "''\"${GITHUB_WORKSPACE}\"'/src ${OTHER_VAR}/dst'",
+		},
 	}
 
 	for _, tt := range tests {
@@ -143,9 +169,21 @@ func TestBuildDockerCommandWithExpandableVars_PreservesVariableExpansion(t *test
 	input := "docker run -v ${GITHUB_WORKSPACE}:/workspace"
 	result := buildDockerCommandWithExpandableVars(input)
 
-	// Verify the result contains the variable in a form that can be expanded
-	assert.Contains(t, result, "${GITHUB_WORKSPACE}", "Result should preserve GITHUB_WORKSPACE variable for expansion")
+	// Use require.* for the first critical check (fail-fast)
+	require.Contains(t, result, "${GITHUB_WORKSPACE}", "Result should preserve GITHUB_WORKSPACE variable for expansion")
 
-	// Verify the variable is properly quoted to prevent injection
+	// Use assert.* for the second check (still runs if we get here)
 	assert.Contains(t, result, "\"${GITHUB_WORKSPACE}\"", "GITHUB_WORKSPACE should be in double quotes for safe expansion")
+}
+
+func TestBuildDockerCommandWithExpandableVars_UnbracedVariable(t *testing.T) {
+	// Test that $GITHUB_WORKSPACE (without braces) is handled
+	// The current implementation only handles ${GITHUB_WORKSPACE} (with braces)
+	// and treats $GITHUB_WORKSPACE as a regular shell character that gets quoted
+	input := "docker run -v $GITHUB_WORKSPACE:/workspace"
+	result := buildDockerCommandWithExpandableVars(input)
+
+	// Document current behavior: unbraced $GITHUB_WORKSPACE is quoted normally
+	assert.Equal(t, "'docker run -v $GITHUB_WORKSPACE:/workspace'", result,
+		"Unbraced $GITHUB_WORKSPACE should be quoted normally (not preserved for expansion)")
 }

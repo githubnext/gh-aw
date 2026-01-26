@@ -21,6 +21,8 @@ tools:
   cache-memory:
   edit:
   bash:
+imports:
+  - shared/reporting.md
 safe-outputs:
   add-labels:
     allowed:
@@ -109,15 +111,62 @@ Then emit one `create_pull_request` safe output with:
 
 ### 5B) If (B): create an issue with rotation steps
 
-Emit one `create_issue` safe output with:
-- Alert link
-- File path(s)
-- Recommended immediate actions:
-  - rotate the credential
-  - invalidate the old token
-  - audit recent usage
-  - then remove from repo history if applicable
-- Suggested follow-up: add detection/guardrails (e.g. pre-commit secret scanning)
+Create an issue using this template structure (follow shared/reporting.md guidelines):
+
+**Issue Title**: `[secret-triage] Rotate {secret_type} in {file_path}`
+
+**Issue Body Template**:
+```markdown
+### 🚨 Secret Detected
+
+**Alert**: [View Alert #{alert_number}]({alert_url})  
+**Secret Type**: {secret_type}  
+**Location**: `{file_path}` (commit {commit_sha})  
+**Status**: Requires immediate rotation
+
+### ⚡ Immediate Actions Required
+
+1. **Rotate the credential**
+   - Generate a new {secret_type}
+   - Update production systems with new credential
+   
+2. **Invalidate the old token**
+   - Revoke the exposed credential immediately
+   - Verify revocation was successful
+
+3. **Audit recent usage**
+   - Check logs for unauthorized access
+   - Review activity since {commit_date}
+
+<details>
+<summary><b>View Detailed Remediation Steps</b></summary>
+
+#### History Cleanup
+
+After rotation and invalidation:
+- Use `git-filter-repo` or BFG to remove secret from git history
+- Force push to all branches containing the secret
+- Notify contributors to rebase their branches
+
+#### Add Detection/Guardrails
+
+- Enable pre-commit secret scanning hooks
+- Add the file path to `.gitignore` if it's a config file
+- Document secret management procedures in SECURITY.md
+
+</details>
+
+### References
+
+- Alert: [§{alert_number}]({alert_url})
+- Workflow Run: [§{run_id}](https://github.com/githubnext/gh-aw/actions/runs/{run_id})
+```
+
+**Key formatting requirements**:
+- Use h3 (###) headers, not h1 or h2
+- Keep critical info visible (alert link, secret type, immediate actions)
+- Wrap detailed steps in `<details><summary><b>Section</b></summary>` tags
+- Include workflow run reference at the end
 
 ### 6) Record handling
 
