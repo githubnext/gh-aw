@@ -1,8 +1,6 @@
 {
   "name": "Go",
-  "build": {
-    "dockerfile": "Dockerfile"
-  },
+  "image": "",
   "customizations": {
     "vscode": {
       "extensions": [
