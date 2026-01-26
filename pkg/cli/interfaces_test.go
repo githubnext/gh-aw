@@ -94,7 +94,7 @@ func TestInitRepository_WithRootCmd(t *testing.T) {
 	}
 
 	// InitRepository with real rootCmd should succeed
-	err = InitRepository(false, false, false, false, "", []string{}, false, false, false, rootCmd)
+	err = InitRepository(false, false, false, false, "", []string{}, false, false, false, false, rootCmd)
 	require.NoError(t, err, "InitRepository with rootCmd should succeed")
 }
 

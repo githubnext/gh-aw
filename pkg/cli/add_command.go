@@ -481,7 +481,7 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Preparing to commit and push changes..."))
 
 		// Create commit message
-		commitMessage := "chore: add agentic workflows"
+		var commitMessage string
 		if len(workflows) == 1 {
 			commitMessage = fmt.Sprintf("chore: add workflow %s", workflows[0].WorkflowName)
 		} else {
