@@ -19,6 +19,7 @@ Read the ENTIRE content of this file carefully before proceeding. Follow the ins
 
 **Key Commands Available**
 
+- `upgrade` → upgrade repository to latest version (combines all steps below)
 - `fix` → apply automatic codemods to fix deprecated fields
 - `compile` → compile all workflows
 - `compile <workflow-name>` → compile a specific workflow
@@ -27,10 +28,11 @@ Read the ENTIRE content of this file carefully before proceeding. Follow the ins
 > **Command Execution**
 >
 > When running in GitHub Copilot Cloud, you don't have direct access to `gh aw` CLI commands. Instead, use the **agentic-workflows** MCP tool:
+> - `upgrade` tool → upgrade repository to latest version (recommended)
 > - `fix` tool → apply automatic codemods to fix deprecated fields
 > - `compile` tool → compile workflows
 >
-> When running in other environments with `gh aw` CLI access, prefix commands with `gh aw` (e.g., `gh aw compile`).
+> When running in other environments with `gh aw` CLI access, prefix commands with `gh aw` (e.g., `gh aw upgrade`, `gh aw compile`).
 >
 > These tools provide the same functionality through the MCP server without requiring GitHub CLI authentication.
 
@@ -231,7 +233,7 @@ Upgraded all agentic workflows to gh-aw version [VERSION].
 ## Files Changed
 - Updated `.md` workflow files: [LIST]
 - Generated `.lock.yml` files: [LIST]
-- Updated agent files: [LIST] (if `gh aw init --push` was run)
+- Updated agent files: [LIST]
 ```
 
 ### If Compilation Errors Cannot Be Fixed
