@@ -35,7 +35,7 @@ if (require.main === module) {
     console.error(`[safe-outputs-entry] Error stack: ${error.stack}`);
     process.exit(1);
   });
-  
+
   process.stderr.write("[safe-outputs-entry] startHttpServer call initiated (async)\n");
 }
 
