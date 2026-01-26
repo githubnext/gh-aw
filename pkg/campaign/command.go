@@ -103,6 +103,16 @@ Markdown body. You can then
 update owners, workflows, memory paths, metrics-glob, and governance
 fields to match your initiative.
 
+With --interactive flag, enter an interactive wizard to create a comprehensive
+campaign spec with guided prompts for:
+- Campaign objective and description
+- Workflow discovery (optional: scan additional repos/orgs for worker workflows)
+- Repository scope (current, multiple repos, or org-wide)
+- Workflow selection
+- Owners and stakeholders
+- Risk level assessment
+- Project board creation
+
 With --project flag, a GitHub Project will be created with:
 - Required fields: Campaign Id, Worker Workflow, Priority, Size, Start Date, End Date
 - Views: Progress Board (board), Task Tracker (table), Campaign Roadmap (roadmap)
@@ -112,12 +122,29 @@ With --project flag, a GitHub Project will be created with:
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` campaign new security-q1-2025
   ` + string(constants.CLIExtensionPrefix) + ` campaign new modernization-winter2025 --force
+  ` + string(constants.CLIExtensionPrefix) + ` campaign new --interactive                    # Interactive wizard
   ` + string(constants.CLIExtensionPrefix) + ` campaign new security-q1-2025 --project --owner @me
 	` + string(constants.CLIExtensionPrefix) + ` campaign new modernization --project --owner myorg
 	` + string(constants.CLIExtensionPrefix) + ` campaign new modernization --project --owner myorg --no-link-repo
 	` + string(constants.CLIExtensionPrefix) + ` campaign new modernization --project --owner myorg --repo myorg/myrepo`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			interactive, _ := cmd.Flags().GetBool("interactive")
+			
+			// Interactive mode doesn't require campaign ID as argument
+			if interactive {
+				force, _ := cmd.Flags().GetBool("force")
+				verbose, _ := cmd.Flags().GetBool("verbose")
+				
+				cwd, err := os.Getwd()
+				if err != nil {
+					return fmt.Errorf("failed to get current working directory: %w", err)
+				}
+				
+				return RunInteractiveCampaignCreation(cwd, force, verbose)
+			}
+			
+			// Non-interactive mode requires campaign ID
 			if len(args) == 0 {
 				// Build an error message with suggestions but without the leading
 				// error prefix icon; the main CLI handler will add that.
@@ -225,6 +252,7 @@ Examples:
 	}
 
 	newCmd.Flags().Bool("force", false, "Overwrite existing spec file if it already exists")
+	newCmd.Flags().BoolP("interactive", "i", false, "Enter interactive mode to create campaign with guided prompts")
 	newCmd.Flags().Bool("project", false, "Create a GitHub Project with required views and fields")
 	newCmd.Flags().String("owner", "", "GitHub organization or user for the project (required with --project). Use '@me' for personal projects")
 	newCmd.Flags().StringP("repo", "r", "", "Repository to link the created project to (owner/name). Defaults to current repo")
