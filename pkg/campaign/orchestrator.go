@@ -370,46 +370,13 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		appendPromptSection(markdownBuilder, "CLOSING INSTRUCTIONS (HIGHEST PRIORITY)", closingInstructions)
 	}
 
-	// Enable safe outputs needed for campaign coordination.
+	// Campaign orchestrators are dispatch-only: they may only dispatch allowlisted
+	// workflows via the dispatch-workflow safe output. All side effects (Projects,
+	// issues/PRs, comments) must be performed by dispatched worker workflows.
+	//
 	// Note: Campaign orchestrators intentionally omit explicit `permissions:` from
 	// the generated markdown; safe-output jobs have their own scoped permissions.
-	maxComments := 10
-	maxProjectUpdates := 10
-	if spec.Governance != nil {
-		if spec.Governance.MaxCommentsPerRun > 0 {
-			maxComments = spec.Governance.MaxCommentsPerRun
-		}
-		if spec.Governance.MaxProjectUpdatesPerRun > 0 {
-			maxProjectUpdates = spec.Governance.MaxProjectUpdatesPerRun
-		}
-	}
-
 	safeOutputs := &workflow.SafeOutputsConfig{}
-	// Allow creating the Epic issue for the campaign (max: 1, only created once).
-	safeOutputs.CreateIssues = &workflow.CreateIssuesConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 1}}
-	// Allow commenting on related issues/PRs as part of campaign coordination.
-	safeOutputs.AddComments = &workflow.AddCommentsConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: maxComments}}
-	// Allow updating the campaign's GitHub Project dashboard.
-	updateProjectConfig := &workflow.UpdateProjectConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: maxProjectUpdates}}
-	// If the campaign spec specifies a custom GitHub token for Projects v2 operations,
-	// pass it to the update-project configuration.
-	if strings.TrimSpace(spec.ProjectGitHubToken) != "" {
-		updateProjectConfig.GitHubToken = strings.TrimSpace(spec.ProjectGitHubToken)
-		orchestratorLog.Printf("Campaign orchestrator '%s' configured with custom GitHub token for update-project", spec.ID)
-	}
-	safeOutputs.UpdateProjects = updateProjectConfig
-
-	// Allow creating project status updates for campaign summaries.
-	statusUpdateConfig := &workflow.CreateProjectStatusUpdateConfig{BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 1}}
-	// Use the same custom GitHub token for status updates as for project operations.
-	if strings.TrimSpace(spec.ProjectGitHubToken) != "" {
-		statusUpdateConfig.GitHubToken = strings.TrimSpace(spec.ProjectGitHubToken)
-		orchestratorLog.Printf("Campaign orchestrator '%s' configured with custom GitHub token for create-project-status-update", spec.ID)
-	}
-	safeOutputs.CreateProjectStatusUpdates = statusUpdateConfig
-
-	// Add dispatch_workflow if workflows are configured
-	// This allows the orchestrator to dispatch worker workflows for the campaign
 	if len(spec.Workflows) > 0 {
 		dispatchWorkflowConfig := &workflow.DispatchWorkflowConfig{
 			BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 3},
@@ -419,7 +386,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		orchestratorLog.Printf("Campaign orchestrator '%s' configured with dispatch_workflow for %d workflows", spec.ID, len(spec.Workflows))
 	}
 
-	orchestratorLog.Printf("Campaign orchestrator '%s' built successfully with safe outputs enabled", spec.ID)
+	orchestratorLog.Printf("Campaign orchestrator '%s' built successfully with dispatch-workflow safe output", spec.ID)
 
 	// Extract file-glob patterns from memory-paths or metrics-glob to support
 	// multiple directory structures (e.g., both dated "campaign-id-*/**" and non-dated "campaign-id/**")
@@ -438,6 +405,21 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		orchestratorLog.Printf("Campaign orchestrator '%s' using default engine: %s", spec.ID, engineID)
 	}
 
+	tools := map[string]any{
+		"repo-memory": []any{
+			map[string]any{
+				"id":          "campaigns",
+				"branch-name": "memory/campaigns",
+				"file-glob":   convertStringsToAny(fileGlobPatterns),
+				"campaign-id": spec.ID,
+			},
+		},
+		"bash": []any{"*"},
+		"edit": nil,
+	}
+	// Deliberately omit GitHub tool access from orchestrators. All writes and GitHub
+	// API operations should be performed by dispatched worker workflows.
+
 	data := &workflow.WorkflowData{
 		Name:            name,
 		Description:     description,
@@ -454,21 +436,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		EngineConfig: &workflow.EngineConfig{
 			ID: engineID,
 		},
-		Tools: map[string]any{
-			"github": map[string]any{
-				"toolsets": []any{"default", "actions", "code_security"},
-			},
-			"repo-memory": []any{
-				map[string]any{
-					"id":          "campaigns",
-					"branch-name": "memory/campaigns",
-					"file-glob":   convertStringsToAny(fileGlobPatterns),
-					"campaign-id": spec.ID,
-				},
-			},
-			"bash": []any{"*"},
-			"edit": nil,
-		},
+		Tools:       tools,
 		SafeOutputs: safeOutputs,
 	}
 

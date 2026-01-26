@@ -132,6 +132,45 @@ func TestBuildOrchestrator_WorkflowsInDiscovery(t *testing.T) {
 	})
 }
 
+func TestBuildOrchestrator_DispatchOnlyPolicy(t *testing.T) {
+	withTempGitRepoWithInstalledCampaignPrompts(t, func(_ string) {
+		spec := &CampaignSpec{
+			ID:          "dispatch-only-campaign",
+			Name:        "Dispatch Only Campaign",
+			Description: "Campaign orchestrator restricted to dispatch-workflow",
+			ProjectURL:  "https://github.com/orgs/test/projects/1",
+			Workflows:   []string{"worker-a", "worker-b"},
+			MemoryPaths: []string{"memory/campaigns/dispatch-only-campaign/**"},
+		}
+
+		mdPath := ".github/workflows/dispatch-only-campaign.campaign.md"
+		data, _ := BuildOrchestrator(spec, mdPath)
+		if data == nil {
+			t.Fatalf("expected non-nil WorkflowData")
+		}
+
+		if data.SafeOutputs == nil {
+			t.Fatalf("expected SafeOutputs to be set")
+		}
+		if data.SafeOutputs.DispatchWorkflow == nil {
+			t.Fatalf("expected dispatch-workflow safe output to be enabled")
+		}
+		if len(data.SafeOutputs.DispatchWorkflow.Workflows) != 2 {
+			t.Fatalf("expected 2 allowlisted workflows, got %d", len(data.SafeOutputs.DispatchWorkflow.Workflows))
+		}
+		if data.SafeOutputs.CreateIssues != nil || data.SafeOutputs.AddComments != nil || data.SafeOutputs.UpdateProjects != nil || data.SafeOutputs.CreateProjectStatusUpdates != nil {
+			t.Fatalf("expected dispatch-only orchestrator to omit non-dispatch safe outputs")
+		}
+
+		// Dispatch-only policy should not grant GitHub tool access to the agent.
+		if data.Tools != nil {
+			if _, ok := data.Tools["github"]; ok {
+				t.Fatalf("expected dispatch-only orchestrator to omit github tools")
+			}
+		}
+	})
+}
+
 func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
 	withTempGitRepoWithInstalledCampaignPrompts(t, func(_ string) {
 		spec := &CampaignSpec{
@@ -174,15 +213,15 @@ func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
 			t.Errorf("expected markdown to contain core principles section, got: %q", data.MarkdownContent)
 		}
 
-		// Verify separation of steps (read / decide / write / report)
+		// Verify separation of steps (read / decide / dispatch / report)
 		if !strings.Contains(data.MarkdownContent, "Step 1") || !strings.Contains(data.MarkdownContent, "Read State") {
 			t.Errorf("expected markdown to contain Step 1 Read State, got: %q", data.MarkdownContent)
 		}
 		if !strings.Contains(data.MarkdownContent, "Step 2") || !strings.Contains(data.MarkdownContent, "Make Decisions") {
 			t.Errorf("expected markdown to contain Step 2 Make Decisions, got: %q", data.MarkdownContent)
 		}
-		if !strings.Contains(data.MarkdownContent, "Step 3") || !strings.Contains(data.MarkdownContent, "Write State") {
-			t.Errorf("expected markdown to contain Step 3 Write State, got: %q", data.MarkdownContent)
+		if !strings.Contains(data.MarkdownContent, "Step 3") || !strings.Contains(data.MarkdownContent, "Dispatch Workers") {
+			t.Errorf("expected markdown to contain Step 3 Dispatch Workers, got: %q", data.MarkdownContent)
 		}
 		if !strings.Contains(data.MarkdownContent, "Step 4") || !strings.Contains(data.MarkdownContent, "Report") {
 			t.Errorf("expected markdown to contain Step 4 Report, got: %q", data.MarkdownContent)
@@ -190,80 +229,7 @@ func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
 	})
 }
 
-func TestBuildOrchestrator_GitHubToken(t *testing.T) {
-	withTempGitRepoWithInstalledCampaignPrompts(t, func(_ string) {
-		t.Run("with custom github token", func(t *testing.T) {
-			spec := &CampaignSpec{
-				ID:                 "test-campaign-with-token",
-				Name:               "Test Campaign",
-				Description:        "A test campaign with custom GitHub token",
-				ProjectURL:         "https://github.com/orgs/test/projects/1",
-				Workflows:          []string{"test-workflow"},
-				ProjectGitHubToken: "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
-			}
-
-			mdPath := ".github/workflows/test-campaign.campaign.md"
-			data, _ := BuildOrchestrator(spec, mdPath)
-
-			if data == nil {
-				t.Fatalf("expected non-nil WorkflowData")
-			}
-
-			// Verify that SafeOutputs is configured
-			if data.SafeOutputs == nil {
-				t.Fatalf("expected SafeOutputs to be configured")
-			}
-
-			// Verify that UpdateProjects is configured
-			if data.SafeOutputs.UpdateProjects == nil {
-				t.Fatalf("expected UpdateProjects to be configured")
-			}
-
-			// Verify that the GitHubToken is set
-			if data.SafeOutputs.UpdateProjects.GitHubToken != "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}" {
-				t.Errorf("expected GitHubToken to be %q, got %q",
-					"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
-					data.SafeOutputs.UpdateProjects.GitHubToken)
-			}
-		})
-
-		t.Run("without custom github token", func(t *testing.T) {
-			spec := &CampaignSpec{
-				ID:          "test-campaign-no-token",
-				Name:        "Test Campaign",
-				Description: "A test campaign without custom GitHub token",
-				ProjectURL:  "https://github.com/orgs/test/projects/1",
-				Workflows:   []string{"test-workflow"},
-				// ProjectGitHubToken is intentionally omitted
-			}
-
-			mdPath := ".github/workflows/test-campaign.campaign.md"
-			data, _ := BuildOrchestrator(spec, mdPath)
-
-			if data == nil {
-				t.Fatalf("expected non-nil WorkflowData")
-			}
-
-			// Verify that SafeOutputs is configured
-			if data.SafeOutputs == nil {
-				t.Fatalf("expected SafeOutputs to be configured")
-			}
-
-			// Verify that UpdateProjects is configured
-			if data.SafeOutputs.UpdateProjects == nil {
-				t.Fatalf("expected UpdateProjects to be configured")
-			}
-
-			// Verify that the GitHubToken is empty when not specified
-			if data.SafeOutputs.UpdateProjects.GitHubToken != "" {
-				t.Errorf("expected GitHubToken to be empty when not specified, got %q",
-					data.SafeOutputs.UpdateProjects.GitHubToken)
-			}
-		})
-	})
-}
-
-func TestBuildOrchestrator_GovernanceOverridesSafeOutputMaxima(t *testing.T) {
+func TestBuildOrchestrator_GovernanceDoesNotGrantWriteSafeOutputs(t *testing.T) {
 	withTempGitRepoWithInstalledCampaignPrompts(t, func(_ string) {
 		spec := &CampaignSpec{
 			ID:         "test-campaign",
@@ -281,14 +247,14 @@ func TestBuildOrchestrator_GovernanceOverridesSafeOutputMaxima(t *testing.T) {
 		if data == nil {
 			t.Fatalf("expected non-nil WorkflowData")
 		}
-		if data.SafeOutputs == nil || data.SafeOutputs.AddComments == nil || data.SafeOutputs.UpdateProjects == nil {
-			t.Fatalf("expected SafeOutputs add-comment and update-project to be configured")
+		if data.SafeOutputs == nil || data.SafeOutputs.DispatchWorkflow == nil {
+			t.Fatalf("expected dispatch-workflow safe output to be enabled")
 		}
-		if data.SafeOutputs.AddComments.Max != 3 {
-			t.Fatalf("unexpected add-comment max: got %d, want %d", data.SafeOutputs.AddComments.Max, 3)
+		if data.SafeOutputs.DispatchWorkflow.Max != 3 {
+			t.Fatalf("unexpected dispatch-workflow max: got %d, want %d", data.SafeOutputs.DispatchWorkflow.Max, 3)
 		}
-		if data.SafeOutputs.UpdateProjects.Max != 4 {
-			t.Fatalf("unexpected update-project max: got %d, want %d", data.SafeOutputs.UpdateProjects.Max, 4)
+		if data.SafeOutputs.CreateIssues != nil || data.SafeOutputs.AddComments != nil || data.SafeOutputs.UpdateProjects != nil || data.SafeOutputs.CreateProjectStatusUpdates != nil {
+			t.Fatalf("expected orchestrator to omit non-dispatch safe outputs regardless of governance")
 		}
 	})
 }

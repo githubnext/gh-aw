@@ -309,7 +309,6 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		Name               string                                 `json:"name"`
 		Description        string                                 `json:"description,omitempty"`
 		ProjectURL         string                                 `json:"project-url,omitempty"`
-		ProjectGitHubToken string                                 `json:"project-github-token,omitempty"`
 		Version            string                                 `json:"version,omitempty"`
 		Workflows          []string                               `json:"workflows,omitempty"`
 		DiscoveryRepos     []string                               `json:"discovery-repos,omitempty"`
@@ -334,7 +333,6 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		Name:               spec.Name,
 		Description:        spec.Description,
 		ProjectURL:         spec.ProjectURL,
-		ProjectGitHubToken: spec.ProjectGitHubToken,
 		Version:            spec.Version,
 		Workflows:          spec.Workflows,
 		DiscoveryRepos:     spec.DiscoveryRepos,

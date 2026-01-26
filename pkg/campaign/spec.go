@@ -93,12 +93,6 @@ type CampaignSpec struct {
 	// enforced by validation in the future.
 	AllowedSafeOutputs []string `yaml:"allowed-safe-outputs,omitempty" json:"allowed_safe_outputs,omitempty" console:"header:Allowed Safe Outputs,omitempty,maxlen:30"`
 
-	// ProjectGitHubToken is an optional GitHub token expression (e.g.,
-	// ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}) used for GitHub Projects v2
-	// operations. When specified, this token is passed to the update-project
-	// safe output configuration in the generated orchestrator workflow.
-	ProjectGitHubToken string `yaml:"project-github-token,omitempty" json:"project_github_token,omitempty" console:"header:Project Token,omitempty,maxlen:30"`
-
 	// Governance configures lightweight pacing and opt-out policies for campaign
 	// orchestrator workflows. These guardrails are primarily enforced through
 	// generated prompts and safe-output maxima.

@@ -27,11 +27,6 @@
       "pattern": "/projects/",
       "minLength": 1
     },
-    "project-github-token": {
-      "type": "string",
-      "description": "Optional GitHub token expression used for GitHub Projects v2 operations (e.g., ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }})",
-      "minLength": 1
-    },
     "version": {
       "type": "string",
       "description": "Spec version (e.g., v1)",

@@ -127,12 +127,14 @@ Override discovery scope when operating across multiple repositories:
 - See [Governance fields](#governance-fields) below
 
 **allowed-orgs** - Organizations campaign can modify
+
 - Format: List of organization names
 - Alternative to specifying individual `allowed-repos`
 
-**project-github-token** - Custom token for Projects API
-- Format: Token expression like `${{ secrets.TOKEN_NAME }}`
-- Use when default `GITHUB_TOKEN` lacks Projects permissions
+Campaign orchestrators are **dispatch-only by design**:
+- The orchestrator can make decisions and coordinate work.
+- The orchestrator may only *act* by dispatching allowlisted worker workflows via `safe-outputs.dispatch-workflow`.
+- All side effects (Projects, issues/PRs, comments) happen in worker workflows with their own safe-outputs.
 
 ## Markdown body content
 
