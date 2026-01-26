@@ -95,9 +95,21 @@ To use the agentic-chat instructions:
 
 The assistant uses a neutral, technical tone and focuses on what needs to be done rather than how to implement it, making it ideal for creating specifications that AI coding agents can execute.
 
-## Editing Workflows: Prompt vs Frontmatter
+## Editing Workflows
 
-When working with workflow files (`.md` files), it's important to understand the difference between the two main components:
+### Using the Agentic-Workflows Agent (Recommended)
+
+The easiest way to edit your workflows is to use the `/agent agentic-workflows` command in GitHub Copilot Chat:
+
+```sh wrap
+/agent agentic-workflows update add web-fetch tool to my-workflow
+```
+
+This approach automatically handles both content changes and recompilation, ensuring your workflow is ready to use.
+
+### Manual Editing: Understanding Prompt vs Frontmatter
+
+When manually editing workflow files (`.md` files in the `.github/workflows/` directory), it's important to understand the difference between the two main components:
 
 ### Workflow Prompt (Markdown Body)
 
@@ -105,7 +117,7 @@ The **workflow prompt** is the main markdown content that describes what you wan
 
 - **Location**: The main body of the `.md` file (below the frontmatter)
 - **Purpose**: Describes the task for the AI agent to execute
-- **Editing**: Can be edited directly without recompilation
+- **Editing**: Can be edited directly from the GitHub web interface without recompilation
 - **Example**:
   ```markdown
   Triage the issue by analyzing its content, assigning appropriate labels,
@@ -113,7 +125,7 @@ The **workflow prompt** is the main markdown content that describes what you wan
   ```
 
 > [!TIP]
-> You can edit the workflow prompt directly through the GitHub web interface. Changes to the prompt take effect immediately in the next workflow run - no compilation needed.
+> You can edit the workflow prompt directly through the GitHub web interface in your repository's `.github/workflows/*.md` files. Changes to the prompt take effect immediately in the next workflow run - no compilation needed.
 
 ### Frontmatter Configuration
 
@@ -121,7 +133,7 @@ The **frontmatter** is the YAML configuration block at the top of the workflow f
 
 - **Location**: Between `---` delimiters at the top of the `.md` file
 - **Purpose**: Configures how the workflow runs (triggers, tools, permissions, etc.)
-- **Editing**: **Requires recompilation** after changes
+- **Editing**: **Requires recompilation** after manual changes
 - **Example**:
   ```yaml
   ---
@@ -136,11 +148,13 @@ The **frontmatter** is the YAML configuration block at the top of the workflow f
   ```
 
 > [!WARNING]
-> After editing frontmatter configuration, you **must recompile** the workflow to regenerate the `.lock.yml` file:
+> After manually editing frontmatter configuration, you **must recompile** the workflow to regenerate the `.lock.yml` file:
 > ```bash
 > gh aw compile workflow-name.md
 > ```
 > The `.lock.yml` file is the compiled GitHub Actions workflow that actually runs. Changes to frontmatter won't take effect until you recompile and commit the updated `.lock.yml` file.
+> 
+> **Recommended**: Use the `/agent agentic-workflows` command instead, which handles recompilation automatically.
 
 ### Quick Reference
 
