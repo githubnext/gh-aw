@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -480,29 +481,135 @@ func findAvailablePort(startPort int, verbose bool) int {
 }
 
 // waitForServerReady waits for the HTTP server to be ready by polling the endpoint
+// Uses exponential backoff to reduce CPU usage and latency
 func waitForServerReady(port int, timeout time.Duration, verbose bool) bool {
-	deadline := time.Now().Add(timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
 	client := &http.Client{
 		Timeout: 1 * time.Second,
 	}
 	url := fmt.Sprintf("http://localhost:%d/", port)
 
-	for time.Now().Before(deadline) {
-		resp, err := client.Get(url)
-		if err == nil {
-			if closeErr := resp.Body.Close(); closeErr != nil {
-				mcpInspectLog.Printf("Warning: failed to close response body: %v", closeErr)
+	// Start with 50ms delay for fast servers, cap at 500ms
+	delay := 50 * time.Millisecond
+	maxDelay := 500 * time.Millisecond
+
+	for {
+		select {
+		case <-ctx.Done():
+			mcpInspectLog.Printf("Server did not become ready within timeout")
+			return false
+		default:
+			resp, err := client.Get(url)
+			if err == nil {
+				if closeErr := resp.Body.Close(); closeErr != nil {
+					mcpInspectLog.Printf("Warning: failed to close response body: %v", closeErr)
+				}
+				if verbose {
+					mcpInspectLog.Printf("Server is ready on port %d", port)
+				}
+				return true
 			}
-			if verbose {
-				mcpInspectLog.Printf("Server is ready on port %d", port)
+
+			// Exponential backoff
+			timer := time.NewTimer(delay)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				mcpInspectLog.Printf("Server did not become ready within timeout")
+				return false
+			case <-timer.C:
+				// Double the delay for next iteration, up to maxDelay
+				delay *= 2
+				if delay > maxDelay {
+					delay = maxDelay
+				}
 			}
-			return true
 		}
-		time.Sleep(200 * time.Millisecond)
+	}
+}
+
+// waitForProcessStability waits for processes to stabilize (not crash immediately)
+// Uses context-based polling with exponential backoff to minimize wait time
+func waitForProcessStability(processes []*exec.Cmd, timeout time.Duration, verbose bool) error {
+	if len(processes) == 0 {
+		return nil
 	}
 
-	mcpInspectLog.Printf("Server did not become ready within timeout")
-	return false
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// Channel to collect process failures
+	failures := make(chan error, len(processes))
+	done := make(chan struct{})
+
+	// Monitor each process for early failures
+	for _, cmd := range processes {
+		go func(c *exec.Cmd) {
+			// Check if process has already exited (failed immediately)
+			if c.ProcessState != nil && c.ProcessState.Exited() {
+				failures <- fmt.Errorf("process %d exited immediately", c.Process.Pid)
+			}
+		}(cmd)
+	}
+
+	// Start with 100ms checks, double up to 500ms max
+	delay := 100 * time.Millisecond
+	maxDelay := 500 * time.Millisecond
+	checksCompleted := 0
+	minChecks := 3 // Require at least 3 successful checks for stability
+
+	go func() {
+		for checksCompleted < minChecks {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(delay):
+				// Check if any process has failed
+				allRunning := true
+				for _, cmd := range processes {
+					if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+						allRunning = false
+						break
+					}
+				}
+
+				if !allRunning {
+					return // A process failed, let the main select handle it
+				}
+
+				checksCompleted++
+				if verbose && checksCompleted < minChecks {
+					mcpInspectLog.Printf("Process stability check %d/%d passed", checksCompleted, minChecks)
+				}
+
+				// Exponential backoff for subsequent checks
+				delay *= 2
+				if delay > maxDelay {
+					delay = maxDelay
+				}
+			}
+		}
+		close(done)
+	}()
+
+	// Wait for stability or failure
+	select {
+	case <-done:
+		// All processes are stable
+		return nil
+	case err := <-failures:
+		return err
+	case <-ctx.Done():
+		// Check for any process failures before returning timeout
+		for _, cmd := range processes {
+			if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+				return fmt.Errorf("process %d failed during startup", cmd.Process.Pid)
+			}
+		}
+		return fmt.Errorf("timeout waiting for process stability")
+	}
 }
 
 // startSafeInputsServer starts the safe-inputs HTTP server and returns the MCP config
@@ -846,9 +953,13 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 					}
 				}
 
-				// Give servers a moment to start up
-				time.Sleep(2 * time.Second)
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All stdio servers started successfully"))
+				// Wait for processes to stabilize with exponential backoff (max 5s)
+				// Most servers will be ready in < 500ms
+				if err := waitForProcessStability(serverProcesses, 5*time.Second, verbose); err != nil {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Some servers may have failed to start: %v", err)))
+				} else {
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All stdio servers started successfully"))
+				}
 			}
 
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Configuration details for MCP inspector:"))

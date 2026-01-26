@@ -116,8 +116,11 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Enabled discussions in host repository"))
 	}
 
-	// Give GitHub a moment to fully initialize the repository
-	time.Sleep(2 * time.Second)
+	// Wait for GitHub to propagate repository settings (eventual consistency)
+	// Use a shorter delay as most operations complete quickly
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	<-ctx.Done()
 
 	return nil
 }

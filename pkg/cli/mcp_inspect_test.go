@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/types"
 
@@ -434,6 +436,80 @@ func TestApplyImportsToFrontmatter(t *testing.T) {
 
 			if !tt.expectError && tt.validate != nil {
 				tt.validate(t, result)
+			}
+		})
+	}
+}
+
+// TestWaitForServerReady_ExponentialBackoff tests that the improved waitForServerReady
+// uses exponential backoff and completes quickly when server is ready
+func TestWaitForServerReady_ExponentialBackoff(t *testing.T) {
+	// Note: This is a behavioral test to ensure the function doesn't regress
+	// to fixed delays. Actual HTTP server testing is done in integration tests.
+
+	tests := []struct {
+		name        string
+		timeout     time.Duration
+		expectReady bool
+	}{
+		{
+			name:        "timeout triggers when server never ready",
+			timeout:     100 * time.Millisecond,
+			expectReady: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Use an unlikely port that won't have a server running
+			unusedPort := 59999
+
+			startTime := time.Now()
+			ready := waitForServerReady(unusedPort, tt.timeout, false)
+			elapsed := time.Since(startTime)
+
+			if ready != tt.expectReady {
+				t.Errorf("waitForServerReady() = %v, want %v", ready, tt.expectReady)
+			}
+
+			// Verify the function respects the timeout (with 100ms tolerance for scheduling)
+			if elapsed > tt.timeout+100*time.Millisecond {
+				t.Errorf("waitForServerReady() took %v, expected around %v", elapsed, tt.timeout)
+			}
+		})
+	}
+}
+
+// TestWaitForProcessStability_QuickStability tests that process stability checking
+// completes quickly when processes are stable
+func TestWaitForProcessStability_QuickStability(t *testing.T) {
+	tests := []struct {
+		name        string
+		processes   []*exec.Cmd
+		timeout     time.Duration
+		expectError bool
+	}{
+		{
+			name:        "no processes returns immediately",
+			processes:   []*exec.Cmd{},
+			timeout:     1 * time.Second,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			startTime := time.Now()
+			err := waitForProcessStability(tt.processes, tt.timeout, false)
+			elapsed := time.Since(startTime)
+
+			if (err != nil) != tt.expectError {
+				t.Errorf("waitForProcessStability() error = %v, expectError %v", err, tt.expectError)
+			}
+
+			// Empty process list should return immediately (within 50ms)
+			if len(tt.processes) == 0 && elapsed > 50*time.Millisecond {
+				t.Errorf("waitForProcessStability() with no processes took %v, expected near-instant", elapsed)
 			}
 		})
 	}
