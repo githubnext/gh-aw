@@ -129,7 +129,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 	servers := make([]MCPRegistryServerForProcessing, 0, len(response.Servers))
 	for _, serverResp := range response.Servers {
 		server := serverResp.Server
-		
+
 		// Only include active servers (check in _meta)
 		if meta, ok := serverResp.Meta["io.modelcontextprotocol.registry/official"].(map[string]any); ok {
 			if status, ok := meta["status"].(string); ok && status != StatusActive {
@@ -320,7 +320,7 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 	// Find exact match by name, filtering locally
 	for _, serverResp := range response.Servers {
 		server := serverResp.Server
-		
+
 		// Check status from _meta
 		isActive := true
 		if meta, ok := serverResp.Meta["io.modelcontextprotocol.registry/official"].(map[string]any); ok {
@@ -328,7 +328,7 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 				isActive = (status == StatusActive)
 			}
 		}
-		
+
 		if server.Name == serverName && isActive {
 			// Convert to flattened format similar to SearchServers
 			processedServer := MCPRegistryServerForProcessing{

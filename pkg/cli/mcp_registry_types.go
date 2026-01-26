@@ -18,21 +18,21 @@ type Metadata struct {
 
 // ServerResponse represents the API response format with separated server data and registry metadata
 type ServerResponse struct {
-	Server ServerDetail        `json:"server"`
+	Server ServerDetail   `json:"server"`
 	Meta   map[string]any `json:"_meta,omitempty"`
 }
 
 // ServerDetail represents an MCP server in the registry
 type ServerDetail struct {
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	Title       string       `json:"title,omitempty"`
-	Version     string       `json:"version"`
-	Repository  *Repository  `json:"repository,omitempty"`
-	Packages    []MCPPackage `json:"packages,omitempty"`
-	Remotes     []Remote     `json:"remotes,omitempty"`
-	WebsiteURL  string       `json:"websiteUrl,omitempty"`
-	Schema      string       `json:"$schema,omitempty"`
+	Name         string         `json:"name"`
+	Description  string         `json:"description"`
+	Title        string         `json:"title,omitempty"`
+	Version      string         `json:"version"`
+	Repository   *Repository    `json:"repository,omitempty"`
+	Packages     []MCPPackage   `json:"packages,omitempty"`
+	Remotes      []Remote       `json:"remotes,omitempty"`
+	WebsiteURL   string         `json:"websiteUrl,omitempty"`
+	Schema       string         `json:"$schema,omitempty"`
 	InternalMeta map[string]any `json:"_meta,omitempty"`
 }
 
@@ -60,17 +60,17 @@ type MCPPackage struct {
 
 // Transport represents the transport configuration
 type Transport struct {
-	Type      string             `json:"type"`
-	URL       string             `json:"url,omitempty"`
+	Type      string                `json:"type"`
+	URL       string                `json:"url,omitempty"`
 	Headers   []EnvironmentVariable `json:"headers,omitempty"`
-	Variables map[string]any     `json:"variables,omitempty"`
+	Variables map[string]any        `json:"variables,omitempty"`
 }
 
 // Argument represents a command line argument
 type Argument struct {
 	Type        string         `json:"type"`
 	Value       string         `json:"value,omitempty"`
-	Name        string         `json:"name,omitempty"` // For named arguments
+	Name        string         `json:"name,omitempty"`      // For named arguments
 	ValueHint   string         `json:"valueHint,omitempty"` // For positional arguments
 	IsRepeated  bool           `json:"isRepeated,omitempty"`
 	Description string         `json:"description,omitempty"`
@@ -85,13 +85,13 @@ type Argument struct {
 
 // EnvironmentVariable represents an environment variable configuration
 type EnvironmentVariable struct {
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	IsRequired  bool   `json:"isRequired,omitempty"`
-	IsSecret    bool   `json:"isSecret,omitempty"`
-	Default     string `json:"default,omitempty"`
-	Format      string `json:"format,omitempty"`
-	Placeholder string `json:"placeholder,omitempty"`
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	IsRequired  bool     `json:"isRequired,omitempty"`
+	IsSecret    bool     `json:"isSecret,omitempty"`
+	Default     string   `json:"default,omitempty"`
+	Format      string   `json:"format,omitempty"`
+	Placeholder string   `json:"placeholder,omitempty"`
 	Choices     []string `json:"choices,omitempty"`
 }
 
