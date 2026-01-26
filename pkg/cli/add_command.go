@@ -542,7 +542,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 	}()
 
 	// Add workflows using the normal function logic
-	if err := addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, fromWildcard, workflowDir, noStopAfter, stopAfter); err != nil {
+	if err := addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force, appendText, false, noGitattributes, fromWildcard, workflowDir, noStopAfter, stopAfter); err != nil {
 		// Rollback on error
 		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))

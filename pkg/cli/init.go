@@ -448,19 +448,19 @@ func attemptSetSecret(secretName, repoSlug string, verbose bool) error {
 }
 
 // InitRepository initializes the repository for agentic workflows
-func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine string, codespaceRepos []string, codespaceEnabled bool, completions bool, push bool, createPR bool, rootCmd CommandProvider) error {
+func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine string, codespaceRepos []string, codespaceEnabled bool, completions bool, push bool, shouldCreatePR bool, rootCmd CommandProvider) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
 
 	// If --push or --create-pull-request is enabled, ensure git status is clean before starting
-	if push || createPR {
-		if createPR {
+	if push || shouldCreatePR {
+		if shouldCreatePR {
 			initLog.Print("Checking for clean working directory (--create-pull-request enabled)")
 		} else {
 			initLog.Print("Checking for clean working directory (--push enabled)")
 		}
 		if err := checkCleanWorkingDirectory(verbose); err != nil {
 			initLog.Printf("Git status check failed: %v", err)
-			if createPR {
+			if shouldCreatePR {
 				return fmt.Errorf("--create-pull-request requires a clean working directory: %w", err)
 			}
 			return fmt.Errorf("--push requires a clean working directory: %w", err)
@@ -468,7 +468,7 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	}
 
 	// If creating a PR, check GitHub CLI is available
-	if createPR {
+	if shouldCreatePR {
 		if !isGHCLIAvailable() {
 			return fmt.Errorf("GitHub CLI (gh) is required for PR creation but not available")
 		}
@@ -695,7 +695,7 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 	initLog.Print("Repository initialization completed successfully")
 
 	// If --create-pull-request is enabled, create branch, commit, push, and create PR
-	if createPR {
+	if shouldCreatePR {
 		initLog.Print("Create PR enabled - preparing to create branch, commit, push, and create PR")
 		fmt.Fprintln(os.Stderr, "")
 
