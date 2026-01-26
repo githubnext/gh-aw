@@ -93,16 +93,21 @@ func buildDiscoverySteps(spec *CampaignSpec) []map[string]any {
 		"GH_AW_CURSOR_PATH":         getCursorPath(spec),
 	}
 
-	// Add GH_AW_DISCOVERY_REPOS from spec.DiscoveryRepos
-	if len(spec.DiscoveryRepos) > 0 {
-		envVars["GH_AW_DISCOVERY_REPOS"] = strings.Join(spec.DiscoveryRepos, ",")
-		orchestratorLog.Printf("Setting GH_AW_DISCOVERY_REPOS from discovery-repos: %v", spec.DiscoveryRepos)
+	// Campaign scope uses scope selectors as the single source of truth.
+	// We export discovery scope to the action via GH_AW_DISCOVERY_*.
+	parsedScope, scopeProblems := parseScopeSelectors(spec.Scope)
+	if len(scopeProblems) > 0 {
+		orchestratorLog.Printf("Warning: invalid scope selectors for campaign '%s': %v", spec.ID, scopeProblems)
 	}
 
-	// Add GH_AW_DISCOVERY_ORGS from spec.DiscoveryOrgs if provided
-	if len(spec.DiscoveryOrgs) > 0 {
-		envVars["GH_AW_DISCOVERY_ORGS"] = strings.Join(spec.DiscoveryOrgs, ",")
-		orchestratorLog.Printf("Setting GH_AW_DISCOVERY_ORGS from discovery-orgs: %v", spec.DiscoveryOrgs)
+	if len(parsedScope.Repos) > 0 {
+		envVars["GH_AW_DISCOVERY_REPOS"] = strings.Join(parsedScope.Repos, ",")
+		orchestratorLog.Printf("Setting GH_AW_DISCOVERY_REPOS from scope: %v", parsedScope.Repos)
+	}
+
+	if len(parsedScope.Orgs) > 0 {
+		envVars["GH_AW_DISCOVERY_ORGS"] = strings.Join(parsedScope.Orgs, ",")
+		orchestratorLog.Printf("Setting GH_AW_DISCOVERY_ORGS from scope: %v", parsedScope.Orgs)
 	}
 
 	steps := []map[string]any{

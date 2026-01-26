@@ -37,8 +37,7 @@ name: <Campaign Name>
 description: <One sentence>
 project-url: <GitHub Project URL>
 workflows: [<workflow-1>, <workflow-2>]
-allowed-repos: [owner/repo1, owner/repo2]  # Required: repositories campaign can operate on
-allowed-orgs: [org-name]  # Optional: organizations campaign can operate on
+scope: [owner/repo1, owner/repo2, org:org-name]  # Optional: defaults to current repository
 owners: [@<username>]
 risk-level: <low|medium|high>
 state: planned
@@ -155,8 +154,7 @@ In addition to the structure above, include these exact items:
 
 **Allowed Repos/Orgs (Required):**
 
-- `allowed-repos`: **Required** - List of repositories (format: `owner/repo`) that campaign can discover and operate on
-- `allowed-orgs`: Optional - GitHub organizations campaign can operate on
+- `scope`: **Optional** - Scope selectors for repos and orgs this campaign can discover and operate on (defaults to current repo)
 - Defines campaign scope as a reviewable contract for security and governance
 
 **Workflow Discovery:**

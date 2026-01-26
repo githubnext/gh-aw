@@ -90,25 +90,15 @@ Many fields have automatic defaults based on the campaign ID:
 **cursor-glob** - Glob for durable cursor/checkpoint file
 - Default: `memory/campaigns/{id}/cursor.json`
 
-**allowed-repos** - Repositories campaign can operate on
+**scope** - Repositories and organizations this campaign can operate on
 - Default: Current repository (where campaign is defined)
 
-**discovery-repos** - Repositories to search for worker outputs
-- Default: Same as `allowed-repos`
+Campaign scope is defined once and used for both discovery and execution:
 
-### Discovery scope (optional)
-
-Override discovery scope when operating across multiple repositories:
-
-**discovery-repos** - Specific repositories to search
-- Format: List of `owner/repo` strings
-- Example: `["myorg/api", "myorg/web"]`
-- Default: Same as `allowed-repos` (current repository)
-
-**discovery-orgs** - Organizations to search (all repos)
-- Format: List of organization names
-- Example: `["myorg"]`
-- Overrides `discovery-repos` when specified
+**scope** - Scope selectors
+- Repository selector: `owner/repo`
+- Organization selector: `org:<name>`
+- Example: `["myorg/api", "myorg/web", "org:myorg"]`
 
 ## Optional fields
 
@@ -126,10 +116,7 @@ Override discovery scope when operating across multiple repositories:
 **governance** - Pacing and safety limits
 - See [Governance fields](#governance-fields) below
 
-**allowed-orgs** - Organizations campaign can modify
-
-- Format: List of organization names
-- Alternative to specifying individual `allowed-repos`
+No other scope fields are needed; use `scope`.
 
 Campaign orchestrators are **dispatch-only by design**:
 - The orchestrator can make decisions and coordinate work.
@@ -200,34 +187,14 @@ governance:
 - Default: `["no-bot", "no-campaign"]`
 
 ## Discovery configuration
-
-### Repository-scoped discovery
+Campaign discovery uses the same `scope` as execution.
 
 ```yaml
-discovery-repos:
+scope:
   - "myorg/frontend"
   - "myorg/backend"
   - "myorg/api"
-```
-
-Searches only specified repositories for issues and pull requests with tracker labels.
-
-### Organization-scoped discovery
-
-```yaml
-discovery-orgs:
-  - "myorg"
-```
-
-Searches all repositories in the organization. Use carefully - can be expensive for large organizations.
-
-### Hybrid approach
-
-```yaml
-discovery-repos:
-  - "myorg/critical-service"  # Always scan this one
-discovery-orgs:
-  - "myorg"                    # Scan all others
+  - "org:myorg"        # optional org-wide scope
 ```
 
 ## Validation
@@ -270,11 +237,11 @@ This automatically gets:
 - `memory-paths: ["memory/campaigns/security-audit-q1/**"]`
 - `metrics-glob: memory/campaigns/security-audit-q1/metrics/*.json`
 - `cursor-glob: memory/campaigns/security-audit-q1/cursor.json`
-- `allowed-repos` and `discovery-repos`: current repository
+- `scope`: current repository
 
 ## Full example
 
-With governance and multi-org scope:
+With governance and org scope:
 
 ```yaml
 ---
@@ -283,8 +250,8 @@ name: "Security Audit Q1 2025"
 description: "Quarterly security review and remediation"
 project-url: "https://github.com/orgs/myorg/projects/5"
 
-discovery-orgs:
-  - "myorg"
+scope:
+  - "org:myorg"
 
 workflows:
   - security-scanner

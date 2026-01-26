@@ -31,25 +31,15 @@ type CampaignSpec struct {
 	// step will search for items with this label.
 	TrackerLabel string `yaml:"tracker-label,omitempty" json:"tracker_label,omitempty" console:"header:Tracker Label,omitempty,maxlen:40"`
 
-	// DiscoveryRepos defines the explicit list of repositories (in owner/repo format)
-	// where worker workflows are discovered. This controls the scope of GitHub searches
-	// for issues/PRs created by worker workflows.
-	DiscoveryRepos []string `yaml:"discovery-repos,omitempty" json:"discovery_repos,omitempty" console:"header:Discovery Repos,omitempty,maxlen:60"`
-
-	// DiscoveryOrgs optionally defines the list of GitHub organizations where worker
-	// workflows are discovered. When specified, any repository within these organizations
-	// is searched for worker-created issues/PRs.
-	DiscoveryOrgs []string `yaml:"discovery-orgs,omitempty" json:"discovery_orgs,omitempty" console:"header:Discovery Orgs,omitempty,maxlen:40"`
-
-	// AllowedRepos defines the explicit list of repositories (in owner/repo format)
-	// that this campaign is allowed to discover and operate on. When omitted, defaults
-	// to the current repository where the campaign is defined.
-	AllowedRepos []string `yaml:"allowed-repos,omitempty" json:"allowed_repos,omitempty" console:"header:Allowed Repos,omitempty,maxlen:60"`
-
-	// AllowedOrgs optionally defines the list of GitHub organizations that this
-	// campaign is allowed to discover and operate on. When specified, any repository
-	// within these organizations is considered in-scope.
-	AllowedOrgs []string `yaml:"allowed-orgs,omitempty" json:"allowed_orgs,omitempty" console:"header:Allowed Orgs,omitempty,maxlen:40"`
+	// Scope defines the explicit set of repositories and organizations that this
+	// campaign is allowed to discover and operate on.
+	//
+	// Supported selectors:
+	//   - "owner/repo" (specific repository)
+	//   - "org:<name>" (all repositories in an organization)
+	//
+	// When omitted, it defaults to the current repository where the campaign is defined.
+	Scope []string `yaml:"scope,omitempty" json:"scope,omitempty" console:"header:Scope,omitempty,maxlen:60"`
 
 	// MemoryPaths documents where this campaign writes its repo-memory
 	// (for example: memory/campaigns/incident-response/**).

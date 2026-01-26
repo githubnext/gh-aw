@@ -80,82 +80,12 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		}
 	}
 
-	// Validate discovery-repos format if provided
-	if len(spec.DiscoveryRepos) > 0 {
-		// Validate each repository format
-		for _, repo := range spec.DiscoveryRepos {
-			trimmed := strings.TrimSpace(repo)
-			if trimmed == "" {
-				problems = append(problems, "discovery-repos must not contain empty entries - remove empty strings from the list")
-				continue
-			}
-			// Validate owner/repo format
-			parts := strings.Split(trimmed, "/")
-			if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-				problems = append(problems, fmt.Sprintf("discovery-repos entry '%s' must be in 'owner/repo' format - example: 'github/docs' or 'myorg/myrepo'", trimmed))
-			}
-			// Warn about common mistakes
-			if strings.Contains(trimmed, "*") {
-				problems = append(problems, fmt.Sprintf("discovery-repos entry '%s' cannot contain wildcards - list each repository explicitly or use discovery-orgs for organization-wide scope", trimmed))
-			}
-		}
-	}
+	parsedScope, scopeProblems := parseScopeSelectors(spec.Scope)
+	problems = append(problems, scopeProblems...)
 
-	// Validate discovery-orgs if provided
-	if len(spec.DiscoveryOrgs) > 0 {
-		for _, org := range spec.DiscoveryOrgs {
-			trimmed := strings.TrimSpace(org)
-			if trimmed == "" {
-				problems = append(problems, "discovery-orgs must not contain empty entries - remove empty strings from the list")
-				continue
-			}
-			// Validate organization name format (no slashes, valid GitHub org name)
-			if strings.Contains(trimmed, "/") {
-				problems = append(problems, fmt.Sprintf("discovery-orgs entry '%s' must be an organization name only (not owner/repo format) - example: 'github' not 'github/docs'", trimmed))
-			}
-			if strings.Contains(trimmed, "*") {
-				problems = append(problems, fmt.Sprintf("discovery-orgs entry '%s' cannot contain wildcards - use the organization name directly (e.g., 'myorg')", trimmed))
-			}
-		}
-	}
-
-	// Validate allowed-repos format if provided (now optional - defaults to current repo)
-	if len(spec.AllowedRepos) > 0 {
-		// Validate each repository format
-		for _, repo := range spec.AllowedRepos {
-			trimmed := strings.TrimSpace(repo)
-			if trimmed == "" {
-				problems = append(problems, "allowed-repos must not contain empty entries - remove empty strings from the list")
-				continue
-			}
-			// Validate owner/repo format
-			parts := strings.Split(trimmed, "/")
-			if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-				problems = append(problems, fmt.Sprintf("allowed-repos entry '%s' must be in 'owner/repo' format - example: 'github/docs' or 'myorg/myrepo'", trimmed))
-			}
-			// Warn about common mistakes
-			if strings.Contains(trimmed, "*") {
-				problems = append(problems, fmt.Sprintf("allowed-repos entry '%s' cannot contain wildcards - list each repository explicitly or use allowed-orgs for organization-wide scope", trimmed))
-			}
-		}
-	}
-
-	// Validate allowed-orgs if provided (optional)
-	if len(spec.AllowedOrgs) > 0 {
-		for _, org := range spec.AllowedOrgs {
-			trimmed := strings.TrimSpace(org)
-			if trimmed == "" {
-				problems = append(problems, "allowed-orgs must not contain empty entries - remove empty strings from the list")
-				continue
-			}
-			// Validate organization name format (no slashes, valid GitHub org name)
-			if strings.Contains(trimmed, "/") {
-				problems = append(problems, fmt.Sprintf("allowed-orgs entry '%s' must be an organization name only (not owner/repo format) - example: 'github' not 'github/docs'", trimmed))
-			}
-			if strings.Contains(trimmed, "*") {
-				problems = append(problems, fmt.Sprintf("allowed-orgs entry '%s' cannot contain wildcards - use the organization name directly (e.g., 'myorg')", trimmed))
-			}
-		}
+	// Campaigns that do discovery (workflows or tracker-label) must be scoped.
+	if (len(spec.Workflows) > 0 || strings.TrimSpace(spec.TrackerLabel) != "") && len(parsedScope.Repos) == 0 && len(parsedScope.Orgs) == 0 {
+		problems = append(problems, "campaigns with workflows must be scoped via scope")
 	}
 
 	if strings.TrimSpace(spec.ProjectURL) == "" {
@@ -311,10 +241,7 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		ProjectURL         string                                 `json:"project-url,omitempty"`
 		Version            string                                 `json:"version,omitempty"`
 		Workflows          []string                               `json:"workflows,omitempty"`
-		DiscoveryRepos     []string                               `json:"discovery-repos,omitempty"`
-		DiscoveryOrgs      []string                               `json:"discovery-orgs,omitempty"`
-		AllowedRepos       []string                               `json:"allowed-repos,omitempty"`
-		AllowedOrgs        []string                               `json:"allowed-orgs,omitempty"`
+		Scope              []string                               `json:"scope,omitempty"`
 		MemoryPaths        []string                               `json:"memory-paths,omitempty"`
 		MetricsGlob        string                                 `json:"metrics-glob,omitempty"`
 		CursorGlob         string                                 `json:"cursor-glob,omitempty"`
@@ -335,10 +262,7 @@ func ValidateSpecWithSchema(spec *CampaignSpec) []string {
 		ProjectURL:         spec.ProjectURL,
 		Version:            spec.Version,
 		Workflows:          spec.Workflows,
-		DiscoveryRepos:     spec.DiscoveryRepos,
-		DiscoveryOrgs:      spec.DiscoveryOrgs,
-		AllowedRepos:       spec.AllowedRepos,
-		AllowedOrgs:        spec.AllowedOrgs,
+		Scope:              spec.Scope,
 		MemoryPaths:        spec.MemoryPaths,
 		MetricsGlob:        spec.MetricsGlob,
 		CursorGlob:         spec.CursorGlob,

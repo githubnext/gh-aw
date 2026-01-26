@@ -111,6 +111,7 @@ jobs:
       - env:
           GH_AW_CAMPAIGN_ID: security-alert-burndown
           GH_AW_CURSOR_PATH: ""
+          GH_AW_DISCOVERY_REPOS: githubnext/gh-aw
           GH_AW_MAX_DISCOVERY_ITEMS: "100"
           GH_AW_MAX_DISCOVERY_PAGES: "5"
           GH_AW_PROJECT_URL: https://github.com/orgs/githubnext/projects/134
