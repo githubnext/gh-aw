@@ -12,7 +12,12 @@ import FeatureGrid from '../../../../components/FeatureGrid.astro';
 
 ## What are Agentic Campaigns?
 
-[**Agentic campaigns**](/gh-aw/reference/glossary/#agentic-campaign) help you coordinate **[agentic workflows](/gh-aw/reference/glossary/#agentic-workflow)** toward a shared goal.
+**GitHub agentic campaigns** are AI-powered orchestration workflows that coordinate multiple **[agentic workflows](/gh-aw/reference/glossary/#agentic-workflow)** toward a shared goal across one or more repositories.
+
+Just as [agentic workflows](/gh-aw/introduction/overview/) use natural language instructions to give an AI agent tasks and [safe outputs](/gh-aw/reference/safe-outputs/) to enable controlled GitHub operations, campaigns use **[campaign specs](/gh-aw/guides/campaigns/specs/)** (YAML configuration files that define campaign goals, governance, and worker coordination) to give an **orchestrator agent** (AI agent that manages campaign execution, worker dispatch, and progress tracking) high-level strategic instructions. The orchestrator agent interprets your campaign's objective and KPIs, then autonomously manages worker workflows to achieve the goal.
+
+**Single workflow**: You write natural language instructions → AI agent executes tasks using safe outputs  
+**Campaign**: You define goals in a spec → Orchestrator agent coordinates worker workflows toward the objective
 
 Imagine you have a goal that takes more than one workflow run, across one or more repositories. You can write a worker workflow to do the work, but you still need a way to schedule it, fan it out, track what it created, and report progress.
 
