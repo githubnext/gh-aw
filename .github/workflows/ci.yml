@@ -464,6 +464,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0  # Fetch all history for incremental linting
 
       - name: Set up Go
         id: setup-go
@@ -514,7 +516,14 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # Incremental linting on PRs - only check changed files
             # This provides 50-75% faster linting on typical PRs
-            make golint-incremental BASE_REF=origin/${{ github.base_ref }}
+            BASE_REF="origin/${{ github.base_ref }}"
+            if git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
+              echo "Using incremental lint against $BASE_REF"
+              make golint-incremental BASE_REF="$BASE_REF"
+            else
+              echo "⚠️ Base ref $BASE_REF not found, falling back to full lint"
+              make golint
+            fi
           else
             # Full scan on main branch to ensure comprehensive coverage
             make golint

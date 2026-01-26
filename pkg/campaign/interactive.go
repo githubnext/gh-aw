@@ -302,12 +302,12 @@ func promptForOwners(config *InteractiveCampaignConfig) error {
 	if strings.TrimSpace(ownersInput) != "" {
 		owners := strings.Split(ownersInput, ",")
 		for _, owner := range owners {
-			owner = strings.TrimSpace(owner)
-			if owner != "" {
-				if !strings.HasPrefix(owner, "@") {
-					owner = "@" + owner
+			trimmedOwner := strings.TrimSpace(owner)
+			if trimmedOwner != "" {
+				if !strings.HasPrefix(trimmedOwner, "@") {
+					trimmedOwner = "@" + trimmedOwner
 				}
-				config.Owners = append(config.Owners, owner)
+				config.Owners = append(config.Owners, trimmedOwner)
 			}
 		}
 	}
