@@ -19,20 +19,6 @@ memory-paths:
   - memory/campaigns/security-alert-burndown/**
 metrics-glob: memory/campaigns/security-alert-burndown/metrics/*.json
 cursor-glob: memory/campaigns/security-alert-burndown/cursor.json
-objective: Systematically reduce security alerts (code scanning, Dependabot, secret scanning) to zero critical issues and fewer than 5 high-severity issues
-kpis:
-  - name: Critical Security Alerts
-    baseline: 5
-    target: 0
-    unit: alerts
-    time-window-days: 90
-    priority: primary
-  - name: High-Severity Alerts
-    baseline: 15
-    target: 5
-    unit: alerts
-    time-window-days: 90
-    priority: supporting
 governance:
   max-new-items-per-run: 3
   max-discovery-items-per-run: 100
@@ -63,6 +49,24 @@ tags:
 # Security Alert Burndown Campaign
 
 This campaign systematically burns down code security alerts with the following strategy:
+
+## Objective
+
+Systematically reduce security alerts (code scanning, Dependabot, secret scanning) to zero critical issues and fewer than 5 high-severity issues.
+
+## Key Performance Indicators (KPIs)
+
+### Primary KPI: Critical Security Alerts
+- **Baseline**: 5 alerts
+- **Target**: 0 alerts
+- **Time Window**: 90 days
+- **Unit**: alerts
+
+### Supporting KPI: High-Severity Alerts
+- **Baseline**: 15 alerts
+- **Target**: 5 alerts
+- **Time Window**: 90 days
+- **Unit**: alerts
 
 ## Focus Areas
 

@@ -8,16 +8,6 @@ state: active
 project-url: "https://github.com/orgs/myorg/projects/999"
 tracker-label: "campaign:framework-upgrade"
 
-objective: "Upgrade all services to Framework vNext"
-kpis:
-  - name: "Services upgraded"
-    priority: primary
-    unit: count
-    baseline: 0
-    target: 50
-    time-window-days: 30
-    direction: increase
-
 # Workflows to execute
 workflows:
   - framework-scanner
@@ -34,6 +24,19 @@ owners:
 # Simple Framework Upgrade Campaign
 
 This campaign demonstrates workflow execution in campaigns.
+
+## Objective
+
+Upgrade all services to Framework vNext.
+
+## Key Performance Indicators (KPIs)
+
+### Primary KPI: Services Upgraded
+- **Baseline**: 0 services
+- **Target**: 50 services
+- **Time Window**: 30 days
+- **Direction**: Increase
+- **Unit**: count
 
 ## How It Works
 

@@ -19,22 +19,6 @@ memory-paths:
 metrics-glob: memory/campaigns/security-audit-2026/metrics/*.json
 cursor-glob: memory/campaigns/security-audit-2026/cursor.json
 
-# Campaign goals and KPIs
-objective: Reduce security vulnerabilities to zero critical and less than 5 high-severity issues
-kpis:
-  - name: Critical Vulnerabilities
-    baseline: 3
-    target: 0
-    unit: issues
-    time_window_days: 90
-    priority: primary
-  - name: High-Severity Vulnerabilities
-    baseline: 12
-    target: 5
-    unit: issues
-    time_window_days: 90
-    priority: supporting
-
 # Governance
 governance:
   max-new-items-per-run: 10
@@ -57,6 +41,26 @@ risk-level: high
 # Security Audit 2026 Campaign
 
 This campaign orchestrates a comprehensive security audit across all repositories, focusing on:
+
+## Objective
+
+Reduce security vulnerabilities to zero critical and less than 5 high-severity issues.
+
+## Key Performance Indicators (KPIs)
+
+### Primary KPI: Critical Vulnerabilities
+- **Baseline**: 3 issues
+- **Target**: 0 issues
+- **Time Window**: 90 days
+- **Unit**: issues
+
+### Supporting KPI: High-Severity Vulnerabilities
+- **Baseline**: 12 issues
+- **Target**: 5 issues
+- **Time Window**: 90 days
+- **Unit**: issues
+
+## Focus Areas
 
 1. **Vulnerability Scanning**: Identify and track security vulnerabilities
 2. **Dependency Updates**: Update outdated dependencies with known vulnerabilities

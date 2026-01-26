@@ -132,49 +132,6 @@ func TestBuildOrchestrator_WorkflowsInDiscovery(t *testing.T) {
 	})
 }
 
-func TestBuildOrchestrator_ObjectiveAndKPIsAreRendered(t *testing.T) {
-	withTempGitRepoWithInstalledCampaignPrompts(t, func(_ string) {
-		spec := &CampaignSpec{
-			ID:          "test-campaign",
-			Name:        "Test Campaign",
-			Description: "A test campaign",
-			ProjectURL:  "https://github.com/orgs/test/projects/1",
-			Workflows:   []string{"daily-file-diet"},
-			Objective:   "Improve CI stability",
-			KPIs: []CampaignKPI{
-				{
-					Name:           "Build success rate",
-					Priority:       "primary",
-					Unit:           "ratio",
-					Baseline:       0.8,
-					Target:         0.95,
-					TimeWindowDays: 7,
-					Direction:      "increase",
-					Source:         "ci",
-				},
-			},
-		}
-
-		mdPath := ".github/workflows/test-campaign.campaign.md"
-		data, _ := BuildOrchestrator(spec, mdPath)
-		if data == nil {
-			t.Fatalf("expected non-nil WorkflowData")
-		}
-
-		// Golden assertions: these should only change if we intentionally change the orchestrator contract.
-		expectedPhrases := []string{
-			"- Objective: Improve CI stability",
-			"- KPIs:",
-			"Build success rate",
-		}
-		for _, expected := range expectedPhrases {
-			if !strings.Contains(data.MarkdownContent, expected) {
-				t.Errorf("expected markdown to contain %q, got: %q", expected, data.MarkdownContent)
-			}
-		}
-	})
-}
-
 func TestBuildOrchestrator_TrackerIDMonitoring(t *testing.T) {
 	withTempGitRepoWithInstalledCampaignPrompts(t, func(_ string) {
 		spec := &CampaignSpec{
