@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Features
+
+#### Add GitHub Remote MCP toolsets preflight check
+
+This change adds a preflight check during MCP gateway startup to verify that GitHub Remote MCP toolsets are actually loaded and available before the agent runs. When toolsets are unavailable, the workflow continues with a clear warning message, allowing the agent to detect and report the missing tools via safe-outputs.
+
+Key improvements:
+- New `check_github_remote_mcp_toolsets.sh` script verifies tool availability via MCP `tools/list` request
+- Integrated into `start_mcp_gateway.sh` to run automatically for GitHub Remote MCP configurations
+- Distinguishes between authentication failures (HTTP 401/403) and missing toolsets (empty tools list)
+- Provides actionable remediation steps including fallback to local mode
+- Graceful degradation: workflow continues even when toolsets are unavailable, letting the agent handle missing tools
+- Comprehensive test suite validates all edge cases
+
+This reduces false-negative failures in GitHub Remote MCP auth-test workflows and improves signal on actual MCP availability issues.
+
+Ref: githubnext/gh-aw#[issue-number]
+
 ## v0.36.0 - 2026-01-08
 
 ### Features
