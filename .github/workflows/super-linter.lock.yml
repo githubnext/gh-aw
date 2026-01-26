@@ -113,7 +113,7 @@ jobs:
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
       - name: Download super-linter log
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v6
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
           name: super-linter-log
           path: /tmp/gh-aw/
@@ -1291,13 +1291,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Super-linter
         id: super-linter
-        uses: super-linter/super-linter@d5b0a2ab116623730dd094f15ddc1b6b25bf7b99 # v8.2.1
+        uses: super-linter/super-linter@2bdd90ed3262e023ac84bf8fe35dc480721fc1f2 # v8.2.1
         env:
           CREATE_LOG_FILE: "true"
           DEFAULT_BRANCH: main
