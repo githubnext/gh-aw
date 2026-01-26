@@ -308,6 +308,7 @@ func deleteOldAgentFiles(verbose bool) error {
 			"create-agentic-workflow.agent.md",
 			"debug-agentic-workflow.agent.md",
 			"create-shared-agentic-workflow.agent.md",
+			"create-shared-agentic-workflow.md",
 			"create-agentic-workflow.md",
 			"setup-agentic-workflows.md",
 			"update-agentic-workflows.md",
