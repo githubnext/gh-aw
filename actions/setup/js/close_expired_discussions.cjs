@@ -180,10 +180,10 @@ async function closeDiscussionAsOutdated(github, discussionId) {
 }
 
 /**
- * Check if a discussion already has an expiration comment
+ * Check if a discussion already has an expiration comment and fetch its closed state
  * @param {any} github - GitHub GraphQL instance
  * @param {string} discussionId - Discussion node ID
- * @returns {Promise<boolean>} True if expiration comment exists
+ * @returns {Promise<{hasComment: boolean, isClosed: boolean}>} Object with comment existence and closed state
  */
 async function hasExpirationComment(github, discussionId) {
   const result = await github.graphql(
@@ -191,6 +191,7 @@ async function hasExpirationComment(github, discussionId) {
     query($dId: ID!) {
       node(id: $dId) {
         ... on Discussion {
+          closed
           comments(first: 100) {
             nodes {
               body
@@ -202,14 +203,16 @@ async function hasExpirationComment(github, discussionId) {
     { dId: discussionId }
   );
 
-  if (!result || !result.node || !result.node.comments) {
-    return false;
+  if (!result || !result.node) {
+    return { hasComment: false, isClosed: false };
   }
 
-  const comments = result.node.comments.nodes || [];
+  const isClosed = result.node.closed || false;
+  const comments = result.node.comments?.nodes || [];
   const expirationCommentPattern = /<!--\s*gh-aw-closed\s*-->/;
+  const hasComment = comments.some(comment => comment.body && expirationCommentPattern.test(comment.body));
 
-  return comments.some(comment => comment.body && expirationCommentPattern.test(comment.body));
+  return { hasComment, isClosed };
 }
 
 async function main() {
@@ -323,9 +326,20 @@ async function main() {
     core.info(`[${i + 1}/${discussionsToClose.length}] Processing discussion #${discussion.number}: ${discussion.url}`);
 
     try {
-      // Check if an expiration comment already exists
-      core.info(`  Checking for existing expiration comment on discussion #${discussion.number}`);
-      const hasComment = await hasExpirationComment(github, discussion.id);
+      // Check if an expiration comment already exists and if discussion is closed
+      core.info(`  Checking for existing expiration comment and closed state on discussion #${discussion.number}`);
+      const { hasComment, isClosed } = await hasExpirationComment(github, discussion.id);
+
+      if (isClosed) {
+        core.warning(`  Discussion #${discussion.number} is already closed, skipping`);
+        skippedDiscussions.push({
+          number: discussion.number,
+          url: discussion.url,
+          title: discussion.title,
+        });
+        skippedCount++;
+        continue;
+      }
 
       if (hasComment) {
         core.warning(`  Discussion #${discussion.number} already has an expiration comment, skipping to avoid duplicate`);
