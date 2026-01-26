@@ -845,7 +845,7 @@ jobs:
           ## Success Criteria
           
           Your effectiveness is measured by:
-          - **Efficiency**: Complete analysis within token budget (max-turns: 30)
+          - **Efficiency**: Complete analysis within token budget (timeout: 180 minutes, concise outputs)
           - **Quality over quantity**: Test 6-8 representative scenarios thoroughly rather than all scenarios superficially
           - **Actionable insights**: Provide 3-5 concrete, implementable recommendations
           - **Concise documentation**: Report under 1000 words with progressive disclosure
