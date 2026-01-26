@@ -37,7 +37,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var validationHelpersLog = logger.New("workflow:validation_helpers")
 
 // validateIntRange validates that a value is within the specified inclusive range [min, max].
 // It returns an error if the value is outside the range, with a descriptive message
@@ -70,6 +74,7 @@ func validateIntRange(value, min, max int, fieldName string) error {
 // ValidateRequired validates that a required field is not empty
 func ValidateRequired(field, value string) error {
 	if strings.TrimSpace(value) == "" {
+		validationHelpersLog.Printf("Required field validation failed: field=%s", field)
 		return NewValidationError(
 			field,
 			value,
@@ -114,6 +119,7 @@ func ValidateInList(field, value string, allowedValues []string) error {
 		}
 	}
 
+	validationHelpersLog.Printf("List validation failed: field=%s, value=%s not in allowed list", field, value)
 	return NewValidationError(
 		field,
 		value,
@@ -160,11 +166,13 @@ func ValidateNonNegativeInt(field string, value int) error {
 //	}
 func fileExists(path string) bool {
 	if path == "" {
+		validationHelpersLog.Print("File existence check failed: empty path")
 		return false
 	}
 
 	info, err := os.Stat(path)
 	if err != nil {
+		validationHelpersLog.Printf("File existence check failed: path=%s, error=%v", path, err)
 		return false
 	}
 
