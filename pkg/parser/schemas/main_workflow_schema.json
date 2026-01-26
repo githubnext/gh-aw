@@ -181,7 +181,8 @@
                             "minLength": 1,
                             "pattern": "^[^/]",
                             "description": "Command name without leading slash"
-                          }
+                          },
+                          "maxItems": 25
                         }
                       ],
                       "description": "Name of the slash command that triggers the workflow (e.g., '/help', '/analyze'). Used for comment-based workflow activation."
@@ -202,7 +203,8 @@
                             "type": "string",
                             "description": "GitHub Actions event name.",
                             "enum": ["*", "issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"]
-                          }
+                          },
+                          "maxItems": 25
                         }
                       ]
                     }
@@ -245,7 +247,8 @@
                             "minLength": 1,
                             "pattern": "^[^/]",
                             "description": "Command name without leading slash"
-                          }
+                          },
+                          "maxItems": 25
                         }
                       ],
                       "description": "Name of the slash command that triggers the workflow (e.g., '/deploy', '/test'). Used for command-based workflow activation."
@@ -266,7 +269,8 @@
                             "type": "string",
                             "description": "GitHub Actions event name.",
                             "enum": ["*", "issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"]
-                          }
+                          },
+                          "maxItems": 25
                         }
                       ]
                     }
@@ -485,7 +489,8 @@
                         "type": "string",
                         "description": "Label name"
                       },
-                      "minItems": 1
+                      "minItems": 1,
+                      "maxItems": 25
                     }
                   ],
                   "description": "Array of pull request type names that trigger the workflow. Filters workflow execution to specific PR categories."
@@ -575,7 +580,8 @@
                         "type": "string",
                         "description": "Label name"
                       },
-                      "minItems": 1
+                      "minItems": 1,
+                      "maxItems": 25
                     }
                   ],
                   "description": "Array of issue type names that trigger the workflow. Filters workflow execution to specific issue categories."
@@ -657,7 +663,8 @@
                     },
                     "required": ["cron"],
                     "additionalProperties": false
-                  }
+                  },
+                  "maxItems": 10
                 }
               ]
             },
@@ -2686,7 +2693,8 @@
                     ]
                   },
                   "minItems": 1,
-                  "$comment": "At least one toolset is required when toolsets array is specified. Use null or omit the field to use all toolsets."
+                  "$comment": "At least one toolset is required when toolsets array is specified. Use null or omit the field to use all toolsets.",
+                  "maxItems": 20
                 },
                 "mounts": {
                   "type": "array",
@@ -3006,7 +3014,8 @@
                     "key": "memory-session"
                   }
                 ]
-              ]
+              ],
+              "maxItems": 10
             }
           ],
           "examples": [
@@ -3372,7 +3381,8 @@
                     "branch-name": "memory/session"
                   }
                 ]
-              ]
+              ],
+              "maxItems": 10
             }
           ],
           "examples": [
@@ -4813,7 +4823,8 @@
                   "items": {
                     "type": "string"
                   },
-                  "minItems": 1
+                  "minItems": 1,
+                  "maxItems": 50
                 },
                 "max": {
                   "type": "integer",
@@ -4854,7 +4865,8 @@
                   "items": {
                     "type": "string"
                   },
-                  "minItems": 1
+                  "minItems": 1,
+                  "maxItems": 50
                 },
                 "max": {
                   "type": "integer",
@@ -4895,7 +4907,8 @@
                   "items": {
                     "type": "string"
                   },
-                  "minItems": 1
+                  "minItems": 1,
+                  "maxItems": 50
                 },
                 "max": {
                   "type": "integer",
@@ -4936,7 +4949,8 @@
                   "items": {
                     "type": "string"
                   },
-                  "minItems": 1
+                  "minItems": 1,
+                  "maxItems": 50
                 },
                 "max": {
                   "type": "integer",
@@ -5068,7 +5082,8 @@
                   "items": {
                     "type": "string"
                   },
-                  "minItems": 1
+                  "minItems": 1,
+                  "maxItems": 50
                 },
                 "parent-title-prefix": {
                   "type": "string",
@@ -5080,7 +5095,8 @@
                   "items": {
                     "type": "string"
                   },
-                  "minItems": 1
+                  "minItems": 1,
+                  "maxItems": 50
                 },
                 "sub-title-prefix": {
                   "type": "string",
@@ -5828,7 +5844,8 @@
                     "type": "string",
                     "minLength": 1
                   },
-                  "minItems": 1
+                  "minItems": 1,
+                  "maxItems": 50
                 },
                 "max": {
                   "type": "integer",
@@ -5852,7 +5869,8 @@
                 "type": "string",
                 "minLength": 1
               },
-              "minItems": 1
+              "minItems": 1,
+              "maxItems": 50
             }
           ],
           "description": "Dispatch workflow_dispatch events to other workflows. Used by orchestrators to delegate work to worker workflows with controlled maximum dispatch count."
@@ -5898,7 +5916,8 @@
             "enum": ["admin", "maintainer", "maintain", "write", "triage"],
             "description": "Repository permission level: 'admin' (full access), 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage' (issue management)"
           },
-          "minItems": 1
+          "minItems": 1,
+          "maxItems": 50
         }
       ]
     },
@@ -6453,7 +6472,8 @@
               },
               "minItems": 1,
               "uniqueItems": true,
-              "description": "List of allowed domain names for network access"
+              "description": "List of allowed domain names for network access",
+              "maxItems": 100
             },
             "proxy-args": {
               "type": "array",
