@@ -325,7 +325,7 @@ var SerenaLanguageSupport = map[string][]string{
 const DefaultSandboxRuntimeVersion Version = "0.0.32"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.58"
+const DefaultPlaywrightMCPVersion Version = "0.0.59"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.58.0"
