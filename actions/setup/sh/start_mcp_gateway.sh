@@ -333,6 +333,41 @@ else
 fi
 echo ""
 
+# Check GitHub Remote MCP toolsets availability (if configured)
+if [ -f /opt/gh-aw/actions/check_github_remote_mcp_toolsets.sh ]; then
+  echo "Checking GitHub Remote MCP toolsets availability..."
+  # Run the check and capture exit code
+  set +e
+  bash /opt/gh-aw/actions/check_github_remote_mcp_toolsets.sh \
+    /tmp/gh-aw/mcp-config/gateway-output.json \
+    "http://localhost:${MCP_GATEWAY_PORT}" \
+    "${MCP_GATEWAY_API_KEY}" 2>&1 | tee -a /tmp/gh-aw/mcp-logs/start-gateway.log
+  GITHUB_CHECK_EXIT_CODE=$?
+  set -e
+  
+  if [ $GITHUB_CHECK_EXIT_CODE -eq 1 ]; then
+    echo ""
+    echo "ERROR: GitHub Remote MCP toolsets are not available"
+    echo "The workflow will continue but the agent may fail when trying to use GitHub MCP tools."
+    echo "The agent will detect missing tools and report via safe-outputs."
+    echo ""
+    echo "To resolve this issue:"
+    echo "  1. Switch to local mode: tools.github.mode = 'local'"
+    echo "  2. Check GitHub Copilot MCP service status"
+    echo "  3. Verify toolsets are enabled for your organization"
+    echo ""
+    # Don't exit - let the agent handle missing tools and report via safe-outputs
+    # The agent will create a discussion explaining the issue if tools are missing
+  elif [ $GITHUB_CHECK_EXIT_CODE -eq 2 ]; then
+    echo "GitHub Remote MCP not configured or not using remote mode, skipping toolset check"
+  else
+    echo "GitHub Remote MCP toolsets check passed"
+  fi
+else
+  echo "GitHub Remote MCP toolset check script not found, skipping check"
+fi
+echo ""
+
 # Delete gateway configuration file after conversion and checks are complete
 echo "Cleaning up gateway configuration file..."
 if [ -f /tmp/gh-aw/mcp-config/gateway-output.json ]; then
