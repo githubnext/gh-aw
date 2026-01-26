@@ -97,6 +97,7 @@ safe-outputs:
     max: 5                           # max issues (default: 1)
     expires: 7                       # auto-close after 7 days
     group: true                      # group as sub-issues under parent
+    close-older-issues: true         # close previous issues from same workflow
     target-repo: "owner/repo"        # cross-repository
 ```
 
@@ -137,6 +138,65 @@ In this example, if the workflow creates 5 issues, all will be automatically gro
 #### Temporary IDs for Issue References
 
 Use temporary IDs (`aw_` + 12 hex chars) to reference parent issues before creation. References like `#aw_abc123def456` in bodies are replaced with actual numbers. The `parent` field creates sub-issue relationships.
+
+#### Auto-Close Older Issues
+
+The `close-older-issues` field (default: `false`) automatically closes previous open issues from the same workflow when a new issue is created. This is useful for workflows that generate recurring reports or status updates, ensuring only the latest issue remains open.
+
+```yaml wrap
+safe-outputs:
+  create-issue:
+    title-prefix: "[weekly-report] "
+    labels: [report, automation]
+    close-older-issues: true
+```
+
+When enabled:
+- Searches for open issues containing the same workflow-id marker in their body
+- Closes found issues as "not planned" with a comment linking to the new issue
+- Maximum 10 older issues will be closed
+- Only runs if the new issue creation succeeds
+
+#### Searching for Workflow-Created Items
+
+All items created by workflows (issues, pull requests, discussions, and comments) include a hidden **workflow-id marker** in their body:
+
+```html
+<!-- gh-aw-workflow-id: WORKFLOW_NAME -->
+```
+
+You can use this marker to find all items created by a specific workflow on GitHub.com.
+
+**Search Examples:**
+
+Find all open issues created by the `daily-team-status` workflow:
+```
+repo:owner/repo is:issue is:open "gh-aw-workflow-id: daily-team-status" in:body
+```
+
+Find all pull requests created by the `security-audit` workflow:
+```
+repo:owner/repo is:pr "gh-aw-workflow-id: security-audit" in:body
+```
+
+Find all items (issues, PRs, discussions) from any workflow in your organization:
+```
+org:your-org "gh-aw-workflow-id:" in:body
+```
+
+Find comments from a specific workflow:
+```
+repo:owner/repo "gh-aw-workflow-id: bot-responder" in:comments
+```
+
+> [!TIP]
+> **Search Tips for Workflow Markers**
+>
+> - Use quotes around the marker text to search for the exact phrase
+> - Add `in:body` to search issue/PR descriptions, or `in:comments` for comments
+> - Combine with other filters like `is:open`, `is:closed`, `created:>2024-01-01`
+> - The workflow name in the marker is the workflow filename without the `.md` extension
+> - Use GitHub's advanced search to refine results: [Advanced search documentation](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)
 
 ### Close Issue (`close-issue:`)
 
