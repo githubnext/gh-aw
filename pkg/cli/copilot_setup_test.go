@@ -107,16 +107,12 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 				}
 
 				// Extension install and verify steps should be injected at the beginning
-				if len(job.Steps) < 4 {
-					t.Fatalf("Expected at least 4 steps after injection (2 injected + 2 existing), got %d", len(job.Steps))
+				if len(job.Steps) < 3 {
+					t.Fatalf("Expected at least 3 steps after injection (1 injected + 2 existing), got %d", len(job.Steps))
 				}
 
 				if job.Steps[0].Name != "Install gh-aw extension" {
 					t.Errorf("Expected first step to be 'Install gh-aw extension', got %q", job.Steps[0].Name)
-				}
-
-				if job.Steps[1].Name != "Verify gh-aw installation" {
-					t.Errorf("Expected second step to be 'Verify gh-aw installation', got %q", job.Steps[1].Name)
 				}
 			},
 		},
@@ -206,16 +202,12 @@ func TestInjectExtensionInstallStep(t *testing.T) {
 				},
 			},
 			wantErr:       false,
-			expectedSteps: 4, // 2 injected steps + 2 existing steps
+			expectedSteps: 3, // 1 injected step + 2 existing steps
 			validateFunc: func(t *testing.T, w *Workflow) {
 				steps := w.Jobs["copilot-setup-steps"].Steps
 				// Extension install should be at index 0 (beginning)
 				if steps[0].Name != "Install gh-aw extension" {
 					t.Errorf("Expected step 0 to be 'Install gh-aw extension', got %q", steps[0].Name)
-				}
-				// Verify step should be at index 1
-				if steps[1].Name != "Verify gh-aw installation" {
-					t.Errorf("Expected step 1 to be 'Verify gh-aw installation', got %q", steps[1].Name)
 				}
 			},
 		},
@@ -229,18 +221,15 @@ func TestInjectExtensionInstallStep(t *testing.T) {
 				},
 			},
 			wantErr:       false,
-			expectedSteps: 2, // 2 injected steps (install + verify)
+			expectedSteps: 1, // 1 injected step (install only)
 			validateFunc: func(t *testing.T, w *Workflow) {
 				steps := w.Jobs["copilot-setup-steps"].Steps
-				// Should have 2 steps
-				if len(steps) != 2 {
-					t.Errorf("Expected 2 steps, got %d", len(steps))
+				// Should have 1 step
+				if len(steps) != 1 {
+					t.Errorf("Expected 1 step, got %d", len(steps))
 				}
 				if steps[0].Name != "Install gh-aw extension" {
 					t.Errorf("Expected step 0 to be 'Install gh-aw extension', got %q", steps[0].Name)
-				}
-				if steps[1].Name != "Verify gh-aw installation" {
-					t.Errorf("Expected step 1 to be 'Verify gh-aw installation', got %q", steps[1].Name)
 				}
 			},
 		},
@@ -384,21 +373,6 @@ func TestCopilotSetupStepsYAMLConstant(t *testing.T) {
 		if strings.Contains(step.Run, "make build") {
 			t.Error("Template should not contain 'make build' command for universal use")
 		}
-	}
-
-	// Verify verification step uses 'gh aw version' (works via GitHub CLI after bash install)
-	hasVerification := false
-	for _, step := range job.Steps {
-		if strings.Contains(step.Name, "Verify") {
-			hasVerification = true
-			if !strings.Contains(step.Run, "gh aw") {
-				t.Error("Verification step should use 'gh aw version' after bash install")
-			}
-		}
-	}
-
-	if !hasVerification {
-		t.Error("Expected template to contain verification step")
 	}
 }
 
@@ -984,9 +958,9 @@ func TestInjectExtensionInstallStep_ReleaseMode(t *testing.T) {
 
 	job := wf.Jobs["copilot-setup-steps"]
 
-	// Should have 4 steps: checkout, install, verify, existing
-	if len(job.Steps) != 4 {
-		t.Fatalf("Expected 4 steps (checkout, install, verify, existing), got %d", len(job.Steps))
+	// Should have 3 steps: checkout, install, existing (no verify)
+	if len(job.Steps) != 3 {
+		t.Fatalf("Expected 3 steps (checkout, install, existing), got %d", len(job.Steps))
 	}
 
 	// Verify checkout step
@@ -1009,14 +983,9 @@ func TestInjectExtensionInstallStep_ReleaseMode(t *testing.T) {
 		t.Errorf("Install step should have version: %s in with, got: %v", testVersion, job.Steps[1].With)
 	}
 
-	// Verify verify step
-	if job.Steps[2].Name != "Verify gh-aw installation" {
-		t.Errorf("Third step should be verify, got: %s", job.Steps[2].Name)
-	}
-
 	// Verify original step is preserved
-	if job.Steps[3].Name != "Existing step" {
-		t.Errorf("Fourth step should be existing step, got: %s", job.Steps[3].Name)
+	if job.Steps[2].Name != "Existing step" {
+		t.Errorf("Third step should be existing step, got: %s", job.Steps[2].Name)
 	}
 }
 
@@ -1039,9 +1008,9 @@ func TestInjectExtensionInstallStep_DevMode(t *testing.T) {
 
 	job := wf.Jobs["copilot-setup-steps"]
 
-	// Should have 3 steps: install, verify, existing (no checkout in dev mode)
-	if len(job.Steps) != 3 {
-		t.Fatalf("Expected 3 steps (install, verify, existing), got %d", len(job.Steps))
+	// Should have 2 steps: install, existing (no verify, no checkout in dev mode)
+	if len(job.Steps) != 2 {
+		t.Fatalf("Expected 2 steps (install, existing), got %d", len(job.Steps))
 	}
 
 	// Verify install step uses curl
@@ -1055,13 +1024,8 @@ func TestInjectExtensionInstallStep_DevMode(t *testing.T) {
 		t.Errorf("Install should reference install-gh-aw.sh, got: %s", job.Steps[0].Run)
 	}
 
-	// Verify verify step
-	if job.Steps[1].Name != "Verify gh-aw installation" {
-		t.Errorf("Second step should be verify, got: %s", job.Steps[1].Name)
-	}
-
 	// Verify original step is preserved
-	if job.Steps[2].Name != "Existing step" {
-		t.Errorf("Third step should be existing step, got: %s", job.Steps[2].Name)
+	if job.Steps[1].Name != "Existing step" {
+		t.Errorf("Second step should be existing step, got: %s", job.Steps[1].Name)
 	}
 }
