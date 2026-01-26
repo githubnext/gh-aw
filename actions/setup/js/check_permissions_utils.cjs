@@ -46,8 +46,8 @@ async function checkBotStatus(actor, owner, repo) {
     // GitHub Apps/bots that are installed on a repository show up in the collaborators
     try {
       const botPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-        owner: owner,
-        repo: repo,
+        owner,
+        repo,
         username: actor,
       });
 
@@ -86,8 +86,8 @@ async function checkRepositoryPermission(actor, owner, repo, requiredPermissions
     core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
 
     const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-      owner: owner,
-      repo: repo,
+      owner,
+      repo,
       username: actor,
     });
 
