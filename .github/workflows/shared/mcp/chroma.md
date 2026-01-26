@@ -5,6 +5,7 @@
 tools:
   cache-memory:
     - id: chroma
+      key: memory-chroma-${{ github.workflow }}
       description: Persistent storage for Chroma vector database
 
 mcp-servers:
