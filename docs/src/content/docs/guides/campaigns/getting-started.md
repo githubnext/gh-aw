@@ -5,20 +5,24 @@ banner:
   content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
 ---
 
-Create your first campaign using the automated creation flow. The flow generates a Project board, campaign spec, and orchestrator workflow based on an issue description.
+Create your first campaign using the custom agent in GitHub Copilot Chat. The agent generates a Project board, campaign spec, and orchestrator workflow based on your goal description.
 
 ## Prerequisites
 
 - Repository with GitHub Agentic Workflows installed
-- `create-agentic-campaign` label configured in your repository
-- Write access to create issues and merge pull requests
+- GitHub Copilot access
+- Write access to create pull requests and merge them
 - GitHub Actions enabled
 
 ## Create a campaign
 
-1. **Create an issue** describing your campaign goal and scope
-2. **Apply the label** `create-agentic-campaign` to the issue
-3. **Wait for automation** - A pull request appears within a few minutes
+1. **Open Copilot Chat** in your repository
+2. **Describe your campaign** using `/agent`:
+   ```
+   /agent create campaign: Burn down all open code security alerts, 
+   prioritizing file-write alerts first
+   ```
+3. **Wait for the agent** - A pull request appears with your campaign configuration
 4. **Review the PR** - Verify the generated Project, spec, and orchestrator
 5. **Merge the PR** when ready
 6. **Run the orchestrator** from the Actions tab to start the campaign
