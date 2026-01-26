@@ -127,10 +127,14 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 	// Convert servers to flattened format and filter by status
 	mcpRegistryLog.Printf("Processing %d servers from registry", len(response.Servers))
 	servers := make([]MCPRegistryServerForProcessing, 0, len(response.Servers))
-	for _, server := range response.Servers {
-		// Only include active servers
-		if server.Status != StatusActive {
-			continue
+	for _, serverResp := range response.Servers {
+		server := serverResp.Server
+
+		// Only include active servers (check in _meta)
+		if meta, ok := serverResp.Meta["io.modelcontextprotocol.registry/official"].(map[string]any); ok {
+			if status, ok := meta["status"].(string); ok && status != StatusActive {
+				continue
+			}
 		}
 
 		processedServer := MCPRegistryServerForProcessing{
@@ -139,7 +143,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 		}
 
 		// Set repository URL if available
-		if server.Repository.URL != "" {
+		if server.Repository != nil && server.Repository.URL != "" {
 			processedServer.Repository = server.Repository.URL
 		}
 
@@ -148,7 +152,9 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 			pkg := server.Packages[0]
 
 			// Use transport type from package
-			processedServer.Transport = pkg.Transport.Type
+			if pkg.Transport != nil {
+				processedServer.Transport = pkg.Transport.Type
+			}
 			if processedServer.Transport == "" {
 				processedServer.Transport = "stdio" // default fallback
 			}
@@ -312,8 +318,18 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 	spinner.StopWithMessage(fmt.Sprintf("✓ Fetched MCP server '%s'", serverName))
 
 	// Find exact match by name, filtering locally
-	for _, server := range response.Servers {
-		if server.Name == serverName && server.Status == StatusActive {
+	for _, serverResp := range response.Servers {
+		server := serverResp.Server
+
+		// Check status from _meta
+		isActive := true
+		if meta, ok := serverResp.Meta["io.modelcontextprotocol.registry/official"].(map[string]any); ok {
+			if status, ok := meta["status"].(string); ok {
+				isActive = (status == StatusActive)
+			}
+		}
+
+		if server.Name == serverName && isActive {
 			// Convert to flattened format similar to SearchServers
 			processedServer := MCPRegistryServerForProcessing{
 				Name:        server.Name,
@@ -321,7 +337,7 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 			}
 
 			// Set repository URL if available
-			if server.Repository.URL != "" {
+			if server.Repository != nil && server.Repository.URL != "" {
 				processedServer.Repository = server.Repository.URL
 			}
 
@@ -330,7 +346,9 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 				pkg := server.Packages[0]
 
 				// Use transport type from package
-				processedServer.Transport = pkg.Transport.Type
+				if pkg.Transport != nil {
+					processedServer.Transport = pkg.Transport.Type
+				}
 				if processedServer.Transport == "" {
 					processedServer.Transport = "stdio" // default fallback
 				}
