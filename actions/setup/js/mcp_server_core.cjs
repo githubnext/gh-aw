@@ -1,6 +1,12 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createLogger } = require("./mcp_logger.cjs");
+const moduleLogger = createLogger("mcp_server_core");
+
+// Log immediately at module load time
+moduleLogger.debug("Module is being loaded");
+
 /**
  * MCP Server Core Module
  *
