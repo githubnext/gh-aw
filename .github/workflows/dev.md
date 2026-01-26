@@ -1,5 +1,5 @@
 ---
-on: 
+on:
   workflow_dispatch:
 name: Dev
 description: Build and test this project
@@ -8,6 +8,9 @@ strict: false
 sandbox:
   agent: awf
 engine: copilot
+runtimes:
+  go: {}
+  node: {}
 
 permissions:
   contents: read
