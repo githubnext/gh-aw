@@ -47,69 +47,32 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Inspecting MCP servers in: %s", workflowPath)))
 	}
 
-	// Parse the workflow file for MCP configurations
-	content, err := os.ReadFile(workflowPath)
+	// Use the compiler to parse the workflow file
+	// This automatically handles imports, merging, and validation
+	compiler := workflow.NewCompiler(verbose, "", "")
+	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to read workflow file: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-		return fmt.Errorf("failed to read workflow file: %w", err)
-	}
+		// Handle shared workflow error separately (not a fatal error for inspection)
+		if _, isSharedWorkflow := err.(*workflow.SharedWorkflowError); isSharedWorkflow {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Cannot inspect shared/imported workflows directly - they must be imported by a main workflow"))
+			return nil
+		}
 
-	parsedData, err := parser.ExtractFrontmatterFromContent(string(content))
-	if err != nil {
 		errMsg := fmt.Sprintf("failed to parse workflow file: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
 		return fmt.Errorf("failed to parse workflow file: %w", err)
 	}
 
-	// Validate frontmatter before analyzing MCPs
-	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(parsedData.Frontmatter, workflowPath); err != nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Frontmatter validation failed: %v", err)))
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Continuing with MCP inspection (validation errors may affect results)"))
-		}
-		// Don't return error - continue with inspection even if validation fails
-	} else if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Frontmatter validation passed"))
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow parsed successfully"))
 	}
 
-	// Process imports from frontmatter to merge imported MCP servers
-	markdownDir := filepath.Dir(workflowPath)
-	importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(parsedData.Frontmatter, markdownDir, nil)
-	if err != nil {
-		errMsg := fmt.Sprintf("failed to process imports from frontmatter: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-		return fmt.Errorf("failed to process imports from frontmatter: %w", err)
-	}
+	// Build frontmatter map from WorkflowData for MCP extraction
+	// This includes all merged imports and tools
+	frontmatterForMCP := buildFrontmatterFromWorkflowData(workflowData)
 
-	// Apply imported MCP servers to frontmatter
-	frontmatterWithImports, err := applyImportsToFrontmatter(parsedData.Frontmatter, importsResult)
-	if err != nil {
-		errMsg := fmt.Sprintf("failed to apply imports: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-		return fmt.Errorf("failed to apply imports: %w", err)
-	}
-
-	// Validate MCP configurations specifically using compiler validation
-	if toolsSection, hasTools := frontmatterWithImports["tools"]; hasTools {
-		if tools, ok := toolsSection.(map[string]any); ok {
-			if err := workflow.ValidateMCPConfigs(tools); err != nil {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("MCP configuration validation failed: %v", err)))
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Continuing with MCP inspection (validation errors may affect results)"))
-				} else {
-					errMsg := fmt.Sprintf("MCP configuration validation failed: %v", err)
-					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
-					return fmt.Errorf("MCP configuration validation failed: %w", err)
-				}
-			} else if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("MCP configuration validation passed"))
-			}
-		}
-	}
-
-	// Extract MCP configurations from frontmatter with imports applied
-	mcpConfigs, err := parser.ExtractMCPConfigurations(frontmatterWithImports, serverFilter)
+	// Extract MCP configurations from the merged frontmatter
+	mcpConfigs, err := parser.ExtractMCPConfigurations(frontmatterForMCP, serverFilter)
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to extract MCP configurations: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
@@ -118,16 +81,6 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 
 	// Filter out safe-outputs MCP servers for inspection
 	mcpConfigs = filterOutSafeOutputs(mcpConfigs)
-
-	// Check if safe-inputs are present in the workflow by parsing with the compiler
-	// (the compiler resolves imports and merges safe-inputs)
-	compiler := workflow.NewCompiler(verbose, "", "")
-	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
-	if err != nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse workflow for safe-inputs: %v", err)))
-		}
-	}
 
 	// Start safe-inputs server if present
 	var safeInputsServerCmd *exec.Cmd
@@ -282,4 +235,24 @@ The command will:
 	cmd.ValidArgsFunction = CompleteWorkflowNames
 
 	return cmd
+}
+
+// buildFrontmatterFromWorkflowData reconstructs a frontmatter map from WorkflowData
+// This is used to extract MCP configurations after the compiler has processed imports and merging
+func buildFrontmatterFromWorkflowData(workflowData *workflow.WorkflowData) map[string]any {
+	// Use the parsed frontmatter's ToMap() method if available
+	// This preserves the original frontmatter structure with imports already merged
+	if workflowData.ParsedFrontmatter != nil {
+		return workflowData.ParsedFrontmatter.ToMap()
+	}
+
+	// Fallback to building manually (shouldn't happen in normal cases)
+	frontmatter := make(map[string]any)
+
+	// Add tools section if present
+	if workflowData.Tools != nil && len(workflowData.Tools) > 0 {
+		frontmatter["tools"] = workflowData.Tools
+	}
+
+	return frontmatter
 }
