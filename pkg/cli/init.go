@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -447,15 +448,29 @@ func attemptSetSecret(secretName, repoSlug string, verbose bool) error {
 }
 
 // InitRepository initializes the repository for agentic workflows
-func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine string, codespaceRepos []string, codespaceEnabled bool, completions bool, push bool, rootCmd CommandProvider) error {
+func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine string, codespaceRepos []string, codespaceEnabled bool, completions bool, push bool, shouldCreatePR bool, rootCmd CommandProvider) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
 
-	// If --push is enabled, ensure git status is clean before starting
-	if push {
-		initLog.Print("Checking for clean working directory (--push enabled)")
+	// If --push or --create-pull-request is enabled, ensure git status is clean before starting
+	if push || shouldCreatePR {
+		if shouldCreatePR {
+			initLog.Print("Checking for clean working directory (--create-pull-request enabled)")
+		} else {
+			initLog.Print("Checking for clean working directory (--push enabled)")
+		}
 		if err := checkCleanWorkingDirectory(verbose); err != nil {
 			initLog.Printf("Git status check failed: %v", err)
+			if shouldCreatePR {
+				return fmt.Errorf("--create-pull-request requires a clean working directory: %w", err)
+			}
 			return fmt.Errorf("--push requires a clean working directory: %w", err)
+		}
+	}
+
+	// If creating a PR, check GitHub CLI is available
+	if shouldCreatePR {
+		if !isGHCLIAvailable() {
+			return fmt.Errorf("GitHub CLI (gh) is required for PR creation but not available")
 		}
 	}
 
@@ -679,8 +694,58 @@ func InitRepository(verbose bool, mcp bool, campaign bool, tokens bool, engine s
 
 	initLog.Print("Repository initialization completed successfully")
 
-	// If --push is enabled, commit and push changes
-	if push {
+	// If --create-pull-request is enabled, create branch, commit, push, and create PR
+	if shouldCreatePR {
+		initLog.Print("Create PR enabled - preparing to create branch, commit, push, and create PR")
+		fmt.Fprintln(os.Stderr, "")
+
+		// Get current branch for restoration later
+		currentBranch, err := getCurrentBranch()
+		if err != nil {
+			return fmt.Errorf("failed to get current branch: %w", err)
+		}
+
+		// Create temporary branch
+		branchName := fmt.Sprintf("init-agentic-workflows-%d", rand.Intn(9000)+1000)
+		if err := createAndSwitchBranch(branchName, verbose); err != nil {
+			return fmt.Errorf("failed to create branch %s: %w", branchName, err)
+		}
+
+		// Commit changes
+		commitMessage := "chore: initialize agentic workflows"
+		if err := commitChanges(commitMessage, verbose); err != nil {
+			// Switch back to original branch before returning error
+			_ = switchBranch(currentBranch, verbose)
+			return fmt.Errorf("failed to commit changes: %w", err)
+		}
+
+		// Push branch
+		if err := pushBranch(branchName, verbose); err != nil {
+			// Switch back to original branch before returning error
+			_ = switchBranch(currentBranch, verbose)
+			return fmt.Errorf("failed to push branch %s: %w", branchName, err)
+		}
+
+		// Create PR
+		prTitle := "Initialize agentic workflows"
+		prBody := "This PR initializes the repository for agentic workflows by:\n" +
+			"- Configuring .gitattributes\n" +
+			"- Creating GitHub Copilot custom instructions\n" +
+			"- Setting up workflow prompts and agents"
+		if err := createPR(branchName, prTitle, prBody, verbose); err != nil {
+			// Switch back to original branch before returning error
+			_ = switchBranch(currentBranch, verbose)
+			return fmt.Errorf("failed to create PR: %w", err)
+		}
+
+		// Switch back to original branch
+		if err := switchBranch(currentBranch, verbose); err != nil {
+			return fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err)
+		}
+
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created PR for initialization"))
+	} else if push {
+		// If --push is enabled, commit and push changes
 		initLog.Print("Push enabled - preparing to commit and push changes")
 		fmt.Fprintln(os.Stderr, "")
 

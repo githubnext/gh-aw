@@ -51,6 +51,10 @@ func TestNewAddCommand(t *testing.T) {
 	prFlag := flags.Lookup("pr")
 	assert.NotNil(t, prFlag, "Should have 'pr' flag (alias)")
 
+	// Check push flag
+	pushFlag := flags.Lookup("push")
+	assert.NotNil(t, pushFlag, "Should have 'push' flag")
+
 	// Check force flag
 	forceFlag := flags.Lookup("force")
 	assert.NotNil(t, forceFlag, "Should have 'force' flag")
@@ -78,7 +82,7 @@ func TestNewAddCommand(t *testing.T) {
 }
 
 func TestAddWorkflows_EmptyWorkflows(t *testing.T) {
-	err := AddWorkflows([]string{}, 1, false, "", "", false, "", false, false, "", false, "")
+	err := AddWorkflows([]string{}, 1, false, "", "", false, "", false, false, false, "", false, "")
 	require.Error(t, err, "Should error when no workflows are provided")
 	assert.Contains(t, err.Error(), "at least one workflow", "Error should mention missing workflow")
 }

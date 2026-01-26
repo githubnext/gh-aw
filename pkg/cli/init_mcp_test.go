@@ -41,9 +41,9 @@ func TestInitRepository_WithMCP(t *testing.T) {
 	}
 
 	// Call the function with MCP flag (no campaign agent)
-	err = InitRepository(false, true, false, false, "", []string{}, false, false, false, nil)
+	err = InitRepository(false, true, false, false, "", []string{}, false, false, false, false, nil)
 	if err != nil {
-		t.Fatalf("InitRepository(, false, false, nil) with MCP returned error: %v", err)
+		t.Fatalf("InitRepository(, false, false, false, nil) with MCP returned error: %v", err)
 	}
 
 	// Verify standard files were created
@@ -134,15 +134,15 @@ func TestInitRepository_MCP_Idempotent(t *testing.T) {
 	}
 
 	// Call the function first time with MCP
-	err = InitRepository(false, true, false, false, "", []string{}, false, false, false, nil)
+	err = InitRepository(false, true, false, false, "", []string{}, false, false, false, false, nil)
 	if err != nil {
-		t.Fatalf("InitRepository(, false, false, nil) with MCP returned error on first call: %v", err)
+		t.Fatalf("InitRepository(, false, false, false, nil) with MCP returned error on first call: %v", err)
 	}
 
 	// Call the function second time with MCP
-	err = InitRepository(false, true, false, false, "", []string{}, false, false, false, nil)
+	err = InitRepository(false, true, false, false, "", []string{}, false, false, false, false, nil)
 	if err != nil {
-		t.Fatalf("InitRepository(, false, false, nil) with MCP returned error on second call: %v", err)
+		t.Fatalf("InitRepository(, false, false, false, nil) with MCP returned error on second call: %v", err)
 	}
 
 	// Verify files still exist
