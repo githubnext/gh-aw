@@ -19,7 +19,7 @@ func (c *Compiler) extractManualApprovalFromOn(frontmatter map[string]any, workf
 	} else {
 		onSection, exists = frontmatter["on"]
 	}
-	
+
 	if !exists {
 		manualApprovalLog.Print("No on: section found in frontmatter")
 		return "", nil
