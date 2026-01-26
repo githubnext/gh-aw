@@ -45,6 +45,7 @@ type Compiler struct {
 	repositorySlug          string              // Repository slug (owner/repo) used as seed for scattering
 	artifactManager         *ArtifactManager    // Tracks artifact uploads/downloads for validation
 	scheduleFriendlyFormats map[int]string      // Maps schedule item index to friendly format string for current workflow
+	suppressWarnings        bool                // If true, suppress warnings during parsing (for maintenance workflow generation)
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -183,6 +184,18 @@ func (c *Compiler) SetRepositorySlug(slug string) {
 // GetRepositorySlug returns the repository slug
 func (c *Compiler) GetRepositorySlug() string {
 	return c.repositorySlug
+}
+
+// SetSuppressWarnings configures whether to suppress warnings during parsing
+// This is used when parsing workflows for metadata extraction (e.g., expires fields)
+// without actually compiling them
+func (c *Compiler) SetSuppressWarnings(suppress bool) {
+	c.suppressWarnings = suppress
+}
+
+// GetSuppressWarnings returns whether warnings are suppressed
+func (c *Compiler) GetSuppressWarnings() bool {
+	return c.suppressWarnings
 }
 
 // GetScheduleWarnings returns all accumulated schedule warnings for this compiler instance

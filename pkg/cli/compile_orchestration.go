@@ -609,6 +609,10 @@ func outputResults(
 // This is used to check for expires fields across all workflows when generating
 // the maintenance workflow, even when only specific files are being compiled
 func parseAllWorkflowsInDirectory(compiler *workflow.Compiler, workflowsDir string) ([]*workflow.WorkflowData, error) {
+	// Suppress warnings during this parse since we're only extracting metadata
+	compiler.SetSuppressWarnings(true)
+	defer compiler.SetSuppressWarnings(false)
+
 	// Find all markdown files in the directory
 	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
 	if err != nil {
