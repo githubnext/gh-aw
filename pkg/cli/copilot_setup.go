@@ -49,8 +49,6 @@ jobs:
         uses: githubnext/gh-aw/actions/setup-cli%s
         with:
           version: %s
-      - name: Verify gh-aw installation
-        run: gh aw version
 `, actionRef, version)
 	}
 
@@ -78,8 +76,6 @@ jobs:
       - name: Install gh-aw extension
         run: |
           curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash
-      - name: Verify gh-aw installation
-        run: gh aw version
 `
 }
 
@@ -106,8 +102,6 @@ jobs:
       - name: Install gh-aw extension
         run: |
           curl -fsSL https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh | bash
-      - name: Verify gh-aw installation
-        run: gh aw version
 `
 
 // CopilotWorkflowStep represents a GitHub Actions workflow step for Copilot setup scaffolding
@@ -135,7 +129,18 @@ type Workflow struct {
 
 // ensureCopilotSetupSteps creates or updates .github/workflows/copilot-setup-steps.yml
 func ensureCopilotSetupSteps(verbose bool, actionMode workflow.ActionMode, version string) error {
-	copilotSetupLog.Printf("Creating copilot-setup-steps.yml with action mode: %s, version: %s", actionMode, version)
+	return ensureCopilotSetupStepsWithUpgrade(verbose, actionMode, version, false)
+}
+
+// upgradeCopilotSetupSteps upgrades the version in existing copilot-setup-steps.yml
+func upgradeCopilotSetupSteps(verbose bool, actionMode workflow.ActionMode, version string) error {
+	return ensureCopilotSetupStepsWithUpgrade(verbose, actionMode, version, true)
+}
+
+// ensureCopilotSetupStepsWithUpgrade creates or updates .github/workflows/copilot-setup-steps.yml
+// When upgradeVersion is true, it will update existing actions/setup-cli versions
+func ensureCopilotSetupStepsWithUpgrade(verbose bool, actionMode workflow.ActionMode, version string, upgradeVersion bool) error {
+	copilotSetupLog.Printf("Creating copilot-setup-steps.yml with action mode: %s, version: %s, upgradeVersion: %v", actionMode, version, upgradeVersion)
 
 	// Create .github/workflows directory if it doesn't exist
 	workflowsDir := filepath.Join(".github", "workflows")
@@ -162,6 +167,47 @@ func ensureCopilotSetupSteps(verbose bool, actionMode workflow.ActionMode, versi
 		hasLegacyInstall := strings.Contains(contentStr, "install-gh-aw.sh") ||
 			(strings.Contains(contentStr, "Install gh-aw extension") && strings.Contains(contentStr, "curl -fsSL"))
 		hasActionInstall := strings.Contains(contentStr, "actions/setup-cli")
+
+		// If we have an install step and upgradeVersion is true, attempt to upgrade the version
+		if (hasLegacyInstall || hasActionInstall) && upgradeVersion {
+			copilotSetupLog.Print("Extension install step exists, attempting version upgrade")
+
+			// Parse existing workflow
+			var workflow Workflow
+			if err := yaml.Unmarshal(content, &workflow); err != nil {
+				return fmt.Errorf("failed to parse existing copilot-setup-steps.yml: %w", err)
+			}
+
+			// Upgrade the version in existing steps
+			upgraded, err := upgradeSetupCliVersion(&workflow, actionMode, version)
+			if err != nil {
+				return fmt.Errorf("failed to upgrade setup-cli version: %w", err)
+			}
+
+			if !upgraded {
+				copilotSetupLog.Print("No version upgrade needed")
+				if verbose {
+					fmt.Fprintf(os.Stderr, "No version upgrade needed for %s\n", setupStepsPath)
+				}
+				return nil
+			}
+
+			// Marshal back to YAML
+			updatedContent, err := yaml.Marshal(&workflow)
+			if err != nil {
+				return fmt.Errorf("failed to marshal updated workflow: %w", err)
+			}
+
+			if err := os.WriteFile(setupStepsPath, updatedContent, 0600); err != nil {
+				return fmt.Errorf("failed to update copilot-setup-steps.yml: %w", err)
+			}
+			copilotSetupLog.Printf("Upgraded version in file: %s", setupStepsPath)
+
+			if verbose {
+				fmt.Fprintf(os.Stderr, "Updated %s with new version %s\n", setupStepsPath, version)
+			}
+			return nil
+		}
 
 		if hasLegacyInstall || hasActionInstall {
 			copilotSetupLog.Print("Extension install step already exists, skipping update")
@@ -208,6 +254,55 @@ func ensureCopilotSetupSteps(verbose bool, actionMode workflow.ActionMode, versi
 	return nil
 }
 
+// upgradeSetupCliVersion upgrades the version in existing actions/setup-cli steps
+// Returns true if any upgrades were made, false otherwise
+func upgradeSetupCliVersion(workflow *Workflow, actionMode workflow.ActionMode, version string) (bool, error) {
+	copilotSetupLog.Printf("Upgrading setup-cli version to %s with action mode: %s", version, actionMode)
+
+	// Find the copilot-setup-steps job
+	job, exists := workflow.Jobs["copilot-setup-steps"]
+	if !exists {
+		return false, fmt.Errorf("copilot-setup-steps job not found in workflow")
+	}
+
+	upgraded := false
+	actionRef := "@main"
+	if actionMode.IsRelease() && version != "" && version != "dev" {
+		actionRef = "@" + version
+	}
+
+	// Iterate through steps and update any actions/setup-cli steps
+	for i := range job.Steps {
+		step := &job.Steps[i]
+
+		// Check if this is a setup-cli action step
+		if step.Uses != "" && strings.Contains(step.Uses, "actions/setup-cli") {
+			// Update the action reference
+			oldUses := step.Uses
+			if actionMode.IsRelease() {
+				// Update to the new version tag
+				newUses := fmt.Sprintf("githubnext/gh-aw/actions/setup-cli%s", actionRef)
+				step.Uses = newUses
+
+				// Update the with.version parameter
+				if step.With == nil {
+					step.With = make(map[string]any)
+				}
+				step.With["version"] = version
+
+				copilotSetupLog.Printf("Upgraded setup-cli action from %s to %s", oldUses, newUses)
+				upgraded = true
+			}
+		}
+	}
+
+	if upgraded {
+		workflow.Jobs["copilot-setup-steps"] = job
+	}
+
+	return upgraded, nil
+}
+
 // injectExtensionInstallStep injects the gh-aw extension install and verification steps into an existing workflow
 func injectExtensionInstallStep(workflow *Workflow, actionMode workflow.ActionMode, version string) error {
 	var installStep, checkoutStep CopilotWorkflowStep
@@ -239,26 +334,21 @@ func injectExtensionInstallStep(workflow *Workflow, actionMode workflow.ActionMo
 		}
 	}
 
-	verifyStep := CopilotWorkflowStep{
-		Name: "Verify gh-aw installation",
-		Run:  "gh aw version",
-	}
-
 	// Find the copilot-setup-steps job
 	job, exists := workflow.Jobs["copilot-setup-steps"]
 	if !exists {
 		return fmt.Errorf("copilot-setup-steps job not found in workflow")
 	}
 
-	// Insert the extension install and verify steps at the beginning
+	// Insert the extension install step at the beginning
 	insertPosition := 0
 
 	// Prepare steps to insert based on mode
 	var stepsToInsert []CopilotWorkflowStep
 	if actionMode.IsRelease() {
-		stepsToInsert = []CopilotWorkflowStep{checkoutStep, installStep, verifyStep}
+		stepsToInsert = []CopilotWorkflowStep{checkoutStep, installStep}
 	} else {
-		stepsToInsert = []CopilotWorkflowStep{installStep, verifyStep}
+		stepsToInsert = []CopilotWorkflowStep{installStep}
 	}
 
 	// Insert steps at the determined position

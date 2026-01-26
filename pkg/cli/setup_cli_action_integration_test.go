@@ -155,6 +155,7 @@ func TestSetupCLIActionYAML(t *testing.T) {
 		"installed-version:",
 		"runs:",
 		"using: 'composite'",
+		"github-token:",
 	}
 
 	for _, field := range requiredFields {
@@ -166,6 +167,19 @@ func TestSetupCLIActionYAML(t *testing.T) {
 	// Verify version input is required
 	if !strings.Contains(contentStr, "required: true") {
 		t.Errorf("version input should be required")
+	}
+
+	// Verify github-token has default value
+	if !strings.Contains(contentStr, "github-token:") {
+		t.Errorf("action.yml should define github-token input")
+	}
+	if !strings.Contains(contentStr, "default: ${{ github.token }}") {
+		t.Errorf("github-token should have default value of github.token")
+	}
+
+	// Verify GH_TOKEN environment variable is set
+	if !strings.Contains(contentStr, "GH_TOKEN:") {
+		t.Errorf("action.yml should set GH_TOKEN environment variable")
 	}
 
 	// Verify no SHA mention (only release tags)

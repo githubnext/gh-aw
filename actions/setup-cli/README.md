@@ -54,6 +54,14 @@ The version of gh-aw to install. Must be a release tag.
 
 - **Release tag**: e.g., `v0.37.18`, `v0.37.0`
 
+### `github-token` (optional)
+
+GitHub token for authentication. Used for both `gh` CLI operations and GitHub API calls.
+
+- **Default**: `${{ github.token }}` (automatically provided by GitHub Actions)
+- **Required**: No (uses the default GITHUB_TOKEN automatically)
+- **When to override**: Only needed in special cases like using a PAT with additional permissions
+
 ## Outputs
 
 ### `installed-version`
@@ -133,6 +141,17 @@ jobs:
       - name: Test workflow compilation
         run: gh aw compile workflow.md
 ```
+
+### Using a Custom GitHub Token
+
+```yaml
+- uses: githubnext/gh-aw/actions/setup-cli@main
+  with:
+    version: v0.37.18
+    github-token: ${{ secrets.MY_CUSTOM_TOKEN }}
+```
+
+**Note**: In most cases, you don't need to specify the `github-token` input. The action automatically uses `${{ github.token }}` which is provided by GitHub Actions.
 
 ## Troubleshooting
 

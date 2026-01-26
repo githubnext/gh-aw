@@ -3,6 +3,7 @@
 
 const { getRunStartedMessage } = require("./messages_run_status.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 
 async function main() {
   // Read inputs from environment variables
@@ -341,7 +342,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
 
     // Add workflow-id marker if available
     if (workflowId) {
-      commentBody += `\n\n<!-- gh-aw-workflow-id: ${workflowId} -->`;
+      commentBody += `\n\n${generateWorkflowIdMarker(workflowId)}`;
     }
 
     // Add tracker-id marker if available (for backwards compatibility)

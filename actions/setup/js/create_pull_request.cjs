@@ -13,6 +13,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
+const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -342,6 +343,7 @@ async function main(config = {}) {
 
     // Add AI disclaimer with workflow name and run url
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+    const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${repoParts.owner}/${repoParts.repo}/actions/runs/${runId}`;
@@ -360,7 +362,14 @@ async function main(config = {}) {
       suffix: expiresHours > 0 ? "\n\n<!-- gh-aw-expires-type: Pull Request -->" : undefined,
     });
 
-    bodyLines.push(``, ``, footer, "");
+    bodyLines.push(``, ``, footer);
+
+    // Add standalone workflow-id marker for searchability (consistent with comments)
+    if (workflowId) {
+      bodyLines.push(``, generateWorkflowIdMarker(workflowId));
+    }
+
+    bodyLines.push("");
 
     // Prepare the body content
     const body = bodyLines.join("\n").trim();
