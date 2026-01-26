@@ -1,6 +1,8 @@
 {
   "name": "Go",
-  "image": "mcr.microsoft.com/devcontainers/go:1-bookworm",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
   "customizations": {
     "vscode": {
       "extensions": [

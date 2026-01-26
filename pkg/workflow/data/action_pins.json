@@ -25,6 +25,11 @@
       "version": "v5.0.2",
       "sha": "8b402f58fbc84540c8b491a91e594a4576fec3d7"
     },
+    "actions/checkout@v5": {
+      "repo": "actions/checkout",
+      "version": "v5",
+      "sha": "93cb6efe18208431cddfb8368fd83d5badbf9bfd"
+    },
     "actions/checkout@v6.0.2": {
       "repo": "actions/checkout",
       "version": "v6.0.2",
@@ -35,10 +40,20 @@
       "version": "v3.0.0-beta.2",
       "sha": "bf559f85448f9380bcfa2899dbdc01eb5b37be3a"
     },
+    "actions/download-artifact@v6": {
+      "repo": "actions/download-artifact",
+      "version": "v6",
+      "sha": "018cc2cf5baa6db3ef3c5f8a56943fffe632ef53"
+    },
     "actions/download-artifact@v7": {
       "repo": "actions/download-artifact",
       "version": "v7",
       "sha": "37930b1c2abaa49bbe596cd826c3c89aef350131"
+    },
+    "actions/github-script@v7": {
+      "repo": "actions/github-script",
+      "version": "v7",
+      "sha": "f28e40c7f34bde8b3046d885e986cb6290c5673b"
     },
     "actions/github-script@v8": {
       "repo": "actions/github-script",
@@ -125,6 +140,11 @@
       "version": "v4.32.0",
       "sha": "e6985fd516cce3b1a0e8db34a4013d2e50a1e252"
     },
+    "github/stale-repos@v3": {
+      "repo": "github/stale-repos",
+      "version": "v3",
+      "sha": "3477b6488008d9411aaf22a0924ec7c1f6a69980"
+    },
     "github/stale-repos@v8.0.4": {
       "repo": "github/stale-repos",
       "version": "v8.0.4",
@@ -145,10 +165,20 @@
       "version": "v1.286.0",
       "sha": "90be1154f987f4dc0fe0dd0feedac9e473aa4ba8"
     },
+    "super-linter/super-linter@v8.2.1": {
+      "repo": "super-linter/super-linter",
+      "version": "v8.2.1",
+      "sha": "2bdd90ed3262e023ac84bf8fe35dc480721fc1f2"
+    },
     "super-linter/super-linter@v8.3.2": {
       "repo": "super-linter/super-linter",
       "version": "v8.3.2",
       "sha": "d5b0a2ab116623730dd094f15ddc1b6b25bf7b99"
+    },
+    "actions/checkout@v5.0.1": {
+      "repo": "actions/checkout",
+      "version": "v5.0.1",
+      "sha": "93cb6efe18208431cddfb8368fd83d5badbf9bfd"
     }
   }
 }
