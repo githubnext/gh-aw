@@ -83,6 +83,7 @@ strict: true
    - Use the `github-discussion-query` safe-input tool with params: `limit=1, jq=".[0]"` to get the latest discussion from ${{ github.repository }}
    - Extract the discussion number from the result (e.g., if the result is `{"number": 123, "title": "...", ...}`, extract 123)
    - Use the `add_comment` tool with `discussion_number: <extracted_number>` to add a fun, playful comment stating that the smoke test agent was here
+8. **Build and Test gh-aw**: Run `make build` and `make test` to verify the agent can successfully build and test the gh-aw project. If either command fails, mark this test as ❌ and report the failure.
 
 ## Output
 
