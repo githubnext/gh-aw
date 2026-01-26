@@ -588,6 +588,158 @@ func TestEnsureDevcontainerConfigMergesWithExisting(t *testing.T) {
 	}
 }
 
+func TestEnsureDevcontainerConfigWithBuildField(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Initialize git repo
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Skip("Git not available")
+	}
+
+	// Configure git and add remote
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "remote", "add", "origin", "https://github.com/testorg/testrepo.git").Run()
+
+	// Create .devcontainer directory
+	devcontainerDir := ".devcontainer"
+	if err := os.MkdirAll(devcontainerDir, 0755); err != nil {
+		t.Fatalf("Failed to create directory: %v", err)
+	}
+
+	// Create an existing devcontainer.json with "build" field instead of "image"
+	existingConfig := DevcontainerConfig{
+		Name: "Custom Build Environment",
+		Build: &DevcontainerBuild{
+			Dockerfile: "Dockerfile",
+		},
+		Customizations: &DevcontainerCustomizations{
+			VSCode: &DevcontainerVSCode{
+				Extensions: []string{
+					"golang.go",
+				},
+			},
+		},
+		Features: DevcontainerFeatures{
+			"ghcr.io/devcontainers/features/docker-in-docker:2": map[string]any{},
+		},
+		PostCreateCommand: "make setup",
+	}
+
+	devcontainerPath := filepath.Join(devcontainerDir, "devcontainer.json")
+	data, err := json.MarshalIndent(existingConfig, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal existing config: %v", err)
+	}
+	data = append(data, '\n')
+
+	if err := os.WriteFile(devcontainerPath, data, 0644); err != nil {
+		t.Fatalf("Failed to write existing config: %v", err)
+	}
+
+	// Run ensureDevcontainerConfig - should merge with existing config and preserve build field
+	err = ensureDevcontainerConfig(false, []string{})
+	if err != nil {
+		t.Fatalf("ensureDevcontainerConfig() failed: %v", err)
+	}
+
+	// Read and verify the merged config
+	mergedData, err := os.ReadFile(devcontainerPath)
+	if err != nil {
+		t.Fatalf("Failed to read merged config: %v", err)
+	}
+
+	var mergedConfig DevcontainerConfig
+	if err := json.Unmarshal(mergedData, &mergedConfig); err != nil {
+		t.Fatalf("Failed to parse merged config: %v", err)
+	}
+
+	// Verify the build field is preserved
+	if mergedConfig.Build == nil {
+		t.Fatal("Expected build field to be preserved")
+	}
+
+	if mergedConfig.Build.Dockerfile != "Dockerfile" {
+		t.Errorf("Expected build.dockerfile to be 'Dockerfile', got %q", mergedConfig.Build.Dockerfile)
+	}
+
+	// Verify image field is not set
+	if mergedConfig.Image != "" {
+		t.Errorf("Expected image field to be empty when build is present, got %q", mergedConfig.Image)
+	}
+
+	// Verify existing properties were preserved
+	if mergedConfig.Name != "Custom Build Environment" {
+		t.Errorf("Expected name to be preserved, got %q", mergedConfig.Name)
+	}
+
+	// Verify existing extensions were preserved and new ones added
+	extensions := mergedConfig.Customizations.VSCode.Extensions
+	hasGolang := false
+	hasGitHubCopilot := false
+	hasCopilotChat := false
+
+	for _, ext := range extensions {
+		switch ext {
+		case "golang.go":
+			hasGolang = true
+		case "GitHub.copilot":
+			hasGitHubCopilot = true
+		case "GitHub.copilot-chat":
+			hasCopilotChat = true
+		}
+	}
+
+	if !hasGolang {
+		t.Error("Expected existing golang.go extension to be preserved")
+	}
+	if !hasGitHubCopilot {
+		t.Error("Expected GitHub.copilot extension to be added")
+	}
+	if !hasCopilotChat {
+		t.Error("Expected GitHub.copilot-chat extension to be added")
+	}
+
+	// Verify existing features were preserved and new ones added
+	if _, exists := mergedConfig.Features["ghcr.io/devcontainers/features/docker-in-docker:2"]; !exists {
+		t.Error("Expected existing docker-in-docker feature to be preserved")
+	}
+	if _, exists := mergedConfig.Features["ghcr.io/devcontainers/features/github-cli:1"]; !exists {
+		t.Error("Expected github-cli feature to be added")
+	}
+	if _, exists := mergedConfig.Features["ghcr.io/devcontainers/features/copilot-cli:latest"]; !exists {
+		t.Error("Expected copilot-cli feature to be added")
+	}
+
+	// Verify postCreateCommand was updated to include gh-aw
+	if !strings.Contains(mergedConfig.PostCreateCommand, "make setup") {
+		t.Error("Expected postCreateCommand to preserve existing command")
+	}
+	if !strings.Contains(mergedConfig.PostCreateCommand, "install-gh-aw.sh") {
+		t.Error("Expected postCreateCommand to include gh-aw installation")
+	}
+
+	// Verify codespaces repository permissions were added
+	if mergedConfig.Customizations.Codespaces == nil {
+		t.Fatal("Expected Codespaces configuration to be added")
+	}
+	if _, exists := mergedConfig.Customizations.Codespaces.Repositories["testorg/testrepo"]; !exists {
+		t.Error("Expected testorg/testrepo to be in repositories")
+	}
+}
+
 func TestGetCurrentRepoName(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 

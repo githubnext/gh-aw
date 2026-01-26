@@ -654,17 +654,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 
 		// Render MCP config - this will pipe directly to the gateway script
-		// Pass the compiler's skipValidation flag through workflowData for schema validation
-		if workflowData.CompilerSkipValidation == nil {
-			skipValidation := c.skipValidation
-			workflowData.CompilerSkipValidation = &skipValidation
-		}
-		// Pass the compiler's warning callback through workflowData for MCP validation warnings
-		if workflowData.CompilerWarningCallback == nil {
-			workflowData.CompilerWarningCallback = func() {
-				c.IncrementWarningCount()
-			}
-		}
 		engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 	}
 	// Note: When sandbox is disabled, gateway config will be nil and MCP config will be generated

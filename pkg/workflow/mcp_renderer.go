@@ -2,11 +2,9 @@ package workflow
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
-	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -525,12 +523,6 @@ type JSONMCPConfigOptions struct {
 	// GatewayConfig is an optional gateway configuration to include in the MCP config
 	// When set, adds a "gateway" section with port and apiKey for awmg to use
 	GatewayConfig *MCPGatewayRuntimeConfig
-	// SkipValidation indicates whether to skip MCP gateway configuration schema validation
-	// When true, validation is skipped. When false (with --validate flag), validation is performed
-	SkipValidation bool
-	// OnWarning is an optional callback function for handling validation warnings
-	// Called when schema validation fails (e.g., to increment warning count)
-	OnWarning func()
 }
 
 // GitHubMCPDockerOptions defines configuration for GitHub MCP Docker rendering
@@ -841,73 +833,11 @@ func RenderJSONMCPConfig(
 	// Get the generated configuration
 	generatedConfig := configBuilder.String()
 
-	// Validate the generated configuration against the MCP Gateway schema (unless skipped)
-	// This catches compiler bugs that generate invalid configurations
-	// Validation only runs when --validate flag is enabled (skipValidation is false)
-	if !options.SkipValidation {
-		mcpRendererLog.Print("Validating MCP gateway configuration against schema")
-		// Note: We need to clean up the indentation and substitute variables for validation
-		configForValidation := prepareConfigForValidation(generatedConfig)
-		if warningMsg := ValidateMCPGatewayConfig(configForValidation); warningMsg != "" {
-			// Emit warning instead of returning error
-			mcpRendererLog.Printf("MCP gateway configuration validation warning: %s", warningMsg)
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
-			// Increment warning count if callback provided
-			if options.OnWarning != nil {
-				options.OnWarning()
-			}
-		} else {
-			mcpRendererLog.Print("MCP gateway configuration validated successfully")
-		}
-	} else {
-		mcpRendererLog.Print("Skipping MCP gateway configuration validation (--validate flag not set)")
-	}
-
-	// Validation passed (or skipped) - write the configuration to the YAML output
+	// Write the configuration to the YAML output
 	yaml.WriteString("          cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh\n")
 	yaml.WriteString(generatedConfig)
 	yaml.WriteString("          MCPCONFIG_EOF\n")
 
 	// Note: Post-EOF commands are no longer needed since we pipe directly to the gateway script
 	return nil
-}
-
-// prepareConfigForValidation prepares the generated MCP gateway configuration for schema validation
-// by removing YAML indentation and substituting shell variables with sample values
-func prepareConfigForValidation(config string) string {
-	// Remove the leading "          " indentation from each line
-	lines := strings.Split(config, "\n")
-	var cleanedLines []string
-	for _, line := range lines {
-		// Remove exactly 10 spaces of indentation
-		if len(line) >= 10 && line[:10] == "          " {
-			cleanedLines = append(cleanedLines, line[10:])
-		} else {
-			cleanedLines = append(cleanedLines, line)
-		}
-	}
-	cleaned := strings.Join(cleanedLines, "\n")
-
-	// Substitute shell variables with sample values for validation
-	// $MCP_GATEWAY_PORT -> 8080 (example port)
-	// ${MCP_GATEWAY_DOMAIN} -> "localhost" (example domain)
-	// ${MCP_GATEWAY_API_KEY} -> "sample-api-key" (example key)
-	// $GITHUB_MCP_SERVER_TOKEN -> "sample-token" (example token)
-	// $GITHUB_MCP_LOCKDOWN -> "1" (example lockdown value)
-	// \${...} (escaped for Copilot) -> ${...} (unescaped for validation)
-
-	cleaned = strings.ReplaceAll(cleaned, "$MCP_GATEWAY_PORT", "8080")
-	cleaned = strings.ReplaceAll(cleaned, "\"${MCP_GATEWAY_DOMAIN}\"", "\"localhost\"")
-	cleaned = strings.ReplaceAll(cleaned, "\"${MCP_GATEWAY_API_KEY}\"", "\"sample-api-key\"")
-	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_MCP_SERVER_TOKEN\"", "\"sample-token\"")
-	cleaned = strings.ReplaceAll(cleaned, "\"$GITHUB_MCP_LOCKDOWN\"", "\"1\"")
-
-	// Handle Copilot-style escaped variables: \${VARIABLE} -> sample-value
-	cleaned = strings.ReplaceAll(cleaned, "\\${GITHUB_PERSONAL_ACCESS_TOKEN}", "sample-token")
-	cleaned = strings.ReplaceAll(cleaned, "\\${GITHUB_MCP_SERVER_TOKEN}", "sample-token")
-
-	// Handle shell command substitutions: $([ "$VAR" = "1" ] && echo true || echo false) -> true
-	cleaned = strings.ReplaceAll(cleaned, "\"$([ \\\"$GITHUB_MCP_LOCKDOWN\\\" = \\\"1\\\" ] && echo true || echo false)\"", "\"true\"")
-
-	return cleaned
 }
