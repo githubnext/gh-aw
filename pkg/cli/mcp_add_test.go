@@ -489,16 +489,30 @@ func TestListAvailableServers(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/servers" {
 			response := ServerListResponse{
-				Servers: []Server{
+				Servers: []ServerResponse{
 					{
-						Name:        "io.github.makenotion/notion-mcp-server",
-						Description: "Connect to Notion API",
-						Status:      "active",
+						Server: ServerDetail{
+							Name:        "io.github.makenotion/notion-mcp-server",
+							Description: "Connect to Notion API",
+							Version:     "1.0.0",
+						},
+						Meta: map[string]any{
+							"io.modelcontextprotocol.registry/official": map[string]any{
+								"status": "active",
+							},
+						},
 					},
 					{
-						Name:        "io.github.example/github-mcp-server",
-						Description: "Connect to GitHub API",
-						Status:      "active",
+						Server: ServerDetail{
+							Name:        "io.github.example/github-mcp-server",
+							Description: "Connect to GitHub API",
+							Version:     "1.0.0",
+						},
+						Meta: map[string]any{
+							"io.modelcontextprotocol.registry/official": map[string]any{
+								"status": "active",
+							},
+						},
 					},
 				},
 			}

@@ -110,10 +110,17 @@ func TestMCPRegistryClient_FlexibleValidation(t *testing.T) {
 			servers := make([]string, tc.serverCount)
 			for i := 0; i < tc.serverCount; i++ {
 				servers[i] = `{
-					"name": "test/server-` + string(rune('1'+i)) + `",
-					"description": "Test server",
-					"status": "active",
-					"packages": [{"identifier": "test", "transport": {"type": "stdio"}}]
+					"server": {
+						"name": "test/server-` + string(rune('1'+i)) + `",
+						"description": "Test server",
+						"version": "1.0.0",
+						"packages": [{"identifier": "test", "transport": {"type": "stdio"}}]
+					},
+					"_meta": {
+						"io.modelcontextprotocol.registry/official": {
+							"status": "active"
+						}
+					}
 				}`
 			}
 
@@ -131,7 +138,7 @@ func TestMCPRegistryClient_FlexibleValidation(t *testing.T) {
 			if tc.useProduction {
 				// For production tests, create client with production URL pattern
 				// but we'll need to manually test the validation logic
-				client = NewMCPRegistryClient("https://api.mcp.github.com/v0")
+				client = NewMCPRegistryClient("https://api.mcp.github.com/v0.1")
 			} else {
 				// For custom registry tests, use test server URL
 				client = NewMCPRegistryClient(server.URL)

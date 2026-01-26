@@ -224,7 +224,7 @@ func TestConstantValues(t *testing.T) {
 		expected string
 	}{
 		{"CLIExtensionPrefix", string(CLIExtensionPrefix), "gh aw"},
-		{"DefaultMCPRegistryURL", string(DefaultMCPRegistryURL), "https://api.mcp.github.com/v0"},
+		{"DefaultMCPRegistryURL", string(DefaultMCPRegistryURL), "https://api.mcp.github.com/v0.1"},
 		{"AgentJobName", string(AgentJobName), "agent"},
 		{"ActivationJobName", string(ActivationJobName), "activation"},
 		{"PreActivationJobName", string(PreActivationJobName), "pre_activation"},
@@ -430,8 +430,8 @@ func TestSemanticTypeAliases(t *testing.T) {
 
 		// Test DefaultMCPRegistryURL has the correct type
 		registryURL := DefaultMCPRegistryURL
-		if string(registryURL) != "https://api.mcp.github.com/v0" {
-			t.Errorf("DefaultMCPRegistryURL = %q, want %q", registryURL, "https://api.mcp.github.com/v0")
+		if string(registryURL) != "https://api.mcp.github.com/v0.1" {
+			t.Errorf("DefaultMCPRegistryURL = %q, want %q", registryURL, "https://api.mcp.github.com/v0.1")
 		}
 	})
 
