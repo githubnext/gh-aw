@@ -1,15 +1,15 @@
 ---
 title: Agentic Authoring of Workflows
-description: How to create agentic workflows using GitHub Copilot through the GitHub web interface to author workflows in natural language.
+description: How to create agentic workflows using AI agents (Copilot, Claude, Codex) from the GitHub web interface, terminal, or VS Code to author workflows in natural language.
 sidebar:
   order: 1
 ---
 
 import CopyEntireFileButton from '../../../components/CopyEntireFileButton.astro';
 
-This experience uses GitHub Copilot to create powerful automation workflows using natural language. Everything can be done through the **GitHub web interface** - no local development environment or VS Code is required.
+This agentic experience works with **all AI agents** (Copilot, Claude, Codex) and can be used from multiple interfaces - through the **GitHub web interface** (github.com), from your **terminal** with the Copilot CLI or Claude CLI, or in **VS Code**. You can create powerful automation workflows using natural language, with the flexibility to choose the tools that fit your workflow.
 
-## Quick Start
+## Using GitHub Copilot from the GitHub Web interface
 
 Initialize your repository for agentic workflows by starting a GitHub Copilot agent session in **github.com** with this prompt:
 
@@ -26,6 +26,46 @@ After initialization, you'll have:
 - `.github/aw/github-agentic-workflows.instructions.md` - Custom Copilot instructions for better workflow authoring
 - `.github/agents/agentic-workflows.agent.md` - [Agent file](/gh-aw/reference/glossary/#agent-files) (custom AI instructions) for the `/agent agentic-workflows` command in Copilot Chat
 - Additional configuration files for workflow authoring
+
+## Using Copilot CLI or Claude CLI from the Terminal
+
+You can also set up and author agentic workflows interactively from your terminal using the Copilot CLI or Claude CLI. This approach is ideal for developers who prefer command-line workflows or want to integrate setup into their development environment.
+
+### Setup with Copilot CLI
+
+If you have [GitHub Copilot CLI](https://githubnext.com/projects/copilot-cli) installed, you can use it to set up your repository interactively:
+
+```bash
+copilot-cli "Initialize this repository for GitHub Agentic Workflows following the guide at https://github.com/githubnext/gh-aw/blob/main/install.md"
+```
+
+The Copilot CLI agent will:
+1. Check if `gh-aw` CLI extension is installed (and install it if needed)
+2. Run `gh aw init` to configure the repository
+3. Guide you through any required secret configuration
+4. Commit and push the initialization changes
+
+### Setup with Claude CLI
+
+If you prefer using Claude from the terminal, you can use it to guide the setup process:
+
+```bash
+claude "Help me set up GitHub Agentic Workflows in this repository following https://github.com/githubnext/gh-aw/blob/main/install.md"
+```
+
+Claude will walk you through the installation process interactively, checking your environment and helping configure the necessary secrets and files.
+
+### Benefits of Terminal-Based Setup
+
+Using the CLI offers several advantages:
+
+- **Direct environment access**: The agent can check installed tools, run commands, and verify setup
+- **Interactive guidance**: Get real-time help with troubleshooting and configuration
+- **Flexible AI choice**: Use your preferred AI assistant (Copilot or Claude)
+- **Full installation guide**: The `install.md` file provides comprehensive setup instructions optimized for AI agents
+
+> [!TIP]
+> The [`install.md`](https://github.com/githubnext/gh-aw/blob/main/install.md) file is specifically designed to guide AI agents through the complete setup process, including installation, configuration, and troubleshooting.
 
 ## What is the `agentic-workflows` agent?
 
