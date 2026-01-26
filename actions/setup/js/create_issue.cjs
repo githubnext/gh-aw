@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
-const { generateFooter } = require("./generate_footer.cjs");
+const { generateFooter, generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
@@ -398,7 +398,7 @@ async function main(config = {}) {
 
     // Add standalone workflow-id marker for searchability (consistent with comments)
     if (workflowId) {
-      bodyLines.push(``, `<!-- gh-aw-workflow-id: ${workflowId} -->`);
+      bodyLines.push(``, generateWorkflowIdMarker(workflowId));
     }
 
     bodyLines.push("");

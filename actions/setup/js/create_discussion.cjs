@@ -14,6 +14,7 @@ const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } =
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
+const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 
 /**
  * Fetch repository ID and discussion categories for a repository
@@ -271,7 +272,7 @@ async function main(config = {}) {
 
     // Add standalone workflow-id marker for searchability (consistent with comments)
     if (workflowId) {
-      bodyLines.push(``, `<!-- gh-aw-workflow-id: ${workflowId} -->`);
+      bodyLines.push(``, generateWorkflowIdMarker(workflowId));
     }
 
     bodyLines.push("");

@@ -13,6 +13,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
+const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -365,7 +366,7 @@ async function main(config = {}) {
 
     // Add standalone workflow-id marker for searchability (consistent with comments)
     if (workflowId) {
-      bodyLines.push(``, `<!-- gh-aw-workflow-id: ${workflowId} -->`);
+      bodyLines.push(``, generateWorkflowIdMarker(workflowId));
     }
 
     bodyLines.push("");

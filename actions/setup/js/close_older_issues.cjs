@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { getWorkflowIdMarkerContent } = require("./generate_footer.cjs");
 
 /**
  * Maximum number of older issues to close
@@ -43,7 +44,7 @@ async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber)
 
   // Build REST API search query
   // Search for open issues with the workflow-id marker in the body
-  const workflowIdMarker = `gh-aw-workflow-id: ${workflowId}`;
+  const workflowIdMarker = getWorkflowIdMarkerContent(workflowId);
   // Escape quotes in workflow ID to prevent query injection
   const escapedMarker = workflowIdMarker.replace(/"/g, '\\"');
   const searchQuery = `repo:${owner}/${repo} is:issue is:open "${escapedMarker}" in:body`;
@@ -197,7 +198,7 @@ async function closeOlderIssues(github, owner, repo, workflowId, newIssue, workf
   core.info("Starting closeOlderIssues operation");
   core.info("=".repeat(70));
 
-  core.info(`Search criteria: workflow-id marker: "gh-aw-workflow-id: ${workflowId}"`);
+  core.info(`Search criteria: workflow-id marker: "${getWorkflowIdMarkerContent(workflowId)}"`);
   core.info(`New issue reference: #${newIssue.number} (${newIssue.html_url})`);
   core.info(`Workflow: ${workflowName}`);
   core.info(`Run URL: ${runUrl}`);
