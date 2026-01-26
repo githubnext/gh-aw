@@ -183,7 +183,7 @@ on:
 
 The `campaign_id` identifies the campaign orchestrating this worker. Use it to:
 
-- Label created items: `campaign:${campaign_id}`
+- Label created items: `z_campaign_${campaign_id}`
 - Generate deterministic keys: `campaign-${campaign_id}-${work_item_id}`
 - Track work in repo-memory: `memory/campaigns/${campaign_id}/`
 
@@ -233,7 +233,7 @@ Use this key in:
 Before creating any GitHub resource:
 
 1. **Search for existing items** with the deterministic key
-2. **Filter by campaign label**: `campaign:${campaign_id}`
+2. **Filter by campaign tracker label**: `z_campaign_${campaign_id}`
 3. **If found**: Skip or update existing item
 4. **If not found**: Proceed with creation
 
@@ -256,7 +256,7 @@ if (existingPRs.total_count > 0) {
 
 Apply the campaign tracker label to all created items:
 
-- Label format: `campaign:${campaign_id}`
+- Label format: `z_campaign_${campaign_id}`
 - Prevents interference from other workflows
 - Enables discovery by orchestrator
 
@@ -330,7 +330,7 @@ If no existing work found:
 1. Create branch with deterministic name
 2. Make required changes
 3. Create PR with deterministic title
-4. Apply labels: `campaign:${campaignId}`, [additional labels]
+4. Apply labels: `z_campaign_${campaignId}`, [additional labels]
 
 ## Step 4: Report Status
 
@@ -362,7 +362,7 @@ PR title pattern: `[${workKey}] ${description}`
 
 Before creating PR:
 1. Search for PRs with `${workKey}` in title
-2. Filter by `campaign:${campaignId}` label
+2. Filter by `z_campaign_${campaignId}` label
 3. If found: Update with comment or skip
 4. If not: Create new PR
 ```
@@ -390,7 +390,7 @@ Issue title pattern: `[${workItemId}] ${description}`
 
 Before creating issue:
 1. Search for issues with `[${workItemId}]` in title
-2. Filter by `campaign:${campaignId}` label
+2. Filter by `z_campaign_${campaignId}` label
 3. If found: Update existing issue
 4. If not: Create new issue
 ```
@@ -496,7 +496,7 @@ await github.issues.addLabels({
   owner: payload.repository.split('/')[0],
   repo: payload.repository.split('/')[1],
   issue_number: pr.number,
-  labels: [`campaign:${campaignId}`, 'security', 'automated']
+  labels: [`z_campaign_${campaignId}`, 'security', 'automated']
 });
 
 console.log(`Created PR: ${pr.html_url}`);
@@ -564,7 +564,7 @@ Before using a worker in a campaign:
    - Second run should skip/update without errors
 
 3. **Check labels** on created items:
-   - Verify `campaign:test-campaign` label is applied
+- Verify `z_campaign_test-campaign` label is applied
    - Confirm tracker-id is in description (if applicable)
 
 4. **Test error cases**:
