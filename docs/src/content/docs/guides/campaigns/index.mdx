@@ -7,53 +7,49 @@ banner:
   content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
 ---
 
-import FeatureCard from '../../../../components/FeatureCard.astro';
-import FeatureGrid from '../../../../components/FeatureGrid.astro';
-
 ## What are Agentic Campaigns?
 
 **GitHub agentic campaigns** are AI-powered orchestration workflows that coordinate multiple **[agentic workflows](/gh-aw/reference/glossary/#agentic-workflow)** toward a shared goal across one or more repositories.
 
-Just as [agentic workflows](/gh-aw/introduction/overview/) use natural language instructions to give an AI agent tasks and [safe outputs](/gh-aw/reference/safe-outputs/) to enable controlled GitHub operations, campaigns use **[campaign specs](/gh-aw/guides/campaigns/specs/)** (YAML configuration files that define campaign goals, governance, and worker coordination) to give an **orchestrator agent** (AI agent that manages campaign execution, worker dispatch, and progress tracking) high-level strategic instructions. The orchestrator agent interprets your campaign's objective and KPIs, then autonomously manages worker workflows to achieve the goal.
+Just as [agentic workflows](/gh-aw/introduction/overview/) use natural language instructions to give an AI agent tasks and [safe outputs](/gh-aw/reference/safe-outputs/) to enable controlled GitHub operations, campaigns use **[campaign specs](/gh-aw/guides/campaigns/specs/)** to give an **orchestrator agent** high-level strategic instructions. The orchestrator agent interprets your campaign's objective and KPIs, then autonomously manages worker workflows to achieve the goal.
 
-**Single workflow**: You write natural language instructions → AI agent executes tasks using safe outputs  
-**Campaign**: You define goals in a spec → Orchestrator agent coordinates worker workflows toward the objective
+## When to Use Campaigns
 
-Imagine you have a goal that takes more than one workflow run, across one or more repositories. You can write a worker workflow to do the work, but you still need a way to schedule it, fan it out, track what it created, and report progress.
+Use campaigns when your goal requires:
+- **Multiple workflow runs** across one or more repositories
+- **Coordination** of worker workflows doing similar tasks
+- **Tracking** of created issues and pull requests
+- **Progress reporting** against strategic objectives
+- **Governance** with pacing controls and safety limits
 
-Campaigns provide that orchestration layer: you define the goal and guardrails in a campaign spec, which gets compiled into an orchestrator workflow that runs on a schedule. On each run, the orchestrator can dispatch worker workflows, track the issues and pull requests they create, update a GitHub Project board, and publish a status update with metrics.
+If a single workflow is enough (even on a schedule), start with a standalone agentic workflow.
 
-Use campaigns when work needs coordination across multiple workflows or repositories, plus tracking, pacing, and governance. If a single workflow is enough (even on a schedule), start with a standalone agentic workflow.
+## How Campaigns Work
 
-## Why use campaigns?
+Campaigns provide an orchestration layer on top of your existing workflows:
 
-<FeatureGrid columns={2}>
-  <FeatureCard icon="goal" title="Strategic Goals" href="/gh-aw/guides/campaigns/specs/#strategic-goals-objective--kpis">
-    Define campaign objectives and key performance indicators (KPIs) with optional narrative context.
-  </FeatureCard>
-  <FeatureCard icon="workflow" title="Reuse Worker Workflows" href="/gh-aw/guides/campaigns/specs/#worker-workflows">
-    Coordinate existing dispatchable workflows instead of rewriting automation.
-  </FeatureCard>
-  <FeatureCard icon="project" title="Unified Tracking" href="/gh-aw/guides/campaigns/specs/#unified-tracking-github-project">
-    Track work and status updates in one GitHub Project board.
-  </FeatureCard>
-  <FeatureCard icon="shield" title="Built-in Governance" href="/gh-aw/guides/campaigns/specs/#governance-pacing--safety">
-    Cap updates per run, opt out items, and keep changes predictable.
-  </FeatureCard>
-</FeatureGrid>
+1. **Define your goal** in a [campaign spec](/gh-aw/guides/campaigns/specs/) with objectives, KPIs, and governance rules
+2. **Compile to orchestrator** – the spec becomes a workflow that runs on schedule (daily by default)
+3. **Orchestrator coordinates** – dispatches worker workflows, tracks their outputs, updates a GitHub Project board
+4. **Progress tracked** – campaign publishes metrics and status updates against your KPIs
 
-## Natural language to campaign
+**Key concepts:**
+- **Campaign spec**: YAML configuration defining goals, governance, and worker coordination
+- **Orchestrator agent**: AI agent managing campaign execution, worker dispatch, and progress tracking
+- **Worker workflows**: Your existing dispatchable workflows that do the actual work
+
+## From Natural Language to Campaign
 
 Campaigns use agentic workflows to generate configuration from natural language descriptions.
 
-**Example input**: Describe your goal in plain language:
+**Describe your goal** in plain language:
 
 ```md
 Burn down all open code security alerts, prioritizing file-write alerts first
 and batching up to 3 related alerts/PR with a brief fix rationale comment.
 ```
 
-The campaign generator converts this into a **[campaign spec](/gh-aw/guides/campaigns/specs/)** in a pull request for review. Essential spec components include:
+The campaign generator converts this into a **[campaign spec](/gh-aw/guides/campaigns/specs/)** for review:
 
 ```yaml
 ---
@@ -85,9 +81,7 @@ governance:
 ---
 ```
 
-The spec is validated and compiled into the campaign orchestrator workflow (`.campaign.lock.yml`) that GitHub Actions executes.
-
-Once merged, the orchestrator runs on schedule (daily by default) to [dispatch worker workflows, discover items, update the Project board, and report status](/gh-aw/guides/campaigns/lifecycle/).
+The spec compiles into a campaign orchestrator workflow (`.campaign.lock.yml`) that GitHub Actions executes on schedule. The orchestrator [dispatches workers, tracks outputs, updates the Project board, and reports progress](/gh-aw/guides/campaigns/lifecycle/).
 
 ## Next steps
 
