@@ -9,39 +9,91 @@ banner:
 
 ## What are Agentic Campaigns?
 
-**GitHub agentic campaigns** are AI-powered orchestration workflows that coordinate multiple **[agentic workflows](/gh-aw/reference/glossary/#agentic-workflow)** toward a shared goal across one or more repositories.
+**[Agentic campaigns](/gh-aw/reference/glossary/#agentic-campaign)** are initiatives that coordinate multiple [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) toward a shared goal.
 
-Just as [agentic workflows](/gh-aw/introduction/overview/) use natural language instructions to give an AI agent tasks and [safe outputs](/gh-aw/reference/safe-outputs/) to enable controlled GitHub operations, campaigns use **[campaign specs](/gh-aw/guides/campaigns/specs/)** to give an **orchestrator agent** high-level strategic instructions. The orchestrator agent interprets your campaign's objective and KPIs, then autonomously manages worker workflows to achieve the goal.
+In practice, a campaign runs on a schedule, kicks off worker workflows in small batches, and tracks progress in [GitHub Projects](/gh-aw/reference/glossary/#github-projects-projectsv2).
 
-## When to Use Campaigns
+## When to use Campaigns
 
-Use campaigns when your goal requires:
-- **Multiple workflow runs** across one or more repositories
-- **Coordination** of worker workflows doing similar tasks
-- **Tracking** of created issues and pull requests
-- **Progress reporting** against strategic objectives
-- **Governance** with pacing controls and safety limits
+Choose a campaign when you need coordination across repos or multiple workflows, with progress tracked in one place.
 
-If a single workflow is enough (even on a schedule), start with a standalone agentic workflow.
+- **Coordinate multiple worker workflows** that each do part of the job
+- **Work across many repositories** (using campaign scope)
+- **Track progress in one place** (a single [GitHub Project](/gh-aw/reference/glossary/#github-projects-projectsv2))
+- **Roll out changes in batches across repos** (repeatable runs with per-run limits and central tracking)
 
-## How Campaigns Work
+If you only need one workflow in one repo, a single scheduled agentic workflow is usually simpler.
 
-Campaigns provide an orchestration layer on top of your existing workflows:
+If you're not sure yet, start small (one repo, one worker), then expand scope or add workers once you know what you need.
 
-1. **Define your goal** in a [campaign spec](/gh-aw/guides/campaigns/specs/) with objectives, KPIs, and governance rules
-2. **Compile to orchestrator** – the spec becomes a workflow that runs on schedule (daily by default)
-3. **Orchestrator coordinates** – dispatches worker workflows, tracks their outputs, updates a GitHub Project board
-4. **Progress tracked** – campaign publishes metrics and status updates against your KPIs
+## Campaign Specs
 
-**Key concepts:**
-- **Campaign spec**: YAML configuration defining goals, governance, and worker coordination
-- **Orchestrator agent**: AI agent managing campaign execution, worker dispatch, and progress tracking
-- **Worker workflows**: Your existing dispatchable workflows that do the actual work
+To create a campaign, you write a single markdown file:
+
+- `.github/workflows/<id>.campaign.md`
+
+That file has two parts:
+
+- **[Frontmatter](/gh-aw/reference/glossary/#frontmatter)**: the configuration ([GitHub Project URL](/gh-aw/reference/glossary/#github-projects-projectsv2), scope, worker list, governance limits)
+- **Markdown body**: the narrative (objective, KPIs, prioritization, constraints)
+
+Here’s a small example:
+
+```markdown wrap
+---
+id: dependency-upgrades
+project-url: "https://github.com/orgs/ORG/projects/1"
+scope:
+  - "org:ORG"
+workflows:
+  - dependency-scanner
+  - dependency-upgrader
+---
+
+# Dependency Upgrades
+
+Upgrade dependencies across repos.
+```
+
+See: [Campaign specs](/gh-aw/guides/campaigns/specs/).
+
+## From markdown to GitHub Actions
+
+Just like regular workflows, campaigns get compiled:
+
+- You run `gh aw compile`
+- The compiler produces a **[workflow lock file](/gh-aw/reference/glossary/#workflow-lock-file-lockyml)** (`.campaign.lock.yml`) that GitHub Actions runs
+
+This is the same idea as [compilation](/gh-aw/reference/glossary/#compilation) for normal workflows: you edit human-friendly markdown, GitHub Actions runs the compiled YAML.
+
+## Orchestrator + workers (who does what)
+
+Campaigns split responsibilities on purpose:
+
+- **Orchestrator (generated from the spec)**
+  - Runs on a schedule
+  - Coordinates and decides what to do next
+  - Uses **[safe outputs](/gh-aw/reference/glossary/#safe-outputs)** to dispatch worker workflows
+- **Workers (you provide these)**
+  - Are normal agentic workflows triggered via [`workflow_dispatch`](/gh-aw/reference/glossary/#workflow_dispatch)
+  - Do the actual GitHub writes (issues/PRs/Projects/comments) using their own safe outputs
+
+## What you’ll see in GitHub
+
+When a campaign is working, you’ll usually see:
+
+- A compiled workflow named `<id>.campaign.lock.yml` in `.github/workflows/`
+- A GitHub Project filling up with issues/PRs created by workers
+- Tracking labels on those issues/PRs like `z_campaign_<id>`
+- Optional [labels](/gh-aw/reference/glossary/#labels) you can use to group and filter related workflows
+- Worker workflow runs that create PRs and move items through statuses
+
+If you want the full execution story, see: [Campaign lifecycle](/gh-aw/guides/campaigns/lifecycle/).
 
 ## Next steps
 
-- [Creating campaigns](/gh-aw/guides/campaigns/creating-campaigns/) – issue-based or CLI creation
 - [Getting started](/gh-aw/guides/campaigns/getting-started/) – step-by-step tutorial
+- [Creating campaigns](/gh-aw/guides/campaigns/creating-campaigns/) – issue-based or CLI creation
 - [Campaign specs](/gh-aw/guides/campaigns/specs/) – configuration reference
 - [Campaign Lifecycle](/gh-aw/guides/campaigns/lifecycle/) – execution model
 - [CLI commands](/gh-aw/guides/campaigns/cli-commands/) – command reference

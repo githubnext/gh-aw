@@ -21,18 +21,17 @@ The campaign coordinates three workers (scanner, fixer, reviewer) that create se
 
 ### Key patterns
 
-**Orchestrator responsibilities:**
+**Orchestrator responsibilities (dispatch-only):**
+- Runs discovery precomputation (writes a manifest for the agent)
 - Dispatches workers on schedule
-- Discovers worker outputs via labels
-- Updates project board
-- Reports progress metrics
+- Coordinates work by dispatching allowlisted workflows
 
 **Worker responsibilities:**
 - Accepts `workflow_dispatch` only
 - Uses standardized inputs
 - Generates deterministic keys
 - Checks for existing work
-- Labels outputs with `campaign:<id>`
+- Labels outputs with the campaign tracker label (defaults to `z_campaign_<id>`)
 
 ## Security Scanner Worker
 
@@ -58,7 +57,7 @@ The worker:
 3. Generates deterministic key: `campaign-{id}-{repo}-{vuln_id}`
 4. Checks for existing PR with that key
 5. Creates PR only if none exists
-6. Labels PR with `campaign:{id}`
+6. Labels PR with `z_campaign_{id}`
 
 ## Worker design patterns
 
@@ -168,7 +167,7 @@ Workers are regular workflows, not in campaign-specific folders. The dispatch-on
     type: create_pull_request
     title: "[$KEY] Fix vulnerability 123"
     body: "Automated security fix"
-    labels: "campaign:${{ inputs.campaign_id }}"
+    labels: "z_campaign_${{ inputs.campaign_id }}"
 ```
 
 ## Independent workflows
@@ -183,7 +182,9 @@ on:
   workflow_dispatch:
 
 # Creates items with campaign label for discovery
-labels: ["campaign:security-audit", "security"]
+labels: ["z_campaign_security-audit", "security"]
+
+The recommended campaign tracking label format is `z_campaign_<id>`. If you need compatibility with older tooling that filters `campaign:*` labels, you can optionally apply both labels.
 ```
 
 The campaign discovers these via tracker labels without controlling execution.

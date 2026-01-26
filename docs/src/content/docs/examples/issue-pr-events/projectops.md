@@ -140,7 +140,7 @@ ProjectOps complements [GitHub's built-in Projects automation](https://docs.gith
 
 **Use descriptive project names** that clearly indicate purpose and scope. Prefer "Performance Optimization Q1 2026" over "Project 1".
 
-**Leverage tracking labels** (`campaign:<id>`) for grouping related work across issues and PRs, enabling orchestrator discovery.
+**Leverage tracking labels** (`z_campaign_<id>`) for grouping related work across issues and PRs, enabling campaign discovery.
 
 **Set meaningful field values** like status, priority, and effort to enable effective filtering and sorting on boards.
 
