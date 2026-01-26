@@ -298,8 +298,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// Mount the hostedtoolcache node directory (where actions/setup-node installs everything)
 		// This includes node binary, npm, and all global packages including Claude
 		awfArgs = append(awfArgs, "--mount", "/opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro")
-
 		claudeLog.Print("Added hostedtoolcache node mount to AWF container")
+
+		// Mount the hostedtoolcache go directory (where actions/setup-go installs Go)
+		// This includes the go binary and all Go tooling
+		awfArgs = append(awfArgs, "--mount", "/opt/hostedtoolcache/go:/opt/hostedtoolcache/go:ro")
+		claudeLog.Print("Added hostedtoolcache go mount to AWF container")
 
 		// Mount /opt/gh-aw as readonly for script and configuration files
 		awfArgs = append(awfArgs, "--mount", "/opt/gh-aw:/opt/gh-aw:ro")
