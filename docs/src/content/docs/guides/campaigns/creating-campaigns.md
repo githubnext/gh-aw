@@ -7,19 +7,24 @@ banner:
 
 There are two ways to create a campaign:
 
-## Recommended: Issue-based creation (with custom agent)
+## Recommended: Custom agent (via Copilot Chat)
 
-The easiest way is to use the automated campaign creation workflow:
+The easiest way is to use the custom agent in GitHub Copilot Chat:
 
-1. **Create an issue** describing your campaign goal
-2. **Apply the label** `create-agentic-campaign`
-3. **Wait for the custom agent** to generate:
+1. **Open Copilot Chat** in your repository
+2. **Type `/agent` with your campaign goal**, for example:
+   ```
+   /agent create campaign: Burn down all open code security alerts, 
+   prioritizing file-write alerts first and batching up to 3 related 
+   alerts/PR with a brief fix rationale comment.
+   ```
+3. **Wait for the agent** to generate:
    - GitHub Project board with required fields and views
    - Campaign spec file (`.campaign.md`)
    - Pull request with the campaign configuration
 4. **Review and merge** the PR to activate the campaign
 
-The custom agent (campaign designer) analyzes your issue description, discovers relevant workflows, and generates a complete campaign configuration ready for review.
+The custom agent analyzes your goal description, discovers relevant workflows, and generates a complete campaign configuration ready for review.
 
 See [Getting started](/gh-aw/guides/campaigns/getting-started/) for a detailed walkthrough.
 
