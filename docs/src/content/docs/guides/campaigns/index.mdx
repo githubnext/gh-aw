@@ -11,7 +11,7 @@ banner:
 
 **[Agentic campaigns](/gh-aw/reference/glossary/#agentic-campaign)** are initiatives that coordinate multiple [agentic workflows](/gh-aw/reference/glossary/#agentic-workflow) toward a shared goal.
 
-In practice, a campaign runs on a schedule, kicks off worker workflows in small batches, and tracks progress in [GitHub Projects](/gh-aw/reference/glossary/#github-projects-projectsv2).
+In practice, a campaign runs on a schedule, kicks off worker workflows in small batches, and tracks progress in [GitHub Projects](/gh-aw/reference/glossary/#github-projects-projects-v2).
 
 ## When to use Campaigns
 
@@ -19,7 +19,7 @@ Choose a campaign when you need coordination across repos or multiple workflows,
 
 - **Coordinate multiple worker workflows** that each do part of the job
 - **Work across many repositories** (using campaign scope)
-- **Track progress in one place** (a single [GitHub Project](/gh-aw/reference/glossary/#github-projects-projectsv2))
+- **Track progress in one place** (a single [GitHub Project](/gh-aw/reference/glossary/#github-projects-projects-v2))
 - **Roll out changes in batches across repos** (repeatable runs with per-run limits and central tracking)
 
 If you only need one workflow in one repo, a single scheduled agentic workflow is usually simpler.
@@ -34,7 +34,7 @@ To create a campaign, you write a single markdown file:
 
 That file has two parts:
 
-- **[Frontmatter](/gh-aw/reference/glossary/#frontmatter)**: the configuration ([GitHub Project URL](/gh-aw/reference/glossary/#github-projects-projectsv2), scope, worker list, governance limits)
+- **[Frontmatter](/gh-aw/reference/glossary/#frontmatter)**: the configuration ([GitHub Project URL](/gh-aw/reference/glossary/#github-projects-projects-v2), scope, worker list, governance limits)
 - **Markdown body**: the narrative (objective, KPIs, prioritization, constraints)
 
 Here’s a small example:
