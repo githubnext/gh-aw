@@ -5,7 +5,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var safeInputsRendererLog = logger.New("workflow:safe_inputs_renderer")
 
 // getSafeInputsEnvVars returns the list of environment variables needed for safe-inputs
 func getSafeInputsEnvVars(safeInputs *SafeInputsConfig) []string {
@@ -13,8 +16,11 @@ func getSafeInputsEnvVars(safeInputs *SafeInputsConfig) []string {
 	seen := make(map[string]bool)
 
 	if safeInputs == nil {
+		safeInputsRendererLog.Print("No safe-inputs configuration provided")
 		return envVars
 	}
+
+	safeInputsRendererLog.Printf("Collecting environment variables from %d safe-inputs tools", len(safeInputs.Tools))
 
 	for _, toolConfig := range safeInputs.Tools {
 		for envName := range toolConfig.Env {
@@ -26,6 +32,7 @@ func getSafeInputsEnvVars(safeInputs *SafeInputsConfig) []string {
 	}
 
 	sort.Strings(envVars)
+	safeInputsRendererLog.Printf("Collected %d unique environment variables", len(envVars))
 	return envVars
 }
 
@@ -34,8 +41,11 @@ func collectSafeInputsSecrets(safeInputs *SafeInputsConfig) map[string]string {
 	secrets := make(map[string]string)
 
 	if safeInputs == nil {
+		safeInputsRendererLog.Print("No safe-inputs configuration provided for secret collection")
 		return secrets
 	}
+
+	safeInputsRendererLog.Printf("Collecting secrets from %d safe-inputs tools", len(safeInputs.Tools))
 
 	// Sort tool names for consistent behavior when same env var appears in multiple tools
 	toolNames := make([]string, 0, len(safeInputs.Tools))
@@ -58,12 +68,16 @@ func collectSafeInputsSecrets(safeInputs *SafeInputsConfig) map[string]string {
 		}
 	}
 
+	safeInputsRendererLog.Printf("Collected %d secrets from safe-inputs configuration", len(secrets))
 	return secrets
 }
 
 // renderSafeInputsMCPConfigWithOptions generates the Safe Inputs MCP server configuration with engine-specific options
 // Only supports HTTP transport mode
 func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool, includeCopilotFields bool, workflowData *WorkflowData) {
+	safeInputsRendererLog.Printf("Rendering Safe Inputs MCP config: includeCopilotFields=%t, isLast=%t",
+		includeCopilotFields, isLast)
+
 	yaml.WriteString("              \"" + constants.SafeInputsMCPServerID + "\": {\n")
 
 	// HTTP transport configuration - server started in separate step
@@ -75,6 +89,7 @@ func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *Saf
 	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil && workflowData.SandboxConfig.Agent.Disabled {
 		// When agent is disabled (no firewall), use localhost instead of host.docker.internal
 		host = "localhost"
+		safeInputsRendererLog.Print("Agent disabled, using localhost for Safe Inputs MCP server")
 	}
 
 	// HTTP URL using environment variable - NOT escaped so shell expands it before awmg validation

@@ -3,11 +3,18 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var updateProjectJobLog = logger.New("workflow:update_project_job")
 
 // buildUpdateProjectJob creates the update_project job
 func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	updateProjectJobLog.Printf("Building update_project job: mainJobName=%s", mainJobName)
+
 	if data.SafeOutputs == nil || data.SafeOutputs.UpdateProjects == nil {
+		updateProjectJobLog.Print("Missing safe-outputs.update-project configuration")
 		return nil, fmt.Errorf("safe-outputs.update-project configuration is required")
 	}
 
@@ -40,8 +47,10 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 
 	// If views are configured in frontmatter, pass them to the JavaScript via environment variable
 	if data.SafeOutputs.UpdateProjects != nil && len(data.SafeOutputs.UpdateProjects.Views) > 0 {
+		updateProjectJobLog.Printf("Marshaling %d project views to environment variable", len(data.SafeOutputs.UpdateProjects.Views))
 		viewsJSON, err := json.Marshal(data.SafeOutputs.UpdateProjects.Views)
 		if err != nil {
+			updateProjectJobLog.Printf("Failed to marshal views configuration: %v", err)
 			return nil, fmt.Errorf("failed to marshal views configuration: %w", err)
 		}
 		// lgtm[go/unsafe-quoting] - This generates YAML environment variable declarations, not shell commands.
@@ -53,6 +62,8 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 
 	jobCondition := BuildSafeOutputType("update_project")
 	permissions := NewPermissionsContentsReadProjectsWrite()
+
+	updateProjectJobLog.Print("Building safe output job with update_project configuration")
 
 	// Use buildSafeOutputJob helper to get common scaffolding including app token minting
 	job, err := c.buildSafeOutputJob(data, SafeOutputJobConfig{
@@ -69,6 +80,12 @@ func (c *Compiler) buildUpdateProjectJob(data *WorkflowData, mainJobName string)
 		Needs:         []string{mainJobName},
 		Token:         effectiveToken,
 	})
+
+	if err != nil {
+		updateProjectJobLog.Printf("Failed to build safe output job: %v", err)
+	} else {
+		updateProjectJobLog.Print("Successfully built update_project job")
+	}
 
 	return job, err
 }
