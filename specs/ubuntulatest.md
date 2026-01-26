@@ -1,10 +1,12 @@
 # Ubuntu Actions Runner Image Analysis
 
-**Last Updated**: 2026-01-23  
-**Source**: [Ubuntu2404-Readme.md (20260119)](https://github.com/actions/runner-images/blob/releases/ubuntu24/20260119/images/ubuntu/Ubuntu2404-Readme.md)  
+**Last Updated**: 2026-01-26  
+**Source**: [Ubuntu2404-Readme.md (20260119.4)](https://github.com/actions/runner-images/blob/ubuntu24/20260119.4/images/ubuntu/Ubuntu2404-Readme.md)  
+**Release**: [ubuntu24/20260119.4](https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260119.4)  
 **Ubuntu Version**: 24.04.3 LTS  
 **Image Version**: 20260119.4.1  
 **Runner Version**: 2.331.0  
+**Hosted Compute Agent**: 20260115.477  
 **Kernel Version**: 6.11.0-1018-azure  
 **Systemd Version**: 255.4-1ubuntu8.12  
 
