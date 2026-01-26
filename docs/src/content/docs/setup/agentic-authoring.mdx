@@ -1,30 +1,31 @@
 ---
-title: Creating Workflows
-description: How to create agentic workflows using the custom agent in VS Code to author workflows in natural language.
+title: Agentic Authoring of Workflows
+description: How to create agentic workflows using GitHub Copilot through the GitHub web interface to author workflows in natural language.
 sidebar:
   order: 1
 ---
 
 import CopyEntireFileButton from '../../../components/CopyEntireFileButton.astro';
 
-GitHub Agentic Workflows provide agents that turn GitHub Copilot into 
-a powerful workflow authoring tool. This guide explains how to use these agents to author agentic workflows in natural language.
+This experience uses GitHub Copilot to create powerful automation workflows using natural language. Everything can be done through the **GitHub web interface** - no local development environment or VS Code is required.
 
 ## Quick Start
 
-Initialize your repository to set up GitHub Copilot instructions and prompts for authoring agentic workflows:
+Initialize your repository for agentic workflows by starting a GitHub Copilot agent session in **github.com** with this prompt:
 
-```bash wrap
-gh aw init
+```text wrap
+Initialize the repository for GitHub Agentic Workflows using https://github.com/githubnext/gh-aw/blob/main/copilot-setup.md
 ```
 
-This creates:
+This will guide the Copilot agent to:
+1. Install the `gh-aw` CLI extension
+2. Run `gh aw init` to create necessary configuration files
+3. Commit and push the changes
+
+After initialization, you'll have:
 - `.github/aw/github-agentic-workflows.instructions.md` - Custom Copilot instructions for better workflow authoring
 - `.github/agents/agentic-workflows.agent.md` - [Agent file](/gh-aw/reference/glossary/#agent-files) (custom AI instructions) for the `/agent agentic-workflows` command in Copilot Chat
-
-:::tip[VS Code integration]
-Once initialized, GitHub Copilot will automatically use these instructions when you edit workflow files in VS Code. See [VS Code Integration](/gh-aw/setup/vscode/) for more details.
-:::
+- Additional configuration files for workflow authoring
 
 ## What is the `agentic-workflows` agent?
 
@@ -40,7 +41,7 @@ The agent intelligently determines your intent and loads the appropriate special
 
 ## How to use the `agentic-workflows` agent
 
-In Visual Studio Code with GitHub Copilot Chat, or in the interactive Copilot CLI session, invoke the agent with the `/agent` command and specify your intent:
+In GitHub Copilot Chat (on github.com or in VS Code), or in the interactive Copilot CLI session, invoke the agent with the `/agent` command and specify your intent:
 
 ```sh wrap
 # Create a new workflow
@@ -94,6 +95,74 @@ To use the agentic-chat instructions:
 
 The assistant uses a neutral, technical tone and focuses on what needs to be done rather than how to implement it, making it ideal for creating specifications that AI coding agents can execute.
 
-## After compiling
+## Editing Workflows
+
+### Using the Agentic-Workflows Agent (Recommended)
+
+The easiest way to edit your workflows is to use the `/agent agentic-workflows` command in GitHub Copilot Chat:
+
+```sh wrap
+/agent agentic-workflows update add web-fetch tool to my-workflow
+```
+
+This approach automatically handles both content changes and recompilation, ensuring your workflow is ready to use.
+
+### Manual Editing: Understanding Prompt vs Frontmatter
+
+When manually editing workflow files (`.md` files in the `.github/workflows/` directory), it's important to understand the difference between the two main components:
+
+### Workflow Prompt (Markdown Body)
+
+The **workflow prompt** is the main markdown content that describes what you want the agent to do. This is the natural language task description.
+
+- **Location**: The main body of the `.md` file (below the frontmatter)
+- **Purpose**: Describes the task for the AI agent to execute
+- **Editing**: Can be edited directly from the GitHub web interface without recompilation
+- **Example**:
+  ```markdown
+  Triage the issue by analyzing its content, assigning appropriate labels,
+  and adding a comment with your analysis.
+  ```
+
+> [!TIP]
+> You can edit the workflow prompt directly through the GitHub web interface in your repository's `.github/workflows/*.md` files. Changes to the prompt take effect immediately in the next workflow run - no compilation needed.
+
+### Frontmatter Configuration
+
+The **frontmatter** is the YAML configuration block at the top of the workflow file that defines triggers, tools, permissions, and other settings.
+
+- **Location**: Between `---` delimiters at the top of the `.md` file
+- **Purpose**: Configures how the workflow runs (triggers, tools, permissions, etc.)
+- **Editing**: **Requires recompilation** after manual changes
+- **Example**:
+  ```yaml
+  ---
+  engine: copilot
+  on:
+    issues:
+      types: [opened]
+  tools:
+    github:
+      toolsets: [issues]
+  ---
+  ```
+
+> [!WARNING]
+> After manually editing frontmatter configuration, you **must recompile** the workflow to regenerate the `.lock.yml` file:
+> ```bash
+> gh aw compile workflow-name.md
+> ```
+> The `.lock.yml` file is the compiled GitHub Actions workflow that actually runs. Changes to frontmatter won't take effect until you recompile and commit the updated `.lock.yml` file.
+> 
+> **Recommended**: Use the `/agent agentic-workflows` command instead, which handles recompilation automatically.
+
+### Quick Reference
+
+| What you're editing | Needs recompilation? | What it affects |
+|---------------------|---------------------|-----------------|
+| Markdown body (prompt) | ❌ No | The task description the agent receives |
+| Frontmatter (YAML config) | ✅ Yes | Triggers, tools, permissions, and workflow settings |
+
+## After Compiling
 
 Commit the generated files ([`.lock.yml`](/gh-aw/reference/glossary/#workflow-lock-file-lockyml), the compiled GitHub Actions workflow file) if they are part of the project's tracked artifacts. The project uses compiled workflows in version control.
