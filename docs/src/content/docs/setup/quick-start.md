@@ -9,7 +9,7 @@ sidebar:
 
 In this guide you will add the automated [**Daily Status Report**](https://github.com/githubnext/agentics/blob/main/workflows/daily-team-status.md?plain=1) to an existing GitHub repository where you are a maintainer.
 
-Remember the aim here is _automated AI_: to install something that will run _automatically_ every day, in the context of your repository, and create a fresh status report discussion in your repository without any further manual intervention.
+Remember the aim here is _automated AI_: to install something that will run _automatically_ every day, in the context of your repository, and create a fresh status report issue in your repository without any further manual intervention.
 
 ## Prerequisites
 
@@ -18,7 +18,6 @@ Before installing, ensure you have:
 - ✅ **AI Account:** A GitHub Copilot, Anthropic Claude or OpenAI Codex subscription
 - ✅ **GitHub Repository** you are a maintainer on
 - ✅ **[GitHub Actions](https://docs.github.com/actions)** enabled in your repository
-- ✅ **[GitHub Discussions](https://docs.github.com/discussions)** enabled in your repository
 - ✅ **GitHub CLI** (`gh`) - A command-line tool for GitHub operations. [Install here](https://cli.github.com) v2.0.0+ and authenticate with `gh auth login`
 - ✅ **Git** installed on your machine
 - ✅ **Operating System:** Linux, macOS, or Windows with WSL
