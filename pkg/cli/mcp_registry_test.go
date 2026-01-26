@@ -13,43 +13,51 @@ func TestMCPRegistryClient_SearchServers(t *testing.T) {
 			t.Errorf("Expected path /servers, got %s", r.URL.Path)
 		}
 
-		// Return mock response with new structure based on official specification
+		// Return mock response with v0.1 structure based on official specification
 		response := `{
 			"servers": [
 				{
-					"name": "io.github.makenotion/notion-mcp-server",
-					"description": "MCP server for Notion integration",
-					"status": "active",
-					"version": "1.0.0",
-					"repository": {
-						"url": "https://github.com/example/notion-mcp",
-						"source": "github"
+					"server": {
+						"name": "io.github.makenotion/notion-mcp-server",
+						"description": "MCP server for Notion integration",
+						"version": "1.0.0",
+						"repository": {
+							"url": "https://github.com/example/notion-mcp",
+							"source": "github"
+						},
+						"packages": [
+							{
+								"registryType": "npm",
+								"identifier": "notion-mcp",
+								"version": "1.0.0",
+								"runtimeHint": "node",
+								"transport": {
+									"type": "stdio"
+								},
+								"packageArguments": [
+									{
+										"type": "positional",
+										"value": "notion-mcp"
+									}
+								],
+								"environmentVariables": [
+									{
+										"name": "NOTION_TOKEN",
+										"description": "Notion API token",
+										"isRequired": true,
+										"isSecret": true
+									}
+								]
+							}
+						]
 					},
-					"packages": [
-						{
-							"registry_type": "npm",
-							"identifier": "notion-mcp",
-							"version": "1.0.0",
-							"runtime_hint": "node",
-							"transport": {
-								"type": "stdio"
-							},
-							"package_arguments": [
-								{
-									"type": "positional",
-									"value": "notion-mcp"
-								}
-							],
-							"environment_variables": [
-								{
-									"name": "NOTION_TOKEN",
-									"description": "Notion API token",
-									"is_required": true,
-									"is_secret": true
-								}
-							]
+					"_meta": {
+						"io.modelcontextprotocol.registry/official": {
+							"status": "active",
+							"publishedAt": "2025-01-01T10:30:00Z",
+							"isLatest": true
 						}
-					]
+					}
 				}
 			]
 		}`
@@ -101,43 +109,51 @@ func TestMCPRegistryClient_GetServer(t *testing.T) {
 
 		// No longer check for search query parameter since we now fetch all servers and filter locally
 
-		// Return mock response with new structure based on official specification
+		// Return mock response with v0.1 structure based on official specification
 		response := `{
 			"servers": [
 				{
-					"name": "io.github.makenotion/notion-mcp-server",
-					"description": "MCP server for Notion integration",
-					"status": "active",
-					"version": "1.0.0",
-					"repository": {
-						"url": "https://github.com/example/notion-mcp",
-						"source": "github"
+					"server": {
+						"name": "io.github.makenotion/notion-mcp-server",
+						"description": "MCP server for Notion integration",
+						"version": "1.0.0",
+						"repository": {
+							"url": "https://github.com/example/notion-mcp",
+							"source": "github"
+						},
+						"packages": [
+							{
+								"registryType": "npm",
+								"identifier": "notion-mcp",
+								"version": "1.0.0",
+								"runtimeHint": "node",
+								"transport": {
+									"type": "stdio"
+								},
+								"packageArguments": [
+									{
+										"type": "positional",
+										"value": "notion-mcp"
+									}
+								],
+								"environmentVariables": [
+									{
+										"name": "NOTION_TOKEN",
+										"description": "Notion API token",
+										"isRequired": true,
+										"isSecret": true
+									}
+								]
+							}
+						]
 					},
-					"packages": [
-						{
-							"registry_type": "npm",
-							"identifier": "notion-mcp",
-							"version": "1.0.0",
-							"runtime_hint": "node",
-							"transport": {
-								"type": "stdio"
-							},
-							"package_arguments": [
-								{
-									"type": "positional",
-									"value": "notion-mcp"
-								}
-							],
-							"environment_variables": [
-								{
-									"name": "NOTION_TOKEN",
-									"description": "Notion API token",
-									"is_required": true,
-									"is_secret": true
-								}
-							]
+					"_meta": {
+						"io.modelcontextprotocol.registry/official": {
+							"status": "active",
+							"publishedAt": "2025-01-01T10:30:00Z",
+							"isLatest": true
 						}
-					]
+					}
 				}
 			]
 		}`
@@ -191,7 +207,7 @@ func TestMCPRegistryClient_GetServerNotFound(t *testing.T) {
 
 func TestNewMCPRegistryClient_DefaultURL(t *testing.T) {
 	client := NewMCPRegistryClient("")
-	expectedURL := "https://api.mcp.github.com/v0"
+	expectedURL := "https://api.mcp.github.com/v0.1"
 	if client.registryURL != expectedURL {
 		t.Errorf("Expected default registry URL '%s', got '%s'", expectedURL, client.registryURL)
 	}

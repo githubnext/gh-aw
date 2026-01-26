@@ -329,7 +329,7 @@ The command will:
 - Add the MCP tool configuration to the workflow's frontmatter
 - Automatically compile the workflow to generate the .lock.yml file
 
-Registry URL defaults to: https://api.mcp.github.com/v0`,
+Registry URL defaults to: https://api.mcp.github.com/v0.1`,
 		Args: cobra.RangeArgs(0, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")

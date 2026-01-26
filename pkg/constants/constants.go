@@ -91,7 +91,7 @@ func (f FeatureFlag) IsValid() bool {
 //
 // Example usage:
 //
-//	const DefaultMCPRegistryURL URL = "https://api.mcp.github.com/v0"
+//	const DefaultMCPRegistryURL URL = "https://api.mcp.github.com/v0.1"
 //	func FetchFromRegistry(url URL) error { ... }
 type URL string
 
@@ -232,7 +232,7 @@ const MaxExpressionLineLength LineLength = 120
 const ExpressionBreakThreshold LineLength = 100
 
 // DefaultMCPRegistryURL is the default MCP registry URL.
-const DefaultMCPRegistryURL URL = "https://api.mcp.github.com/v0"
+const DefaultMCPRegistryURL URL = "https://api.mcp.github.com/v0.1"
 
 // GitHubCopilotMCPDomain is the domain for the hosted GitHub MCP server.
 // Used when github tool is configured with mode: remote.
