@@ -1,6 +1,9 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+// Log immediately at module load time
+process.stderr.write("[mcp_server_core] Module is being loaded\n");
+
 /**
  * MCP Server Core Module
  *

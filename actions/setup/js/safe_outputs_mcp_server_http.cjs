@@ -1,6 +1,9 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+// Log immediately at module load time (before any requires)
+process.stderr.write("[safe_outputs_mcp_server_http] Module is being loaded\n");
+
 /**
  * Safe Outputs MCP Server with HTTP Transport
  *
@@ -19,14 +22,23 @@
  */
 
 const http = require("http");
+process.stderr.write("[safe_outputs_mcp_server_http] Loaded http\n");
 const { randomUUID } = require("crypto");
+process.stderr.write("[safe_outputs_mcp_server_http] Loaded crypto\n");
 const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
+process.stderr.write("[safe_outputs_mcp_server_http] Loaded mcp_http_transport.cjs\n");
 const { createLogger } = require("./mcp_logger.cjs");
+process.stderr.write("[safe_outputs_mcp_server_http] Loaded mcp_logger.cjs\n");
 const { bootstrapSafeOutputsServer, cleanupConfigFile } = require("./safe_outputs_bootstrap.cjs");
+process.stderr.write("[safe_outputs_mcp_server_http] Loaded safe_outputs_bootstrap.cjs\n");
 const { createAppendFunction } = require("./safe_outputs_append.cjs");
+process.stderr.write("[safe_outputs_mcp_server_http] Loaded safe_outputs_append.cjs\n");
 const { createHandlers } = require("./safe_outputs_handlers.cjs");
+process.stderr.write("[safe_outputs_mcp_server_http] Loaded safe_outputs_handlers.cjs\n");
 const { attachHandlers, registerPredefinedTools, registerDynamicTools } = require("./safe_outputs_tools_loader.cjs");
+process.stderr.write("[safe_outputs_mcp_server_http] Loaded safe_outputs_tools_loader.cjs\n");
 const { getErrorMessage } = require("./error_helpers.cjs");
+process.stderr.write("[safe_outputs_mcp_server_http] All modules loaded successfully\n");
 
 /**
  * Create and configure the MCP server with tools
