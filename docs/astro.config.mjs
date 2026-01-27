@@ -155,7 +155,7 @@ export default defineConfig({
 					label: 'Setup',
 					items: [
 						{ label: 'Quick Start', link: '/setup/quick-start/' },
-						{ label: 'Agentic Authoring', link: '/setup/agentic-authoring/' },
+						{ label: 'Authoring Workflows with AI', link: '/setup/agentic-authoring/' },
 						{ label: 'CLI Commands', link: '/setup/cli/' },
 						{ label: 'VS Code Integration', link: '/setup/vscode/' },
 					],
@@ -232,6 +232,7 @@ export default defineConfig({
 						{ label: 'Custom Agents', link: '/reference/custom-agents/' },
 						{ label: 'GH-AW as MCP Server', link: '/setup/mcp-server/' },
 						{ label: 'MCP Gateway', link: '/reference/mcp-gateway/' },
+						{ label: 'FAQ', link: '/reference/faq/' },
 					],
 				},
 				{

@@ -89,7 +89,7 @@ Analyze the user's response and map it to agentic workflows. Ask clarifying ques
    - 💡 If you detect the task requires **browser automation**, suggest the **`playwright`** tool.
    - 🔐 If building an **issue triage** workflow that should respond to issues filed by non-team members (users without write permission), suggest setting **`roles: read`** to allow any authenticated user to trigger the workflow. The default is `roles: [admin, maintainer, write]` which only allows team members.
 
-**Scheduling Best Practices:**
+**Scheduling Best Practices:**  
    - 📅 When creating a **daily or weekly scheduled workflow**, use **fuzzy scheduling** by simply specifying `daily` or `weekly` without a time. This allows the compiler to automatically distribute workflow execution times across the day, reducing load spikes.
    - ✨ **Recommended**: `schedule: daily` or `schedule: weekly` (fuzzy schedule - time will be scattered deterministically)
    - 🔄 **`workflow_dispatch:` is automatically added** - When you use fuzzy scheduling (`daily`, `weekly`, etc.), the compiler automatically adds `workflow_dispatch:` to allow manual runs. You don't need to explicitly include it.

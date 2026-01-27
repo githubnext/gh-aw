@@ -431,7 +431,7 @@ jobs:
           GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-start.outputs.api_key }}
           GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-start.outputs.port }}
           GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eo pipefail
           mkdir -p /tmp/gh-aw/mcp-config
@@ -648,7 +648,7 @@ jobs:
           
           Use the GitHub MCP Dependabot toolset.
           
-          - Call `github-list_dependabot_alerts` (or the closest available list tool in the `dependabot` toolset) for `owner="githubnext"` and `repo="gh-aw"`.
+          - Call `github___list_dependabot_alerts` (or the closest available list tool in the `dependabot` toolset) for `owner="githubnext"` and `repo="gh-aw"`.
           - Filter to `state="open"`.
           
           From results, collect only alerts where:

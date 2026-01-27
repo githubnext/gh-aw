@@ -36,7 +36,7 @@
       "description": "Code scanning alerts",
       "read_permissions": ["security-events"],
       "write_permissions": ["security-events"],
-      "tools": ["get_code_scanning_alert", "list_code_scanning_alerts"]
+      "tools": ["get_code_scanning_alert", "list_code_scanning_alerts", "create_code_scanning_alert"]
     },
     "dependabot": {
       "description": "Dependabot alerts",

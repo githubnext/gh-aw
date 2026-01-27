@@ -80,8 +80,7 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 	fmt.Fprintf(b, "engine: %s\n", engineID)
 
 	// Render safe-outputs if configured by the campaign orchestrator generator.
-	// Campaign orchestrators are dispatch-only: the only supported safe output is
-	// dispatch-workflow.
+	// Campaign orchestrators support dispatch-workflow, update-project, and create-project-status-update.
 	if data.SafeOutputs != nil {
 		// NOTE: We must emit the public frontmatter keys (e.g. "add-comment") rather
 		// than the internal struct YAML tags (e.g. "add-comments").
@@ -94,6 +93,24 @@ func renderGeneratedCampaignOrchestratorMarkdown(data *workflow.WorkflowData, so
 				dispatchWorkflowConfig["workflows"] = data.SafeOutputs.DispatchWorkflow.Workflows
 			}
 			outputs["dispatch-workflow"] = dispatchWorkflowConfig
+		}
+		if data.SafeOutputs.UpdateProjects != nil {
+			updateProjectConfig := map[string]any{
+				"max": data.SafeOutputs.UpdateProjects.Max,
+			}
+			if data.SafeOutputs.UpdateProjects.GitHubToken != "" {
+				updateProjectConfig["github-token"] = data.SafeOutputs.UpdateProjects.GitHubToken
+			}
+			outputs["update-project"] = updateProjectConfig
+		}
+		if data.SafeOutputs.CreateProjectStatusUpdates != nil {
+			createStatusUpdateConfig := map[string]any{
+				"max": data.SafeOutputs.CreateProjectStatusUpdates.Max,
+			}
+			if data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken != "" {
+				createStatusUpdateConfig["github-token"] = data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken
+			}
+			outputs["create-project-status-update"] = createStatusUpdateConfig
 		}
 		if len(outputs) > 0 {
 			payload := map[string]any{"safe-outputs": outputs}

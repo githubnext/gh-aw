@@ -63,7 +63,7 @@
               "minLength": 1,
               "maxLength": 200
             },
-            "repository": {
+            "target_repo": {
               "type": "string",
               "pattern": "^[^/]+/[^/]+$"
             },
@@ -82,7 +82,7 @@
               "$ref": "#/$defs/isoDate"
             }
           },
-          "required": ["status", "campaign_id", "worker_workflow", "repository", "priority", "size", "start_date", "end_date"]
+          "required": ["status", "campaign_id", "worker_workflow", "target_repo", "priority", "size", "start_date", "end_date"]
         }
       ]
     }
