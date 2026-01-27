@@ -149,7 +149,7 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 	// by parsing frontmatter quickly
 	compileHelpersLog.Printf("Checking if workflow has project field: %s", file)
 	hasProject, spec, parseErr := checkForProjectField(file)
-	
+
 	if parseErr == nil && hasProject {
 		compileHelpersLog.Printf("Detected project field in workflow: %s", file)
 		if verbose {

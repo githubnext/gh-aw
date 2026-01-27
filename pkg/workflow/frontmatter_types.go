@@ -64,19 +64,19 @@ type ProjectConfig struct {
 // CampaignConfig represents the campaign orchestration configuration
 // When present alongside project config, triggers campaign orchestrator generation
 type CampaignConfig struct {
-	ID            string   `json:"id,omitempty"`             // Campaign identifier
-	Workflows     []string `json:"workflows,omitempty"`      // Associated workflow IDs
-	MemoryPaths   []string `json:"memory-paths,omitempty"`   // Repo-memory paths
-	MetricsGlob   string   `json:"metrics-glob,omitempty"`   // Metrics file glob pattern
-	CursorGlob    string   `json:"cursor-glob,omitempty"`    // Cursor file glob pattern
-	TrackerLabel  string   `json:"tracker-label,omitempty"`  // Label for discovering items
-	Owners        []string `json:"owners,omitempty"`         // Campaign owners
-	RiskLevel     string   `json:"risk-level,omitempty"`     // Risk level (low/medium/high)
-	State         string   `json:"state,omitempty"`          // Lifecycle state
-	Tags          []string `json:"tags,omitempty"`           // Categorization tags
-	Governance    *CampaignGovernanceConfig `json:"governance,omitempty"`
-	Bootstrap     *CampaignBootstrapConfig  `json:"bootstrap,omitempty"`
-	Workers       []WorkerMetadata          `json:"workers,omitempty"`
+	ID           string                    `json:"id,omitempty"`            // Campaign identifier
+	Workflows    []string                  `json:"workflows,omitempty"`     // Associated workflow IDs
+	MemoryPaths  []string                  `json:"memory-paths,omitempty"`  // Repo-memory paths
+	MetricsGlob  string                    `json:"metrics-glob,omitempty"`  // Metrics file glob pattern
+	CursorGlob   string                    `json:"cursor-glob,omitempty"`   // Cursor file glob pattern
+	TrackerLabel string                    `json:"tracker-label,omitempty"` // Label for discovering items
+	Owners       []string                  `json:"owners,omitempty"`        // Campaign owners
+	RiskLevel    string                    `json:"risk-level,omitempty"`    // Risk level (low/medium/high)
+	State        string                    `json:"state,omitempty"`         // Lifecycle state
+	Tags         []string                  `json:"tags,omitempty"`          // Categorization tags
+	Governance   *CampaignGovernanceConfig `json:"governance,omitempty"`
+	Bootstrap    *CampaignBootstrapConfig  `json:"bootstrap,omitempty"`
+	Workers      []WorkerMetadata          `json:"workers,omitempty"`
 }
 
 // CampaignGovernanceConfig represents governance policies for campaigns
@@ -92,8 +92,8 @@ type CampaignGovernanceConfig struct {
 
 // CampaignBootstrapConfig represents bootstrap configuration for campaigns
 type CampaignBootstrapConfig struct {
-	Mode         string                      `json:"mode,omitempty"`
-	SeederWorker *SeederWorkerConfig         `json:"seeder-worker,omitempty"`
+	Mode         string                       `json:"mode,omitempty"`
+	SeederWorker *SeederWorkerConfig          `json:"seeder-worker,omitempty"`
 	ProjectTodos *ProjectTodosBootstrapConfig `json:"project-todos,omitempty"`
 }
 
@@ -114,14 +114,14 @@ type ProjectTodosBootstrapConfig struct {
 
 // WorkerMetadata represents metadata for worker workflows
 type WorkerMetadata struct {
-	ID                  string                       `json:"id,omitempty"`
-	Name                string                       `json:"name,omitempty"`
-	Description         string                       `json:"description,omitempty"`
-	Capabilities        []string                     `json:"capabilities,omitempty"`
+	ID                  string                        `json:"id,omitempty"`
+	Name                string                        `json:"name,omitempty"`
+	Description         string                        `json:"description,omitempty"`
+	Capabilities        []string                      `json:"capabilities,omitempty"`
 	PayloadSchema       map[string]WorkerPayloadField `json:"payload-schema,omitempty"`
-	OutputLabeling      WorkerOutputLabeling         `json:"output-labeling,omitempty"`
-	IdempotencyStrategy string                       `json:"idempotency-strategy,omitempty"`
-	Priority            int                          `json:"priority,omitempty"`
+	OutputLabeling      WorkerOutputLabeling          `json:"output-labeling,omitempty"`
+	IdempotencyStrategy string                        `json:"idempotency-strategy,omitempty"`
+	Priority            int                           `json:"priority,omitempty"`
 }
 
 // WorkerPayloadField represents a field in worker payload schema
@@ -161,8 +161,8 @@ type FrontmatterConfig struct {
 	Jobs             map[string]any     `json:"jobs,omitempty"`        // Custom workflow jobs (too dynamic to type)
 	SafeOutputs      *SafeOutputsConfig `json:"safe-outputs,omitempty"`
 	SafeInputs       *SafeInputsConfig  `json:"safe-inputs,omitempty"`
-	PermissionsTyped *PermissionsConfig `json:"-"`                 // New typed field (not in JSON to avoid conflict)
-	Project          *ProjectConfig     `json:"project,omitempty"` // Project tracking configuration
+	PermissionsTyped *PermissionsConfig `json:"-"`                  // New typed field (not in JSON to avoid conflict)
+	Project          *ProjectConfig     `json:"project,omitempty"`  // Project tracking configuration
 	Campaign         *CampaignConfig    `json:"campaign,omitempty"` // Campaign orchestration configuration
 
 	// Event and trigger configuration
