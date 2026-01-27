@@ -76,6 +76,54 @@ Create an Anthropic API key at <https://console.anthropic.com/api-keys> and add 
 gh aw secrets set ANTHROPIC_API_KEY --value "<your-anthropic-api-key>"
 ```
 
+### Quick Example with Claude
+
+Here's a minimal workflow that uses Claude to analyze GitHub issues:
+
+**File**: `.github/workflows/issue-analyzer.md`
+
+```yaml wrap
+---
+engine: claude
+on: 
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: read
+safe-outputs:
+  add-comment:
+---
+
+# Issue Analysis
+
+Analyze this issue and provide:
+1. Summary of the problem
+2. Suggested labels
+3. Any immediate concerns
+```
+
+**Setup:**
+
+1. Get your API key from [Anthropic Console](https://console.anthropic.com/api-keys)
+2. Set the secret:
+   ```bash wrap
+   gh aw secrets set ANTHROPIC_API_KEY --value "<your-anthropic-api-key>"
+   ```
+3. Compile and run:
+   ```bash wrap
+   gh aw compile issue-analyzer.md
+   git add .github/workflows/issue-analyzer.lock.yml
+   git commit -m "Add issue analyzer workflow"
+   git push
+   ```
+
+**What it does:**
+- Triggers on new issues
+- Claude analyzes the issue content
+- Posts a comment with analysis
+- Uses same safe-outputs system as all engines
+
 ## OpenAI Codex
 
 [OpenAI Codex](https://openai.com/blog/openai-codex) is a coding agent engine option.
