@@ -75,7 +75,7 @@ gh aw run daily-repo-status
 
 or by using the GitHub UX.
 
-Here are some ideas for ways you can customize the workflow:
+Here are some ideas for customizing the workflow:
 
 - Adjust the workflow to report weekly how the repository can be modernized and simplified
 - Adjust the workflow to automatically analyze pull requests for adherence to contribution guidelines, labelling those that don't comply
