@@ -203,6 +203,179 @@ The **frontmatter** is the YAML configuration block at the top of the workflow f
 | Markdown body (prompt) | ❌ No | The task description the agent receives |
 | Frontmatter (YAML config) | ✅ Yes | Triggers, tools, permissions, and workflow settings |
 
+## Upgrading Agentic Workflows
+
+Keep your agentic workflows up-to-date with the latest `gh-aw` versions and features using the unified agentic-workflows agent:
+
+```sh wrap
+/agent agentic-workflows upgrade all workflows to latest version
+```
+
+The agent will:
+- Detect all workflows in your repository
+- Check for available updates to `gh-aw` version
+- Update deprecated frontmatter configurations
+- Fix compatibility issues with new features
+- Recompile workflows after changes
+- Generate a summary of upgraded workflows
+
+### Upgrading Specific Workflows
+
+You can upgrade individual workflows by specifying them in your prompt:
+
+```sh wrap
+/agent agentic-workflows upgrade issue-triage workflow
+```
+
+### What Gets Upgraded
+
+The upgrade process handles:
+- **Version updates**: Updates to latest compatible `gh-aw` version
+- **Deprecated features**: Replaces deprecated configurations with current alternatives
+- **Schema changes**: Updates frontmatter to match current schema requirements
+- **Tool configurations**: Modernizes tool and MCP server setups
+- **Permission changes**: Adjusts permissions to current best practices
+
+> [!TIP]
+> Run upgrades periodically to benefit from new features, security improvements, and bug fixes. The agent preserves your workflow logic while updating configuration.
+
+## Importing Workflows
+
+Import existing workflows from GitHub repositories using natural language prompts. The agentic-workflows agent can fetch, install, and configure workflows from any accessible GitHub repository:
+
+```sh wrap
+/agent agentic-workflows import workflow from https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
+```
+
+The agent will:
+- Fetch the workflow file from the GitHub URL
+- Install it in your `.github/workflows/` directory
+- Update frontmatter with source tracking
+- Configure necessary secrets and permissions
+- Compile the workflow to `.lock.yml`
+- Commit and push changes
+
+### Import Workflow Variations
+
+You can import workflows using different URL formats:
+
+```sh wrap
+# Import from file URL
+/agent agentic-workflows import https://github.com/owner/repo/blob/main/workflows/issue-triage.md
+
+# Import from raw GitHub URL
+/agent agentic-workflows import https://raw.githubusercontent.com/owner/repo/main/workflows/pr-review.md
+
+# Import with custom name
+/agent agentic-workflows import ci-doctor workflow from githubnext/agentics as build-checker
+```
+
+### Import with Customization
+
+When importing, you can specify customizations:
+
+```sh wrap
+# Import and change engine
+/agent agentic-workflows import issue-triage from githubnext/agentics and use claude engine
+
+# Import and add tools
+/agent agentic-workflows import pr-review from owner/repo and add web-fetch tool
+```
+
+### Tracking Imported Workflows
+
+Imported workflows automatically include a `source:` field in their frontmatter for tracking origin and enabling updates:
+
+```yaml
+---
+source: githubnext/agentics/workflows/ci-doctor.md@v1.0.0
+engine: copilot
+---
+```
+
+This enables you to keep imported workflows synchronized with their source using the `gh aw update` command. See [Packaging & Distribution](/gh-aw/guides/packaging-imports/) for details on managing and updating imported workflows.
+
+> [!NOTE]
+> The agent handles all aspects of importing including fetching remote files, resolving dependencies, configuring secrets, and ensuring compatibility with your repository setup.
+
+## Debugging Agentic Workflows
+
+When workflows fail or behave unexpectedly, use the agentic-workflows agent to investigate and diagnose issues:
+
+```sh wrap
+/agent agentic-workflows debug why is my issue-triage workflow failing?
+```
+
+The debugging agent will:
+- Download and analyze workflow run logs
+- Identify errors and warnings
+- Check tool and permission configurations
+- Review MCP server connectivity
+- Examine safe-input and safe-output configurations
+- Suggest specific fixes for identified issues
+
+### Debug Specific Run
+
+Investigate a specific workflow run using its ID or URL:
+
+```sh wrap
+# Debug by run ID
+/agent agentic-workflows debug run 1234567890
+
+# Debug from GitHub Actions URL
+/agent agentic-workflows debug https://github.com/owner/repo/actions/runs/1234567890
+```
+
+### Common Debugging Scenarios
+
+The agent can help with various debugging scenarios:
+
+```sh wrap
+# Permission errors
+/agent agentic-workflows debug getting 403 errors in my workflow
+
+# Missing tools
+/agent agentic-workflows debug workflow says tool not found
+
+# Network access issues
+/agent agentic-workflows debug workflow cannot access external API
+
+# Safe-output problems
+/agent agentic-workflows debug agent output not creating issues
+```
+
+### Manual Debugging Tools
+
+For hands-on debugging, `gh-aw` provides dedicated CLI commands:
+
+```bash
+# Download logs from recent runs
+gh aw logs issue-triage --start-date -1d
+
+# Audit a specific run in detail
+gh aw audit 1234567890
+
+# Inspect MCP server configuration
+gh aw mcp inspect issue-triage
+
+# Get JSON output for programmatic analysis
+gh aw audit 1234567890 --json
+```
+
+### Understanding Debugging Output
+
+The debugging agent provides:
+
+- **Error Analysis**: Specific error messages and their causes
+- **Missing Tools**: Tools the agent tried to use but weren't available
+- **Permission Issues**: Missing or insufficient GitHub token permissions
+- **Network Denials**: Firewall blocks or domain access problems
+- **Configuration Errors**: Invalid frontmatter or compilation issues
+- **Fix Recommendations**: Actionable steps to resolve each issue
+
+> [!TIP]
+> For comprehensive debugging information, see the [debugging-workflows skill](https://github.com/githubnext/gh-aw/blob/main/.github/skills/debugging-workflows/SKILL.md) which provides detailed guidance on log analysis, common issues, and advanced debugging techniques.
+
 ## After Compiling
 
 Commit the generated files ([`.lock.yml`](/gh-aw/reference/glossary/#workflow-lock-file-lockyml), the compiled GitHub Actions workflow file) if they are part of the project's tracked artifacts. The project uses compiled workflows in version control.
