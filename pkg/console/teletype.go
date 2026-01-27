@@ -24,6 +24,24 @@
 //	console.TeletypeWrite(os.Stderr, "Welcome to GitHub Agentic Workflows!\n")
 //	console.TeletypeWrite(os.Stderr, console.FormatSuccessMessage("Setup complete!"))
 //
+// # Integration with Spinners
+//
+// The teletype effect works well with spinners. Spinners use carriage return
+// and line clearing (\r\033[K) to update in place, while teletype writes
+// characters sequentially. Best practices:
+//
+//   - Use SpinnerWrapper.StopWithMessage() to display a message after the spinner
+//   - After spinner.Stop(), teletype can write on the cleared line
+//   - Avoid starting teletype while a spinner is running
+//
+// Example pattern:
+//
+//	spinner := console.NewSpinner("Loading...")
+//	spinner.Start()
+//	// Long operation
+//	spinner.StopWithMessage(console.FormatSuccessMessage("Loaded!"))
+//	console.TeletypeWriteln(os.Stderr, "Processing data...")
+//
 // # Accessibility
 //
 // The teletype effect respects the ACCESSIBLE environment variable. When set,
