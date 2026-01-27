@@ -210,6 +210,23 @@ async function main() {
           errors.push(`Line ${i + 1}: Missing required 'type' field`);
           continue;
         }
+
+        // Handle tool_call format from Copilot CLI MCP output
+        // Copilot CLI may output: {"type":"tool_call","name":"create_issue","arguments":{...}}
+        // We need to convert to: {"type":"create_issue",...arguments...}
+        if (item.type === "tool_call" && item.name) {
+          core.info(`[INGESTION] Line ${i + 1}: Converting tool_call format: name='${item.name}'`);
+          const toolName = item.name;
+          const args = item.arguments || {};
+          // Create new item with type set to the tool name and spread arguments
+          Object.assign(item, args);
+          item.type = toolName;
+          // Remove the tool_call metadata fields
+          delete item.name;
+          delete item.arguments;
+          core.info(`[INGESTION] Line ${i + 1}: Converted to type='${item.type}'`);
+        }
+
         // Normalize type to use underscores (convert any dashes to underscores for resilience)
         const originalType = item.type;
         const itemType = item.type.replace(/-/g, "_");

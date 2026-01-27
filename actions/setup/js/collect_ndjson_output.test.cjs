@@ -1635,4 +1635,51 @@ describe("collect_ndjson_output.cjs", () => {
           (expect(parsedOutput.items).toHaveLength(0), expect(parsedOutput.errors.length).toBeGreaterThan(0), expect(parsedOutput.errors.some(e => e.includes("must be different"))).toBe(!0));
         }));
     }));
+
+  describe("tool_call format conversion", () => {
+    it("should convert tool_call format to expected format", async () => {
+      const outputPath = "/tmp/gh-aw/test-tool-call-conversion.jsonl";
+      const testInput = '{"type":"tool_call","name":"create_issue","arguments":{"title":"Test Issue","body":"Test body"}}\n';
+      const configPath = path.join("/opt/gh-aw/safeoutputs", "config.json");
+      fs.writeFileSync(configPath, JSON.stringify({ create_issue: { max: 5 } }));
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = configPath;
+      fs.writeFileSync(outputPath, testInput);
+      process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+      await eval(`(async () => { ${collectScript}; await main(); })()`);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.items[0].type).toBe("create_issue");
+      expect(parsedOutput.items[0].title).toBe("Test Issue");
+      expect(parsedOutput.items[0].body).toBe("Test body");
+      expect(parsedOutput.items[0].name).toBeUndefined();
+      expect(parsedOutput.items[0].arguments).toBeUndefined();
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+
+    it("should handle multiple tool_call format entries", async () => {
+      const outputPath = "/tmp/gh-aw/test-multiple-tool-calls.jsonl";
+      const testInput = '{"type":"tool_call","name":"create_issue","arguments":{"title":"Issue 1","body":"Body 1"}}\n{"type":"tool_call","name":"create_issue","arguments":{"title":"Issue 2","body":"Body 2"}}\n';
+      const configPath = path.join("/opt/gh-aw/safeoutputs", "config.json");
+      fs.writeFileSync(configPath, JSON.stringify({ create_issue: { max: 5 } }));
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = configPath;
+      fs.writeFileSync(outputPath, testInput);
+      process.env.GH_AW_SAFE_OUTPUTS = outputPath;
+      await eval(`(async () => { ${collectScript}; await main(); })()`);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(2);
+      expect(parsedOutput.items[0].type).toBe("create_issue");
+      expect(parsedOutput.items[0].title).toBe("Issue 1");
+      expect(parsedOutput.items[1].type).toBe("create_issue");
+      expect(parsedOutput.items[1].title).toBe("Issue 2");
+      expect(parsedOutput.errors).toHaveLength(0);
+    });
+  });
 });
