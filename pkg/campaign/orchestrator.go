@@ -386,7 +386,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// Configure dispatch-workflow for worker coordination
 	if len(spec.Workflows) > 0 {
 		dispatchWorkflowConfig := &workflow.DispatchWorkflowConfig{
-			BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 3},
+			BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 10}, // Increased from 3 to allow more workers
 			Workflows:            spec.Workflows,
 		}
 		safeOutputs.DispatchWorkflow = dispatchWorkflowConfig
@@ -394,7 +394,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	}
 
 	// Configure update-project for campaign dashboard maintenance
-	maxProjectUpdates := 10 // default
+	maxProjectUpdates := 100 // default - increased from 10 to handle larger discovery sets
 	if spec.Governance != nil && spec.Governance.MaxProjectUpdatesPerRun > 0 {
 		maxProjectUpdates = spec.Governance.MaxProjectUpdatesPerRun
 	}
@@ -406,7 +406,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 
 	// Configure create-project-status-update for campaign summaries
 	statusUpdateConfig := &workflow.CreateProjectStatusUpdateConfig{
-		BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 1},
+		BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 10}, // Increased from 1 to allow multiple updates
 	}
 	safeOutputs.CreateProjectStatusUpdates = statusUpdateConfig
 	orchestratorLog.Printf("Campaign orchestrator '%s' configured with create-project-status-update", spec.ID)

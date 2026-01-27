@@ -260,8 +260,8 @@ func TestBuildOrchestrator_GovernanceDoesNotGrantWriteSafeOutputs(t *testing.T) 
 		if data.SafeOutputs == nil || data.SafeOutputs.DispatchWorkflow == nil {
 			t.Fatalf("expected dispatch-workflow safe output to be enabled")
 		}
-		if data.SafeOutputs.DispatchWorkflow.Max != 3 {
-			t.Fatalf("unexpected dispatch-workflow max: got %d, want %d", data.SafeOutputs.DispatchWorkflow.Max, 3)
+		if data.SafeOutputs.DispatchWorkflow.Max != 10 {
+			t.Fatalf("unexpected dispatch-workflow max: got %d, want %d", data.SafeOutputs.DispatchWorkflow.Max, 10)
 		}
 
 		// Governance should control update-project max
@@ -276,8 +276,8 @@ func TestBuildOrchestrator_GovernanceDoesNotGrantWriteSafeOutputs(t *testing.T) 
 		if data.SafeOutputs.CreateProjectStatusUpdates == nil {
 			t.Fatalf("expected create-project-status-update safe output to be enabled")
 		}
-		if data.SafeOutputs.CreateProjectStatusUpdates.Max != 1 {
-			t.Fatalf("unexpected create-project-status-update max: got %d, want %d", data.SafeOutputs.CreateProjectStatusUpdates.Max, 1)
+		if data.SafeOutputs.CreateProjectStatusUpdates.Max != 10 {
+			t.Fatalf("unexpected create-project-status-update max: got %d, want %d", data.SafeOutputs.CreateProjectStatusUpdates.Max, 10)
 		}
 
 		// Orchestrators should NOT have create-issue or add-comment (governance MaxCommentsPerRun doesn't grant add-comment)
