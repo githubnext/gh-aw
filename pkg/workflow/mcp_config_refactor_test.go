@@ -27,7 +27,7 @@ func TestRenderPlaywrightMCPConfigWithOptions(t *testing.T) {
 			inlineArgs:           true,
 			expectedContent: []string{
 				`"playwright": {`,
-				`"type": "local"`,
+				`"type": "stdio"`,
 				`"command": "docker"`,
 				`"mcr.microsoft.com/playwright/mcp"`,
 				`"-v", "/tmp/gh-aw/mcp-logs:/tmp/gh-aw/mcp-logs"`,

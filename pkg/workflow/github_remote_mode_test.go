@@ -301,8 +301,8 @@ This is a test workflow for GitHub remote mode configuration.
 				// Should contain Docker or local configuration
 				switch tt.engineType {
 				case "copilot":
-					if !strings.Contains(lockContent, `"type": "local"`) {
-						t.Errorf("Expected Copilot local type but didn't find it in:\n%s", lockContent)
+					if !strings.Contains(lockContent, `"type": "stdio"`) {
+						t.Errorf("Expected Copilot stdio type but didn't find it in:\n%s", lockContent)
 					}
 				case "codex":
 					// Codex uses TOML format for Docker
@@ -315,7 +315,7 @@ This is a test workflow for GitHub remote mode configuration.
 						t.Errorf("Expected Docker command but didn't find it in:\n%s", lockContent)
 					}
 				}
-				if !strings.Contains(lockContent, `ghcr.io/github/github-mcp-server:v0.27.0`) {
+				if !strings.Contains(lockContent, `ghcr.io/github/github-mcp-server:v0.30.1`) {
 					t.Errorf("Expected Docker image but didn't find it in:\n%s", lockContent)
 				}
 				// Should NOT contain HTTP type
