@@ -130,8 +130,10 @@ func TestSpinnerConcurrentAccess(t *testing.T) {
 
 func TestSpinnerBubbleTeaModel(t *testing.T) {
 	// Test the Bubble Tea model directly
+	// Note: output is nil to prevent render() from printing during tests
 	model := spinnerModel{
 		message: "Testing",
+		output:  nil,
 	}
 
 	// Test Init returns a Cmd
@@ -150,10 +152,11 @@ func TestSpinnerBubbleTeaModel(t *testing.T) {
 		t.Error("Update should return spinnerModel")
 	}
 
-	// Test View returns a string
+	// Note: View() returns empty string with WithoutRenderer() mode
+	// because rendering is done manually in Update() via render()
 	view := model.View()
-	if view == "" {
-		t.Error("View should return a non-empty string")
+	if view != "" {
+		t.Errorf("View should return empty string with WithoutRenderer mode, got '%s'", view)
 	}
 }
 

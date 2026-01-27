@@ -112,8 +112,7 @@ func checkRepositoryAccess(owner, repo string) (bool, error) {
 	prLog.Printf("Checking repository access: %s/%s", owner, repo)
 
 	// Get current user
-	cmd := workflow.ExecGH("api", "/user", "--jq", ".login")
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Fetching user info...", "api", "/user", "--jq", ".login")
 	if err != nil {
 		prLog.Printf("Failed to get current user: %s", err)
 		return false, fmt.Errorf("failed to get current user: %w", err)
@@ -122,8 +121,7 @@ func checkRepositoryAccess(owner, repo string) (bool, error) {
 	prLog.Printf("Current user: %s", username)
 
 	// Check user's permission level for the repository
-	cmd = workflow.ExecGH("api", fmt.Sprintf("/repos/%s/%s/collaborators/%s/permission", owner, repo, username))
-	output, err = cmd.Output()
+	output, err = workflow.RunGH("Checking repository permissions...", "api", fmt.Sprintf("/repos/%s/%s/collaborators/%s/permission", owner, repo, username))
 	if err != nil {
 		// If we get an error, it likely means we don't have access or the repo doesn't exist
 		prLog.Print("Repository access denied or repository not found")
@@ -149,8 +147,7 @@ func checkRepositoryAccess(owner, repo string) (bool, error) {
 // createForkIfNeeded creates a fork of the target repository and returns the fork repo name
 func createForkIfNeeded(targetOwner, targetRepo string, verbose bool) (forkOwner, forkRepo string, err error) {
 	// Get current user
-	cmd := workflow.ExecGH("api", "/user", "--jq", ".login")
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Fetching user info...", "api", "/user", "--jq", ".login")
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get current user: %w", err)
 	}
@@ -167,12 +164,8 @@ func createForkIfNeeded(targetOwner, targetRepo string, verbose bool) (forkOwner
 	}
 
 	// Create fork
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Creating fork of %s/%s...", targetOwner, targetRepo)))
-	}
-
-	forkCmd := workflow.ExecGH("repo", "fork", fmt.Sprintf("%s/%s", targetOwner, targetRepo), "--clone=false")
-	if err := forkCmd.Run(); err != nil {
+	_, err = workflow.RunGH(fmt.Sprintf("Creating fork of %s/%s...", targetOwner, targetRepo), "repo", "fork", fmt.Sprintf("%s/%s", targetOwner, targetRepo), "--clone=false")
+	if err != nil {
 		return "", "", fmt.Errorf("failed to create fork: %w", err)
 	}
 
@@ -188,7 +181,7 @@ func fetchPRInfo(owner, repo string, prNumber int) (*PRInfo, error) {
 	prLog.Printf("Fetching PR info: %s/%s#%d", owner, repo, prNumber)
 
 	// Fetch PR details using gh API
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/%s/pulls/%d", owner, repo, prNumber),
+	output, err := workflow.RunGH("Fetching pull request info...", "api", fmt.Sprintf("/repos/%s/%s/pulls/%d", owner, repo, prNumber),
 		"--jq", `{
 			number: .number,
 			title: .title,
@@ -201,8 +194,6 @@ func fetchPRInfo(owner, repo string, prNumber int) (*PRInfo, error) {
 			targetRepo: .base.repo.full_name,
 			authorLogin: .user.login
 		}`)
-
-	output, err := cmd.Output()
 	if err != nil {
 		prLog.Printf("Failed to fetch PR info: %s", err)
 		return nil, fmt.Errorf("failed to fetch PR info: %w", err)
@@ -227,13 +218,8 @@ func createPatchFromPR(sourceOwner, sourceRepo string, prInfo *PRInfo, verbose b
 
 	patchFile := filepath.Join(tempDir, "pr.patch")
 
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Creating patch using gh pr diff..."))
-	}
-
 	// Use gh pr diff command directly - this is the most reliable method
-	cmd := workflow.ExecGH("pr", "diff", fmt.Sprintf("%d", prInfo.Number), "--repo", fmt.Sprintf("%s/%s", sourceOwner, sourceRepo))
-	diffContent, err := cmd.Output()
+	diffContent, err := workflow.RunGH("Fetching pull request diff...", "pr", "diff", fmt.Sprintf("%d", prInfo.Number), "--repo", fmt.Sprintf("%s/%s", sourceOwner, sourceRepo))
 	if err != nil {
 		return "", fmt.Errorf("failed to get PR diff: %w", err)
 	}
@@ -284,12 +270,7 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 	currentBranch := strings.TrimSpace(string(currentBranchOutput))
 
 	// Get the default branch of the target repository
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Getting default branch of target repository..."))
-	}
-
-	defaultBranchCmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/%s", targetOwner, targetRepo), "--jq", ".default_branch")
-	defaultBranchOutput, err := defaultBranchCmd.Output()
+	defaultBranchOutput, err := workflow.RunGH("Fetching default branch...", "api", fmt.Sprintf("/repos/%s/%s", targetOwner, targetRepo), "--jq", ".default_branch")
 	if err != nil {
 		return "", fmt.Errorf("failed to get default branch: %w", err)
 	}
@@ -530,10 +511,6 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 	prBody += fmt.Sprintf("**Original Author:** @%s", prInfo.AuthorLogin)
 
 	// Create the PR
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Creating pull request..."))
-	}
-
 	repoFlag := fmt.Sprintf("%s/%s", targetOwner, targetRepo)
 	var headRef string
 	if needsFork {
@@ -542,13 +519,11 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 		headRef = branchName
 	}
 
-	cmd := workflow.ExecGH("pr", "create",
+	output, err := workflow.RunGH("Creating pull request...", "pr", "create",
 		"--repo", repoFlag,
 		"--title", prInfo.Title,
 		"--body", prBody,
 		"--head", headRef)
-
-	output, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("failed to create PR: %w", err)
 	}
@@ -796,8 +771,7 @@ func createPR(branchName, title, body string, verbose bool) (int, string, error)
 	}
 
 	// Get the current repository info to ensure PR is created in the correct repo
-	cmd := workflow.ExecGH("repo", "view", "--json", "owner,name")
-	repoOutput, err := cmd.Output()
+	repoOutput, err := workflow.RunGH("Fetching repository info...", "repo", "view", "--json", "owner,name")
 	if err != nil {
 		return 0, "", fmt.Errorf("failed to get current repository info: %w", err)
 	}
@@ -816,8 +790,7 @@ func createPR(branchName, title, body string, verbose bool) (int, string, error)
 	repoSpec := fmt.Sprintf("%s/%s", repoInfo.Owner.Login, repoInfo.Name)
 
 	// Explicitly specify the repository to ensure PR is created in the current repo (not upstream)
-	cmd = workflow.ExecGH("pr", "create", "--repo", repoSpec, "--title", title, "--body", body, "--head", branchName)
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Creating pull request...", "pr", "create", "--repo", repoSpec, "--title", title, "--body", body, "--head", branchName)
 	if err != nil {
 		// Try to get stderr for better error reporting
 		if exitError, ok := err.(*exec.ExitError); ok {

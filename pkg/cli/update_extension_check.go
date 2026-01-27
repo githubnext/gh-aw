@@ -16,8 +16,7 @@ func checkExtensionUpdate(verbose bool) error {
 	}
 
 	// Run gh extension upgrade --dry-run to check for updates
-	cmd := workflow.ExecGH("extension", "upgrade", "githubnext/gh-aw", "--dry-run")
-	output, err := cmd.CombinedOutput()
+	output, err := workflow.RunGHCombined("Checking for extension updates...", "extension", "upgrade", "githubnext/gh-aw", "--dry-run")
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check for extension updates: %v", err)))
@@ -71,8 +70,7 @@ func ensureLatestExtensionVersion(verbose bool) error {
 	}
 
 	// Run gh extension upgrade --dry-run to check for updates
-	cmd := workflow.ExecGH("extension", "upgrade", "githubnext/gh-aw", "--dry-run")
-	output, err := cmd.CombinedOutput()
+	output, err := workflow.RunGHCombined("Checking for extension updates...", "extension", "upgrade", "githubnext/gh-aw", "--dry-run")
 	outputStr := strings.TrimSpace(string(output))
 
 	// Check for authentication errors (missing or invalid token)
