@@ -255,6 +255,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		awfArgs = append(awfArgs, mirroredEnvArgs...)
 		copilotExecLog.Printf("Added %d mirrored environment variable arguments", len(mirroredEnvArgs)/2)
 
+		// Add GH_AW_TOOL_BINS env arg for PATH priority (computed by GetToolBinsSetup on runner)
+		// This passes the pre-computed tool bin paths to the container, avoiding shell injection
+		awfArgs = append(awfArgs, GetToolBinsEnvArg()...)
+
 		// Set container working directory to match GITHUB_WORKSPACE
 		// This ensures pwd inside the container matches what the prompt tells the AI
 		awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")
@@ -378,10 +382,15 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// With escaping, the entire command is passed to AWF as a single argument
 		escapedCommand := shellEscapeArg(copilotCommandWithPath)
 
+		// Get the tool bins setup command that computes GH_AW_TOOL_BINS on the runner side
+		// This avoids shell injection by computing paths where they are trusted
+		toolBinsSetup := GetToolBinsSetup()
+
 		command = fmt.Sprintf(`set -o pipefail
+%s
 %s %s \
   -- %s \
-  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), escapedCommand, shellEscapeArg(logFile))
+  2>&1 | tee %s`, toolBinsSetup, awfCommand, shellJoinArgs(awfArgs), escapedCommand, shellEscapeArg(logFile))
 	} else {
 		// Run copilot command without AWF wrapper
 		command = fmt.Sprintf(`set -o pipefail

@@ -326,13 +326,15 @@ func FilterEnvForSecrets(env map[string]string, allowedSecrets []string) map[str
 // The hostedtoolcache directory structure is: /opt/hostedtoolcache/<tool>/<version>/<arch>/bin
 // This function generates a command that finds all bin directories and adds them to PATH.
 //
-// IMPORTANT: The command prepends specific tool paths (from environment variables like GOROOT,
-// JAVA_HOME, etc.) BEFORE the generic find results. This ensures that the version configured
-// by actions/setup-* takes precedence over other versions that may exist in hostedtoolcache.
+// IMPORTANT: The command uses GH_AW_TOOL_BINS (computed by GetToolBinsSetup) which contains
+// the specific tool paths from environment variables like GOROOT, JAVA_HOME, etc. These paths
+// are computed on the RUNNER side and passed to the container as a literal value via --env,
+// avoiding shell injection risks from variable expansion inside the container.
 //
-// Without this ordering fix, the generic `find` command returns directories in alphabetical
-// order, causing older versions (e.g., Go 1.22.12) to shadow newer ones (e.g., Go 1.25.6)
-// because "1.22" < "1.25" alphabetically.
+// This ensures that the version configured by actions/setup-* takes precedence over other
+// versions that may exist in hostedtoolcache. Without this, the generic `find` command
+// returns directories in alphabetical order, causing older versions (e.g., Go 1.22.12)
+// to shadow newer ones (e.g., Go 1.25.6) because "1.22" < "1.25" alphabetically.
 //
 // This is used by all engine implementations (Copilot, Claude, Codex) to ensure consistent
 // access to runtime tools inside the agent container.
@@ -342,14 +344,42 @@ func FilterEnvForSecrets(env map[string]string, allowedSecrets []string) map[str
 //
 // Example output:
 //
-//	export PATH="${GOROOT:+$GOROOT/bin:}${JAVA_HOME:+$JAVA_HOME/bin:}...$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"
+//	export PATH="$GH_AW_TOOL_BINS$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"
 func GetHostedToolcachePathSetup() string {
-	// Prepend specific tool paths from environment variables (set by actions/setup-*) before
-	// the generic find results. This ensures the correct version takes precedence over
-	// alphabetically-earlier versions in hostedtoolcache.
+	// Use GH_AW_TOOL_BINS which is computed on the runner side by GetToolBinsSetup()
+	// and passed to the container via --env. This avoids shell injection risks from
+	// expanding variables like GOROOT inside the container.
 	//
-	// Shell syntax: ${VAR:+$VAR/bin:} expands to "$VAR/bin:" if VAR is set and non-empty,
-	// or nothing if VAR is unset/empty. This safely handles missing variables.
+	// GH_AW_TOOL_BINS contains paths like "/opt/hostedtoolcache/go/1.25.6/x64/bin:"
+	// computed from GOROOT, JAVA_HOME, etc. on the runner where they are trusted.
+
+	// Generic find for all other hostedtoolcache binaries (Node.js, Python, etc.)
+	genericFind := `$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')`
+
+	return fmt.Sprintf(`export PATH="$GH_AW_TOOL_BINS%s$PATH"`, genericFind)
+}
+
+// GetToolBinsSetup returns a shell command that computes the GH_AW_TOOL_BINS environment
+// variable from specific tool paths (GOROOT, JAVA_HOME, etc.).
+//
+// This command should be run on the RUNNER side before invoking AWF, and the resulting
+// GH_AW_TOOL_BINS should be passed to the container via --env. This ensures the paths
+// are computed where they are trusted, avoiding shell injection risks.
+//
+// The computed paths are prepended to PATH (via GetHostedToolcachePathSetup) before the
+// generic find results, ensuring versions set by actions/setup-* take precedence over
+// alphabetically-earlier versions in hostedtoolcache.
+//
+// Returns:
+//   - string: A shell command that sets GH_AW_TOOL_BINS
+//
+// Example output when GOROOT=/opt/hostedtoolcache/go/1.25.6/x64 and JAVA_HOME=/opt/hostedtoolcache/Java/17.0.0/x64:
+//
+//	GH_AW_TOOL_BINS="/opt/hostedtoolcache/go/1.25.6/x64/bin:/opt/hostedtoolcache/Java/17.0.0/x64/bin:"
+func GetToolBinsSetup() string {
+	// Build GH_AW_TOOL_BINS from specific tool paths on the runner side.
+	// Each path is only added if the corresponding env var is set and non-empty.
+	// This runs on the runner where the env vars are trusted values from actions/setup-*.
 	//
 	// Tools with /bin subdirectory:
 	//   - GOROOT: Go installation root (actions/setup-go)
@@ -362,18 +392,14 @@ func GetHostedToolcachePathSetup() string {
 	//   - PIPX_BIN_DIR: pipx binary directory
 	//   - SWIFT_PATH: Swift binary path
 	//   - DOTNET_ROOT: .NET root (binaries are in root, not /bin)
-	specificPaths := "" +
-		"${GOROOT:+$GOROOT/bin:}" +
-		"${JAVA_HOME:+$JAVA_HOME/bin:}" +
-		"${CARGO_HOME:+$CARGO_HOME/bin:}" +
-		"${GEM_HOME:+$GEM_HOME/bin:}" +
-		"${CONDA:+$CONDA/bin:}" +
-		"${PIPX_BIN_DIR:+$PIPX_BIN_DIR:}" +
-		"${SWIFT_PATH:+$SWIFT_PATH:}" +
-		"${DOTNET_ROOT:+$DOTNET_ROOT:}"
+	return `GH_AW_TOOL_BINS=""; [ -n "$GOROOT" ] && GH_AW_TOOL_BINS="$GOROOT/bin:$GH_AW_TOOL_BINS"; [ -n "$JAVA_HOME" ] && GH_AW_TOOL_BINS="$JAVA_HOME/bin:$GH_AW_TOOL_BINS"; [ -n "$CARGO_HOME" ] && GH_AW_TOOL_BINS="$CARGO_HOME/bin:$GH_AW_TOOL_BINS"; [ -n "$GEM_HOME" ] && GH_AW_TOOL_BINS="$GEM_HOME/bin:$GH_AW_TOOL_BINS"; [ -n "$CONDA" ] && GH_AW_TOOL_BINS="$CONDA/bin:$GH_AW_TOOL_BINS"; [ -n "$PIPX_BIN_DIR" ] && GH_AW_TOOL_BINS="$PIPX_BIN_DIR:$GH_AW_TOOL_BINS"; [ -n "$SWIFT_PATH" ] && GH_AW_TOOL_BINS="$SWIFT_PATH:$GH_AW_TOOL_BINS"; [ -n "$DOTNET_ROOT" ] && GH_AW_TOOL_BINS="$DOTNET_ROOT:$GH_AW_TOOL_BINS"; export GH_AW_TOOL_BINS`
+}
 
-	// Generic find for all other hostedtoolcache binaries (Node.js, Python, etc.)
-	genericFind := `$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')`
-
-	return fmt.Sprintf(`export PATH="%s%s$PATH"`, specificPaths, genericFind)
+// GetToolBinsEnvArg returns the AWF --env argument for passing GH_AW_TOOL_BINS to the container.
+// This should be used after GetToolBinsSetup() has been run to compute the value.
+//
+// Returns:
+//   - []string: AWF arguments ["--env", "GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS"]
+func GetToolBinsEnvArg() []string {
+	return []string{"--env", "GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS"}
 }

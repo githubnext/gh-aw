@@ -284,6 +284,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		awfArgs = append(awfArgs, mirroredEnvArgs...)
 		claudeLog.Printf("Added %d mirrored environment variable arguments", len(mirroredEnvArgs)/2)
 
+		// Add GH_AW_TOOL_BINS env arg for PATH priority (computed by GetToolBinsSetup on runner)
+		// This ensures actions/setup-* installed tools take precedence over pre-installed versions
+		awfArgs = append(awfArgs, GetToolBinsEnvArg()...)
+
 		// TTY is required for Claude Code CLI
 		awfArgs = append(awfArgs, "--tty")
 
@@ -383,17 +387,22 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		escapedClaudeCommand := strings.ReplaceAll(claudeCommand, "'", "'\\''")
 		shellWrappedCommand := fmt.Sprintf("/bin/bash -c '%s'", escapedClaudeCommand)
 
+		// Compute GH_AW_TOOL_BINS on the runner side (safer than shell expansion inside container)
+		toolBinsSetup := GetToolBinsSetup()
+
 		if promptSetup != "" {
 			command = fmt.Sprintf(`set -o pipefail
           %s
+%s
 %s %s \
   -- %s \
-  2>&1 | tee %s`, promptSetup, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand, shellEscapeArg(logFile))
+  2>&1 | tee %s`, promptSetup, toolBinsSetup, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand, shellEscapeArg(logFile))
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
+%s
 %s %s \
   -- %s \
-  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand, shellEscapeArg(logFile))
+  2>&1 | tee %s`, toolBinsSetup, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand, shellEscapeArg(logFile))
 		}
 	} else {
 		// Run Claude command without AWF wrapper
