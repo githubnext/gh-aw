@@ -447,7 +447,7 @@ jobs:
               actor: context.actor,
               event_name: context.eventName,
               staged: false,
-              allowed_domains: ["github.com","api.github.com"],
+              allowed_domains: ["github.com","api.github.com","anthropic.com","api.anthropic.com"],
               firewall_enabled: true,
               awf_version: "v0.11.2",
               awmg_version: "v0.0.82",

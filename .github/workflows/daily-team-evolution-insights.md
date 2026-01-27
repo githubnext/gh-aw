@@ -16,6 +16,8 @@ network:
   allowed:
     - "github.com"
     - "api.github.com"
+    - "anthropic.com"
+    - "api.anthropic.com"
 tools:
   github:
     mode: local
