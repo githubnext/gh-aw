@@ -139,7 +139,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool, repoOverride st
 				// If enabling and lock file doesn't exist locally, try to compile it
 				if enable {
 					if _, err := os.Stat(lockFile); os.IsNotExist(err) {
-						if err := compileWorkflow(file, false, ""); err != nil {
+						if err := compileWorkflow(file, false, false, ""); err != nil {
 							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to compile workflow %s to create lock file: %v", name, err)))
 							// If we can't compile and there's no GitHub entry, skip because we can't address it
 							if !exists {

@@ -23,9 +23,6 @@
 
 name: "Dependabot Bundler"
 "on":
-  schedule:
-  - cron: "26 */6 * * *"
-    # Friendly format: every 6h (scattered)
   # skip-if-match: is:pr is:open in:title "[dependabot-bundle]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
 

@@ -299,8 +299,7 @@ func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error 
 
 	// Use gh api to download the logs zip file
 	// The endpoint returns a 302 redirect to the actual zip file
-	cmd := workflow.ExecGH("api", "repos/{owner}/{repo}/actions/runs/"+strconv.FormatInt(runID, 10)+"/logs")
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Downloading workflow logs...", "api", "repos/{owner}/{repo}/actions/runs/"+strconv.FormatInt(runID, 10)+"/logs")
 	if err != nil {
 		// Check for authentication errors
 		if strings.Contains(err.Error(), "exit status 4") {

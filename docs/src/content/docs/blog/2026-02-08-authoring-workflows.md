@@ -10,9 +10,6 @@ draft: true
 prev:
   link: /gh-aw/blog/2026-02-05-how-workflows-work/
   label: How Workflows Work
-next:
-  link: /gh-aw/blog/2026-02-11-getting-started/
-  label: Getting Started
 ---
 
 [Previous Article](/gh-aw/blog/2026-02-05-how-workflows-work/)
