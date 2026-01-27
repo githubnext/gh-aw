@@ -196,17 +196,7 @@ func TestMarkdownToLockFile(t *testing.T) {
 		{
 			name:     "absolute path",
 			input:    "/home/user/.github/workflows/daily.md",
-			expected: "/home/user/.github/workflows/daily.lock.yml",
-		},
-		{
-			name:     "campaign workflow",
-			input:    "test.campaign.md",
-			expected: "test.campaign.lock.yml",
-		},
-		{
-			name:     "agentic-campaign-generator in workflows directory",
-			input:    ".github/workflows/agentic-campaign-generator.md",
-			expected: ".github/workflows/agentic-campaign-generator.lock.yml",
+			expected: "/home/runner/.github/workflows/daily.lock.yml",
 		},
 	}
 
@@ -251,12 +241,7 @@ func TestLockFileToMarkdown(t *testing.T) {
 			input:    "/home/user/.github/workflows/daily.lock.yml",
 			expected: "/home/user/.github/workflows/daily.md",
 		},
-		{
-			name:     "campaign lock file",
-			input:    "test.campaign.lock.yml",
-			expected: "test.campaign.md",
-		},
-		{
+			{
 			name:     "agentic-campaign-generator in workflows directory",
 			input:    ".github/workflows/agentic-campaign-generator.lock.yml",
 			expected: ".github/workflows/agentic-campaign-generator.md",
@@ -268,120 +253,6 @@ func TestLockFileToMarkdown(t *testing.T) {
 			result := LockFileToMarkdown(tt.input)
 			if result != tt.expected {
 				t.Errorf("LockFileToMarkdown(%q) = %q, expected %q", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestCampaignSpecToOrchestrator(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "simple campaign spec",
-			input:    "test.campaign.md",
-			expected: "test.campaign.g.md",
-		},
-		{
-			name:     "campaign spec with path",
-			input:    ".github/workflows/prod.campaign.md",
-			expected: ".github/workflows/prod.campaign.g.md",
-		},
-		{
-			name:     "campaign spec with complex name",
-			input:    "my-campaign.campaign.md",
-			expected: "my-campaign.campaign.g.md",
-		},
-		{
-			name:     "absolute path",
-			input:    "/home/user/campaigns/test.campaign.md",
-			expected: "/home/user/campaigns/test.campaign.g.md",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := CampaignSpecToOrchestrator(tt.input)
-			if result != tt.expected {
-				t.Errorf("CampaignSpecToOrchestrator(%q) = %q, expected %q", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestCampaignOrchestratorToLockFile(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "simple orchestrator",
-			input:    "test.campaign.g.md",
-			expected: "test.campaign.lock.yml",
-		},
-		{
-			name:     "orchestrator with path",
-			input:    ".github/workflows/prod.campaign.g.md",
-			expected: ".github/workflows/prod.campaign.lock.yml",
-		},
-		{
-			name:     "orchestrator with complex name",
-			input:    "my-campaign.campaign.g.md",
-			expected: "my-campaign.campaign.lock.yml",
-		},
-		{
-			name:     "absolute path",
-			input:    "/home/user/campaigns/test.campaign.g.md",
-			expected: "/home/user/campaigns/test.campaign.lock.yml",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := CampaignOrchestratorToLockFile(tt.input)
-			if result != tt.expected {
-				t.Errorf("CampaignOrchestratorToLockFile(%q) = %q, expected %q", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestCampaignSpecToLockFile(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "simple campaign spec",
-			input:    "test.campaign.md",
-			expected: "test.campaign.lock.yml",
-		},
-		{
-			name:     "campaign spec with path",
-			input:    ".github/workflows/prod.campaign.md",
-			expected: ".github/workflows/prod.campaign.lock.yml",
-		},
-		{
-			name:     "campaign spec with complex name",
-			input:    "my-campaign.campaign.md",
-			expected: "my-campaign.campaign.lock.yml",
-		},
-		{
-			name:     "absolute path",
-			input:    "/home/user/campaigns/test.campaign.md",
-			expected: "/home/user/campaigns/test.campaign.lock.yml",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := CampaignSpecToLockFile(tt.input)
-			if result != tt.expected {
-				t.Errorf("CampaignSpecToLockFile(%q) = %q, expected %q", tt.input, result, tt.expected)
 			}
 		})
 	}
@@ -425,102 +296,6 @@ func TestRoundTripConversions(t *testing.T) {
 			t.Errorf("Direct campaign conversion failed: %q -> %q (expected %q)", spec, lockFile, expectedLock)
 		}
 	})
-}
-
-func TestIsCampaignSpec(t *testing.T) {
-	tests := []struct {
-		name     string
-		path     string
-		expected bool
-	}{
-		{
-			name:     "campaign spec file",
-			path:     "test.campaign.md",
-			expected: true,
-		},
-		{
-			name:     "campaign spec with path",
-			path:     ".github/workflows/prod.campaign.md",
-			expected: true,
-		},
-		{
-			name:     "campaign orchestrator",
-			path:     "test.campaign.g.md",
-			expected: false,
-		},
-		{
-			name:     "regular workflow",
-			path:     "test.md",
-			expected: false,
-		},
-		{
-			name:     "lock file",
-			path:     "test.lock.yml",
-			expected: false,
-		},
-		{
-			name:     "campaign lock file",
-			path:     "test.campaign.lock.yml",
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := IsCampaignSpec(tt.path)
-			if result != tt.expected {
-				t.Errorf("IsCampaignSpec(%q) = %v, expected %v", tt.path, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestIsCampaignOrchestrator(t *testing.T) {
-	tests := []struct {
-		name     string
-		path     string
-		expected bool
-	}{
-		{
-			name:     "campaign orchestrator",
-			path:     "test.campaign.g.md",
-			expected: true,
-		},
-		{
-			name:     "campaign orchestrator with path",
-			path:     ".github/workflows/prod.campaign.g.md",
-			expected: true,
-		},
-		{
-			name:     "campaign spec",
-			path:     "test.campaign.md",
-			expected: false,
-		},
-		{
-			name:     "regular workflow",
-			path:     "test.md",
-			expected: false,
-		},
-		{
-			name:     "lock file",
-			path:     "test.lock.yml",
-			expected: false,
-		},
-		{
-			name:     "campaign lock file",
-			path:     "test.campaign.lock.yml",
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := IsCampaignOrchestrator(tt.path)
-			if result != tt.expected {
-				t.Errorf("IsCampaignOrchestrator(%q) = %v, expected %v", tt.path, result, tt.expected)
-			}
-		})
-	}
 }
 
 func TestIsAgenticWorkflow(t *testing.T) {
@@ -634,71 +409,17 @@ func TestIsLockFile(t *testing.T) {
 	}
 }
 
-func TestIsCampaignLockFile(t *testing.T) {
-	tests := []struct {
-		name     string
-		path     string
-		expected bool
-	}{
-		{
-			name:     "campaign lock file",
-			path:     "test.campaign.lock.yml",
-			expected: true,
-		},
-		{
-			name:     "campaign lock file with path",
-			path:     ".github/workflows/prod.campaign.lock.yml",
-			expected: true,
-		},
-		{
-			name:     "regular lock file",
-			path:     "test.lock.yml",
-			expected: false,
-		},
-		{
-			name:     "campaign spec",
-			path:     "test.campaign.md",
-			expected: false,
-		},
-		{
-			name:     "campaign orchestrator",
-			path:     "test.campaign.g.md",
-			expected: false,
-		},
-		{
-			name:     "workflow file",
-			path:     "test.md",
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := IsCampaignLockFile(tt.path)
-			if result != tt.expected {
-				t.Errorf("IsCampaignLockFile(%q) = %v, expected %v", tt.path, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestFileTypeHelpers_Exclusivity(t *testing.T) {
 	// Test that file types are mutually exclusive (except lock files)
 	testPaths := []string{
 		"test.md",
-		"test.campaign.md",
-		"test.campaign.g.md",
 		"test.lock.yml",
-		"test.campaign.lock.yml",
 	}
 
 	for _, path := range testPaths {
 		t.Run(path, func(t *testing.T) {
-			isCampaignSpec := IsCampaignSpec(path)
-			isCampaignOrch := IsCampaignOrchestrator(path)
 			isWorkflow := IsAgenticWorkflow(path)
 			isLock := IsLockFile(path)
-			isCampaignLock := IsCampaignLockFile(path)
 
 			// Count how many markdown types match (should be at most 1)
 			mdCount := 0
@@ -714,66 +435,10 @@ func TestFileTypeHelpers_Exclusivity(t *testing.T) {
 
 			if mdCount > 1 {
 				t.Errorf("Path %q matches multiple markdown types: spec=%v, orch=%v, workflow=%v",
-					path, isCampaignSpec, isCampaignOrch, isWorkflow)
+					path, isWorkflow)
 			}
 
-			// Campaign lock files should also be lock files
-			if isCampaignLock && !isLock {
-				t.Errorf("Path %q is a campaign lock file but not a lock file", path)
-			}
 		})
 	}
 }
 
-func TestFormatCampaignLabel(t *testing.T) {
-	tests := []struct {
-		name       string
-		campaignID string
-		expected   string
-	}{
-		{
-			name:       "simple kebab-case id",
-			campaignID: "security-q1-2025",
-			expected:   "z_campaign_security-q1-2025",
-		},
-		{
-			name:       "id with spaces",
-			campaignID: "Security Q1 2025",
-			expected:   "z_campaign_security-q1-2025",
-		},
-		{
-			name:       "id with underscores",
-			campaignID: "dependency_updates",
-			expected:   "z_campaign_dependency-updates",
-		},
-		{
-			name:       "id with mixed case and spaces",
-			campaignID: "Code Quality Campaign",
-			expected:   "z_campaign_code-quality-campaign",
-		},
-		{
-			name:       "id with uppercase",
-			campaignID: "SECURITY_AUDIT",
-			expected:   "z_campaign_security-audit",
-		},
-		{
-			name:       "id with multiple spaces",
-			campaignID: "my   campaign   name",
-			expected:   "z_campaign_my---campaign---name",
-		},
-		{
-			name:       "simple lowercase id",
-			campaignID: "test",
-			expected:   "z_campaign_test",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := FormatCampaignLabel(tt.campaignID)
-			if result != tt.expected {
-				t.Errorf("FormatCampaignLabel(%q) = %q, want %q", tt.campaignID, result, tt.expected)
-			}
-		})
-	}
-}
