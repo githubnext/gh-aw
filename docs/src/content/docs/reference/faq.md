@@ -110,7 +110,7 @@ For documentation, see the [Security Architecture](/gh-aw/introduction/architect
 
 ### How is my code and data processed?
 
-By default, your workflow is processed using your nominated [AI engine](/gh-aw/reference/engines/) (coding agent) and the tool calls it makes. When using the default **GitHub Copilot CLI**, the workflow is processed by the `copilot` CLI tool which uses Copilot's services and AI model. The specifics depend on your engine choice:
+By default, your workflow is processed using your nominated [AI engine](/gh-aw/reference/engines/) (coding agent) and the tool calls it makes. When using the default **GitHub Copilot CLI**, the workflow is processed by the `copilot` CLI tool which uses GitHub Copilot's services and AI model. The specifics depend on your engine choice:
 
 - **Copilot**: Uses GitHub Copilot CLI and its backend services. See [GitHub Copilot documentation](https://docs.github.com/en/copilot) for details.
 - **Claude/Codex**: Uses respective providers' APIs with their data handling policies.
