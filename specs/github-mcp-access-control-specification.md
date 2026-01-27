@@ -253,7 +253,60 @@ tools:
 
 This specification extends the GitHub MCP server configuration, which includes the following existing fields defined in the [GitHub MCP Server Documentation](/gh-aw/skills/github-mcp-server/):
 
-#### 4.2.1 toolsets (Existing Feature)
+#### 4.2.1 mode (Existing Feature)
+
+**Type**: String  
+**Required**: No  
+**Default**: `"remote"` (when omitted)
+
+The `mode` field determines how the GitHub MCP server is deployed and accessed. The GitHub MCP server supports two operational modes with different deployment characteristics.
+
+**Valid Mode Values**:
+- `"remote"` - **Recommended**: Connects to hosted GitHub MCP server (faster initialization, no Docker required)
+- `"local"` - Runs GitHub MCP server as Docker container on GitHub Actions runner
+
+**Mode Comparison**:
+
+| Aspect | Remote Mode | Local Mode |
+|--------|-------------|------------|
+| **Deployment** | Hosted service at `https://api.githubcopilot.com/mcp/` | Docker container on runner |
+| **Initialization** | Fast (no container startup) | Slower (container build/start) |
+| **Docker Required** | No | Yes |
+| **Version Control** | Automatic (latest version) | Explicit (via container tag) |
+| **Network Access** | Requires internet connectivity | Self-contained |
+| **Authentication** | Bearer token in HTTP headers | Environment variables |
+| **Use Cases** | Production workflows, fast startup | Testing, specific versions, air-gapped |
+
+**Remote Mode Configuration**:
+```yaml
+tools:
+  github:
+    mode: "remote"              # Hosted GitHub MCP server
+    toolsets: [default]
+```
+
+**Local Mode Configuration**:
+```yaml
+tools:
+  github:
+    mode: "local"               # Docker-based GitHub MCP server
+    toolsets: [default]
+```
+
+**Best Practice**: Use `mode: "remote"` for production workflows as it provides faster initialization and automatic version updates. Use `mode: "local"` when you need a specific GitHub MCP server version or are testing in an environment without internet access.
+
+**Authentication Differences**:
+- **Remote mode**: Uses Bearer token authentication via HTTP headers
+- **Local mode**: Uses `GITHUB_PERSONAL_ACCESS_TOKEN` environment variable
+
+**Read-Only Mode**:
+Both modes support read-only operation to restrict write operations:
+- **Remote mode**: Set via `X-MCP-Readonly: true` HTTP header
+- **Local mode**: Set via `GITHUB_READ_ONLY=1` environment variable
+
+**See**: [GitHub MCP Server Documentation - Overview](/gh-aw/skills/github-mcp-server/#overview) for detailed mode descriptions.
+
+#### 4.2.2 toolsets (Existing Feature)
 
 **Type**: Array of strings  
 **Required**: No  
@@ -277,7 +330,7 @@ toolsets: [all]               # All available toolsets
 
 **See**: [GitHub MCP Server Documentation - Available Toolsets](/gh-aw/skills/github-mcp-server/#available-toolsets) for complete toolset reference.
 
-#### 4.2.2 tools (Existing Feature)
+#### 4.2.3 tools (Existing Feature)
 
 **Type**: Array of strings  
 **Required**: No  
@@ -1474,6 +1527,34 @@ tools:
 **Use Case**: Highly restricted documentation analysis agent with minimal tool access
 
 **Note**: Using `toolsets` is recommended over individual `tools` for most workflows. See [GitHub MCP Server Documentation](/gh-aw/skills/github-mcp-server/) for details.
+
+#### A.8 Local Mode with Specific Version
+
+Use local mode when you need a specific GitHub MCP server version or air-gapped environments:
+
+```yaml
+tools:
+  github:
+    mode: "local"                    # Docker-based deployment
+    toolsets: [repos, issues]
+    repos:
+      - "testing-org/*"
+    roles:
+      - "write"
+      - "admin"
+    private-repos: true
+```
+
+**Use Case**: Testing workflows, air-gapped environments, specific version requirements
+
+**Local Mode Characteristics**:
+- Runs GitHub MCP server as Docker container on runner
+- Slower initialization (container startup time)
+- Allows pinning to specific container version/tag
+- Uses `GITHUB_PERSONAL_ACCESS_TOKEN` environment variable
+- Suitable for environments without internet access
+
+**See**: [GitHub MCP Server Documentation - Remote vs Local Mode](/gh-aw/skills/github-mcp-server/#overview) for mode selection guidance.
 
 ### Appendix B: Error Messages
 
