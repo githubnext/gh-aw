@@ -175,6 +175,14 @@ type SecurityProvider interface {
 	GetRequiredSecretNames(workflowData *WorkflowData) []string
 }
 
+// PromptCustomizer handles engine-specific prompt customization
+// Engines can optionally implement this to provide custom instructions in the prompt
+type PromptCustomizer interface {
+	// GetCustomInstructions returns engine-specific instructions to be added to the prompt
+	// Returns empty string if no custom instructions are needed
+	GetCustomInstructions() string
+}
+
 // CodingAgentEngine is a composite interface that combines all focused interfaces
 // This maintains backward compatibility with existing code while allowing more flexibility
 // Implementations can choose to implement only the interfaces they need by embedding BaseEngine
@@ -185,6 +193,7 @@ type CodingAgentEngine interface {
 	MCPConfigProvider
 	LogParser
 	SecurityProvider
+	PromptCustomizer
 }
 
 // BaseEngine provides common functionality for agentic engines
@@ -263,6 +272,12 @@ func (e *BaseEngine) GetLogFileForParsing() string {
 // Engines must override this to specify their required secrets
 func (e *BaseEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	return []string{}
+}
+
+// GetCustomInstructions returns empty string by default (no custom instructions)
+// Engines can override this to provide engine-specific instructions to add to the prompt
+func (e *BaseEngine) GetCustomInstructions() string {
+	return ""
 }
 
 // convertStepToYAML converts a step map to YAML string - uses proper YAML serialization

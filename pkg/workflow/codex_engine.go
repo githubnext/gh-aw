@@ -45,6 +45,15 @@ func NewCodexEngine() *CodexEngine {
 	}
 }
 
+// GetCustomInstructions returns Codex-specific instructions to be added to the prompt
+func (e *CodexEngine) GetCustomInstructions() string {
+	return `<agent_cli_authentication>
+**CRITICAL**: The gh CLI is NOT authenticated in this workflow environment. Do NOT attempt to use gh commands for GitHub API operations.
+
+For GitHub operations (creating issues, pull requests, comments, etc.), you MUST use the appropriate safe output tools instead of the gh CLI.
+</agent_cli_authentication>`
+}
+
 // GetRequiredSecretNames returns the list of secrets required by the Codex engine
 // This includes CODEX_API_KEY, OPENAI_API_KEY, and optionally MCP_GATEWAY_API_KEY
 func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {

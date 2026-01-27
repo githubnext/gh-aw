@@ -181,7 +181,7 @@ func splitContentIntoChunks(content string) []string {
 	return chunks
 }
 
-func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
+func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	compilerYamlLog.Printf("Generating prompt for workflow: %s (markdown size: %d bytes)", data.Name, len(data.MarkdownContent))
 
 	// Clean the markdown content
@@ -217,7 +217,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	compilerYamlLog.Printf("Split user prompt into %d chunks", len(userPromptChunks))
 
 	// Collect built-in prompt sections (these should be prepended to user prompt)
-	builtinSections := c.collectPromptSections(data)
+	// Pass engine for custom instructions
+	builtinSections := c.collectPromptSections(data, engine)
 	compilerYamlLog.Printf("Collected %d built-in prompt sections", len(builtinSections))
 
 	// Generate a single unified prompt creation step that includes:

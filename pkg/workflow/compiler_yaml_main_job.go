@@ -161,8 +161,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// This reads from aw_info.json for consistent data
 	c.generateWorkflowOverviewStep(yaml, data, engine)
 
-	// Add prompt creation step
-	c.generatePrompt(yaml, data)
+	// Add prompt creation step (pass engine for custom instructions)
+	c.generatePrompt(yaml, data, engine)
 
 	// Collect artifact paths for unified upload at the end
 	var artifactPaths []string

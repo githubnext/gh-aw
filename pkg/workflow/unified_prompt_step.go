@@ -29,8 +29,10 @@ type PromptSection struct {
 func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *WorkflowData) {
 	unifiedPromptLog.Print("Generating unified prompt step")
 
-	// Collect all prompt sections in order
-	sections := c.collectPromptSections(data)
+	// Note: This function is now deprecated in favor of generateUnifiedPromptCreationStep
+	// We cannot pass the engine here as it's not available in the old code path
+	// Collect all prompt sections in order (without engine custom instructions)
+	sections := c.collectPromptSections(data, nil)
 
 	if len(sections) == 0 {
 		unifiedPromptLog.Print("No prompt sections to append, skipping unified step")
@@ -214,7 +216,7 @@ func removeConsecutiveEmptyLines(content string) string {
 }
 
 // collectPromptSections collects all prompt sections in the order they should be appended
-func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
+func (c *Compiler) collectPromptSections(data *WorkflowData, engine CodingAgentEngine) []PromptSection {
 	var sections []PromptSection
 
 	// 1. Temporary folder instructions (always included)
@@ -231,7 +233,19 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		IsFile:  true,
 	})
 
-	// 3. Playwright instructions (if playwright tool is enabled)
+	// 3. Engine-specific custom instructions (if provided)
+	if engine != nil {
+		customInstructions := engine.GetCustomInstructions()
+		if customInstructions != "" {
+			unifiedPromptLog.Printf("Adding custom instructions for engine: %s", engine.GetID())
+			sections = append(sections, PromptSection{
+				Content: customInstructions,
+				IsFile:  false,
+			})
+		}
+	}
+
+	// 4. Playwright instructions (if playwright tool is enabled)
 	if hasPlaywrightTool(data.ParsedTools) {
 		unifiedPromptLog.Print("Adding playwright section")
 		sections = append(sections, PromptSection{
@@ -240,7 +254,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		})
 	}
 
-	// 4. Trial mode note (if in trial mode)
+	// 5. Trial mode note (if in trial mode)
 	if c.trialMode {
 		unifiedPromptLog.Print("Adding trial mode section")
 		trialContent := fmt.Sprintf("## Note\nThis workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.", c.trialLogicalRepoSlug)
@@ -250,7 +264,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		})
 	}
 
-	// 5. Cache memory instructions (if enabled)
+	// 6. Cache memory instructions (if enabled)
 	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
 		unifiedPromptLog.Printf("Adding cache memory section: caches=%d", len(data.CacheMemoryConfig.Caches))
 		section := buildCacheMemoryPromptSection(data.CacheMemoryConfig)

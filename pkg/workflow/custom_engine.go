@@ -30,6 +30,15 @@ func NewCustomEngine() *CustomEngine {
 	}
 }
 
+// GetCustomInstructions returns Custom-engine-specific instructions to be added to the prompt
+func (e *CustomEngine) GetCustomInstructions() string {
+	return `<agent_cli_authentication>
+**CRITICAL**: The gh CLI is NOT authenticated in this workflow environment. Do NOT attempt to use gh commands for GitHub API operations.
+
+For GitHub operations (creating issues, pull requests, comments, etc.), you MUST use the appropriate safe output tools instead of the gh CLI.
+</agent_cli_authentication>`
+}
+
 // GetRequiredSecretNames returns empty for custom engine as secrets depend on user-defined steps
 // Custom engine steps should explicitly reference the secrets they need
 func (e *CustomEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {

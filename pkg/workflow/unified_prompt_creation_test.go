@@ -29,7 +29,7 @@ func TestGenerateUnifiedPromptCreationStep_OrderingBuiltinFirst(t *testing.T) {
 	}
 
 	// Collect built-in sections
-	builtinSections := compiler.collectPromptSections(data)
+	builtinSections := compiler.collectPromptSections(data, nil)
 
 	// Create a simple user prompt
 	userPromptChunks := []string{"# User Prompt\n\nThis is the user's task."}
@@ -73,7 +73,7 @@ func TestGenerateUnifiedPromptCreationStep_SubstitutionWithBuiltinExpressions(t 
 	}
 
 	// Collect built-in sections (should include GitHub context with expressions)
-	builtinSections := compiler.collectPromptSections(data)
+	builtinSections := compiler.collectPromptSections(data, nil)
 
 	// Create a simple user prompt
 	userPromptChunks := []string{"# User Prompt"}
@@ -107,7 +107,7 @@ func TestGenerateUnifiedPromptCreationStep_SubstitutionWithUserExpressions(t *te
 	}
 
 	// Collect built-in sections (minimal - just temp folder)
-	builtinSections := compiler.collectPromptSections(data)
+	builtinSections := compiler.collectPromptSections(data, nil)
 
 	// Create user prompt with expressions
 	userMarkdown := "Repository: ${{ github.repository }}\nActor: ${{ github.actor }}"
@@ -151,7 +151,7 @@ func TestGenerateUnifiedPromptCreationStep_MultipleUserChunks(t *testing.T) {
 	}
 
 	// Collect built-in sections
-	builtinSections := compiler.collectPromptSections(data)
+	builtinSections := compiler.collectPromptSections(data, nil)
 
 	// Create multiple user prompt chunks
 	userPromptChunks := []string{
@@ -217,7 +217,7 @@ func TestGenerateUnifiedPromptCreationStep_CombinedExpressions(t *testing.T) {
 	}
 
 	// Collect built-in sections (includes GitHub context with expressions)
-	builtinSections := compiler.collectPromptSections(data)
+	builtinSections := compiler.collectPromptSections(data, nil)
 
 	// Create user prompt with different expressions
 	userMarkdown := "Run ID: ${{ github.run_id }}\nWorkspace: ${{ github.workspace }}"
@@ -286,7 +286,7 @@ func TestGenerateUnifiedPromptCreationStep_NoAppendSteps(t *testing.T) {
 		},
 	}
 
-	builtinSections := compiler.collectPromptSections(data)
+	builtinSections := compiler.collectPromptSections(data, nil)
 
 	// Create user prompt with expressions to ensure substitution step is generated
 	userMarkdown := "Run ID: ${{ github.run_id }}"
@@ -323,7 +323,7 @@ func TestGenerateUnifiedPromptCreationStep_FirstContentUsesCreate(t *testing.T) 
 		ParsedTools: NewTools(map[string]any{}),
 	}
 
-	builtinSections := compiler.collectPromptSections(data)
+	builtinSections := compiler.collectPromptSections(data, nil)
 	userPromptChunks := []string{"# User Prompt"}
 
 	var yaml strings.Builder
@@ -370,7 +370,7 @@ func TestGenerateUnifiedPromptCreationStep_SystemTags(t *testing.T) {
 	}
 
 	// Collect built-in sections
-	builtinSections := compiler.collectPromptSections(data)
+	builtinSections := compiler.collectPromptSections(data, nil)
 
 	// Create user prompt
 	userPromptChunks := []string{"# User Task\n\nThis is the user's task."}
@@ -420,7 +420,7 @@ func TestGenerateUnifiedPromptCreationStep_EmptyUserPrompt(t *testing.T) {
 		ParsedTools: NewTools(map[string]any{}),
 	}
 
-	builtinSections := compiler.collectPromptSections(data)
+	builtinSections := compiler.collectPromptSections(data, nil)
 	userPromptChunks := []string{} // Empty user prompt
 
 	var yaml strings.Builder
@@ -475,7 +475,7 @@ func TestGenerateUnifiedPromptCreationStep_TrialMode(t *testing.T) {
 		ParsedTools: NewTools(map[string]any{}),
 	}
 
-	builtinSections := compiler.collectPromptSections(data)
+	builtinSections := compiler.collectPromptSections(data, nil)
 	userPromptChunks := []string{"# User Task"}
 
 	var yaml strings.Builder
@@ -520,7 +520,7 @@ func TestGenerateUnifiedPromptCreationStep_CacheAndRepoMemory(t *testing.T) {
 		},
 	}
 
-	builtinSections := compiler.collectPromptSections(data)
+	builtinSections := compiler.collectPromptSections(data, nil)
 	userPromptChunks := []string{"# User Task"}
 
 	var yaml strings.Builder
@@ -561,7 +561,7 @@ func TestGenerateUnifiedPromptCreationStep_PRContextConditional(t *testing.T) {
 		Permissions: "contents: read",
 	}
 
-	builtinSections := compiler.collectPromptSections(data)
+	builtinSections := compiler.collectPromptSections(data, nil)
 	userPromptChunks := []string{"# User Task"}
 
 	var yaml strings.Builder
@@ -612,7 +612,7 @@ func TestGenerateUnifiedPromptCreationStep_AllToolsCombined(t *testing.T) {
 		Permissions: "contents: read",
 	}
 
-	builtinSections := compiler.collectPromptSections(data)
+	builtinSections := compiler.collectPromptSections(data, nil)
 	userPromptChunks := []string{"# User Task"}
 
 	var yaml strings.Builder
@@ -654,7 +654,7 @@ func TestGenerateUnifiedPromptCreationStep_EnvironmentVariableSorting(t *testing
 		}),
 	}
 
-	builtinSections := compiler.collectPromptSections(data)
+	builtinSections := compiler.collectPromptSections(data, nil)
 
 	// Create user prompt with multiple expressions
 	userMarkdown := "Workspace: ${{ github.workspace }}\nActor: ${{ github.actor }}\nRepo: ${{ github.repository }}"
@@ -704,7 +704,7 @@ func TestGenerateUnifiedPromptCreationStep_LargeUserPromptChunking(t *testing.T)
 		ParsedTools: NewTools(map[string]any{}),
 	}
 
-	builtinSections := compiler.collectPromptSections(data)
+	builtinSections := compiler.collectPromptSections(data, nil)
 
 	// Create many chunks to simulate large prompt
 	userPromptChunks := make([]string, 10)

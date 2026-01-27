@@ -196,7 +196,7 @@ func TestCollectPromptSections_Order(t *testing.T) {
 		On:          "issue_comment",
 	}
 
-	sections := compiler.collectPromptSections(data)
+	sections := compiler.collectPromptSections(data, nil)
 
 	// Verify we have sections
 	require.NotEmpty(t, sections, "Should collect sections")
