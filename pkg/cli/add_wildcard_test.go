@@ -475,7 +475,7 @@ on: push
 
 	// Test 1: Non-wildcard duplicate should return error
 	t.Run("non_wildcard_duplicate_returns_error", func(t *testing.T) {
-		err := addWorkflowWithTracking(spec, 1, false, "", "", false, "", nil, false, "", false, "")
+		err := addWorkflowWithTracking(spec, 1, false, false, "", "", false, "", nil, false, "", false, "")
 		if err == nil {
 			t.Error("Expected error for non-wildcard duplicate, got nil")
 		}
@@ -486,7 +486,7 @@ on: push
 
 	// Test 2: Wildcard duplicate should return nil (skip with warning)
 	t.Run("wildcard_duplicate_returns_nil", func(t *testing.T) {
-		err := addWorkflowWithTracking(spec, 1, false, "", "", false, "", nil, true, "", false, "")
+		err := addWorkflowWithTracking(spec, 1, false, false, "", "", false, "", nil, true, "", false, "")
 		if err != nil {
 			t.Errorf("Expected nil for wildcard duplicate (should skip), got error: %v", err)
 		}
@@ -494,7 +494,7 @@ on: push
 
 	// Test 3: Wildcard duplicate with force flag should succeed
 	t.Run("wildcard_duplicate_with_force_succeeds", func(t *testing.T) {
-		err := addWorkflowWithTracking(spec, 1, false, "", "", true, "", nil, true, "", false, "")
+		err := addWorkflowWithTracking(spec, 1, false, false, "", "", true, "", nil, true, "", false, "")
 		// This should succeed or return nil
 		if err != nil && strings.Contains(err.Error(), "already exists") {
 			t.Errorf("Expected success with force flag, got 'already exists' error: %v", err)

@@ -454,7 +454,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 
 	// Compile the updated workflow with refreshStopTime enabled
 	updateLog.Printf("Compiling updated workflow: %s", wf.Name)
-	if err := compileWorkflowWithRefresh(wf.Path, verbose, engineOverride, true); err != nil {
+	if err := compileWorkflowWithRefresh(wf.Path, verbose, false, engineOverride, true); err != nil {
 		updateLog.Printf("Compilation failed for workflow %s: %v", wf.Name, err)
 		return fmt.Errorf("failed to compile updated workflow: %w", err)
 	}
