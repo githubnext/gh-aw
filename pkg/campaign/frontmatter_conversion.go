@@ -106,37 +106,37 @@ func ConvertFromFrontmatter(config *workflow.FrontmatterConfig, workflowPath str
 	if len(config.Project.Workers) > 0 {
 		spec.Workers = make([]WorkerMetadata, len(config.Project.Workers))
 		for i, w := range config.Project.Workers {
-				spec.Workers[i] = WorkerMetadata{
-					ID:                  w.ID,
-					Name:                w.Name,
-					Description:         w.Description,
-					Capabilities:        w.Capabilities,
-					IdempotencyStrategy: w.IdempotencyStrategy,
-					Priority:            w.Priority,
-				}
+			spec.Workers[i] = WorkerMetadata{
+				ID:                  w.ID,
+				Name:                w.Name,
+				Description:         w.Description,
+				Capabilities:        w.Capabilities,
+				IdempotencyStrategy: w.IdempotencyStrategy,
+				Priority:            w.Priority,
+			}
 
-				// Convert payload schema
-				if len(w.PayloadSchema) > 0 {
-					spec.Workers[i].PayloadSchema = make(map[string]WorkerPayloadField)
-					for key, field := range w.PayloadSchema {
-						spec.Workers[i].PayloadSchema[key] = WorkerPayloadField{
-							Type:        field.Type,
-							Description: field.Description,
-							Required:    field.Required,
-							Example:     field.Example,
-						}
+			// Convert payload schema
+			if len(w.PayloadSchema) > 0 {
+				spec.Workers[i].PayloadSchema = make(map[string]WorkerPayloadField)
+				for key, field := range w.PayloadSchema {
+					spec.Workers[i].PayloadSchema[key] = WorkerPayloadField{
+						Type:        field.Type,
+						Description: field.Description,
+						Required:    field.Required,
+						Example:     field.Example,
 					}
 				}
+			}
 
-				// Convert output labeling
-				spec.Workers[i].OutputLabeling = WorkerOutputLabeling{
-					Labels:         w.OutputLabeling.Labels,
-					KeyInTitle:     w.OutputLabeling.KeyInTitle,
-					KeyFormat:      w.OutputLabeling.KeyFormat,
-					MetadataFields: w.OutputLabeling.MetadataFields,
-				}
+			// Convert output labeling
+			spec.Workers[i].OutputLabeling = WorkerOutputLabeling{
+				Labels:         w.OutputLabeling.Labels,
+				KeyInTitle:     w.OutputLabeling.KeyInTitle,
+				KeyFormat:      w.OutputLabeling.KeyFormat,
+				MetadataFields: w.OutputLabeling.MetadataFields,
 			}
 		}
+	}
 
 	// Note: DoNotDowngradeDoneItems is already part of project governance if set,
 	// so no additional inheritance is needed

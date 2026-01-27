@@ -59,7 +59,7 @@ type ProjectConfig struct {
 	MaxStatusUpdates        int      `json:"max-status-updates,omitempty"`          // Maximum number of status updates per run (default: 1)
 	GitHubToken             string   `json:"github-token,omitempty"`                // Optional custom GitHub token for project operations
 	DoNotDowngradeDoneItems *bool    `json:"do-not-downgrade-done-items,omitempty"` // Prevent moving items backward (e.g., Done -> In Progress)
-	
+
 	// Campaign orchestration fields (optional)
 	// When present, triggers automatic generation of a campaign orchestrator workflow
 	ID           string                    `json:"id,omitempty"`            // Campaign identifier (optional, derived from filename if not set)

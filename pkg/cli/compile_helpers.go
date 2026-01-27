@@ -182,11 +182,11 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 			CampaignSpecPath:     file,
 			Verbose:              verbose,
 			NoEmit:               false,
-			RunZizmorPerFile:     false,      // Disabled for generated orchestrators
-			RunPoutinePerFile:    false,      // Disabled for generated orchestrators
-			RunActionlintPerFile: false,      // Disabled for generated orchestrators
-			Strict:               false,      // Not enforced for generated workflows
-			ValidateActionSHAs:   false,      // Not required for generated workflows
+			RunZizmorPerFile:     false, // Disabled for generated orchestrators
+			RunPoutinePerFile:    false, // Disabled for generated orchestrators
+			RunActionlintPerFile: false, // Disabled for generated orchestrators
+			Strict:               false, // Not enforced for generated workflows
+			ValidateActionSHAs:   false, // Not required for generated workflows
 		})
 		if genErr != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("failed to compile campaign orchestrator for %s: %v", filepath.Base(file), genErr)))
