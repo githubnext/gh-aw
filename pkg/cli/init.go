@@ -34,7 +34,7 @@ func InitRepositoryInteractive(verbose bool, rootCmd CommandProvider) error {
 	initLog.Print("Verified git repository")
 
 	fmt.Fprintln(os.Stderr, "")
-	
+
 	// Welcome message with teletype effect
 	teletype := console.NewTeletype()
 	teletype.PrintLine(console.FormatInfoMessage("Welcome to GitHub Agentic Workflows setup!"))

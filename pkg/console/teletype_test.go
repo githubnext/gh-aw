@@ -205,7 +205,7 @@ func TestPrintLines(t *testing.T) {
 	PrintLines(lines, WithWriter(&buf))
 
 	output := buf.String()
-	
+
 	// In test environment (non-TTY), all lines should be printed
 	for _, line := range lines {
 		assert.Contains(t, output, line, "Should contain line: "+line)
@@ -303,7 +303,7 @@ func TestTeletypeModel_View(t *testing.T) {
 	}
 
 	view := model.View()
-	assert.Equal(t, "", view, "View should return empty string (we write directly to writer)")
+	assert.Empty(t, view, "View should return empty string (we write directly to writer)")
 }
 
 func TestTeletypeModel_Update_TeletypeLineMsg(t *testing.T) {
