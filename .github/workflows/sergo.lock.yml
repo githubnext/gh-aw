@@ -28,7 +28,7 @@
 name: "Sergo - Serena Go Expert"
 "on":
   schedule:
-  - cron: "53 8 * * *"
+  - cron: "15 22 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

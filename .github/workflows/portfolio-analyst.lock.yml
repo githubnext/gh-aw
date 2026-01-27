@@ -31,7 +31,7 @@
 name: "Automated Portfolio Analyst"
 "on":
   schedule:
-  - cron: "8 8 * * 1"
+  - cron: "14 8 * * 1"
     # Friendly format: weekly on monday around 09:00 (scattered)
   workflow_dispatch:
 

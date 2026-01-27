@@ -28,7 +28,7 @@
 name: "Daily Semgrep Scan"
 "on":
   schedule:
-  - cron: "28 9 * * *"
+  - cron: "18 1 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 
