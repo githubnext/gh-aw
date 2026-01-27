@@ -56,25 +56,19 @@ Repository secrets are not available to the agentic step by default. The AI agen
 
 See the [Security Guide](/gh-aw/guides/security/) guide for details.
 
+Some MCP tools may be configured using secrets (for example, an MCP tool that can send a Slack message), but these are only accessible to the specific tool steps, not the AI agent itself. However care should be taken to minimize the use of tools equipped with highly privileged secrets.
+
 ### Agentic workflows run in GitHub Actions. Can they write to the repository?
 
-By default, agentic workflows run with read-only permissions. Write operations require explicit approval through [safe outputs](/gh-aw/reference/safe-outputs/) (pre-approved GitHub operations) or explicit `write` permissions (the latter is not recommended). This ensures that AI agents cannot make arbitrary changes to your repository.
+By default, the agentic "coding agent" step of agentic workflows runs with read-only permissions. Write operations require explicit approval through [safe outputs](/gh-aw/reference/safe-outputs/) (pre-approved GitHub operations) or explicit `write` permissions (the latter is not recommended). This ensures that AI agents cannot make arbitrary changes to your repository.
 
 If safe outputs are configured, the workflow has limited, highly specific write operations that are then sanitized and executed securely.
 
 ### What sanitization is done on AI outputs before applying changes?
 
-All outputs from the AI agent are sanitized before being applied to your repository. Sanitization includes:
+All outputs from the AI agent are sanitized before being applied to your repository. Sanitization includes secret redaction, URL domain filtering, XML escaping, size limits, control character stripping, GitHub reference escaping and HTTPS enforcement.
 
-- **Secret redaction**: Credentials and sensitive tokens are automatically detected and redacted from outputs
-- **URL domain filtering**: Only URLs from allowed domains pass through; others are replaced with `(redacted)`. GitHub domains are always included, custom domains can be configured via `allowed-domains`
-- **XML escaping**: Content is escaped to prevent injection attacks
-- **Size limits**: Outputs are capped at 0.5MB and 65,000 lines to prevent abuse
-- **Control character stripping**: Potentially harmful control characters are removed
-- **GitHub reference escaping**: References like `#123` can be escaped to prevent timeline clutter in external repositories
-- **HTTPS enforcement**: Only HTTPS URLs are permitted
-
-Additionally, safe outputs enforce permission separation—write operations happen in separate jobs with scoped permissions, never in the agent job itself.
+Additionally, safe outputs enforce permission separation—write operations happen in separate jobs with scoped permissions, never in the agentic job itself.
 
 See [Safe Outputs - Security and Sanitization](/gh-aw/reference/safe-outputs/#security-and-sanitization) for configuration options.
 
@@ -136,13 +130,15 @@ This depends on the AI engine (coding agent) you use:
 
 ### What's the approximate cost per workflow run?
 
-Costs vary depending on workflow complexity, AI model used, and execution time. Typical costs range from **cents to a few dollars per run**. To track usage:
+Costs vary depending on workflow complexity, AI model used, and execution time. Typical costs range from cents to a few dollars per run. To track usage:
 
 - Use `gh aw logs` to analyze workflow runs and metrics
 - Use `gh aw audit <run-id>` to see detailed token usage and estimated costs
 - Check your AI provider's usage portal for account-level tracking
 
 Consider creating a separate PAT/API key for each repository to help track usage across projects.
+
+Costs can be reduced by optimizing prompts, using smaller models where appropriate, limiting unnecessary tool calls, reducing frequency of runs, and caching results.
 
 ### Can I change the model being used, e.g., use a cheaper or more advanced one?
 
