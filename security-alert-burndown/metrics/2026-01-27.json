@@ -1,0 +1,41 @@
+{
+  "campaign_id": "security-alert-burndown",
+  "date": "2026-01-27",
+  "tasks_total": 5,
+  "tasks_completed": 4,
+  "tasks_in_progress": 1,
+  "tasks_blocked": 0,
+  "kpis": {
+    "critical_alerts": {
+      "current": 0,
+      "baseline": 5,
+      "target": 0,
+      "status": "COMPLETE"
+    },
+    "high_severity_alerts": {
+      "current": 0,
+      "baseline": 15,
+      "target": 5,
+      "status": "COMPLETE"
+    }
+  },
+  "worker_activity": {
+    "code-scanning-fixer": {
+      "items_processed": 4,
+      "items_completed": 4,
+      "items_open": 0
+    }
+  },
+  "discovered_items": {
+    "total": 5,
+    "issues": 1,
+    "pull_requests": 4,
+    "open": 1,
+    "closed": 4
+  },
+  "project_updates": {
+    "items_added": 1,
+    "items_updated": 4,
+    "items_failed": 0
+  }
+}
