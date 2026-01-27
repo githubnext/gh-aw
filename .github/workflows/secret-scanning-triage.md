@@ -62,7 +62,7 @@ Use cache-memory file `/tmp/gh-aw/cache-memory/secret-scanning-triage.jsonl`.
 
 Use the GitHub MCP `secret_protection` toolset.
 
-- Call `github-list_secret_scanning_alerts` (or the closest list tool in the toolset) for `owner="githubnext"` and `repo="gh-aw"`.
+- Call `github___list_secret_scanning_alerts` (or the closest list tool in the toolset) for `owner="githubnext"` and `repo="gh-aw"`.
 - Filter to `state="open"`.
 
 If none, log and exit.
@@ -75,7 +75,7 @@ If none, log and exit.
 
 ### 3) Fetch details + location
 
-Use the appropriate tool (e.g. `github-get_secret_scanning_alert` and/or an “alert locations” tool if available) to collect:
+Use the appropriate tool (e.g. `github___get_secret_scanning_alert` and/or an “alert locations” tool if available) to collect:
 - alert number
 - secret type (if present)
 - file path and commit SHA (if present)
