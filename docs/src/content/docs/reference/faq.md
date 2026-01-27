@@ -47,6 +47,10 @@ Yes! Agentic workflows can perform a wide variety of tasks beyond writing code:
 
 The AI interprets natural language instructions and uses available [tools](/gh-aw/reference/tools/) to accomplish tasks.
 
+### Can agentic workflows mix regular GitHub Actions steps with AI agentic steps?
+
+Yes! Agentic workflows can include both AI agentic steps and traditional GitHub Actions steps. You can add custom steps before the agentic job using the [`steps:` configuration](/gh-aw/reference/frontmatter/#steps). Additionally, [custom safe outputs](/gh-aw/reference/safe-outputs/#custom-safe-outputs) can be used as consumers of agentic outputs. [Safe inputs](/gh-aw/reference/safe-inputs/) allow you to pass data between traditional steps and the AI agent with added checking.
+
 ### Can agentic workflows read other repositories?
 
 Not by default, but yes with proper configuration. Cross-repository access requires:
@@ -84,13 +88,13 @@ Some MCP tools may be configured using secrets (for example, an MCP tool that ca
 
 ### Agentic workflows run in GitHub Actions. Can they write to the repository?
 
-By default, the agentic "coding agent" step of agentic workflows runs with read-only permissions. Write operations require explicit approval through [safe outputs](/gh-aw/reference/safe-outputs/) (pre-approved GitHub operations) or explicit `write` permissions (the latter is not recommended). This ensures that AI agents cannot make arbitrary changes to your repository.
+By default, the agentic "coding agent" step of agentic workflows runs with read-only permissions. Write operations require explicit approval through [safe outputs](/gh-aw/reference/safe-outputs/) or explicit general `write` permissions (not recommended). This ensures that AI agents cannot make arbitrary changes to your repository.
 
 If safe outputs are configured, the workflow has limited, highly specific write operations that are then sanitized and executed securely.
 
 ### What sanitization is done on AI outputs before applying changes?
 
-All outputs from the AI agent are sanitized before being applied to your repository. Sanitization includes secret redaction, URL domain filtering, XML escaping, size limits, control character stripping, GitHub reference escaping and HTTPS enforcement.
+All safe outputs from the AI agent are sanitized before being applied to your repository. Sanitization includes secret redaction, URL domain filtering, XML escaping, size limits, control character stripping, GitHub reference escaping and HTTPS enforcement.
 
 Additionally, safe outputs enforce permission separation—write operations happen in separate jobs with scoped permissions, never in the agentic job itself.
 
@@ -110,9 +114,9 @@ For documentation, see the [Security Architecture](/gh-aw/introduction/architect
 
 ### How is my code and data processed?
 
-By default, your workflow is processed using your nominated [AI engine](/gh-aw/reference/engines/) (coding agent) and the tool calls it makes. When using the default **GitHub Copilot CLI**, the workflow is processed by the `copilot` CLI tool which uses GitHub Copilot's services and AI model. The specifics depend on your engine choice:
+By default, your workflow is processed using your nominated [AI engine](/gh-aw/reference/engines/) (coding agent) and the tool calls it makes. When using the default **GitHub Copilot CLI**, the workflow is processed by the `copilot` CLI tool which uses GitHub Copilot's services and related AI models. The specifics depend on your engine choice:
 
-- **Copilot**: Uses GitHub Copilot CLI and its backend services. See [GitHub Copilot documentation](https://docs.github.com/en/copilot) for details.
+- **GitHub Copilot CLI**: See [GitHub Copilot documentation](https://docs.github.com/en/copilot) for details.
 - **Claude/Codex**: Uses respective providers' APIs with their data handling policies.
 
 See the [Security Architecture](/gh-aw/introduction/architecture/) for details on the data flow.
@@ -148,13 +152,13 @@ See [Network Permissions](/gh-aw/reference/network/) for complete configuration 
 
 This depends on the AI engine (coding agent) you use:
 
-- **GitHub Copilot** (default): Usage is currently associated with the individual GitHub account of the maintainer supplying the COPILOT_GITHUB_TOKEN, and is drawn from the monthly quota of premium requests for that account. See [GitHub Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot).
+- **GitHub Copilot CLI** (default): Usage is currently associated with the individual GitHub account of the user supplying the COPILOT_GITHUB_TOKEN, and is drawn from the monthly quota of premium requests for that account. See [GitHub Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot).
 - **Claude**: Usage is billed to the Anthropic account associated with ANTHROPIC_API_KEY Actions secret in the repository.
 - **Codex**: Usage is billed to your OpenAI account associated with OPENAI_API_KEY Actions secret in the repository.
 
 ### What's the approximate cost per workflow run?
 
-Costs vary depending on workflow complexity, AI model used, and execution time. Typical costs range from cents to a few dollars per run. To track usage:
+Costs vary depending on workflow complexity, AI model used, and execution time. When using GitHub Copilot CLI, 1 or 2 premium requests are used per workflow execution that includes agentic processing. To track usage:
 
 - Use `gh aw logs` to analyze workflow runs and metrics
 - Use `gh aw audit <run-id>` to see detailed token usage and estimated costs
