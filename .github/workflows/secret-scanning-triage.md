@@ -2,7 +2,6 @@
 name: Secret Scanning Triage
 description: Triage secret scanning alerts and either open an issue (rotation/incident) or a PR (test-only cleanup)
 on:
-  schedule: every 6h
   workflow_dispatch:
 permissions:
   contents: read

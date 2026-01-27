@@ -23,9 +23,6 @@
 
 name: "Code Scanning Fixer"
 "on":
-  schedule:
-  - cron: "*/30 * * * *"
-    # Friendly format: every 30m
   # skip-if-match: is:pr is:open in:title "[code-scanning-fix]" # Skip-if-match processed as search check in pre-activation job
   workflow_dispatch:
 
