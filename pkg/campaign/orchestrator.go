@@ -72,110 +72,7 @@ func extractFileGlobPatterns(spec *CampaignSpec) []string {
 	return []string{fallbackPattern}
 }
 
-// buildDiscoverySteps creates GitHub Actions steps for campaign discovery precomputation
-func buildDiscoverySteps(spec *CampaignSpec) []map[string]any {
-	// Only add discovery steps if we have workflows or a tracker label
-	if len(spec.Workflows) == 0 && spec.TrackerLabel == "" {
-		orchestratorLog.Printf("Skipping discovery steps: no workflows or tracker label configured")
-		return nil
-	}
 
-	orchestratorLog.Printf("Building discovery steps for campaign: %s", spec.ID)
-
-	// Build environment variables for discovery
-	envVars := map[string]any{
-		"GH_AW_CAMPAIGN_ID":         spec.ID,
-		"GH_AW_WORKFLOWS":           strings.Join(spec.Workflows, ","),
-		"GH_AW_TRACKER_LABEL":       spec.TrackerLabel,
-		"GH_AW_PROJECT_URL":         spec.ProjectURL,
-		"GH_AW_MAX_DISCOVERY_ITEMS": fmt.Sprintf("%d", getMaxDiscoveryItems(spec)),
-		"GH_AW_MAX_DISCOVERY_PAGES": fmt.Sprintf("%d", getMaxDiscoveryPages(spec)),
-		"GH_AW_CURSOR_PATH":         getCursorPath(spec),
-	}
-
-	// Campaign scope uses scope selectors as the single source of truth.
-	// We export discovery scope to the action via GH_AW_DISCOVERY_*.
-	parsedScope, scopeProblems := parseScopeSelectors(spec.Scope)
-	if len(scopeProblems) > 0 {
-		orchestratorLog.Printf("Warning: invalid scope selectors for campaign '%s': %v", spec.ID, scopeProblems)
-	}
-
-	if len(parsedScope.Repos) > 0 {
-		envVars["GH_AW_DISCOVERY_REPOS"] = strings.Join(parsedScope.Repos, ",")
-		orchestratorLog.Printf("Setting GH_AW_DISCOVERY_REPOS from scope: %v", parsedScope.Repos)
-	}
-
-	if len(parsedScope.Orgs) > 0 {
-		envVars["GH_AW_DISCOVERY_ORGS"] = strings.Join(parsedScope.Orgs, ",")
-		orchestratorLog.Printf("Setting GH_AW_DISCOVERY_ORGS from scope: %v", parsedScope.Orgs)
-	}
-
-	steps := []map[string]any{
-		{
-			"name": "Create workspace directory",
-			"run":  "mkdir -p ./.gh-aw",
-		},
-		{
-			"name": "Run campaign discovery precomputation",
-			"id":   "discovery",
-			"uses": "actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd", // v8.0.0
-			"env":  envVars,
-			"with": map[string]any{
-				"github-token": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN || secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}",
-				"script": `
-const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-setupGlobals(core, github, context, exec, io);
-const { main } = require('/opt/gh-aw/actions/campaign_discovery.cjs');
-await main();
-`,
-			},
-		},
-	}
-
-	return steps
-}
-
-// getMaxDiscoveryItems returns the max discovery items budget from governance or default
-func getMaxDiscoveryItems(spec *CampaignSpec) int {
-	if spec.Governance != nil && spec.Governance.MaxDiscoveryItemsPerRun > 0 {
-		return spec.Governance.MaxDiscoveryItemsPerRun
-	}
-	return 100 // default
-}
-
-// getMaxDiscoveryPages returns the max discovery pages budget from governance or default
-func getMaxDiscoveryPages(spec *CampaignSpec) int {
-	if spec.Governance != nil && spec.Governance.MaxDiscoveryPagesPerRun > 0 {
-		return spec.Governance.MaxDiscoveryPagesPerRun
-	}
-	return 10 // default
-}
-
-// getCursorPath returns the cursor path for the campaign or empty if not configured
-func getCursorPath(spec *CampaignSpec) string {
-	if spec.CursorGlob != "" {
-		// Convert glob to actual path - remove wildcards and use repo-memory path
-		// For now, use a simple convention: /tmp/gh-aw/repo-memory/campaigns/<campaign-id>/cursor.json
-		return fmt.Sprintf("/tmp/gh-aw/repo-memory/campaigns/%s/cursor.json", spec.ID)
-	}
-	return ""
-}
-
-// renderStepsAsYAML renders a list of steps as YAML string for CustomSteps field
-func renderStepsAsYAML(steps []map[string]any) string {
-	if len(steps) == 0 {
-		return ""
-	}
-
-	// Marshal steps to YAML
-	data, err := yaml.Marshal(steps)
-	if err != nil {
-		orchestratorLog.Printf("Failed to marshal discovery steps to YAML: %v", err)
-		return ""
-	}
-
-	return string(data)
-}
 
 // BuildOrchestrator constructs a minimal agentic workflow representation for a
 // given CampaignSpec. The resulting WorkflowData is compiled via the standard
@@ -417,10 +314,6 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// multiple directory structures (e.g., both dated "campaign-id-*/**" and non-dated "campaign-id/**")
 	fileGlobPatterns := extractFileGlobPatterns(spec)
 
-	// Build discovery step configuration
-	// This runs before the agent to precompute campaign discovery
-	discoverySteps := buildDiscoverySteps(spec)
-
 	// Determine engine to use (default to claude if not specified)
 	engineID := "claude"
 	if spec.Engine != "" {
@@ -430,7 +323,23 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		orchestratorLog.Printf("Campaign orchestrator '%s' using default engine: %s", spec.ID, engineID)
 	}
 
+	// Configure GitHub MCP for discovery with budget enforcement
+	maxDiscoveryItems := 100
+	maxDiscoveryPages := 10
+	if spec.Governance != nil {
+		if spec.Governance.MaxDiscoveryItemsPerRun > 0 {
+			maxDiscoveryItems = spec.Governance.MaxDiscoveryItemsPerRun
+		}
+		if spec.Governance.MaxDiscoveryPagesPerRun > 0 {
+			maxDiscoveryPages = spec.Governance.MaxDiscoveryPagesPerRun
+		}
+	}
+
 	tools := map[string]any{
+		"github": map[string]any{
+			"toolsets": []string{"repos", "issues", "pull_requests"},
+			"mode":     "remote",
+		},
 		"repo-memory": []any{
 			map[string]any{
 				"id":          "campaigns",
@@ -442,8 +351,8 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		"bash": []any{"*"},
 		"edit": nil,
 	}
-	// Deliberately omit GitHub tool access from orchestrators. All writes and GitHub
-	// API operations should be performed by dispatched worker workflows.
+	orchestratorLog.Printf("Campaign orchestrator '%s' configured with GitHub MCP (max items: %d, max pages: %d)",
+		spec.ID, maxDiscoveryItems, maxDiscoveryPages)
 
 	data := &workflow.WorkflowData{
 		Name:            name,
@@ -463,11 +372,6 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		},
 		Tools:       tools,
 		SafeOutputs: safeOutputs,
-	}
-
-	// Add discovery steps if configuration is valid
-	if len(discoverySteps) > 0 {
-		data.CustomSteps = renderStepsAsYAML(discoverySteps)
 	}
 
 	return data, orchestratorPath

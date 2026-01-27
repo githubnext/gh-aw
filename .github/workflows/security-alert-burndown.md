@@ -5,16 +5,12 @@ on:
   schedule:
     - cron: "0 * * * *"
   workflow_dispatch:
+permissions:
+  issues: read
+  pull-requests: read
+  contents: read
 project:
   url: https://github.com/orgs/githubnext/projects/134
-  scope:
-    - githubnext/gh-aw
-  id: security-alert-burndown
-  governance:
-    max-new-items-per-run: 3
-    max-discovery-items-per-run: 100
-    max-discovery-pages-per-run: 5
-    max-project-updates-per-run: 10
 ---
 
 # Security Alert Burndown Campaign
@@ -27,20 +23,13 @@ Systematically process Dependabot dependency update PRs to keep JavaScript depen
 
 ## Discovery Strategy
 
-The orchestrator will:
+Discover Dependabot pull requests with labels: `dependencies`, `javascript`.
 
-1. **Discover** pull requests opened by the `dependabot` bot
-2. **Filter** to PRs with labels `dependencies` and `javascript`
-3. **Assign** discovered PRs to the Copilot coding agent using `assign-to-agent`
-4. **Track** progress in the project board
+Prioritize open PRs by age (oldest first). Skip items already marked "Done" on the project board.
 
 ## Campaign Execution
 
-Each run:
-- Discovers up to 100 Dependabot PRs with specified labels
-- Processes up to 5 pages of results
-- Assigns up to 3 new items to Copilot
-- Updates project board with up to 10 status changes
+Each run discovers and processes Dependabot PRs, updating the project board with current status.
 
 ## Success Criteria
 
