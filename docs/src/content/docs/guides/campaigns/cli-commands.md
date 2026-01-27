@@ -2,10 +2,14 @@
 title: CLI commands
 description: Command reference for campaign management
 banner:
-  content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
+  content: '<strong>⚠️ Deprecated:</strong> Campaign CLI commands for <code>.campaign.md</code> files are deprecated. Use the <code>project</code> field in workflow frontmatter instead.'
 ---
 
-The GitHub Agentic Workflows CLI provides commands for listing, inspecting, validating, and managing campaigns.
+:::caution[Commands deprecated]
+The `gh aw campaign` commands described here operate on the deprecated `.campaign.md` file format. For project tracking, use the `project` field in workflow frontmatter instead. See [Project Tracking](/gh-aw/reference/frontmatter/#project-tracking-project).
+:::
+
+The GitHub Agentic Workflows CLI provides commands for listing, inspecting, validating, and managing campaigns (deprecated `.campaign.md` format).
 
 :::note
 Use the automated creation flow to create campaigns. These commands are for managing existing campaigns. See [Getting started](/gh-aw/guides/campaigns/getting-started/).
