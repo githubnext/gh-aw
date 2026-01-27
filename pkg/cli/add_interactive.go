@@ -69,12 +69,14 @@ func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool
 	// Clear the screen for a fresh interactive experience
 	fmt.Fprint(os.Stderr, "\033[H\033[2J")
 
-	// Step 1: Welcome message
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "🚀 Welcome to GitHub Agentic Workflows!")
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "This tool will walk you through adding an automated workflow to your repository.")
-	fmt.Fprintln(os.Stderr, "")
+	// Step 1: Welcome message with teletype effect
+	teletype := console.NewTeletype()
+	teletype.PrintLine("")
+	teletype.PrintLine("🚀 Welcome to GitHub Agentic Workflows!")
+	teletype.PrintLine("")
+	teletype.PrintLine("This tool will walk you through adding an automated workflow to your repository.")
+	teletype.PrintLine("")
+	teletype.Wait()
 
 	// Step 1b: Resolve workflows early to get descriptions and validate specs
 	if err := config.resolveWorkflows(); err != nil {
@@ -159,13 +161,15 @@ func (c *AddInteractiveConfig) showWorkflowDescriptions() {
 		return
 	}
 
-	// Show descriptions for all workflows that have one
+	// Show descriptions for all workflows that have one with teletype effect
+	teletype := console.NewTeletype()
 	for _, rw := range c.resolvedWorkflows.Workflows {
 		if rw.Description != "" {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(rw.Description))
-			fmt.Fprintln(os.Stderr, "")
+			teletype.PrintLine(console.FormatInfoMessage(rw.Description))
+			teletype.PrintLine("")
 		}
 	}
+	teletype.Wait()
 }
 
 // checkGHAuthStatus verifies the user is logged in to GitHub CLI
