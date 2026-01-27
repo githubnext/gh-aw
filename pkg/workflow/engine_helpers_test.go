@@ -341,3 +341,55 @@ func TestShellEscapeArgWithFullyQuotedAgentPath(t *testing.T) {
 		t.Errorf("shellEscapeArg should not add single quotes to already double-quoted string, got: %s", result)
 	}
 }
+
+// TestGetHostedToolcachePathSetup tests the hostedtoolcache PATH setup helper
+func TestGetHostedToolcachePathSetup(t *testing.T) {
+	pathSetup := GetHostedToolcachePathSetup()
+
+	// Should start with export PATH=
+	if !strings.HasPrefix(pathSetup, `export PATH="`) {
+		t.Errorf("PATH setup should start with export PATH=, got: %s", pathSetup)
+	}
+
+	// Should use find command to locate bin directories in hostedtoolcache
+	if !strings.Contains(pathSetup, "/opt/hostedtoolcache") {
+		t.Errorf("PATH setup should reference /opt/hostedtoolcache, got: %s", pathSetup)
+	}
+
+	// Should look for bin directories
+	if !strings.Contains(pathSetup, "-name bin") {
+		t.Errorf("PATH setup should search for bin directories, got: %s", pathSetup)
+	}
+
+	// Should use maxdepth 4 to reach /opt/hostedtoolcache/<tool>/<version>/<arch>/bin
+	if !strings.Contains(pathSetup, "-maxdepth 4") {
+		t.Errorf("PATH setup should use -maxdepth 4, got: %s", pathSetup)
+	}
+
+	// Should suppress errors with 2>/dev/null
+	if !strings.Contains(pathSetup, "2>/dev/null") {
+		t.Errorf("PATH setup should suppress errors with 2>/dev/null, got: %s", pathSetup)
+	}
+
+	// Should preserve existing PATH
+	if !strings.HasSuffix(pathSetup, `$PATH"`) {
+		t.Errorf("PATH setup should end with $PATH to preserve existing PATH, got: %s", pathSetup)
+	}
+}
+
+// TestGetHostedToolcachePathSetup_Consistency verifies the PATH setup produces consistent output
+func TestGetHostedToolcachePathSetup_Consistency(t *testing.T) {
+	// Call multiple times to ensure consistent output
+	first := GetHostedToolcachePathSetup()
+	second := GetHostedToolcachePathSetup()
+
+	if first != second {
+		t.Errorf("GetHostedToolcachePathSetup should return consistent results, got:\n%s\nvs:\n%s", first, second)
+	}
+
+	// Verify exact expected output
+	expected := `export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"`
+	if first != expected {
+		t.Errorf("GetHostedToolcachePathSetup returned unexpected value.\nGot:      %s\nExpected: %s", first, expected)
+	}
+}

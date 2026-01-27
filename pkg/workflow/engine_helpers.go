@@ -318,3 +318,23 @@ func FilterEnvForSecrets(env map[string]string, allowedSecrets []string) map[str
 	engineHelpersLog.Printf("Filtered environment variables: kept=%d, removed=%d", len(filtered), secretsRemoved)
 	return filtered
 }
+
+// GetHostedToolcachePathSetup returns a shell command that adds all runtime binaries
+// from /opt/hostedtoolcache to PATH. This includes Node.js, Python, Go, Ruby, and other
+// runtimes installed via actions/setup-* steps.
+//
+// The hostedtoolcache directory structure is: /opt/hostedtoolcache/<tool>/<version>/<arch>/bin
+// This function generates a command that finds all bin directories and adds them to PATH.
+//
+// This is used by all engine implementations (Copilot, Claude, Codex) to ensure consistent
+// access to runtime tools inside the agent container.
+//
+// Returns:
+//   - string: A shell command that sets up PATH with all hostedtoolcache binaries
+//
+// Example output:
+//
+//	export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"
+func GetHostedToolcachePathSetup() string {
+	return `export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"`
+}
