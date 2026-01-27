@@ -167,7 +167,3 @@ After rotation and invalidation:
 - Keep critical info visible (alert link, secret type, immediate actions)
 - Wrap detailed steps in `<details><summary><b>Section</b></summary>` tags
 - Include workflow run reference at the end
-
-### 6) Record handling
-
-Append a JSON line to `/tmp/gh-aw/cache-memory/secret-scanning-triage.jsonl` for the alert you handled.
