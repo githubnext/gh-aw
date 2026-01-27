@@ -75,16 +75,14 @@ gh aw run daily-repo-status
 
 or by using the GitHub UX.
 
-Some ideas for customization:
+Some ideas for customization, suitable for maintainers:
 
 - Adjust the schedule to run more or less frequently
-- Modify the style or content of the report
-- Add additional data sources or metrics to analyze
-- Focus in on specific areas of your repository or project
-- Adjust the instructions to analyze patterns in failed CI runs or test coverage
-- Request analysis of compliance with organizational standards
-- Request analysis of spam or inappropriate content in issues or PRs
-- Request analysis of ways the repository could be modernized or simplified
+- Analyze issues and pull requests for adherence to contribution guidelines
+- Report weekly how the repository can be modernized and simplified
+- Regularly write and update a "your first contribution" guide taking a simple open issue and explaining how to work on it
+- Modify the instructions to analyze failed CI runs or test coverage
+- Regularly analyse compliance with organizational standards
 - And much more!
 
 Alternatively, you can browse some of the sample workflows in [Peli's Agent Factory](https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/) and add them to your repository using `gh aw add <workflow-spec>`, or remix them to create your own workflows.
