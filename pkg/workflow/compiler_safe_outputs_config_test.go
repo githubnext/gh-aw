@@ -629,3 +629,125 @@ func TestHandlerConfigPatchSize(t *testing.T) {
 func testBoolPtr(b bool) *bool {
 	return &b
 }
+
+// TestAutoEnabledHandlers tests that missing_tool, missing_data, and noop
+// are automatically enabled even when not explicitly configured
+func TestAutoEnabledHandlers(t *testing.T) {
+	tests := []struct {
+		name         string
+		safeOutputs  *SafeOutputsConfig
+		expectedKeys []string
+	}{
+		{
+			name: "missing_tool auto-enabled",
+			safeOutputs: &SafeOutputsConfig{
+				MissingTool: &MissingToolConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: 5,
+					},
+				},
+			},
+			expectedKeys: []string{"missing_tool"},
+		},
+		{
+			name: "missing_data auto-enabled",
+			safeOutputs: &SafeOutputsConfig{
+				MissingData: &MissingDataConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: 5,
+					},
+				},
+			},
+			expectedKeys: []string{"missing_data"},
+		},
+		{
+			name: "noop auto-enabled",
+			safeOutputs: &SafeOutputsConfig{
+				NoOp: &NoOpConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: 1,
+					},
+				},
+			},
+			expectedKeys: []string{"noop"},
+		},
+		{
+			name: "all auto-enabled handlers together",
+			safeOutputs: &SafeOutputsConfig{
+				MissingTool: &MissingToolConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: 5,
+					},
+				},
+				MissingData: &MissingDataConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: 5,
+					},
+				},
+				NoOp: &NoOpConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: 1,
+					},
+				},
+			},
+			expectedKeys: []string{"missing_tool", "missing_data", "noop"},
+		},
+		{
+			name: "auto-enabled with other handlers",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{
+					TitlePrefix: "[Test] ",
+				},
+				MissingTool: &MissingToolConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: 5,
+					},
+				},
+				NoOp: &NoOpConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: 1,
+					},
+				},
+			},
+			expectedKeys: []string{"create_issue", "missing_tool", "noop"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "test")
+
+			workflowData := &WorkflowData{
+				Name:        "Test Workflow",
+				SafeOutputs: tt.safeOutputs,
+			}
+
+			var steps []string
+			compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+			require.NotEmpty(t, steps, "Steps should be generated")
+
+			// Extract and validate JSON
+			for _, step := range steps {
+				if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+					parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+					if len(parts) == 2 {
+						jsonStr := strings.TrimSpace(parts[1])
+						jsonStr = strings.Trim(jsonStr, "\"")
+						jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+						var config map[string]map[string]any
+						err := json.Unmarshal([]byte(jsonStr), &config)
+						require.NoError(t, err, "Config JSON should be valid")
+
+						// Check that all expected keys are present
+						for _, key := range tt.expectedKeys {
+							_, ok := config[key]
+							assert.True(t, ok, "Expected auto-enabled handler: "+key)
+						}
+					}
+				}
+			}
+		})
+	}
+}
