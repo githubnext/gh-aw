@@ -686,3 +686,250 @@ func TestNetworkPermissions_EdgeCases(t *testing.T) {
 		})
 	}
 }
+
+// TestGetDomainsFromRuntimes tests the runtime-to-ecosystem domain mapping
+func TestGetDomainsFromRuntimes(t *testing.T) {
+	tests := []struct {
+		name           string
+		runtimes       map[string]any
+		expectContains []string // Domains that must be in the result
+		expectEmpty    bool
+	}{
+		{
+			name:        "nil runtimes returns empty",
+			runtimes:    nil,
+			expectEmpty: true,
+		},
+		{
+			name:        "empty runtimes returns empty",
+			runtimes:    map[string]any{},
+			expectEmpty: true,
+		},
+		{
+			name: "go runtime adds go ecosystem domains",
+			runtimes: map[string]any{
+				"go": map[string]any{"version": "1.22"},
+			},
+			expectContains: []string{"proxy.golang.org", "sum.golang.org", "go.dev"},
+		},
+		{
+			name: "node runtime adds node ecosystem domains",
+			runtimes: map[string]any{
+				"node": map[string]any{"version": "20"},
+			},
+			expectContains: []string{"registry.npmjs.org", "nodejs.org", "yarnpkg.com"},
+		},
+		{
+			name: "python runtime adds python ecosystem domains",
+			runtimes: map[string]any{
+				"python": map[string]any{"version": "3.11"},
+			},
+			expectContains: []string{"pypi.org", "files.pythonhosted.org"},
+		},
+		{
+			name: "multiple runtimes add all ecosystem domains",
+			runtimes: map[string]any{
+				"go":   map[string]any{"version": "1.22"},
+				"node": map[string]any{"version": "20"},
+			},
+			expectContains: []string{"proxy.golang.org", "registry.npmjs.org"},
+		},
+		{
+			name: "bun maps to node ecosystem",
+			runtimes: map[string]any{
+				"bun": map[string]any{"version": "1.0"},
+			},
+			expectContains: []string{"bun.sh", "registry.npmjs.org"},
+		},
+		{
+			name: "deno maps to node ecosystem",
+			runtimes: map[string]any{
+				"deno": map[string]any{"version": "1.40"},
+			},
+			expectContains: []string{"deno.land", "registry.npmjs.org"},
+		},
+		{
+			name: "uv maps to python ecosystem",
+			runtimes: map[string]any{
+				"uv": map[string]any{},
+			},
+			expectContains: []string{"pypi.org", "files.pythonhosted.org"},
+		},
+		{
+			name: "java runtime adds java ecosystem domains",
+			runtimes: map[string]any{
+				"java": map[string]any{"version": "21"},
+			},
+			expectContains: []string{"repo.maven.apache.org", "gradle.org"},
+		},
+		{
+			name: "ruby runtime adds ruby ecosystem domains",
+			runtimes: map[string]any{
+				"ruby": map[string]any{"version": "3.2"},
+			},
+			expectContains: []string{"rubygems.org", "api.rubygems.org"},
+		},
+		{
+			name: "dotnet runtime adds dotnet ecosystem domains",
+			runtimes: map[string]any{
+				"dotnet": map[string]any{"version": "8.0"},
+			},
+			expectContains: []string{"nuget.org", "api.nuget.org"},
+		},
+		{
+			name: "haskell runtime adds haskell ecosystem domains",
+			runtimes: map[string]any{
+				"haskell": map[string]any{"version": "9.4"},
+			},
+			expectContains: []string{"haskell.org", "downloads.haskell.org"},
+		},
+		{
+			name: "unknown runtime is ignored",
+			runtimes: map[string]any{
+				"unknown": map[string]any{"version": "1.0"},
+			},
+			expectEmpty: true,
+		},
+		{
+			name: "elixir has no ecosystem mapping",
+			runtimes: map[string]any{
+				"elixir": map[string]any{"version": "1.15"},
+			},
+			expectEmpty: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			domains := getDomainsFromRuntimes(tt.runtimes)
+
+			if tt.expectEmpty {
+				if len(domains) != 0 {
+					t.Errorf("Expected empty result, got %d domains: %v", len(domains), domains)
+				}
+				return
+			}
+
+			for _, expected := range tt.expectContains {
+				found := false
+				for _, domain := range domains {
+					if domain == expected {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected domain '%s' not found in result: %v", expected, domains)
+				}
+			}
+
+			t.Logf("Test '%s': Got %d domains", tt.name, len(domains))
+		})
+	}
+}
+
+// TestGetCopilotAllowedDomainsWithToolsAndRuntimes tests the full integration of runtimes with Copilot domains
+func TestGetCopilotAllowedDomainsWithToolsAndRuntimes(t *testing.T) {
+	t.Run("includes runtime ecosystem domains", func(t *testing.T) {
+		network := &NetworkPermissions{
+			Allowed: []string{"defaults"},
+		}
+		runtimes := map[string]any{
+			"go": map[string]any{"version": "1.22"},
+		}
+
+		result := GetCopilotAllowedDomainsWithToolsAndRuntimes(network, nil, runtimes)
+
+		// Should contain Copilot defaults
+		if !strings.Contains(result, "api.githubcopilot.com") {
+			t.Error("Expected api.githubcopilot.com in result")
+		}
+		// Should contain Go ecosystem domains
+		if !strings.Contains(result, "proxy.golang.org") {
+			t.Error("Expected proxy.golang.org from go runtime in result")
+		}
+	})
+
+	t.Run("combines network permissions, tools, and runtimes", func(t *testing.T) {
+		network := &NetworkPermissions{
+			Allowed: []string{"custom.example.com"},
+		}
+		tools := map[string]any{
+			"tavily": map[string]any{
+				"type": "http",
+				"url":  "https://mcp.tavily.com/mcp/",
+			},
+		}
+		runtimes := map[string]any{
+			"node": map[string]any{"version": "20"},
+		}
+
+		result := GetCopilotAllowedDomainsWithToolsAndRuntimes(network, tools, runtimes)
+
+		// Should contain Copilot defaults
+		if !strings.Contains(result, "api.githubcopilot.com") {
+			t.Error("Expected api.githubcopilot.com in result")
+		}
+		// Should contain network allowed domain
+		if !strings.Contains(result, "custom.example.com") {
+			t.Error("Expected custom.example.com from network permissions in result")
+		}
+		// Should contain HTTP MCP domain
+		if !strings.Contains(result, "mcp.tavily.com") {
+			t.Error("Expected mcp.tavily.com from tools in result")
+		}
+		// Should contain Node ecosystem domains
+		if !strings.Contains(result, "registry.npmjs.org") {
+			t.Error("Expected registry.npmjs.org from node runtime in result")
+		}
+	})
+
+	t.Run("nil runtimes works correctly", func(t *testing.T) {
+		result := GetCopilotAllowedDomainsWithToolsAndRuntimes(nil, nil, nil)
+
+		// Should still contain Copilot defaults
+		if !strings.Contains(result, "api.githubcopilot.com") {
+			t.Error("Expected api.githubcopilot.com in result")
+		}
+	})
+}
+
+// TestGetClaudeAllowedDomainsWithToolsAndRuntimes tests the full integration of runtimes with Claude domains
+func TestGetClaudeAllowedDomainsWithToolsAndRuntimes(t *testing.T) {
+	t.Run("includes runtime ecosystem domains", func(t *testing.T) {
+		runtimes := map[string]any{
+			"python": map[string]any{"version": "3.11"},
+		}
+
+		result := GetClaudeAllowedDomainsWithToolsAndRuntimes(nil, nil, runtimes)
+
+		// Should contain Claude defaults
+		if !strings.Contains(result, "api.anthropic.com") {
+			t.Error("Expected api.anthropic.com in result")
+		}
+		// Should contain Python ecosystem domains
+		if !strings.Contains(result, "pypi.org") {
+			t.Error("Expected pypi.org from python runtime in result")
+		}
+	})
+}
+
+// TestGetCodexAllowedDomainsWithToolsAndRuntimes tests the full integration of runtimes with Codex domains
+func TestGetCodexAllowedDomainsWithToolsAndRuntimes(t *testing.T) {
+	t.Run("includes runtime ecosystem domains", func(t *testing.T) {
+		runtimes := map[string]any{
+			"java": map[string]any{"version": "21"},
+		}
+
+		result := GetCodexAllowedDomainsWithToolsAndRuntimes(nil, nil, runtimes)
+
+		// Should contain Codex defaults
+		if !strings.Contains(result, "api.openai.com") {
+			t.Error("Expected api.openai.com in result")
+		}
+		// Should contain Java ecosystem domains
+		if !strings.Contains(result, "repo.maven.apache.org") {
+			t.Error("Expected repo.maven.apache.org from java runtime in result")
+		}
+	})
+}

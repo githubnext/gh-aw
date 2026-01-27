@@ -122,6 +122,58 @@ func getEcosystemDomains(category string) []string {
 	return result
 }
 
+// runtimeToEcosystem maps runtime IDs to their corresponding ecosystem categories in ecosystem_domains.json
+// Some runtimes share ecosystems (e.g., bun and deno use node ecosystem domains)
+var runtimeToEcosystem = map[string]string{
+	"node":    "node",
+	"python":  "python",
+	"go":      "go",
+	"java":    "java",
+	"ruby":    "ruby",
+	"dotnet":  "dotnet",
+	"haskell": "haskell",
+	"bun":     "node",   // bun.sh is in the node ecosystem
+	"deno":    "node",   // deno.land is in the node ecosystem
+	"uv":      "python", // uv is a Python package manager
+}
+
+// getDomainsFromRuntimes extracts ecosystem domains based on the specified runtimes
+// Returns a deduplicated list of domains for all specified runtimes
+func getDomainsFromRuntimes(runtimes map[string]any) []string {
+	if len(runtimes) == 0 {
+		return []string{}
+	}
+
+	domainMap := make(map[string]bool)
+
+	for runtimeID := range runtimes {
+		// Look up the ecosystem for this runtime
+		ecosystem, exists := runtimeToEcosystem[runtimeID]
+		if !exists {
+			domainsLog.Printf("No ecosystem mapping for runtime '%s'", runtimeID)
+			continue
+		}
+
+		// Get domains for this ecosystem
+		domains := getEcosystemDomains(ecosystem)
+		if len(domains) > 0 {
+			domainsLog.Printf("Runtime '%s' mapped to ecosystem '%s' with %d domains", runtimeID, ecosystem, len(domains))
+			for _, d := range domains {
+				domainMap[d] = true
+			}
+		}
+	}
+
+	// Convert map to sorted slice
+	result := make([]string, 0, len(domainMap))
+	for domain := range domainMap {
+		result = append(result, domain)
+	}
+	SortStrings(result)
+
+	return result
+}
+
 // GetAllowedDomains returns the allowed domains from network permissions.
 //
 // # Behavior based on network permissions configuration:
@@ -304,6 +356,12 @@ func mergeDomainsWithNetwork(defaultDomains []string, network *NetworkPermission
 // mergeDomainsWithNetworkAndTools combines default domains with NetworkPermissions allowed domains and HTTP MCP server domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func mergeDomainsWithNetworkAndTools(defaultDomains []string, network *NetworkPermissions, tools map[string]any) string {
+	return mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains, network, tools, nil)
+}
+
+// mergeDomainsWithNetworkToolsAndRuntimes combines default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func mergeDomainsWithNetworkToolsAndRuntimes(defaultDomains []string, network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
 	domainMap := make(map[string]bool)
 
 	// Add default domains
@@ -324,6 +382,14 @@ func mergeDomainsWithNetworkAndTools(defaultDomains []string, network *NetworkPe
 	if tools != nil {
 		mcpDomains := extractHTTPMCPDomains(tools)
 		for _, domain := range mcpDomains {
+			domainMap[domain] = true
+		}
+	}
+
+	// Add runtime ecosystem domains (if runtimes are specified)
+	if runtimes != nil {
+		runtimeDomains := getDomainsFromRuntimes(runtimes)
+		for _, domain := range runtimeDomains {
 			domainMap[domain] = true
 		}
 	}
@@ -359,6 +425,12 @@ func GetCopilotAllowedDomainsWithTools(network *NetworkPermissions, tools map[st
 	return mergeDomainsWithNetworkAndTools(CopilotDefaultDomains, network, tools)
 }
 
+// GetCopilotAllowedDomainsWithToolsAndRuntimes merges Copilot default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func GetCopilotAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
+	return mergeDomainsWithNetworkToolsAndRuntimes(CopilotDefaultDomains, network, tools, runtimes)
+}
+
 // GetCodexAllowedDomains merges Codex default domains with NetworkPermissions allowed domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetCodexAllowedDomains(network *NetworkPermissions) string {
@@ -369,6 +441,12 @@ func GetCodexAllowedDomains(network *NetworkPermissions) string {
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetCodexAllowedDomainsWithTools(network *NetworkPermissions, tools map[string]any) string {
 	return mergeDomainsWithNetworkAndTools(CodexDefaultDomains, network, tools)
+}
+
+// GetCodexAllowedDomainsWithToolsAndRuntimes merges Codex default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func GetCodexAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
+	return mergeDomainsWithNetworkToolsAndRuntimes(CodexDefaultDomains, network, tools, runtimes)
 }
 
 // GetClaudeAllowedDomains merges Claude default domains with NetworkPermissions allowed domains
@@ -389,6 +467,12 @@ func GetClaudeAllowedDomainsWithSafeInputs(network *NetworkPermissions, hasSafeI
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetClaudeAllowedDomainsWithTools(network *NetworkPermissions, tools map[string]any) string {
 	return mergeDomainsWithNetworkAndTools(ClaudeDefaultDomains, network, tools)
+}
+
+// GetClaudeAllowedDomainsWithToolsAndRuntimes merges Claude default domains with NetworkPermissions, HTTP MCP server domains, and runtime ecosystem domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func GetClaudeAllowedDomainsWithToolsAndRuntimes(network *NetworkPermissions, tools map[string]any, runtimes map[string]any) string {
+	return mergeDomainsWithNetworkToolsAndRuntimes(ClaudeDefaultDomains, network, tools, runtimes)
 }
 
 // GetBlockedDomains returns the blocked domains from network permissions

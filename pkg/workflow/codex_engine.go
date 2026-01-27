@@ -192,8 +192,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			awfLogLevel = firewallConfig.LogLevel
 		}
 
-		// Get allowed domains (Codex defaults + network permissions + HTTP MCP server URLs)
-		allowedDomains := GetCodexAllowedDomainsWithTools(workflowData.NetworkPermissions, workflowData.Tools)
+		// Get allowed domains (Codex defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
+		allowedDomains := GetCodexAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 
 		// Build AWF arguments: mount points + standard flags + custom args from config
 		var awfArgs []string
@@ -211,11 +211,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"")
 		codexEngineLog.Print("Added workspace mount to AWF")
 
-		// Mount the hostedtoolcache node directory (where actions/setup-node installs everything)
-		// This includes node binary, npm, and all global packages including Codex
-		awfArgs = append(awfArgs, "--mount", "/opt/hostedtoolcache/node:/opt/hostedtoolcache/node:ro")
-
-		codexEngineLog.Print("Added hostedtoolcache node mount to AWF container")
+		// Mount the hostedtoolcache directory (where actions/setup-* installs tools like Go, Node, Python, etc.)
+		// The PATH is already passed via --env-all, so tools installed by setup actions are accessible
+		awfArgs = append(awfArgs, "--mount", "/opt/hostedtoolcache:/opt/hostedtoolcache:ro")
+		codexEngineLog.Print("Added hostedtoolcache mount to AWF container")
 
 		// Mount /opt/gh-aw as readonly for script and configuration files
 		awfArgs = append(awfArgs, "--mount", "/opt/gh-aw:/opt/gh-aw:ro")
@@ -256,6 +255,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		awfImageTag := getAWFImageTag(firewallConfig)
 		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
 		codexEngineLog.Printf("Pinned AWF image tag to %s", awfImageTag)
+
+		// Use ACT agent container for GitHub Actions parity
+		awfArgs = append(awfArgs, "--agent-image", "act")
+		codexEngineLog.Print("Using ACT agent container for GitHub Actions parity")
 
 		// Note: No --tty flag for Codex (it's not a TUI, it outputs to stdout/stderr)
 
