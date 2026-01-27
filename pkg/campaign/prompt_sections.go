@@ -5,7 +5,9 @@ import (
 	"strings"
 )
 
-func appendPromptSection(b *strings.Builder, title, body string) {
+// AppendPromptSection appends a section with a header and body to the builder.
+// This is used to structure campaign orchestrator prompts with clear section boundaries.
+func AppendPromptSection(b *strings.Builder, title, body string) {
 	body = strings.TrimSpace(body)
 	if body == "" {
 		return

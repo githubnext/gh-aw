@@ -123,7 +123,7 @@ Possible reasons:
 ### Check Discovery Configuration
 
 ```yaml
-# From .github/workflows/security-alert-burndown.campaign.md
+# From .github/workflows/security-alert-burndown.md
 scope:
   - githubnext/gh-aw  # Only searching this repo
 

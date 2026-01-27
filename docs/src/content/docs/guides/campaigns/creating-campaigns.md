@@ -2,10 +2,14 @@
 title: Creating Campaigns
 description: How to create agentic campaigns using custom agent, interactive CLI wizard, or manual commands
 banner:
-  content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
+  content: '<strong>⚠️ Deprecated:</strong> Campaign creation for <code>.campaign.md</code> files is deprecated. Use the <code>project</code> field in workflow frontmatter instead.'
 ---
 
-There are three ways to create a campaign:
+:::caution[File format deprecated]
+This guide describes creating campaigns with the deprecated `.campaign.md` file format. For current project tracking, use the `project` field in workflow frontmatter. See [Project Tracking](/gh-aw/reference/frontmatter/#project-tracking-project).
+:::
+
+There are three ways to create a campaign (deprecated format):
 
 ## Recommended: CLI Interactive wizard
 

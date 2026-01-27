@@ -279,6 +279,7 @@ type SkipIfNoMatchConfig struct {
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
 	Name                string
+	WorkflowID          string         // workflow identifier derived from markdown filename (basename without extension)
 	TrialMode           bool           // whether the workflow is running in trial mode
 	TrialLogicalRepo    string         // target repository slug for trial mode (owner/repo)
 	FrontmatterName     string         // name field from frontmatter (for code scanning alert driver default)

@@ -2,8 +2,12 @@
 title: Getting started
 description: Quick start guide for creating and launching agentic campaigns
 banner:
-  content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
+  content: '<strong>⚠️ Deprecated:</strong> The <code>.campaign.md</code> file format is deprecated. Use the <code>project</code> field in workflow frontmatter instead.'
 ---
+
+:::caution[File format deprecated]
+This guide describes the deprecated `.campaign.md` file format. For current project tracking, use the `project` field in workflow frontmatter. See [Project Tracking](/gh-aw/reference/frontmatter/#project-tracking-project).
+:::
 
 Create your first campaign using the custom agent in GitHub Copilot Chat. The agent generates a Project board, campaign spec, and orchestrator workflow based on your goal description.
 
