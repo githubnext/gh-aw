@@ -74,6 +74,8 @@ git commit -m "Initialize repository for GitHub Agentic Workflows"
 git push
 ```
 
+If there is branch protection on the default branch, create a pull request instead and report the link to the pull request.
+
 ## Troubleshooting
 
 ### Installation fails
