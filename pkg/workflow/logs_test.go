@@ -44,10 +44,10 @@ This is a test workflow.`
 
 	result := string(lockContent)
 
-	// Log capture is now done inline with tee during execution
-	// No longer uses separate "Print agent log" step
+	// Log capture is now done using Claude's --debug-file flag
+	// This provides cleaner, more reliable log capture than shell redirection
 	expected := []string{
-		"2>&1 | tee /tmp/gh-aw/agent-stdio.log",
+		"--debug-file /tmp/gh-aw/agent-stdio.log",
 	}
 
 	for _, expected := range expected {
