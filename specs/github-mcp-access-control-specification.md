@@ -232,7 +232,11 @@ GitHub MCP Server Access Control configuration is specified in the `tools.github
 tools:
   github:
     mode: "remote"                    # or "local"
-    toolsets: [default]
+    # GitHub MCP Server Configuration (existing features)
+    toolsets: [default]               # OPTIONAL: Toolset-based tool selection
+    tools:                            # OPTIONAL: Individual tool filtering (alternative to toolsets)
+      - "get_repository"
+      - "list_issues"
     # Access Control Extensions (this specification)
     allowed-repos:                    # OPTIONAL: Repository allowlist
       - "owner/repo"                  # Exact match
@@ -245,9 +249,77 @@ tools:
     allow-private-repos: false        # OPTIONAL: Private repo access (default: true)
 ```
 
-### 4.2 Field Definitions
+### 4.2 GitHub MCP Server Configuration Fields
 
-#### 4.2.1 allowed-repos
+This specification extends the GitHub MCP server configuration, which includes the following existing fields defined in the [GitHub MCP Server Documentation](/gh-aw/skills/github-mcp-server/):
+
+#### 4.2.1 toolsets (Existing Feature)
+
+**Type**: Array of strings  
+**Required**: No  
+**Default**: `[context, repos, issues, pull_requests]` (default toolsets)
+
+The `toolsets` field enables groups of related GitHub MCP tools using predefined toolset names. This is the **recommended** approach for configuring GitHub MCP server tool access.
+
+**Valid Toolset Values**:
+- `default` - Enables recommended default toolsets (context, repos, issues, pull_requests)
+- `all` - Enables all available toolsets
+- Individual toolsets: `context`, `repos`, `issues`, `pull_requests`, `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `labels`, `notifications`, `orgs`, `projects`, `secret_protection`, `security_advisories`, `stargazers`, `users`, `search`
+
+**Best Practice**: Use `toolsets` rather than individual `tools` for stability across GitHub MCP server versions.
+
+**Example**:
+```yaml
+toolsets: [default]           # Recommended default toolsets
+toolsets: [repos, issues]     # Specific toolsets only
+toolsets: [all]               # All available toolsets
+```
+
+**See**: [GitHub MCP Server Documentation - Available Toolsets](/gh-aw/skills/github-mcp-server/#available-toolsets) for complete toolset reference.
+
+#### 4.2.2 tools (Existing Feature)
+
+**Type**: Array of strings  
+**Required**: No  
+**Default**: Not specified (when omitted, uses `toolsets` configuration)
+
+The `tools` field (also known as `allowed` in some contexts) enables specific individual GitHub MCP tools by name. This provides fine-grained control over which tools are available to the AI agent.
+
+**Behavior**:
+- When both `toolsets` and `tools` are specified: `tools` acts as a filter, restricting the tools enabled by `toolsets`
+- When only `tools` is specified: Only the listed tools are available
+- When neither is specified: Default toolsets are used
+
+**Constraints**:
+- Tool names MUST be valid GitHub MCP server tool names
+- Tool names may change between GitHub MCP server versions (prefer `toolsets` for stability)
+- Empty array `[]` is valid and disables all tools
+
+**Example**:
+```yaml
+# Individual tool selection (not recommended for new workflows)
+tools:
+  - "get_repository"
+  - "get_file_contents"
+  - "list_issues"
+  - "create_issue"
+
+# Combined with toolsets (tools acts as filter)
+toolsets: [repos, issues]
+tools:
+  - "get_repository"    # Only this tool from repos toolset
+  - "list_issues"       # Only this tool from issues toolset
+```
+
+**Note**: The `toolsets` approach is **strongly recommended** over individual `tools` configuration for new workflows. Tool names may change between GitHub MCP server versions, but toolsets provide a stable API.
+
+**See**: [GitHub MCP Server Documentation - Migration from Allowed to Toolsets](/gh-aw/skills/github-mcp-server/#migration-from-allowed-to-toolsets) for migration guidance.
+
+### 4.3 Access Control Extension Fields
+
+This section defines the three new access control fields introduced by this specification:
+
+#### 4.3.1 allowed-repos
 
 **Type**: Array of strings  
 **Required**: No  
@@ -276,7 +348,7 @@ allowed-repos:
   - "*/infrastructure"         # Any infrastructure repo
 ```
 
-#### 4.2.2 allowed-roles
+#### 4.3.2 allowed-roles
 
 **Type**: Array of strings  
 **Required**: No  
@@ -314,7 +386,7 @@ allowed-roles:
   - "maintain"   # Repository maintainers
 ```
 
-#### 4.2.3 allow-private-repos
+#### 4.3.3 allow-private-repos
 
 **Type**: Boolean  
 **Required**: No  
@@ -336,11 +408,43 @@ The `allow-private-repos` field controls whether the GitHub MCP server can acces
 allow-private-repos: false   # Restrict to public repositories only
 ```
 
-### 4.3 Configuration Validation
+### 4.4 Relationship Between Tool Selection and Access Control
+
+The GitHub MCP server configuration combines tool selection (`toolsets` and `tools`) with access control (`allowed-repos`, `allowed-roles`, `allow-private-repos`). These mechanisms operate independently but complement each other:
+
+**Tool Selection** (existing GitHub MCP feature):
+- Controls **which operations** the agent can perform (e.g., read files, create issues)
+- Configured via `toolsets` (recommended) or `tools` fields
+- Filters available MCP tools before they reach the agent
+
+**Access Control** (this specification):
+- Controls **which repositories** the agent can access
+- Controls **permission requirements** for repository access
+- Controls **visibility requirements** (public vs private)
+- Enforced at runtime when tools are invoked
+
+**Combined Behavior**:
+```yaml
+tools:
+  github:
+    toolsets: [repos, issues]          # Agent can use repo and issue tools
+    allowed-repos: ["myorg/*"]         # But only on myorg repositories
+    allowed-roles: ["write", "admin"]  # And only where user has write/admin
+    allow-private-repos: false         # And only public repositories
+```
+
+**Evaluation Order**:
+1. Tool selection filters available MCP tools → agent sees only enabled tools
+2. Agent invokes a tool with repository parameter
+3. Access control evaluates repository, role, and visibility → allows or denies
+
+**Key Principle**: Tool selection determines **what operations** are possible; access control determines **where operations** are permitted.
+
+### 4.5 Configuration Validation
 
 Implementations MUST validate access control configuration at compilation time. The following validation rules apply:
 
-#### 4.3.1 Repository Pattern Validation
+#### 4.5.1 Repository Pattern Validation
 
 **Rule**: Each pattern in `allowed-repos` MUST match one of these formats:
 - Exact: `{owner}/{repo}` where both are non-empty alphanumeric with hyphens
@@ -371,7 +475,7 @@ Expected format: 'owner/repo', 'owner/*', '*/repo', or '*/*'.
 Pattern must contain exactly one slash with non-empty owner and repo segments.
 ```
 
-#### 4.3.2 Role Validation
+#### 4.5.2 Role Validation
 
 **Rule**: Each role in `allowed-roles` MUST be one of: `admin`, `maintain`, `write`, `triage`, `read`
 
@@ -396,7 +500,7 @@ Valid roles are: admin, maintain, write, triage, read.
 See https://docs.github.com/en/organizations/managing-access-to-your-organizations-repositories/repository-roles-for-an-organization
 ```
 
-#### 4.3.3 Type Validation
+#### 4.5.3 Type Validation
 
 **Rule**: Configuration fields MUST have correct types:
 - `allowed-repos`: array of strings
@@ -416,7 +520,7 @@ allowed-roles: ["write", 123]        # All elements must be strings
 allow-private-repos: "false"         # Must be boolean
 ```
 
-#### 4.3.4 Empty Array Validation
+#### 4.5.4 Empty Array Validation
 
 **Rule**: Neither `allowed-repos` nor `allowed-roles` MAY be empty arrays
 
@@ -1345,6 +1449,31 @@ tools:
 ```
 
 **Use Case**: Trusted internal workflows, maximum flexibility
+
+#### A.7 Fine-Grained Tool Restriction with Access Control
+
+Combine individual tool selection with repository access control:
+
+```yaml
+tools:
+  github:
+    mode: "remote"
+    # Fine-grained tool selection (alternative to toolsets)
+    tools:
+      - "get_repository"
+      - "get_file_contents"
+      - "list_issues"
+    # Access control limits where these tools can be used
+    allowed-repos:
+      - "docs-org/*"
+    allowed-roles:
+      - "read"
+    allow-private-repos: false
+```
+
+**Use Case**: Highly restricted documentation analysis agent with minimal tool access
+
+**Note**: Using `toolsets` is recommended over individual `tools` for most workflows. See [GitHub MCP Server Documentation](/gh-aw/skills/github-mcp-server/) for details.
 
 ### Appendix B: Error Messages
 
