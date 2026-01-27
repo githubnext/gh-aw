@@ -31,50 +31,13 @@ Let's explore 9 operational patterns that make agents work in practice!
 
 ## Pattern 1: ChatOps - Command-Driven Interactions
 
-These workflows are triggered by slash commands (`/review`, `/deploy`, `/fix`) in issue or PR comments. This creates an interactive conversation interface where team members can invoke powerful AI capabilities with simple commands.
-
-Use these when:
-
-- Code reviews on demand
-- Performance investigations
-- Bug fixes and optimizations
-- Research and documentation requests
-- Any operation requiring user authorization
-
-These workflows do the following:
-
-1. User comments `/command` on an issue or PR
-2. Workflow triggers on `issue_comment` or `pull_request_comment` event
-3. Comment gets parsed for command and parameters
-4. Role-gating validates user permissions
-5. Agent executes and responds in thread
-6. Cache-memory prevents duplicate work
+Workflows triggered by slash commands (`/review`, `/deploy`, `/fix`) in issue or PR comments create an interactive interface where team members invoke AI capabilities through simple commands. When a user comments `/command`, the workflow triggers on `issue_comment` events, parses the command with parameters, validates permissions through role-gating, executes the agent, and responds in the thread. Cache-memory prevents duplicate work.
 
 ### Example: Grumpy Reviewer
 
-The [`grumpy-reviewer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/grumpy-reviewer.md) workflow is a perfect example of this pattern:
+The [`grumpy-reviewer`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/grumpy-reviewer.md) workflow triggers on `/grumpy` PR comments to perform critical code reviews with a distinctive personality, using cache memory to avoid duplicate feedback and role-gating to prevent abuse.
 
-- Triggered by `/grumpy` on PR comments
-- Performs critical code review with distinctive personality
-- Uses cache memory to avoid duplicate feedback
-- Role-gated to prevent abuse
-- Responds directly in PR thread
-
-The key benefits are:
-
-- Natural, conversational interface
-- Role-based access control built-in
-- Context-aware (knows which issue/PR)
-- Immediate feedback
-- Audit trail in comments
-
-Here are our tips!
-
-- Use clear, memorable command names
-- Document commands in README
-- Implement role-gating for sensitive operations
-- Add help text for `/command help`
-- Use cache-memory to track command history
+This pattern provides a natural conversational interface with built-in role-based access control, immediate context-aware feedback, and an audit trail in comments. Use clear command names, document them in your README, implement role-gating for sensitive operations, and add help text for `/command help`.
 
 **Learn more**: [ChatOps Examples](https://githubnext.github.io/gh-aw/examples/comment-triggered/chatops/)
 
@@ -82,47 +45,13 @@ Here are our tips!
 
 ## Pattern 2: DailyOps - Scheduled Incremental Progress
 
-Workflows that run on weekday schedules to make small, daily progress toward large goals. Instead of overwhelming teams with major changes, work happens automatically in manageable pieces that are easy to review and integrate.
-
-Use these when:
-
-- Test coverage improvements
-- Performance optimization
-- Documentation updates
-- Technical debt reduction
-- Dependency management
-
-These workflows do the following:
-
-1. Workflow runs on schedule (e.g., `0 9 * * 1-5` for weekdays at 9am)
-2. Agent checks state from previous runs
-3. Makes incremental progress (1-3 small changes)
-4. Creates PR or issue with results
-5. Next day, continues from where it left off
+Workflows running on weekday schedules (e.g., `0 9 * * 1-5`) make small daily progress toward large goals like test coverage, performance optimization, documentation updates, or technical debt reduction. The agent checks state from previous runs, makes 1-3 incremental changes, creates a PR or issue, and continues the next day from where it left off. This avoids overwhelming teams with major changes while building sustainable momentum over time.
 
 ### Example: Daily Test Improver
 
-The [`daily-test-improver`](https://github.com/githubnext/agentics/blob/main/workflows/daily-test-improver.md) workflow systematically identifies coverage gaps and implements new tests over multiple days:
+The [`daily-test-improver`](https://github.com/githubnext/agentics/blob/main/workflows/daily-test-improver.md) workflow systematically identifies coverage gaps and implements new tests over multiple days: research coverage gaps and create plan (Day 1-2), set up test infrastructure (Day 3-4), then implement tests incrementally with phased approval (Day 5+).
 
-**Phase 1 (Day 1-2)**: Research coverage gaps and create plan  
-**Phase 2 (Day 3-4)**: Set up test infrastructure  
-**Phase 3 (Day 5+)**: Implement tests incrementally with phased approval
-
-The key benefits are:
-
-- Sustainable, non-disruptive improvements
-- Easy to review small changes
-- Builds momentum over time
-- Human checkpoints between phases
-- Natural task breaking
-
-Here are our tips!
-
-- Use repo-memory for state persistence
-- Limit changes per run (1-3 items)
-- Create daily PRs with descriptive titles
-- Include progress reports in PR descriptions
-- Allow human intervention at any phase
+Use repo-memory for state persistence, limit changes per run (1-3 items), create daily PRs with descriptive titles including progress reports, and allow human intervention at any phase.
 
 **Learn more**: [DailyOps Examples](https://githubnext.github.io/gh-aw/examples/scheduled/dailyops/)
 
@@ -130,49 +59,13 @@ Here are our tips!
 
 ## Pattern 3: IssueOps - Event-Driven Issue Automation
 
-Workflows that transform GitHub issues into automation triggers, automatically analyzing, categorizing, and responding to issues as they're created or updated. Uses safe outputs to ensure secure automated responses.
-
-Use these when:
-
-- Automatic issue triage
-- Issue classification and labeling
-- Template validation
-- Initial response automation
-- Related issue linking
-
-These workflows do the following:
-
-1. Workflow triggers on `issues: opened` or `issues: edited`
-2. Agent analyzes issue content
-3. Determines appropriate labels, assignees, projects
-4. Uses safe outputs to apply changes
-5. Optional: Posts welcome comment or requests clarification
+Workflows triggered on `issues: opened` or `issues: edited` automatically analyze, categorize, and respond to issues using safe outputs for secure automated responses. The agent analyzes issue content, determines appropriate labels/assignees/projects, applies changes via safe outputs, and optionally posts welcome comments or requests clarification.
 
 ### Example: Issue Triage Agent
 
-The [`issue-triage-agent`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-triage-agent.md) automatically labels and categorizes new issues:
+The [`issue-triage-agent`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/issue-triage-agent.md) analyzes issue title and body to apply relevant labels (bug, feature, documentation), estimate priority, route to appropriate teams, and post helpful resources. This provides immediate consistent categorization that reduces manual triage burden and improves issue quality over time.
 
-- Analyzes issue title and body
-- Applies relevant labels (bug, feature, documentation, etc.)
-- Estimates priority based on content
-- Routes to appropriate team
-- Posts helpful resources
-
-The key benefits are:
-
-- Immediate issue processing
-- Consistent categorization
-- Reduces manual triage burden
-- Improves issue quality over time
-- Creates audit trail
-
-Here are our tips!
-
-- Use safe outputs for all modifications
-- Include confidence scores in labels
-- Allow manual override
-- Track triage accuracy
-- Update classification rules based on feedback
+Use safe outputs for all modifications, include confidence scores in labels, allow manual overrides, and track triage accuracy to update classification rules based on feedback.
 
 **Learn more**: [IssueOps Examples](https://githubnext.github.io/gh-aw/examples/issue-pr-events/issueops/)
 
@@ -180,48 +73,9 @@ Here are our tips!
 
 ## Pattern 4: LabelOps - Label-Driven Workflow Automation 🏷️
 
-Workflows that use GitHub labels as triggers, metadata, and state markers. Responds to specific label changes with filtering to activate only for relevant labels while maintaining secure automated responses.
+Workflows triggered on `issues: labeled` or `pull_request: labeled` use GitHub labels as triggers, metadata, and state markers. The workflow filters for specific labels, takes label-specific actions, and updates state via additional labels or project fields. For example, when `priority: critical` is added, the workflow notifies team leads, adds to urgent project board, creates daily reminders, and updates SLA tracking.
 
-Use these when:
-
-- Priority escalation
-- Workflow routing
-- State machine implementation
-- Feature flagging
-- Team assignment
-
-These workflows do the following:
-
-1. Workflow triggers on `issues: labeled` or `pull_request: labeled`
-2. Filter checks for specific label(s)
-3. Agent takes label-specific action
-4. Updates state via additional labels or project fields
-5. May create follow-up issues or notifications
-
-### Example: Priority Escalation
-
-When `priority: critical` label is added:
-
-- Notifies team leads
-- Adds to urgent project board
-- Creates daily reminder
-- Updates SLA tracking
-
-The key benefits are:
-
-- Visual state representation
-- User-friendly trigger mechanism
-- Easy to understand workflows
-- GitHub-native pattern
-- Queryable via label filters
-
-Here are our tips!
-
-- Use consistent label naming conventions
-- Document label meanings
-- Implement label hierarchies
-- Avoid label proliferation
-- Use label descriptions
+This GitHub-native pattern provides visual state representation with user-friendly triggers that are easy to understand and queryable via label filters. Use consistent naming conventions, document label meanings, implement label hierarchies, and avoid label proliferation.
 
 **Learn more**: [LabelOps Examples](https://githubnext.github.io/gh-aw/examples/issue-pr-events/labelops/)
 
@@ -229,49 +83,9 @@ Here are our tips!
 
 ## Pattern 5: ProjectOps - AI-Powered Project Board Management 📊
 
-Workflows that keep GitHub Projects v2 boards up to date using AI to analyze issues/PRs and intelligently decide routing, status, priority, and field values. Safe output architecture ensures security while automating project management.
+Workflows triggered on issue/PR events keep GitHub Projects v2 boards up to date using AI to analyze content and intelligently decide routing, status, priority, and field values. The agent determines appropriate projects/status/fields and uses safe outputs to update boards and notify stakeholders. When issues are created, AI determines which projects they belong to, sets initial status (Backlog, To Do), estimates size/effort, assigns priority, and sets sprint/milestone if applicable.
 
-Use these when:
-
-- Automatic project board updates
-- Sprint planning assistance
-- Priority management
-- Status tracking
-- Resource allocation
-
-These workflows do the following:
-
-1. Workflow triggers on issue/PR events
-2. Agent analyzes content and context
-3. Determines appropriate project, status, fields
-4. Uses safe outputs to update project
-5. Notifies relevant stakeholders
-
-### Example: Automatic Board Population
-
-When issue is created:
-
-- AI determines which project(s) it belongs to
-- Sets initial status (Backlog, To Do, etc.)
-- Estimates size/effort
-- Assigns priority
-- Sets sprint/milestone if applicable
-
-The key benefits are:
-
-- Always up-to-date project boards
-- Reduces manual project management
-- Consistent field population
-- AI-powered classification
-- Integrates with existing workflows
-
-Here are our tips!
-
-- Use project field types effectively
-- Define clear status transitions
-- Implement confidence thresholds
-- Allow manual overrides
-- Track automation accuracy
+This provides always up-to-date project boards with consistent AI-powered classification that integrates with existing workflows. Use project field types effectively, define clear status transitions, implement confidence thresholds, allow manual overrides, and track automation accuracy.
 
 **Learn more**: [ProjectOps Examples](https://githubnext.github.io/gh-aw/examples/issue-pr-events/projectops/)
 
@@ -279,62 +93,13 @@ Here are our tips!
 
 ## Pattern 6: ResearchPlanAssign - Scaffolded Improvement Strategy 🔬
 
-A three-phase strategy that keeps developers in control while leveraging AI agents for systematic code improvements. Provides clear decision points at each phase: Research (investigate), Plan (break down work), Assign (execute).
-
-Use these when:
-
-- Large refactoring initiatives
-- Code quality campaigns
-- Architecture improvements
-- Systematic cleanup projects
-- Knowledge transfer projects
-
-These workflows do the following:
-
-**Phase 1: Research**
-
-- Agent analyzes codebase
-- Identifies improvement opportunities
-- Creates research discussion with findings
-- Human reviews and approves direction
-
-**Phase 2: Plan**
-
-- Agent creates detailed implementation plan
-- Breaks work into manageable issues
-- Estimates effort and dependencies
-- Human reviews and prioritizes
-
-**Phase 3: Assign**
-
-- Issues assigned to agents or developers
-- Work proceeds incrementally
-- Progress tracked via issues/PRs
-- Human reviews each completion
+A three-phase strategy that keeps developers in control while leveraging AI agents for systematic code improvements. **Research**: Agent analyzes codebase, identifies opportunities, creates research discussion, human reviews. **Plan**: Agent creates detailed implementation plan breaking work into manageable issues with effort estimates, human reviews and prioritizes. **Assign**: Issues assigned to agents/developers, work proceeds incrementally, progress tracked via issues/PRs, human reviews each completion.
 
 ### Example: Duplicate Code Detection
 
-The [`duplicate-code-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/duplicate-code-detector.md) uses ResearchPlanAssign:
+The [`duplicate-code-detector`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/duplicate-code-detector.md) uses Serena MCP for semantic analysis to create a report (Research), creates well-scoped issues (max 3 per run) with refactoring strategies (Plan), then [assigns to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot) via `assignees: copilot` since fixes are straightforward (Assign).
 
-**Research**: Uses Serena MCP for semantic analysis, creates report
-**Plan**: Creates well-scoped issues (max 3 per run) with refactoring strategies
-**Assign**: Creates issues and [assigns to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot) (via `assignees: copilot`) since fixes are straightforward
-
-The key benefits are:
-
-- Human control at decision points
-- Prevents runaway automation
-- Clear work breakdown
-- Incremental progress
-- Knowledge captured in issues
-
-Here are our tips!
-
-- Use discussions for research phase
-- Create issues for plan phase
-- Track assignments explicitly
-- Include acceptance criteria
-- Review and iterate
+This prevents runaway automation by providing human control at decision points while enabling clear work breakdown and incremental progress. Use discussions for research, create issues for planning, track assignments explicitly, and include acceptance criteria.
 
 **Learn more**: [ResearchPlanAssign Guide](https://githubnext.github.io/gh-aw/guides/researchplanassign/)
 
@@ -342,50 +107,13 @@ Here are our tips!
 
 ## Pattern 7: MultiRepoOps - Cross-Repository Coordination 🔗
 
-Workflows that coordinate operations across multiple GitHub repositories using cross-repository safe outputs and secure authentication. Enables feature synchronization, hub-and-spoke tracking, organization-wide enforcement, and upstream/downstream workflows.
-
-Use these when:
-
-- Organization-wide policies
-- Dependency updates across repos
-- Synchronized feature rollouts
-- Security compliance enforcement
-- Cross-repo health monitoring
-
-These workflows do the following:
-
-1. Workflow runs in "hub" repository
-2. Uses GitHub App or PAT for authentication
-3. Queries multiple repositories
-4. Analyzes cross-repo patterns
-5. Uses safe outputs to create issues/PRs in target repos
-6. Aggregates results back to hub
+Workflows running in a "hub" repository coordinate operations across multiple repositories using GitHub App or PAT authentication. The workflow queries multiple repositories, analyzes cross-repo patterns, uses safe outputs to create issues/PRs in target repos, and aggregates results back to the hub.
 
 ### Example: Org Health Report
 
-The [`org-health-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/org-health-report.md) analyzes health metrics across all organization repositories:
+The [`org-health-report`](https://github.com/githubnext/gh-aw/tree/2c1f68a721ae7b3b67d0c2d93decf1fa5bcf7ee3/.github/workflows/org-health-report.md) checks for outdated dependencies, validates security policies, monitors CI health, creates issues in problematic repos, and generates org-wide reports. This provides organization-wide visibility with consistent policy enforcement that scales to many repositories.
 
-- Checks for outdated dependencies
-- Validates security policies
-- Monitors CI health
-- Creates issues in problematic repos
-- Generates org-wide report
-
-The key benefits are:
-
-- Organization-wide visibility
-- Consistent policy enforcement
-- Centralized coordination
-- Reduces duplication
-- Scales to many repos
-
-Here are our tips!
-
-- Use GitHub Apps for authentication
-- Implement rate limiting
-- Respect repository permissions
-- Batch operations efficiently
-- Monitor cross-repo dependencies
+Use GitHub Apps for authentication, implement rate limiting, respect repository permissions, batch operations efficiently, and monitor cross-repo dependencies.
 
 **Learn more**: [MultiRepoOps Guide](https://githubnext.github.io/gh-aw/guides/multirepoops/)
 
@@ -393,38 +121,9 @@ Here are our tips!
 
 ## Pattern 8: SideRepoOps - Isolated Automation Infrastructure 🏗️
 
-Run workflows from a separate "side" repository that targets your main codebase, keeping AI-generated issues, comments, and workflow runs isolated from production code. Provides an easy way to get started with agentic workflows without cluttering your main repository.
+Run workflows from a separate "side" repository that targets your main codebase, keeping AI-generated issues, comments, and workflow runs isolated from production code. For example, workflows in `company/product-automation` analyze `company/product` codebase and create issues/PRs in `product` when appropriate, but keep noisy discussions in `product-automation`.
 
-Use these when:
-
-- Experimenting with agents
-- High-volume workflow runs
-- Sensitive or noisy operations
-- Testing before production
-- Organizational separation
-
-### Example: Separate Analysis Repository
-
-Main repo: `company/product` (production code)
-Side repo: `company/product-automation` (workflows)
-
-Workflows in `product-automation` analyze `product` codebase and create issues/PRs in `product` when appropriate, but keep noisy discussions in `product-automation`.
-
-The key benefits are:
-
-- Keeps main repo clean
-- Easy to experiment
-- Clear separation of concerns
-- Can be more permissive in side repo
-- Easy to disable all automation
-
-Here are our tips!
-
-- Use GitHub Apps for cross-repo access
-- Document the relationship clearly
-- Consider visibility (public vs private)
-- Set up appropriate notifications
-- Plan for eventual migration if successful
+This keeps the main repo clean with clear separation of concerns, makes experimentation easy, allows more permissive settings in the side repo, and enables quick disabling of all automation. Use GitHub Apps for cross-repo access, document the relationship clearly, consider visibility (public vs private), and plan for eventual migration if successful.
 
 **Learn more**: [SideRepoOps Guide](https://githubnext.github.io/gh-aw/guides/siderepoops/)
 
@@ -432,24 +131,7 @@ Here are our tips!
 
 ## Pattern 9: TrialOps - Safe Workflow Validation 🧪
 
-A specialized testing pattern that extends SideRepoOps for validating workflows in temporary trial repositories before production deployment. Creates isolated private repositories where workflows execute and capture safe outputs without affecting actual codebases.
-
-Use these when:
-
-- Testing new workflows
-- Validating workflow changes
-- Training and demonstrations
-- Compliance verification
-- Regression testing
-
-These workflows do the following:
-
-1. Create temporary private repository
-2. Install workflow under test
-3. Populate with test data
-4. Execute workflow
-5. Capture and validate outputs
-6. Delete trial repo or keep for reference
+A specialized testing pattern that extends SideRepoOps for validating workflows in temporary trial repositories before production deployment. Creates isolated private repositories, installs the workflow under test, populates with test data, executes the workflow, captures and validates outputs, then deletes the trial repo or keeps for reference.
 
 **Learn more**: [TrialOps Guide](https://githubnext.github.io/gh-aw/guides/trialops/)
 
