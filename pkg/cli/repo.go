@@ -35,8 +35,7 @@ func getCurrentRepoSlugUncached() (string, error) {
 
 	// Try gh CLI first (most reliable)
 	repoLog.Print("Attempting to get repository slug via gh CLI")
-	cmd := workflow.ExecGH("repo", "view", "--json", "owner,name", "--jq", ".owner.login + \"/\" + .name")
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Fetching repository info...", "repo", "view", "--json", "owner,name", "--jq", ".owner.login + \"/\" + .name")
 	if err == nil {
 		repoSlug := strings.TrimSpace(string(output))
 		if repoSlug != "" {
@@ -51,14 +50,14 @@ func getCurrentRepoSlugUncached() (string, error) {
 
 	// Fallback to git remote parsing if gh CLI is not available or fails
 	repoLog.Print("gh CLI failed, falling back to git remote parsing")
-	cmd = exec.Command("git", "remote", "get-url", "origin")
-	output, err = cmd.Output()
+	gitCmd := exec.Command("git", "remote", "get-url", "origin")
+	gitOutput, err := gitCmd.Output()
 	if err != nil {
 		repoLog.Printf("Failed to get git remote URL: %v", err)
 		return "", fmt.Errorf("failed to get current repository (gh CLI and git remote both failed): %w", err)
 	}
 
-	remoteURL := strings.TrimSpace(string(output))
+	remoteURL := strings.TrimSpace(string(gitOutput))
 	repoLog.Printf("Parsing git remote URL: %s", remoteURL)
 
 	// Parse GitHub repository from remote URL

@@ -82,7 +82,7 @@ func TestNewAddCommand(t *testing.T) {
 }
 
 func TestAddWorkflows_EmptyWorkflows(t *testing.T) {
-	err := AddWorkflows([]string{}, 1, false, "", "", false, "", false, false, false, "", false, "")
+	_, err := AddWorkflows([]string{}, 1, false, "", "", false, "", false, false, false, "", false, "")
 	require.Error(t, err, "Should error when no workflows are provided")
 	assert.Contains(t, err.Error(), "at least one workflow", "Error should mention missing workflow")
 }

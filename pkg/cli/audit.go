@@ -445,8 +445,7 @@ func auditJobRun(runID int64, jobID int64, stepNumber int, owner, repo, hostname
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Executing: gh %s", strings.Join(args, " "))))
 	}
 
-	cmd := workflow.ExecGH(args...)
-	output, err := cmd.CombinedOutput()
+	output, err := workflow.RunGHCombined("Fetching job logs...", args...)
 	if err != nil {
 		return fmt.Errorf("failed to fetch job logs: %w\nOutput: %s", err, string(output))
 	}
@@ -622,8 +621,7 @@ func fetchWorkflowRunMetadata(runID int64, owner, repo, hostname string, verbose
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Executing: gh %s", strings.Join(args, " "))))
 	}
 
-	cmd := workflow.ExecGH(args...)
-	output, err := cmd.CombinedOutput()
+	output, err := workflow.RunGHCombined("Fetching run metadata...", args...)
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(string(output)))

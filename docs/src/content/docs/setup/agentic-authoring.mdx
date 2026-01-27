@@ -1,47 +1,36 @@
 ---
-title: Agentic Authoring of Workflows
-description: How to create agentic workflows using GitHub Copilot through the GitHub web interface to author workflows in natural language.
+title: Authoring Workflows with AI
+description: How to create agentic workflows using AI agents (Copilot, Claude, Codex) from the GitHub web interface, terminal, or VS Code to author workflows in natural language.
 sidebar:
   order: 1
 ---
 
 import CopyEntireFileButton from '../../../components/CopyEntireFileButton.astro';
 
-This experience uses GitHub Copilot to create powerful automation workflows using natural language. Everything can be done through the **GitHub web interface** - no local development environment or VS Code is required.
+One way to author new agentic workflows is to use AI under your guidance. You can create powerful automation workflows using natural language, with the flexibility to choose the tools that fit your workflow.
 
-## Quick Start
+In this guide, we show you how to add the "agentic-workflows" agent to the GitHub Copilot support in your repository. Once installed the agent can be used from the GitHub web interface (github.com), your terminal, or in VS Code chat.
 
-Initialize your repository for agentic workflows by starting a GitHub Copilot agent session in **github.com** with this prompt:
+## Step 1: Prepare Your Repository
+
+Go to the "Agents" tab in your repository on https://github.com and use this prompt:
 
 ```text wrap
-Initialize the repository for GitHub Agentic Workflows using https://github.com/githubnext/gh-aw/blob/main/copilot-setup.md
+Initialize this repository for GitHub Agentic Workflows using https://github.com/githubnext/gh-aw/blob/main/copilot-setup.md
 ```
 
 This will guide the Copilot agent to:
 1. Install the `gh-aw` CLI extension
 2. Run `gh aw init` to create necessary configuration files
-3. Commit and push the changes
+3. Commit and push the changes, or create a pull request
 
 After initialization, you'll have:
-- `.github/aw/github-agentic-workflows.instructions.md` - Custom Copilot instructions for better workflow authoring
-- `.github/agents/agentic-workflows.agent.md` - [Agent file](/gh-aw/reference/glossary/#agent-files) (custom AI instructions) for the `/agent agentic-workflows` command in Copilot Chat
+- `.github/agents/agentic-workflows.agent.md` - [A Copilot file](/gh-aw/reference/glossary/#agent-files) (custom AI instructions) for the `/agent agentic-workflows` command in Copilot Chat
 - Additional configuration files for workflow authoring
 
-## What is the `agentic-workflows` agent?
+## Step 2: Create an agentic workflow using AI
 
-`.github/agents/agentic-workflows.agent.md` is a unified dispatcher agent that routes your workflow requests to specialized prompts based on your intent. An [agent file](/gh-aw/reference/glossary/#agent-files) is a specialized instruction set that customizes AI behavior for specific tasks.
-
-Use the agent when you want to:
-- **Create** a new agentic workflow using natural language
-- **Debug** an existing workflow to investigate failures or analyze logs
-- **Update** an existing workflow to add features or modify behavior
-- **Upgrade** workflows to new gh-aw versions or fix deprecations
-
-The agent intelligently determines your intent and loads the appropriate specialized prompt for your task.
-
-## How to use the `agentic-workflows` agent
-
-In GitHub Copilot Chat (on github.com or in VS Code), or in the interactive Copilot CLI session, invoke the agent with the `/agent` command and specify your intent:
+Go to https://github.com/copilot, select your repository and use this prompt:
 
 ```sh wrap
 # Create a new workflow
@@ -59,25 +48,97 @@ In GitHub Copilot Chat (on github.com or in VS Code), or in the interactive Copi
 
 The agent will understand your intent and route to the appropriate specialized prompt for your task.
 
+## Upgrading Agentic Workflows
+
+Keep your agentic workflows up-to-date with the latest `gh-aw` versions and features using the unified agentic-workflows agent:
+
+```sh wrap
+/agent agentic-workflows upgrade all workflows to latest version
+```
+
+The agent will:
+- Detect all workflows in your repository
+- Check for available updates to `gh-aw` version
+- Update deprecated frontmatter configurations
+- Fix compatibility issues with new features
+- Recompile workflows after changes
+- Generate a summary of upgraded workflows
+
+## Importing Workflows
+
+Import existing workflows from GitHub repositories using natural language prompts. The agentic-workflows agent can fetch, install, and configure workflows from any accessible GitHub repository:
+
+```sh wrap
+/agent agentic-workflows import workflow from https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
+```
+
+The agent will:
+- Fetch the workflow file from the GitHub URL
+- Install it in your `.github/workflows/` directory
+- Update frontmatter with source tracking
+- Configure necessary secrets and permissions
+- Compile the workflow to `.lock.yml`
+- Commit and push changes
+
+When importing, you can specify customizations:
+
+```sh wrap
+# Import and change engine
+/agent agentic-workflows import issue-triage from githubnext/agentics and use claude engine
+
+# Import and add tools
+/agent agentic-workflows import pr-review from owner/repo and add web-fetch tool
+```
+
+## Debugging Agentic Workflows
+
+When workflows fail or behave unexpectedly, use the agentic-workflows agent to investigate and diagnose issues:
+
+```sh wrap
+/agent agentic-workflows debug why is my issue-triage workflow failing?
+```
+
+The debugging agent will:
+- Download and analyze workflow run logs
+- Identify errors and warnings
+- Check tool and permission configurations
+- Review MCP server connectivity
+- Examine safe-input and safe-output configurations
+- Suggest specific fixes for identified issues
+
+You can investigate a specific workflow run using its ID or URL:
+
+```sh wrap
+# Debug by run ID
+/agent agentic-workflows debug run 1234567890
+
+# Debug from GitHub Actions URL
+/agent agentic-workflows debug https://github.com/owner/repo/actions/runs/1234567890
+```
+
+The agent can help with various debugging scenarios:
+
+```sh wrap
+# Permission errors
+/agent agentic-workflows debug getting 403 errors in my workflow
+
+# Missing tools
+/agent agentic-workflows debug workflow says tool not found
+
+# Network access issues
+/agent agentic-workflows debug workflow cannot access external API
+
+# Safe-output problems
+/agent agentic-workflows debug agent output not creating issues
+```
+
 ## Other Agents and Chats
 
 The agent file can be loaded into other AI chat interfaces that support custom instructions. The agent is designed to be compatible with various AI tools, although some features might require configuration and you'll need to allow running the compiler.
 
-## Dictating Agentic Workflows
+## Creating Agentic Workflows with ChatGPT
 
-When creating agentic workflows using speech-to-text (dictation), you may encounter terminology mismatches and formatting issues common to voice recognition systems. To help correct these issues, use the [dictation instructions prompt](https://raw.githubusercontent.com/githubnext/gh-aw/main/skills/dictation/SKILL.md) or <CopyEntireFileButton filePath="https://raw.githubusercontent.com/githubnext/gh-aw/main/skills/dictation/SKILL.md" label="Copy full instructions" />.
-
-This prompt helps rephrase text captured through speech-to-text recognition by:
-- Correcting project-specific terminology (e.g., "ghaw" → "gh-aw", "work flow" → "workflow")
-- Transforming casual dictated sentences into clear, imperative task descriptions
-- Removing filler words and improving technical tone
-- Adding necessary context that might be implicit in spoken requests
-
-Load the dictation prompt into your AI assistant before or after dictating your workflow instructions to improve accuracy and clarity.
-
-## Designing Tasks with ChatGPT
-
-When designing agentic workflow tasks, you can use the [agentic-chat instructions](https://raw.githubusercontent.com/githubnext/gh-aw/main/skills/agentic-chat/SKILL.md) with ChatGPT or other conversational AI applications to create clear, actionable task descriptions. Use the button below to copy the full instructions: <CopyEntireFileButton filePath="https://raw.githubusercontent.com/githubnext/gh-aw/main/skills/agentic-chat/SKILL.md" label="Copy agentic-chat instructions" />.
+If you prefer to use ChatGPT to author agentic workflow, you can use the [agentic-chat instructions](https://raw.githubusercontent.com/githubnext/gh-aw/main/skills/agentic-chat/SKILL.md) with ChatGPT or other conversational AI applications to create clear, actionable task descriptions. Use the button below to copy the full instructions: <CopyEntireFileButton filePath="https://raw.githubusercontent.com/githubnext/gh-aw/main/skills/agentic-chat/SKILL.md" label="Copy agentic-chat instructions" />.
 
 The agentic-chat assistant helps you:
 - Break down complex problems into clear, actionable phases
@@ -95,74 +156,15 @@ To use the agentic-chat instructions:
 
 The assistant uses a neutral, technical tone and focuses on what needs to be done rather than how to implement it, making it ideal for creating specifications that AI coding agents can execute.
 
-## Editing Workflows
+## Dictating Agentic Workflows
 
-### Using the Agentic-Workflows Agent (Recommended)
+When creating agentic workflows using speech-to-text (dictation), you may encounter terminology mismatches and formatting issues common to voice recognition systems. To help correct these issues, use the [dictation instructions prompt](https://raw.githubusercontent.com/githubnext/gh-aw/main/skills/dictation/SKILL.md) or <CopyEntireFileButton filePath="https://raw.githubusercontent.com/githubnext/gh-aw/main/skills/dictation/SKILL.md" label="Copy full instructions" />.
 
-The easiest way to edit your workflows is to use the `/agent agentic-workflows` command in GitHub Copilot Chat:
+This prompt helps rephrase text captured through speech-to-text recognition by:
+- Correcting project-specific terminology (e.g., "ghaw" → "gh-aw", "work flow" → "workflow")
+- Transforming casual dictated sentences into clear, imperative task descriptions
+- Removing filler words and improving technical tone
+- Adding necessary context that might be implicit in spoken requests
 
-```sh wrap
-/agent agentic-workflows update add web-fetch tool to my-workflow
-```
+Load the dictation prompt into your AI assistant before or after dictating your workflow instructions to improve accuracy and clarity.
 
-This approach automatically handles both content changes and recompilation, ensuring your workflow is ready to use.
-
-### Manual Editing: Understanding Prompt vs Frontmatter
-
-When manually editing workflow files (`.md` files in the `.github/workflows/` directory), it's important to understand the difference between the two main components:
-
-### Workflow Prompt (Markdown Body)
-
-The **workflow prompt** is the main markdown content that describes what you want the agent to do. This is the natural language task description.
-
-- **Location**: The main body of the `.md` file (below the frontmatter)
-- **Purpose**: Describes the task for the AI agent to execute
-- **Editing**: Can be edited directly from the GitHub web interface without recompilation
-- **Example**:
-  ```markdown
-  Triage the issue by analyzing its content, assigning appropriate labels,
-  and adding a comment with your analysis.
-  ```
-
-> [!TIP]
-> You can edit the workflow prompt directly through the GitHub web interface in your repository's `.github/workflows/*.md` files. Changes to the prompt take effect immediately in the next workflow run - no compilation needed.
-
-### Frontmatter Configuration
-
-The **frontmatter** is the YAML configuration block at the top of the workflow file that defines triggers, tools, permissions, and other settings.
-
-- **Location**: Between `---` delimiters at the top of the `.md` file
-- **Purpose**: Configures how the workflow runs (triggers, tools, permissions, etc.)
-- **Editing**: **Requires recompilation** after manual changes
-- **Example**:
-  ```yaml
-  ---
-  engine: copilot
-  on:
-    issues:
-      types: [opened]
-  tools:
-    github:
-      toolsets: [issues]
-  ---
-  ```
-
-> [!WARNING]
-> After manually editing frontmatter configuration, you **must recompile** the workflow to regenerate the `.lock.yml` file:
-> ```bash
-> gh aw compile workflow-name.md
-> ```
-> The `.lock.yml` file is the compiled GitHub Actions workflow that actually runs. Changes to frontmatter won't take effect until you recompile and commit the updated `.lock.yml` file.
-> 
-> **Recommended**: Use the `/agent agentic-workflows` command instead, which handles recompilation automatically.
-
-### Quick Reference
-
-| What you're editing | Needs recompilation? | What it affects |
-|---------------------|---------------------|-----------------|
-| Markdown body (prompt) | ❌ No | The task description the agent receives |
-| Frontmatter (YAML config) | ✅ Yes | Triggers, tools, permissions, and workflow settings |
-
-## After Compiling
-
-Commit the generated files ([`.lock.yml`](/gh-aw/reference/glossary/#workflow-lock-file-lockyml), the compiled GitHub Actions workflow file) if they are part of the project's tracked artifacts. The project uses compiled workflows in version control.

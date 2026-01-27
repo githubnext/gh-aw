@@ -133,8 +133,7 @@ func isBranchRefViaGit(repo, ref string) (bool, error) {
 //nolint:unused // Reserved for future use
 func isBranchRef(repo, ref string) (bool, error) {
 	// Use gh CLI to list branches
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/branches", repo), "--jq", ".[].name")
-	output, err := cmd.CombinedOutput()
+	output, err := workflow.RunGHCombined("Fetching branches...", "api", fmt.Sprintf("/repos/%s/branches", repo), "--jq", ".[].name")
 	if err != nil {
 		// Check if this is an authentication error
 		outputStr := string(output)
@@ -205,8 +204,7 @@ func resolveBranchHead(repo, branch string, verbose bool) (string, error) {
 	}
 
 	// Use gh CLI to get branch info
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/branches/%s", repo, branch), "--jq", ".commit.sha")
-	output, err := cmd.CombinedOutput()
+	output, err := workflow.RunGHCombined("Fetching branch info...", "api", fmt.Sprintf("/repos/%s/branches/%s", repo, branch), "--jq", ".commit.sha")
 	if err != nil {
 		// Check if this is an authentication error
 		outputStr := string(output)
@@ -295,8 +293,7 @@ func resolveDefaultBranchHead(repo string, verbose bool) (string, error) {
 	}
 
 	// First get the default branch name
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s", repo), "--jq", ".default_branch")
-	output, err := cmd.CombinedOutput()
+	output, err := workflow.RunGHCombined("Fetching repository info...", "api", fmt.Sprintf("/repos/%s", repo), "--jq", ".default_branch")
 	if err != nil {
 		// Check if this is an authentication error
 		outputStr := string(output)
@@ -458,8 +455,7 @@ func downloadWorkflowContent(repo, path, ref string, verbose bool) ([]byte, erro
 	}
 
 	// Use gh CLI to download the file
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/contents/%s?ref=%s", repo, path, ref), "--jq", ".content")
-	output, err := cmd.CombinedOutput()
+	output, err := workflow.RunGHCombined("Downloading workflow...", "api", fmt.Sprintf("/repos/%s/contents/%s?ref=%s", repo, path, ref), "--jq", ".content")
 	if err != nil {
 		// Check if this is an authentication error
 		outputStr := string(output)
@@ -477,9 +473,9 @@ func downloadWorkflowContent(repo, path, ref string, verbose bool) ([]byte, erro
 
 	// The content is base64 encoded, decode it
 	contentBase64 := strings.TrimSpace(string(output))
-	cmd = exec.Command("base64", "-d")
-	cmd.Stdin = strings.NewReader(contentBase64)
-	content, err := cmd.Output()
+	base64Cmd := exec.Command("base64", "-d")
+	base64Cmd.Stdin = strings.NewReader(contentBase64)
+	content, err := base64Cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode file content: %w", err)
 	}
