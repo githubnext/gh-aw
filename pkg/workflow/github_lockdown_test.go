@@ -120,7 +120,7 @@ func TestRenderGitHubMCPDockerConfigWithLockdown(t *testing.T) {
 				AllowedTools:       nil,
 			},
 			expected: []string{
-				`"type": "local"`,
+				`"type": "stdio"`,
 				`"GITHUB_LOCKDOWN_MODE": "1"`,
 				`"GITHUB_TOOLSETS": "default"`,
 				`"container": "ghcr.io/github/github-mcp-server:latest"`,
@@ -138,7 +138,7 @@ func TestRenderGitHubMCPDockerConfigWithLockdown(t *testing.T) {
 				AllowedTools:       nil,
 			},
 			expected: []string{
-				`"type": "local"`,
+				`"type": "stdio"`,
 				`"GITHUB_TOOLSETS": "default"`,
 				`"container": "ghcr.io/github/github-mcp-server:latest"`,
 			},
