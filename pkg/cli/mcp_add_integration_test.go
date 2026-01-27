@@ -21,36 +21,38 @@ func createMockMCPRegistry(t *testing.T) *httptest.Server {
 	t.Helper()
 
 	// Create mock registry data with 35 servers to exceed the 30 minimum
-	servers := make([]Server, 35)
+	servers := make([]ServerResponse, 35)
 	for i := 0; i < 35; i++ {
-		servers[i] = Server{
-			Name:        fmt.Sprintf("io.github.example/test-server-%d", i+1),
-			Description: fmt.Sprintf("Test MCP server %d for integration testing", i+1),
-			Status:      StatusActive,
-			Repository: Repository{
-				URL: fmt.Sprintf("https://github.com/example/test-server-%d", i+1),
-			},
-			Packages: []MCPPackage{
-				{
-					RegistryType: "npm",
-					Identifier:   fmt.Sprintf("test-server-%d", i+1),
-					Version:      "1.0.0",
-					RuntimeHint:  "node",
-					Transport: Transport{
-						Type: "stdio",
-					},
-					PackageArguments: []Argument{
-						{
-							Type:  ArgumentTypePositional,
-							Value: fmt.Sprintf("test-server-%d", i+1),
+		servers[i] = ServerResponse{
+			Server: ServerDetail{
+				Name:        fmt.Sprintf("io.github.example/test-server-%d", i+1),
+				Description: fmt.Sprintf("Test MCP server %d for integration testing", i+1),
+				Version:     "1.0.0",
+				Repository: &Repository{
+					URL: fmt.Sprintf("https://github.com/example/test-server-%d", i+1),
+				},
+				Packages: []MCPPackage{
+					{
+						RegistryType: "npm",
+						Identifier:   fmt.Sprintf("test-server-%d", i+1),
+						Version:      "1.0.0",
+						RuntimeHint:  "node",
+						Transport: &Transport{
+							Type: "stdio",
 						},
-					},
-					EnvironmentVariables: []EnvironmentVariable{
-						{
-							Name:        "TEST_TOKEN",
-							Description: "Test API token",
-							IsRequired:  true,
-							IsSecret:    true,
+						PackageArguments: []Argument{
+							{
+								Type:  ArgumentTypePositional,
+								Value: fmt.Sprintf("test-server-%d", i+1),
+							},
+						},
+						EnvironmentVariables: []EnvironmentVariable{
+							{
+								Name:        "TEST_TOKEN",
+								Description: "Test API token",
+								IsRequired:  true,
+								IsSecret:    true,
+							},
 						},
 					},
 				},

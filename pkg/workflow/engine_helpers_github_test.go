@@ -30,7 +30,7 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				`"GITHUB_TOOLSETS": "default"`,
 			},
 			notFound: []string{
-				`"type": "local"`,
+				`"type": "stdio"`,
 				`"tools":`,
 				`"command": "docker"`,
 				`"run"`,
@@ -48,7 +48,7 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				EffectiveToken:     "",
 			},
 			expected: []string{
-				`"type": "local"`,
+				`"type": "stdio"`,
 				`"container": "ghcr.io/github/github-mcp-server:latest"`,
 				`"tools": [`,
 				`"create_issue"`,
@@ -117,7 +117,7 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				EffectiveToken:     "",
 			},
 			expected: []string{
-				`"type": "local"`,
+				`"type": "stdio"`,
 				`"container": "ghcr.io/github/github-mcp-server:latest"`,
 				`"tools": ["*"]`,
 			},
