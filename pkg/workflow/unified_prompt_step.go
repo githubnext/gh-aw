@@ -272,7 +272,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 
 	// 7. Safe outputs instructions (if enabled)
 	if HasSafeOutputsEnabled(data.SafeOutputs) {
-		enabledTools := GetEnabledSafeOutputToolNames(data.SafeOutputs)
+		enabledTools := GetEnabledSafeOutputToolNamesWithPrefix(data.SafeOutputs, data.EngineConfig, data.Tools)
 		if len(enabledTools) > 0 {
 			unifiedPromptLog.Printf("Adding safe outputs section: tools=%d", len(enabledTools))
 			toolsList := strings.Join(enabledTools, ", ")
