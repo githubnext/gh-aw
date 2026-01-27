@@ -49,6 +49,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Build initial workflow data structure
 	workflowData := c.buildInitialWorkflowData(result, toolsResult, engineSetup, engineSetup.importsResult)
+	// Store a stable workflow identifier derived from the file name.
+	workflowData.WorkflowID = GetWorkflowIDFromPath(cleanPath)
 
 	// Use shared action cache and resolver from the compiler
 	actionCache, actionResolver := c.getSharedActionResolver()
