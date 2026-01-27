@@ -293,6 +293,24 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
 	}
 
+	// Add final step to determine if conclusion job should fail
+	// This step checks if the agent produced any meaningful safe outputs
+	// If not, it indicates the safe output server failed or the prompt completely failed
+	var failureCheckEnvVars []string
+	failureCheckEnvVars = append(failureCheckEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
+
+	failureCheckSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
+		StepName:      "Determine if conclusion job should fail",
+		StepID:        "determine_failure",
+		MainJobName:   mainJobName,
+		CustomEnvVars: failureCheckEnvVars,
+		Script:        "const { main } = require('/opt/gh-aw/actions/determine_conclusion_failure.cjs'); await main();",
+		ScriptFile:    "determine_conclusion_failure.cjs",
+		Token:         "", // Will use default GITHUB_TOKEN
+	})
+	steps = append(steps, failureCheckSteps...)
+	notifyCommentLog.Print("Added determine_failure step to conclusion job")
+
 	// Build the condition for this job:
 	// 1. always() - run even if agent fails
 	// 2. agent was activated (not skipped)
