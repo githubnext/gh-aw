@@ -11,6 +11,29 @@ GitHub Agentic Workflows use AI [coding agents or engines](/gh-aw/reference/glos
 > Experimental Engines
 > Claude and Codex engines are available but marked as experimental. They are not documented here but can still be used by setting `engine: claude` or `engine: codex` in your workflow frontmatter. For production workflows, we recommend using the GitHub Copilot CLI engine.
 
+## Engine Comparison
+
+| Feature | Copilot CLI | Claude | Codex |
+|---------|-------------|--------|-------|
+| All workflow triggers | ✅ | ✅ | ✅ |
+| GitHub tools & MCP | ✅ | ✅ | ✅ |
+| Safe outputs | ✅ | ✅ | ✅ |
+| Custom MCP servers | ✅ | ✅ | ✅ |
+| Web search (MCP) | ⚠️ Tavily MCP | ✅ Built-in + MCP | ⚠️ Tavily MCP |
+| Agent sessions | ✅ | ❌ | ❌ |
+| Bot assignments | ✅ | ❌ | ❌ |
+| Setup complexity | PAT required | API key | API key |
+
+### When to Choose
+
+- **Claude**: Best for general-purpose automation, excellent reasoning, simple API key setup, production-ready
+- **Copilot**: Best when you need agent sessions or Copilot bot assignments, already have Copilot subscription
+- **Codex**: Alternative OpenAI-based option for users with OpenAI access
+
+### Feature Parity
+
+95%+ of features work identically across all engines. Only Copilot-specific bot integration features (agent sessions, bot assignments) require Copilot.
+
 ## GitHub Copilot CLI
 
 [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) is the default and recommended AI [coding agent engine](/gh-aw/reference/glossary/#engine).
