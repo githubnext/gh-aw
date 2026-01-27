@@ -265,6 +265,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		awfArgs = append(awfArgs, "--mount", "/usr/bin/gh:/usr/bin/gh:ro")
 		awfArgs = append(awfArgs, "--mount", "/usr/bin/yq:/usr/bin/yq:ro")
 
+		// Mount shared library directories required by the mounted binaries (date, gh, yq)
+		// These libraries are needed for the utilities to execute correctly inside the container
+		awfArgs = append(awfArgs, GetLibraryMounts()...)
+
 		// Mount copilot CLI binary from /usr/local/bin (where the installer script places it)
 		awfArgs = append(awfArgs, "--mount", "/usr/local/bin/copilot:/usr/local/bin/copilot:ro")
 
