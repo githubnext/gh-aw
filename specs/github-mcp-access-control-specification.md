@@ -368,11 +368,194 @@ tools:
 
 **See**: [GitHub MCP Server Documentation - Migration from Allowed to Toolsets](/gh-aw/skills/github-mcp-server/#migration-from-allowed-to-toolsets) for migration guidance.
 
-### 4.3 Access Control Extension Fields
+#### 4.2.4 read-only (Existing Feature)
+
+**Type**: Boolean  
+**Required**: No  
+**Default**: `true` (read-only enabled for security)
+
+The `read-only` field restricts the GitHub MCP server to read-only operations, preventing write operations like creating issues, PRs, or modifying repository content.
+
+**Values**:
+- `true` (default) - Only read operations allowed (enhanced security)
+- `false` - Both read and write operations allowed
+
+**Security Note**: The default is `true` to prevent accidental write operations. Explicitly set to `false` only when write operations are required and authorized.
+
+**Example**:
+```yaml
+tools:
+  github:
+    mode: "remote"
+    read-only: false    # Enable write operations
+    toolsets: [repos, issues]
+```
+
+**Implementation**:
+- **Remote mode**: Sends `X-MCP-Readonly: true` HTTP header
+- **Local mode**: Sets `GITHUB_READ_ONLY=1` environment variable
+
+#### 4.2.5 github-token (Existing Feature)
+
+**Type**: String (expression)  
+**Required**: No  
+**Default**: Uses `${{ secrets.GH_AW_GITHUB_TOKEN }}` or `${{ secrets.GITHUB_TOKEN }}`
+
+The `github-token` field allows specifying a custom GitHub personal access token instead of the default workflow token.
+
+**Use Cases**:
+- Using a token with specific permissions
+- Accessing resources across multiple organizations
+- Using a GitHub App token with fine-grained permissions
+
+**Example**:
+```yaml
+tools:
+  github:
+    mode: "remote"
+    github-token: "${{ secrets.CUSTOM_GITHUB_PAT }}"
+    toolsets: [default]
+```
+
+**Security Note**: Store tokens in GitHub Actions secrets, never commit them to the repository.
+
+#### 4.2.6 version (Existing Feature)
+
+**Type**: String  
+**Required**: No  
+**Default**: `"latest"` (when in local mode)
+
+The `version` field specifies the Docker image tag for the GitHub MCP server when using `mode: "local"`. This field is **ignored in remote mode**.
+
+**Purpose**: Pin to a specific GitHub MCP server version for reproducibility or testing.
+
+**Example**:
+```yaml
+tools:
+  github:
+    mode: "local"
+    version: "v1.2.3"    # Pin to specific version
+    toolsets: [default]
+```
+
+**Note**: Only applicable for local mode. Remote mode always uses the latest hosted version.
+
+#### 4.2.7 args (Existing Feature)
+
+**Type**: Array of strings  
+**Required**: No  
+**Default**: `[]` (no additional arguments)
+
+The `args` field provides additional Docker runtime arguments when using `mode: "local"`. This field is **ignored in remote mode**.
+
+**Use Cases**:
+- Custom network configurations
+- Volume mounts
+- Environment variable overrides
+- Resource limits
+
+**Example**:
+```yaml
+tools:
+  github:
+    mode: "local"
+    args:
+      - "--network"
+      - "host"
+      - "--memory"
+      - "2g"
+    toolsets: [default]
+```
+
+**Note**: Only applicable for local mode Docker containers.
+
+#### 4.2.8 lockdown (Existing Feature)
+
+**Type**: Boolean  
+**Required**: No  
+**Default**: Auto-detected based on repository visibility
+
+The `lockdown` field restricts GitHub MCP server to **only the triggering repository**, preventing access to other repositories even if the token has permissions.
+
+**Values**:
+- `true` - Only triggering repository accessible (enhanced security)
+- `false` - All token-accessible repositories available
+- **Omitted** - Automatically set based on repository visibility (private repos → `true`, public repos → `false`)
+
+**Automatic Lockdown Logic**:
+When `lockdown` is not specified, the system automatically determines the setting:
+- **Private repositories**: `lockdown: true` (protect sensitive code)
+- **Public repositories**: `lockdown: false` (allow cross-repo operations)
+
+**Example**:
+```yaml
+tools:
+  github:
+    mode: "remote"
+    lockdown: true      # Explicit lockdown to triggering repo only
+    toolsets: [default]
+```
+
+**Security Best Practice**: Use `lockdown: true` for workflows that should only access the triggering repository, preventing unintended cross-repository operations.
+
+#### 4.2.9 app (Existing Feature)
+
+**Type**: Object (GitHubAppConfig)  
+**Required**: No  
+**Default**: Not specified (uses standard token authentication)
+
+The `app` field enables GitHub App-based authentication, allowing the workflow to mint short-lived installation access tokens with fine-grained permissions.
+
+**Configuration Structure**:
+```yaml
+app:
+  app-id: "${{ vars.APP_ID }}"                    # GitHub App ID (required)
+  private-key: "${{ secrets.APP_PRIVATE_KEY }}"  # App private key (required)
+  owner: "myorg"                                  # Optional: Installation owner (defaults to current repo owner)
+  repositories:                                   # Optional: Repositories to grant access to
+    - "repo1"
+    - "repo2"
+```
+
+**Fields**:
+- `app-id` (required): GitHub App ID
+- `private-key` (required): GitHub App private key
+- `owner` (optional): Owner of the GitHub App installation
+- `repositories` (optional): List of repositories to grant access to
+
+**Benefits**:
+- Fine-grained permissions per repository
+- Short-lived tokens (auto-expire)
+- Better security posture than PATs
+- Audit trail through GitHub App
+
+**Example**:
+```yaml
+tools:
+  github:
+    mode: "remote"
+    app:
+      app-id: "${{ vars.GITHUB_APP_ID }}"
+      private-key: "${{ secrets.GITHUB_APP_PRIVATE_KEY }}"
+      owner: "my-organization"
+      repositories:
+        - "frontend-repo"
+        - "backend-repo"
+    toolsets: [repos, issues, pull_requests]
+```
+
+**Token Lifecycle**:
+1. Workflow mints installation access token at start
+2. Token used for GitHub MCP server authentication
+3. Token automatically invalidated at workflow end (even on failure)
+
+**See**: [GitHub App Documentation](https://docs.github.com/en/apps) for creating and configuring GitHub Apps.
+
+### 4.4 Access Control Extension Fields
 
 This section defines the three new access control fields introduced by this specification:
 
-#### 4.3.1 repos
+#### 4.4.1 repos
 
 **Type**: Array of strings  
 **Required**: No  
@@ -401,7 +584,7 @@ repos:
   - "*/infrastructure"         # Any infrastructure repo
 ```
 
-#### 4.3.2 roles
+#### 4.4.2 roles
 
 **Type**: Array of strings  
 **Required**: No  
@@ -439,7 +622,7 @@ roles:
   - "maintain"   # Repository maintainers
 ```
 
-#### 4.3.3 private-repos
+#### 4.4.3 private-repos
 
 **Type**: Boolean  
 **Required**: No  
@@ -461,7 +644,7 @@ The `private-repos` field controls whether the GitHub MCP server can access priv
 private-repos: false   # Restrict to public repositories only
 ```
 
-### 4.4 Relationship Between Tool Selection and Access Control
+### 4.5 Relationship Between Tool Selection and Access Control
 
 The GitHub MCP server configuration combines tool selection (`toolsets` and `tools`) with access control (`repos`, `roles`, `private-repos`). These mechanisms operate independently but complement each other:
 
@@ -493,11 +676,11 @@ tools:
 
 **Key Principle**: Tool selection determines **what operations** are possible; access control determines **where operations** are permitted.
 
-### 4.5 Configuration Validation
+### 4.6 Configuration Validation
 
 Implementations MUST validate access control configuration at compilation time. The following validation rules apply:
 
-#### 4.5.1 Repository Pattern Validation
+#### 4.6.1 Repository Pattern Validation
 
 **Rule**: Each pattern in `repos` MUST match one of these formats:
 - Exact: `{owner}/{repo}` where both are non-empty alphanumeric with hyphens
@@ -528,7 +711,7 @@ Expected format: 'owner/repo', 'owner/*', '*/repo', or '*/*'.
 Pattern must contain exactly one slash with non-empty owner and repo segments.
 ```
 
-#### 4.5.2 Role Validation
+#### 4.6.2 Role Validation
 
 **Rule**: Each role in `roles` MUST be one of: `admin`, `maintain`, `write`, `triage`, `read`
 
@@ -553,7 +736,7 @@ Valid roles are: admin, maintain, write, triage, read.
 See https://docs.github.com/en/organizations/managing-access-to-your-organizations-repositories/repository-roles-for-an-organization
 ```
 
-#### 4.5.3 Type Validation
+#### 4.6.3 Type Validation
 
 **Rule**: Configuration fields MUST have correct types:
 - `repos`: array of strings
@@ -573,7 +756,7 @@ roles: ["write", 123]        # All elements must be strings
 private-repos: "false"         # Must be boolean
 ```
 
-#### 4.5.4 Empty Array Validation
+#### 4.6.4 Empty Array Validation
 
 **Rule**: Neither `repos` nor `roles` MAY be empty arrays
 
@@ -1555,6 +1738,93 @@ tools:
 - Suitable for environments without internet access
 
 **See**: [GitHub MCP Server Documentation - Remote vs Local Mode](/gh-aw/skills/github-mcp-server/#overview) for mode selection guidance.
+
+#### A.9 Read-Only Mode with Access Control
+
+Combine read-only mode with repository access control for maximum security:
+
+```yaml
+tools:
+  github:
+    mode: "remote"
+    read-only: true              # Prevent all write operations
+    toolsets: [repos, issues]    # Only repo and issue reading
+    repos:
+      - "docs-org/*"
+    roles:
+      - "read"
+    private-repos: false
+```
+
+**Use Case**: Documentation indexing, security auditing, read-only analysis workflows
+
+**Security Benefits**:
+- `read-only: true` prevents write operations at MCP server level
+- `roles: ["read"]` ensures user only accesses repos where they have read permission
+- `private-repos: false` prevents private data leakage
+- Combined: Defense-in-depth security for read-only workflows
+
+#### A.10 Lockdown Mode for Single Repository
+
+Restrict GitHub MCP server to only the triggering repository:
+
+```yaml
+tools:
+  github:
+    mode: "remote"
+    lockdown: true               # Only triggering repository accessible
+    toolsets: [default]
+    roles:
+      - "write"
+      - "admin"
+```
+
+**Use Case**: Repository-specific automation, CI/CD workflows, security-sensitive operations
+
+**Lockdown Behavior**:
+- Agent can ONLY access the repository that triggered the workflow
+- Prevents cross-repository operations even if token has permissions
+- Automatically enabled for private repositories (unless explicitly disabled)
+
+**Note**: When `lockdown: true`, the `repos` field is not needed as access is automatically scoped to the triggering repository.
+
+#### A.11 GitHub App Authentication with Access Control
+
+Use GitHub App for fine-grained, short-lived token authentication:
+
+```yaml
+tools:
+  github:
+    mode: "remote"
+    app:
+      app-id: "${{ vars.GITHUB_APP_ID }}"
+      private-key: "${{ secrets.GITHUB_APP_PRIVATE_KEY }}"
+      owner: "myorg"
+      repositories:
+        - "frontend"
+        - "backend"
+    toolsets: [repos, issues, pull_requests]
+    repos:
+      - "myorg/frontend"
+      - "myorg/backend"
+    roles:
+      - "write"
+      - "admin"
+    private-repos: true
+```
+
+**Use Case**: Multi-repository automation with fine-grained permissions, enhanced security posture
+
+**GitHub App Benefits**:
+- Short-lived tokens (auto-expire)
+- Fine-grained permissions per repository
+- Better audit trail than PATs
+- Automatic token invalidation at workflow end
+
+**Access Control Interaction**:
+- `app.repositories` limits which repos the App token can access
+- `repos` further restricts which repos the MCP server can use
+- Both must allow a repository for access to be granted
 
 ### Appendix B: Error Messages
 
