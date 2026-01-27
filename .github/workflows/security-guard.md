@@ -14,6 +14,7 @@ tools:
 safe-outputs:
   add-comment:
     max: 1
+  noop:
   messages:
     footer: "> 🛡️ *Security posture analysis by [{workflow_name}]({run_url})*"
     run-started: "🔒 [{workflow_name}]({run_url}) is analyzing this pull request for security posture changes..."
@@ -139,7 +140,7 @@ For each changed file:
 
 **CRITICAL DECISION**: After analysis, determine if there are ANY concrete security concerns:
 
-- **NO SECURITY CONCERNS FOUND**: Exit gracefully WITHOUT commenting. Do not call `add_comment`.
+- **NO SECURITY CONCERNS FOUND**: Call `noop` to explicitly signal that no security issues were detected. Do not call `add_comment`.
 - **SECURITY CONCERNS FOUND**: Proceed to Step 4 to create a comment with evidence.
 
 ### Step 4: Create Security Report (Only if concerns found)
@@ -198,15 +199,15 @@ Do not comment on:
 
 ### Scenario A: Safe PR (No Comment)
 PR adds a new feature with no security-relevant changes.
-→ **Action**: Exit without commenting. Do NOT call `add_comment`.
+→ **Action**: Call `noop` to signal no concerns. Do NOT call `add_comment`.
 
 ### Scenario B: Security Improvement (No Comment)
 PR adds input validation or restricts permissions.
-→ **Action**: Exit without commenting. The PR improves security.
+→ **Action**: Call `noop` to signal no concerns. The PR improves security.
 
 ### Scenario C: Justified Security Change (No Comment)
 PR expands network access with clear justification in description.
-→ **Action**: Exit without commenting. Let the author's justification stand.
+→ **Action**: Call `noop` to signal no concerns. Let the author's justification stand.
 
 ### Scenario D: Security Concern Found (Comment)
 PR adds `sandbox.agent: false` without explanation.
@@ -218,7 +219,7 @@ PR adds `sandbox.agent: false` without explanation.
 
 - Be thorough in your analysis
 - Be precise in your evidence
-- Be silent when there are no concerns
+- Call `noop` when there are no concerns to explicitly signal completion
 - Be helpful when there are concerns
 
-When in doubt about whether something is a security issue, lean toward NOT commenting. Only flag issues you can prove with concrete evidence from the diff.
+When in doubt about whether something is a security issue, lean toward calling `noop`. Only flag issues you can prove with concrete evidence from the diff.
