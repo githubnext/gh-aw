@@ -155,7 +155,7 @@ export default defineConfig({
 					label: 'Setup',
 					items: [
 						{ label: 'Quick Start', link: '/setup/quick-start/' },
-						{ label: 'Agentic Authoring', link: '/setup/agentic-authoring/' },
+						{ label: 'Authoring Workflows with AI', link: '/setup/agentic-authoring/' },
 						{ label: 'CLI Commands', link: '/setup/cli/' },
 						{ label: 'VS Code Integration', link: '/setup/vscode/' },
 					],

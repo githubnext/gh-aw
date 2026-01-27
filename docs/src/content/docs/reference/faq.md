@@ -256,7 +256,7 @@ Either approach works well:
 - Good for learning the workflow format deeply
 - Essential for advanced customizations
 
-See [Agentic Authoring of Workflows](/gh-aw/setup/agentic-authoring/) for the AI-assisted approach, or browse the [Reference documentation](/gh-aw/reference/frontmatter/) for manual configuration.
+See [Authoring Workflows with AI of Workflows](/gh-aw/setup/agentic-authoring/) for the AI-assisted approach, or browse the [Reference documentation](/gh-aw/reference/frontmatter/) for manual configuration.
 
 ### You use 'agent' and 'agentic workflow' interchangeably. Are they the same thing?
 
