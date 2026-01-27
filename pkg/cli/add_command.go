@@ -1168,16 +1168,6 @@ func expandWildcardWorkflows(specs []*WorkflowSpec, verbose bool) ([]*WorkflowSp
 	return expandedWorkflows, nil
 }
 
-// checkWorkflowsHaveDispatch checks if any of the workflows have a workflow_dispatch trigger
-func checkWorkflowsHaveDispatch(workflows []*WorkflowSpec, verbose bool) bool {
-	for _, spec := range workflows {
-		if checkWorkflowHasDispatch(spec, verbose) {
-			return true
-		}
-	}
-	return false
-}
-
 // checkWorkflowHasDispatch checks if a single workflow has a workflow_dispatch trigger
 func checkWorkflowHasDispatch(spec *WorkflowSpec, verbose bool) bool {
 	addLog.Printf("Checking if workflow %s has workflow_dispatch trigger", spec.WorkflowName)

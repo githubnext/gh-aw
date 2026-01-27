@@ -906,32 +906,6 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow triggered successfully!"))
 				fmt.Fprintln(os.Stderr, "")
 				fmt.Fprintf(os.Stderr, "🔗 View workflow run: %s\n", runInfo.URL)
-
-				// // Step 10: Offer to open in browser
-				// fmt.Fprintln(os.Stderr, "")
-				// var openBrowser bool
-				// browserForm := huh.NewForm(
-				// 	huh.NewGroup(
-				// 		huh.NewConfirm().
-				// 			Title("Would you like to open the workflow run in your browser?").
-				// 			Affirmative("Yes, open browser").
-				// 			Negative("No, thanks").
-				// 			Value(&openBrowser),
-				// 	),
-				// ).WithAccessible(console.IsAccessibleMode())
-
-				// if err := browserForm.Run(); err == nil && openBrowser {
-				// 	// Use gh browse to open the URL
-				// 	browseCmd := workflow.ExecGH("browse", runInfo.URL)
-				// 	if err := browseCmd.Run(); err != nil {
-				// 		// Fallback: try to open directly
-				// 		addInteractiveLog.Printf("gh browse failed: %v, trying direct open", err)
-				// 		if openErr := openURLInBrowser(runInfo.URL); openErr != nil {
-				// 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not open browser automatically."))
-				// 			fmt.Fprintf(os.Stderr, "Please visit: %s\n", runInfo.URL)
-				// 		}
-				// 	}
-				// }
 			}
 		}
 	}
@@ -984,40 +958,6 @@ func getWorkflowStatuses(pattern, repoOverride string, verbose bool) ([]Workflow
 		fmt.Fprintf(os.Stderr, "Workflow with filename '%s' NOT found in workflow list\n", pattern)
 	}
 	return nil, nil
-}
-
-// openURLInBrowser opens a URL in the default browser
-func openURLInBrowser(url string) error {
-	var cmd *exec.Cmd
-
-	switch {
-	case isLinux():
-		cmd = exec.Command("xdg-open", url)
-	case isDarwin():
-		cmd = exec.Command("open", url)
-	default:
-		// Try gh browse as fallback
-		return fmt.Errorf("unsupported platform")
-	}
-
-	return cmd.Start()
-}
-
-// isLinux checks if running on Linux
-func isLinux() bool {
-	return strings.Contains(strings.ToLower(os.Getenv("OSTYPE")), "linux") ||
-		fileExists("/proc/version")
-}
-
-// isDarwin checks if running on macOS
-func isDarwin() bool {
-	return strings.Contains(strings.ToLower(os.Getenv("OSTYPE")), "darwin")
-}
-
-// fileExists checks if a file exists
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
 }
 
 // showFinalInstructions shows final instructions to the user
