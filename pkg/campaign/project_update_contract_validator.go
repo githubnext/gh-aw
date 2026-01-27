@@ -98,7 +98,7 @@ func ValidateProjectUpdatePayload(payload any, expectedProjectURL string, expect
 	// Deterministic normalization: for status-only updates, never allow other writes.
 	if len(fields) > 1 {
 		// Schema already enforces the full-backfill set, but we keep a stable message for checklist enforcement.
-		requiredKeys := []string{"campaign_id", "worker_workflow", "repository", "priority", "size", "start_date", "end_date"}
+		requiredKeys := []string{"campaign_id", "worker_workflow", "target_repo", "priority", "size", "start_date", "end_date"}
 		var missing []string
 		for _, key := range requiredKeys {
 			if _, ok := fields[key]; !ok {

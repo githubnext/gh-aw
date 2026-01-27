@@ -30,7 +30,7 @@ All campaign tracking MUST key off `campaign_id: "{{.CampaignID}}"`.
 | `status` | single-select | `Todo` / `In Progress` / `Review required` / `Blocked` / `Done` |
 | `campaign_id` | text | Must equal `{{.CampaignID}}` |
 | `worker_workflow` | text | workflow ID or `"unknown"` |
-| `repository` | text | `owner/repo` |
+| `target_repo` | text | `owner/repo` |
 | `priority` | single-select | `High` / `Medium` / `Low` |
 | `size` | single-select | `Small` / `Medium` / `Large` |
 | `start_date` | date | `YYYY-MM-DD` |
@@ -55,7 +55,7 @@ These rules apply to any time you write fields:
 
 - `campaign_id`: always `{{.CampaignID}}`
 - `worker_workflow`: workflow ID if known, else `"unknown"`
-- `repository`: extract `owner/repo` from the issue/PR URL
+- `target_repo`: extract `owner/repo` from the issue/PR URL
 - `priority`: default `Medium` unless explicitly known
 - `size`: default `Medium` unless explicitly known
 - `start_date`: issue/PR `created_at` formatted `YYYY-MM-DD`
@@ -92,7 +92,7 @@ update-project:
     status: "Todo"                   # "Done" if already closed/merged
     campaign_id: "{{.CampaignID}}"
     worker_workflow: "unknown"
-    repository: "owner/repo"
+    target_repo: "owner/repo"
     priority: "Medium"
     size: "Medium"
     start_date: "2025-12-15"
@@ -135,7 +135,7 @@ update-project:
     status: "Done"
     campaign_id: "{{.CampaignID}}"
     worker_workflow: "WORKFLOW_ID"
-    repository: "owner/repo"
+    target_repo: "owner/repo"
     priority: "Medium"
     size: "Medium"
     start_date: "2025-12-15"
@@ -160,7 +160,7 @@ All writes MUST conform to this file and use `update-project` only.
 
 For every attempted item, record:
 
-- `content_type`, `content_number`, `repository`
+- `content_type`, `content_number`, `target_repo`
 - action taken: `noop | add | status_update | backfill | failed`
 - error details if failed
 
@@ -216,7 +216,7 @@ This checklist is designed to validate outputs before executing project writes.
 - [ ] `fields.status` ∈ {`Todo`, `In Progress`, `Review required`, `Blocked`, `Done`}
 - [ ] `fields.campaign_id` is present on first-add/backfill and equals `{{.CampaignID}}`
 - [ ] `fields.worker_workflow` is present on first-add/backfill and is either a known workflow ID or `"unknown"`
-- [ ] `fields.repository` matches `owner/repo`
+- [ ] `fields.target_repo` matches `owner/repo`
 - [ ] `fields.priority` ∈ {`High`, `Medium`, `Low`}
 - [ ] `fields.size` ∈ {`Small`, `Medium`, `Large`}
 - [ ] `fields.start_date` matches `YYYY-MM-DD`
