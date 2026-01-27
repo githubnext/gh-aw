@@ -10,6 +10,30 @@ sidebar:
 
 ## Capabilities
 
+### What's the difference between agentic workflows and regular GitHub Actions workflows?
+
+Agentic workflows are a special type of GitHub Actions workflow that use AI agentic processing to interpret natural language instructions and make decisions. Key differences include
+
+- **Natural language prompts**: You write instructions in plain markdown instead of complex YAML
+- **AI-powered reasoning**: The workflow uses an AI engine (coding agent) to understand context and adapt to situations
+- **Tool usage**: The AI can call pre-approved tools to perform tasks like creating issues, analyzing code, and generating content
+- **Safety controls**: Built-in security features like read-only default permissions, safe outputs, and sandboxed execution ensure safe operation
+
+### What's the difference between agentic workflows and just running a coding agent in GitHub Actions?
+
+Agentic workflows provide a structured framework for building AI-powered automations within GitHub Actions. While you could run just install and run a coding agent directly in a standard GitHub Actions workflow, agentic workflows offer:
+
+- **Simpler format**: Write in markdown with natural language prompts
+- **Built-in security**: Read-only defaults, safe outputs, and sandboxing
+- **Tool integration**: Pre-defined tools for common GitHub operations
+- **Engine independence**: Easily switch between supported AI engines
+
+### Can agentic workflows write code and create pull requests?
+
+Yes! Agentic workflows can create pull requests using the `create-pull-request` safe output. This allows the workflow to propose code changes, documentation updates, or other modifications as pull requests for human review and merging.
+
+Some organizations may completely disable the creation of pull requests from GitHub Actions. In such cases, workflows can still generate diffs or suggestions in issues or comments for manual application.
+
 ### Can agentic workflows do more than code?
 
 Yes! Agentic workflows can perform a wide variety of tasks beyond writing code:
