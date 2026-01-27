@@ -49,7 +49,7 @@ The AI interprets natural language instructions and uses available [tools](/gh-a
 
 ### Can agentic workflows mix regular GitHub Actions steps with AI agentic steps?
 
-Yes! Agentic workflows can include both AI agentic steps and traditional GitHub Actions steps. You can add custom steps before the agentic job using the [`steps:` configuration](/gh-aw/reference/frontmatter/#steps). Additionally, [custom safe outputs](/gh-aw/reference/safe-outputs/#custom-safe-outputs) can be used as consumers of agentic outputs. [Safe inputs](/gh-aw/reference/safe-inputs/) allow you to pass data between traditional steps and the AI agent with added checking.
+Yes! Agentic workflows can include both AI agentic steps and traditional GitHub Actions steps. You can add custom steps before the agentic job using the [`steps:` configuration](/gh-aw/reference/frontmatter/#custom-steps-steps). Additionally, [custom safe output jobs](/gh-aw/reference/safe-outputs/#custom-safe-output-jobs-jobs) can be used as consumers of agentic outputs. [Safe inputs](/gh-aw/reference/safe-inputs/) allow you to pass data between traditional steps and the AI agent with added checking.
 
 ### Can agentic workflows read other repositories?
 
