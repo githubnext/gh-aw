@@ -326,14 +326,17 @@ func TestUtilityBinaryMountsInAWFContainer(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		// All utility mounts should be read-only
+		// Verify all utility mounts are present and read-only
 		allMounts := append(expectedEssentialMounts, expectedCommonMounts...)
 		for _, mount := range allMounts {
+			// Verify the mount string ends with :ro (read-only)
 			if !strings.HasSuffix(mount, ":ro") {
+				t.Errorf("Test data error: expected mount '%s' should end with ':ro'", mount)
 				continue
 			}
+			// Verify the mount is present in the step content
 			if !strings.Contains(stepContent, mount) {
-				t.Errorf("Expected utility mount '%s' to be read-only, but it was not found", mount)
+				t.Errorf("Expected utility mount '%s' to be present in AWF command", mount)
 			}
 		}
 	})
