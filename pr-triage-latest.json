@@ -1,0 +1,54 @@
+{
+  "run_date": "2026-01-27T18:14:46.243Z",
+  "run_id": "21408759013",
+  "total_prs_triaged": 10,
+  "auto_merge_candidates": [11968],
+  "fast_track_needed": [12055, 12053],
+  "batches": {
+    "batch-feature-001": {
+      "name": "Agent Container Improvements",
+      "prs": [11980, 12062, 12069],
+      "theme": "Agent environment improvements"
+    }
+  },
+  "close_candidates": [],
+  "statistics": {
+    "by_category": {
+      "feature": 4,
+      "test": 1,
+      "docs": 2,
+      "refactor": 1,
+      "bug": 1,
+      "chore": 1
+    },
+    "by_risk": {
+      "high": 2,
+      "medium": 4,
+      "low": 4
+    },
+    "by_priority": {
+      "high": 2,
+      "medium": 6,
+      "low": 2
+    },
+    "by_action": {
+      "auto_merge": 1,
+      "fast_track": 2,
+      "batch_review": 3,
+      "defer": 4,
+      "close": 0
+    }
+  },
+  "pr_details": [
+    {"number": 12076, "category": "test", "risk": "low", "priority": 48, "action": "defer"},
+    {"number": 12075, "category": "docs", "risk": "low", "priority": 38, "action": "defer"},
+    {"number": 12074, "category": "refactor", "risk": "medium", "priority": 46, "action": "defer"},
+    {"number": 12069, "category": "feature", "risk": "high", "priority": 62, "action": "batch-review"},
+    {"number": 12062, "category": "feature", "risk": "medium", "priority": 58, "action": "batch-review"},
+    {"number": 12055, "category": "bug", "risk": "medium", "priority": 82, "action": "fast-track"},
+    {"number": 12053, "category": "feature", "risk": "high", "priority": 75, "action": "fast-track"},
+    {"number": 11989, "category": "docs", "risk": "low", "priority": 35, "action": "defer"},
+    {"number": 11980, "category": "feature", "risk": "medium", "priority": 68, "action": "batch-review"},
+    {"number": 11968, "category": "chore", "risk": "low", "priority": 55, "action": "auto-merge"}
+  ]
+}
