@@ -1,5 +1,5 @@
 ---
-title: Agentic Authoring of Workflows
+title: Authoring Workflows with AI
 description: How to create agentic workflows using AI agents (Copilot, Claude, Codex) from the GitHub web interface, terminal, or VS Code to author workflows in natural language.
 sidebar:
   order: 1
@@ -7,7 +7,9 @@ sidebar:
 
 import CopyEntireFileButton from '../../../components/CopyEntireFileButton.astro';
 
-This agentic experience works with **all AI agents** (Copilot, Claude, Codex) and can be used from multiple interfaces - through the **GitHub web interface** (github.com), from your **terminal** with the Copilot CLI or Claude CLI, or in **VS Code**. You can create powerful automation workflows using natural language, with the flexibility to choose the tools that fit your workflow.
+One way to author new agentic workflows is to use AI under your guidance. You can create powerful automation workflows using natural language, with the flexibility to choose the tools that fit your workflow.
+
+In this guide, we show you how to add the "agentic-workflows" agent to the GitHub Copilot support in your repository. Once installed the agent can be used from the GitHub web interface (github.com), your terminal, or in VS Code chat.
 
 ## Step 1: Prepare Your Repository
 
@@ -27,7 +29,7 @@ After initialization, you'll have:
 - `.github/agents/agentic-workflows.agent.md` - [Agent file](/gh-aw/reference/glossary/#agent-files) (custom AI instructions) for the `/agent agentic-workflows` command in Copilot Chat
 - Additional configuration files for workflow authoring
 
-## Creating an agent using AI
+## Step 2: Creating an agent using AI
 
 Go to https://github.com/copilot, or another repository chat tool, select your repository and use this prompt:
 
@@ -135,9 +137,9 @@ The agent can help with various debugging scenarios:
 
 The agent file can be loaded into other AI chat interfaces that support custom instructions. The agent is designed to be compatible with various AI tools, although some features might require configuration and you'll need to allow running the compiler.
 
-## Designing Tasks with ChatGPT
+## Designing Agentic Workflows with ChatGPT
 
-When designing agentic workflow tasks, you can use the [agentic-chat instructions](https://raw.githubusercontent.com/githubnext/gh-aw/main/skills/agentic-chat/SKILL.md) with ChatGPT or other conversational AI applications to create clear, actionable task descriptions. Use the button below to copy the full instructions: <CopyEntireFileButton filePath="https://raw.githubusercontent.com/githubnext/gh-aw/main/skills/agentic-chat/SKILL.md" label="Copy agentic-chat instructions" />.
+If you prefer to use ChatGPT to author agentic workflow, you can use the [agentic-chat instructions](https://raw.githubusercontent.com/githubnext/gh-aw/main/skills/agentic-chat/SKILL.md) with ChatGPT or other conversational AI applications to create clear, actionable task descriptions. Use the button below to copy the full instructions: <CopyEntireFileButton filePath="https://raw.githubusercontent.com/githubnext/gh-aw/main/skills/agentic-chat/SKILL.md" label="Copy agentic-chat instructions" />.
 
 The agentic-chat assistant helps you:
 - Break down complex problems into clear, actionable phases
