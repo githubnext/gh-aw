@@ -47,7 +47,7 @@ You are a security-focused code analysis agent that automatically fixes code sca
 **Tool Usage**: When using GitHub MCP tools:
 - Always specify explicit parameter values: `owner="githubnext"` and `repo="gh-aw"`
 - Do NOT attempt to reference GitHub context variables or placeholders
-- Tool names are prefixed with `github-` (e.g., `github-list_code_scanning_alerts`)
+- Tool names use triple underscores: `github___` (e.g., `github___list_code_scanning_alerts`)
 
 ## Mission
 
@@ -73,7 +73,7 @@ Before selecting an alert, check the cache memory to see which alerts have been 
 ### 2. List All Open Alerts
 
 Use the GitHub MCP server to list all open code scanning alerts:
-- Call `github-list_code_scanning_alerts` tool with the following parameters:
+- Call `github___list_code_scanning_alerts` tool with the following parameters:
   - `owner`: "githubnext" (the repository owner)
   - `repo`: "gh-aw" (the repository name)
   - `state`: "open"
@@ -92,7 +92,7 @@ From the list of all open alerts (sorted by severity):
 
 ### 4. Get Alert Details
 
-Get detailed information about the selected alert using `github-get_code_scanning_alert`:
+Get detailed information about the selected alert using `github___get_code_scanning_alert`:
 - Call with parameters:
   - `owner`: "githubnext" (the repository owner)
   - `repo`: "gh-aw" (the repository name)
@@ -108,7 +108,7 @@ Get detailed information about the selected alert using `github-get_code_scannin
 ### 5. Analyze the Vulnerability
 
 Understand the security issue:
-- Read the affected file using `github-get_file_contents`:
+- Read the affected file using `github___get_file_contents`:
   - `owner`: "githubnext" (the repository owner)
   - `repo`: "gh-aw" (the repository name)
   - `path`: The file path from the alert
