@@ -5,25 +5,23 @@ sidebar:
   order: 1
 ---
 
-## Adding a Daily Status Workflow to Your Repo
+## Adding an Automated Daily Status Workflow to Your Repo
 
 In this guide you will add the automated [**Daily Repo Status Report**](https://github.com/githubnext/agentics/blob/main/workflows/daily-repo-status.md?plain=1) to an existing GitHub repository where you are a maintainer, running in GitHub Actions.
 
 Remember the aim here is _automated AI_: to install something that will run _automatically_ every day, in the context of your repository, and create a fresh status report issue in your repository without any further manual intervention. If you're familiar with GitHub Actions, you will be aware of the power of automation.
 
-> [!TIP]
-> There are hundreds of other ways to use GitHub Agentic Workflows, which
-> you can explore in [Peli's Agent Factory](https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/). This
-> workflow is just the start of what's possible.
+There are hundreds of other ways to use GitHub Agentic Workflows, which you can explore in [Peli's Agent Factory](https://githubnext.github.io/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/). This workflow is just the start of what's possible.
 
 ## Prerequisites
 
 Before installing, ensure you have:
 
 - ✅ **AI Account** - a GitHub Copilot, Anthropic Claude or OpenAI Codex subscription
-- ✅ **GitHub Repository** you are a maintainer on
-- ✅ **[GitHub Actions](https://docs.github.com/actions)** enabled in your repository
-- ✅ **GitHub CLI** (`gh`) - A command-line tool for GitHub operations. [Install here](https://cli.github.com) v2.0.0+ and authenticate with `gh auth login`
+- ✅ **GitHub Repository** - a GitHub repository you are a maintainer on
+- ✅ **GitHub Actions** enabled in your repository
+- ✅ **GitHub CLI** (`gh`) - A command-line tool for GitHub. [Install here](https://cli.github.com) v2.0.0+ and authenticate with `gh auth login`
+- ✅ **Operating System**: Linux, macOS, or Windows with WSL
 
 ### Step 1 — Install the extension
 
@@ -34,8 +32,6 @@ gh extension install githubnext/gh-aw
 ```
 
 > [!TIP]
-> Working in GitHub Codespaces?
->
 > If you're working in a GitHub Codespace, use the standalone installer instead:
 >
 > ```bash wrap
