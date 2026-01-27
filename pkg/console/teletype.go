@@ -50,12 +50,12 @@ type teletypeTickMsg time.Time
 // teletypeModel is the Bubble Tea model for the teletype effect.
 // Because we use tea.WithoutRenderer(), we must manually print in Update().
 type teletypeModel struct {
-	text          string
-	currentIndex  int
-	output        io.Writer
-	charsPerTick  int // Number of characters to display per tick
-	tickDuration  time.Duration
-	done          bool
+	text         string
+	currentIndex int
+	output       io.Writer
+	charsPerTick int // Number of characters to display per tick
+	tickDuration time.Duration
+	done         bool
 }
 
 func (m teletypeModel) Init() tea.Cmd {

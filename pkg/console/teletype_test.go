@@ -13,7 +13,7 @@ func TestTeletypeWrite(t *testing.T) {
 	t.Run("writes text instantly when disabled", func(t *testing.T) {
 		var buf bytes.Buffer
 		text := "Hello, World!"
-		
+
 		disabled := false
 		config := TeletypeConfig{
 			CharsPerSecond: 120,
@@ -40,12 +40,12 @@ func TestTeletypeWrite(t *testing.T) {
 
 		var buf bytes.Buffer
 		text := "Accessible text"
-		
+
 		// Should display instantly when ACCESSIBLE is set
 		start := time.Now()
 		err := TeletypeWrite(&buf, text)
 		duration := time.Since(start)
-		
+
 		assert.NoError(t, err)
 		assert.Equal(t, text, buf.String())
 		// Should complete nearly instantly (< 100ms)
@@ -55,10 +55,10 @@ func TestTeletypeWrite(t *testing.T) {
 	t.Run("writes with custom chars per second", func(t *testing.T) {
 		var buf bytes.Buffer
 		text := "Test"
-		
+
 		disabled := false
 		config := TeletypeConfig{
-			CharsPerSecond: 1000, // Very fast
+			CharsPerSecond: 1000,      // Very fast
 			Enabled:        &disabled, // Disabled to test instantly
 		}
 
@@ -72,7 +72,7 @@ func TestTeletypeWriteln(t *testing.T) {
 	t.Run("adds newline to text", func(t *testing.T) {
 		var buf bytes.Buffer
 		text := "Hello"
-		
+
 		disabled := false
 		config := DefaultTeletypeConfig()
 		config.Enabled = &disabled
@@ -92,10 +92,10 @@ func TestTeletypeWriteLines(t *testing.T) {
 
 		var buf bytes.Buffer
 		lines := []string{"Line 1", "Line 2", "Line 3"}
-		
+
 		err := TeletypeWriteLines(&buf, lines...)
 		assert.NoError(t, err)
-		
+
 		expected := "Line 1\nLine 2\nLine 3\n"
 		assert.Equal(t, expected, buf.String())
 	})
@@ -117,10 +117,10 @@ func TestTeletypeSection(t *testing.T) {
 		var buf bytes.Buffer
 		header := "Section Header"
 		content := []string{"Content line 1", "Content line 2"}
-		
+
 		err := TeletypeSection(&buf, header, content...)
 		assert.NoError(t, err)
-		
+
 		output := buf.String()
 		assert.Contains(t, output, header)
 		assert.Contains(t, output, "Content line 1")
