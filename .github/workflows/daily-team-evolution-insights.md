@@ -11,11 +11,11 @@ permissions:
   discussions: read
 tracker-id: daily-team-evolution-insights
 engine: claude
-sandbox: false
 strict: false
 network:
   allowed:
-    - "*"
+    - "github.com"
+    - "api.github.com"
 tools:
   github:
     mode: local
@@ -292,13 +292,5 @@ Always create a GitHub Discussion with your findings using this structure:
 - Include specific examples and links
 - Make it engaging and valuable to read
 - Keep it concise but comprehensive (aim for 800-1500 words)
-
-## Special Considerations
-
-This workflow uses **sandbox: false** to run without the firewall and gateway. This means:
-- Direct network access without filtering
-- MCP servers connect directly (no gateway)
-- Faster execution with less overhead
-- Only use in controlled environments with trusted tools
 
 Begin your analysis now. Gather the data, identify the patterns, and create an insightful discussion about the team's evolution.
