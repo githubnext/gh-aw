@@ -202,8 +202,8 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		description = fmt.Sprintf("Orchestrator workflow for campaign '%s'", spec.ID)
 	}
 
-	// Default triggers: daily schedule plus manual workflow_dispatch.
-	onSection := "on:\n  schedule:\n    - cron: \"0 18 * * *\"\n  workflow_dispatch:\n"
+	// Default triggers: hourly schedule plus manual workflow_dispatch.
+	onSection := "on:\n  schedule:\n    - cron: \"0 * * * *\"\n  workflow_dispatch:\n"
 
 	// Prevent overlapping runs. This reduces sustained automated traffic on GitHub's
 	// infrastructure by ensuring only one orchestrator run executes at a time per ref.
@@ -386,7 +386,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	// Configure dispatch-workflow for worker coordination
 	if len(spec.Workflows) > 0 {
 		dispatchWorkflowConfig := &workflow.DispatchWorkflowConfig{
-			BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 10}, // Increased from 3 to allow more workers
+			BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 3},
 			Workflows:            spec.Workflows,
 		}
 		safeOutputs.DispatchWorkflow = dispatchWorkflowConfig
@@ -406,7 +406,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 
 	// Configure create-project-status-update for campaign summaries
 	statusUpdateConfig := &workflow.CreateProjectStatusUpdateConfig{
-		BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 10}, // Increased from 1 to allow multiple updates
+		BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 1},
 	}
 	safeOutputs.CreateProjectStatusUpdates = statusUpdateConfig
 	orchestratorLog.Printf("Campaign orchestrator '%s' configured with create-project-status-update", spec.ID)
