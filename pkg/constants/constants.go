@@ -253,7 +253,7 @@ const AgenticCampaignLabel = "agentic-campaign"
 const CampaignLabelPrefix = "z_campaign_"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.19"
+const DefaultClaudeCodeVersion Version = "2.1.20"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
@@ -283,16 +283,16 @@ const (
 )
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.91.0"
+const DefaultCodexVersion Version = "0.92.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion Version = "v0.30.1"
+const DefaultGitHubMCPServerVersion Version = "v0.30.2"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion Version = "v0.11.2"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.0.82"
+const DefaultMCPGatewayVersion Version = "v0.0.84"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/githubnext/gh-aw-mcpg"
@@ -325,7 +325,7 @@ var SerenaLanguageSupport = map[string][]string{
 const DefaultSandboxRuntimeVersion Version = "0.0.32"
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.60"
+const DefaultPlaywrightMCPVersion Version = "0.0.61"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.58.0"
