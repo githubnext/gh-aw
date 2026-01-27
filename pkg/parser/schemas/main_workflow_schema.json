@@ -3695,8 +3695,260 @@
             },
             "do-not-downgrade-done-items": {
               "type": "boolean",
-              "description": "When true, prevents moving items backward in workflow status (e.g., Done → In Progress). Useful for maintaining completed state integrity.",
+              "description": "When true, prevents moving items backward in workflow status (e.g., Done \u2192 In Progress). Useful for maintaining completed state integrity.",
               "default": false
+            },
+            "id": {
+              "type": "string",
+              "description": "Optional campaign identifier. If not provided, derived from workflow filename.",
+              "examples": ["security-alert-burndown", "dependency-upgrade-campaign"]
+            },
+            "workflows": {
+              "type": "array",
+              "description": "List of worker workflow IDs (basename without .md) associated with this campaign",
+              "items": {
+                "type": "string"
+              },
+              "examples": [["code-scanning-fixer", "security-fix-pr"]]
+            },
+            "memory-paths": {
+              "type": "array",
+              "description": "Repo-memory paths where this campaign writes its state and metrics",
+              "items": {
+                "type": "string"
+              },
+              "examples": [["memory/campaigns/security-burndown/**"]]
+            },
+            "metrics-glob": {
+              "type": "string",
+              "description": "Glob pattern for locating JSON metrics snapshots in the memory/campaigns branch",
+              "examples": ["memory/campaigns/security-burndown-*/metrics/*.json"]
+            },
+            "cursor-glob": {
+              "type": "string",
+              "description": "Glob pattern for locating durable cursor/checkpoint files in the memory/campaigns branch",
+              "examples": ["memory/campaigns/security-burndown-*/cursor.json"]
+            },
+            "tracker-label": {
+              "type": "string",
+              "description": "Label used to discover worker-created issues/PRs",
+              "examples": ["campaign:security-2025"]
+            },
+            "owners": {
+              "type": "array",
+              "description": "Primary human owners for this campaign",
+              "items": {
+                "type": "string"
+              },
+              "examples": [["@username1", "@username2"]]
+            },
+            "risk-level": {
+              "type": "string",
+              "description": "Campaign risk level",
+              "enum": ["low", "medium", "high"],
+              "examples": ["high"]
+            },
+            "state": {
+              "type": "string",
+              "description": "Campaign lifecycle state",
+              "enum": ["planned", "active", "paused", "completed", "archived"],
+              "examples": ["active"]
+            },
+            "tags": {
+              "type": "array",
+              "description": "Free-form tags for categorization",
+              "items": {
+                "type": "string"
+              },
+              "examples": [["security", "modernization"]]
+            },
+            "governance": {
+              "type": "object",
+              "description": "Campaign governance policies for pacing and opt-out",
+              "additionalProperties": false,
+              "properties": {
+                "max-new-items-per-run": {
+                  "type": "integer",
+                  "description": "Maximum new items to add to project board per run",
+                  "minimum": 0
+                },
+                "max-discovery-items-per-run": {
+                  "type": "integer",
+                  "description": "Maximum items to scan during discovery",
+                  "minimum": 0
+                },
+                "max-discovery-pages-per-run": {
+                  "type": "integer",
+                  "description": "Maximum pages of results to fetch during discovery",
+                  "minimum": 0
+                },
+                "opt-out-labels": {
+                  "type": "array",
+                  "description": "Labels that opt issues/PRs out of campaign tracking",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "do-not-downgrade-done-items": {
+                  "type": "boolean",
+                  "description": "Prevent moving items backward (e.g., Done \u2192 In Progress)"
+                },
+                "max-project-updates-per-run": {
+                  "type": "integer",
+                  "description": "Maximum project update operations per run",
+                  "minimum": 0
+                },
+                "max-comments-per-run": {
+                  "type": "integer",
+                  "description": "Maximum comment operations per run",
+                  "minimum": 0
+                }
+              }
+            },
+            "bootstrap": {
+              "type": "object",
+              "description": "Bootstrap configuration for creating initial work items",
+              "required": ["mode"],
+              "additionalProperties": false,
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "description": "Bootstrap strategy",
+                  "enum": ["seeder-worker", "project-todos", "manual"]
+                },
+                "seeder-worker": {
+                  "type": "object",
+                  "description": "Seeder worker configuration (only when mode is seeder-worker)",
+                  "required": ["workflow-id", "payload"],
+                  "properties": {
+                    "workflow-id": {
+                      "type": "string",
+                      "description": "Worker workflow ID to dispatch"
+                    },
+                    "payload": {
+                      "type": "object",
+                      "description": "JSON payload to send to seeder worker"
+                    },
+                    "max-items": {
+                      "type": "integer",
+                      "description": "Maximum work items to return",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "project-todos": {
+                  "type": "object",
+                  "description": "Project todos configuration (only when mode is project-todos)",
+                  "properties": {
+                    "status-field": {
+                      "type": "string",
+                      "description": "Project status field name",
+                      "default": "Status"
+                    },
+                    "todo-value": {
+                      "type": "string",
+                      "description": "Status value indicating Todo",
+                      "default": "Todo"
+                    },
+                    "max-items": {
+                      "type": "integer",
+                      "description": "Maximum Todo items to process",
+                      "minimum": 0
+                    },
+                    "require-fields": {
+                      "type": "array",
+                      "description": "Project fields that must be populated",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "workers": {
+              "type": "array",
+              "description": "Worker workflow metadata for deterministic selection",
+              "items": {
+                "type": "object",
+                "required": ["id", "capabilities", "payload-schema", "output-labeling", "idempotency-strategy"],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Worker workflow ID"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Human-readable worker name"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Worker description"
+                  },
+                  "capabilities": {
+                    "type": "array",
+                    "description": "Work types this worker can perform",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "payload-schema": {
+                    "type": "object",
+                    "description": "Worker payload schema definition",
+                    "additionalProperties": {
+                      "type": "object",
+                      "required": ["type", "description"],
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": ["string", "number", "boolean", "array", "object"]
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "required": {
+                          "type": "boolean"
+                        },
+                        "example": {}
+                      }
+                    }
+                  },
+                  "output-labeling": {
+                    "type": "object",
+                    "description": "Worker output labeling contract",
+                    "required": ["key-in-title"],
+                    "properties": {
+                      "labels": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "key-in-title": {
+                        "type": "boolean"
+                      },
+                      "key-format": {
+                        "type": "string"
+                      },
+                      "metadata-fields": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "idempotency-strategy": {
+                    "type": "string",
+                    "description": "How worker ensures idempotent execution",
+                    "enum": ["branch-based", "pr-title-based", "issue-title-based", "cursor-based"]
+                  },
+                  "priority": {
+                    "type": "integer",
+                    "description": "Worker priority for selection (higher = higher priority)"
+                  }
+                }
+              }
             }
           },
           "examples": [
