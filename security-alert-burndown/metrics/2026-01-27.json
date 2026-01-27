@@ -1,6 +1,7 @@
 {
   "campaign_id": "security-alert-burndown",
   "date": "2026-01-27",
+  "run_timestamp": "2026-01-27T08:15:00Z",
   "tasks_total": 5,
   "tasks_completed": 4,
   "tasks_in_progress": 1,
@@ -10,20 +11,23 @@
       "current": 0,
       "baseline": 5,
       "target": 0,
-      "status": "COMPLETE"
+      "status": "COMPLETE",
+      "trend": "maintained"
     },
     "high_severity_alerts": {
       "current": 0,
       "baseline": 15,
       "target": 5,
-      "status": "COMPLETE"
+      "status": "COMPLETE",
+      "trend": "maintained"
     }
   },
   "worker_activity": {
     "code-scanning-fixer": {
       "items_processed": 4,
       "items_completed": 4,
-      "items_open": 0
+      "items_open": 0,
+      "last_activity": "2026-01-24"
     }
   },
   "discovered_items": {
@@ -34,8 +38,15 @@
     "closed": 4
   },
   "project_updates": {
-    "items_added": 1,
-    "items_updated": 4,
-    "items_failed": 0
+    "items_added": 5,
+    "items_updated": 0,
+    "items_failed": 0,
+    "items_skipped": 0
+  },
+  "discovery": {
+    "pages_scanned": 2,
+    "items_scanned": 10,
+    "budget_exhausted": false,
+    "cursor_page": 1
   }
 }
