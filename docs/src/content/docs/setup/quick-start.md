@@ -50,7 +50,7 @@ This will take you through an interactive process to
 
 1. Select an AI Engine to use
 2. Add the workflow and set up required secrets
-3. Trigger an initial run of the workflow
+3. Optionally trigger an initial run of the workflow
 
 ### Step 3 — Looking at the results
 
