@@ -28,7 +28,7 @@
 name: "Go Logger Enhancement"
 "on":
   schedule:
-  - cron: "52 15 * * *"
+  - cron: "14 6 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 

@@ -28,7 +28,7 @@
 name: "Schema Consistency Checker"
 "on":
   schedule:
-  - cron: "7 16 * * *"
+  - cron: "41 23 * * *"
     # Friendly format: daily (scattered)
   workflow_dispatch:
 
