@@ -28,7 +28,7 @@ func TestRenderSharedMCPConfig_CopilotFields(t *testing.T) {
 				RequiresCopilotFields: true,
 			},
 			expectedContent: []string{
-				`"type": "local"`, // stdio converted to local for copilot
+				`"type": "stdio"`, // stdio converted to local for copilot
 				`"tools": [`,
 				`"get_current_time"`,
 				`"command": "docker"`,
@@ -212,7 +212,7 @@ func TestRenderSharedMCPConfig_TypeConversion(t *testing.T) {
 			name:           "stdio to local conversion for copilot",
 			inputType:      "stdio",
 			copilotFields:  true,
-			expectedType:   `"type": "local"`,
+			expectedType:   `"type": "stdio"`,
 			shouldHaveType: true,
 		},
 		{

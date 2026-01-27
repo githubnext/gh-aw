@@ -21,7 +21,7 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			isLast: true,
 			expectedContent: []string{
 				`"github": {`,
-				`"type": "local"`,
+				`"type": "stdio"`,
 				`"tools": [`,
 				`"list_workflows"`,
 				`"list_workflow_runs"`,
@@ -37,7 +37,7 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			isLast:     true,
 			expectedContent: []string{
 				`"github": {`,
-				`"type": "local"`,
+				`"type": "stdio"`,
 				`"tools": ["*"]`,
 			},
 			unexpectedContent: []string{},
@@ -50,7 +50,7 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			isLast: true,
 			expectedContent: []string{
 				`"github": {`,
-				`"type": "local"`,
+				`"type": "stdio"`,
 				`"tools": ["*"]`,
 			},
 			unexpectedContent: []string{},

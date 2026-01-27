@@ -840,7 +840,7 @@ func TestCopilotEngineRenderMCPConfigWithGitHubAndPlaywright(t *testing.T) {
 		`"github": {`,
 		`"type": "local",`,
 		`"command": "docker",`,
-		`"ghcr.io/github/github-mcp-server:v0.27.0"`,
+		`"ghcr.io/github/github-mcp-server:v0.30.1"`,
 		`},`, // GitHub should NOT be last (comma after closing brace)
 		`"playwright": {`,
 		`"type": "local",`,
