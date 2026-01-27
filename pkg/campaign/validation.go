@@ -80,13 +80,11 @@ func ValidateSpec(spec *CampaignSpec) []string {
 		}
 	}
 
-	parsedScope, scopeProblems := parseScopeSelectors(spec.Scope)
+	_, scopeProblems := parseScopeSelectors(spec.Scope)
 	problems = append(problems, scopeProblems...)
 
-	// Campaigns that do discovery (workflows or tracker-label) must be scoped.
-	if (len(spec.Workflows) > 0 || strings.TrimSpace(spec.TrackerLabel) != "") && len(parsedScope.Repos) == 0 && len(parsedScope.Orgs) == 0 {
-		problems = append(problems, "campaigns with workflows must be scoped via scope")
-	}
+	// Note: scope validation removed - loader defaults to current repository when omitted
+	// See pkg/campaign/loader.go lines 115-124
 
 	if strings.TrimSpace(spec.ProjectURL) == "" {
 		problems = append(problems, "project-url is required (GitHub Project URL used as the campaign dashboard) - example: 'https://github.com/orgs/myorg/projects/1'")
