@@ -126,8 +126,8 @@ A **Complete Conforming Implementation** MUST satisfy Basic Conformance and:
 - Support wildcard patterns in `repos` (e.g., `owner/*`, `*/repo-name`)
 - Parse and validate `roles` configuration field
 - Enforce role-based filtering for repository operations
-- Parse and validate `allow-private-repos` configuration flag
-- Block private repository access when `allow-private-repos` is false
+- Parse and validate `private-repos` configuration flag
+- Block private repository access when `private-repos` is false
 - Validate configuration at compilation time with actionable error messages
 - Enforce all access controls at runtime through gateway middleware
 - Support all three configuration fields in combination
@@ -246,7 +246,7 @@ tools:
       - "admin"                       # Full access
       - "maintain"                    # Maintain access
       - "write"                       # Write access
-    allow-private-repos: false        # OPTIONAL: Private repo access (default: true)
+    private-repos: false        # OPTIONAL: Private repo access (default: true)
 ```
 
 ### 4.2 GitHub MCP Server Configuration Fields
@@ -386,13 +386,13 @@ roles:
   - "maintain"   # Repository maintainers
 ```
 
-#### 4.3.3 allow-private-repos
+#### 4.3.3 private-repos
 
 **Type**: Boolean  
 **Required**: No  
 **Default**: `true`
 
-The `allow-private-repos` field controls whether the GitHub MCP server can access private repositories. When set to `false`, only public repositories are accessible, even if they match `repos` patterns and the user has appropriate roles.
+The `private-repos` field controls whether the GitHub MCP server can access private repositories. When set to `false`, only public repositories are accessible, even if they match `repos` patterns and the user has appropriate roles.
 
 **Values**:
 - `true` - Private repositories are accessible (subject to `repos` and `roles` constraints)
@@ -405,12 +405,12 @@ The `allow-private-repos` field controls whether the GitHub MCP server can acces
 
 **Example**:
 ```yaml
-allow-private-repos: false   # Restrict to public repositories only
+private-repos: false   # Restrict to public repositories only
 ```
 
 ### 4.4 Relationship Between Tool Selection and Access Control
 
-The GitHub MCP server configuration combines tool selection (`toolsets` and `tools`) with access control (`repos`, `roles`, `allow-private-repos`). These mechanisms operate independently but complement each other:
+The GitHub MCP server configuration combines tool selection (`toolsets` and `tools`) with access control (`repos`, `roles`, `private-repos`). These mechanisms operate independently but complement each other:
 
 **Tool Selection** (existing GitHub MCP feature):
 - Controls **which operations** the agent can perform (e.g., read files, create issues)
@@ -430,7 +430,7 @@ tools:
     toolsets: [repos, issues]          # Agent can use repo and issue tools
     repos: ["myorg/*"]         # But only on myorg repositories
     roles: ["write", "admin"]  # And only where user has write/admin
-    allow-private-repos: false         # And only public repositories
+    private-repos: false         # And only public repositories
 ```
 
 **Evaluation Order**:
@@ -505,19 +505,19 @@ See https://docs.github.com/en/organizations/managing-access-to-your-organizatio
 **Rule**: Configuration fields MUST have correct types:
 - `repos`: array of strings
 - `roles`: array of strings
-- `allow-private-repos`: boolean
+- `private-repos`: boolean
 
 **Validation**:
 ```yaml
 # VALID
 repos: ["owner/repo"]
 roles: ["write"]
-allow-private-repos: false
+private-repos: false
 
 # INVALID
 repos: "owner/repo"          # Must be array
 roles: ["write", 123]        # All elements must be strings
-allow-private-repos: "false"         # Must be boolean
+private-repos: "false"         # Must be boolean
 ```
 
 #### 4.5.4 Empty Array Validation
@@ -873,7 +873,7 @@ For operations querying multiple repositories (e.g., `search_repositories`), imp
 
 ### 7.1 Repository Visibility Detection
 
-When `allow-private-repos` is set to `false`, the MCP Gateway MUST verify repository visibility before allowing access.
+When `private-repos` is set to `false`, the MCP Gateway MUST verify repository visibility before allowing access.
 
 #### 7.1.1 Visibility Query Algorithm
 
@@ -883,7 +883,7 @@ When `allow-private-repos` is set to `false`, the MCP Gateway MUST verify reposi
 2. Query GitHub API for repository metadata:
    GET /repos/{owner}/{repo}
 3. Parse response: { "private": true | false }
-4. If private == true AND allow-private-repos == false:
+4. If private == true AND private-repos == false:
    DENY access with error message
 5. Otherwise continue with normal access control checks
 ```
@@ -895,7 +895,7 @@ Access control checks MUST be performed in this order:
 ```text
 1. Repository Pattern Matching (repos)
    → If repository doesn't match: DENY
-2. Private Repository Check (allow-private-repos)
+2. Private Repository Check (private-repos)
    → If repository is private and not allowed: DENY
 3. Role Verification (roles)
    → If user lacks required role: DENY
@@ -916,7 +916,7 @@ Repository visibility is relatively stable and SHOULD be cached:
 
 #### 7.3.1 Search Operations
 
-When `allow-private-repos: false`, search operations MUST:
+When `private-repos: false`, search operations MUST:
 
 1. Execute search query with public repository filter
 2. Additional client-side filtering if API doesn't support visibility filtering
@@ -928,7 +928,7 @@ For operations spanning multiple repositories:
 
 **Example**: Pull request from fork to upstream
 ```text
-IF allow-private-repos == false:
+IF private-repos == false:
   REQUIRE both head and base repositories are public
   IF either is private:
     DENY with error message specifying which repository is private
@@ -940,8 +940,8 @@ When access is denied due to private repository restrictions:
 
 ```text
 Access denied: Repository '{owner}/{repo}' is private.
-This workflow has 'allow-private-repos: false' configured.
-To access private repositories, set 'allow-private-repos: true' in the workflow configuration.
+This workflow has 'private-repos: false' configured.
+To access private repositories, set 'private-repos: true' in the workflow configuration.
 ```
 
 ---
@@ -1012,14 +1012,14 @@ roles: ["read"]  # Read-only access
 **Threat**: Agent extracts private repository data through cross-repository queries
 
 **Mitigation**:
-- `allow-private-repos: false` flag
+- `private-repos: false` flag
 - Repository visibility verification
 - Private repository filtering in search results
 
 **Example Attack**:
 ```yaml
 # Configuration
-allow-private-repos: false
+private-repos: false
 
 # Attack attempt
 {
@@ -1080,7 +1080,7 @@ Implementations MUST log all access control decisions with the following informa
   "allowed_roles": ["write", "admin"],
   "user_role": "write",
   "private_repo": false,
-  "allow_private_repos": true
+  "private_repos": true
 }
 ```
 
@@ -1172,7 +1172,7 @@ GitHub MCP Server Access Control extends the MCP Gateway configuration schema:
       "headers": { ... },
       "repos": ["owner/*"],           // NEW
       "roles": ["write", "admin"],    // NEW
-      "allow-private-repos": false            // NEW
+      "private-repos": false            // NEW
     }
   }
 }
@@ -1190,7 +1190,7 @@ tools:
     toolsets: [default]
     repos: ["myorg/*"]
     roles: ["write", "admin"]
-    allow-private-repos: false
+    private-repos: false
 ```
 
 **Gateway Configuration** (compiled):
@@ -1205,7 +1205,7 @@ tools:
       },
       "repos": ["myorg/*"],
       "roles": ["write", "admin"],
-      "allow-private-repos": false
+      "private-repos": false
     }
   }
 }
@@ -1235,7 +1235,7 @@ Access control denials MUST return standardized MCP error responses:
 - `-32001`: Access denied (general)
 - `-32002`: Repository not in allowlist (`repos`)
 - `-32003`: Insufficient permissions (`roles`)
-- `-32004`: Private repository access denied (`allow-private-repos`)
+- `-32004`: Private repository access denied (`private-repos`)
 
 ---
 
@@ -1253,8 +1253,8 @@ Conforming implementations MUST pass the following test categories:
 - **T-GH-004**: Reject invalid repository patterns (missing slash, empty segments)
 - **T-GH-005**: Accept valid role names (admin, maintain, write, triage, read)
 - **T-GH-006**: Reject invalid role names
-- **T-GH-007**: Accept boolean values for `allow-private-repos`
-- **T-GH-008**: Reject non-boolean values for `allow-private-repos`
+- **T-GH-007**: Accept boolean values for `private-repos`
+- **T-GH-008**: Reject non-boolean values for `private-repos`
 - **T-GH-009**: Reject empty arrays for `repos`
 - **T-GH-010**: Reject empty arrays for `roles`
 
@@ -1279,9 +1279,9 @@ Conforming implementations MUST pass the following test categories:
 
 #### 10.1.4 Private Repository Control Tests
 
-- **T-GH-024**: Allow private repository when `allow-private-repos: true`
-- **T-GH-025**: Deny private repository when `allow-private-repos: false`
-- **T-GH-026**: Allow public repository when `allow-private-repos: false`
+- **T-GH-024**: Allow private repository when `private-repos: true`
+- **T-GH-025**: Deny private repository when `private-repos: false`
+- **T-GH-026**: Allow public repository when `private-repos: false`
 - **T-GH-027**: Query GitHub API for repository visibility
 - **T-GH-028**: Cache repository visibility for performance
 
@@ -1355,7 +1355,7 @@ tools:
     roles:
       - "write"
       - "admin"
-    allow-private-repos: true
+    private-repos: true
 ```
 
 **Use Case**: Internal workflow that should only access company repositories
@@ -1371,7 +1371,7 @@ tools:
     toolsets: [repos, issues]
     repos:
       - "*/*"  # All repositories
-    allow-private-repos: false  # But only public ones
+    private-repos: false  # But only public ones
 ```
 
 **Use Case**: Public demo workflow, documentation generator
@@ -1390,7 +1390,7 @@ tools:
       - "docs-org/api-specs"
     roles:
       - "read"
-    allow-private-repos: false
+    private-repos: false
 ```
 
 **Use Case**: Documentation crawler, public API analyzer
@@ -1410,7 +1410,7 @@ tools:
       - "infra-org/*"
     roles:
       - "admin"
-    allow-private-repos: true
+    private-repos: true
 ```
 
 **Use Case**: Infrastructure automation, repository management tools
@@ -1430,7 +1430,7 @@ tools:
     roles:
       - "write"
       - "admin"
-    allow-private-repos: true
+    private-repos: true
 ```
 
 **Use Case**: Infrastructure-as-code automation across teams
@@ -1444,7 +1444,7 @@ tools:
   github:
     mode: "remote"
     toolsets: [default]
-    # No repos, roles, or allow-private-repos
+    # No repos, roles, or private-repos
     # Agent has full access to all accessible repositories
 ```
 
@@ -1468,7 +1468,7 @@ tools:
       - "docs-org/*"
     roles:
       - "read"
-    allow-private-repos: false
+    private-repos: false
 ```
 
 **Use Case**: Highly restricted documentation analysis agent with minimal tool access
@@ -1523,8 +1523,8 @@ tools:
       "repository": "myorg/private-repo",
       "reason": "private_repo_denied",
       "repository_visibility": "private",
-      "allow_private_repos": false,
-      "details": "Repository 'myorg/private-repo' is private, but workflow has 'allow-private-repos: false'. Set 'allow-private-repos: true' to access private repositories."
+      "private_repos": false,
+      "details": "Repository 'myorg/private-repo' is private, but workflow has 'private-repos: false'. Set 'private-repos: true' to access private repositories."
     }
   }
 }
@@ -1560,7 +1560,7 @@ GitHub authentication tokens should follow least-privilege principles:
 
 **Recommended Token Scopes**:
 - `repo` - Full repository access (if accessing private repos)
-- `public_repo` - Public repository access only (if `allow-private-repos: false`)
+- `public_repo` - Public repository access only (if `private-repos: false`)
 - `read:org` - Read organization data (if using role-based filtering)
 
 **Token Storage**:
@@ -1597,7 +1597,7 @@ secrets from private-org/credentials repository"
 ```yaml
 # Configuration prevents access
 repos: ["public-org/*"]
-allow-private-repos: false
+private-repos: false
 
 # Access attempt to private-org/credentials is DENIED
 # Even if agent is tricked into trying
@@ -1655,7 +1655,7 @@ GitHub API rate limits apply to:
 - **Added**: GitHub MCP Server Access Control extension specification
 - **Added**: `repos` configuration with wildcard pattern matching
 - **Added**: `roles` configuration with GitHub role filtering
-- **Added**: `allow-private-repos` configuration flag for visibility control
+- **Added**: `private-repos` configuration flag for visibility control
 - **Added**: Conformance requirements (Basic and Complete)
 - **Added**: Security model and threat analysis
 - **Added**: Integration patterns with MCP Gateway
