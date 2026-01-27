@@ -99,6 +99,30 @@ These default mounts ensure the agent has access to essential tools and the repo
 > it, preventing agents from spawning Docker
 > containers.
 
+#### Mirrored Environment Variables
+
+AWF automatically mirrors essential environment variables from the GitHub Actions runner into the agent container. This ensures compatibility with workflows that depend on runner-provided tool paths.
+
+The following environment variables are mirrored (if they exist on the host):
+
+| Category | Environment Variables |
+|----------|----------------------|
+| **Java** | `JAVA_HOME`, `JAVA_HOME_8_X64`, `JAVA_HOME_11_X64`, `JAVA_HOME_17_X64`, `JAVA_HOME_21_X64`, `JAVA_HOME_25_X64` |
+| **Android** | `ANDROID_HOME`, `ANDROID_SDK_ROOT`, `ANDROID_NDK`, `ANDROID_NDK_HOME`, `ANDROID_NDK_ROOT`, `ANDROID_NDK_LATEST_HOME` |
+| **Browsers** | `CHROMEWEBDRIVER`, `EDGEWEBDRIVER`, `GECKOWEBDRIVER`, `SELENIUM_JAR_PATH` |
+| **Package Managers** | `CONDA`, `VCPKG_INSTALLATION_ROOT`, `PIPX_HOME`, `PIPX_BIN_DIR`, `GEM_HOME`, `GEM_PATH` |
+| **Go** | `GOPATH`, `GOROOT` |
+| **.NET** | `DOTNET_ROOT` |
+| **Rust** | `CARGO_HOME`, `RUSTUP_HOME` |
+| **Node.js** | `NVM_DIR` |
+| **Homebrew** | `HOMEBREW_PREFIX`, `HOMEBREW_CELLAR`, `HOMEBREW_REPOSITORY` |
+| **Swift** | `SWIFT_PATH` |
+| **Azure** | `AZURE_EXTENSION_DIR` |
+
+> [!NOTE]
+> Environment Variable Handling
+> Variables are only passed to the container if they exist on the host runner. Missing variables are silently ignored, ensuring workflows work across different runner configurations.
+
 #### Custom AWF Configuration
 
 Use custom commands, arguments, and environment variables to replace the standard AWF installation with a custom setup:

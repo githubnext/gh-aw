@@ -26,7 +26,7 @@ describe("handle_agent_failure.cjs", () => {
 **Branch:** {branch}  
 **Run URL:** {run_url}{pull_request_info}
 
-{secret_verification_context}
+{secret_verification_context}{assignment_errors_context}{missing_safe_outputs_context}
 
 ### Action Required
 
@@ -40,7 +40,7 @@ When prompted, instruct the agent to debug this workflow failure.`;
       } else if (filePath.includes("agent_failure_comment.md")) {
         return `Agent job [{run_id}]({run_url}) failed.
 
-{secret_verification_context}`;
+{secret_verification_context}{assignment_errors_context}{missing_safe_outputs_context}`;
       }
       return originalReadFileSync.call(fs, filePath, encoding);
     });
@@ -550,14 +550,55 @@ When prompted, instruct the agent to debug this workflow failure.`;
   });
 
   describe("when agent job did not fail", () => {
-    it("should skip processing when agent conclusion is success", async () => {
+    it("should skip processing when agent conclusion is success with safe outputs", async () => {
       process.env.GH_AW_AGENT_CONCLUSION = "success";
+
+      // Set up agent output file with safe outputs
+      const tempFilePath = "/tmp/test_agent_output_success.json";
+      fs.writeFileSync(
+        tempFilePath,
+        JSON.stringify({
+          items: [{ type: "noop", message: "No action taken" }],
+        })
+      );
+      process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
+
+      try {
+        await main();
+
+        expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Agent job did not fail"));
+        expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+        expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+      } finally {
+        // Clean up
+        if (fs.existsSync(tempFilePath)) {
+          fs.unlinkSync(tempFilePath);
+        }
+      }
+    });
+
+    it("should process when agent conclusion is success but no safe outputs", async () => {
+      process.env.GH_AW_AGENT_CONCLUSION = "success";
+      // Don't set up GH_AW_AGENT_OUTPUT to simulate missing safe outputs
+
+      // Mock API responses
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: { total_count: 0, items: [] },
+      });
+
+      mockGithub.rest.issues.create.mockResolvedValue({
+        data: {
+          number: 1,
+          html_url: "https://github.com/test-owner/test-repo/issues/1",
+          node_id: "test-node-id",
+        },
+      });
 
       await main();
 
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Agent job did not fail"));
-      expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
-      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Agent succeeded but produced no safe outputs"));
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalled();
+      expect(mockGithub.rest.issues.create).toHaveBeenCalled();
     });
 
     it("should skip processing when agent conclusion is cancelled", async () => {

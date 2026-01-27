@@ -199,6 +199,17 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		var awfArgs []string
 		awfArgs = append(awfArgs, "--env-all")
 
+		// Add mirrored environment variables from the runner
+		// These runner-level env vars (JAVA_HOME_*, ANDROID_HOME, etc.) need explicit --env flags
+		// to be passed through to the container. AWF only passes them if they exist on the host.
+		mirroredEnvArgs := GetMirroredEnvArgs()
+		awfArgs = append(awfArgs, mirroredEnvArgs...)
+		codexEngineLog.Printf("Added %d mirrored environment variable arguments", len(mirroredEnvArgs)/2)
+
+		// Add GH_AW_TOOL_BINS env arg for PATH priority (computed by GetToolBinsSetup on runner)
+		// This ensures actions/setup-* installed tools take precedence over pre-installed versions
+		awfArgs = append(awfArgs, GetToolBinsEnvArg()...)
+
 		// Set container working directory to match GITHUB_WORKSPACE
 		awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")
 		codexEngineLog.Print("Set container working directory to GITHUB_WORKSPACE")
@@ -293,23 +304,28 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		pathSetup := GetHostedToolcachePathSetup()
 		codexCommandWithPath := fmt.Sprintf("%s && %s", pathSetup, codexCommand)
 
+		// Compute GH_AW_TOOL_BINS on the runner side (safer than shell expansion inside container)
+		toolBinsSetup := GetToolBinsSetup()
+
 		// Build the command with agent file handling if specified
 		if workflowData.AgentFile != "" {
 			agentPath := ResolveAgentFilePath(workflowData.AgentFile)
 			command = fmt.Sprintf(`set -o pipefail
+%s
 AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)"
 INSTRUCTION="$(printf "%%s\n\n%%s" "$AGENT_CONTENT" "$(cat "$GH_AW_PROMPT")")"
 mkdir -p "$CODEX_HOME/logs"
 %s %s \
   -- %s \
-  2>&1 | tee %s`, agentPath, awfCommand, shellJoinArgs(awfArgs), codexCommandWithPath, shellEscapeArg(logFile))
+  2>&1 | tee %s`, toolBinsSetup, agentPath, awfCommand, shellJoinArgs(awfArgs), codexCommandWithPath, shellEscapeArg(logFile))
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
+%s
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p "$CODEX_HOME/logs"
 %s %s \
   -- %s \
-  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), codexCommandWithPath, shellEscapeArg(logFile))
+  2>&1 | tee %s`, toolBinsSetup, awfCommand, shellJoinArgs(awfArgs), codexCommandWithPath, shellEscapeArg(logFile))
 		}
 	} else {
 		// Build the command without AWF wrapping

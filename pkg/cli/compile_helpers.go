@@ -122,7 +122,7 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 	}
 
 	// Regular workflow file - compile normally
-	compileHelpersLog.Printf("Compiling: %s", file)
+	compileHelpersLog.Printf("Compiling as regular workflow: %s", file)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Compiling: %s", file)))
 	}

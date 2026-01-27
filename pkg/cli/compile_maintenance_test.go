@@ -52,9 +52,10 @@ Test workflow that creates issues with expiration.
 		t.Fatalf("Failed to write workflow file: %v", err)
 	}
 
-	// Compile the specific file
+	// Compile all workflows in the directory (maintenance workflow is only generated
+	// when compiling entire directory, not specific files)
 	config := CompileConfig{
-		MarkdownFiles:        []string{"test-expires.md"},
+		MarkdownFiles:        []string{}, // Empty = compile all
 		Verbose:              false,
 		EngineOverride:       "",
 		Validate:             false,
@@ -146,9 +147,10 @@ Test workflow that creates issues without expiration.
 		t.Fatalf("Failed to write workflow file: %v", err)
 	}
 
-	// Compile the specific file
+	// Compile all workflows in the directory (maintenance workflow is only generated
+	// when compiling entire directory, not specific files)
 	config := CompileConfig{
-		MarkdownFiles:        []string{"test-no-expires.md"},
+		MarkdownFiles:        []string{}, // Empty = compile all
 		Verbose:              false,
 		EngineOverride:       "",
 		Validate:             false,

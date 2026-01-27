@@ -137,6 +137,21 @@ func compileWorkflowFile(
 	}
 	result.workflowData = workflowData
 
+	// Inject campaign orchestrator features if project field has campaign configuration
+	// This transforms the workflow into a campaign orchestrator in-place
+	if err := campaign.InjectOrchestratorFeatures(workflowData); err != nil {
+		errMsg := fmt.Sprintf("failed to inject campaign orchestrator features: %v", err)
+		if !jsonOutput {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+		}
+		result.validationResult.Valid = false
+		result.validationResult.Errors = append(result.validationResult.Errors, CompileValidationError{
+			Type:    "campaign_injection_error",
+			Message: err.Error(),
+		})
+		return result
+	}
+
 	compileWorkflowProcessorLog.Printf("Starting compilation of %s", resolvedFile)
 
 	// Compile the workflow
