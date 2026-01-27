@@ -392,12 +392,9 @@ func compileAllFilesInDirectory(
 
 // purgeTrackingData holds data needed for purge operations
 type purgeTrackingData struct {
-	existingLockFiles                     []string
-	existingInvalidFiles                  []string
-	existingCampaignOrchestratorFiles     []string
-	existingCampaignOrchestratorLockFiles []string
-	expectedLockFiles                     []string
-	expectedCampaignDefinitions           []string
+	existingLockFiles    []string
+	existingInvalidFiles []string
+	expectedLockFiles    []string
 }
 
 // collectPurgeData collects existing files for purge operations
@@ -407,17 +404,11 @@ func collectPurgeData(workflowsDir string, mdFiles []string, verbose bool) *purg
 	// Find all existing files
 	data.existingLockFiles, _ = filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
 	data.existingInvalidFiles, _ = filepath.Glob(filepath.Join(workflowsDir, "*.invalid.yml"))
-	data.existingCampaignOrchestratorFiles, _ = filepath.Glob(filepath.Join(workflowsDir, "*.campaign.g.md"))
-	data.existingCampaignOrchestratorLockFiles, _ = filepath.Glob(filepath.Join(workflowsDir, "*.campaign.lock.yml"))
 
 	// Create expected files list
 	for _, mdFile := range mdFiles {
 		lockFile := stringutil.MarkdownToLockFile(mdFile)
 		data.expectedLockFiles = append(data.expectedLockFiles, lockFile)
-
-		if strings.HasSuffix(mdFile, ".campaign.md") {
-			data.expectedCampaignDefinitions = append(data.expectedCampaignDefinitions, mdFile)
-		}
 	}
 
 	if verbose {
@@ -437,8 +428,6 @@ func runPurgeOperations(workflowsDir string, data *purgeTrackingData, verbose bo
 	// Errors from purge operations are logged but don't stop compilation
 	_ = purgeOrphanedLockFiles(workflowsDir, data.expectedLockFiles, verbose)
 	_ = purgeInvalidFiles(workflowsDir, verbose)
-	_ = purgeOrphanedCampaignOrchestrators(workflowsDir, data.expectedCampaignDefinitions, verbose)
-	_ = purgeOrphanedCampaignOrchestratorLockFiles(workflowsDir, data.expectedCampaignDefinitions, verbose)
 }
 
 // displayScheduleWarnings displays any schedule warnings from the compiler

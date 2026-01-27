@@ -91,16 +91,8 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		c.artifactManager.Reset()
 	}
 
-	// Generate lock file name, handling campaign orchestrators specially
-	// Campaign orchestrators are named *.campaign.g.md (debug artifacts)
-	// but should produce *.campaign.lock.yml (not *.campaign.g.lock.yml)
-	var lockFile string
-	if strings.HasSuffix(markdownPath, ".campaign.g.md") {
-		// For campaign orchestrators: example.campaign.g.md -> example.campaign.lock.yml
-		lockFile = stringutil.CampaignOrchestratorToLockFile(markdownPath)
-	} else {
-		lockFile = stringutil.MarkdownToLockFile(markdownPath)
-	}
+	// Generate lock file name
+	lockFile := stringutil.MarkdownToLockFile(markdownPath)
 
 	// Sanitize the lock file path to prevent path traversal attacks
 	lockFile = filepath.Clean(lockFile)
