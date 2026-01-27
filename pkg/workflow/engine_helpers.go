@@ -326,6 +326,14 @@ func FilterEnvForSecrets(env map[string]string, allowedSecrets []string) map[str
 // The hostedtoolcache directory structure is: /opt/hostedtoolcache/<tool>/<version>/<arch>/bin
 // This function generates a command that finds all bin directories and adds them to PATH.
 //
+// IMPORTANT: The command prepends specific tool paths (from environment variables like GOROOT,
+// JAVA_HOME, etc.) BEFORE the generic find results. This ensures that the version configured
+// by actions/setup-* takes precedence over other versions that may exist in hostedtoolcache.
+//
+// Without this ordering fix, the generic `find` command returns directories in alphabetical
+// order, causing older versions (e.g., Go 1.22.12) to shadow newer ones (e.g., Go 1.25.6)
+// because "1.22" < "1.25" alphabetically.
+//
 // This is used by all engine implementations (Copilot, Claude, Codex) to ensure consistent
 // access to runtime tools inside the agent container.
 //
@@ -334,7 +342,38 @@ func FilterEnvForSecrets(env map[string]string, allowedSecrets []string) map[str
 //
 // Example output:
 //
-//	export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"
+//	export PATH="${GOROOT:+$GOROOT/bin:}${JAVA_HOME:+$JAVA_HOME/bin:}...$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"
 func GetHostedToolcachePathSetup() string {
-	return `export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"`
+	// Prepend specific tool paths from environment variables (set by actions/setup-*) before
+	// the generic find results. This ensures the correct version takes precedence over
+	// alphabetically-earlier versions in hostedtoolcache.
+	//
+	// Shell syntax: ${VAR:+$VAR/bin:} expands to "$VAR/bin:" if VAR is set and non-empty,
+	// or nothing if VAR is unset/empty. This safely handles missing variables.
+	//
+	// Tools with /bin subdirectory:
+	//   - GOROOT: Go installation root (actions/setup-go)
+	//   - JAVA_HOME: Java installation root (actions/setup-java)
+	//   - CARGO_HOME: Cargo/Rust installation (rustup)
+	//   - GEM_HOME: Ruby gems (actions/setup-ruby)
+	//   - CONDA: Conda installation
+	//
+	// Tools where the path IS the bin directory (no /bin suffix needed):
+	//   - PIPX_BIN_DIR: pipx binary directory
+	//   - SWIFT_PATH: Swift binary path
+	//   - DOTNET_ROOT: .NET root (binaries are in root, not /bin)
+	specificPaths := "" +
+		"${GOROOT:+$GOROOT/bin:}" +
+		"${JAVA_HOME:+$JAVA_HOME/bin:}" +
+		"${CARGO_HOME:+$CARGO_HOME/bin:}" +
+		"${GEM_HOME:+$GEM_HOME/bin:}" +
+		"${CONDA:+$CONDA/bin:}" +
+		"${PIPX_BIN_DIR:+$PIPX_BIN_DIR:}" +
+		"${SWIFT_PATH:+$SWIFT_PATH:}" +
+		"${DOTNET_ROOT:+$DOTNET_ROOT:}"
+
+	// Generic find for all other hostedtoolcache binaries (Node.js, Python, etc.)
+	genericFind := `$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')`
+
+	return fmt.Sprintf(`export PATH="%s%s$PATH"`, specificPaths, genericFind)
 }

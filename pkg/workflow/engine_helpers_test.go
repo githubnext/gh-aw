@@ -386,10 +386,58 @@ func TestGetHostedToolcachePathSetup_Consistency(t *testing.T) {
 	if first != second {
 		t.Errorf("GetHostedToolcachePathSetup should return consistent results, got:\n%s\nvs:\n%s", first, second)
 	}
+}
 
-	// Verify exact expected output
-	expected := `export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"`
-	if first != expected {
-		t.Errorf("GetHostedToolcachePathSetup returned unexpected value.\nGot:      %s\nExpected: %s", first, expected)
+// TestGetHostedToolcachePathSetup_SpecificToolPaths verifies that specific tool paths are prepended
+// before the generic find results. This ensures versions set by actions/setup-* take precedence
+// over alphabetically-earlier versions in hostedtoolcache.
+func TestGetHostedToolcachePathSetup_SpecificToolPaths(t *testing.T) {
+	pathSetup := GetHostedToolcachePathSetup()
+
+	// Should prepend GOROOT/bin before generic find (for Go version priority)
+	if !strings.Contains(pathSetup, "${GOROOT:+$GOROOT/bin:}") {
+		t.Errorf("PATH setup should prepend GOROOT/bin for Go version priority, got: %s", pathSetup)
+	}
+
+	// Should prepend JAVA_HOME/bin before generic find (for Java version priority)
+	if !strings.Contains(pathSetup, "${JAVA_HOME:+$JAVA_HOME/bin:}") {
+		t.Errorf("PATH setup should prepend JAVA_HOME/bin for Java version priority, got: %s", pathSetup)
+	}
+
+	// Should prepend CARGO_HOME/bin before generic find (for Rust version priority)
+	if !strings.Contains(pathSetup, "${CARGO_HOME:+$CARGO_HOME/bin:}") {
+		t.Errorf("PATH setup should prepend CARGO_HOME/bin for Rust version priority, got: %s", pathSetup)
+	}
+
+	// Should prepend CONDA/bin before generic find (for Conda version priority)
+	if !strings.Contains(pathSetup, "${CONDA:+$CONDA/bin:}") {
+		t.Errorf("PATH setup should prepend CONDA/bin for Conda version priority, got: %s", pathSetup)
+	}
+
+	// Should prepend GEM_HOME/bin before generic find (for Ruby version priority)
+	if !strings.Contains(pathSetup, "${GEM_HOME:+$GEM_HOME/bin:}") {
+		t.Errorf("PATH setup should prepend GEM_HOME/bin for Ruby version priority, got: %s", pathSetup)
+	}
+
+	// Should prepend PIPX_BIN_DIR before generic find (already a bin dir, no /bin suffix)
+	if !strings.Contains(pathSetup, "${PIPX_BIN_DIR:+$PIPX_BIN_DIR:}") {
+		t.Errorf("PATH setup should prepend PIPX_BIN_DIR for pipx priority, got: %s", pathSetup)
+	}
+
+	// Should prepend SWIFT_PATH before generic find (already contains the path)
+	if !strings.Contains(pathSetup, "${SWIFT_PATH:+$SWIFT_PATH:}") {
+		t.Errorf("PATH setup should prepend SWIFT_PATH for Swift priority, got: %s", pathSetup)
+	}
+
+	// Should prepend DOTNET_ROOT before generic find (binaries in root, not /bin)
+	if !strings.Contains(pathSetup, "${DOTNET_ROOT:+$DOTNET_ROOT:}") {
+		t.Errorf("PATH setup should prepend DOTNET_ROOT for .NET priority, got: %s", pathSetup)
+	}
+
+	// Verify ordering: specific paths should come BEFORE the find command
+	goRootIdx := strings.Index(pathSetup, "GOROOT")
+	findIdx := strings.Index(pathSetup, "find /opt/hostedtoolcache")
+	if goRootIdx > findIdx {
+		t.Errorf("GOROOT should come before find command in PATH setup, got: %s", pathSetup)
 	}
 }
