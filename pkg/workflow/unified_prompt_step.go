@@ -332,7 +332,7 @@ To create or modify GitHub resources (issues, discussions, pull requests, etc.),
 		// This checks for issue_comment, pull_request_review_comment, or pull_request_review events
 		// For issue_comment, we also need to check if it's on a PR (github.event.issue.pull_request != null)
 		// However, for simplicity in the unified step, we'll add an environment variable to check this
-		shellCondition := `[ "$GITHUB_EVENT_NAME" = "issue_comment" -a -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]`
+		shellCondition := `[ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]`
 
 		// Add environment variable to check if issue_comment is on a PR
 		envVars := map[string]string{
