@@ -28,7 +28,7 @@ func TestRenderSharedMCPConfig_CopilotFields(t *testing.T) {
 				RequiresCopilotFields: true,
 			},
 			expectedContent: []string{
-				`"type": "stdio"`, // stdio converted to local for copilot
+				`"type": "stdio"`, // stdio type for copilot
 				`"tools": [`,
 				`"get_current_time"`,
 				`"command": "docker"`,

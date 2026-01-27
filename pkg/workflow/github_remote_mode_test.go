@@ -302,7 +302,7 @@ This is a test workflow for GitHub remote mode configuration.
 				switch tt.engineType {
 				case "copilot":
 					if !strings.Contains(lockContent, `"type": "stdio"`) {
-						t.Errorf("Expected Copilot local type but didn't find it in:\n%s", lockContent)
+						t.Errorf("Expected Copilot stdio type but didn't find it in:\n%s", lockContent)
 					}
 				case "codex":
 					// Codex uses TOML format for Docker
