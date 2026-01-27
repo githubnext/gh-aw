@@ -234,9 +234,9 @@ async function discoverSecurityAlerts(octokit, repos) {
   }
 
   const alerts = {
-    code_scanning: { total: 0, by_severity: {}, by_state: {}, items: /** @type {any[]} */ ([]) },
-    secret_scanning: { total: 0, by_state: {}, items: /** @type {any[]} */ ([]) },
-    dependabot: { total: 0, by_severity: {}, by_state: {}, items: /** @type {any[]} */ ([]) },
+    code_scanning: { total: 0, by_severity: {}, by_state: {}, items: /** @type {any[]} */ [] },
+    secret_scanning: { total: 0, by_state: {}, items: /** @type {any[]} */ [] },
+    dependabot: { total: 0, by_severity: {}, by_state: {}, items: /** @type {any[]} */ [] },
   };
 
   // Discover alerts for each repository
@@ -615,6 +615,7 @@ async function main() {
 module.exports = {
   main,
   discover,
+  discoverSecurityAlerts,
   normalizeItem,
   searchByTrackerId,
   searchByLabel,
