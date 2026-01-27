@@ -1,6 +1,9 @@
 package stringutil
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestNormalizeWorkflowName(t *testing.T) {
 	tests := []struct {
@@ -277,25 +280,6 @@ func TestRoundTripConversions(t *testing.T) {
 			t.Errorf("Round trip failed: %q -> %q -> %q", original, mdFile, backToLock)
 		}
 	})
-
-	t.Run("campaign spec to orchestrator to lock", func(t *testing.T) {
-		spec := "test.campaign.md"
-		orchestrator := CampaignSpecToOrchestrator(spec)
-		lockFile := CampaignOrchestratorToLockFile(orchestrator)
-		expectedLock := "test.campaign.lock.yml"
-		if lockFile != expectedLock {
-			t.Errorf("Campaign chain failed: %q -> %q -> %q (expected %q)", spec, orchestrator, lockFile, expectedLock)
-		}
-	})
-
-	t.Run("campaign spec direct to lock", func(t *testing.T) {
-		spec := "test.campaign.md"
-		lockFile := CampaignSpecToLockFile(spec)
-		expectedLock := "test.campaign.lock.yml"
-		if lockFile != expectedLock {
-			t.Errorf("Direct campaign conversion failed: %q -> %q (expected %q)", spec, lockFile, expectedLock)
-		}
-	})
 }
 
 func TestIsAgenticWorkflow(t *testing.T) {
@@ -421,23 +405,15 @@ func TestFileTypeHelpers_Exclusivity(t *testing.T) {
 			isWorkflow := IsAgenticWorkflow(path)
 			isLock := IsLockFile(path)
 
-			// Count how many markdown types match (should be at most 1)
-			mdCount := 0
-			if isCampaignSpec {
-				mdCount++
-			}
-			if isCampaignOrch {
-				mdCount++
-			}
-			if isWorkflow {
-				mdCount++
+			// All .md files should be workflows
+			if strings.HasSuffix(path, ".md") && !isWorkflow {
+				t.Errorf("Path %q should be a workflow but isn't", path)
 			}
 
-			if mdCount > 1 {
-				t.Errorf("Path %q matches multiple markdown types: spec=%v, orch=%v, workflow=%v",
-					path, isWorkflow)
+			// All .lock.yml files should be lock files
+			if strings.HasSuffix(path, ".lock.yml") && !isLock {
+				t.Errorf("Path %q should be a lock file but isn't", path)
 			}
-
 		})
 	}
 }

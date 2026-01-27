@@ -71,16 +71,8 @@ func compileWorkflowFile(
 		success: false,
 	}
 
-	// Generate lock file name, handling campaign orchestrators specially
-	// Campaign orchestrators are named *.campaign.g.md (debug artifacts)
-	// but should produce *.campaign.lock.yml (not *.campaign.g.lock.yml)
-	var lockFile string
-	if strings.HasSuffix(resolvedFile, ".campaign.g.md") {
-		// For campaign orchestrators: example.campaign.g.md -> example.campaign.lock.yml
-		lockFile = stringutil.CampaignOrchestratorToLockFile(resolvedFile)
-	} else {
-		lockFile = stringutil.MarkdownToLockFile(resolvedFile)
-	}
+	// Generate lock file name
+	lockFile := stringutil.MarkdownToLockFile(resolvedFile)
 	result.lockFile = lockFile
 	if !noEmit {
 		result.validationResult.CompiledFile = lockFile
