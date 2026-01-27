@@ -233,7 +233,7 @@ safe-outputs:
 
 ## Relationship with Campaigns
 
-The `project` field brings project tracking capabilities from [campaign orchestrators](/gh-aw/concepts/campaigns/) to regular agentic workflows:
+The `project` field brings project tracking capabilities from [campaign orchestrators](/gh-aw/examples/campaigns/) to regular agentic workflows:
 
 **Campaign orchestrators** (campaign.md files):
 - Use `project-url` in campaign spec
@@ -337,4 +337,4 @@ Update the project item with the team field.
 - [update-project](/gh-aw/reference/safe-outputs/#project-board-updates-update-project) - Detailed update-project configuration
 - [create-project-status-update](/gh-aw/reference/safe-outputs/#project-status-updates-create-project-status-update) - Status update configuration
 - [GitHub Projects V2 Tokens](/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2) - Token setup guide
-- [Campaigns](/gh-aw/concepts/campaigns/) - Campaign orchestrator documentation
+- [Campaigns](/gh-aw/examples/campaigns/) - Campaign orchestrator documentation
