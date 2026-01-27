@@ -232,6 +232,7 @@ export default defineConfig({
 						{ label: 'Custom Agents', link: '/reference/custom-agents/' },
 						{ label: 'GH-AW as MCP Server', link: '/setup/mcp-server/' },
 						{ label: 'MCP Gateway', link: '/reference/mcp-gateway/' },
+						{ label: 'FAQ', link: '/reference/faq/' },
 					],
 				},
 				{
