@@ -8,6 +8,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
   security-events: read
 safe-outputs:
   create-code-scanning-alert:

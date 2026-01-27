@@ -69,6 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      issues: read
       pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
