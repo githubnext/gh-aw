@@ -19,7 +19,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/aw/github-agentic-workflows.md
 #
-# Automatically fixes critical and high severity code scanning alerts by creating pull requests with remediation
+# Automatically fixes code scanning alerts by creating pull requests with remediation
 
 name: "Code Scanning Fixer"
 "on":
@@ -431,7 +431,7 @@ jobs:
           GH_AW_SAFE_OUTPUTS_API_KEY: ${{ steps.safe-outputs-start.outputs.api_key }}
           GH_AW_SAFE_OUTPUTS_PORT: ${{ steps.safe-outputs-start.outputs.port }}
           GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eo pipefail
           mkdir -p /tmp/gh-aw/mcp-config
@@ -618,7 +618,7 @@ jobs:
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           # Code Scanning Alert Fixer Agent
           
-          You are a security-focused code analysis agent that automatically fixes critical and high severity code scanning alerts.
+          You are a security-focused code analysis agent that automatically fixes code scanning alerts of all severity levels.
           
           ## Important Guidelines
           
@@ -631,14 +631,14 @@ jobs:
           **Tool Usage**: When using GitHub MCP tools:
           - Always specify explicit parameter values: `owner="githubnext"` and `repo="gh-aw"`
           - Do NOT attempt to reference GitHub context variables or placeholders
-          - Tool names are prefixed with `github-` (e.g., `github-list_code_scanning_alerts`)
+          - Tool names use triple underscores: `github___` (e.g., `github___list_code_scanning_alerts`)
           
           ## Mission
           
           Your goal is to:
           1. **Check cache for previously fixed alerts**: Avoid fixing the same alert multiple times
-          2. **List critical and high severity alerts**: Find all open code scanning alerts with critical or high severity
-          3. **Select an unfixed alert**: Pick the first critical or high severity alert that hasn't been fixed recently
+          2. **List all open alerts**: Find all open code scanning alerts (prioritizing by severity: critical, high, medium, low, warning, note, error)
+          3. **Select an unfixed alert**: Pick the highest severity unfixed alert that hasn't been fixed recently
           4. **Analyze the vulnerability**: Understand the security issue and its context
           5. **Generate a fix**: Create code changes that address the security issue
           6. **Create Pull Request**: Submit a pull request with the fix
@@ -654,41 +654,36 @@ jobs:
           - If the file doesn't exist, treat it as empty (no alerts fixed yet)
           - Build a set of alert numbers that have been fixed to avoid re-fixing them
           
-          ### 2. List Critical and High Severity Alerts
+          ### 2. List All Open Alerts
           
-          Use the GitHub MCP server to list all open code scanning alerts with critical or high severity:
-          - First, call `github-list_code_scanning_alerts` tool with the following parameters for critical alerts:
+          Use the GitHub MCP server to list all open code scanning alerts:
+          - Call `github___list_code_scanning_alerts` tool with the following parameters:
             - `owner`: "githubnext" (the repository owner)
             - `repo`: "gh-aw" (the repository name)
-            - `state`: "open" 
-            - `severity`: "critical"
-          - Then, call `github-list_code_scanning_alerts` tool again with the following parameters for high alerts:
-            - `owner`: "githubnext" (the repository owner)
-            - `repo`: "gh-aw" (the repository name)
-            - `state`: "open" 
-            - `severity`: "high"
-          - Combine the results from both calls, prioritizing critical alerts over high severity alerts
-          - If no critical or high severity alerts are found, log "No unfixed critical or high severity alerts found" and exit gracefully
+            - `state`: "open"
+            - Do NOT filter by severity - get all alerts
+          - Sort the results by severity (prioritize: critical > high > medium > low > warning > note > error)
+          - If no open alerts are found, log "No unfixed security alerts found. All alerts have been addressed!" and exit gracefully
           - If you encounter tool errors, report them clearly and exit gracefully rather than trying workarounds
-          - Create a list of alert numbers from the results
+          - Create a list of alert numbers from the results, sorted by severity (highest first)
           
           ### 3. Select an Unfixed Alert
           
-          From the list of critical and high severity alerts:
+          From the list of all open alerts (sorted by severity):
           - Exclude any alert numbers that are in the cache (already fixed)
-          - Select the first alert from the filtered list (critical alerts are prioritized)
-          - If no unfixed critical or high severity alerts remain, exit gracefully with message: "No unfixed critical or high severity alerts found. All critical and high severity issues have been addressed!"
+          - Select the first alert from the filtered list (highest severity unfixed alert)
+          - If no unfixed alerts remain, exit gracefully with message: "No unfixed security alerts found. All alerts have been addressed!"
           
           ### 4. Get Alert Details
           
-          Get detailed information about the selected alert using `github-get_code_scanning_alert`:
+          Get detailed information about the selected alert using `github___get_code_scanning_alert`:
           - Call with parameters:
             - `owner`: "githubnext" (the repository owner)
             - `repo`: "gh-aw" (the repository name)
             - `alertNumber`: The alert number from step 3
           - Extract key information:
             - Alert number
-            - Severity level (should be "critical" or "high")
+            - Severity level (critical, high, medium, low, warning, note, or error)
             - Rule ID and description
             - File path and line number
             - Vulnerable code snippet
@@ -697,7 +692,7 @@ jobs:
           ### 5. Analyze the Vulnerability
           
           Understand the security issue:
-          - Read the affected file using `github-get_file_contents`:
+          - Read the affected file using `github___get_file_contents`:
             - `owner`: "githubnext" (the repository owner)
             - `repo`: "gh-aw" (the repository name)
             - `path`: The file path from the alert
@@ -771,7 +766,7 @@ jobs:
           
           ## Security Guidelines
           
-          - **Critical and High Severity Only**: Only fix critical and high severity alerts as specified in the requirements
+          - **All Severity Levels**: Fix security alerts of all severities (prioritizing critical, high, medium, low, warning, note, error in that order)
           - **Minimal Changes**: Make only the changes necessary to fix the security issue
           - **No Breaking Changes**: Ensure the fix doesn't break existing functionality
           - **Best Practices**: Follow security best practices for the specific vulnerability type
@@ -792,7 +787,7 @@ jobs:
           ## Error Handling
           
           If any step fails:
-          - **No Critical or High Severity Alerts**: Log "No critical or high severity alerts found" and exit gracefully
+          - **No Open Alerts**: Log "No unfixed security alerts found. All alerts have been addressed!" and exit gracefully
           - **All Alerts Already Fixed**: Log success message and exit gracefully
           - **Read Error**: Report the error and exit
           - **Fix Generation Failed**: Document why the fix couldn't be automated and exit
@@ -871,7 +866,7 @@ jobs:
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/hostedtoolcache:/opt/hostedtoolcache:ro --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.11.2 --agent-image act \
-            -- export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH" && /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool shell --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+            -- 'export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH" && /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool shell --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"}' \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -1193,7 +1188,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           WORKFLOW_NAME: "Code Scanning Fixer"
-          WORKFLOW_DESCRIPTION: "Automatically fixes critical and high severity code scanning alerts by creating pull requests with remediation"
+          WORKFLOW_DESCRIPTION: "Automatically fixes code scanning alerts by creating pull requests with remediation"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
