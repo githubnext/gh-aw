@@ -24,13 +24,27 @@ func InjectOrchestratorFeatures(workflowData *workflow.WorkflowData) error {
 
 	project := workflowData.ParsedFrontmatter.Project
 
-	// Check if project has campaign orchestration fields (workflows list is the key indicator)
-	if len(project.Workflows) == 0 {
-		injectionLog.Print("Project field present but no workflows list, treating as simple project tracking")
+	// Check if project has any campaign orchestration fields to determine if this is a campaign
+	// Campaign indicators (any of these present means it's a campaign orchestrator):
+	// - workflows list (predefined workers)
+	// - governance policies (campaign-specific constraints)
+	// - bootstrap configuration (initial work item generation)
+	// - memory-paths, metrics-glob, cursor-glob (campaign state tracking)
+	// If only URL and scope are present, it's simple project tracking, not a campaign
+	isCampaign := len(project.Workflows) > 0 ||
+		project.Governance != nil ||
+		project.Bootstrap != nil ||
+		len(project.MemoryPaths) > 0 ||
+		project.MetricsGlob != "" ||
+		project.CursorGlob != ""
+
+	if !isCampaign {
+		injectionLog.Print("Project field present but no campaign indicators, treating as simple project tracking")
 		return nil
 	}
 
-	injectionLog.Printf("Detected campaign orchestrator: workflows=%d", len(project.Workflows))
+	injectionLog.Printf("Detected campaign orchestrator: workflows=%d, has_governance=%v, has_bootstrap=%v",
+		len(project.Workflows), project.Governance != nil, project.Bootstrap != nil)
 
 	// Derive campaign ID from workflow name or use explicit ID
 	campaignID := workflowData.FrontmatterName
@@ -154,13 +168,15 @@ func InjectOrchestratorFeatures(workflowData *workflow.WorkflowData) error {
 		workflowData.SafeOutputs = &workflow.SafeOutputsConfig{}
 	}
 
-	// Configure dispatch-workflow for worker coordination
+	// Configure dispatch-workflow for worker coordination (optional - only if workflows are specified)
 	if len(project.Workflows) > 0 && workflowData.SafeOutputs.DispatchWorkflow == nil {
 		workflowData.SafeOutputs.DispatchWorkflow = &workflow.DispatchWorkflowConfig{
 			BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 3},
 			Workflows:            project.Workflows,
 		}
 		injectionLog.Printf("Configured dispatch-workflow safe-output for %d workflows", len(project.Workflows))
+	} else if len(project.Workflows) == 0 {
+		injectionLog.Print("No workflows specified - campaign will use custom discovery and dispatch logic")
 	}
 
 	// Configure update-project (already handled by applyProjectSafeOutputs, but ensure governance max is applied)
