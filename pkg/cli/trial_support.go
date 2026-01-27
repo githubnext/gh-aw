@@ -113,8 +113,7 @@ func determineAndAddEngineSecret(engineConfig *workflow.EngineConfig, hostRepoSl
 // addEngineSecret adds an engine-specific secret to the repository with tracking
 func addEngineSecret(secretName, hostRepoSlug string, tracker *TrialSecretTracker, verbose bool) error {
 	// Check if secret already exists by trying to list secrets
-	listCmd := workflow.ExecGH("secret", "list", "--repo", hostRepoSlug)
-	listOutput, listErr := listCmd.CombinedOutput()
+	listOutput, listErr := workflow.RunGHCombined("Checking secrets...", "secret", "list", "--repo", hostRepoSlug)
 	secretExists := listErr == nil && strings.Contains(string(listOutput), secretName)
 
 	// Skip if secret already exists
@@ -156,12 +155,11 @@ func addEngineSecret(secretName, hostRepoSlug string, tracker *TrialSecretTracke
 	repoSlug := hostRepoSlug
 
 	// Add the secret to the repository
-	addSecretCmd := workflow.ExecGH("secret", "set", secretName, "--repo", repoSlug, "--body", secretValue)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Running: gh secret set %s --repo %s --body <redacted>", secretName, repoSlug)))
 	}
 
-	if output, err := addSecretCmd.CombinedOutput(); err != nil {
+	if output, err := workflow.RunGHCombined("Adding secret...", "secret", "set", secretName, "--repo", repoSlug, "--body", secretValue); err != nil {
 		return fmt.Errorf("failed to add %s secret: %w\nOutput: %s", secretName, err, string(output))
 	}
 
@@ -187,8 +185,7 @@ func addGitHubTokenSecret(repoSlug string, tracker *TrialSecretTracker, verbose 
 	}
 
 	// Check if secret already exists by trying to list secrets
-	listCmd := workflow.ExecGH("secret", "list", "--repo", repoSlug)
-	listOutput, listErr := listCmd.CombinedOutput()
+	listOutput, listErr := workflow.RunGHCombined("Checking secrets...", "secret", "list", "--repo", repoSlug)
 	secretExists := listErr == nil && strings.Contains(string(listOutput), secretName)
 
 	// Skip if secret already exists
@@ -207,8 +204,7 @@ func addGitHubTokenSecret(repoSlug string, tracker *TrialSecretTracker, verbose 
 	}
 
 	// Add the token as a repository secret
-	setCmd := workflow.ExecGH("secret", "set", secretName, "--repo", repoSlug, "--body", token)
-	output, err := setCmd.CombinedOutput()
+	output, err := workflow.RunGHCombined("Adding secret...", "secret", "set", secretName, "--repo", repoSlug, "--body", token)
 
 	if err != nil {
 		return fmt.Errorf("failed to set repository secret: %w (output: %s)", err, string(output))
@@ -243,8 +239,7 @@ func cleanupTrialSecrets(repoSlug string, tracker *TrialSecretTracker, verbose b
 	secretsDeleted := 0
 	// Only delete secrets that were actually added by this trial command
 	for secretName := range tracker.AddedSecrets {
-		cmd := workflow.ExecGH("secret", "delete", secretName, "--repo", repoSlug)
-		if output, err := cmd.CombinedOutput(); err != nil {
+		if output, err := workflow.RunGHCombined("Deleting secret...", "secret", "delete", secretName, "--repo", repoSlug); err != nil {
 			// It's okay if the secret doesn't exist, just log in verbose mode
 			if verbose && !strings.Contains(string(output), "Not Found") {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Could not delete secret %s: %s", secretName, string(output))))
@@ -289,8 +284,7 @@ func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtif
 	defer os.RemoveAll(tempDir)
 
 	// Download all artifacts for this run
-	cmd := workflow.ExecGH("run", "download", runID, "--repo", repoSlug, "--dir", tempDir)
-	output, err := cmd.CombinedOutput()
+	output, err := workflow.RunGHCombined("Downloading artifacts...", "run", "download", runID, "--repo", repoSlug, "--dir", tempDir)
 	if err != nil {
 		// If no artifacts exist, that's okay - some workflows don't generate artifacts
 		if verbose {
