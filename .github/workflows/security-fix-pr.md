@@ -167,14 +167,3 @@ If any step fails:
 - **Fix Generation**: Document why the fix couldn't be automated and move to the next alert
 
 Remember: Your goal is to provide secure, well-analyzed autofixes that address the root cause of vulnerabilities. Focus on quality and accuracy.
-
-## Cache Memory Format
-
-- Store recently fixed alert numbers to avoid duplicates
-- Write to a file "fixed.jsonl" in the cache memory folder in JSONL format:
-```jsonl
-{"alert_number": 123, "timestamp": "2024-01-14T10:30:00Z"}
-{"alert_number": 124, "timestamp": "2024-01-14T10:35:00Z"}
-```
-
-Before processing an alert, check if it exists in the cache to avoid duplicate work.
