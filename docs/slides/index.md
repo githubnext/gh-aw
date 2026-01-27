@@ -363,4 +363,206 @@ Metadata:
 - Author: ${{ github.actor }}
 ```
 
-**Auto-sanitization:** @mentions neutralized, bot triggers blocked, malicious URIs filtered 
+**Auto-sanitization:** @mentions neutralized, bot triggers blocked, malicious URIs filtered
+
+---
+
+# Security Architecture
+## Multi-layered defense in depth
+
+GitHub Agentic Workflows implements a comprehensive security architecture with multiple isolation layers to protect against threats.
+
+**Key Security Principles:**
+- Container isolation for all components
+- Network firewall controls at every layer
+- Minimal permissions by default
+- Separation of concerns
+
+---
+
+# Security Architecture Diagram
+
+```mermaid
+flowchart TB
+    subgraph ActionJobVM["Action Job VM"]
+        subgraph Sandbox1["Sandbox"]
+            Agent["Agent Process"]
+        end
+
+        Proxy1["Proxy / Firewall"]
+        Gateway["Gateway<br/>(mcpg)"]
+
+        Agent --> Proxy1
+        Proxy1 --> Gateway
+
+        subgraph Sandbox2["Sandbox"]
+            MCP["MCP Server"]
+        end
+
+        subgraph Sandbox3["Sandbox"]
+            Skill["Skill"]
+        end
+
+        Gateway --> MCP
+        Gateway --> Skill
+
+        Proxy2["Proxy / Firewall"]
+        Proxy3["Proxy / Firewall"]
+
+        MCP --> Proxy2
+        Skill --> Proxy3
+    end
+
+    Service1{{"Service"}}
+    Service2{{"Service"}}
+
+    Proxy2 --> Service1
+    Proxy3 --> Service2
+```
+
+---
+
+# Security Layer 1: Agent Sandbox
+## Isolated agent process
+
+**Agent Sandbox:**
+- Agent process runs in isolated container
+- Read-only permissions by default
+- No direct write access to repository
+- Limited system access
+
+**Primary Proxy/Firewall:**
+- Filters outbound traffic from agent
+- Controls access to MCP Gateway
+- Enforces network allowlists
+
+---
+
+# Security Layer 2: MCP Gateway
+## Central routing with access controls
+
+**MCP Gateway (mcpg):**
+- Central routing component
+- Manages communication between agents and services
+- Validates tool invocations
+- Enforces permission boundaries
+
+**Benefits:**
+- Single point of control
+- Auditable tool access
+- Prevents direct agent-to-service communication
+
+---
+
+# Security Layer 3: Tool Sandboxes
+## Isolated MCP servers and skills
+
+**MCP Server & Skill Sandboxes:**
+- Each MCP server runs in own container
+- Each skill runs in separate sandbox
+- Non-root user IDs
+- Dropped capabilities
+
+**Secondary Proxy/Firewalls:**
+- Additional proxy layers for egress traffic
+- Domain-specific allowlists
+- Defense against data exfiltration
+
+---
+
+# Security Layer 4: Service Access
+## Controlled external communication
+
+**Service Layer:**
+- External services accessed through proxies
+- Multiple security controls before reaching services
+- Comprehensive audit trail
+- Network traffic monitoring
+
+**Defense in Depth:**
+Even if one layer is compromised, multiple additional security controls remain in place.
+
+---
+
+# Security Features Summary
+
+**Container Isolation:**
+- GitHub Actions Jobs in VMs
+- Separate sandboxes for agent, MCP servers, skills
+
+**Network Controls:**
+- Proxy/firewall at every layer
+- Domain allowlisting
+- Ecosystem-based controls (node, python, containers)
+
+**Permissions:**
+- Read-only by default
+- Safe outputs for write operations
+- Explicit permission grants
+
+**Monitoring:**
+- Threat detection
+- Audit logs
+- Workflow run analysis
+
+---
+
+# Best Practices: Strict Mode
+
+Enable strict mode for production workflows:
+
+```yaml
+---
+strict: true
+permissions:
+  contents: read
+network:
+  allowed: [defaults, python]
+safe-outputs:
+  create-issue:
+---
+```
+
+**Strict mode enforces:**
+- No write permissions (use safe-outputs)
+- Secure network defaults
+- No wildcard domains
+- Action pinning to commit SHAs
+
+---
+
+# Best Practices: Human in the Loop
+
+**Manual Approval Gates:**
+Critical operations require human review
+
+```yaml
+---
+on:
+  issues:
+    types: [labeled]
+  manual-approval: production
+safe-outputs:
+  create-pull-request:
+---
+Analyze issue and create implementation PR
+```
+
+**Plan / Check / Act Pattern:**
+- AI generates plan (read-only)
+- Human reviews and approves
+- Automated execution with safe outputs
+
+---
+
+# Learn More About Security
+
+**Documentation:**
+- Security Best Practices Guide
+- Threat Detection Configuration
+- Network Configuration Reference
+- Safe Outputs Reference
+
+**Visit:** https://githubnext.github.io/gh-aw/guides/security/
+
+Security is foundational to GitHub Agentic Workflows. We continuously evolve our security controls and welcome community feedback.
