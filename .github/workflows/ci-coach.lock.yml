@@ -548,6 +548,13 @@ jobs:
           PROMPT_EOF
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
           cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          <agent_cli_authentication>
+          **CRITICAL**: The gh CLI is NOT authenticated in this workflow environment. Do NOT attempt to use gh commands for GitHub API operations.
+          
+          For GitHub operations (creating issues, pull requests, comments, etc.), you MUST use the appropriate safe output tools instead of the gh CLI.
+          </agent_cli_authentication>
+          PROMPT_EOF
           cat "/opt/gh-aw/prompts/cache_memory_prompt.md" >> "$GH_AW_PROMPT"
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
