@@ -28,13 +28,30 @@
 //
 // The teletype effect works well with spinners. Spinners use carriage return
 // and line clearing (\r\033[K) to update in place, while teletype writes
-// characters sequentially. Best practices:
+// characters sequentially.
+//
+// # Helper Function (Recommended)
+//
+// Use SpinnerThenTeletype() to coordinate spinner and teletype automatically:
+//
+//	err := console.SpinnerThenTeletype(
+//	    "Loading data...",
+//	    func() error { return fetchData() },
+//	    console.FormatSuccessMessage("Data loaded!"),
+//	    "Processing results...",
+//	)
+//
+// This helper ensures proper coordination and prevents visual clashing.
+//
+// # Manual Pattern
+//
+// For manual control, follow these best practices:
 //
 //   - Use SpinnerWrapper.StopWithMessage() to display a message after the spinner
 //   - After spinner.Stop(), teletype can write on the cleared line
 //   - Avoid starting teletype while a spinner is running
 //
-// Example pattern:
+// Example:
 //
 //	spinner := console.NewSpinner("Loading...")
 //	spinner.Start()
@@ -245,5 +262,81 @@ func TeletypeSection(w io.Writer, header string, content ...string) error {
 
 	// Add blank line after section
 	fmt.Fprintln(w, "")
+	return nil
+}
+
+// SpinnerThenTeletype runs a spinner for a long operation, then displays a message with teletype.
+// This helper ensures proper coordination between spinner and teletype to avoid visual clashing.
+//
+// Parameters:
+//   - spinnerMsg: Message to display while spinner is running
+//   - operation: Function to execute while spinner is running
+//   - successMsg: Message to display with teletype after operation succeeds (can be empty)
+//   - teletypeMsg: Additional message to display with teletype effect after spinner (can be empty)
+//
+// Example:
+//
+//	err := console.SpinnerThenTeletype(
+//	    "Loading data...",
+//	    func() error { return fetchData() },
+//	    console.FormatSuccessMessage("Data loaded!"),
+//	    "Now processing the results...",
+//	)
+func SpinnerThenTeletype(spinnerMsg string, operation func() error, successMsg string, teletypeMsg string) error {
+	spinner := NewSpinner(spinnerMsg)
+	spinner.Start()
+
+	// Execute the operation
+	err := operation()
+
+	// Stop spinner with success message if provided
+	if successMsg != "" {
+		spinner.StopWithMessage(successMsg)
+	} else {
+		spinner.Stop()
+	}
+
+	// If operation failed, return immediately
+	if err != nil {
+		return err
+	}
+
+	// Display teletype message if provided
+	if teletypeMsg != "" {
+		if err := TeletypeWriteln(os.Stderr, teletypeMsg); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// SpinnerThenTeletypeWithConfig is like SpinnerThenTeletype but allows custom teletype configuration.
+func SpinnerThenTeletypeWithConfig(spinnerMsg string, operation func() error, successMsg string, teletypeMsg string, config TeletypeConfig) error {
+	spinner := NewSpinner(spinnerMsg)
+	spinner.Start()
+
+	// Execute the operation
+	err := operation()
+
+	// Stop spinner with success message if provided
+	if successMsg != "" {
+		spinner.StopWithMessage(successMsg)
+	} else {
+		spinner.Stop()
+	}
+
+	// If operation failed, return immediately
+	if err != nil {
+		return err
+	}
+
+	// Display teletype message if provided
+	if teletypeMsg != "" {
+		if err := TeletypeWritelnConfig(os.Stderr, teletypeMsg, config); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

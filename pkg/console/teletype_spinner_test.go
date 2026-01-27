@@ -2,6 +2,7 @@ package console
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -148,5 +149,157 @@ func TestTeletypeNonInterference(t *testing.T) {
 		// Should have both lines with newlines
 		output := buf.String()
 		assert.Equal(t, "Line 1\nLine 2\n", output)
+	})
+}
+
+// TestSpinnerThenTeletype tests the helper function that coordinates spinner and teletype
+func TestSpinnerThenTeletype(t *testing.T) {
+	// Set ACCESSIBLE to ensure instant display for predictable testing
+	oldAccessible := os.Getenv("ACCESSIBLE")
+	os.Setenv("ACCESSIBLE", "1")
+	defer os.Setenv("ACCESSIBLE", oldAccessible)
+
+	t.Run("successful operation with both messages", func(t *testing.T) {
+		called := false
+		operation := func() error {
+			called = true
+			time.Sleep(10 * time.Millisecond)
+			return nil
+		}
+
+		err := SpinnerThenTeletype(
+			"Loading...",
+			operation,
+			FormatSuccessMessage("Loaded!"),
+			"Now processing...",
+		)
+
+		assert.NoError(t, err)
+		assert.True(t, called, "Operation should have been called")
+	})
+
+	t.Run("operation error stops spinner but no teletype", func(t *testing.T) {
+		expectedErr := errors.New("operation failed")
+		operation := func() error {
+			return expectedErr
+		}
+
+		err := SpinnerThenTeletype(
+			"Working...",
+			operation,
+			FormatSuccessMessage("Success!"),
+			"Continuing...",
+		)
+
+		assert.Error(t, err)
+		assert.Equal(t, expectedErr, err)
+	})
+
+	t.Run("works with empty success message", func(t *testing.T) {
+		operation := func() error {
+			return nil
+		}
+
+		err := SpinnerThenTeletype(
+			"Processing...",
+			operation,
+			"", // No success message
+			"Next step...",
+		)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("works with empty teletype message", func(t *testing.T) {
+		operation := func() error {
+			return nil
+		}
+
+		err := SpinnerThenTeletype(
+			"Processing...",
+			operation,
+			FormatSuccessMessage("Done!"),
+			"", // No teletype message
+		)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("works with both messages empty", func(t *testing.T) {
+		operation := func() error {
+			return nil
+		}
+
+		err := SpinnerThenTeletype(
+			"Processing...",
+			operation,
+			"", // No success message
+			"", // No teletype message
+		)
+
+		assert.NoError(t, err)
+	})
+}
+
+// TestSpinnerThenTeletypeWithConfig tests the helper with custom config
+func TestSpinnerThenTeletypeWithConfig(t *testing.T) {
+	// Set ACCESSIBLE to ensure instant display for predictable testing
+	oldAccessible := os.Getenv("ACCESSIBLE")
+	os.Setenv("ACCESSIBLE", "1")
+	defer os.Setenv("ACCESSIBLE", oldAccessible)
+
+	t.Run("uses custom configuration", func(t *testing.T) {
+		operation := func() error {
+			return nil
+		}
+
+		config := TeletypeConfig{
+			CharsPerSecond: 30,                                       // Slower speed
+			Enabled:        func() *bool { b := false; return &b }(), // Force disabled
+		}
+
+		err := SpinnerThenTeletypeWithConfig(
+			"Loading...",
+			operation,
+			FormatSuccessMessage("Loaded!"),
+			"Processing with custom config...",
+			config,
+		)
+
+		assert.NoError(t, err)
+	})
+}
+
+// TestSpinnerThenTeletypeRealWorld tests realistic usage patterns
+func TestSpinnerThenTeletypeRealWorld(t *testing.T) {
+	// Set ACCESSIBLE to ensure instant display for predictable testing
+	oldAccessible := os.Getenv("ACCESSIBLE")
+	os.Setenv("ACCESSIBLE", "1")
+	defer os.Setenv("ACCESSIBLE", oldAccessible)
+
+	t.Run("simulates fetching and processing data", func(t *testing.T) {
+		// Simulate fetching data with spinner
+		err := SpinnerThenTeletype(
+			"Fetching repository information...",
+			func() error {
+				time.Sleep(10 * time.Millisecond)
+				return nil
+			},
+			FormatSuccessMessage("Repository information loaded!"),
+			"Analyzing workflow configuration...",
+		)
+		assert.NoError(t, err)
+
+		// Simulate validation with spinner
+		err = SpinnerThenTeletype(
+			"Validating permissions...",
+			func() error {
+				time.Sleep(10 * time.Millisecond)
+				return nil
+			},
+			FormatSuccessMessage("Permissions verified!"),
+			FormatInfoMessage("Setting up workflow files..."),
+		)
+		assert.NoError(t, err)
 	})
 }
