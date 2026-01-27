@@ -283,13 +283,7 @@ jobs:
               "description": "Dispatch the 'security-fix-pr' workflow with workflow_dispatch trigger. This workflow must support workflow_dispatch and be in the same repository.",
               "inputSchema": {
                 "additionalProperties": false,
-                "properties": {
-                  "security_url": {
-                    "default": "",
-                    "description": "Security alert URL (e.g., https://github.com/owner/repo/security/code-scanning/123)",
-                    "type": "string"
-                  }
-                },
+                "properties": {},
                 "type": "object"
               },
               "name": "security_fix_pr"
