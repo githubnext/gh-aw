@@ -79,6 +79,28 @@
   animation: light-glow-move 20s ease-in-out infinite;
 }
 
+/* Skip to Content Link - Enhanced Accessibility */
+/* Override Starlight's default skip link styles for better visibility */
+a[href*="#"][href$="_top"]:focus,
+a[href*="#overview"]:focus:first-child {
+  clip: auto !important;
+  clip-path: none !important;
+  position: fixed !important;
+  top: 1rem !important;
+  left: 1rem !important;
+  z-index: 9999 !important;
+  padding: 1rem 1.5rem !important;
+  background-color: var(--sl-color-accent) !important;
+  color: var(--sl-color-text-invert) !important;
+  text-decoration: none !important;
+  font-weight: 600 !important;
+  font-size: 1rem !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  outline: 3px solid var(--sl-color-accent-high) !important;
+  outline-offset: 2px !important;
+}
+
 /* Campaign specs Mermaid diagram colors
    We style Mermaid nodes by their class (tracked, notTracked, workflow, external)
    so we can use lighter colors in light mode and darker colors in dark mode. */

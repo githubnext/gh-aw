@@ -239,6 +239,7 @@ async function linkSubIssue(parentNodeId, subIssueNodeId, parentNumber, subIssue
 /**
  * Handle agent job failure by creating or updating a failure tracking issue
  * This script is called from the conclusion job when the agent job has failed
+ * or when the agent succeeded but produced no safe outputs
  */
 async function main() {
   try {
@@ -260,9 +261,21 @@ async function main() {
     // Check if there are assignment errors (regardless of agent job status)
     const hasAssignmentErrors = parseInt(assignmentErrorCount, 10) > 0;
 
-    // Only proceed if the agent job actually failed OR there are assignment errors
-    if (agentConclusion !== "failure" && !hasAssignmentErrors) {
-      core.info(`Agent job did not fail and no assignment errors (conclusion: ${agentConclusion}), skipping failure handling`);
+    // Check if agent succeeded but produced no safe outputs
+    let hasMissingSafeOutputs = false;
+    if (agentConclusion === "success") {
+      const { loadAgentOutput } = require("./load_agent_output.cjs");
+      const agentOutputResult = loadAgentOutput();
+
+      if (!agentOutputResult.success || !agentOutputResult.items || agentOutputResult.items.length === 0) {
+        hasMissingSafeOutputs = true;
+        core.info("Agent succeeded but produced no safe outputs");
+      }
+    }
+
+    // Only proceed if the agent job actually failed OR there are assignment errors OR missing safe outputs
+    if (agentConclusion !== "failure" && !hasAssignmentErrors && !hasMissingSafeOutputs) {
+      core.info(`Agent job did not fail and no assignment errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
       return;
     }
 
@@ -329,6 +342,15 @@ async function main() {
           assignmentErrorsContext += "\n";
         }
 
+        // Build missing safe outputs context
+        let missingSafeOutputsContext = "";
+        if (hasMissingSafeOutputs) {
+          missingSafeOutputsContext = "\n**⚠️ No Safe Outputs Generated**: The agent job succeeded but did not produce any safe outputs. This typically indicates:\n";
+          missingSafeOutputsContext += "- The safe output server failed to run\n";
+          missingSafeOutputsContext += "- The prompt failed to generate any meaningful result\n";
+          missingSafeOutputsContext += "- The agent should have called `noop` to explicitly indicate no action was taken\n\n";
+        }
+
         // Create template context
         const templateContext = {
           run_url: runUrl,
@@ -340,6 +362,7 @@ async function main() {
           secret_verification_context:
             secretVerificationResult === "failed" ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n" : "",
           assignment_errors_context: assignmentErrorsContext,
+          missing_safe_outputs_context: missingSafeOutputsContext,
         };
 
         // Render the comment template
@@ -394,6 +417,15 @@ async function main() {
           assignmentErrorsContext += "\n";
         }
 
+        // Build missing safe outputs context
+        let missingSafeOutputsContext = "";
+        if (hasMissingSafeOutputs) {
+          missingSafeOutputsContext = "\n**⚠️ No Safe Outputs Generated**: The agent job succeeded but did not produce any safe outputs. This typically indicates:\n";
+          missingSafeOutputsContext += "- The safe output server failed to run\n";
+          missingSafeOutputsContext += "- The prompt failed to generate any meaningful result\n";
+          missingSafeOutputsContext += "- The agent should have called `noop` to explicitly indicate no action was taken\n\n";
+        }
+
         // Create template context with sanitized workflow name
         const templateContext = {
           workflow_name: sanitizedWorkflowName,
@@ -405,6 +437,7 @@ async function main() {
           secret_verification_context:
             secretVerificationResult === "failed" ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n" : "",
           assignment_errors_context: assignmentErrorsContext,
+          missing_safe_outputs_context: missingSafeOutputsContext,
         };
 
         // Render the issue template

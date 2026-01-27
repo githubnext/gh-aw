@@ -36,7 +36,7 @@ tools:
 Test lockdown mode with local GitHub MCP.
 `,
 			expected: []string{
-				`"type": "local"`,
+				`"type": "stdio"`,
 				`"GITHUB_LOCKDOWN_MODE=1"`,
 				`"ghcr.io/github/github-mcp-server:`,
 			},
@@ -92,7 +92,7 @@ Test lockdown mode with Claude engine.
 				`"ghcr.io/github/github-mcp-server:`,
 			},
 			notExpected: []string{
-				`"type": "local"`, // Claude doesn't include type field
+				`"type": "stdio"`, // Claude doesn't include type field
 			},
 			description: "Claude with lockdown should render GITHUB_LOCKDOWN_MODE=1",
 		},

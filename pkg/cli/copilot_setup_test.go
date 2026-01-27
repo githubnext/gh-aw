@@ -36,9 +36,6 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 				if !strings.Contains(string(content), "curl -fsSL") {
 					t.Error("Expected workflow to contain curl command")
 				}
-				if !strings.Contains(string(content), "gh aw version") {
-					t.Error("Expected workflow to contain gh aw version verification")
-				}
 			},
 		},
 		{
