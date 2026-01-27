@@ -2,7 +2,6 @@
 name: Code Scanning Fixer
 description: Automatically fixes critical and high severity code scanning alerts by creating pull requests with remediation
 on:
-  schedule: every 30m
   workflow_dispatch:
   skip-if-match: 'is:pr is:open in:title "[code-scanning-fix]"'
 permissions:

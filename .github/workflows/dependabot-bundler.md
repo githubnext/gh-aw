@@ -2,7 +2,6 @@
 name: Dependabot Bundler
 description: Bundles Dependabot security alert updates per package.json into a single PR
 on:
-  schedule: every 6h
   workflow_dispatch:
   skip-if-match: 'is:pr is:open in:title "[dependabot-bundle]"'
 permissions:
