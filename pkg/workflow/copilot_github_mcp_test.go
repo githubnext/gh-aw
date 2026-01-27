@@ -22,14 +22,11 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			expectedContent: []string{
 				`"github": {`,
 				`"type": "stdio"`,
-				`"tools": [`,
-				`"list_workflows"`,
-				`"list_workflow_runs"`,
-				`"list_workflow_run_artifacts"`,
+				`"container": "ghcr.io/github/github-mcp-server:v0.30.1"`,
+				`"env": {`,
+				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
 			},
-			unexpectedContent: []string{
-				`"tools": ["*"]`,
-			},
+			unexpectedContent: []string{},
 		},
 		{
 			name:       "GitHub with no allowed tools (defaults to all)",
@@ -38,7 +35,8 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			expectedContent: []string{
 				`"github": {`,
 				`"type": "stdio"`,
-				`"tools": ["*"]`,
+				`"container": "ghcr.io/github/github-mcp-server:v0.30.1"`,
+				`"env": {`,
 			},
 			unexpectedContent: []string{},
 		},
@@ -51,7 +49,8 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			expectedContent: []string{
 				`"github": {`,
 				`"type": "stdio"`,
-				`"tools": ["*"]`,
+				`"container": "ghcr.io/github/github-mcp-server:v0.30.1"`,
+				`"env": {`,
 			},
 			unexpectedContent: []string{},
 		},
@@ -65,13 +64,9 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			expectedContent: []string{
 				`"github": {`,
 				`"type": "http"`,
-				`"tools": [`,
-				`"get_repository"`,
-				`"list_commits"`,
+				`"url": "https://api.githubcopilot.com/mcp/"`,
 			},
-			unexpectedContent: []string{
-				`"tools": ["*"]`,
-			},
+			unexpectedContent: []string{},
 		},
 		{
 			name: "GitHub remote mode with no allowed tools",
@@ -82,7 +77,7 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			expectedContent: []string{
 				`"github": {`,
 				`"type": "http"`,
-				`"tools": ["*"]`,
+				`"url": "https://api.githubcopilot.com/mcp/"`,
 			},
 			unexpectedContent: []string{},
 		},
