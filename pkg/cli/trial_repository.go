@@ -202,7 +202,7 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logica
 		}
 
 		// Add the workflow from the installed package
-		if err := AddWorkflows([]string{parsedSpec.String()}, 1, verbose, "", "", true, appendText, false, false, false, "", false, ""); err != nil {
+		if _, err := AddWorkflows([]string{parsedSpec.String()}, 1, verbose, "", "", true, appendText, false, false, false, "", false, ""); err != nil {
 			return fmt.Errorf("failed to add workflow: %w", err)
 		}
 	}

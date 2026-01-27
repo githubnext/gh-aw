@@ -140,7 +140,7 @@ gh aw add githubnext/agentics
 This shows available workflows. Add one:
 
 ```bash
-gh aw add githubnext/agentics/daily-team-status --create-pull-request
+gh aw add githubnext/agentics/daily-repo-status
 ```
 
 **Option B: Use the AI agent to create workflows**
