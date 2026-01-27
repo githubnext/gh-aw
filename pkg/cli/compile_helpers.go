@@ -49,30 +49,6 @@ import (
 
 var compileHelpersLog = logger.New("cli:compile_helpers")
 
-// checkForProjectField quickly checks if a workflow file has a project field in its frontmatter
-// Returns true if project field is present, along with the converted CampaignSpec
-func checkForProjectField(file string) (bool, *campaign.CampaignSpec, error) {
-	// Parse the workflow file to get frontmatter
-	compiler := workflow.NewCompiler(false, "", "")
-	workflowData, err := compiler.ParseWorkflowFile(file)
-	if err != nil {
-		return false, nil, err
-	}
-
-	// Check if ParsedFrontmatter has project field
-	if workflowData.ParsedFrontmatter == nil || workflowData.ParsedFrontmatter.Project == nil {
-		return false, nil, nil
-	}
-
-	// Convert frontmatter to campaign spec
-	spec, err := campaign.ConvertFromFrontmatter(workflowData.ParsedFrontmatter, file)
-	if err != nil {
-		return false, nil, err
-	}
-
-	return true, spec, nil
-}
-
 // compileSingleFile compiles a single markdown workflow file and updates compilation statistics
 // If checkExists is true, the function will check if the file exists before compiling
 // Returns true if compilation was attempted (file exists or checkExists is false), false otherwise
