@@ -177,8 +177,7 @@ func resolveLatestRef(repo, currentRef string, allowMajor, verbose bool) (string
 	}
 
 	// Get the latest commit SHA for the branch
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/branches/%s", repo, currentRef), "--jq", ".commit.sha")
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Fetching branch info...", "api", fmt.Sprintf("/repos/%s/branches/%s", repo, currentRef), "--jq", ".commit.sha")
 	if err != nil {
 		return "", fmt.Errorf("failed to get latest commit for branch %s: %w", currentRef, err)
 	}
@@ -200,8 +199,7 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 	}
 
 	// Get all releases using gh CLI
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch releases: %w", err)
 	}
@@ -454,7 +452,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 
 	// Compile the updated workflow with refreshStopTime enabled
 	updateLog.Printf("Compiling updated workflow: %s", wf.Name)
-	if err := compileWorkflowWithRefresh(wf.Path, verbose, engineOverride, true); err != nil {
+	if err := compileWorkflowWithRefresh(wf.Path, verbose, false, engineOverride, true); err != nil {
 		updateLog.Printf("Compilation failed for workflow %s: %v", wf.Name, err)
 		return fmt.Errorf("failed to compile updated workflow: %w", err)
 	}

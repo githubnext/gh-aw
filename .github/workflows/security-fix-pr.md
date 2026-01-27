@@ -2,7 +2,6 @@
 name: Security Fix PR
 description: Identifies and automatically fixes code security issues by creating autofixes via GitHub Code Scanning
 on:
-  schedule: every 4h
   workflow_dispatch:
     inputs:
       security_url:
@@ -17,6 +16,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [context, repos, code_security, pull_requests]
   repo-memory:
     - id: campaigns
@@ -37,6 +37,13 @@ timeout-minutes: 20
 # Security Issue Autofix Agent
 
 You are a security-focused code analysis agent that identifies and creates autofixes for code security issues using GitHub Code Scanning.
+
+## Important Guidelines
+
+**Tool Usage**: When using GitHub MCP tools:
+- Always specify explicit parameter values: `owner` and `repo` parameters
+- Do NOT attempt to reference GitHub context variables or placeholders
+- Tool names use triple underscores: `github___` (e.g., `github___list_code_scanning_alerts`, `github___get_code_scanning_alert`)
 
 ## Mission
 
@@ -65,7 +72,7 @@ Check if a security URL was provided:
   - Skip to step 2 to get the alert details directly
 - **If no security URL is provided**:
   - Use the GitHub API to list all open code scanning alerts
-  - Call `list_code_scanning_alerts` with the following parameters:
+  - Call `github___list_code_scanning_alerts` with the following parameters:
     - `owner`: ${{ github.repository_owner }}
     - `repo`: The repository name (extract from `${{ github.repository }}`)
     - `state`: "open"
@@ -76,7 +83,7 @@ Check if a security URL was provided:
 
 ### 2. Get Alert Details
 
-Get detailed information about the selected alert using `get_code_scanning_alert`:
+Get detailed information about the selected alert using `github___get_code_scanning_alert`:
 - Call with parameters:
   - `owner`: ${{ github.repository_owner }}
   - `repo`: The repository name (extract from `${{ github.repository }}`)
@@ -91,7 +98,7 @@ Get detailed information about the selected alert using `get_code_scanning_alert
 ### 3. Analyze the Vulnerability
 
 Understand the security issue:
-- Read the affected file using `get_file_contents`:
+- Read the affected file using `github___get_file_contents`:
   - `owner`: ${{ github.repository_owner }}
   - `repo`: The repository name (extract from `${{ github.repository }}`)
   - `path`: The file path from the alert
@@ -160,14 +167,3 @@ If any step fails:
 - **Fix Generation**: Document why the fix couldn't be automated and move to the next alert
 
 Remember: Your goal is to provide secure, well-analyzed autofixes that address the root cause of vulnerabilities. Focus on quality and accuracy.
-
-## Cache Memory Format
-
-- Store recently fixed alert numbers to avoid duplicates
-- Write to a file "fixed.jsonl" in the cache memory folder in JSONL format:
-```jsonl
-{"alert_number": 123, "timestamp": "2024-01-14T10:30:00Z"}
-{"alert_number": 124, "timestamp": "2024-01-14T10:35:00Z"}
-```
-
-Before processing an alert, check if it exists in the cache to avoid duplicate work.

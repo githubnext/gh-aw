@@ -22,7 +22,7 @@ tools:
 
 ## Frontmatter Elements
 
-The frontmatter combines standard GitHub Actions properties (`on`, `permissions`, `run-name`, `runs-on`, `timeout-minutes`, `concurrency`, `env`, `environment`, `container`, `services`, `if`, `steps`, `cache`) with GitHub Agentic Workflows-specific elements (`description`, `source`, `github-token`, `imports`, `engine`, `strict`, `roles`, `features`, `safe-inputs`, `safe-outputs`, `network`, `tools`).
+The frontmatter combines standard GitHub Actions properties (`on`, `permissions`, `run-name`, `runs-on`, `timeout-minutes`, `concurrency`, `env`, `environment`, `container`, `services`, `if`, `steps`, `cache`) with GitHub Agentic Workflows-specific elements (`description`, `source`, `github-token`, `imports`, `engine`, `strict`, `roles`, `features`, `project`, `safe-inputs`, `safe-outputs`, `network`, `tools`).
 
 Tool configurations (such as `bash`, `edit`, `github`, `web-fetch`, `web-search`, `playwright`, `cache-memory`, and custom [Model Context Protocol](/gh-aw/reference/glossary/#mcp-model-context-protocol) (MCP) [servers](/gh-aw/reference/glossary/#mcp-server)) are specified under the `tools:` key. Custom inline tools can be defined with the [`safe-inputs:`](/gh-aw/reference/safe-inputs/) (custom tools defined inline) key. See [Tools](/gh-aw/reference/tools/) and [Safe Inputs](/gh-aw/reference/safe-inputs/) for complete documentation.
 
@@ -238,6 +238,29 @@ network:
     - python               # Python/PyPI ecosystem
     - "api.example.com"    # Custom domain
 ```
+
+### Project Tracking (`project:`)
+
+Automatically enables project board management operations for tracking workflow-created items. See [Project Tracking](/gh-aw/examples/project-tracking/) for complete documentation.
+
+```yaml wrap
+# Simple format - just the URL
+project: https://github.com/orgs/github/projects/123
+
+# Full configuration with custom settings
+project:
+  url: https://github.com/orgs/github/projects/123
+  scope:
+    - owner/repo1
+    - org:myorg
+  max-updates: 50
+  max-status-updates: 2
+  github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
+```
+
+When configured, automatically enables:
+- **update-project** - Add items to projects, update fields (status, priority, etc.)
+- **create-project-status-update** - Post status updates to project boards
 
 ### Safe Inputs (`safe-inputs:`)
 
