@@ -710,6 +710,8 @@ func createProjectFields(config ProjectCreationConfig, projectNumber int) error 
 	projectLog.Printf("Creating fields for project number: %d", projectNumber)
 
 	// Define required fields
+	// Note: We use "Target Repo" instead of "Repository" because GitHub has a built-in
+	// REPOSITORY field type that conflicts with custom field creation
 	fields := []struct {
 		name     string
 		dataType string
@@ -717,6 +719,7 @@ func createProjectFields(config ProjectCreationConfig, projectNumber int) error 
 	}{
 		{"Campaign Id", "TEXT", nil},
 		{"Worker Workflow", "TEXT", nil},
+		{"Target Repo", "TEXT", nil},
 		{"Priority", "SINGLE_SELECT", []string{"High", "Medium", "Low"}},
 		{"Size", "SINGLE_SELECT", []string{"Small", "Medium", "Large"}},
 		{"Start Date", "DATE", nil},
@@ -748,8 +751,12 @@ func createField(config ProjectCreationConfig, projectNumber int, name, dataType
 	}
 
 	// Add options for SINGLE_SELECT fields
+	// The gh CLI expects --single-select-options to be passed multiple times,
+	// once for each option, rather than as a comma-separated list
 	if dataType == "SINGLE_SELECT" && len(options) > 0 {
-		args = append(args, "--single-select-options", strings.Join(options, ","))
+		for _, option := range options {
+			args = append(args, "--single-select-options", option)
+		}
 	}
 
 	cmd := exec.Command("gh", args...)

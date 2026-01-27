@@ -7,7 +7,7 @@ sidebar:
 
 Control network access for AI engines using the top-level `network` field to specify which domains and services your agentic workflows can access during execution.
 
-> **Note**: Network permissions are currently supported by the Claude engine and the Copilot engine (when using the [firewall feature](/gh-aw/reference/engines/#network-permissions)).
+> **Note**: Network permissions are currently supported by the Claude engine and the Copilot engine (when using the [firewall feature](/gh-aw/reference/sandbox/)).
 
 If no `network:` permission is specified, it defaults to `network: defaults` which allows access to basic infrastructure domains (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources).
 
@@ -261,7 +261,7 @@ Available log levels:
 
 The default log level is `info`, which provides a balance between visibility and log volume. Use `debug` for troubleshooting network access issues or `error` to minimize log output.
 
-See the [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network-permissions) documentation for detailed AWF configuration options.
+See the [Sandbox Configuration](/gh-aw/reference/sandbox/) documentation for detailed AWF configuration options.
 
 ### Disabling the Firewall
 

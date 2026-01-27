@@ -289,8 +289,7 @@ func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bo
 	}
 
 	// Use gh CLI to list workflows in the target repository
-	cmd := workflow.ExecGH("workflow", "list", "--repo", repoOverride, "--json", "name,path,state")
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Listing workflows...", "workflow", "list", "--repo", repoOverride, "--json", "name,path,state")
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			return fmt.Errorf("failed to list workflows in repository '%s': %s", repoOverride, string(exitError.Stderr))

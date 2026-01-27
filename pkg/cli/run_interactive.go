@@ -310,6 +310,69 @@ func confirmExecution(wf *WorkflowOption, inputs []string) bool {
 	return confirm
 }
 
+// RunSpecificWorkflowInteractively runs a specific workflow in interactive mode
+// This is similar to RunWorkflowInteractively but skips the workflow selection step
+// since the workflow name is already known. It will still collect inputs if the workflow has them.
+func RunSpecificWorkflowInteractively(ctx context.Context, workflowName string, verbose bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, push bool) error {
+	runInteractiveLog.Printf("Running specific workflow interactively: %s", workflowName)
+
+	// Find the workflow file
+	workflowsDir := constants.GetWorkflowDir()
+	mdFile := filepath.Join(workflowsDir, workflowName+".md")
+
+	// Check if file exists
+	if _, err := os.Stat(mdFile); os.IsNotExist(err) {
+		return fmt.Errorf("workflow file not found: %s", mdFile)
+	}
+
+	// Get workflow inputs
+	inputs, err := getWorkflowInputs(mdFile)
+	if err != nil {
+		runInteractiveLog.Printf("Failed to get inputs for workflow %s: %v", workflowName, err)
+		// Continue without inputs - they might not be required
+		inputs = nil
+	}
+
+	// Create workflow option for display
+	wf := &WorkflowOption{
+		Name:        workflowName,
+		Description: buildWorkflowDescription(inputs),
+		FilePath:    mdFile,
+		Inputs:      inputs,
+	}
+
+	// Show workflow info if there are inputs
+	if len(inputs) > 0 {
+		showWorkflowInfo(wf)
+	}
+
+	// Collect workflow inputs if needed
+	inputValues, err := collectWorkflowInputs(wf)
+	if err != nil {
+		return fmt.Errorf("failed to collect workflow inputs: %w", err)
+	}
+
+	// Confirm execution (skip if no inputs were collected - user already confirmed they want to run)
+	if len(inputValues) > 0 && !confirmExecution(wf, inputValues) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow execution cancelled"))
+		return nil
+	}
+
+	// Build command string for display
+	cmdStr := buildCommandString(workflowName, inputValues, repoOverride, refOverride, autoMergePRs, pushSecrets, push, engineOverride)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nRunning workflow..."))
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("Equivalent command: %s", cmdStr)))
+	fmt.Fprintln(os.Stderr, "")
+
+	// Execute the workflow
+	err = RunWorkflowOnGitHub(ctx, workflowName, false, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, push, true, inputValues, verbose)
+	if err != nil {
+		return fmt.Errorf("failed to run workflow: %w", err)
+	}
+
+	return nil
+}
+
 // buildCommandString builds the equivalent command string for display
 func buildCommandString(workflowName string, inputs []string, repoOverride, refOverride string, autoMergePRs, pushSecrets, push bool, engineOverride string) string {
 	var parts []string

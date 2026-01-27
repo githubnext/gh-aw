@@ -73,11 +73,13 @@ func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (str
 
 // ExpandIncludesForEngines recursively expands @include and @import directives to extract engine configurations
 func ExpandIncludesForEngines(content, baseDir string) ([]string, error) {
+	log.Printf("Expanding includes for engines: baseDir=%s", baseDir)
 	return expandIncludesForField(content, baseDir, extractEngineFromContent, "")
 }
 
 // ExpandIncludesForSafeOutputs recursively expands @include and @import directives to extract safe-outputs configurations
 func ExpandIncludesForSafeOutputs(content, baseDir string) ([]string, error) {
+	log.Printf("Expanding includes for safe-outputs: baseDir=%s", baseDir)
 	return expandIncludesForField(content, baseDir, extractSafeOutputsFromContent, "{}")
 }
 
@@ -106,6 +108,7 @@ func expandIncludesForField(content, baseDir string, extractFunc func(string) (s
 		currentContent = processedContent
 	}
 
+	log.Printf("Field expansion complete: results=%d", len(results))
 	return results, nil
 }
 

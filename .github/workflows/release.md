@@ -470,11 +470,21 @@ Dependency updates and internal improvements to keep things running smoothly.
 
 ## Output Format
 
-**CRITICAL**: You MUST call the `update_release` tool to update the release with the generated highlights:
+**CRITICAL**: You MUST call the `update_release` MCP tool to update the release with the generated highlights.
+
+**HOW TO CALL THE TOOL:**
+
+The `update_release` tool is an **MCP (Model Context Protocol) tool**, not a bash command or file operation. To call it:
+
+1. **Use the MCP tool call syntax** - The tool is registered as `update_release` (or `safeoutputs___update_release`)
+2. **DO NOT write JSON files manually** - Writing files like `/tmp/gh-aw/safeoutputs/update_release_001.json` will NOT work
+3. **DO NOT use bash to simulate tool calls** - The tool must be called through the MCP protocol
+
+**Example Tool Call:**
 
 ```javascript
 update_release({
-  tag: "${RELEASE_TAG}",
+  tag: "v0.37.26",
   operation: "prepend",
   body: "## 🌟 Release Highlights\n\n[Your complete markdown highlights here]"
 })
@@ -485,7 +495,9 @@ update_release({
 - `operation` - Must be `"prepend"` to add before existing notes
 - `body` - Complete markdown content (include all formatting, emojis, links)
 
-**WARNING**: If you don't call the `update_release` tool, the release notes will NOT be updated!
+**IMPORTANT**: This is a real tool call through MCP, NOT a bash command or file write operation. The tool will automatically write to the correct output file (`/opt/gh-aw/safeoutputs/outputs.jsonl`).
+
+**WARNING**: If you don't call the `update_release` tool properly through MCP, the release notes will NOT be updated!
 
 **Documentation Base URLs:**
 - User docs: `https://githubnext.github.io/gh-aw/`
