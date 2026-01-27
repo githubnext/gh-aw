@@ -353,11 +353,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// AWF v0.2.0 uses -- to separate AWF args from the actual command
 		// The command arguments should be passed as individual shell arguments, not as a single string
 
-		// Add PATH setup to find tools installed via actions/setup-* in hostedtoolcache
-		// The hostedtoolcache directory structure is: /opt/hostedtoolcache/<tool>/<version>/<arch>/bin
-		// We need to add these bin directories to PATH so the agent can find go, node, python, etc.
-		// This is done by adding PATH entries before running the copilot command inside the container
-		pathSetup := `export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"`
+		// Add PATH setup to find all runtimes in hostedtoolcache
+		// This ensures copilot, python, go, ruby, node and all dependencies (including MCP servers) are accessible
+		// The PATH setup finds all bin directories in /opt/hostedtoolcache/<tool>/<version>/<arch>/bin
+		pathSetup := GetHostedToolcachePathSetup()
 
 		// Wrap copilot command with PATH setup
 		copilotCommandWithPath := fmt.Sprintf(`%s && %s`, pathSetup, copilotCommand)
