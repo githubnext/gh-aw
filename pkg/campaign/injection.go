@@ -2,6 +2,7 @@ package campaign
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -9,6 +10,18 @@ import (
 )
 
 var injectionLog = logger.New("campaign:injection")
+
+var campaignIDSanitizer = regexp.MustCompile(`[^a-z0-9-]+`)
+
+func normalizeCampaignID(id string) string {
+	// Keep IDs stable and safe for labels/paths.
+	id = strings.ToLower(strings.TrimSpace(id))
+	id = strings.ReplaceAll(id, "_", "-")
+	id = strings.ReplaceAll(id, " ", "-")
+	id = campaignIDSanitizer.ReplaceAllString(id, "-")
+	id = strings.Trim(id, "-")
+	return id
+}
 
 // InjectOrchestratorFeatures detects if a workflow has project field with campaign
 // configuration and injects orchestrator features directly into the workflow during compilation.
@@ -24,19 +37,41 @@ func InjectOrchestratorFeatures(workflowData *workflow.WorkflowData) error {
 
 	project := workflowData.ParsedFrontmatter.Project
 
+	// Determine whether the project config looks like "project tracking" only.
+	// A minimal campaign can specify only the project URL (either short or long form) and omit
+	// campaign fields like id/workflows; in that case we infer the campaign ID from the workflow filename.
+	hasTrackingOnlySettings := len(project.Scope) > 0 ||
+		project.MaxUpdates > 0 ||
+		project.MaxStatusUpdates > 0 ||
+		strings.TrimSpace(project.GitHubToken) != "" ||
+		project.DoNotDowngradeDoneItems != nil
+
 	// Check if project has any campaign orchestration fields to determine if this is a campaign
 	// Campaign indicators (any of these present means it's a campaign orchestrator):
+	// - explicit campaign ID
 	// - workflows list (predefined workers)
 	// - governance policies (campaign-specific constraints)
 	// - bootstrap configuration (initial work item generation)
 	// - memory-paths, metrics-glob, cursor-glob (campaign state tracking)
 	// If only URL and scope are present, it's simple project tracking, not a campaign
-	isCampaign := len(project.Workflows) > 0 ||
+	hasCampaignIndicators := strings.TrimSpace(project.ID) != "" ||
+		len(project.Workflows) > 0 ||
 		project.Governance != nil ||
 		project.Bootstrap != nil ||
 		len(project.MemoryPaths) > 0 ||
 		project.MetricsGlob != "" ||
 		project.CursorGlob != ""
+
+	// If the user used the object form with only a URL (no tracking-only knobs), treat it as a campaign
+	// and infer the campaign ID from the workflow filename (minus .md).
+	if !hasCampaignIndicators && !hasTrackingOnlySettings {
+		if workflowData.WorkflowID != "" {
+			project.ID = workflowData.WorkflowID
+			hasCampaignIndicators = true
+		}
+	}
+
+	isCampaign := hasCampaignIndicators
 
 	if !isCampaign {
 		injectionLog.Print("Project field present but no campaign indicators, treating as simple project tracking")
@@ -46,10 +81,37 @@ func InjectOrchestratorFeatures(workflowData *workflow.WorkflowData) error {
 	injectionLog.Printf("Detected campaign orchestrator: workflows=%d, has_governance=%v, has_bootstrap=%v",
 		len(project.Workflows), project.Governance != nil, project.Bootstrap != nil)
 
-	// Derive campaign ID from workflow name or use explicit ID
-	campaignID := workflowData.FrontmatterName
-	if project.ID != "" {
+	// Derive campaign ID (prefer explicit id, then workflow filename, then workflow name).
+	// Note: workflowData.FrontmatterName is the *frontmatter name field* (display name), not the file basename.
+	campaignID := ""
+	if strings.TrimSpace(project.ID) != "" {
 		campaignID = project.ID
+	} else if strings.TrimSpace(workflowData.WorkflowID) != "" {
+		campaignID = workflowData.WorkflowID
+	} else if strings.TrimSpace(workflowData.Name) != "" {
+		campaignID = workflowData.Name
+	} else {
+		campaignID = "campaign"
+	}
+	campaignID = normalizeCampaignID(campaignID)
+	if campaignID == "" {
+		campaignID = "campaign"
+	}
+
+	// Apply campaign defaults (matching the historical .campaign.md defaults) when omitted.
+	// This keeps project-based campaigns minimal: users can specify just url + id.
+	project.ID = campaignID
+	if strings.TrimSpace(project.TrackerLabel) == "" {
+		project.TrackerLabel = fmt.Sprintf("z_campaign_%s", campaignID)
+	}
+	if len(project.MemoryPaths) == 0 {
+		project.MemoryPaths = []string{fmt.Sprintf("memory/campaigns/%s/**", campaignID)}
+	}
+	if strings.TrimSpace(project.MetricsGlob) == "" {
+		project.MetricsGlob = fmt.Sprintf("memory/campaigns/%s/metrics/*.json", campaignID)
+	}
+	if strings.TrimSpace(project.CursorGlob) == "" {
+		project.CursorGlob = fmt.Sprintf("memory/campaigns/%s/cursor.json", campaignID)
 	}
 
 	// Build campaign prompt data from project configuration

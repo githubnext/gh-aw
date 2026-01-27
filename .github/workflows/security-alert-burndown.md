@@ -9,7 +9,8 @@ permissions:
   issues: read
   pull-requests: read
   contents: read
-project: https://github.com/orgs/githubnext/projects/144
+project:
+  url: https://github.com/orgs/githubnext/projects/144
 ---
 
 # Security Alert Burndown Campaign

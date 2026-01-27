@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -249,9 +250,29 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 	frontmatterTypesLog.Printf("Parsing frontmatter config with %d fields", len(frontmatter))
 	var config FrontmatterConfig
 
+	// Normalize mixed-type fields before unmarshaling into typed structs.
+	// In YAML frontmatter, "project" can be either:
+	//   - a URL string (short form): project: https://github.com/orgs/.../projects/123
+	//   - an object (long form):      project: { url: ... , ... }
+	// The typed struct expects an object, so convert the short form to the long form.
+	normalizedFrontmatter := make(map[string]any, len(frontmatter))
+	for k, v := range frontmatter {
+		normalizedFrontmatter[k] = v
+	}
+	if projectValue, ok := frontmatter["project"]; ok {
+		if projectURL, ok := projectValue.(string); ok {
+			projectURL = strings.TrimSpace(projectURL)
+			if projectURL == "" {
+				delete(normalizedFrontmatter, "project")
+			} else {
+				normalizedFrontmatter["project"] = map[string]any{"url": projectURL}
+			}
+		}
+	}
+
 	// Use JSON marshaling for the entire frontmatter conversion
 	// This automatically handles all field mappings
-	jsonBytes, err := json.Marshal(frontmatter)
+	jsonBytes, err := json.Marshal(normalizedFrontmatter)
 	if err != nil {
 		frontmatterTypesLog.Printf("Failed to marshal frontmatter: %v", err)
 		return nil, fmt.Errorf("failed to marshal frontmatter to JSON: %w", err)
