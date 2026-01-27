@@ -199,6 +199,13 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		var awfArgs []string
 		awfArgs = append(awfArgs, "--env-all")
 
+		// Add mirrored environment variables from the runner
+		// These runner-level env vars (JAVA_HOME_*, ANDROID_HOME, etc.) need explicit --env flags
+		// to be passed through to the container. AWF only passes them if they exist on the host.
+		mirroredEnvArgs := GetMirroredEnvArgs()
+		awfArgs = append(awfArgs, mirroredEnvArgs...)
+		codexEngineLog.Printf("Added %d mirrored environment variable arguments", len(mirroredEnvArgs)/2)
+
 		// Set container working directory to match GITHUB_WORKSPACE
 		awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")
 		codexEngineLog.Print("Set container working directory to GITHUB_WORKSPACE")

@@ -278,6 +278,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		var awfArgs []string
 		awfArgs = append(awfArgs, "--env-all")
 
+		// Add mirrored environment variables from the runner
+		// These runner-level env vars (JAVA_HOME_*, ANDROID_HOME, etc.) need explicit --env flags
+		// to be passed through to the container. AWF only passes them if they exist on the host.
+		mirroredEnvArgs := GetMirroredEnvArgs()
+		awfArgs = append(awfArgs, mirroredEnvArgs...)
+		claudeLog.Printf("Added %d mirrored environment variable arguments", len(mirroredEnvArgs)/2)
+
 		// TTY is required for Claude Code CLI
 		awfArgs = append(awfArgs, "--tty")
 
