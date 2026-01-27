@@ -294,6 +294,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"")
 		claudeLog.Print("Added workspace mount to AWF")
 
+		// Mount host binaries and their shared library dependencies into the container
+		// Uses centralized functions from library_mounts.go for consistency across engines
+		awfArgs = append(awfArgs, GetAllUtilityMountArgs()...)
+		claudeLog.Print("Added host binaries and shared libraries to AWF container")
+
 		// Mount the hostedtoolcache directory (where actions/setup-* installs tools like Go, Node, Python, etc.)
 		// The PATH is already passed via --env-all, so tools installed by setup actions are accessible
 		awfArgs = append(awfArgs, "--mount", "/opt/hostedtoolcache:/opt/hostedtoolcache:ro")
