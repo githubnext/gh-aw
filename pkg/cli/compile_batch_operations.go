@@ -28,10 +28,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
-	"github.com/githubnext/gh-aw/pkg/stringutil"
 )
 
 var compileBatchOperationsLog = logger.New("cli:compile_batch_operations")
@@ -191,4 +191,3 @@ func purgeInvalidFiles(workflowsDir string, verbose bool) error {
 	compileBatchOperationsLog.Printf("Purged %d invalid files", len(existingInvalidFiles))
 	return nil
 }
-

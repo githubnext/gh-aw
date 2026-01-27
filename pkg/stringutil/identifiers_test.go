@@ -244,7 +244,7 @@ func TestLockFileToMarkdown(t *testing.T) {
 			input:    "/home/user/.github/workflows/daily.lock.yml",
 			expected: "/home/user/.github/workflows/daily.md",
 		},
-			{
+		{
 			name:     "agentic-campaign-generator in workflows directory",
 			input:    ".github/workflows/agentic-campaign-generator.lock.yml",
 			expected: ".github/workflows/agentic-campaign-generator.md",
@@ -417,4 +417,3 @@ func TestFileTypeHelpers_Exclusivity(t *testing.T) {
 		})
 	}
 }
-

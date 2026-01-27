@@ -102,8 +102,6 @@ func LockFileToMarkdown(lockPath string) string {
 	return strings.TrimSuffix(cleaned, ".lock.yml") + ".md"
 }
 
-
-
 // IsAgenticWorkflow returns true if the file path is an agentic workflow file.
 // Agentic workflows end with .md.
 //
@@ -131,8 +129,6 @@ func IsAgenticWorkflow(path string) bool {
 func IsLockFile(path string) bool {
 	return strings.HasSuffix(path, ".lock.yml")
 }
-
-
 
 // FormatCampaignLabel generates a campaign-specific label from a campaign ID.
 // Campaign-specific labels follow the format "z_campaign_<id>" where <id> is the campaign identifier.
