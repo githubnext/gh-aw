@@ -21,7 +21,7 @@ func ConvertFromFrontmatter(config *workflow.FrontmatterConfig, workflowPath str
 	}
 
 	if config.Project == nil {
-		return nil, fmt.Errorf("project configuration is required for campaign orchestrator")
+		return nil, fmt.Errorf("project configuration is required for campaign orchestrator generation")
 	}
 
 	// Derive campaign ID from workflow filename (basename without .md extension)
@@ -140,7 +140,11 @@ func ConvertFromFrontmatter(config *workflow.FrontmatterConfig, workflowPath str
 		}
 	}
 
-	// If no governance from campaign config, use project config defaults
+	// If no governance from campaign config, inherit project config defaults
+	// Currently only DoNotDowngradeDoneItems is transferred from project config
+	// as it's the only governance setting that applies to both project tracking
+	// and campaign orchestration. Other project config fields (max-updates, scope, etc.)
+	// are already transferred to the spec above.
 	if spec.Governance == nil && config.Project.DoNotDowngradeDoneItems != nil {
 		spec.Governance = &CampaignGovernancePolicy{
 			DoNotDowngradeDoneItems: config.Project.DoNotDowngradeDoneItems,

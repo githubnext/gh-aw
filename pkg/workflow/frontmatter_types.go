@@ -62,7 +62,10 @@ type ProjectConfig struct {
 }
 
 // CampaignConfig represents the campaign orchestration configuration
-// When present alongside project config, triggers campaign orchestrator generation
+// When present, triggers automatic generation of a campaign orchestrator workflow
+// with discovery, coordination, and governance features. The project field is required
+// for campaign orchestrator generation, while campaign config provides additional
+// orchestration details.
 type CampaignConfig struct {
 	ID           string                    `json:"id,omitempty"`            // Campaign identifier
 	Workflows    []string                  `json:"workflows,omitempty"`     // Associated workflow IDs

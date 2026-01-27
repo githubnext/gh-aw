@@ -145,8 +145,9 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 		return true
 	}
 
-	// Regular workflow file - first check if it has a project field (campaign orchestrator)
-	// by parsing frontmatter quickly
+	// Regular workflow file - check if it has a project field (campaign orchestrator)
+	// The project field enables project tracking, and when combined with campaign config,
+	// triggers automatic orchestrator generation for multi-workflow coordination.
 	compileHelpersLog.Printf("Checking if workflow has project field: %s", file)
 	hasProject, spec, parseErr := checkForProjectField(file)
 
@@ -168,6 +169,9 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 		}
 
 		// Generate and compile the campaign orchestrator workflow
+		// Note: Security validation tools (zizmor, poutine, actionlint) are disabled for
+		// campaign orchestrators as they are automatically generated and validated through
+		// the standard compilation pipeline. The source workflow should be validated instead.
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Validated campaign orchestrator spec %s", filepath.Base(file))))
 		}
@@ -178,11 +182,11 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 			CampaignSpecPath:     file,
 			Verbose:              verbose,
 			NoEmit:               false,
-			RunZizmorPerFile:     false,
-			RunPoutinePerFile:    false,
-			RunActionlintPerFile: false,
-			Strict:               false,
-			ValidateActionSHAs:   false,
+			RunZizmorPerFile:     false,      // Disabled for generated orchestrators
+			RunPoutinePerFile:    false,      // Disabled for generated orchestrators
+			RunActionlintPerFile: false,      // Disabled for generated orchestrators
+			Strict:               false,      // Not enforced for generated workflows
+			ValidateActionSHAs:   false,      // Not required for generated workflows
 		})
 		if genErr != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("failed to compile campaign orchestrator for %s: %v", filepath.Base(file), genErr)))
