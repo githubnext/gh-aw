@@ -79,7 +79,7 @@ func TestRenderPlaywrightMCP_JSON_Copilot(t *testing.T) {
 	output := yaml.String()
 
 	// Verify Copilot-specific fields
-	if !strings.Contains(output, `"type": "local"`) {
+	if !strings.Contains(output, `"type": "stdio"`) {
 		t.Error("Expected 'type': 'local' field for Copilot")
 	}
 	if !strings.Contains(output, `"tools": ["*"]`) {
@@ -361,7 +361,7 @@ func TestRenderGitHubMCP_JSON_Copilot_Local(t *testing.T) {
 	if !strings.Contains(output, `"github": {`) {
 		t.Error("Expected github server ID")
 	}
-	if !strings.Contains(output, `"type": "local"`) {
+	if !strings.Contains(output, `"type": "stdio"`) {
 		t.Error("Expected 'type': 'local' field for Copilot")
 	}
 	if !strings.Contains(output, `"command": "docker"`) {
