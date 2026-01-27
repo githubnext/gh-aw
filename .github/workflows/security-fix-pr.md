@@ -2,7 +2,6 @@
 name: Security Fix PR
 description: Identifies and automatically fixes code security issues by creating autofixes via GitHub Code Scanning
 on:
-  schedule: every 4h
   workflow_dispatch:
     inputs:
       security_url:
