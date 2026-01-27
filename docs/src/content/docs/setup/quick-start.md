@@ -73,7 +73,9 @@ to regenerate the workflow YAML file `.github/workflows/daily-repo-status.lock.y
 gh aw run daily-repo-status
 ```
 
-or by using the GitHub UX. Some ideas for customization:
+or by using the GitHub UX.
+
+Some ideas for customization:
 
 - Adjust the schedule to run more or less frequently
 - Modify the style or content of the report
