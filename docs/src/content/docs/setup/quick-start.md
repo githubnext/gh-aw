@@ -98,3 +98,4 @@ Explore further with:
 - [Authoring Agentic Workflows using AI](/gh-aw/setup/agentic-authoring/) where you will learn how to create automated workflows with AI assistance.
 - Explore the samples in [Peli's Agent Factory](/gh-aw/blog/2026-01-12-welcome-to-pelis-agent-factory/).
 - Understand [How Agentic Workflows Work](/gh-aw/introduction/how-they-work/).
+- Check the [Frequently Asked Questions](/gh-aw/reference/faq/) for answers to common questions.
