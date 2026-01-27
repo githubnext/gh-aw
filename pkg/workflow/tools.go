@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -142,7 +143,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 	}
 
 	if data.TimeoutMinutes == "" {
-		data.TimeoutMinutes = fmt.Sprintf("timeout_minutes: %d", constants.DefaultAgenticWorkflowTimeoutMinutes)
+		data.TimeoutMinutes = fmt.Sprintf("timeout_minutes: %d", int(constants.DefaultAgenticWorkflowTimeout/time.Minute))
 	}
 
 	if data.RunsOn == "" {

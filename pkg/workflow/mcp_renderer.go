@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -364,15 +365,15 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 	}
 	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")
 
-	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeoutSeconds
-	startupTimeout := constants.DefaultMCPStartupTimeoutSeconds
+	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeout
+	startupTimeout := int(constants.DefaultMCPStartupTimeout / time.Second)
 	if workflowData != nil && workflowData.ToolsStartupTimeout > 0 {
 		startupTimeout = workflowData.ToolsStartupTimeout
 	}
 	fmt.Fprintf(yaml, "          startup_timeout_sec = %d\n", startupTimeout)
 
-	// Use tools.timeout if specified, otherwise default to DefaultToolTimeoutSeconds
-	toolTimeout := constants.DefaultToolTimeoutSeconds
+	// Use tools.timeout if specified, otherwise default to DefaultToolTimeout
+	toolTimeout := int(constants.DefaultToolTimeout / time.Second)
 	if workflowData != nil && workflowData.ToolsTimeout > 0 {
 		toolTimeout = workflowData.ToolsTimeout
 	}

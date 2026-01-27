@@ -402,22 +402,6 @@ const DefaultToolTimeout = 60 * time.Second
 // DefaultMCPStartupTimeout is the default timeout for MCP server startup
 const DefaultMCPStartupTimeout = 120 * time.Second
 
-// Legacy timeout constants for backward compatibility (deprecated)
-// These are kept for existing code that expects integer values
-// TODO: Remove these after all call sites are migrated to use time.Duration
-
-// DefaultAgenticWorkflowTimeoutMinutes is the default timeout for agentic workflow execution in minutes
-// Deprecated: Use DefaultAgenticWorkflowTimeout instead
-const DefaultAgenticWorkflowTimeoutMinutes = int(DefaultAgenticWorkflowTimeout / time.Minute)
-
-// DefaultToolTimeoutSeconds is the default timeout for tool/MCP server operations in seconds
-// Deprecated: Use DefaultToolTimeout instead
-const DefaultToolTimeoutSeconds = int(DefaultToolTimeout / time.Second)
-
-// DefaultMCPStartupTimeoutSeconds is the default timeout for MCP server startup in seconds
-// Deprecated: Use DefaultMCPStartupTimeout instead
-const DefaultMCPStartupTimeoutSeconds = int(DefaultMCPStartupTimeout / time.Second)
-
 // DefaultActivationJobRunnerImage is the default runner image for activation and pre-activation jobs
 const DefaultActivationJobRunnerImage = "ubuntu-slim"
 

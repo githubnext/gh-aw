@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -435,14 +436,14 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Set timeout environment variables for Claude Code
-	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeoutSeconds
-	startupTimeoutMs := constants.DefaultMCPStartupTimeoutSeconds * 1000 // convert seconds to milliseconds
+	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeout
+	startupTimeoutMs := int(constants.DefaultMCPStartupTimeout / time.Millisecond)
 	if workflowData.ToolsStartupTimeout > 0 {
 		startupTimeoutMs = workflowData.ToolsStartupTimeout * 1000 // convert seconds to milliseconds
 	}
 
-	// Use tools.timeout if specified, otherwise default to DefaultToolTimeoutSeconds
-	timeoutMs := constants.DefaultToolTimeoutSeconds * 1000 // convert seconds to milliseconds
+	// Use tools.timeout if specified, otherwise default to DefaultToolTimeout
+	timeoutMs := int(constants.DefaultToolTimeout / time.Millisecond)
 	if workflowData.ToolsTimeout > 0 {
 		timeoutMs = workflowData.ToolsTimeout * 1000 // convert seconds to milliseconds
 	}
@@ -531,7 +532,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		timeoutValue = strings.TrimPrefix(timeoutValue, "timeout-minutes: ")
 		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %s", timeoutValue))
 	} else {
-		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", constants.DefaultAgenticWorkflowTimeoutMinutes)) // Default timeout for agentic workflows
+		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", int(constants.DefaultAgenticWorkflowTimeout/time.Minute))) // Default timeout for agentic workflows
 	}
 
 	// Filter environment variables to only include allowed secrets
