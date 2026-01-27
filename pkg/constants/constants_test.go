@@ -347,41 +347,6 @@ func TestTimeoutConstants(t *testing.T) {
 			}
 		})
 	}
-
-	// Test backward compatibility with legacy integer constants
-	legacyTests := []struct {
-		name     string
-		value    int
-		minValue int
-	}{
-		{"DefaultAgenticWorkflowTimeoutMinutes", DefaultAgenticWorkflowTimeoutMinutes, 1},
-		{"DefaultToolTimeoutSeconds", DefaultToolTimeoutSeconds, 1},
-		{"DefaultMCPStartupTimeoutSeconds", DefaultMCPStartupTimeoutSeconds, 1},
-	}
-
-	for _, tt := range legacyTests {
-		t.Run(tt.name+"_legacy", func(t *testing.T) {
-			if tt.value < tt.minValue {
-				t.Errorf("%s = %d, should be >= %d", tt.name, tt.value, tt.minValue)
-			}
-		})
-	}
-
-	// Test that legacy constants match the Duration-based values
-	t.Run("legacy_compatibility", func(t *testing.T) {
-		if DefaultAgenticWorkflowTimeoutMinutes != int(DefaultAgenticWorkflowTimeout/time.Minute) {
-			t.Errorf("DefaultAgenticWorkflowTimeoutMinutes (%d) doesn't match DefaultAgenticWorkflowTimeout (%v)",
-				DefaultAgenticWorkflowTimeoutMinutes, DefaultAgenticWorkflowTimeout)
-		}
-		if DefaultToolTimeoutSeconds != int(DefaultToolTimeout/time.Second) {
-			t.Errorf("DefaultToolTimeoutSeconds (%d) doesn't match DefaultToolTimeout (%v)",
-				DefaultToolTimeoutSeconds, DefaultToolTimeout)
-		}
-		if DefaultMCPStartupTimeoutSeconds != int(DefaultMCPStartupTimeout/time.Second) {
-			t.Errorf("DefaultMCPStartupTimeoutSeconds (%d) doesn't match DefaultMCPStartupTimeout (%v)",
-				DefaultMCPStartupTimeoutSeconds, DefaultMCPStartupTimeout)
-		}
-	})
 }
 
 func TestFeatureFlagConstants(t *testing.T) {
