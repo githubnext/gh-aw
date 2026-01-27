@@ -365,7 +365,7 @@ func RunSpecificWorkflowInteractively(ctx context.Context, workflowName string, 
 	fmt.Fprintln(os.Stderr, "")
 
 	// Execute the workflow
-	err = RunWorkflowOnGitHub(ctx, workflowName, false, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, push, false, inputValues, verbose)
+	err = RunWorkflowOnGitHub(ctx, workflowName, false, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, push, true, inputValues, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to run workflow: %w", err)
 	}

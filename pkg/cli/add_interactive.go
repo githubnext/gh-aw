@@ -172,8 +172,7 @@ func (c *AddInteractiveConfig) showWorkflowDescriptions() {
 func (c *AddInteractiveConfig) checkGHAuthStatus() error {
 	addInteractiveLog.Print("Checking GitHub CLI authentication status")
 
-	cmd := exec.Command("gh", "auth", "status")
-	output, err := cmd.CombinedOutput()
+	output, err := workflow.RunGHCombined("Checking GitHub authentication...", "auth", "status")
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("You are not logged in to GitHub CLI."))
@@ -258,9 +257,7 @@ func (c *AddInteractiveConfig) checkRepoVisibility() bool {
 	addInteractiveLog.Print("Checking repository visibility")
 
 	// Use gh api to check repository visibility
-	args := []string{"api", fmt.Sprintf("/repos/%s", c.RepoOverride), "--jq", ".visibility"}
-	cmd := workflow.ExecGH(args...)
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Checking repository visibility...", "api", fmt.Sprintf("/repos/%s", c.RepoOverride), "--jq", ".visibility")
 	if err != nil {
 		addInteractiveLog.Printf("Could not check repository visibility: %v", err)
 		// Default to public if we can't determine
@@ -278,9 +275,7 @@ func (c *AddInteractiveConfig) checkActionsEnabled() error {
 	addInteractiveLog.Print("Checking if GitHub Actions is enabled")
 
 	// Use gh api to check Actions permissions
-	args := []string{"api", fmt.Sprintf("/repos/%s/actions/permissions", c.RepoOverride), "--jq", ".enabled"}
-	cmd := workflow.ExecGH(args...)
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Checking GitHub Actions status...", "api", fmt.Sprintf("/repos/%s/actions/permissions", c.RepoOverride), "--jq", ".enabled")
 	if err != nil {
 		addInteractiveLog.Printf("Failed to check Actions status: %v", err)
 		// If we can't check, warn but continue - actual operations will fail if Actions is disabled
@@ -349,9 +344,7 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 	c.existingSecrets = make(map[string]bool)
 
 	// Use gh api to list repository secrets
-	args := []string{"api", fmt.Sprintf("/repos/%s/actions/secrets", c.RepoOverride), "--jq", ".secrets[].name"}
-	cmd := workflow.ExecGH(args...)
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Checking repository secrets...", "api", fmt.Sprintf("/repos/%s/actions/secrets", c.RepoOverride), "--jq", ".secrets[].name")
 	if err != nil {
 		addInteractiveLog.Printf("Could not fetch existing secrets: %v", err)
 		// Continue without error - we'll just assume no secrets exist
@@ -709,7 +702,6 @@ func (c *AddInteractiveConfig) applyChanges(ctx context.Context, workflowFiles, 
 	addInteractiveLog.Print("Applying changes")
 
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Creating pull request..."))
 
 	// Add the workflow using existing implementation with --create-pull-request
 	// Pass the resolved workflows to avoid re-fetching them
@@ -722,8 +714,6 @@ func (c *AddInteractiveConfig) applyChanges(ctx context.Context, workflowFiles, 
 	c.addResult = result
 
 	// Step 8b: Auto-merge the PR
-	fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Merging pull request..."))
-
 	if result.PRNumber == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not determine PR number"))
 		fmt.Fprintln(os.Stderr, "Please merge the PR manually from the GitHub web interface.")
@@ -764,13 +754,59 @@ func (c *AddInteractiveConfig) applyChanges(ctx context.Context, workflowFiles, 
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Secret '%s' added", secretName)))
 	}
 
+	// Step 8d: Update local branch with merged changes from GitHub
+	if err := c.updateLocalBranch(); err != nil {
+		// Non-fatal - warn but continue, workflow can still run on GitHub
+		addInteractiveLog.Printf("Failed to update local branch: %v", err)
+		if c.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update local branch: %v", err)))
+		}
+	}
+
+	return nil
+}
+
+// updateLocalBranch fetches and pulls the latest changes from GitHub after PR merge
+func (c *AddInteractiveConfig) updateLocalBranch() error {
+	addInteractiveLog.Print("Updating local branch with merged changes")
+
+	// Get the default branch name using gh
+	output, err := workflow.RunGHCombined("Getting default branch...", "repo", "view", "--repo", c.RepoOverride, "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name")
+	defaultBranch := "main"
+	if err == nil {
+		defaultBranch = strings.TrimSpace(string(output))
+	}
+	addInteractiveLog.Printf("Default branch: %s", defaultBranch)
+
+	// Fetch the latest changes from origin
+	if c.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Fetching latest changes from GitHub..."))
+	}
+
+	// Use git fetch followed by git pull
+	fetchCmd := exec.Command("git", "fetch", "origin", defaultBranch)
+	fetchOutput, err := fetchCmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git fetch failed: %w (output: %s)", err, string(fetchOutput))
+	}
+
+	pullCmd := exec.Command("git", "pull", "origin", defaultBranch)
+	pullOutput, err := pullCmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git pull failed: %w (output: %s)", err, string(pullOutput))
+	}
+
+	if c.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Local branch updated with merged changes"))
+	}
+
 	return nil
 }
 
 // mergePullRequest merges the specified PR
 func (c *AddInteractiveConfig) mergePullRequest(prNumber int) error {
-	cmd := workflow.ExecGH("pr", "merge", fmt.Sprintf("%d", prNumber), "--repo", c.RepoOverride, "--merge")
-	if output, err := cmd.CombinedOutput(); err != nil {
+	output, err := workflow.RunGHCombined("Merging pull request...", "pr", "merge", fmt.Sprintf("%d", prNumber), "--repo", c.RepoOverride, "--merge")
+	if err != nil {
 		return fmt.Errorf("merge failed: %w (output: %s)", err, string(output))
 	}
 	return nil
@@ -778,8 +814,8 @@ func (c *AddInteractiveConfig) mergePullRequest(prNumber int) error {
 
 // addRepositorySecret adds a secret to the repository
 func (c *AddInteractiveConfig) addRepositorySecret(name, value string) error {
-	cmd := workflow.ExecGH("secret", "set", name, "--repo", c.RepoOverride, "--body", value)
-	if output, err := cmd.CombinedOutput(); err != nil {
+	output, err := workflow.RunGHCombined("Adding repository secret...", "secret", "set", name, "--repo", c.RepoOverride, "--body", value)
+	if err != nil {
 		return fmt.Errorf("failed to set secret: %w (output: %s)", err, string(output))
 	}
 	return nil
@@ -934,8 +970,7 @@ func getWorkflowStatuses(pattern, repoOverride string, verbose bool) ([]Workflow
 		fmt.Fprintf(os.Stderr, "Running: gh %s\n", strings.Join(args, " "))
 	}
 
-	cmd := workflow.ExecGH(args...)
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Checking workflow status...", args...)
 	if err != nil {
 		if verbose {
 			fmt.Fprintf(os.Stderr, "gh workflow list failed: %v\n", err)
@@ -972,6 +1007,14 @@ func (c *AddInteractiveConfig) showFinalInstructions() {
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("🎉 Addition complete!"))
 	fmt.Fprintln(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	fmt.Fprintln(os.Stderr, "")
+
+	// Show summary with workflow name(s)
+	if c.resolvedWorkflows != nil && len(c.resolvedWorkflows.Workflows) > 0 {
+		wf := c.resolvedWorkflows.Workflows[0]
+		fmt.Fprintf(os.Stderr, "The workflow '%s' has been added to the repository and will now run automatically.\n", wf.Spec.WorkflowName)
+		c.showWorkflowDescriptions()
+	}
+
 	fmt.Fprintln(os.Stderr, "Useful commands:")
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s status          # Check workflow status", string(constants.CLIExtensionPrefix))))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s run <workflow>  # Trigger a workflow", string(constants.CLIExtensionPrefix))))

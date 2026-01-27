@@ -177,8 +177,7 @@ func resolveLatestRef(repo, currentRef string, allowMajor, verbose bool) (string
 	}
 
 	// Get the latest commit SHA for the branch
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/branches/%s", repo, currentRef), "--jq", ".commit.sha")
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Fetching branch info...", "api", fmt.Sprintf("/repos/%s/branches/%s", repo, currentRef), "--jq", ".commit.sha")
 	if err != nil {
 		return "", fmt.Errorf("failed to get latest commit for branch %s: %w", currentRef, err)
 	}
@@ -200,8 +199,7 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 	}
 
 	// Get all releases using gh CLI
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name")
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch releases: %w", err)
 	}

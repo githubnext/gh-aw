@@ -419,8 +419,7 @@ func attemptSetSecret(secretName, repoSlug string, verbose bool) error {
 	}
 
 	// Set the secret using gh CLI
-	cmd := workflow.ExecGH("secret", "set", secretName, "--repo", repoSlug, "--body", secretValue)
-	if output, err := cmd.CombinedOutput(); err != nil {
+	if output, err := workflow.RunGHCombined("Setting secret...", "secret", "set", secretName, "--repo", repoSlug, "--body", secretValue); err != nil {
 		outputStr := string(output)
 		// Check for permission-related errors
 		if strings.Contains(outputStr, "403") || strings.Contains(outputStr, "Forbidden") ||
