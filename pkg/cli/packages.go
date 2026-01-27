@@ -797,7 +797,8 @@ func ExtractWorkflowDescription(content string) string {
 	return ""
 }
 
-// ExtractWorkflowEngine extracts the engine field from workflow content string
+// ExtractWorkflowEngine extracts the engine field from workflow content string.
+// Supports both string format (engine: copilot) and nested format (engine: { id: copilot }).
 func ExtractWorkflowEngine(content string) string {
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil {
@@ -805,8 +806,17 @@ func ExtractWorkflowEngine(content string) string {
 	}
 
 	if engine, ok := result.Frontmatter["engine"]; ok {
+		// Handle string format: engine: copilot
 		if engineStr, ok := engine.(string); ok {
 			return engineStr
+		}
+		// Handle nested format: engine: { id: copilot }
+		if engineMap, ok := engine.(map[string]any); ok {
+			if id, ok := engineMap["id"]; ok {
+				if idStr, ok := id.(string); ok {
+					return idStr
+				}
+			}
 		}
 	}
 

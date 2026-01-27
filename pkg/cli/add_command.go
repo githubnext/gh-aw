@@ -149,13 +149,8 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			}
 
 			// Handle normal (non-interactive) mode
-			if prFlag {
-				_, err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, true, pushFlag, noGitattributes, workflowDir, noStopAfter, stopAfter)
-				return err
-			} else {
-				_, err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, false, pushFlag, noGitattributes, workflowDir, noStopAfter, stopAfter)
-				return err
-			}
+			_, err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, prFlag, pushFlag, noGitattributes, workflowDir, noStopAfter, stopAfter)
+			return err
 		},
 	}
 
