@@ -59,7 +59,6 @@ func TestPermissionsRenderToYAML(t *testing.T) {
 	}
 }
 
-
 func TestPermissions_AllReadWithIdTokenWrite(t *testing.T) {
 	// Test that "all: read" with "id-token: write" works as expected
 	// id-token is special because it only supports write and none, not read
@@ -133,7 +132,6 @@ func TestPermissions_AllReadWithIdTokenWrite(t *testing.T) {
 		t.Errorf("YAML should NOT contain 'id-token: read', but got:\n%s", yaml)
 	}
 }
-
 
 func TestPermissions_AllReadRenderToYAML(t *testing.T) {
 	tests := []struct {
@@ -260,4 +258,3 @@ func TestPermissions_AllReadRenderToYAML(t *testing.T) {
 		})
 	}
 }
-

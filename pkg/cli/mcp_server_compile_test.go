@@ -166,7 +166,6 @@ This is a test workflow for compilation.
 // 	t.Logf("Logs tool output: %s", textContent.Text)
 // }
 
-
 func TestMCPServer_CompileWithSpecificWorkflow(t *testing.T) {
 	// Skip if the binary doesn't exist
 	binaryPath := "../../gh-aw"

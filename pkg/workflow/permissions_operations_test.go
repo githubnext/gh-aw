@@ -20,7 +20,6 @@ func TestNewPermissions(t *testing.T) {
 	}
 }
 
-
 func TestNewPermissionsShorthand(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -41,7 +40,6 @@ func TestNewPermissionsShorthand(t *testing.T) {
 		})
 	}
 }
-
 
 func TestNewPermissionsFromMap(t *testing.T) {
 	perms := map[PermissionScope]PermissionLevel{
@@ -68,7 +66,6 @@ func TestNewPermissionsFromMap(t *testing.T) {
 	}
 }
 
-
 func TestPermissionsSet(t *testing.T) {
 	p := NewPermissions()
 	p.Set(PermissionContents, PermissionRead)
@@ -89,7 +86,6 @@ func TestPermissionsSet(t *testing.T) {
 		t.Errorf("expected issues: write, got %v (exists: %v)", level, exists)
 	}
 }
-
 
 func TestPermissionsGet(t *testing.T) {
 	tests := []struct {
@@ -150,7 +146,6 @@ func TestPermissionsGet(t *testing.T) {
 		})
 	}
 }
-
 
 func TestPermissionsMerge(t *testing.T) {
 	tests := []struct {
@@ -537,7 +532,6 @@ func TestPermissionsMerge(t *testing.T) {
 	}
 }
 
-
 func TestPermissions_AllRead(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -603,4 +597,3 @@ func TestPermissions_AllRead(t *testing.T) {
 		})
 	}
 }
-

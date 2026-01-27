@@ -210,7 +210,6 @@ func TestPermissionsParser_HasContentsReadAccess(t *testing.T) {
 	}
 }
 
-
 func TestContainsCheckout(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -416,7 +415,6 @@ func TestContainsCheckout(t *testing.T) {
 	}
 }
 
-
 func TestPermissionsParser_Parse(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -481,7 +479,6 @@ pull-requests: read`,
 		})
 	}
 }
-
 
 func TestPermissionsParser_AllRead(t *testing.T) {
 	tests := []struct {
@@ -589,7 +586,6 @@ func TestPermissionsParser_AllRead(t *testing.T) {
 		})
 	}
 }
-
 
 func TestPermissionsParser_ToPermissions(t *testing.T) {
 	tests := []struct {
