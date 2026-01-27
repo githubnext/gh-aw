@@ -29,7 +29,7 @@ func TestParseProjectConfig(t *testing.T) {
 				MaxUpdates:              50,
 				MaxStatusUpdates:        2,
 				GitHubToken:             "${{ secrets.PROJECT_TOKEN }}",
-				DoNotDowngradeDoneItems: ptrBool(true),
+				DoNotDowngradeDoneItems: boolPtr(true),
 			},
 		},
 		{
