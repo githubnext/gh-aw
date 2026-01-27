@@ -529,12 +529,8 @@ func (c *AddInteractiveConfig) collectCopilotPAT() error {
 	fmt.Fprintln(os.Stderr, "  • Token name: Agentic Workflows Copilot")
 	fmt.Fprintln(os.Stderr, "  • Expiration: 90 days (recommended for testing)")
 	fmt.Fprintln(os.Stderr, "  • Resource owner: Your personal account")
-	if c.isPublicRepo {
-		fmt.Fprintln(os.Stderr, "  • Repository access: \"Public repositories\"")
-	} else {
-		fmt.Fprintf(os.Stderr, "  • Repository access: \"Only select repositories\" → select %s\n", c.RepoOverride)
-	}
-	fmt.Fprintln(os.Stderr, "  • Account permissions → Copilot Requests: Read")
+	fmt.Fprintln(os.Stderr, "  • Repository access: \"Public repositories\" (you must use this setting even for private repos)")
+	fmt.Fprintln(os.Stderr, "  • Account permissions → Copilot Requests: Read-only")
 	fmt.Fprintln(os.Stderr, "")
 
 	var token string
@@ -863,6 +859,16 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 		return nil
 	}
 
+	// In Codespaces, don't offer to trigger - provide link to Actions page instead
+	if os.Getenv("CODESPACES") == "true" {
+		addInteractiveLog.Print("Running in Codespaces, skipping run offer and showing Actions link")
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Running in GitHub Codespaces - please trigger the workflow manually from the Actions page"))
+		fmt.Fprintf(os.Stderr, "🔗 https://github.com/%s/actions\n", c.RepoOverride)
+		c.showFinalInstructions()
+		return nil
+	}
+
 	// Ask if user wants to run the workflow
 	fmt.Fprintln(os.Stderr, "")
 	runNow := true // Default to yes
@@ -886,14 +892,13 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 		return nil
 	}
 
-	// Run the workflow
+	// Run the workflow interactively (collects inputs if the workflow has them)
 	if len(c.WorkflowSpecs) > 0 {
 		parsed, _ := parseWorkflowSpec(c.WorkflowSpecs[0])
 		if parsed != nil {
 			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Triggering workflow..."))
 
-			if err := RunWorkflowOnGitHub(ctx, parsed.WorkflowName, false, c.EngineOverride, c.RepoOverride, "", false, false, false, true, nil, c.Verbose); err != nil {
+			if err := RunSpecificWorkflowInteractively(ctx, parsed.WorkflowName, c.Verbose, c.EngineOverride, c.RepoOverride, "", false, false, false); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to run workflow: %v", err)))
 				c.showFinalInstructions()
 				return nil
