@@ -1,6 +1,6 @@
-# GitHub Copilot Agent: Repository Setup for Agentic Workflows
+# Repository Setup for Agentic Workflows
 
-This prompt guides you, a GitHub Copilot agent, to configure a repository for **GitHub Agentic Workflows (gh-aw)**.
+This prompt guides you, a coding agent, to configure a repository for **GitHub Agentic Workflows (gh-aw)**.
 
 ## Your Task
 
