@@ -52,11 +52,12 @@ type PermissionsConfig struct {
 // ProjectConfig represents the project tracking configuration for a workflow
 // When configured, this automatically enables project board management operations
 type ProjectConfig struct {
-	URL                     string `json:"url,omitempty"`                         // GitHub Project URL
-	MaxUpdates              int    `json:"max-updates,omitempty"`                 // Maximum number of project updates per run (default: 100)
-	MaxStatusUpdates        int    `json:"max-status-updates,omitempty"`          // Maximum number of status updates per run (default: 1)
-	GitHubToken             string `json:"github-token,omitempty"`                // Optional custom GitHub token for project operations
-	DoNotDowngradeDoneItems *bool  `json:"do-not-downgrade-done-items,omitempty"` // Prevent moving items backward (e.g., Done -> In Progress)
+	URL                     string   `json:"url,omitempty"`                         // GitHub Project URL
+	Scope                   []string `json:"scope,omitempty"`                       // Repositories/organizations this workflow can operate on (e.g., ["owner/repo", "org:name"])
+	MaxUpdates              int      `json:"max-updates,omitempty"`                 // Maximum number of project updates per run (default: 100)
+	MaxStatusUpdates        int      `json:"max-status-updates,omitempty"`          // Maximum number of status updates per run (default: 1)
+	GitHubToken             string   `json:"github-token,omitempty"`                // Optional custom GitHub token for project operations
+	DoNotDowngradeDoneItems *bool    `json:"do-not-downgrade-done-items,omitempty"` // Prevent moving items backward (e.g., Done -> In Progress)
 }
 
 // FrontmatterConfig represents the structured configuration from workflow frontmatter
@@ -671,6 +672,9 @@ func projectConfigToMap(config *ProjectConfig) map[string]any {
 
 	if config.URL != "" {
 		result["url"] = config.URL
+	}
+	if len(config.Scope) > 0 {
+		result["scope"] = config.Scope
 	}
 	if config.MaxUpdates > 0 {
 		result["max-updates"] = config.MaxUpdates

@@ -19,6 +19,7 @@ func TestParseProjectConfig(t *testing.T) {
 			name: "complete configuration",
 			projectMap: map[string]any{
 				"url":                         "https://github.com/orgs/github/projects/123",
+				"scope":                       []any{"owner/repo1", "owner/repo2", "org:github"},
 				"max-updates":                 50,
 				"max-status-updates":          2,
 				"github-token":                "${{ secrets.PROJECT_TOKEN }}",
@@ -26,10 +27,22 @@ func TestParseProjectConfig(t *testing.T) {
 			},
 			expectedConfig: &ProjectConfig{
 				URL:                     "https://github.com/orgs/github/projects/123",
+				Scope:                   []string{"owner/repo1", "owner/repo2", "org:github"},
 				MaxUpdates:              50,
 				MaxStatusUpdates:        2,
 				GitHubToken:             "${{ secrets.PROJECT_TOKEN }}",
 				DoNotDowngradeDoneItems: boolPtr(true),
+			},
+		},
+		{
+			name: "configuration with scope only",
+			projectMap: map[string]any{
+				"url":   "https://github.com/orgs/github/projects/999",
+				"scope": []any{"org:myorg", "owner/special-repo"},
+			},
+			expectedConfig: &ProjectConfig{
+				URL:   "https://github.com/orgs/github/projects/999",
+				Scope: []string{"org:myorg", "owner/special-repo"},
 			},
 		},
 		{
@@ -82,6 +95,7 @@ func TestParseProjectConfig(t *testing.T) {
 
 			require.NotNil(t, config, "parseProjectConfig() should not return nil")
 			assert.Equal(t, tt.expectedConfig.URL, config.URL, "URL should match")
+			assert.Equal(t, tt.expectedConfig.Scope, config.Scope, "Scope should match")
 			assert.Equal(t, tt.expectedConfig.MaxUpdates, config.MaxUpdates, "MaxUpdates should match")
 			assert.Equal(t, tt.expectedConfig.MaxStatusUpdates, config.MaxStatusUpdates, "MaxStatusUpdates should match")
 			assert.Equal(t, tt.expectedConfig.GitHubToken, config.GitHubToken, "GitHubToken should match")

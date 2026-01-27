@@ -44,6 +44,10 @@ Customize behavior with additional options:
 ```yaml
 project:
   url: https://github.com/orgs/github/projects/123
+  scope:
+    - owner/repo1
+    - owner/repo2
+    - org:myorg
   max-updates: 50
   max-status-updates: 2
   github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
@@ -55,6 +59,7 @@ project:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `url` | string | (required) | GitHub Project URL (user or organization) |
+| `scope` | array | current repo | Repositories/organizations this workflow can operate on (e.g., `owner/repo`, `org:name`) |
 | `max-updates` | integer | 100 | Maximum project updates per workflow run |
 | `max-status-updates` | integer | 1 | Maximum status updates per workflow run |
 | `github-token` | string | `GITHUB_TOKEN` | Custom token with Projects permissions |

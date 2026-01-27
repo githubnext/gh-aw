@@ -3672,6 +3672,15 @@
               "maximum": 1000,
               "default": 100
             },
+            "scope": {
+              "type": "array",
+              "description": "Optional list of repositories and organizations this workflow can operate on. Supports 'owner/repo' for specific repositories and 'org:name' for all repositories in an organization. When omitted, defaults to the current repository.",
+              "items": {
+                "type": "string",
+                "pattern": "^([a-zA-Z0-9][-a-zA-Z0-9]{0,38}/[a-zA-Z0-9._-]+|org:[a-zA-Z0-9][-a-zA-Z0-9]{0,38})$"
+              },
+              "examples": [["owner/repo"], ["org:github"], ["owner/repo1", "owner/repo2", "org:myorg"]]
+            },
             "max-status-updates": {
               "type": "integer",
               "description": "Maximum number of project status update operations per workflow run (default: 1). Controls the create-project-status-update safe-output maximum.",
@@ -3693,11 +3702,13 @@
           "examples": [
             {
               "url": "https://github.com/orgs/github/projects/123",
+              "scope": ["owner/repo1", "owner/repo2"],
               "max-updates": 50,
               "github-token": "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
             },
             {
               "url": "https://github.com/users/username/projects/456",
+              "scope": ["org:myorg"],
               "max-status-updates": 2,
               "do-not-downgrade-done-items": true
             }

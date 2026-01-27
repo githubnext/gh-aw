@@ -250,6 +250,9 @@ project: https://github.com/orgs/github/projects/123
 # Full configuration with custom settings
 project:
   url: https://github.com/orgs/github/projects/123
+  scope:
+    - owner/repo1
+    - org:myorg
   max-updates: 50
   max-status-updates: 2
   github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}

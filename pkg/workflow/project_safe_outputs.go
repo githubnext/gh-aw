@@ -103,6 +103,17 @@ func (c *Compiler) parseProjectConfig(projectMap map[string]any) *ProjectConfig 
 		}
 	}
 
+	// Parse scope (optional)
+	if scope, exists := projectMap["scope"]; exists {
+		if scopeList, ok := scope.([]any); ok {
+			for _, item := range scopeList {
+				if scopeStr, ok := item.(string); ok {
+					config.Scope = append(config.Scope, scopeStr)
+				}
+			}
+		}
+	}
+
 	// Parse max-updates (optional)
 	if maxUpdates, exists := projectMap["max-updates"]; exists {
 		switch v := maxUpdates.(type) {
