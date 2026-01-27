@@ -51,6 +51,7 @@ type PermissionsConfig struct {
 
 // ProjectConfig represents the project tracking configuration for a workflow
 // When configured, this automatically enables project board management operations
+// and can trigger campaign orchestrator generation when combined with campaign fields
 type ProjectConfig struct {
 	URL                     string   `json:"url,omitempty"`                         // GitHub Project URL
 	Scope                   []string `json:"scope,omitempty"`                       // Repositories/organizations this workflow can operate on (e.g., ["owner/repo", "org:name"])
@@ -58,6 +59,85 @@ type ProjectConfig struct {
 	MaxStatusUpdates        int      `json:"max-status-updates,omitempty"`          // Maximum number of status updates per run (default: 1)
 	GitHubToken             string   `json:"github-token,omitempty"`                // Optional custom GitHub token for project operations
 	DoNotDowngradeDoneItems *bool    `json:"do-not-downgrade-done-items,omitempty"` // Prevent moving items backward (e.g., Done -> In Progress)
+}
+
+// CampaignConfig represents the campaign orchestration configuration
+// When present alongside project config, triggers campaign orchestrator generation
+type CampaignConfig struct {
+	ID            string   `json:"id,omitempty"`             // Campaign identifier
+	Workflows     []string `json:"workflows,omitempty"`      // Associated workflow IDs
+	MemoryPaths   []string `json:"memory-paths,omitempty"`   // Repo-memory paths
+	MetricsGlob   string   `json:"metrics-glob,omitempty"`   // Metrics file glob pattern
+	CursorGlob    string   `json:"cursor-glob,omitempty"`    // Cursor file glob pattern
+	TrackerLabel  string   `json:"tracker-label,omitempty"`  // Label for discovering items
+	Owners        []string `json:"owners,omitempty"`         // Campaign owners
+	RiskLevel     string   `json:"risk-level,omitempty"`     // Risk level (low/medium/high)
+	State         string   `json:"state,omitempty"`          // Lifecycle state
+	Tags          []string `json:"tags,omitempty"`           // Categorization tags
+	Governance    *CampaignGovernanceConfig `json:"governance,omitempty"`
+	Bootstrap     *CampaignBootstrapConfig  `json:"bootstrap,omitempty"`
+	Workers       []WorkerMetadata          `json:"workers,omitempty"`
+}
+
+// CampaignGovernanceConfig represents governance policies for campaigns
+type CampaignGovernanceConfig struct {
+	MaxNewItemsPerRun       int      `json:"max-new-items-per-run,omitempty"`
+	MaxDiscoveryItemsPerRun int      `json:"max-discovery-items-per-run,omitempty"`
+	MaxDiscoveryPagesPerRun int      `json:"max-discovery-pages-per-run,omitempty"`
+	OptOutLabels            []string `json:"opt-out-labels,omitempty"`
+	DoNotDowngradeDoneItems *bool    `json:"do-not-downgrade-done-items,omitempty"`
+	MaxProjectUpdatesPerRun int      `json:"max-project-updates-per-run,omitempty"`
+	MaxCommentsPerRun       int      `json:"max-comments-per-run,omitempty"`
+}
+
+// CampaignBootstrapConfig represents bootstrap configuration for campaigns
+type CampaignBootstrapConfig struct {
+	Mode         string                      `json:"mode,omitempty"`
+	SeederWorker *SeederWorkerConfig         `json:"seeder-worker,omitempty"`
+	ProjectTodos *ProjectTodosBootstrapConfig `json:"project-todos,omitempty"`
+}
+
+// SeederWorkerConfig represents seeder worker configuration
+type SeederWorkerConfig struct {
+	WorkflowID string         `json:"workflow-id,omitempty"`
+	Payload    map[string]any `json:"payload,omitempty"`
+	MaxItems   int            `json:"max-items,omitempty"`
+}
+
+// ProjectTodosBootstrapConfig represents project todos bootstrap configuration
+type ProjectTodosBootstrapConfig struct {
+	StatusField   string   `json:"status-field,omitempty"`
+	TodoValue     string   `json:"todo-value,omitempty"`
+	MaxItems      int      `json:"max-items,omitempty"`
+	RequireFields []string `json:"require-fields,omitempty"`
+}
+
+// WorkerMetadata represents metadata for worker workflows
+type WorkerMetadata struct {
+	ID                  string                       `json:"id,omitempty"`
+	Name                string                       `json:"name,omitempty"`
+	Description         string                       `json:"description,omitempty"`
+	Capabilities        []string                     `json:"capabilities,omitempty"`
+	PayloadSchema       map[string]WorkerPayloadField `json:"payload-schema,omitempty"`
+	OutputLabeling      WorkerOutputLabeling         `json:"output-labeling,omitempty"`
+	IdempotencyStrategy string                       `json:"idempotency-strategy,omitempty"`
+	Priority            int                          `json:"priority,omitempty"`
+}
+
+// WorkerPayloadField represents a field in worker payload schema
+type WorkerPayloadField struct {
+	Type        string `json:"type,omitempty"`
+	Description string `json:"description,omitempty"`
+	Required    bool   `json:"required,omitempty"`
+	Example     any    `json:"example,omitempty"`
+}
+
+// WorkerOutputLabeling represents output labeling configuration for workers
+type WorkerOutputLabeling struct {
+	Labels         []string `json:"labels,omitempty"`
+	KeyInTitle     bool     `json:"key-in-title,omitempty"`
+	KeyFormat      string   `json:"key-format,omitempty"`
+	MetadataFields []string `json:"metadata-fields,omitempty"`
 }
 
 // FrontmatterConfig represents the structured configuration from workflow frontmatter
@@ -83,6 +163,7 @@ type FrontmatterConfig struct {
 	SafeInputs       *SafeInputsConfig  `json:"safe-inputs,omitempty"`
 	PermissionsTyped *PermissionsConfig `json:"-"`                 // New typed field (not in JSON to avoid conflict)
 	Project          *ProjectConfig     `json:"project,omitempty"` // Project tracking configuration
+	Campaign         *CampaignConfig    `json:"campaign,omitempty"` // Campaign orchestration configuration
 
 	// Event and trigger configuration
 	On          map[string]any `json:"on,omitempty"`          // Complex trigger config with many variants (too dynamic to type)

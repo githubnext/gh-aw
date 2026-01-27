@@ -49,6 +49,30 @@ import (
 
 var compileHelpersLog = logger.New("cli:compile_helpers")
 
+// checkForProjectField quickly checks if a workflow file has a project field in its frontmatter
+// Returns true if project field is present, along with the converted CampaignSpec
+func checkForProjectField(file string) (bool, *campaign.CampaignSpec, error) {
+	// Parse the workflow file to get frontmatter
+	compiler := workflow.NewCompiler(false, "", "")
+	workflowData, err := compiler.ParseWorkflowFile(file)
+	if err != nil {
+		return false, nil, err
+	}
+
+	// Check if ParsedFrontmatter has project field
+	if workflowData.ParsedFrontmatter == nil || workflowData.ParsedFrontmatter.Project == nil {
+		return false, nil, nil
+	}
+
+	// Convert frontmatter to campaign spec
+	spec, err := campaign.ConvertFromFrontmatter(workflowData.ParsedFrontmatter, file)
+	if err != nil {
+		return false, nil, err
+	}
+
+	return true, spec, nil
+}
+
 // compileSingleFile compiles a single markdown workflow file and updates compilation statistics
 // If checkExists is true, the function will check if the file exists before compiling
 // Returns true if compilation was attempted (file exists or checkExists is false), false otherwise
@@ -121,8 +145,58 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 		return true
 	}
 
+	// Regular workflow file - first check if it has a project field (campaign orchestrator)
+	// by parsing frontmatter quickly
+	compileHelpersLog.Printf("Checking if workflow has project field: %s", file)
+	hasProject, spec, parseErr := checkForProjectField(file)
+	
+	if parseErr == nil && hasProject {
+		compileHelpersLog.Printf("Detected project field in workflow: %s", file)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Detected project field - generating campaign orchestrator: %s", file)))
+		}
+
+		// Validate the campaign spec
+		problems := campaign.ValidateSpec(spec)
+		if len(problems) > 0 {
+			for _, p := range problems {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(p))
+			}
+			stats.Errors++
+			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+			return true
+		}
+
+		// Generate and compile the campaign orchestrator workflow
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Validated campaign orchestrator spec %s", filepath.Base(file))))
+		}
+
+		_, genErr := generateAndCompileCampaignOrchestrator(GenerateCampaignOrchestratorOptions{
+			Compiler:             compiler,
+			Spec:                 spec,
+			CampaignSpecPath:     file,
+			Verbose:              verbose,
+			NoEmit:               false,
+			RunZizmorPerFile:     false,
+			RunPoutinePerFile:    false,
+			RunActionlintPerFile: false,
+			Strict:               false,
+			ValidateActionSHAs:   false,
+		})
+		if genErr != nil {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("failed to compile campaign orchestrator for %s: %v", filepath.Base(file), genErr)))
+			stats.Errors++
+			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
+		} else {
+			compileHelpersLog.Printf("Successfully compiled campaign orchestrator for: %s", file)
+		}
+
+		return true
+	}
+
 	// Regular workflow file - compile normally
-	compileHelpersLog.Printf("Compiling: %s", file)
+	compileHelpersLog.Printf("Compiling as regular workflow: %s", file)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Compiling: %s", file)))
 	}
