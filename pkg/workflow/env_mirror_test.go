@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,16 +32,10 @@ func TestGetMirroredEnvArgs_ContainsExpectedVariables(t *testing.T) {
 	// Convert to a set for easy lookup (extract variable name from KEY=${KEY} format)
 	varSet := make(map[string]bool)
 	for i := 1; i < len(args); i += 2 {
-		// Extract the variable name from "KEY=${KEY}" format
-		envAssignment := args[i]
-		// Get the part before the '='
-		if idx := len(envAssignment); idx > 0 {
-			for j := 0; j < len(envAssignment); j++ {
-				if envAssignment[j] == '=' {
-					varSet[envAssignment[:j]] = true
-					break
-				}
-			}
+		// Extract the variable name from "KEY=${KEY}" format using SplitN
+		parts := strings.SplitN(args[i], "=", 2)
+		if len(parts) > 0 && parts[0] != "" {
+			varSet[parts[0]] = true
 		}
 	}
 
@@ -54,6 +49,7 @@ func TestGetMirroredEnvArgs_ContainsExpectedVariables(t *testing.T) {
 		"CONDA",
 		"VCPKG_INSTALLATION_ROOT",
 		"GOPATH",
+		"PYENV_ROOT", // Added for Python environment support
 	}
 
 	for _, expected := range expectedVars {
@@ -67,13 +63,10 @@ func TestGetMirroredEnvArgs_IsSorted(t *testing.T) {
 	// Extract just the variable names from KEY=${KEY} format (odd indices)
 	var varNames []string
 	for i := 1; i < len(args); i += 2 {
-		envAssignment := args[i]
-		// Get the part before the '='
-		for j := 0; j < len(envAssignment); j++ {
-			if envAssignment[j] == '=' {
-				varNames = append(varNames, envAssignment[:j])
-				break
-			}
+		// Extract the variable name using SplitN
+		parts := strings.SplitN(args[i], "=", 2)
+		if len(parts) > 0 && parts[0] != "" {
+			varNames = append(varNames, parts[0])
 		}
 	}
 

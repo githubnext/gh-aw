@@ -21,6 +21,11 @@ import (
 
 var envMirrorLog = logger.New("workflow:env_mirror")
 
+// init sorts MirroredEnvVars once at initialization time for consistent output.
+func init() {
+	sort.Strings(MirroredEnvVars)
+}
+
 // MirroredEnvVars is the list of environment variables from the GitHub Actions
 // Ubuntu runner that should be mirrored into the agent container.
 //
@@ -69,6 +74,7 @@ var MirroredEnvVars = []string{
 	// Python environment
 	"PIPX_HOME",
 	"PIPX_BIN_DIR",
+	"PYENV_ROOT",
 
 	// Ruby environment
 	"GEM_HOME",
@@ -108,18 +114,14 @@ var MirroredEnvVars = []string{
 func GetMirroredEnvArgs() []string {
 	envMirrorLog.Print("Generating mirrored environment variable arguments")
 
-	// Sort for consistent output
-	sortedVars := make([]string, len(MirroredEnvVars))
-	copy(sortedVars, MirroredEnvVars)
-	sort.Strings(sortedVars)
-
+	// MirroredEnvVars is pre-sorted in init(), no need to sort here
 	var args []string
-	for _, envVar := range sortedVars {
+	for _, envVar := range MirroredEnvVars {
 		// Use shell variable expansion syntax so the value is resolved at runtime
 		args = append(args, "--env", envVar+"=${"+envVar+"}")
 	}
 
-	envMirrorLog.Printf("Generated %d environment variable mirror arguments", len(sortedVars))
+	envMirrorLog.Printf("Generated %d environment variable mirror arguments", len(MirroredEnvVars))
 	return args
 }
 
@@ -128,8 +130,8 @@ func GetMirroredEnvArgs() []string {
 //
 // This is useful for documentation and debugging purposes.
 func GetMirroredEnvVarsList() []string {
+	// MirroredEnvVars is pre-sorted in init(), just copy and return
 	result := make([]string, len(MirroredEnvVars))
 	copy(result, MirroredEnvVars)
-	sort.Strings(result)
 	return result
 }
