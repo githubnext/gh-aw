@@ -386,10 +386,90 @@ func TestGetHostedToolcachePathSetup_Consistency(t *testing.T) {
 	if first != second {
 		t.Errorf("GetHostedToolcachePathSetup should return consistent results, got:\n%s\nvs:\n%s", first, second)
 	}
+}
 
-	// Verify exact expected output
-	expected := `export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"`
-	if first != expected {
-		t.Errorf("GetHostedToolcachePathSetup returned unexpected value.\nGot:      %s\nExpected: %s", first, expected)
+// TestGetHostedToolcachePathSetup_UsesToolBins verifies that GetHostedToolcachePathSetup
+// uses $GH_AW_TOOL_BINS to get specific tool paths computed by GetToolBinsSetup.
+func TestGetHostedToolcachePathSetup_UsesToolBins(t *testing.T) {
+	pathSetup := GetHostedToolcachePathSetup()
+
+	// Should use $GH_AW_TOOL_BINS for specific tool paths
+	if !strings.Contains(pathSetup, "$GH_AW_TOOL_BINS") {
+		t.Errorf("PATH setup should use $GH_AW_TOOL_BINS, got: %s", pathSetup)
+	}
+
+	// Verify ordering: $GH_AW_TOOL_BINS should come BEFORE the find command
+	toolBinsIdx := strings.Index(pathSetup, "$GH_AW_TOOL_BINS")
+	findIdx := strings.Index(pathSetup, "find /opt/hostedtoolcache")
+	if toolBinsIdx > findIdx {
+		t.Errorf("$GH_AW_TOOL_BINS should come before find command in PATH setup, got: %s", pathSetup)
+	}
+}
+
+// TestGetToolBinsSetup verifies that GetToolBinsSetup computes specific tool paths
+// for all supported runtimes (Go, Java, Rust, Conda, Ruby, pipx, Swift, .NET).
+func TestGetToolBinsSetup(t *testing.T) {
+	toolBinsSetup := GetToolBinsSetup()
+
+	// Should check GOROOT for Go
+	if !strings.Contains(toolBinsSetup, "GOROOT") || !strings.Contains(toolBinsSetup, "$GOROOT/bin") {
+		t.Errorf("GetToolBinsSetup should handle GOROOT, got: %s", toolBinsSetup)
+	}
+
+	// Should check JAVA_HOME for Java
+	if !strings.Contains(toolBinsSetup, "JAVA_HOME") || !strings.Contains(toolBinsSetup, "$JAVA_HOME/bin") {
+		t.Errorf("GetToolBinsSetup should handle JAVA_HOME, got: %s", toolBinsSetup)
+	}
+
+	// Should check CARGO_HOME for Rust
+	if !strings.Contains(toolBinsSetup, "CARGO_HOME") || !strings.Contains(toolBinsSetup, "$CARGO_HOME/bin") {
+		t.Errorf("GetToolBinsSetup should handle CARGO_HOME, got: %s", toolBinsSetup)
+	}
+
+	// Should check CONDA for Conda
+	if !strings.Contains(toolBinsSetup, `"$CONDA"`) || !strings.Contains(toolBinsSetup, "$CONDA/bin") {
+		t.Errorf("GetToolBinsSetup should handle CONDA, got: %s", toolBinsSetup)
+	}
+
+	// Should check GEM_HOME for Ruby
+	if !strings.Contains(toolBinsSetup, "GEM_HOME") || !strings.Contains(toolBinsSetup, "$GEM_HOME/bin") {
+		t.Errorf("GetToolBinsSetup should handle GEM_HOME, got: %s", toolBinsSetup)
+	}
+
+	// Should check PIPX_BIN_DIR for pipx (no /bin suffix)
+	if !strings.Contains(toolBinsSetup, "PIPX_BIN_DIR") || !strings.Contains(toolBinsSetup, "$PIPX_BIN_DIR:") {
+		t.Errorf("GetToolBinsSetup should handle PIPX_BIN_DIR, got: %s", toolBinsSetup)
+	}
+
+	// Should check SWIFT_PATH for Swift (no /bin suffix)
+	if !strings.Contains(toolBinsSetup, "SWIFT_PATH") || !strings.Contains(toolBinsSetup, "$SWIFT_PATH:") {
+		t.Errorf("GetToolBinsSetup should handle SWIFT_PATH, got: %s", toolBinsSetup)
+	}
+
+	// Should check DOTNET_ROOT for .NET (no /bin suffix)
+	if !strings.Contains(toolBinsSetup, "DOTNET_ROOT") || !strings.Contains(toolBinsSetup, "$DOTNET_ROOT:") {
+		t.Errorf("GetToolBinsSetup should handle DOTNET_ROOT, got: %s", toolBinsSetup)
+	}
+
+	// Should export GH_AW_TOOL_BINS
+	if !strings.Contains(toolBinsSetup, "export GH_AW_TOOL_BINS") {
+		t.Errorf("GetToolBinsSetup should export GH_AW_TOOL_BINS, got: %s", toolBinsSetup)
+	}
+}
+
+// TestGetToolBinsEnvArg verifies that GetToolBinsEnvArg returns the correct AWF argument.
+func TestGetToolBinsEnvArg(t *testing.T) {
+	envArg := GetToolBinsEnvArg()
+
+	if len(envArg) != 2 {
+		t.Errorf("GetToolBinsEnvArg should return 2 elements (--env and value), got: %d", len(envArg))
+	}
+
+	if envArg[0] != "--env" {
+		t.Errorf("First element should be --env, got: %s", envArg[0])
+	}
+
+	if envArg[1] != "GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS" {
+		t.Errorf("Second element should be GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS, got: %s", envArg[1])
 	}
 }
