@@ -11,6 +11,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [context, repos, secret_protection, issues, pull_requests]
   repo-memory:
     - id: campaigns
