@@ -113,18 +113,18 @@ This specification defines two conformance classes:
 
 A **Basic Conforming Implementation** MUST:
 
-- Parse and validate `allowed-repos` configuration field
+- Parse and validate `repos` configuration field
 - Support exact repository name matching (e.g., `owner/repo`)
 - Reject invalid repository name patterns with clear error messages
-- Block access attempts to repositories not in `allowed-repos` list
+- Block access attempts to repositories not in `repos` list
 - Return standardized error responses for unauthorized repository access
 
 #### 2.1.2 Complete Conformance
 
 A **Complete Conforming Implementation** MUST satisfy Basic Conformance and:
 
-- Support wildcard patterns in `allowed-repos` (e.g., `owner/*`, `*/repo-name`)
-- Parse and validate `allowed-roles` configuration field
+- Support wildcard patterns in `repos` (e.g., `owner/*`, `*/repo-name`)
+- Parse and validate `roles` configuration field
 - Enforce role-based filtering for repository operations
 - Parse and validate `allow-private-repos` configuration flag
 - Block private repository access when `allow-private-repos` is false
@@ -164,7 +164,7 @@ GitHub MCP Server Access Control extends the MCP Gateway architecture with three
 │ Layer 2: MCP Gateway Runtime (Request Interception)          │
 │ - Intercept GitHub MCP server tool invocations               │
 │ - Extract repository identifiers from tool parameters        │
-│ - Match repository against allowed-repos patterns            │
+│ - Match repository against repos patterns            │
 │ - Query user's role in target repository                     │
 │ - Check repository visibility (public/private)               │
 └──────────────────────────────────────────────────────────────┘
@@ -238,11 +238,11 @@ tools:
       - "get_repository"
       - "list_issues"
     # Access Control Extensions (this specification)
-    allowed-repos:                    # OPTIONAL: Repository allowlist
+    repos:                    # OPTIONAL: Repository allowlist
       - "owner/repo"                  # Exact match
       - "owner/*"                     # Wildcard: all repos in owner
       - "*/infrastructure"            # Wildcard: repos named infrastructure
-    allowed-roles:                    # OPTIONAL: Role-based filtering
+    roles:                    # OPTIONAL: Role-based filtering
       - "admin"                       # Full access
       - "maintain"                    # Maintain access
       - "write"                       # Write access
@@ -319,19 +319,19 @@ tools:
 
 This section defines the three new access control fields introduced by this specification:
 
-#### 4.3.1 allowed-repos
+#### 4.3.1 repos
 
 **Type**: Array of strings  
 **Required**: No  
 **Default**: Not specified (all accessible repositories allowed)
 
-The `allowed-repos` field restricts GitHub MCP server access to specified repositories. When defined, the GitHub MCP server can ONLY access repositories matching at least one pattern in the list.
+The `repos` field restricts GitHub MCP server access to specified repositories. When defined, the GitHub MCP server can ONLY access repositories matching at least one pattern in the list.
 
 **Syntax**:
 - Exact match: `"owner/repo-name"` - matches single repository
 - Owner wildcard: `"owner/*"` - matches all repositories under owner
 - Name wildcard: `"*/repo-name"` - matches repositories with exact name across any owner
-- Full wildcard: `"*/*"` - matches all repositories (equivalent to not specifying `allowed-repos`)
+- Full wildcard: `"*/*"` - matches all repositories (equivalent to not specifying `repos`)
 
 **Constraints**:
 - Each pattern MUST be a valid repository identifier or wildcard pattern
@@ -341,20 +341,20 @@ The `allowed-repos` field restricts GitHub MCP server access to specified reposi
 
 **Example**:
 ```yaml
-allowed-repos:
+repos:
   - "myorg/frontend"           # Exact: myorg/frontend only
   - "myorg/backend-*"          # Future: myorg/backend-api, myorg/backend-service (if prefix matching added)
   - "myorg/*"                  # All repositories under myorg
   - "*/infrastructure"         # Any infrastructure repo
 ```
 
-#### 4.3.2 allowed-roles
+#### 4.3.2 roles
 
 **Type**: Array of strings  
 **Required**: No  
 **Default**: Not specified (all permission levels allowed)
 
-The `allowed-roles` field restricts operations based on the authenticated user's permission level in the target repository. Only repositories where the user has one of the specified roles are accessible.
+The `roles` field restricts operations based on the authenticated user's permission level in the target repository. Only repositories where the user has one of the specified roles are accessible.
 
 **Valid Role Values**:
 - `"admin"` - Repository administrator (full access)
@@ -370,17 +370,17 @@ The `allowed-roles` field restricts operations based on the authenticated user's
 - Roles are inclusive: specifying `"write"` does NOT automatically include `"admin"` or `"maintain"`
 
 **Hierarchical Interpretation**:
-When `allowed-roles` is specified, access is granted ONLY if the user's role in the repository matches one of the listed roles. There is NO automatic hierarchical inclusion. For example:
+When `roles` is specified, access is granted ONLY if the user's role in the repository matches one of the listed roles. There is NO automatic hierarchical inclusion. For example:
 
-- `allowed-roles: ["write"]` - User MUST have exactly "write" role (not "admin" or "maintain")
-- `allowed-roles: ["write", "admin"]` - User must have "write" OR "admin" role
-- `allowed-roles: ["read", "write", "admin"]` - User can have any of these roles
+- `roles: ["write"]` - User MUST have exactly "write" role (not "admin" or "maintain")
+- `roles: ["write", "admin"]` - User must have "write" OR "admin" role
+- `roles: ["read", "write", "admin"]` - User can have any of these roles
 
 **Best Practice**: For typical write operations, specify `["write", "maintain", "admin"]` to allow all users with write-level access or above.
 
 **Example**:
 ```yaml
-allowed-roles:
+roles:
   - "write"      # Users with write access
   - "admin"      # Repository administrators
   - "maintain"   # Repository maintainers
@@ -392,10 +392,10 @@ allowed-roles:
 **Required**: No  
 **Default**: `true`
 
-The `allow-private-repos` field controls whether the GitHub MCP server can access private repositories. When set to `false`, only public repositories are accessible, even if they match `allowed-repos` patterns and the user has appropriate roles.
+The `allow-private-repos` field controls whether the GitHub MCP server can access private repositories. When set to `false`, only public repositories are accessible, even if they match `repos` patterns and the user has appropriate roles.
 
 **Values**:
-- `true` - Private repositories are accessible (subject to `allowed-repos` and `allowed-roles` constraints)
+- `true` - Private repositories are accessible (subject to `repos` and `roles` constraints)
 - `false` - Only public repositories are accessible
 
 **Use Cases**:
@@ -410,7 +410,7 @@ allow-private-repos: false   # Restrict to public repositories only
 
 ### 4.4 Relationship Between Tool Selection and Access Control
 
-The GitHub MCP server configuration combines tool selection (`toolsets` and `tools`) with access control (`allowed-repos`, `allowed-roles`, `allow-private-repos`). These mechanisms operate independently but complement each other:
+The GitHub MCP server configuration combines tool selection (`toolsets` and `tools`) with access control (`repos`, `roles`, `allow-private-repos`). These mechanisms operate independently but complement each other:
 
 **Tool Selection** (existing GitHub MCP feature):
 - Controls **which operations** the agent can perform (e.g., read files, create issues)
@@ -428,8 +428,8 @@ The GitHub MCP server configuration combines tool selection (`toolsets` and `too
 tools:
   github:
     toolsets: [repos, issues]          # Agent can use repo and issue tools
-    allowed-repos: ["myorg/*"]         # But only on myorg repositories
-    allowed-roles: ["write", "admin"]  # And only where user has write/admin
+    repos: ["myorg/*"]         # But only on myorg repositories
+    roles: ["write", "admin"]  # And only where user has write/admin
     allow-private-repos: false         # And only public repositories
 ```
 
@@ -446,7 +446,7 @@ Implementations MUST validate access control configuration at compilation time. 
 
 #### 4.5.1 Repository Pattern Validation
 
-**Rule**: Each pattern in `allowed-repos` MUST match one of these formats:
+**Rule**: Each pattern in `repos` MUST match one of these formats:
 - Exact: `{owner}/{repo}` where both are non-empty alphanumeric with hyphens
 - Owner wildcard: `{owner}/*` where owner is non-empty
 - Name wildcard: `*/{repo}` where repo is non-empty
@@ -470,14 +470,14 @@ INVALID:
 
 **Error Message**: 
 ```text
-Invalid repository pattern '{pattern}' in allowed-repos.
+Invalid repository pattern '{pattern}' in repos.
 Expected format: 'owner/repo', 'owner/*', '*/repo', or '*/*'.
 Pattern must contain exactly one slash with non-empty owner and repo segments.
 ```
 
 #### 4.5.2 Role Validation
 
-**Rule**: Each role in `allowed-roles` MUST be one of: `admin`, `maintain`, `write`, `triage`, `read`
+**Rule**: Each role in `roles` MUST be one of: `admin`, `maintain`, `write`, `triage`, `read`
 
 **Validation**:
 ```text
@@ -495,7 +495,7 @@ INVALID:
 
 **Error Message**:
 ```text
-Invalid role '{role}' in allowed-roles.
+Invalid role '{role}' in roles.
 Valid roles are: admin, maintain, write, triage, read.
 See https://docs.github.com/en/organizations/managing-access-to-your-organizations-repositories/repository-roles-for-an-organization
 ```
@@ -503,36 +503,36 @@ See https://docs.github.com/en/organizations/managing-access-to-your-organizatio
 #### 4.5.3 Type Validation
 
 **Rule**: Configuration fields MUST have correct types:
-- `allowed-repos`: array of strings
-- `allowed-roles`: array of strings
+- `repos`: array of strings
+- `roles`: array of strings
 - `allow-private-repos`: boolean
 
 **Validation**:
 ```yaml
 # VALID
-allowed-repos: ["owner/repo"]
-allowed-roles: ["write"]
+repos: ["owner/repo"]
+roles: ["write"]
 allow-private-repos: false
 
 # INVALID
-allowed-repos: "owner/repo"          # Must be array
-allowed-roles: ["write", 123]        # All elements must be strings
+repos: "owner/repo"          # Must be array
+roles: ["write", 123]        # All elements must be strings
 allow-private-repos: "false"         # Must be boolean
 ```
 
 #### 4.5.4 Empty Array Validation
 
-**Rule**: Neither `allowed-repos` nor `allowed-roles` MAY be empty arrays
+**Rule**: Neither `repos` nor `roles` MAY be empty arrays
 
 **Validation**:
 ```yaml
 # INVALID
-allowed-repos: []        # Empty array blocks all access
-allowed-roles: []        # Empty array blocks all access
+repos: []        # Empty array blocks all access
+roles: []        # Empty array blocks all access
 
 # VALID
 # (omit field entirely if you want no restrictions)
-allowed-repos:
+repos:
   - "*/*"               # Explicit all-access
 ```
 
@@ -540,7 +540,7 @@ allowed-repos:
 ```text
 Empty array for {field} is not allowed.
 Either omit the field entirely (no restrictions) or specify at least one pattern/role.
-To allow all access, use ["*/*"] for allowed-repos or omit the field.
+To allow all access, use ["*/*"] for repos or omit the field.
 ```
 
 ---
@@ -549,7 +549,7 @@ To allow all access, use ["*/*"] for allowed-repos or omit the field.
 
 ### 5.1 Pattern Matching Semantics
 
-Repository patterns in `allowed-repos` use the following matching algorithm:
+Repository patterns in `repos` use the following matching algorithm:
 
 #### 5.1.1 Exact Match
 
@@ -618,7 +618,7 @@ Pattern format: `*/*`
 **Algorithm**:
 ```text
 MATCH all repositories
-(equivalent to omitting allowed-repos)
+(equivalent to omitting repos)
 ```
 
 **Examples**:
@@ -629,11 +629,11 @@ Pattern: "*/*"
 
 ### 5.2 Multiple Pattern Evaluation
 
-When multiple patterns are specified in `allowed-repos`, access is granted if **any** pattern matches (OR logic).
+When multiple patterns are specified in `repos`, access is granted if **any** pattern matches (OR logic).
 
 **Algorithm**:
 ```text
-FOR each pattern in allowed-repos:
+FOR each pattern in repos:
   IF pattern matches target repository:
     GRANT access
     RETURN
@@ -643,7 +643,7 @@ DENY access
 
 **Example**:
 ```yaml
-allowed-repos:
+repos:
   - "myorg/frontend"
   - "myorg/backend"
   - "partner/*"
@@ -707,8 +707,8 @@ Examples:
 - `list_repositories` - Lists all accessible repositories
 
 **Access Control Behavior**:
-- If `allowed-repos` is specified: Results filtered to matching repositories
-- If `allowed-repos` is omitted: All accessible repositories returned
+- If `repos` is specified: Results filtered to matching repositories
+- If `repos` is omitted: All accessible repositories returned
 
 ### 5.4 Cross-Repository Operations
 
@@ -733,8 +733,8 @@ When creating pull requests, both head and base repositories must be allowed:
 **Access Control Logic**:
 ```text
 REQUIRE:
-  - "upstream-org/main-repo" matches allowed-repos
-  - "my-fork/main-repo" matches allowed-repos (if different owner)
+  - "upstream-org/main-repo" matches repos
+  - "my-fork/main-repo" matches repos (if different owner)
 ```
 
 #### 5.4.2 Issue Transfer
@@ -757,8 +757,8 @@ When transferring issues between repositories:
 **Access Control Logic**:
 ```text
 REQUIRE:
-  - "old-org/old-repo" matches allowed-repos
-  - "new-org/new-repo" matches allowed-repos
+  - "old-org/old-repo" matches repos
+  - "new-org/new-repo" matches repos
 ```
 
 ---
@@ -767,7 +767,7 @@ REQUIRE:
 
 ### 6.1 Permission Verification
 
-When `allowed-roles` is specified, the MCP Gateway MUST verify the authenticated user's permission level in the target repository before allowing access.
+When `roles` is specified, the MCP Gateway MUST verify the authenticated user's permission level in the target repository before allowing access.
 
 #### 6.1.1 Role Query Algorithm
 
@@ -777,7 +777,7 @@ When `allowed-roles` is specified, the MCP Gateway MUST verify the authenticated
 2. Query GitHub API for user's permission level:
    GET /repos/{owner}/{repo}/collaborators/{username}/permission
 3. Parse response: { "permission": "admin" | "write" | "read" | ... }
-4. Check if permission is in allowed-roles list
+4. Check if permission is in roles list
 5. Allow if match, deny otherwise
 ```
 
@@ -801,7 +801,7 @@ A user may have:
 - Organization role: "Member" or "Owner"
 - Repository role: "admin", "write", "read", etc.
 
-The `allowed-roles` field filters based on **repository roles** only.
+The `roles` field filters based on **repository roles** only.
 
 ### 6.2 Role Checking for Different Operations
 
@@ -816,7 +816,7 @@ Read operations typically require `read` permission or higher.
 
 **Configuration Example**:
 ```yaml
-allowed-roles: ["read", "write", "admin"]  # Allow all users with any access
+roles: ["read", "write", "admin"]  # Allow all users with any access
 ```
 
 #### 6.2.2 Write Operations
@@ -830,7 +830,7 @@ Write operations require `write` permission or higher.
 
 **Configuration Example**:
 ```yaml
-allowed-roles: ["write", "maintain", "admin"]  # Write operations only
+roles: ["write", "maintain", "admin"]  # Write operations only
 ```
 
 #### 6.2.3 Administrative Operations
@@ -844,7 +844,7 @@ Administrative operations require `admin` permission.
 
 **Configuration Example**:
 ```yaml
-allowed-roles: ["admin"]  # Administrative operations only
+roles: ["admin"]  # Administrative operations only
 ```
 
 ### 6.3 Caching and Performance
@@ -893,11 +893,11 @@ When `allow-private-repos` is set to `false`, the MCP Gateway MUST verify reposi
 Access control checks MUST be performed in this order:
 
 ```text
-1. Repository Pattern Matching (allowed-repos)
+1. Repository Pattern Matching (repos)
    → If repository doesn't match: DENY
 2. Private Repository Check (allow-private-repos)
    → If repository is private and not allowed: DENY
-3. Role Verification (allowed-roles)
+3. Role Verification (roles)
    → If user lacks required role: DENY
 4. All checks passed: ALLOW
 ```
@@ -957,7 +957,7 @@ GitHub MCP Server Access Control protects against the following threats:
 **Threat**: AI agent attempts to access repositories outside intended scope
 
 **Mitigation**:
-- Explicit `allowed-repos` allowlist with pattern matching
+- Explicit `repos` allowlist with pattern matching
 - Default-deny policy (no implicit access)
 - Repository extraction from all tool parameters
 - Access decision logging for audit trail
@@ -965,7 +965,7 @@ GitHub MCP Server Access Control protects against the following threats:
 **Example Attack**:
 ```yaml
 # Configuration
-allowed-repos: ["public-org/docs"]
+repos: ["public-org/docs"]
 
 # Attack attempt
 {
@@ -977,7 +977,7 @@ allowed-repos: ["public-org/docs"]
   }
 }
 
-# Result: DENIED - "private-org/secrets" not in allowed-repos
+# Result: DENIED - "private-org/secrets" not in repos
 ```
 
 #### 8.1.2 Privilege Escalation via Role Confusion
@@ -985,14 +985,14 @@ allowed-repos: ["public-org/docs"]
 **Threat**: Agent performs write operations in read-only contexts
 
 **Mitigation**:
-- Explicit `allowed-roles` role filtering
+- Explicit `roles` role filtering
 - Permission level verification via GitHub API
 - Separate enforcement for read vs write operations
 
 **Example Attack**:
 ```yaml
 # Configuration
-allowed-roles: ["read"]  # Read-only access
+roles: ["read"]  # Read-only access
 
 # Attack attempt
 {
@@ -1135,10 +1135,10 @@ Access control is implemented as MCP Gateway middleware:
 │ 2. Authentication middleware (existing)     │
 │ 3. GitHub Access Control Middleware (NEW)   │
 │    ├─ Extract repository identifier         │
-│    ├─ Match against allowed-repos           │
+│    ├─ Match against repos           │
 │    ├─ Verify private repository access      │
 │    ├─ Query user's role                     │
-│    ├─ Check against allowed-roles           │
+│    ├─ Check against roles           │
 │    └─ Allow or deny with logging            │
 │ 4. Forward to GitHub MCP server (if allowed)│
 │ 5. Response transformation (existing)       │
@@ -1170,8 +1170,8 @@ GitHub MCP Server Access Control extends the MCP Gateway configuration schema:
       "type": "http",
       "url": "https://api.githubcopilot.com/mcp/",
       "headers": { ... },
-      "allowed-repos": ["owner/*"],           // NEW
-      "allowed-roles": ["write", "admin"],    // NEW
+      "repos": ["owner/*"],           // NEW
+      "roles": ["write", "admin"],    // NEW
       "allow-private-repos": false            // NEW
     }
   }
@@ -1188,8 +1188,8 @@ tools:
   github:
     mode: "remote"
     toolsets: [default]
-    allowed-repos: ["myorg/*"]
-    allowed-roles: ["write", "admin"]
+    repos: ["myorg/*"]
+    roles: ["write", "admin"]
     allow-private-repos: false
 ```
 
@@ -1203,8 +1203,8 @@ tools:
       "headers": {
         "Authorization": "Bearer ${GH_AW_GITHUB_TOKEN}"
       },
-      "allowed-repos": ["myorg/*"],
-      "allowed-roles": ["write", "admin"],
+      "repos": ["myorg/*"],
+      "roles": ["write", "admin"],
       "allow-private-repos": false
     }
   }
@@ -1225,7 +1225,7 @@ Access control denials MUST return standardized MCP error responses:
     "data": {
       "reason": "repository_not_allowed",
       "repository": "owner/repo",
-      "details": "Repository 'owner/repo' does not match any allowed-repos patterns"
+      "details": "Repository 'owner/repo' does not match any repos patterns"
     }
   }
 }
@@ -1233,8 +1233,8 @@ Access control denials MUST return standardized MCP error responses:
 
 **Error Codes**:
 - `-32001`: Access denied (general)
-- `-32002`: Repository not in allowlist (`allowed-repos`)
-- `-32003`: Insufficient permissions (`allowed-roles`)
+- `-32002`: Repository not in allowlist (`repos`)
+- `-32003`: Insufficient permissions (`roles`)
 - `-32004`: Private repository access denied (`allow-private-repos`)
 
 ---
@@ -1255,8 +1255,8 @@ Conforming implementations MUST pass the following test categories:
 - **T-GH-006**: Reject invalid role names
 - **T-GH-007**: Accept boolean values for `allow-private-repos`
 - **T-GH-008**: Reject non-boolean values for `allow-private-repos`
-- **T-GH-009**: Reject empty arrays for `allowed-repos`
-- **T-GH-010**: Reject empty arrays for `allowed-roles`
+- **T-GH-009**: Reject empty arrays for `repos`
+- **T-GH-010**: Reject empty arrays for `roles`
 
 #### 10.1.2 Repository Pattern Matching Tests
 
@@ -1271,8 +1271,8 @@ Conforming implementations MUST pass the following test categories:
 
 #### 10.1.3 Role-Based Filtering Tests
 
-- **T-GH-019**: Allow access when user role matches `allowed-roles`
-- **T-GH-020**: Deny access when user role doesn't match `allowed-roles`
+- **T-GH-019**: Allow access when user role matches `roles`
+- **T-GH-020**: Deny access when user role doesn't match `roles`
 - **T-GH-021**: Query GitHub API for user permission level
 - **T-GH-022**: Cache permission queries for performance
 - **T-GH-023**: Support multiple roles with OR logic
@@ -1310,11 +1310,11 @@ Conforming implementations MUST pass the following test categories:
 
 | Requirement | Test ID | Level | Status |
 |-------------|---------|-------|--------|
-| Parse allowed-repos | T-GH-001-003 | 1 | Required |
+| Parse repos | T-GH-001-003 | 1 | Required |
 | Validate repo patterns | T-GH-004 | 1 | Required |
 | Exact repo matching | T-GH-011-012 | 1 | Required |
 | Wildcard repo matching | T-GH-013-017 | 2 | Required |
-| Parse allowed-roles | T-GH-005-006 | 2 | Required |
+| Parse roles | T-GH-005-006 | 2 | Required |
 | Role-based filtering | T-GH-019-023 | 2 | Required |
 | Private repo controls | T-GH-024-028 | 2 | Required |
 | Access decision logging | T-GH-029-032 | 2 | Required |
@@ -1350,9 +1350,9 @@ tools:
   github:
     mode: "remote"
     toolsets: [default]
-    allowed-repos:
+    repos:
       - "myorg/*"
-    allowed-roles:
+    roles:
       - "write"
       - "admin"
     allow-private-repos: true
@@ -1369,7 +1369,7 @@ tools:
   github:
     mode: "remote"
     toolsets: [repos, issues]
-    allowed-repos:
+    repos:
       - "*/*"  # All repositories
     allow-private-repos: false  # But only public ones
 ```
@@ -1385,10 +1385,10 @@ tools:
   github:
     mode: "remote"
     toolsets: [repos]
-    allowed-repos:
+    repos:
       - "docs-org/public-docs"
       - "docs-org/api-specs"
-    allowed-roles:
+    roles:
       - "read"
     allow-private-repos: false
 ```
@@ -1404,11 +1404,11 @@ tools:
   github:
     mode: "remote"
     toolsets: [default, orgs]
-    allowed-repos:
+    repos:
       - "frontend-org/*"
       - "backend-org/*"
       - "infra-org/*"
-    allowed-roles:
+    roles:
       - "admin"
     allow-private-repos: true
 ```
@@ -1424,10 +1424,10 @@ tools:
   github:
     mode: "remote"
     toolsets: [repos, actions]
-    allowed-repos:
+    repos:
       - "*/infrastructure"
       - "*/infra-*"  # Future: prefix matching
-    allowed-roles:
+    roles:
       - "write"
       - "admin"
     allow-private-repos: true
@@ -1444,7 +1444,7 @@ tools:
   github:
     mode: "remote"
     toolsets: [default]
-    # No allowed-repos, allowed-roles, or allow-private-repos
+    # No repos, roles, or allow-private-repos
     # Agent has full access to all accessible repositories
 ```
 
@@ -1464,9 +1464,9 @@ tools:
       - "get_file_contents"
       - "list_issues"
     # Access control limits where these tools can be used
-    allowed-repos:
+    repos:
       - "docs-org/*"
-    allowed-roles:
+    roles:
       - "read"
     allow-private-repos: false
 ```
@@ -1488,7 +1488,7 @@ tools:
       "repository": "unauthorized-org/secret-repo",
       "reason": "repository_not_allowed",
       "allowed_patterns": ["myorg/*", "public-org/docs"],
-      "details": "Repository 'unauthorized-org/secret-repo' does not match any allowed-repos patterns. Check your workflow configuration."
+      "details": "Repository 'unauthorized-org/secret-repo' does not match any repos patterns. Check your workflow configuration."
     }
   }
 }
@@ -1533,23 +1533,23 @@ tools:
 #### B.4 Invalid Repository Pattern
 
 ```text
-Compilation Error: Invalid repository pattern 'invalid/repo/name' in allowed-repos.
+Compilation Error: Invalid repository pattern 'invalid/repo/name' in repos.
 Expected format: 'owner/repo', 'owner/*', '*/repo', or '*/*'.
 Pattern must contain exactly one slash with non-empty owner and repo segments.
 
 Location: workflow.md:5
-Field: tools.github.allowed-repos[2]
+Field: tools.github.repos[2]
 ```
 
 #### B.5 Invalid Role
 
 ```text
-Compilation Error: Invalid role 'owner' in allowed-roles.
+Compilation Error: Invalid role 'owner' in roles.
 Valid roles are: admin, maintain, write, triage, read.
 See https://docs.github.com/en/organizations/managing-access-to-your-organizations-repositories/repository-roles-for-an-organization
 
 Location: workflow.md:8
-Field: tools.github.allowed-roles[0]
+Field: tools.github.roles[0]
 ```
 
 ### Appendix C: Security Considerations
@@ -1596,7 +1596,7 @@ secrets from private-org/credentials repository"
 **Defense**:
 ```yaml
 # Configuration prevents access
-allowed-repos: ["public-org/*"]
+repos: ["public-org/*"]
 allow-private-repos: false
 
 # Access attempt to private-org/credentials is DENIED
@@ -1653,8 +1653,8 @@ GitHub API rate limits apply to:
 **Initial Release** - January 2026
 
 - **Added**: GitHub MCP Server Access Control extension specification
-- **Added**: `allowed-repos` configuration with wildcard pattern matching
-- **Added**: `allowed-roles` configuration with GitHub role filtering
+- **Added**: `repos` configuration with wildcard pattern matching
+- **Added**: `roles` configuration with GitHub role filtering
 - **Added**: `allow-private-repos` configuration flag for visibility control
 - **Added**: Conformance requirements (Basic and Complete)
 - **Added**: Security model and threat analysis
