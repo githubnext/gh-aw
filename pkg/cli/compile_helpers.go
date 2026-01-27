@@ -121,59 +121,6 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 		return true
 	}
 
-	// Regular workflow file - check if it has a project field (campaign orchestrator)
-	// The project field enables project tracking, and when combined with campaign config,
-	// triggers automatic orchestrator generation for multi-workflow coordination.
-	compileHelpersLog.Printf("Checking if workflow has project field: %s", file)
-	hasProject, spec, parseErr := checkForProjectField(file)
-
-	if parseErr == nil && hasProject {
-		compileHelpersLog.Printf("Detected project field in workflow: %s", file)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Detected project field - generating campaign orchestrator: %s", file)))
-		}
-
-		// Validate the campaign spec
-		problems := campaign.ValidateSpec(spec)
-		if len(problems) > 0 {
-			for _, p := range problems {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(p))
-			}
-			stats.Errors++
-			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
-			return true
-		}
-
-		// Generate and compile the campaign orchestrator workflow
-		// Note: Security validation tools (zizmor, poutine, actionlint) are disabled for
-		// campaign orchestrators as they are automatically generated and validated through
-		// the standard compilation pipeline. The source workflow should be validated instead.
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Validated campaign orchestrator spec %s", filepath.Base(file))))
-		}
-
-		_, genErr := generateAndCompileCampaignOrchestrator(GenerateCampaignOrchestratorOptions{
-			Compiler:             compiler,
-			Spec:                 spec,
-			CampaignSpecPath:     file,
-			Verbose:              verbose,
-			NoEmit:               false,
-			RunZizmorPerFile:     false, // Disabled for generated orchestrators
-			RunPoutinePerFile:    false, // Disabled for generated orchestrators
-			RunActionlintPerFile: false, // Disabled for generated orchestrators
-			Strict:               false, // Not enforced for generated workflows
-			ValidateActionSHAs:   false, // Not required for generated workflows
-		})
-		if genErr != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("failed to compile campaign orchestrator for %s: %v", filepath.Base(file), genErr)))
-			stats.Errors++
-			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
-		} else {
-			compileHelpersLog.Printf("Successfully compiled campaign orchestrator for: %s", file)
-		}
-
-		return true
-	}
 
 	// Regular workflow file - compile normally
 	compileHelpersLog.Printf("Compiling as regular workflow: %s", file)

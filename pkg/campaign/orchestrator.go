@@ -339,7 +339,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		if bootstrapInstructions == "" {
 			orchestratorLog.Print("Warning: Failed to render bootstrap instructions, template may be missing")
 		} else {
-			appendPromptSection(markdownBuilder, "BOOTSTRAP INSTRUCTIONS (PHASE 0)", bootstrapInstructions)
+			AppendPromptSection(markdownBuilder, "BOOTSTRAP INSTRUCTIONS (PHASE 0)", bootstrapInstructions)
 			orchestratorLog.Printf("Campaign '%s' orchestrator includes bootstrap mode: %s", spec.ID, spec.Bootstrap.Mode)
 		}
 	}
@@ -350,7 +350,7 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	if workflowExecution == "" {
 		orchestratorLog.Print("Warning: Failed to render workflow execution instructions, template may be missing")
 	} else {
-		appendPromptSection(markdownBuilder, "WORKFLOW EXECUTION (PHASE 0)", workflowExecution)
+		AppendPromptSection(markdownBuilder, "WORKFLOW EXECUTION (PHASE 0)", workflowExecution)
 		orchestratorLog.Printf("Campaign '%s' orchestrator includes workflow execution", spec.ID)
 	}
 
@@ -358,21 +358,21 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 	if orchestratorInstructions == "" {
 		orchestratorLog.Print("Warning: Failed to render orchestrator instructions, template may be missing")
 	} else {
-		appendPromptSection(markdownBuilder, "ORCHESTRATOR INSTRUCTIONS", orchestratorInstructions)
+		AppendPromptSection(markdownBuilder, "ORCHESTRATOR INSTRUCTIONS", orchestratorInstructions)
 	}
 
 	projectInstructions := RenderProjectUpdateInstructions(promptData)
 	if projectInstructions == "" {
 		orchestratorLog.Print("Warning: Failed to render project update instructions, template may be missing")
 	} else {
-		appendPromptSection(markdownBuilder, "PROJECT UPDATE INSTRUCTIONS (AUTHORITATIVE FOR WRITES)", projectInstructions)
+		AppendPromptSection(markdownBuilder, "PROJECT UPDATE INSTRUCTIONS (AUTHORITATIVE FOR WRITES)", projectInstructions)
 	}
 
 	closingInstructions := RenderClosingInstructions()
 	if closingInstructions == "" {
 		orchestratorLog.Print("Warning: Failed to render closing instructions, template may be missing")
 	} else {
-		appendPromptSection(markdownBuilder, "CLOSING INSTRUCTIONS (HIGHEST PRIORITY)", closingInstructions)
+		AppendPromptSection(markdownBuilder, "CLOSING INSTRUCTIONS (HIGHEST PRIORITY)", closingInstructions)
 	}
 
 	// Campaign orchestrators can dispatch workflows and perform limited Project operations.
