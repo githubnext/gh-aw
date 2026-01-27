@@ -1,4 +1,4 @@
-# Repository Setup for Agentic Workflows
+# Repository Setup for Authoring Agentic Workflows
 
 This prompt guides you, a coding agent, to configure a repository for **GitHub Agentic Workflows (gh-aw)**.
 
