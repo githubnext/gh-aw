@@ -52,11 +52,11 @@ type PermissionsConfig struct {
 // ProjectConfig represents the project tracking configuration for a workflow
 // When configured, this automatically enables project board management operations
 type ProjectConfig struct {
-	URL                    string `json:"url,omitempty"`                       // GitHub Project URL
-	MaxUpdates             int    `json:"max-updates,omitempty"`               // Maximum number of project updates per run (default: 100)
-	MaxStatusUpdates       int    `json:"max-status-updates,omitempty"`        // Maximum number of status updates per run (default: 1)
-	GitHubToken            string `json:"github-token,omitempty"`              // Optional custom GitHub token for project operations
-	DoNotDowngradeDoneItems *bool `json:"do-not-downgrade-done-items,omitempty"` // Prevent moving items backward (e.g., Done -> In Progress)
+	URL                     string `json:"url,omitempty"`                         // GitHub Project URL
+	MaxUpdates              int    `json:"max-updates,omitempty"`                 // Maximum number of project updates per run (default: 100)
+	MaxStatusUpdates        int    `json:"max-status-updates,omitempty"`          // Maximum number of status updates per run (default: 1)
+	GitHubToken             string `json:"github-token,omitempty"`                // Optional custom GitHub token for project operations
+	DoNotDowngradeDoneItems *bool  `json:"do-not-downgrade-done-items,omitempty"` // Prevent moving items backward (e.g., Done -> In Progress)
 }
 
 // FrontmatterConfig represents the structured configuration from workflow frontmatter
@@ -80,8 +80,8 @@ type FrontmatterConfig struct {
 	Jobs             map[string]any     `json:"jobs,omitempty"`        // Custom workflow jobs (too dynamic to type)
 	SafeOutputs      *SafeOutputsConfig `json:"safe-outputs,omitempty"`
 	SafeInputs       *SafeInputsConfig  `json:"safe-inputs,omitempty"`
-	PermissionsTyped *PermissionsConfig `json:"-"`                  // New typed field (not in JSON to avoid conflict)
-	Project          *ProjectConfig     `json:"project,omitempty"`  // Project tracking configuration
+	PermissionsTyped *PermissionsConfig `json:"-"`                 // New typed field (not in JSON to avoid conflict)
+	Project          *ProjectConfig     `json:"project,omitempty"` // Project tracking configuration
 
 	// Event and trigger configuration
 	On          map[string]any `json:"on,omitempty"`          // Complex trigger config with many variants (too dynamic to type)

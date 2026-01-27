@@ -3651,10 +3651,7 @@
           "type": "string",
           "description": "GitHub Project URL for tracking workflow-created items. When configured, automatically enables project tracking operations (update-project, create-project-status-update) to manage project boards similar to campaign orchestrators.",
           "pattern": "^https://github\\.com/(users|orgs)/[^/]+/projects/\\d+$",
-          "examples": [
-            "https://github.com/orgs/github/projects/123",
-            "https://github.com/users/username/projects/456"
-          ]
+          "examples": ["https://github.com/orgs/github/projects/123", "https://github.com/users/username/projects/456"]
         },
         {
           "type": "object",
@@ -3666,10 +3663,7 @@
               "type": "string",
               "description": "GitHub Project URL (required). Must be a valid GitHub Projects V2 URL.",
               "pattern": "^https://github\\.com/(users|orgs)/[^/]+/projects/\\d+$",
-              "examples": [
-                "https://github.com/orgs/github/projects/123",
-                "https://github.com/users/username/projects/456"
-              ]
+              "examples": ["https://github.com/orgs/github/projects/123", "https://github.com/users/username/projects/456"]
             },
             "max-updates": {
               "type": "integer",
@@ -3688,9 +3682,7 @@
             "github-token": {
               "type": "string",
               "description": "Optional custom GitHub token for project operations. Should reference a secret with Projects: Read & Write permissions (e.g., ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}).",
-              "examples": [
-                "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
-              ]
+              "examples": ["${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"]
             },
             "do-not-downgrade-done-items": {
               "type": "boolean",
