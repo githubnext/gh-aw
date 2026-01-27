@@ -655,11 +655,21 @@ jobs:
           
           ## Output Format
           
-          **CRITICAL**: You MUST call the `update_release` tool to update the release with the generated highlights:
+          **CRITICAL**: You MUST call the `update_release` MCP tool to update the release with the generated highlights.
+          
+          **HOW TO CALL THE TOOL:**
+          
+          The `update_release` tool is an **MCP (Model Context Protocol) tool**, not a bash command or file operation. To call it:
+          
+          1. **Use the MCP tool call syntax** - The tool is registered as `update_release` (or `safeoutputs___update_release`)
+          2. **DO NOT write JSON files manually** - Writing files like `/tmp/gh-aw/safeoutputs/update_release_001.json` will NOT work
+          3. **DO NOT use bash to simulate tool calls** - The tool must be called through the MCP protocol
+          
+          **Example Tool Call:**
           
           ```javascript
           update_release({
-            tag: "${RELEASE_TAG}",
+            tag: "v0.37.26",
             operation: "prepend",
             body: "## 🌟 Release Highlights\n\n[Your complete markdown highlights here]"
           })
@@ -670,7 +680,9 @@ jobs:
           - `operation` - Must be `"prepend"` to add before existing notes
           - `body` - Complete markdown content (include all formatting, emojis, links)
           
-          **WARNING**: If you don't call the `update_release` tool, the release notes will NOT be updated!
+          **IMPORTANT**: This is a real tool call through MCP, NOT a bash command or file write operation. The tool will automatically write to the correct output file (`/opt/gh-aw/safeoutputs/outputs.jsonl`).
+          
+          **WARNING**: If you don't call the `update_release` tool properly through MCP, the release notes will NOT be updated!
           
           **Documentation Base URLs:**
           - User docs: `https://githubnext.github.io/gh-aw/`
@@ -738,8 +750,8 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          sudo -E awf --env-all --env ANDROID_HOME --env ANDROID_NDK --env ANDROID_NDK_HOME --env ANDROID_NDK_LATEST_HOME --env ANDROID_NDK_ROOT --env ANDROID_SDK_ROOT --env AZURE_EXTENSION_DIR --env CARGO_HOME --env CHROMEWEBDRIVER --env CONDA --env DOTNET_ROOT --env EDGEWEBDRIVER --env GECKOWEBDRIVER --env GEM_HOME --env GEM_PATH --env GOPATH --env GOROOT --env HOMEBREW_CELLAR --env HOMEBREW_PREFIX --env HOMEBREW_REPOSITORY --env JAVA_HOME --env JAVA_HOME_11_X64 --env JAVA_HOME_17_X64 --env JAVA_HOME_21_X64 --env JAVA_HOME_25_X64 --env JAVA_HOME_8_X64 --env NVM_DIR --env PIPX_BIN_DIR --env PIPX_HOME --env RUSTUP_HOME --env SELENIUM_JAR_PATH --env SWIFT_PATH --env VCPKG_INSTALLATION_ROOT --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/hostedtoolcache:/opt/hostedtoolcache:ro --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github.com,githubnext.github.io,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.11.2 --agent-image act \
-            -- export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH" && /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"} \
+          sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --mount /tmp:/tmp:rw --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw" --mount /usr/bin/date:/usr/bin/date:ro --mount /usr/bin/gh:/usr/bin/gh:ro --mount /usr/bin/yq:/usr/bin/yq:ro --mount /usr/local/bin/copilot:/usr/local/bin/copilot:ro --mount /home/runner/.copilot:/home/runner/.copilot:rw --mount /opt/hostedtoolcache:/opt/hostedtoolcache:ro --mount /opt/gh-aw:/opt/gh-aw:ro --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github.com,githubnext.github.io,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.11.2 --agent-image act \
+            -- 'export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')$PATH" && /usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"}' \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE

@@ -2,7 +2,6 @@
 name: Dependabot Bundler
 description: Bundles Dependabot security alert updates per package.json into a single PR
 on:
-  schedule: every 6h
   workflow_dispatch:
   skip-if-match: 'is:pr is:open in:title "[dependabot-bundle]"'
 permissions:
@@ -12,6 +11,7 @@ permissions:
 engine: copilot
 tools:
   github:
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [context, repos, dependabot, pull_requests]
   repo-memory:
     - id: campaigns
@@ -65,7 +65,7 @@ Use `/tmp/gh-aw/cache-memory/dependabot-bundler.json` to persist a cursor.
 
 Use the GitHub MCP Dependabot toolset.
 
-- Call `github-list_dependabot_alerts` (or the closest available list tool in the `dependabot` toolset) for `owner="githubnext"` and `repo="gh-aw"`.
+- Call `github___list_dependabot_alerts` (or the closest available list tool in the `dependabot` toolset) for `owner="githubnext"` and `repo="gh-aw"`.
 - Filter to `state="open"`.
 
 From results, collect only alerts where:

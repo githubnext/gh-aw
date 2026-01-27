@@ -50,19 +50,22 @@ import (
 // updateMessageMsg is a custom message for updating the spinner message
 type updateMessageMsg string
 
-// spinnerModel is the Bubble Tea model for the spinner
+// spinnerModel is the Bubble Tea model for the spinner.
+// Because we use tea.WithoutRenderer(), we must manually print in Update().
 type spinnerModel struct {
 	spinner spinner.Model
 	message string
+	output  *os.File
 }
 
 func (m spinnerModel) Init() tea.Cmd { return m.spinner.Tick }
-func (m spinnerModel) View() string  { return fmt.Sprintf("\r%s %s", m.spinner.View(), m.message) }
+func (m spinnerModel) View() string  { return "" } // Not used with WithoutRenderer
 
 func (m spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case updateMessageMsg:
 		m.message = string(msg)
+		m.render()
 		return m, nil
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" {
@@ -71,9 +74,17 @@ func (m spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
+		m.render()
 		return m, cmd
 	}
 	return m, nil
+}
+
+// render manually prints the spinner frame (required when using WithoutRenderer)
+func (m spinnerModel) render() {
+	if m.output != nil {
+		fmt.Fprintf(m.output, "\r\033[K%s %s", m.spinner.View(), m.message)
+	}
 }
 
 // SpinnerWrapper wraps the spinner functionality with TTY detection and Bubble Tea program
@@ -94,6 +105,7 @@ func NewSpinner(message string) *SpinnerWrapper {
 		model := spinnerModel{
 			spinner: spinner.New(spinner.WithSpinner(spinner.MiniDot), spinner.WithStyle(styles.Info)),
 			message: message,
+			output:  os.Stderr,
 		}
 		s.program = tea.NewProgram(model, tea.WithOutput(os.Stderr), tea.WithoutRenderer())
 	}

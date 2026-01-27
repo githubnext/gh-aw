@@ -16,7 +16,10 @@ package workflow
 
 import (
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var copilotLog = logger.New("workflow:copilot_engine")
 
 const logsFolder = "/tmp/gh-aw/sandbox/agent/logs/"
 
@@ -28,6 +31,7 @@ type CopilotEngine struct {
 }
 
 func NewCopilotEngine() *CopilotEngine {
+	copilotLog.Print("Creating new Copilot engine instance")
 	return &CopilotEngine{
 		BaseEngine: BaseEngine{
 			id:                     "copilot",
@@ -53,15 +57,18 @@ func (e *CopilotEngine) GetDefaultDetectionModel() string {
 // GetRequiredSecretNames returns the list of secrets required by the Copilot engine
 // This includes COPILOT_GITHUB_TOKEN and optionally MCP_GATEWAY_API_KEY
 func (e *CopilotEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
+	copilotLog.Print("Collecting required secrets for Copilot engine")
 	secrets := []string{"COPILOT_GITHUB_TOKEN"}
 
 	// Add MCP gateway API key if MCP servers are present (gateway is always started with MCP servers)
 	if HasMCPServers(workflowData) {
+		copilotLog.Print("Adding MCP_GATEWAY_API_KEY secret")
 		secrets = append(secrets, "MCP_GATEWAY_API_KEY")
 	}
 
 	// Add GitHub token for GitHub MCP server if present
 	if hasGitHubTool(workflowData.ParsedTools) {
+		copilotLog.Print("Adding GITHUB_MCP_SERVER_TOKEN secret")
 		secrets = append(secrets, "GITHUB_MCP_SERVER_TOKEN")
 	}
 
@@ -70,6 +77,9 @@ func (e *CopilotEngine) GetRequiredSecretNames(workflowData *WorkflowData) []str
 	for varName := range headerSecrets {
 		secrets = append(secrets, varName)
 	}
+	if len(headerSecrets) > 0 {
+		copilotLog.Printf("Added %d HTTP MCP header secrets", len(headerSecrets))
+	}
 
 	// Add safe-inputs secret names
 	if IsSafeInputsEnabled(workflowData.SafeInputs, workflowData) {
@@ -77,8 +87,12 @@ func (e *CopilotEngine) GetRequiredSecretNames(workflowData *WorkflowData) []str
 		for varName := range safeInputsSecrets {
 			secrets = append(secrets, varName)
 		}
+		if len(safeInputsSecrets) > 0 {
+			copilotLog.Printf("Added %d safe-inputs secrets", len(safeInputsSecrets))
+		}
 	}
 
+	copilotLog.Printf("Total required secrets: %d", len(secrets))
 	return secrets
 }
 

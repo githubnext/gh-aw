@@ -17,6 +17,7 @@ type FileTracker interface {
 // Compiler handles converting markdown workflows to GitHub Actions YAML
 type Compiler struct {
 	verbose                 bool
+	quiet                   bool // If true, suppress success messages (for interactive mode)
 	engineOverride          string
 	customOutput            string              // If set, output will be written to this path instead of default location
 	version                 string              // Version of the extension
@@ -87,6 +88,11 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 // SetSkipValidation configures whether to skip schema validation
 func (c *Compiler) SetSkipValidation(skip bool) {
 	c.skipValidation = skip
+}
+
+// SetQuiet configures whether to suppress success messages (for interactive mode)
+func (c *Compiler) SetQuiet(quiet bool) {
+	c.quiet = quiet
 }
 
 // SetNoEmit configures whether to validate without generating lock files

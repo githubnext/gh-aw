@@ -566,8 +566,7 @@ func RunWorkflowTrials(workflowSpecs []string, opts TrialOptions) error {
 
 // getCurrentGitHubUsername gets the current GitHub username from gh CLI
 func getCurrentGitHubUsername() (string, error) {
-	cmd := workflow.ExecGH("api", "user", "--jq", ".login")
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Fetching GitHub username...", "api", "user", "--jq", ".login")
 	if err != nil {
 		return "", fmt.Errorf("failed to get GitHub username: %w", err)
 	}
@@ -828,8 +827,7 @@ func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, ve
 		}
 	}
 
-	cmd := workflow.ExecGH(args...)
-	output, err := cmd.CombinedOutput()
+	output, err := workflow.RunGHCombined("Triggering workflow...", args...)
 
 	if err != nil {
 		return "", fmt.Errorf("failed to trigger workflow run: %w (output: %s)", err, string(output))

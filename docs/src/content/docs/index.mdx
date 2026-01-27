@@ -46,13 +46,13 @@ import FeatureGrid from '../../components/FeatureGrid.astro';
 
 GitHub Agentic Workflows allow you to write repository-level AI agent descriptions in plain markdown and run automatically in GitHub Actions. Describe your repository automation goals and execute safely with built-in security controls, having AI make intelligent decisions based on context.
 
-> [!WARNING]
-> GitHub Agentic Workflows is in early development and may change significantly. Using agentic workflows requires careful attention to security considerations and careful human supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
-
 **How they work:**
 1. **Write** - Create a `.md` file with your automation instructions in natural language
 2. **Compile** - Run `gh aw compile` to transform it into a secure GitHub Actions workflow (`.lock.yml`)
 3. **Run** - GitHub Actions executes your workflow automatically based on your triggers
+
+> [!WARNING]
+> GitHub Agentic Workflows is in early development and may change significantly. Using agentic workflows requires careful attention to security considerations and careful human supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
 
 ### Security Built-In
 
@@ -111,19 +111,11 @@ The AI agent reads your repository context, analyzes issues, generates visualiza
 
 <div style="max-width: 600px; margin: 3rem auto; text-align: center;">
 
-> **Part of the [Continuous AI](https://githubnext.com/projects/continuous-ai/) Initiative**  
-
 </div>
 
 ## Workflow Examples
 
-<FeatureGrid columns={3}>
-  <FeatureCard icon="comment" title="ChatOps" badge="command" href="/gh-aw/examples/comment-triggered/chatops/">
-    Interactive automation triggered by slash commands like /review and /deploy
-  </FeatureCard>
-  <FeatureCard icon="graph" title="Research & Planning" badge="scheduled" href="/gh-aw/examples/scheduled/research-planning/">
-    Weekly research reports and automated team status updates
-  </FeatureCard>
+<FeatureGrid columns={2}>
   <FeatureCard icon="beaker" title="Triage & Analysis" badge="automated" href="/gh-aw/examples/issue-pr-events/triage-analysis/">
     Intelligent issue triage and CI failure investigation
   </FeatureCard>

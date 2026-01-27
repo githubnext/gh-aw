@@ -220,10 +220,13 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 				copilotExecLog.Printf("Added %d custom args from agent config", len(agentConfig.Args))
 			}
 
+			// Escape the command so shell operators are passed to SRT, not interpreted by the outer shell
+			escapedCommand := shellEscapeArg(copilotCommand)
+
 			// Build the command with custom SRT command
 			// The custom command should handle wrapping copilot with SRT
 			command = fmt.Sprintf(`set -o pipefail
-%s %s -- %s 2>&1 | tee %s`, agentConfig.Command, shellJoinArgs(srtArgs), copilotCommand, shellEscapeArg(logFile))
+%s %s -- %s 2>&1 | tee %s`, agentConfig.Command, shellJoinArgs(srtArgs), escapedCommand, shellEscapeArg(logFile))
 		} else {
 			// Create the Node.js wrapper script for SRT (standard installation)
 			srtWrapperScript := generateSRTWrapperScript(copilotCommand, srtConfigJSON, logFile, logsFolder)
@@ -369,10 +372,17 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Wrap copilot command with PATH setup
 		copilotCommandWithPath := fmt.Sprintf(`%s && %s`, pathSetup, copilotCommand)
 
+		// Escape the compound command so the && operator is passed to AWF, not interpreted by
+		// the outer shell. Without this, the shell would run:
+		//   1. sudo -E awf ... -- export PATH="..."  (just exports, then AWF exits)
+		//   2. && /usr/local/bin/copilot ...         (runs on host, not in container!)
+		// With escaping, the entire command is passed to AWF as a single argument
+		escapedCommand := shellEscapeArg(copilotCommandWithPath)
+
 		command = fmt.Sprintf(`set -o pipefail
 %s %s \
   -- %s \
-  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), copilotCommandWithPath, shellEscapeArg(logFile))
+  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), escapedCommand, shellEscapeArg(logFile))
 	} else {
 		// Run copilot command without AWF wrapper
 		command = fmt.Sprintf(`set -o pipefail

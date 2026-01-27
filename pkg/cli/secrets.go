@@ -28,8 +28,7 @@ func checkSecretExists(secretName string) (bool, error) {
 	secretsLog.Printf("Checking if secret exists: %s", secretName)
 
 	// Use gh CLI to list repository secrets
-	cmd := workflow.ExecGH("secret", "list", "--json", "name")
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Listing secrets...", "secret", "list", "--json", "name")
 	if err != nil {
 		// Check if it's a 403 error by examining the error
 		if exitError, ok := err.(*exec.ExitError); ok {

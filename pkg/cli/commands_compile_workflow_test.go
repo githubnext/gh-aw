@@ -223,7 +223,7 @@ Test compilation with invalid engine.
 			}
 
 			// Test compileWorkflow function
-			err = compileWorkflow(workflowFile, tt.verbose, tt.engineOverride)
+			err = compileWorkflow(workflowFile, tt.verbose, false, tt.engineOverride)
 
 			if tt.expectError {
 				if err == nil {

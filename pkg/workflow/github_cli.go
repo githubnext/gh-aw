@@ -7,7 +7,9 @@ import (
 	"os/exec"
 
 	"github.com/cli/go-gh/v2"
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/tty"
 )
 
 var githubCLILog = logger.New("workflow:github_cli")
@@ -89,4 +91,48 @@ func ExecGHContext(ctx context.Context, args ...string) *exec.Cmd {
 func ExecGHWithOutput(args ...string) (stdout, stderr bytes.Buffer, err error) {
 	githubCLILog.Printf("Executing gh CLI command via go-gh/v2: gh %v", args)
 	return gh.Exec(args...)
+}
+
+// RunGH executes a gh CLI command with a spinner and returns the stdout output.
+// The spinner is shown in interactive terminals to provide feedback during network operations.
+// The spinnerMessage parameter describes what operation is being performed.
+//
+// Usage:
+//
+//	output, err := RunGH("Fetching user info...", "api", "/user")
+func RunGH(spinnerMessage string, args ...string) ([]byte, error) {
+	cmd := ExecGH(args...)
+
+	// Show spinner in interactive terminals
+	if tty.IsStderrTerminal() {
+		spinner := console.NewSpinner(spinnerMessage)
+		spinner.Start()
+		output, err := cmd.Output()
+		spinner.Stop()
+		return output, err
+	}
+
+	return cmd.Output()
+}
+
+// RunGHCombined executes a gh CLI command with a spinner and returns combined stdout+stderr output.
+// The spinner is shown in interactive terminals to provide feedback during network operations.
+// Use this when you need to capture error messages from stderr.
+//
+// Usage:
+//
+//	output, err := RunGHCombined("Creating repository...", "repo", "create", "myrepo")
+func RunGHCombined(spinnerMessage string, args ...string) ([]byte, error) {
+	cmd := ExecGH(args...)
+
+	// Show spinner in interactive terminals
+	if tty.IsStderrTerminal() {
+		spinner := console.NewSpinner(spinnerMessage)
+		spinner.Start()
+		output, err := cmd.CombinedOutput()
+		spinner.Stop()
+		return output, err
+	}
+
+	return cmd.CombinedOutput()
 }

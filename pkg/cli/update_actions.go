@@ -162,8 +162,7 @@ func getLatestActionRelease(repo, currentVersion string, allowMajor, verbose boo
 	updateLog.Printf("Using base repository: %s for action: %s", baseRepo, repo)
 
 	// Use gh CLI to get releases
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/releases", baseRepo), "--jq", ".[].tag_name")
-	output, err := cmd.CombinedOutput()
+	output, err := workflow.RunGHCombined("Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", baseRepo), "--jq", ".[].tag_name")
 	if err != nil {
 		// Check if this is an authentication error
 		outputStr := string(output)
@@ -387,8 +386,7 @@ func getActionSHAForTag(repo, tag string) (string, error) {
 	updateLog.Printf("Getting SHA for %s@%s", repo, tag)
 
 	// Use gh CLI to get the git ref for the tag
-	cmd := workflow.ExecGH("api", fmt.Sprintf("/repos/%s/git/ref/tags/%s", repo, tag), "--jq", ".object.sha")
-	output, err := cmd.Output()
+	output, err := workflow.RunGH("Fetching tag info...", "api", fmt.Sprintf("/repos/%s/git/ref/tags/%s", repo, tag), "--jq", ".object.sha")
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve tag: %w", err)
 	}

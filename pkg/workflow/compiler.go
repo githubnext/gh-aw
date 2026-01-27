@@ -619,17 +619,19 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		}
 	}
 
-	// Display success message with file size if we generated a lock file
-	if c.noEmit {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
-	} else {
-		// Get the size of the generated lock file for display
-		if lockFileInfo, err := os.Stat(lockFile); err == nil {
-			lockSize := console.FormatFileSize(lockFileInfo.Size())
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("%s (%s)", console.ToRelativePath(markdownPath), lockSize)))
-		} else {
-			// Fallback to original display if we can't get file info
+	// Display success message with file size if we generated a lock file (unless quiet mode)
+	if !c.quiet {
+		if c.noEmit {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
+		} else {
+			// Get the size of the generated lock file for display
+			if lockFileInfo, err := os.Stat(lockFile); err == nil {
+				lockSize := console.FormatFileSize(lockFileInfo.Size())
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("%s (%s)", console.ToRelativePath(markdownPath), lockSize)))
+			} else {
+				// Fallback to original display if we can't get file info
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
+			}
 		}
 	}
 	return nil
