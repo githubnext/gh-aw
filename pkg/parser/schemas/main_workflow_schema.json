@@ -5849,9 +5849,9 @@
                 },
                 "max": {
                   "type": "integer",
-                  "description": "Maximum number of workflow dispatch operations per run (default: 1, max: 3)",
+                  "description": "Maximum number of workflow dispatch operations per run (default: 1, max: 50)",
                   "minimum": 1,
-                  "maximum": 3,
+                  "maximum": 50,
                   "default": 1
                 },
                 "github-token": {

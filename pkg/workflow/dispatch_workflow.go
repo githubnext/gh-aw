@@ -50,10 +50,10 @@ func (c *Compiler) parseDispatchWorkflowConfig(outputMap map[string]any) *Dispat
 			// Parse common base fields with default max of 1
 			c.parseBaseSafeOutputConfig(configMap, &dispatchWorkflowConfig.BaseSafeOutputConfig, 1)
 
-			// Cap max at 3 (absolute maximum allowed)
-			if dispatchWorkflowConfig.Max > 3 {
-				dispatchWorkflowLog.Printf("Max value %d exceeds limit, capping at 3", dispatchWorkflowConfig.Max)
-				dispatchWorkflowConfig.Max = 3
+			// Cap max at 50 (absolute maximum allowed)
+			if dispatchWorkflowConfig.Max > 50 {
+				dispatchWorkflowLog.Printf("Max value %d exceeds limit, capping at 50", dispatchWorkflowConfig.Max)
+				dispatchWorkflowConfig.Max = 50
 			}
 
 			dispatchWorkflowLog.Printf("Parsed dispatch-workflow config: max=%d, workflows=%v",
