@@ -51,7 +51,7 @@ type PermissionsConfig struct {
 
 // ProjectConfig represents the project tracking configuration for a workflow
 // When configured, this automatically enables project board management operations
-// and can trigger campaign orchestrator generation when combined with campaign fields
+// and can trigger campaign orchestrator generation when campaign fields are present
 type ProjectConfig struct {
 	URL                     string   `json:"url,omitempty"`                         // GitHub Project URL
 	Scope                   []string `json:"scope,omitempty"`                       // Repositories/organizations this workflow can operate on (e.g., ["owner/repo", "org:name"])
@@ -59,15 +59,10 @@ type ProjectConfig struct {
 	MaxStatusUpdates        int      `json:"max-status-updates,omitempty"`          // Maximum number of status updates per run (default: 1)
 	GitHubToken             string   `json:"github-token,omitempty"`                // Optional custom GitHub token for project operations
 	DoNotDowngradeDoneItems *bool    `json:"do-not-downgrade-done-items,omitempty"` // Prevent moving items backward (e.g., Done -> In Progress)
-}
-
-// CampaignConfig represents the campaign orchestration configuration
-// When present, triggers automatic generation of a campaign orchestrator workflow
-// with discovery, coordination, and governance features. The project field is required
-// for campaign orchestrator generation, while campaign config provides additional
-// orchestration details.
-type CampaignConfig struct {
-	ID           string                    `json:"id,omitempty"`            // Campaign identifier
+	
+	// Campaign orchestration fields (optional)
+	// When present, triggers automatic generation of a campaign orchestrator workflow
+	ID           string                    `json:"id,omitempty"`            // Campaign identifier (optional, derived from filename if not set)
 	Workflows    []string                  `json:"workflows,omitempty"`     // Associated workflow IDs
 	MemoryPaths  []string                  `json:"memory-paths,omitempty"`  // Repo-memory paths
 	MetricsGlob  string                    `json:"metrics-glob,omitempty"`  // Metrics file glob pattern
@@ -77,9 +72,9 @@ type CampaignConfig struct {
 	RiskLevel    string                    `json:"risk-level,omitempty"`    // Risk level (low/medium/high)
 	State        string                    `json:"state,omitempty"`         // Lifecycle state
 	Tags         []string                  `json:"tags,omitempty"`          // Categorization tags
-	Governance   *CampaignGovernanceConfig `json:"governance,omitempty"`
-	Bootstrap    *CampaignBootstrapConfig  `json:"bootstrap,omitempty"`
-	Workers      []WorkerMetadata          `json:"workers,omitempty"`
+	Governance   *CampaignGovernanceConfig `json:"governance,omitempty"`    // Campaign governance policies
+	Bootstrap    *CampaignBootstrapConfig  `json:"bootstrap,omitempty"`     // Campaign bootstrap configuration
+	Workers      []WorkerMetadata          `json:"workers,omitempty"`       // Worker workflow metadata
 }
 
 // CampaignGovernanceConfig represents governance policies for campaigns
@@ -164,9 +159,8 @@ type FrontmatterConfig struct {
 	Jobs             map[string]any     `json:"jobs,omitempty"`        // Custom workflow jobs (too dynamic to type)
 	SafeOutputs      *SafeOutputsConfig `json:"safe-outputs,omitempty"`
 	SafeInputs       *SafeInputsConfig  `json:"safe-inputs,omitempty"`
-	PermissionsTyped *PermissionsConfig `json:"-"`                  // New typed field (not in JSON to avoid conflict)
-	Project          *ProjectConfig     `json:"project,omitempty"`  // Project tracking configuration
-	Campaign         *CampaignConfig    `json:"campaign,omitempty"` // Campaign orchestration configuration
+	PermissionsTyped *PermissionsConfig `json:"-"`                 // New typed field (not in JSON to avoid conflict)
+	Project          *ProjectConfig     `json:"project,omitempty"` // Project tracking configuration
 
 	// Event and trigger configuration
 	On          map[string]any `json:"on,omitempty"`          // Complex trigger config with many variants (too dynamic to type)

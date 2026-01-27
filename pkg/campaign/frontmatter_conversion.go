@@ -49,64 +49,63 @@ func ConvertFromFrontmatter(config *workflow.FrontmatterConfig, workflowPath str
 		spec.Scope = config.Project.Scope
 	}
 
-	// Copy campaign-specific fields if campaign config is present
-	if config.Campaign != nil {
-		// Override ID if explicitly set in campaign config
-		if config.Campaign.ID != "" {
-			spec.ID = config.Campaign.ID
+	// Copy campaign-specific fields from project configuration
+	// All campaign fields are now nested within the project config
+	if config.Project.ID != "" {
+		spec.ID = config.Project.ID
+	}
+
+	spec.Workflows = config.Project.Workflows
+	spec.MemoryPaths = config.Project.MemoryPaths
+	spec.MetricsGlob = config.Project.MetricsGlob
+	spec.CursorGlob = config.Project.CursorGlob
+	spec.TrackerLabel = config.Project.TrackerLabel
+	spec.Owners = config.Project.Owners
+	spec.RiskLevel = config.Project.RiskLevel
+	spec.State = config.Project.State
+	spec.Tags = config.Project.Tags
+
+	// Convert governance configuration
+	if config.Project.Governance != nil {
+		spec.Governance = &CampaignGovernancePolicy{
+			MaxNewItemsPerRun:       config.Project.Governance.MaxNewItemsPerRun,
+			MaxDiscoveryItemsPerRun: config.Project.Governance.MaxDiscoveryItemsPerRun,
+			MaxDiscoveryPagesPerRun: config.Project.Governance.MaxDiscoveryPagesPerRun,
+			OptOutLabels:            config.Project.Governance.OptOutLabels,
+			DoNotDowngradeDoneItems: config.Project.Governance.DoNotDowngradeDoneItems,
+			MaxProjectUpdatesPerRun: config.Project.Governance.MaxProjectUpdatesPerRun,
+			MaxCommentsPerRun:       config.Project.Governance.MaxCommentsPerRun,
+		}
+	}
+
+	// Convert bootstrap configuration
+	if config.Project.Bootstrap != nil {
+		spec.Bootstrap = &CampaignBootstrapConfig{
+			Mode: config.Project.Bootstrap.Mode,
 		}
 
-		spec.Workflows = config.Campaign.Workflows
-		spec.MemoryPaths = config.Campaign.MemoryPaths
-		spec.MetricsGlob = config.Campaign.MetricsGlob
-		spec.CursorGlob = config.Campaign.CursorGlob
-		spec.TrackerLabel = config.Campaign.TrackerLabel
-		spec.Owners = config.Campaign.Owners
-		spec.RiskLevel = config.Campaign.RiskLevel
-		spec.State = config.Campaign.State
-		spec.Tags = config.Campaign.Tags
-
-		// Convert governance configuration
-		if config.Campaign.Governance != nil {
-			spec.Governance = &CampaignGovernancePolicy{
-				MaxNewItemsPerRun:       config.Campaign.Governance.MaxNewItemsPerRun,
-				MaxDiscoveryItemsPerRun: config.Campaign.Governance.MaxDiscoveryItemsPerRun,
-				MaxDiscoveryPagesPerRun: config.Campaign.Governance.MaxDiscoveryPagesPerRun,
-				OptOutLabels:            config.Campaign.Governance.OptOutLabels,
-				DoNotDowngradeDoneItems: config.Campaign.Governance.DoNotDowngradeDoneItems,
-				MaxProjectUpdatesPerRun: config.Campaign.Governance.MaxProjectUpdatesPerRun,
-				MaxCommentsPerRun:       config.Campaign.Governance.MaxCommentsPerRun,
-			}
-		}
-
-		// Convert bootstrap configuration
-		if config.Campaign.Bootstrap != nil {
-			spec.Bootstrap = &CampaignBootstrapConfig{
-				Mode: config.Campaign.Bootstrap.Mode,
-			}
-
-			if config.Campaign.Bootstrap.SeederWorker != nil {
-				spec.Bootstrap.SeederWorker = &SeederWorkerConfig{
-					WorkflowID: config.Campaign.Bootstrap.SeederWorker.WorkflowID,
-					Payload:    config.Campaign.Bootstrap.SeederWorker.Payload,
-					MaxItems:   config.Campaign.Bootstrap.SeederWorker.MaxItems,
-				}
-			}
-
-			if config.Campaign.Bootstrap.ProjectTodos != nil {
-				spec.Bootstrap.ProjectTodos = &ProjectTodosConfig{
-					StatusField:   config.Campaign.Bootstrap.ProjectTodos.StatusField,
-					TodoValue:     config.Campaign.Bootstrap.ProjectTodos.TodoValue,
-					MaxItems:      config.Campaign.Bootstrap.ProjectTodos.MaxItems,
-					RequireFields: config.Campaign.Bootstrap.ProjectTodos.RequireFields,
-				}
+		if config.Project.Bootstrap.SeederWorker != nil {
+			spec.Bootstrap.SeederWorker = &SeederWorkerConfig{
+				WorkflowID: config.Project.Bootstrap.SeederWorker.WorkflowID,
+				Payload:    config.Project.Bootstrap.SeederWorker.Payload,
+				MaxItems:   config.Project.Bootstrap.SeederWorker.MaxItems,
 			}
 		}
 
-		// Convert worker metadata
-		if len(config.Campaign.Workers) > 0 {
-			spec.Workers = make([]WorkerMetadata, len(config.Campaign.Workers))
-			for i, w := range config.Campaign.Workers {
+		if config.Project.Bootstrap.ProjectTodos != nil {
+			spec.Bootstrap.ProjectTodos = &ProjectTodosConfig{
+				StatusField:   config.Project.Bootstrap.ProjectTodos.StatusField,
+				TodoValue:     config.Project.Bootstrap.ProjectTodos.TodoValue,
+				MaxItems:      config.Project.Bootstrap.ProjectTodos.MaxItems,
+				RequireFields: config.Project.Bootstrap.ProjectTodos.RequireFields,
+			}
+		}
+	}
+
+	// Convert worker metadata
+	if len(config.Project.Workers) > 0 {
+		spec.Workers = make([]WorkerMetadata, len(config.Project.Workers))
+		for i, w := range config.Project.Workers {
 				spec.Workers[i] = WorkerMetadata{
 					ID:                  w.ID,
 					Name:                w.Name,
@@ -138,18 +137,9 @@ func ConvertFromFrontmatter(config *workflow.FrontmatterConfig, workflowPath str
 				}
 			}
 		}
-	}
 
-	// If no governance from campaign config, inherit project config defaults
-	// Currently only DoNotDowngradeDoneItems is transferred from project config
-	// as it's the only governance setting that applies to both project tracking
-	// and campaign orchestration. Other project config fields (max-updates, scope, etc.)
-	// are already transferred to the spec above.
-	if spec.Governance == nil && config.Project.DoNotDowngradeDoneItems != nil {
-		spec.Governance = &CampaignGovernancePolicy{
-			DoNotDowngradeDoneItems: config.Project.DoNotDowngradeDoneItems,
-		}
-	}
+	// Note: DoNotDowngradeDoneItems is already part of project governance if set,
+	// so no additional inheritance is needed
 
 	frontmatterConversionLog.Printf("Successfully converted to campaign spec: id=%s, workflows=%d",
 		spec.ID, len(spec.Workflows))

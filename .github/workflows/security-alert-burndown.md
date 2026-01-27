@@ -9,7 +9,6 @@ project:
   url: https://github.com/orgs/githubnext/projects/134
   scope:
     - githubnext/gh-aw
-campaign:
   id: security-alert-burndown
   workflows:
     - code-scanning-fixer

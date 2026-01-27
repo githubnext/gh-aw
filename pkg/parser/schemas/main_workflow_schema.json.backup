@@ -5,45 +5,30 @@
   "description": "JSON Schema for validating agentic workflow frontmatter configuration",
   "version": "1.0.0",
   "type": "object",
-  "required": [
-    "on"
-  ],
+  "required": ["on"],
   "properties": {
     "name": {
       "type": "string",
       "minLength": 1,
       "description": "Workflow name that appears in the GitHub Actions interface. If not specified, defaults to the filename without extension.",
-      "examples": [
-        "Copilot Agent PR Analysis",
-        "Dev Hawk",
-        "Smoke Claude"
-      ]
+      "examples": ["Copilot Agent PR Analysis", "Dev Hawk", "Smoke Claude"]
     },
     "description": {
       "type": "string",
       "description": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)",
-      "examples": [
-        "Quickstart for using the GitHub Actions library"
-      ]
+      "examples": ["Quickstart for using the GitHub Actions library"]
     },
     "source": {
       "type": "string",
       "description": "Optional source reference indicating where this workflow was added from. Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/ci-doctor.md@v1.0.0). Rendered as a comment in the generated lock file.",
-      "examples": [
-        "githubnext/agentics/workflows/ci-doctor.md",
-        "githubnext/agentics/workflows/daily-perf-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
-      ]
+      "examples": ["githubnext/agentics/workflows/ci-doctor.md", "githubnext/agentics/workflows/daily-perf-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"]
     },
     "tracker-id": {
       "type": "string",
       "minLength": 8,
       "pattern": "^[a-zA-Z0-9_-]+$",
       "description": "Optional tracker identifier to tag all created assets (issues, discussions, comments, pull requests). Must be at least 8 characters and contain only alphanumeric characters, hyphens, and underscores. This identifier will be inserted in the body/description of all created assets to enable searching and retrieving assets associated with this workflow.",
-      "examples": [
-        "workflow-2024-q1",
-        "team-alpha-bot",
-        "security_audit_v2"
-      ]
+      "examples": ["workflow-2024-q1", "team-alpha-bot", "security_audit_v2"]
     },
     "labels": {
       "type": "array",
@@ -53,18 +38,9 @@
         "minLength": 1
       },
       "examples": [
-        [
-          "automation",
-          "security"
-        ],
-        [
-          "docs",
-          "maintenance"
-        ],
-        [
-          "ci",
-          "testing"
-        ]
+        ["automation", "security"],
+        ["docs", "maintenance"],
+        ["ci", "testing"]
       ]
     },
     "metadata": {
@@ -98,9 +74,7 @@
           {
             "type": "object",
             "description": "Import specification with path and optional inputs",
-            "required": [
-              "path"
-            ],
+            "required": ["path"],
             "additionalProperties": false,
             "properties": {
               "path": {
@@ -129,21 +103,10 @@
         ]
       },
       "examples": [
-        [
-          "shared/jqschema.md",
-          "shared/reporting.md"
-        ],
-        [
-          "shared/mcp/gh-aw.md",
-          "shared/jqschema.md",
-          "shared/reporting.md"
-        ],
-        [
-          "../instructions/documentation.instructions.md"
-        ],
-        [
-          ".github/agents/my-agent.md"
-        ],
+        ["shared/jqschema.md", "shared/reporting.md"],
+        ["shared/mcp/gh-aw.md", "shared/jqschema.md", "shared/reporting.md"],
+        ["../instructions/documentation.instructions.md"],
+        [".github/agents/my-agent.md"],
         [
           {
             "path": "shared/discussions-data-fetch.md",
@@ -159,17 +122,12 @@
       "examples": [
         {
           "issues": {
-            "types": [
-              "opened"
-            ]
+            "types": ["opened"]
           }
         },
         {
           "pull_request": {
-            "types": [
-              "opened",
-              "synchronize"
-            ]
+            "types": ["opened", "synchronize"]
           }
         },
         "workflow_dispatch",
@@ -183,13 +141,7 @@
           "type": "string",
           "minLength": 1,
           "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call'), schedule shorthand (e.g., 'daily', 'weekly'), or slash command shorthand (e.g., '/my-bot' expands to slash_command + workflow_dispatch)",
-          "examples": [
-            "push",
-            "issues",
-            "workflow_dispatch",
-            "daily",
-            "/my-bot"
-          ]
+          "examples": ["push", "issues", "workflow_dispatch", "daily", "/my-bot"]
         },
         {
           "type": "object",
@@ -241,16 +193,7 @@
                         {
                           "type": "string",
                           "description": "Single event name or '*' for all events. Use GitHub Actions event names: 'issues', 'issue_comment', 'pull_request_comment', 'pull_request', 'pull_request_review_comment', 'discussion', 'discussion_comment'.",
-                          "enum": [
-                            "*",
-                            "issues",
-                            "issue_comment",
-                            "pull_request_comment",
-                            "pull_request",
-                            "pull_request_review_comment",
-                            "discussion",
-                            "discussion_comment"
-                          ]
+                          "enum": ["*", "issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"]
                         },
                         {
                           "type": "array",
@@ -259,16 +202,7 @@
                           "items": {
                             "type": "string",
                             "description": "GitHub Actions event name.",
-                            "enum": [
-                              "*",
-                              "issues",
-                              "issue_comment",
-                              "pull_request_comment",
-                              "pull_request",
-                              "pull_request_review_comment",
-                              "discussion",
-                              "discussion_comment"
-                            ]
+                            "enum": ["*", "issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"]
                           },
                           "maxItems": 25
                         }
@@ -325,16 +259,7 @@
                         {
                           "type": "string",
                           "description": "Single event name or '*' for all events. Use GitHub Actions event names: 'issues', 'issue_comment', 'pull_request_comment', 'pull_request', 'pull_request_review_comment', 'discussion', 'discussion_comment'.",
-                          "enum": [
-                            "*",
-                            "issues",
-                            "issue_comment",
-                            "pull_request_comment",
-                            "pull_request",
-                            "pull_request_review_comment",
-                            "discussion",
-                            "discussion_comment"
-                          ]
+                          "enum": ["*", "issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"]
                         },
                         {
                           "type": "array",
@@ -343,16 +268,7 @@
                           "items": {
                             "type": "string",
                             "description": "GitHub Actions event name.",
-                            "enum": [
-                              "*",
-                              "issues",
-                              "issue_comment",
-                              "pull_request_comment",
-                              "pull_request",
-                              "pull_request_review_comment",
-                              "discussion",
-                              "discussion_comment"
-                            ]
+                            "enum": ["*", "issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"]
                           },
                           "maxItems": 25
                         }
@@ -417,37 +333,25 @@
               },
               "oneOf": [
                 {
-                  "required": [
-                    "branches"
-                  ],
+                  "required": ["branches"],
                   "not": {
-                    "required": [
-                      "branches-ignore"
-                    ]
+                    "required": ["branches-ignore"]
                   }
                 },
                 {
-                  "required": [
-                    "branches-ignore"
-                  ],
+                  "required": ["branches-ignore"],
                   "not": {
-                    "required": [
-                      "branches"
-                    ]
+                    "required": ["branches"]
                   }
                 },
                 {
                   "not": {
                     "anyOf": [
                       {
-                        "required": [
-                          "branches"
-                        ]
+                        "required": ["branches"]
                       },
                       {
-                        "required": [
-                          "branches-ignore"
-                        ]
+                        "required": ["branches-ignore"]
                       }
                     ]
                   }
@@ -457,37 +361,25 @@
                 {
                   "oneOf": [
                     {
-                      "required": [
-                        "paths"
-                      ],
+                      "required": ["paths"],
                       "not": {
-                        "required": [
-                          "paths-ignore"
-                        ]
+                        "required": ["paths-ignore"]
                       }
                     },
                     {
-                      "required": [
-                        "paths-ignore"
-                      ],
+                      "required": ["paths-ignore"],
                       "not": {
-                        "required": [
-                          "paths"
-                        ]
+                        "required": ["paths"]
                       }
                     },
                     {
                       "not": {
                         "anyOf": [
                           {
-                            "required": [
-                              "paths"
-                            ]
+                            "required": ["paths"]
                           },
                           {
-                            "required": [
-                              "paths-ignore"
-                            ]
+                            "required": ["paths-ignore"]
                           }
                         ]
                       }
@@ -607,37 +499,25 @@
               "additionalProperties": false,
               "oneOf": [
                 {
-                  "required": [
-                    "branches"
-                  ],
+                  "required": ["branches"],
                   "not": {
-                    "required": [
-                      "branches-ignore"
-                    ]
+                    "required": ["branches-ignore"]
                   }
                 },
                 {
-                  "required": [
-                    "branches-ignore"
-                  ],
+                  "required": ["branches-ignore"],
                   "not": {
-                    "required": [
-                      "branches"
-                    ]
+                    "required": ["branches"]
                   }
                 },
                 {
                   "not": {
                     "anyOf": [
                       {
-                        "required": [
-                          "branches"
-                        ]
+                        "required": ["branches"]
                       },
                       {
-                        "required": [
-                          "branches-ignore"
-                        ]
+                        "required": ["branches-ignore"]
                       }
                     ]
                   }
@@ -647,37 +527,25 @@
                 {
                   "oneOf": [
                     {
-                      "required": [
-                        "paths"
-                      ],
+                      "required": ["paths"],
                       "not": {
-                        "required": [
-                          "paths-ignore"
-                        ]
+                        "required": ["paths-ignore"]
                       }
                     },
                     {
-                      "required": [
-                        "paths-ignore"
-                      ],
+                      "required": ["paths-ignore"],
                       "not": {
-                        "required": [
-                          "paths"
-                        ]
+                        "required": ["paths"]
                       }
                     },
                     {
                       "not": {
                         "anyOf": [
                           {
-                            "required": [
-                              "paths"
-                            ]
+                            "required": ["paths"]
                           },
                           {
-                            "required": [
-                              "paths-ignore"
-                            ]
+                            "required": ["paths-ignore"]
                           }
                         ]
                       }
@@ -696,26 +564,7 @@
                   "description": "Types of issue events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "opened",
-                      "edited",
-                      "deleted",
-                      "transferred",
-                      "pinned",
-                      "unpinned",
-                      "closed",
-                      "reopened",
-                      "assigned",
-                      "unassigned",
-                      "labeled",
-                      "unlabeled",
-                      "locked",
-                      "unlocked",
-                      "milestoned",
-                      "demilestoned",
-                      "typed",
-                      "untyped"
-                    ]
+                    "enum": ["opened", "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned", "typed", "untyped"]
                   }
                 },
                 "names": {
@@ -753,11 +602,7 @@
                   "description": "Types of issue comment events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "edited",
-                      "deleted"
-                    ]
+                    "enum": ["created", "edited", "deleted"]
                   }
                 },
                 "lock-for-agent": {
@@ -776,21 +621,7 @@
                   "description": "Types of discussion events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "edited",
-                      "deleted",
-                      "transferred",
-                      "pinned",
-                      "unpinned",
-                      "labeled",
-                      "unlabeled",
-                      "locked",
-                      "unlocked",
-                      "category_changed",
-                      "answered",
-                      "unanswered"
-                    ]
+                    "enum": ["created", "edited", "deleted", "transferred", "pinned", "unpinned", "labeled", "unlabeled", "locked", "unlocked", "category_changed", "answered", "unanswered"]
                   }
                 }
               }
@@ -805,11 +636,7 @@
                   "description": "Types of discussion comment events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "edited",
-                      "deleted"
-                    ]
+                    "enum": ["created", "edited", "deleted"]
                   }
                 }
               }
@@ -834,9 +661,7 @@
                         "description": "Cron expression using standard format (e.g., '0 9 * * 1') or fuzzy format (e.g., 'daily', 'daily around 14:00', 'daily between 9:00 and 17:00', 'weekly', 'weekly on monday', 'weekly on friday around 5pm', 'hourly', 'every 2h', 'every 10 minutes'). Fuzzy formats support: daily/weekly schedules with optional time windows, hourly intervals with scattered minutes, interval schedules (minimum 5 minutes), short duration units (m/h/d/w), and UTC timezone offsets (utc+N or utc+HH:MM)."
                       }
                     },
-                    "required": [
-                      "cron"
-                    ],
+                    "required": ["cron"],
                     "additionalProperties": false
                   },
                   "maxItems": 10
@@ -886,13 +711,7 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": [
-                              "string",
-                              "choice",
-                              "boolean",
-                              "number",
-                              "environment"
-                            ],
+                            "enum": ["string", "choice", "boolean", "number", "environment"],
                             "description": "Input type. GitHub Actions supports: string (default), boolean, choice (string with predefined options), number, and environment (string referencing a GitHub environment)"
                           },
                           "options": {
@@ -926,11 +745,7 @@
                   "description": "Types of workflow run events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "completed",
-                      "requested",
-                      "in_progress"
-                    ]
+                    "enum": ["completed", "requested", "in_progress"]
                   }
                 },
                 "branches": {
@@ -952,37 +767,25 @@
               },
               "oneOf": [
                 {
-                  "required": [
-                    "branches"
-                  ],
+                  "required": ["branches"],
                   "not": {
-                    "required": [
-                      "branches-ignore"
-                    ]
+                    "required": ["branches-ignore"]
                   }
                 },
                 {
-                  "required": [
-                    "branches-ignore"
-                  ],
+                  "required": ["branches-ignore"],
                   "not": {
-                    "required": [
-                      "branches"
-                    ]
+                    "required": ["branches"]
                   }
                 },
                 {
                   "not": {
                     "anyOf": [
                       {
-                        "required": [
-                          "branches"
-                        ]
+                        "required": ["branches"]
                       },
                       {
-                        "required": [
-                          "branches-ignore"
-                        ]
+                        "required": ["branches-ignore"]
                       }
                     ]
                   }
@@ -999,15 +802,7 @@
                   "description": "Types of release events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "published",
-                      "unpublished",
-                      "created",
-                      "edited",
-                      "deleted",
-                      "prereleased",
-                      "released"
-                    ]
+                    "enum": ["published", "unpublished", "created", "edited", "deleted", "prereleased", "released"]
                   }
                 }
               }
@@ -1022,11 +817,7 @@
                   "description": "Types of pull request review comment events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "edited",
-                      "deleted"
-                    ]
+                    "enum": ["created", "edited", "deleted"]
                   }
                 }
               }
@@ -1041,11 +832,7 @@
                   "description": "Types of branch protection rule events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "edited",
-                      "deleted"
-                    ]
+                    "enum": ["created", "edited", "deleted"]
                   }
                 }
               }
@@ -1060,12 +847,7 @@
                   "description": "Types of check run events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "rerequested",
-                      "completed",
-                      "requested_action"
-                    ]
+                    "enum": ["created", "rerequested", "completed", "requested_action"]
                   }
                 }
               }
@@ -1080,9 +862,7 @@
                   "description": "Types of check suite events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "completed"
-                    ]
+                    "enum": ["completed"]
                   }
                 }
               }
@@ -1175,11 +955,7 @@
                   "description": "Types of label events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "edited",
-                      "deleted"
-                    ]
+                    "enum": ["created", "edited", "deleted"]
                   }
                 }
               }
@@ -1194,9 +970,7 @@
                   "description": "Types of merge group events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "checks_requested"
-                    ]
+                    "enum": ["checks_requested"]
                   }
                 }
               }
@@ -1211,13 +985,7 @@
                   "description": "Types of milestone events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "closed",
-                      "opened",
-                      "edited",
-                      "deleted"
-                    ]
+                    "enum": ["created", "closed", "opened", "edited", "deleted"]
                   }
                 }
               }
@@ -1335,37 +1103,25 @@
               "additionalProperties": false,
               "oneOf": [
                 {
-                  "required": [
-                    "branches"
-                  ],
+                  "required": ["branches"],
                   "not": {
-                    "required": [
-                      "branches-ignore"
-                    ]
+                    "required": ["branches-ignore"]
                   }
                 },
                 {
-                  "required": [
-                    "branches-ignore"
-                  ],
+                  "required": ["branches-ignore"],
                   "not": {
-                    "required": [
-                      "branches"
-                    ]
+                    "required": ["branches"]
                   }
                 },
                 {
                   "not": {
                     "anyOf": [
                       {
-                        "required": [
-                          "branches"
-                        ]
+                        "required": ["branches"]
                       },
                       {
-                        "required": [
-                          "branches-ignore"
-                        ]
+                        "required": ["branches-ignore"]
                       }
                     ]
                   }
@@ -1375,37 +1131,25 @@
                 {
                   "oneOf": [
                     {
-                      "required": [
-                        "paths"
-                      ],
+                      "required": ["paths"],
                       "not": {
-                        "required": [
-                          "paths-ignore"
-                        ]
+                        "required": ["paths-ignore"]
                       }
                     },
                     {
-                      "required": [
-                        "paths-ignore"
-                      ],
+                      "required": ["paths-ignore"],
                       "not": {
-                        "required": [
-                          "paths"
-                        ]
+                        "required": ["paths"]
                       }
                     },
                     {
                       "not": {
                         "anyOf": [
                           {
-                            "required": [
-                              "paths"
-                            ]
+                            "required": ["paths"]
                           },
                           {
-                            "required": [
-                              "paths-ignore"
-                            ]
+                            "required": ["paths-ignore"]
                           }
                         ]
                       }
@@ -1424,11 +1168,7 @@
                   "description": "Types of pull request review events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "submitted",
-                      "edited",
-                      "dismissed"
-                    ]
+                    "enum": ["submitted", "edited", "dismissed"]
                   }
                 }
               }
@@ -1443,10 +1183,7 @@
                   "description": "Types of registry package events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "published",
-                      "updated"
-                    ]
+                    "enum": ["published", "updated"]
                   }
                 }
               }
@@ -1488,9 +1225,7 @@
                   "description": "Types of watch events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "started"
-                    ]
+                    "enum": ["started"]
                   }
                 }
               }
@@ -1522,11 +1257,7 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": [
-                              "string",
-                              "number",
-                              "boolean"
-                            ],
+                            "enum": ["string", "number", "boolean"],
                             "description": "Type of the input parameter"
                           },
                           "default": {
@@ -1568,9 +1299,7 @@
                 },
                 {
                   "type": "object",
-                  "required": [
-                    "query"
-                  ],
+                  "required": ["query"],
                   "properties": {
                     "query": {
                       "type": "string",
@@ -1596,9 +1325,7 @@
                 },
                 {
                   "type": "object",
-                  "required": [
-                    "query"
-                  ],
+                  "required": ["query"],
                   "properties": {
                     "query": {
                       "type": "string",
@@ -1624,37 +1351,17 @@
               "oneOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "+1",
-                    "-1",
-                    "laugh",
-                    "confused",
-                    "heart",
-                    "hooray",
-                    "rocket",
-                    "eyes",
-                    "none"
-                  ]
+                  "enum": ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes", "none"]
                 },
                 {
                   "type": "integer",
-                  "enum": [
-                    1,
-                    -1
-                  ],
+                  "enum": [1, -1],
                   "description": "YAML parses +1 and -1 without quotes as integers. These are converted to +1 and -1 strings respectively."
                 }
               ],
               "default": "eyes",
               "description": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none). Use 'none' to disable reactions. Defaults to 'eyes' if not specified.",
-              "examples": [
-                "eyes",
-                "rocket",
-                "+1",
-                1,
-                -1,
-                "none"
-              ]
+              "examples": ["eyes", "rocket", "+1", 1, -1, "none"]
             }
           },
           "additionalProperties": false,
@@ -1670,37 +1377,25 @@
             {
               "command": {
                 "name": "mergefest",
-                "events": [
-                  "pull_request_comment"
-                ]
+                "events": ["pull_request_comment"]
               }
             },
             {
               "workflow_run": {
-                "workflows": [
-                  "Dev"
-                ],
-                "types": [
-                  "completed"
-                ],
-                "branches": [
-                  "copilot/**"
-                ]
+                "workflows": ["Dev"],
+                "types": ["completed"],
+                "branches": ["copilot/**"]
               }
             },
             {
               "pull_request": {
-                "types": [
-                  "ready_for_review"
-                ]
+                "types": ["ready_for_review"]
               },
               "workflow_dispatch": null
             },
             {
               "push": {
-                "branches": [
-                  "main"
-                ]
+                "branches": ["main"]
               }
             }
           ]
@@ -1727,10 +1422,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": [
-            "read-all",
-            "write-all"
-          ],
+          "enum": ["read-all", "write-all"],
           "description": "Simple permissions string: 'read-all' (all read permissions) or 'write-all' (all write permissions)"
         },
         {
@@ -1740,143 +1432,82 @@
           "properties": {
             "actions": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for GitHub Actions workflows and runs (read: view workflows, write: manage workflows, none: no access)"
             },
             "attestations": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for artifact attestations (read: view attestations, write: create attestations, none: no access)"
             },
             "checks": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for repository checks and status checks (read: view checks, write: create/update checks, none: no access)"
             },
             "contents": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for repository contents (read: view files, write: modify files/branches, none: no access)"
             },
             "deployments": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for repository deployments (read: view deployments, write: create/update deployments, none: no access)"
             },
             "discussions": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for repository discussions (read: view discussions, write: create/update discussions, none: no access)"
             },
             "id-token": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission level for OIDC token requests (read/write/none). Allows workflows to request JWT tokens for cloud provider authentication."
             },
             "issues": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for repository issues (read: view issues, write: create/update/close issues, none: no access)"
             },
             "models": {
               "type": "string",
-              "enum": [
-                "read",
-                "none"
-              ],
+              "enum": ["read", "none"],
               "description": "Permission for GitHub Copilot models (read: access AI models for agentic workflows, none: no access)"
             },
             "metadata": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for repository metadata (read: view repository information, write: update repository metadata, none: no access)"
             },
             "packages": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission level for GitHub Packages (read/write/none). Controls access to publish, modify, or delete packages."
             },
             "pages": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission level for GitHub Pages (read/write/none). Controls access to deploy and manage GitHub Pages sites."
             },
             "pull-requests": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission level for pull requests (read/write/none). Controls access to create, edit, review, and manage pull requests."
             },
             "security-events": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission level for security events (read/write/none). Controls access to view and manage code scanning alerts and security findings."
             },
             "statuses": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission level for commit statuses (read/write/none). Controls access to create and update commit status checks."
             },
             "all": {
               "type": "string",
-              "enum": [
-                "read"
-              ],
+              "enum": ["read"],
               "description": "Permission shorthand that applies read access to all permission scopes. Can be combined with specific write permissions to override individual scopes. 'write' is not allowed for all."
             }
           }
@@ -1886,10 +1517,7 @@
     "run-name": {
       "type": "string",
       "description": "Custom name for workflow runs that appears in the GitHub Actions interface (supports GitHub expressions like ${{ github.event.issue.title }})",
-      "examples": [
-        "Deploy to ${{ github.event.inputs.environment }}",
-        "Build #${{ github.run_number }}"
-      ]
+      "examples": ["Deploy to ${{ github.event.inputs.environment }}", "Build #${{ github.run_number }}"]
     },
     "jobs": {
       "type": "object",
@@ -1932,14 +1560,10 @@
               "additionalProperties": false,
               "oneOf": [
                 {
-                  "required": [
-                    "uses"
-                  ]
+                  "required": ["uses"]
                 },
                 {
-                  "required": [
-                    "run"
-                  ]
+                  "required": ["run"]
                 }
               ],
               "properties": {
@@ -2152,35 +1776,22 @@
       ],
       "examples": [
         "ubuntu-latest",
-        [
-          "ubuntu-latest",
-          "self-hosted"
-        ],
+        ["ubuntu-latest", "self-hosted"],
         {
           "group": "larger-runners",
-          "labels": [
-            "ubuntu-latest-8-cores"
-          ]
+          "labels": ["ubuntu-latest-8-cores"]
         }
       ]
     },
     "timeout-minutes": {
       "type": "integer",
       "description": "Workflow timeout in minutes (GitHub Actions standard field). Defaults to 20 minutes for agentic workflows. Has sensible defaults and can typically be omitted.",
-      "examples": [
-        5,
-        10,
-        30
-      ]
+      "examples": [5, 10, 30]
     },
     "timeout_minutes": {
       "type": "integer",
       "description": "Deprecated: Use 'timeout-minutes' instead. Workflow timeout in minutes. Defaults to 20 minutes for agentic workflows.",
-      "examples": [
-        5,
-        10,
-        30
-      ],
+      "examples": [5, 10, 30],
       "deprecated": true
     },
     "concurrency": {
@@ -2189,10 +1800,7 @@
         {
           "type": "string",
           "description": "Simple concurrency group name to prevent multiple runs in the same group. Use expressions like '${{ github.workflow }}' for per-workflow isolation or '${{ github.ref }}' for per-branch isolation. Agentic workflows automatically generate enhanced concurrency policies using 'gh-aw-{engine-id}' as the default group to limit concurrent AI workloads across all workflows using the same engine.",
-          "examples": [
-            "my-workflow-group",
-            "workflow-${{ github.ref }}"
-          ]
+          "examples": ["my-workflow-group", "workflow-${{ github.ref }}"]
         },
         {
           "type": "object",
@@ -2208,9 +1816,7 @@
               "description": "Whether to cancel in-progress workflows in the same concurrency group when a new one starts. Default: false (queue new runs). Set to true for agentic workflows where only the latest run matters (e.g., PR analysis that becomes stale when new commits are pushed)."
             }
           },
-          "required": [
-            "group"
-          ],
+          "required": ["group"],
           "examples": [
             {
               "group": "dev-workflow-${{ github.ref }}",
@@ -2287,9 +1893,7 @@
               "description": "A deployment URL"
             }
           },
-          "required": [
-            "name"
-          ],
+          "required": ["name"],
           "additionalProperties": false
         }
       ]
@@ -2357,9 +1961,7 @@
               "description": "Additional Docker container options"
             }
           },
-          "required": [
-            "image"
-          ],
+          "required": ["image"],
           "additionalProperties": false
         }
       ]
@@ -2429,9 +2031,7 @@
                 "description": "Additional Docker container options"
               }
             },
-            "required": [
-              "image"
-            ],
+            "required": ["image"],
             "additionalProperties": false
           }
         ]
@@ -2443,24 +2043,13 @@
       "examples": [
         "defaults",
         {
-          "allowed": [
-            "defaults",
-            "github"
-          ]
+          "allowed": ["defaults", "github"]
         },
         {
-          "allowed": [
-            "defaults",
-            "python",
-            "node",
-            "*.example.com"
-          ]
+          "allowed": ["defaults", "python", "node", "*.example.com"]
         },
         {
-          "allowed": [
-            "api.openai.com",
-            "*.github.com"
-          ],
+          "allowed": ["api.openai.com", "*.github.com"],
           "firewall": {
             "version": "v1.0.0",
             "log-level": "debug"
@@ -2470,9 +2059,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": [
-            "defaults"
-          ],
+          "enum": ["defaults"],
           "description": "Use default network permissions (basic infrastructure: certificates, JSON schema, Ubuntu, etc.)"
         },
         {
@@ -2512,9 +2099,7 @@
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "disable"
-                  ],
+                  "enum": ["disable"],
                   "description": "Disable AWF firewall (triggers warning if allowed != *, error in strict mode if allowed is not * or engine does not support firewall)"
                 },
                 {
@@ -2529,27 +2114,14 @@
                       }
                     },
                     "version": {
-                      "type": [
-                        "string",
-                        "number"
-                      ],
+                      "type": ["string", "number"],
                       "description": "AWF version to use (empty = latest release). Can be a string (e.g., 'v1.0.0', 'latest') or number (e.g., 20, 3.11). Numeric values are automatically converted to strings at runtime.",
-                      "examples": [
-                        "v1.0.0",
-                        "latest",
-                        20,
-                        3.11
-                      ]
+                      "examples": ["v1.0.0", "latest", 20, 3.11]
                     },
                     "log-level": {
                       "type": "string",
                       "description": "AWF log level (default: info). Valid values: debug, info, warn, error",
-                      "enum": [
-                        "debug",
-                        "info",
-                        "warn",
-                        "error"
-                      ]
+                      "enum": ["debug", "info", "warn", "error"]
                     },
                     "ssl-bump": {
                       "type": "boolean",
@@ -2564,12 +2136,7 @@
                         "pattern": "^https://.*",
                         "description": "HTTPS URL pattern with optional wildcards (e.g., 'https://github.com/githubnext/*')"
                       },
-                      "examples": [
-                        [
-                          "https://github.com/githubnext/*",
-                          "https://api.github.com/repos/*"
-                        ]
-                      ]
+                      "examples": [["https://github.com/githubnext/*", "https://api.github.com/repos/*"]]
                     }
                   },
                   "additionalProperties": false
@@ -2590,12 +2157,7 @@
         },
         {
           "type": "string",
-          "enum": [
-            "default",
-            "sandbox-runtime",
-            "awf",
-            "srt"
-          ],
+          "enum": ["default", "sandbox-runtime", "awf", "srt"],
           "description": "Legacy string format for sandbox type: 'default' for no sandbox, 'sandbox-runtime' or 'srt' for Anthropic Sandbox Runtime, 'awf' for Agent Workflow Firewall"
         },
         {
@@ -2604,12 +2166,7 @@
           "properties": {
             "type": {
               "type": "string",
-              "enum": [
-                "default",
-                "sandbox-runtime",
-                "awf",
-                "srt"
-              ],
+              "enum": ["default", "sandbox-runtime", "awf", "srt"],
               "description": "Legacy sandbox type field (use agent instead)"
             },
             "agent": {
@@ -2618,10 +2175,7 @@
               "oneOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "awf",
-                    "srt"
-                  ],
+                  "enum": ["awf", "srt"],
                   "description": "Sandbox type: 'awf' for Agent Workflow Firewall, 'srt' for Sandbox Runtime"
                 },
                 {
@@ -2630,18 +2184,12 @@
                   "properties": {
                     "id": {
                       "type": "string",
-                      "enum": [
-                        "awf",
-                        "srt"
-                      ],
+                      "enum": ["awf", "srt"],
                       "description": "Agent identifier (replaces 'type' field in new format): 'awf' for Agent Workflow Firewall, 'srt' for Sandbox Runtime"
                     },
                     "type": {
                       "type": "string",
-                      "enum": [
-                        "awf",
-                        "srt"
-                      ],
+                      "enum": ["awf", "srt"],
                       "description": "Legacy: Sandbox type to use (use 'id' instead)"
                     },
                     "command": {
@@ -2670,12 +2218,7 @@
                         "pattern": "^[^:]+:[^:]+:(ro|rw)$",
                         "description": "Mount specification in format 'source:destination:mode'"
                       },
-                      "examples": [
-                        [
-                          "/host/data:/data:ro",
-                          "/usr/local/bin/custom-tool:/usr/local/bin/custom-tool:ro"
-                        ]
-                      ]
+                      "examples": [["/host/data:/data:ro", "/usr/local/bin/custom-tool:/usr/local/bin/custom-tool:ro"]]
                     },
                     "config": {
                       "type": "object",
@@ -2790,24 +2333,14 @@
                   "description": "Container image for the MCP gateway executable (required)"
                 },
                 "version": {
-                  "type": [
-                    "string",
-                    "number"
-                  ],
+                  "type": ["string", "number"],
                   "description": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')",
-                  "examples": [
-                    "latest",
-                    "v1.0.0"
-                  ]
+                  "examples": ["latest", "v1.0.0"]
                 },
                 "entrypoint": {
                   "type": "string",
                   "description": "Optional custom entrypoint for the MCP gateway container. Overrides the container's default entrypoint.",
-                  "examples": [
-                    "/bin/bash",
-                    "/custom/start.sh",
-                    "/usr/bin/env"
-                  ]
+                  "examples": ["/bin/bash", "/custom/start.sh", "/usr/bin/env"]
                 },
                 "args": {
                   "type": "array",
@@ -2831,12 +2364,7 @@
                     "pattern": "^[^:]+:[^:]+:(ro|rw)$",
                     "description": "Mount specification in format 'source:destination:mode'"
                   },
-                  "examples": [
-                    [
-                      "/host/data:/container/data:ro",
-                      "/host/config:/container/config:rw"
-                    ]
-                  ]
+                  "examples": [["/host/data:/container/data:ro", "/host/config:/container/config:rw"]]
                 },
                 "env": {
                   "type": "object",
@@ -2861,16 +2389,11 @@
                 },
                 "domain": {
                   "type": "string",
-                  "enum": [
-                    "localhost",
-                    "host.docker.internal"
-                  ],
+                  "enum": ["localhost", "host.docker.internal"],
                   "description": "Gateway domain for URL generation (default: 'host.docker.internal' when agent is enabled, 'localhost' when disabled)"
                 }
               },
-              "required": [
-                "container"
-              ],
+              "required": ["container"],
               "additionalProperties": false
             }
           },
@@ -2891,10 +2414,7 @@
             "type": "srt",
             "config": {
               "filesystem": {
-                "allowWrite": [
-                  ".",
-                  "/tmp"
-                ]
+                "allowWrite": [".", "/tmp"]
               }
             }
           }
@@ -2918,10 +2438,7 @@
     "if": {
       "type": "string",
       "description": "Conditional execution expression",
-      "examples": [
-        "${{ github.event.workflow_run.event == 'workflow_dispatch' }}",
-        "${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}"
-      ]
+      "examples": ["${{ github.event.workflow_run.event == 'workflow_dispatch' }}", "${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}"]
     },
     "steps": {
       "description": "Custom workflow steps",
@@ -3039,10 +2556,7 @@
           "filesystem": {
             "type": "stdio",
             "command": "npx",
-            "args": [
-              "-y",
-              "@modelcontextprotocol/server-filesystem"
-            ]
+            "args": ["-y", "@modelcontextprotocol/server-filesystem"]
           }
         },
         {
@@ -3119,24 +2633,13 @@
                 },
                 "mode": {
                   "type": "string",
-                  "enum": [
-                    "local",
-                    "remote"
-                  ],
+                  "enum": ["local", "remote"],
                   "description": "MCP server mode: 'local' (Docker-based, default) or 'remote' (hosted at api.githubcopilot.com)"
                 },
                 "version": {
-                  "type": [
-                    "string",
-                    "number"
-                  ],
+                  "type": ["string", "number"],
                   "description": "Optional version specification for the GitHub MCP server (used with 'local' type). Can be a string (e.g., 'v1.0.0', 'latest') or number (e.g., 20, 3.11). Numeric values are automatically converted to strings at runtime.",
-                  "examples": [
-                    "v1.0.0",
-                    "latest",
-                    20,
-                    3.11
-                  ]
+                  "examples": ["v1.0.0", "latest", 20, 3.11]
                 },
                 "args": {
                   "type": "array",
@@ -3201,15 +2704,7 @@
                     "pattern": "^[^:]+:[^:]+(:(ro|rw))?$",
                     "description": "Mount specification in format 'host:container:mode'"
                   },
-                  "examples": [
-                    [
-                      "/data:/data:ro",
-                      "/tmp:/tmp:rw"
-                    ],
-                    [
-                      "/opt:/opt:ro"
-                    ]
-                  ]
+                  "examples": [["/data:/data:ro", "/tmp:/tmp:rw"], ["/opt:/opt:ro"]]
                 },
                 "app": {
                   "type": "object",
@@ -3235,10 +2730,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "app-id",
-                    "private-key"
-                  ],
+                  "required": ["app-id", "private-key"],
                   "additionalProperties": false,
                   "examples": [
                     {
@@ -3248,10 +2740,7 @@
                     {
                       "app-id": "${{ vars.APP_ID }}",
                       "private-key": "${{ secrets.APP_PRIVATE_KEY }}",
-                      "repositories": [
-                        "repo1",
-                        "repo2"
-                      ]
+                      "repositories": ["repo1", "repo2"]
                     }
                   ]
                 }
@@ -3259,30 +2748,16 @@
               "additionalProperties": false,
               "examples": [
                 {
-                  "toolsets": [
-                    "pull_requests",
-                    "actions",
-                    "repos"
-                  ]
+                  "toolsets": ["pull_requests", "actions", "repos"]
                 },
                 {
-                  "allowed": [
-                    "search_pull_requests",
-                    "pull_request_read",
-                    "list_pull_requests",
-                    "get_file_contents",
-                    "list_commits",
-                    "get_commit"
-                  ]
+                  "allowed": ["search_pull_requests", "pull_request_read", "list_pull_requests", "get_file_contents", "list_commits", "get_commit"]
                 },
                 {
                   "read-only": true
                 },
                 {
-                  "toolsets": [
-                    "pull_requests",
-                    "repos"
-                  ]
+                  "toolsets": ["pull_requests", "repos"]
                 }
               ]
             }
@@ -3290,25 +2765,14 @@
           "examples": [
             null,
             {
-              "toolsets": [
-                "pull_requests",
-                "actions",
-                "repos"
-              ]
+              "toolsets": ["pull_requests", "actions", "repos"]
             },
             {
-              "allowed": [
-                "search_pull_requests",
-                "pull_request_read",
-                "get_file_contents"
-              ]
+              "allowed": ["search_pull_requests", "pull_request_read", "get_file_contents"]
             },
             {
               "read-only": true,
-              "toolsets": [
-                "repos",
-                "issues"
-              ]
+              "toolsets": ["repos", "issues"]
             },
             false
           ]
@@ -3335,36 +2799,10 @@
           ],
           "examples": [
             true,
-            [
-              "git fetch",
-              "git checkout",
-              "git status",
-              "git diff",
-              "git log",
-              "make recompile",
-              "make fmt",
-              "make lint",
-              "make test-unit",
-              "cat",
-              "echo",
-              "ls"
-            ],
-            [
-              "echo",
-              "ls",
-              "cat"
-            ],
-            [
-              "gh pr list *",
-              "gh search prs *",
-              "jq *"
-            ],
-            [
-              "date *",
-              "echo *",
-              "cat",
-              "ls"
-            ]
+            ["git fetch", "git checkout", "git status", "git diff", "git log", "make recompile", "make fmt", "make lint", "make test-unit", "cat", "echo", "ls"],
+            ["echo", "ls", "cat"],
+            ["gh pr list *", "gh search prs *", "jq *"],
+            ["date *", "echo *", "cat", "ls"]
           ]
         },
         "web-fetch": {
@@ -3441,16 +2879,9 @@
               "description": "Playwright tool configuration with custom version and domain restrictions",
               "properties": {
                 "version": {
-                  "type": [
-                    "string",
-                    "number"
-                  ],
+                  "type": ["string", "number"],
                   "description": "Optional Playwright container version (e.g., 'v1.41.0', 1.41, 20). Numeric values are automatically converted to strings at runtime.",
-                  "examples": [
-                    "v1.41.0",
-                    1.41,
-                    20
-                  ]
+                  "examples": ["v1.41.0", 1.41, 20]
                 },
                 "allowed_domains": {
                   "description": "Domains allowed for Playwright browser network access. Defaults to localhost only for security.",
@@ -3492,10 +2923,7 @@
               "description": "Enable agentic-workflows tool with default settings (same as true)"
             }
           ],
-          "examples": [
-            true,
-            null
-          ]
+          "examples": [true, null]
         },
         "cache-memory": {
           "description": "Cache memory MCP configuration for persistent memory storage",
@@ -3571,10 +2999,7 @@
                     "description": "If true, only restore the cache without saving it back. Uses actions/cache/restore instead of actions/cache. No artifact upload step will be generated."
                   }
                 },
-                "required": [
-                  "id",
-                  "key"
-                ],
+                "required": ["id", "key"],
                 "additionalProperties": false
               },
               "minItems": 1,
@@ -3615,11 +3040,7 @@
           "type": "integer",
           "minimum": 1,
           "description": "Timeout in seconds for tool/MCP server operations. Applies to all tools and MCP servers if supported by the engine. Default varies by engine (Claude: 60s, Codex: 120s).",
-          "examples": [
-            60,
-            120,
-            300
-          ]
+          "examples": [60, 120, 300]
         },
         "startup-timeout": {
           "type": "integer",
@@ -3638,14 +3059,7 @@
               "description": "Short syntax: array of language identifiers to enable (e.g., [\"go\", \"typescript\"])",
               "items": {
                 "type": "string",
-                "enum": [
-                  "go",
-                  "typescript",
-                  "python",
-                  "java",
-                  "rust",
-                  "csharp"
-                ]
+                "enum": ["go", "typescript", "python", "java", "rust", "csharp"]
               }
             },
             {
@@ -3653,24 +3067,14 @@
               "description": "Serena configuration with custom version and language-specific settings",
               "properties": {
                 "version": {
-                  "type": [
-                    "string",
-                    "number"
-                  ],
+                  "type": ["string", "number"],
                   "description": "Optional Serena MCP version. Numeric values are automatically converted to strings at runtime.",
-                  "examples": [
-                    "latest",
-                    "0.1.0",
-                    1.0
-                  ]
+                  "examples": ["latest", "0.1.0", 1.0]
                 },
                 "mode": {
                   "type": "string",
                   "description": "Serena execution mode: 'docker' (default, runs in container) or 'local' (runs locally with uvx and HTTP transport)",
-                  "enum": [
-                    "docker",
-                    "local"
-                  ],
+                  "enum": ["docker", "local"],
                   "default": "docker"
                 },
                 "args": {
@@ -3694,10 +3098,7 @@
                           "type": "object",
                           "properties": {
                             "version": {
-                              "type": [
-                                "string",
-                                "number"
-                              ],
+                              "type": ["string", "number"],
                               "description": "Go version (e.g., \"1.21\", 1.21)"
                             },
                             "go-mod-file": {
@@ -3724,10 +3125,7 @@
                           "type": "object",
                           "properties": {
                             "version": {
-                              "type": [
-                                "string",
-                                "number"
-                              ],
+                              "type": ["string", "number"],
                               "description": "Node.js version for TypeScript (e.g., \"22\", 22)"
                             }
                           },
@@ -3746,10 +3144,7 @@
                           "type": "object",
                           "properties": {
                             "version": {
-                              "type": [
-                                "string",
-                                "number"
-                              ],
+                              "type": ["string", "number"],
                               "description": "Python version (e.g., \"3.12\", 3.12)"
                             }
                           },
@@ -3768,10 +3163,7 @@
                           "type": "object",
                           "properties": {
                             "version": {
-                              "type": [
-                                "string",
-                                "number"
-                              ],
+                              "type": ["string", "number"],
                               "description": "Java version (e.g., \"21\", 21)"
                             }
                           },
@@ -3790,10 +3182,7 @@
                           "type": "object",
                           "properties": {
                             "version": {
-                              "type": [
-                                "string",
-                                "number"
-                              ],
+                              "type": ["string", "number"],
                               "description": "Rust version (e.g., \"stable\", \"1.75\")"
                             }
                           },
@@ -3812,10 +3201,7 @@
                           "type": "object",
                           "properties": {
                             "version": {
-                              "type": [
-                                "string",
-                                "number"
-                              ],
+                              "type": ["string", "number"],
                               "description": ".NET version for C# (e.g., \"8.0\", 8.0)"
                             }
                           },
@@ -4051,19 +3437,11 @@
               },
               "type": {
                 "type": "string",
-                "enum": [
-                  "stdio",
-                  "http",
-                  "remote",
-                  "local"
-                ],
+                "enum": ["stdio", "http", "remote", "local"],
                 "description": "MCP connection type. Use 'stdio' for command-based or container-based servers, 'http' for HTTP-based servers. 'local' is an alias for 'stdio' and is normalized during parsing."
               },
               "version": {
-                "type": [
-                  "string",
-                  "number"
-                ],
+                "type": ["string", "number"],
                 "description": "Version of the MCP server"
               },
               "toolsets": {
@@ -4100,10 +3478,7 @@
               "registry": {
                 "type": "string",
                 "description": "URI to installation location from MCP registry",
-                "examples": [
-                  "https://api.mcp.github.com/v0/servers/microsoft/markitdown",
-                  "https://registry.npmjs.org/@my/tool"
-                ]
+                "examples": ["https://api.mcp.github.com/v0/servers/microsoft/markitdown", "https://registry.npmjs.org/@my/tool"]
               },
               "allowed": {
                 "type": "array",
@@ -4111,28 +3486,12 @@
                   "type": "string"
                 },
                 "description": "List of allowed tool names (restricts which tools from the MCP server can be used)",
-                "examples": [
-                  [
-                    "*"
-                  ],
-                  [
-                    "store_memory",
-                    "retrieve_memory"
-                  ],
-                  [
-                    "create-issue",
-                    "add-comment"
-                  ]
-                ]
+                "examples": [["*"], ["store_memory", "retrieve_memory"], ["create-issue", "add-comment"]]
               },
               "entrypoint": {
                 "type": "string",
                 "description": "Optional entrypoint override for container (equivalent to docker run --entrypoint)",
-                "examples": [
-                  "/bin/sh",
-                  "/custom/entrypoint.sh",
-                  "python"
-                ]
+                "examples": ["/bin/sh", "/custom/entrypoint.sh", "python"]
               },
               "mounts": {
                 "type": "array",
@@ -4141,15 +3500,7 @@
                   "pattern": "^[^:]+:[^:]+:(ro|rw)$"
                 },
                 "description": "Volume mounts for container in format 'source:dest:mode' where mode is 'ro' or 'rw'",
-                "examples": [
-                  [
-                    "/tmp/data:/data:ro"
-                  ],
-                  [
-                    "/workspace:/workspace:rw",
-                    "/config:/config:ro"
-                  ]
-                ]
+                "examples": [["/tmp/data:/data:ro"], ["/workspace:/workspace:rw", "/config:/config:ro"]]
               }
             },
             "additionalProperties": true
@@ -4217,25 +3568,17 @@
               "description": "If true, only checks if cache entry exists and skips download"
             }
           },
-          "required": [
-            "key",
-            "path"
-          ],
+          "required": ["key", "path"],
           "additionalProperties": false,
           "examples": [
             {
               "key": "node-modules-${{ hashFiles('package-lock.json') }}",
               "path": "node_modules",
-              "restore-keys": [
-                "node-modules-"
-              ]
+              "restore-keys": ["node-modules-"]
             },
             {
               "key": "build-cache-${{ github.sha }}",
-              "path": [
-                "dist",
-                ".cache"
-              ],
+              "path": ["dist", ".cache"],
               "restore-keys": "build-cache-",
               "fail-on-cache-miss": false
             }
@@ -4296,10 +3639,7 @@
                 "description": "If true, only checks if cache entry exists and skips download"
               }
             },
-            "required": [
-              "key",
-              "path"
-            ],
+            "required": ["key", "path"],
             "additionalProperties": false
           }
         }
@@ -4311,27 +3651,19 @@
           "type": "string",
           "description": "GitHub Project URL for tracking workflow-created items. When configured, automatically enables project tracking operations (update-project, create-project-status-update) to manage project boards similar to campaign orchestrators.",
           "pattern": "^https://github\\.com/(users|orgs)/[^/]+/projects/\\d+$",
-          "examples": [
-            "https://github.com/orgs/github/projects/123",
-            "https://github.com/users/username/projects/456"
-          ]
+          "examples": ["https://github.com/orgs/github/projects/123", "https://github.com/users/username/projects/456"]
         },
         {
           "type": "object",
           "description": "Project tracking configuration with custom settings for managing GitHub Project boards. Automatically enables update-project and create-project-status-update operations.",
-          "required": [
-            "url"
-          ],
+          "required": ["url"],
           "additionalProperties": false,
           "properties": {
             "url": {
               "type": "string",
               "description": "GitHub Project URL (required). Must be a valid GitHub Projects V2 URL.",
               "pattern": "^https://github\\.com/(users|orgs)/[^/]+/projects/\\d+$",
-              "examples": [
-                "https://github.com/orgs/github/projects/123",
-                "https://github.com/users/username/projects/456"
-              ]
+              "examples": ["https://github.com/orgs/github/projects/123", "https://github.com/users/username/projects/456"]
             },
             "max-updates": {
               "type": "integer",
@@ -4347,19 +3679,7 @@
                 "type": "string",
                 "pattern": "^([a-zA-Z0-9][-a-zA-Z0-9]{0,38}/[a-zA-Z0-9._-]+|org:[a-zA-Z0-9][-a-zA-Z0-9]{0,38})$"
               },
-              "examples": [
-                [
-                  "owner/repo"
-                ],
-                [
-                  "org:github"
-                ],
-                [
-                  "owner/repo1",
-                  "owner/repo2",
-                  "org:myorg"
-                ]
-              ]
+              "examples": [["owner/repo"], ["org:github"], ["owner/repo1", "owner/repo2", "org:myorg"]]
             },
             "max-status-updates": {
               "type": "integer",
@@ -4371,362 +3691,289 @@
             "github-token": {
               "type": "string",
               "description": "Optional custom GitHub token for project operations. Should reference a secret with Projects: Read & Write permissions (e.g., ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}).",
-              "examples": [
-                "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
-              ]
+              "examples": ["${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"]
             },
             "do-not-downgrade-done-items": {
               "type": "boolean",
-              "description": "When true, prevents moving items backward in workflow status (e.g., Done \u2192 In Progress). Useful for maintaining completed state integrity.",
+              "description": "When true, prevents moving items backward in workflow status (e.g., Done → In Progress). Useful for maintaining completed state integrity.",
               "default": false
-            },
-            "id": {
-              "type": "string",
-              "description": "Optional campaign identifier. If not provided, derived from workflow filename.",
-              "examples": [
-                "security-alert-burndown",
-                "dependency-upgrade-campaign"
-              ]
-            },
-            "workflows": {
-              "type": "array",
-              "description": "List of worker workflow IDs (basename without .md) associated with this campaign",
-              "items": {
-                "type": "string"
-              },
-              "examples": [
-                [
-                  "code-scanning-fixer",
-                  "security-fix-pr"
-                ]
-              ]
-            },
-            "memory-paths": {
-              "type": "array",
-              "description": "Repo-memory paths where this campaign writes its state and metrics",
-              "items": {
-                "type": "string"
-              },
-              "examples": [
-                [
-                  "memory/campaigns/security-burndown/**"
-                ]
-              ]
-            },
-            "metrics-glob": {
-              "type": "string",
-              "description": "Glob pattern for locating JSON metrics snapshots in the memory/campaigns branch",
-              "examples": [
-                "memory/campaigns/security-burndown-*/metrics/*.json"
-              ]
-            },
-            "cursor-glob": {
-              "type": "string",
-              "description": "Glob pattern for locating durable cursor/checkpoint files in the memory/campaigns branch",
-              "examples": [
-                "memory/campaigns/security-burndown-*/cursor.json"
-              ]
-            },
-            "tracker-label": {
-              "type": "string",
-              "description": "Label used to discover worker-created issues/PRs",
-              "examples": [
-                "campaign:security-2025"
-              ]
-            },
-            "owners": {
-              "type": "array",
-              "description": "Primary human owners for this campaign",
-              "items": {
-                "type": "string"
-              },
-              "examples": [
-                [
-                  "@username1",
-                  "@username2"
-                ]
-              ]
-            },
-            "risk-level": {
-              "type": "string",
-              "description": "Campaign risk level",
-              "enum": [
-                "low",
-                "medium",
-                "high"
-              ],
-              "examples": [
-                "high"
-              ]
-            },
-            "state": {
-              "type": "string",
-              "description": "Campaign lifecycle state",
-              "enum": [
-                "planned",
-                "active",
-                "paused",
-                "completed",
-                "archived"
-              ],
-              "examples": [
-                "active"
-              ]
-            },
-            "tags": {
-              "type": "array",
-              "description": "Free-form tags for categorization",
-              "items": {
-                "type": "string"
-              },
-              "examples": [
-                [
-                  "security",
-                  "modernization"
-                ]
-              ]
-            },
-            "governance": {
-              "type": "object",
-              "description": "Campaign governance policies for pacing and opt-out",
-              "additionalProperties": false,
-              "properties": {
-                "max-new-items-per-run": {
-                  "type": "integer",
-                  "description": "Maximum new items to add to project board per run",
-                  "minimum": 0
-                },
-                "max-discovery-items-per-run": {
-                  "type": "integer",
-                  "description": "Maximum items to scan during discovery",
-                  "minimum": 0
-                },
-                "max-discovery-pages-per-run": {
-                  "type": "integer",
-                  "description": "Maximum pages of results to fetch during discovery",
-                  "minimum": 0
-                },
-                "opt-out-labels": {
-                  "type": "array",
-                  "description": "Labels that opt issues/PRs out of campaign tracking",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "do-not-downgrade-done-items": {
-                  "type": "boolean",
-                  "description": "Prevent moving items backward (e.g., Done \u2192 In Progress)"
-                },
-                "max-project-updates-per-run": {
-                  "type": "integer",
-                  "description": "Maximum project update operations per run",
-                  "minimum": 0
-                },
-                "max-comments-per-run": {
-                  "type": "integer",
-                  "description": "Maximum comment operations per run",
-                  "minimum": 0
-                }
-              }
-            },
-            "bootstrap": {
-              "type": "object",
-              "description": "Bootstrap configuration for creating initial work items",
-              "required": [
-                "mode"
-              ],
-              "additionalProperties": false,
-              "properties": {
-                "mode": {
-                  "type": "string",
-                  "description": "Bootstrap strategy",
-                  "enum": [
-                    "seeder-worker",
-                    "project-todos",
-                    "manual"
-                  ]
-                },
-                "seeder-worker": {
-                  "type": "object",
-                  "description": "Seeder worker configuration (only when mode is seeder-worker)",
-                  "required": [
-                    "workflow-id",
-                    "payload"
-                  ],
-                  "properties": {
-                    "workflow-id": {
-                      "type": "string",
-                      "description": "Worker workflow ID to dispatch"
-                    },
-                    "payload": {
-                      "type": "object",
-                      "description": "JSON payload to send to seeder worker"
-                    },
-                    "max-items": {
-                      "type": "integer",
-                      "description": "Maximum work items to return",
-                      "minimum": 0
-                    }
-                  }
-                },
-                "project-todos": {
-                  "type": "object",
-                  "description": "Project todos configuration (only when mode is project-todos)",
-                  "properties": {
-                    "status-field": {
-                      "type": "string",
-                      "description": "Project status field name",
-                      "default": "Status"
-                    },
-                    "todo-value": {
-                      "type": "string",
-                      "description": "Status value indicating Todo",
-                      "default": "Todo"
-                    },
-                    "max-items": {
-                      "type": "integer",
-                      "description": "Maximum Todo items to process",
-                      "minimum": 0
-                    },
-                    "require-fields": {
-                      "type": "array",
-                      "description": "Project fields that must be populated",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
-                  }
-                }
-              }
-            },
-            "workers": {
-              "type": "array",
-              "description": "Worker workflow metadata for deterministic selection",
-              "items": {
-                "type": "object",
-                "required": [
-                  "id",
-                  "capabilities",
-                  "payload-schema",
-                  "output-labeling",
-                  "idempotency-strategy"
-                ],
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "description": "Worker workflow ID"
-                  },
-                  "name": {
-                    "type": "string",
-                    "description": "Human-readable worker name"
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Worker description"
-                  },
-                  "capabilities": {
-                    "type": "array",
-                    "description": "Work types this worker can perform",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "payload-schema": {
-                    "type": "object",
-                    "description": "Worker payload schema definition",
-                    "additionalProperties": {
-                      "type": "object",
-                      "required": [
-                        "type",
-                        "description"
-                      ],
-                      "properties": {
-                        "type": {
-                          "type": "string",
-                          "enum": [
-                            "string",
-                            "number",
-                            "boolean",
-                            "array",
-                            "object"
-                          ]
-                        },
-                        "description": {
-                          "type": "string"
-                        },
-                        "required": {
-                          "type": "boolean"
-                        },
-                        "example": {}
-                      }
-                    }
-                  },
-                  "output-labeling": {
-                    "type": "object",
-                    "description": "Worker output labeling contract",
-                    "required": [
-                      "key-in-title"
-                    ],
-                    "properties": {
-                      "labels": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "key-in-title": {
-                        "type": "boolean"
-                      },
-                      "key-format": {
-                        "type": "string"
-                      },
-                      "metadata-fields": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "idempotency-strategy": {
-                    "type": "string",
-                    "description": "How worker ensures idempotent execution",
-                    "enum": [
-                      "branch-based",
-                      "pr-title-based",
-                      "issue-title-based",
-                      "cursor-based"
-                    ]
-                  },
-                  "priority": {
-                    "type": "integer",
-                    "description": "Worker priority for selection (higher = higher priority)"
-                  }
-                }
-              }
             }
           },
           "examples": [
             {
               "url": "https://github.com/orgs/github/projects/123",
-              "scope": [
-                "owner/repo1",
-                "owner/repo2"
-              ],
+              "scope": ["owner/repo1", "owner/repo2"],
               "max-updates": 50,
               "github-token": "${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}"
             },
             {
               "url": "https://github.com/users/username/projects/456",
-              "scope": [
-                "org:myorg"
-              ],
+              "scope": ["org:myorg"],
               "max-status-updates": 2,
               "do-not-downgrade-done-items": true
             }
           ]
         }
       ]
+    },
+    "campaign": {
+      "type": "object",
+      "description": "Campaign orchestration configuration. When present alongside 'project' field, triggers automatic generation of a campaign orchestrator workflow with discovery, coordination, and governance features.",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Optional campaign identifier. If not provided, derived from workflow filename.",
+          "examples": ["security-alert-burndown", "dependency-upgrade-campaign"]
+        },
+        "workflows": {
+          "type": "array",
+          "description": "List of worker workflow IDs (basename without .md) associated with this campaign",
+          "items": {
+            "type": "string"
+          },
+          "examples": [["code-scanning-fixer", "security-fix-pr"]]
+        },
+        "memory-paths": {
+          "type": "array",
+          "description": "Repo-memory paths where this campaign writes its state and metrics",
+          "items": {
+            "type": "string"
+          },
+          "examples": [["memory/campaigns/security-burndown/**"]]
+        },
+        "metrics-glob": {
+          "type": "string",
+          "description": "Glob pattern for locating JSON metrics snapshots in the memory/campaigns branch",
+          "examples": ["memory/campaigns/security-burndown-*/metrics/*.json"]
+        },
+        "cursor-glob": {
+          "type": "string",
+          "description": "Glob pattern for locating durable cursor/checkpoint files in the memory/campaigns branch",
+          "examples": ["memory/campaigns/security-burndown-*/cursor.json"]
+        },
+        "tracker-label": {
+          "type": "string",
+          "description": "Label used to discover worker-created issues/PRs",
+          "examples": ["campaign:security-2025"]
+        },
+        "owners": {
+          "type": "array",
+          "description": "Primary human owners for this campaign",
+          "items": {
+            "type": "string"
+          },
+          "examples": [["@username1", "@username2"]]
+        },
+        "risk-level": {
+          "type": "string",
+          "description": "Campaign risk level",
+          "enum": ["low", "medium", "high"],
+          "examples": ["high"]
+        },
+        "state": {
+          "type": "string",
+          "description": "Campaign lifecycle state",
+          "enum": ["planned", "active", "paused", "completed", "archived"],
+          "examples": ["active"]
+        },
+        "tags": {
+          "type": "array",
+          "description": "Free-form tags for categorization",
+          "items": {
+            "type": "string"
+          },
+          "examples": [["security", "modernization"]]
+        },
+        "governance": {
+          "type": "object",
+          "description": "Campaign governance policies for pacing and opt-out",
+          "additionalProperties": false,
+          "properties": {
+            "max-new-items-per-run": {
+              "type": "integer",
+              "description": "Maximum new items to add to project board per run",
+              "minimum": 0
+            },
+            "max-discovery-items-per-run": {
+              "type": "integer",
+              "description": "Maximum items to scan during discovery",
+              "minimum": 0
+            },
+            "max-discovery-pages-per-run": {
+              "type": "integer",
+              "description": "Maximum pages of results to fetch during discovery",
+              "minimum": 0
+            },
+            "opt-out-labels": {
+              "type": "array",
+              "description": "Labels that opt issues/PRs out of campaign tracking",
+              "items": {
+                "type": "string"
+              }
+            },
+            "do-not-downgrade-done-items": {
+              "type": "boolean",
+              "description": "Prevent moving items backward (e.g., Done → In Progress)"
+            },
+            "max-project-updates-per-run": {
+              "type": "integer",
+              "description": "Maximum project update operations per run",
+              "minimum": 0
+            },
+            "max-comments-per-run": {
+              "type": "integer",
+              "description": "Maximum comment operations per run",
+              "minimum": 0
+            }
+          }
+        },
+        "bootstrap": {
+          "type": "object",
+          "description": "Bootstrap configuration for creating initial work items",
+          "required": ["mode"],
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "type": "string",
+              "description": "Bootstrap strategy",
+              "enum": ["seeder-worker", "project-todos", "manual"]
+            },
+            "seeder-worker": {
+              "type": "object",
+              "description": "Seeder worker configuration (only when mode is seeder-worker)",
+              "required": ["workflow-id", "payload"],
+              "properties": {
+                "workflow-id": {
+                  "type": "string",
+                  "description": "Worker workflow ID to dispatch"
+                },
+                "payload": {
+                  "type": "object",
+                  "description": "JSON payload to send to seeder worker"
+                },
+                "max-items": {
+                  "type": "integer",
+                  "description": "Maximum work items to return",
+                  "minimum": 0
+                }
+              }
+            },
+            "project-todos": {
+              "type": "object",
+              "description": "Project todos configuration (only when mode is project-todos)",
+              "properties": {
+                "status-field": {
+                  "type": "string",
+                  "description": "Project status field name",
+                  "default": "Status"
+                },
+                "todo-value": {
+                  "type": "string",
+                  "description": "Status value indicating Todo",
+                  "default": "Todo"
+                },
+                "max-items": {
+                  "type": "integer",
+                  "description": "Maximum Todo items to process",
+                  "minimum": 0
+                },
+                "require-fields": {
+                  "type": "array",
+                  "description": "Project fields that must be populated",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "workers": {
+          "type": "array",
+          "description": "Worker workflow metadata for deterministic selection",
+          "items": {
+            "type": "object",
+            "required": ["id", "capabilities", "payload-schema", "output-labeling", "idempotency-strategy"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Worker workflow ID"
+              },
+              "name": {
+                "type": "string",
+                "description": "Human-readable worker name"
+              },
+              "description": {
+                "type": "string",
+                "description": "Worker description"
+              },
+              "capabilities": {
+                "type": "array",
+                "description": "Work types this worker can perform",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "payload-schema": {
+                "type": "object",
+                "description": "Worker payload schema definition",
+                "additionalProperties": {
+                  "type": "object",
+                  "required": ["type", "description"],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["string", "number", "boolean", "array", "object"]
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "required": {
+                      "type": "boolean"
+                    },
+                    "example": {}
+                  }
+                }
+              },
+              "output-labeling": {
+                "type": "object",
+                "description": "Worker output labeling contract",
+                "required": ["key-in-title"],
+                "properties": {
+                  "labels": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "key-in-title": {
+                    "type": "boolean"
+                  },
+                  "key-format": {
+                    "type": "string"
+                  },
+                  "metadata-fields": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "idempotency-strategy": {
+                "type": "string",
+                "description": "How worker ensures idempotent execution",
+                "enum": ["branch-based", "pr-title-based", "issue-title-based", "cursor-based"]
+              },
+              "priority": {
+                "type": "integer",
+                "description": "Worker priority for selection (higher = higher priority)"
+              }
+            }
+          }
+        }
+      }
     },
     "safe-outputs": {
       "type": "object",
@@ -4736,18 +3983,13 @@
         {
           "create-issue": {
             "title-prefix": "[AI] ",
-            "labels": [
-              "automation",
-              "ai-generated"
-            ]
+            "labels": ["automation", "ai-generated"]
           }
         },
         {
           "create-pull-request": {
             "title-prefix": "[Bot] ",
-            "labels": [
-              "bot"
-            ]
+            "labels": ["bot"]
           }
         },
         {
@@ -4770,19 +4012,7 @@
             "type": "string",
             "pattern": "^(repo|[a-zA-Z0-9][-a-zA-Z0-9]{0,38}/[a-zA-Z0-9._-]+)$"
           },
-          "examples": [
-            [
-              "repo"
-            ],
-            [
-              "repo",
-              "octocat/hello-world"
-            ],
-            [
-              "microsoft/vscode",
-              "microsoft/typescript"
-            ]
-          ]
+          "examples": [["repo"], ["repo", "octocat/hello-world"], ["microsoft/vscode", "microsoft/typescript"]]
         },
         "create-issue": {
           "oneOf": [
@@ -4871,33 +4101,21 @@
               "examples": [
                 {
                   "title-prefix": "[ca] ",
-                  "labels": [
-                    "automation",
-                    "dependencies"
-                  ],
+                  "labels": ["automation", "dependencies"],
                   "assignees": "copilot"
                 },
                 {
                   "title-prefix": "[duplicate-code] ",
-                  "labels": [
-                    "code-quality",
-                    "automated-analysis"
-                  ],
+                  "labels": ["code-quality", "automated-analysis"],
                   "assignees": "copilot"
                 },
                 {
-                  "allowed-repos": [
-                    "org/other-repo",
-                    "org/another-repo"
-                  ],
+                  "allowed-repos": ["org/other-repo", "org/another-repo"],
                   "title-prefix": "[cross-repo] "
                 },
                 {
                   "title-prefix": "[weekly-report] ",
-                  "labels": [
-                    "report",
-                    "automation"
-                  ],
+                  "labels": ["report", "automation"],
                   "close-older-issues": true
                 }
               ]
@@ -5014,10 +4232,7 @@
                   "items": {
                     "type": "object",
                     "description": "View configuration for creating project views",
-                    "required": [
-                      "name",
-                      "layout"
-                    ],
+                    "required": ["name", "layout"],
                     "properties": {
                       "name": {
                         "type": "string",
@@ -5025,11 +4240,7 @@
                       },
                       "layout": {
                         "type": "string",
-                        "enum": [
-                          "table",
-                          "board",
-                          "roadmap"
-                        ],
+                        "enum": ["table", "board", "roadmap"],
                         "description": "The layout type of the view"
                       },
                       "filter": {
@@ -5056,10 +4267,7 @@
                   "description": "Optional array of project custom fields to create up-front. Useful for campaign projects that require a fixed set of fields.",
                   "items": {
                     "type": "object",
-                    "required": [
-                      "name",
-                      "data-type"
-                    ],
+                    "required": ["name", "data-type"],
                     "properties": {
                       "name": {
                         "type": "string",
@@ -5067,13 +4275,7 @@
                       },
                       "data-type": {
                         "type": "string",
-                        "enum": [
-                          "DATE",
-                          "TEXT",
-                          "NUMBER",
-                          "SINGLE_SELECT",
-                          "ITERATION"
-                        ],
+                        "enum": ["DATE", "TEXT", "NUMBER", "SINGLE_SELECT", "ITERATION"],
                         "description": "The GitHub Projects v2 custom field type"
                       },
                       "options": {
@@ -5185,10 +4387,7 @@
                   "items": {
                     "type": "object",
                     "description": "View configuration for creating project views",
-                    "required": [
-                      "name",
-                      "layout"
-                    ],
+                    "required": ["name", "layout"],
                     "properties": {
                       "name": {
                         "type": "string",
@@ -5196,11 +4395,7 @@
                       },
                       "layout": {
                         "type": "string",
-                        "enum": [
-                          "table",
-                          "board",
-                          "roadmap"
-                        ],
+                        "enum": ["table", "board", "roadmap"],
                         "description": "The layout type of the view"
                       },
                       "filter": {
@@ -5227,10 +4422,7 @@
                   "description": "Optional array of project custom fields to create automatically after project creation. Useful for campaign projects that require a fixed set of fields.",
                   "items": {
                     "type": "object",
-                    "required": [
-                      "name",
-                      "data-type"
-                    ],
+                    "required": ["name", "data-type"],
                     "properties": {
                       "name": {
                         "type": "string",
@@ -5238,13 +4430,7 @@
                       },
                       "data-type": {
                         "type": "string",
-                        "enum": [
-                          "DATE",
-                          "TEXT",
-                          "NUMBER",
-                          "SINGLE_SELECT",
-                          "ITERATION"
-                        ],
+                        "enum": ["DATE", "TEXT", "NUMBER", "SINGLE_SELECT", "ITERATION"],
                         "description": "The GitHub Projects v2 custom field type"
                       },
                       "options": {
@@ -5266,9 +4452,7 @@
               "description": "Enable project creation with default configuration (max=1)"
             },
             {
-              "enum": [
-                null
-              ],
+              "enum": [null],
               "description": "Alternative null value syntax"
             }
           ],
@@ -5323,16 +4507,9 @@
                   "description": "Optional prefix for the discussion title"
                 },
                 "category": {
-                  "type": [
-                    "string",
-                    "number"
-                  ],
+                  "type": ["string", "number"],
                   "description": "Optional discussion category. Can be a category ID (string or numeric value), category name, or category slug/route. If not specified, uses the first available category. Matched first against category IDs, then against category names, then against category slugs. Numeric values are automatically converted to strings at runtime.",
-                  "examples": [
-                    "General",
-                    "audits",
-                    123456789
-                  ]
+                  "examples": ["General", "audits", 123456789]
                 },
                 "labels": {
                   "type": "array",
@@ -5406,17 +4583,12 @@
                   "close-older-discussions": true
                 },
                 {
-                  "labels": [
-                    "weekly-report",
-                    "automation"
-                  ],
+                  "labels": ["weekly-report", "automation"],
                   "category": "reports",
                   "close-older-discussions": true
                 },
                 {
-                  "allowed-repos": [
-                    "org/other-repo"
-                  ],
+                  "allowed-repos": ["org/other-repo"],
                   "category": "General"
                 }
               ]
@@ -5470,10 +4642,7 @@
                   "required-category": "Ideas"
                 },
                 {
-                  "required-labels": [
-                    "resolved",
-                    "completed"
-                  ],
+                  "required-labels": ["resolved", "completed"],
                   "max": 1
                 }
               ]
@@ -5572,10 +4741,7 @@
                   "required-title-prefix": "[refactor] "
                 },
                 {
-                  "required-labels": [
-                    "automated",
-                    "stale"
-                  ],
+                  "required-labels": ["automated", "stale"],
                   "max": 10
                 }
               ]
@@ -5629,10 +4795,7 @@
                   "required-title-prefix": "[bot] "
                 },
                 {
-                  "required-labels": [
-                    "automated",
-                    "outdated"
-                  ],
+                  "required-labels": ["automated", "outdated"],
                   "max": 5
                 }
               ]
@@ -5686,10 +4849,7 @@
                   "required-title-prefix": "[bot] "
                 },
                 {
-                  "required-labels": [
-                    "automated",
-                    "ready"
-                  ],
+                  "required-labels": ["automated", "ready"],
                   "max": 1
                 }
               ]
@@ -5743,13 +4903,7 @@
                   "description": "List of allowed reasons for hiding older comments when hide-older-comments is enabled. Default: all reasons allowed (spam, abuse, off_topic, outdated, resolved).",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "spam",
-                      "abuse",
-                      "off_topic",
-                      "outdated",
-                      "resolved"
-                    ]
+                    "enum": ["spam", "abuse", "off_topic", "outdated", "resolved"]
                   }
                 }
               },
@@ -5818,11 +4972,7 @@
                 },
                 "if-no-changes": {
                   "type": "string",
-                  "enum": [
-                    "warn",
-                    "error",
-                    "ignore"
-                  ],
+                  "enum": ["warn", "error", "ignore"],
                   "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
                 },
                 "allow-empty": {
@@ -5869,19 +5019,13 @@
               "examples": [
                 {
                   "title-prefix": "[docs] ",
-                  "labels": [
-                    "documentation",
-                    "automation"
-                  ],
+                  "labels": ["documentation", "automation"],
                   "reviewers": "copilot",
                   "draft": false
                 },
                 {
                   "title-prefix": "[security-fix] ",
-                  "labels": [
-                    "security",
-                    "automated-fix"
-                  ],
+                  "labels": ["security", "automated-fix"],
                   "reviewers": "copilot"
                 }
               ]
@@ -5908,10 +5052,7 @@
                 "side": {
                   "type": "string",
                   "description": "Side of the diff for comments: 'LEFT' or 'RIGHT' (default: 'RIGHT')",
-                  "enum": [
-                    "LEFT",
-                    "RIGHT"
-                  ]
+                  "enum": ["LEFT", "RIGHT"]
                 },
                 "target": {
                   "type": "string",
@@ -6187,10 +5328,7 @@
                   "minimum": 1
                 },
                 "target": {
-                  "type": [
-                    "string",
-                    "number"
-                  ],
+                  "type": ["string", "number"],
                   "description": "Target issue/PR to assign agents to. Use 'triggering' (default) for the triggering issue/PR, '*' to require explicit issue_number/pull_number, or a specific issue/PR number. With 'triggering', auto-resolves from github.event.issue.number or github.event.pull_request.number."
                 },
                 "target-repo": {
@@ -6235,10 +5373,7 @@
                   "minimum": 1
                 },
                 "target": {
-                  "type": [
-                    "string",
-                    "number"
-                  ],
+                  "type": ["string", "number"],
                   "description": "Target issue to assign users to. Use 'triggering' (default) for the triggering issue, '*' to allow any issue, or a specific issue number."
                 },
                 "target-repo": {
@@ -6374,11 +5509,7 @@
                 "operation": {
                   "type": "string",
                   "description": "Default operation for body updates: 'append' (add to end), 'prepend' (add to start), or 'replace' (overwrite completely). Defaults to 'replace' if not specified.",
-                  "enum": [
-                    "append",
-                    "prepend",
-                    "replace"
-                  ]
+                  "enum": ["append", "prepend", "replace"]
                 },
                 "max": {
                   "type": "integer",
@@ -6435,11 +5566,7 @@
                 },
                 "if-no-changes": {
                   "type": "string",
-                  "enum": [
-                    "warn",
-                    "error",
-                    "ignore"
-                  ],
+                  "enum": ["warn", "error", "ignore"],
                   "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
                 },
                 "commit-title-suffix": {
@@ -6481,13 +5608,7 @@
                   "description": "List of allowed reasons for hiding comments. Default: all reasons allowed (spam, abuse, off_topic, outdated, resolved).",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "spam",
-                      "abuse",
-                      "off_topic",
-                      "outdated",
-                      "resolved"
-                    ]
+                    "enum": ["spam", "abuse", "off_topic", "outdated", "resolved"]
                   }
                 }
               },
@@ -6700,10 +5821,7 @@
         "staged": {
           "type": "boolean",
           "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)",
-          "examples": [
-            true,
-            false
-          ]
+          "examples": [true, false]
         },
         "env": {
           "type": "object",
@@ -6719,11 +5837,7 @@
         "github-token": {
           "$ref": "#/$defs/github_token",
           "description": "GitHub token to use for safe output jobs. Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }}",
-          "examples": [
-            "${{ secrets.GITHUB_TOKEN }}",
-            "${{ secrets.CUSTOM_PAT }}",
-            "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-          ]
+          "examples": ["${{ secrets.GITHUB_TOKEN }}", "${{ secrets.CUSTOM_PAT }}", "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"]
         },
         "app": {
           "type": "object",
@@ -6732,25 +5846,17 @@
             "app-id": {
               "type": "string",
               "description": "GitHub App ID. Should reference a variable (e.g., ${{ vars.APP_ID }}).",
-              "examples": [
-                "${{ vars.APP_ID }}",
-                "${{ secrets.APP_ID }}"
-              ]
+              "examples": ["${{ vars.APP_ID }}", "${{ secrets.APP_ID }}"]
             },
             "private-key": {
               "type": "string",
               "description": "GitHub App private key. Should reference a secret (e.g., ${{ secrets.APP_PRIVATE_KEY }}).",
-              "examples": [
-                "${{ secrets.APP_PRIVATE_KEY }}"
-              ]
+              "examples": ["${{ secrets.APP_PRIVATE_KEY }}"]
             },
             "owner": {
               "type": "string",
               "description": "Optional: The owner of the GitHub App installation. If empty, defaults to the current repository owner.",
-              "examples": [
-                "my-organization",
-                "${{ github.repository_owner }}"
-              ]
+              "examples": ["my-organization", "${{ github.repository_owner }}"]
             },
             "repositories": {
               "type": "array",
@@ -6758,21 +5864,10 @@
               "items": {
                 "type": "string"
               },
-              "examples": [
-                [
-                  "repo1",
-                  "repo2"
-                ],
-                [
-                  "my-repo"
-                ]
-              ]
+              "examples": [["repo1", "repo2"], ["my-repo"]]
             }
           },
-          "required": [
-            "app-id",
-            "private-key"
-          ],
+          "required": ["app-id", "private-key"],
           "additionalProperties": false
         },
         "max-patch-size": {
@@ -6930,13 +6025,7 @@
                         },
                         "type": {
                           "type": "string",
-                          "enum": [
-                            "string",
-                            "boolean",
-                            "choice",
-                            "number",
-                            "environment"
-                          ],
+                          "enum": ["string", "boolean", "choice", "number", "environment"],
                           "description": "Input parameter type. Supports: string (default), boolean, choice (string with predefined options), number, and environment (string referencing a GitHub environment)",
                           "default": "string"
                         },
@@ -6973,81 +6062,52 @@
             "footer": {
               "type": "string",
               "description": "Custom footer message template for AI-generated content. Available placeholders: {workflow_name}, {run_url}, {triggering_number}, {workflow_source}, {workflow_source_url}. Example: '> Generated by [{workflow_name}]({run_url})'",
-              "examples": [
-                "> Generated by [{workflow_name}]({run_url})",
-                "> AI output from [{workflow_name}]({run_url}) for #{triggering_number}"
-              ]
+              "examples": ["> Generated by [{workflow_name}]({run_url})", "> AI output from [{workflow_name}]({run_url}) for #{triggering_number}"]
             },
             "footer-install": {
               "type": "string",
               "description": "Custom installation instructions template appended to the footer. Available placeholders: {workflow_source}, {workflow_source_url}. Example: '> Install: `gh aw add {workflow_source}`'",
-              "examples": [
-                "> Install: `gh aw add {workflow_source}`",
-                "> [Add this workflow]({workflow_source_url})"
-              ]
+              "examples": ["> Install: `gh aw add {workflow_source}`", "> [Add this workflow]({workflow_source_url})"]
             },
             "footer-workflow-recompile": {
               "type": "string",
               "description": "Custom footer message template for workflow recompile issues. Available placeholders: {workflow_name}, {run_url}, {repository}. Example: '> Workflow sync report by [{workflow_name}]({run_url}) for {repository}'",
-              "examples": [
-                "> Workflow sync report by [{workflow_name}]({run_url}) for {repository}",
-                "> Maintenance report by [{workflow_name}]({run_url})"
-              ]
+              "examples": ["> Workflow sync report by [{workflow_name}]({run_url}) for {repository}", "> Maintenance report by [{workflow_name}]({run_url})"]
             },
             "footer-workflow-recompile-comment": {
               "type": "string",
               "description": "Custom footer message template for comments on workflow recompile issues. Available placeholders: {workflow_name}, {run_url}, {repository}. Example: '> Update from [{workflow_name}]({run_url}) for {repository}'",
-              "examples": [
-                "> Update from [{workflow_name}]({run_url}) for {repository}",
-                "> Maintenance update by [{workflow_name}]({run_url})"
-              ]
+              "examples": ["> Update from [{workflow_name}]({run_url}) for {repository}", "> Maintenance update by [{workflow_name}]({run_url})"]
             },
             "staged-title": {
               "type": "string",
               "description": "Custom title template for staged mode preview. Available placeholders: {operation}. Example: '\ud83c\udfad Preview: {operation}'",
-              "examples": [
-                "\ud83c\udfad Preview: {operation}",
-                "## Staged Mode: {operation}"
-              ]
+              "examples": ["\ud83c\udfad Preview: {operation}", "## Staged Mode: {operation}"]
             },
             "staged-description": {
               "type": "string",
               "description": "Custom description template for staged mode preview. Available placeholders: {operation}. Example: 'The following {operation} would occur if staged mode was disabled:'",
-              "examples": [
-                "The following {operation} would occur if staged mode was disabled:"
-              ]
+              "examples": ["The following {operation} would occur if staged mode was disabled:"]
             },
             "run-started": {
               "type": "string",
               "description": "Custom message template for workflow activation comment. Available placeholders: {workflow_name}, {run_url}, {event_type}. Default: 'Agentic [{workflow_name}]({run_url}) triggered by this {event_type}.'",
-              "examples": [
-                "Agentic [{workflow_name}]({run_url}) triggered by this {event_type}.",
-                "[{workflow_name}]({run_url}) started processing this {event_type}."
-              ]
+              "examples": ["Agentic [{workflow_name}]({run_url}) triggered by this {event_type}.", "[{workflow_name}]({run_url}) started processing this {event_type}."]
             },
             "run-success": {
               "type": "string",
               "description": "Custom message template for successful workflow completion. Available placeholders: {workflow_name}, {run_url}. Default: '\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.'",
-              "examples": [
-                "\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.",
-                "\u2705 [{workflow_name}]({run_url}) finished."
-              ]
+              "examples": ["\u2705 Agentic [{workflow_name}]({run_url}) completed successfully.", "\u2705 [{workflow_name}]({run_url}) finished."]
             },
             "run-failure": {
               "type": "string",
               "description": "Custom message template for failed workflow. Available placeholders: {workflow_name}, {run_url}, {status}. Default: '\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.'",
-              "examples": [
-                "\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.",
-                "\u274c [{workflow_name}]({run_url}) {status}."
-              ]
+              "examples": ["\u274c Agentic [{workflow_name}]({run_url}) {status} and wasn't able to produce a result.", "\u274c [{workflow_name}]({run_url}) {status}."]
             },
             "detection-failure": {
               "type": "string",
               "description": "Custom message template for detection job failure. Available placeholders: {workflow_name}, {run_url}. Default: '\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.'",
-              "examples": [
-                "\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.",
-                "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."
-              ]
+              "examples": ["\u26a0\ufe0f Security scanning failed for [{workflow_name}]({run_url}). Review the logs for details.", "\u26a0\ufe0f Detection job failed in [{workflow_name}]({run_url})."]
             },
             "append-only-comments": {
               "type": "boolean",
@@ -7129,9 +6189,7 @@
                   "description": "GitHub token to use for dispatching workflows. Overrides global github-token if specified."
                 }
               },
-              "required": [
-                "workflows"
-              ],
+              "required": ["workflows"],
               "additionalProperties": false
             },
             {
@@ -7177,9 +6235,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": [
-            "all"
-          ],
+          "enum": ["all"],
           "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
         },
         {
@@ -7187,13 +6243,7 @@
           "description": "List of repository permission levels that can trigger the workflow. Permission checks are automatically applied to potentially unsafe triggers.",
           "items": {
             "type": "string",
-            "enum": [
-              "admin",
-              "maintainer",
-              "maintain",
-              "write",
-              "triage"
-            ],
+            "enum": ["admin", "maintainer", "maintain", "write", "triage"],
             "description": "Repository permission level: 'admin' (full access), 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage' (issue management)"
           },
           "minItems": 1,
@@ -7215,10 +6265,7 @@
       "default": true,
       "$comment": "Strict mode enforces several security constraints that are validated in Go code (pkg/workflow/strict_mode_validation.go) rather than JSON Schema: (1) Write Permissions + Safe Outputs: When strict=true AND permissions contains write values (contents:write, issues:write, pull-requests:write), safe-outputs must be configured. This relationship is too complex for JSON Schema as it requires checking if ANY permission property has a 'write' value. (2) Network Requirements: When strict=true, the 'network' field must be present and cannot contain standalone wildcard '*' (but patterns like '*.example.com' ARE allowed). (3) MCP Container Network: Custom MCP servers with containers require explicit network configuration. (4) Action Pinning: Actions must be pinned to commit SHAs. These are enforced during compilation via validateStrictMode().",
       "description": "Enable strict mode validation for enhanced security and compliance. Strict mode enforces: (1) Write Permissions - refuses contents:write, issues:write, pull-requests:write; requires safe-outputs instead, (2) Network Configuration - requires explicit network configuration with no standalone wildcard '*' in allowed domains (patterns like '*.example.com' are allowed), (3) Action Pinning - enforces actions pinned to commit SHAs instead of tags/branches, (4) MCP Network - requires network configuration for custom MCP servers with containers, (5) Deprecated Fields - refuses deprecated frontmatter fields. Can be enabled per-workflow via 'strict: true' in frontmatter, or disabled via 'strict: false'. CLI flag takes precedence over frontmatter (gh aw compile --strict enforces strict mode). Defaults to true. See: https://githubnext.github.io/gh-aw/reference/frontmatter/#strict-mode-strict",
-      "examples": [
-        true,
-        false
-      ]
+      "examples": [true, false]
     },
     "safe-inputs": {
       "type": "object",
@@ -7227,9 +6274,7 @@
         "^([a-ln-z][a-z0-9_-]*|m[a-np-z][a-z0-9_-]*|mo[a-ce-z][a-z0-9_-]*|mod[a-df-z][a-z0-9_-]*|mode[a-z0-9_-]+)$": {
           "type": "object",
           "description": "Custom tool definition. The key is the tool name (lowercase alphanumeric with dashes/underscores).",
-          "required": [
-            "description"
-          ],
+          "required": ["description"],
           "properties": {
             "description": {
               "type": "string",
@@ -7243,13 +6288,7 @@
                 "properties": {
                   "type": {
                     "type": "string",
-                    "enum": [
-                      "string",
-                      "number",
-                      "boolean",
-                      "array",
-                      "object"
-                    ],
+                    "enum": ["string", "number", "boolean", "array", "object"],
                     "default": "string",
                     "description": "The JSON schema type of the input parameter."
                   },
@@ -7303,108 +6342,71 @@
               "description": "Timeout in seconds for tool execution. Default is 60 seconds. Applies to shell (run) and Python (py) tools.",
               "default": 60,
               "minimum": 1,
-              "examples": [
-                30,
-                60,
-                120,
-                300
-              ]
+              "examples": [30, 60, 120, 300]
             }
           },
           "additionalProperties": false,
           "oneOf": [
             {
-              "required": [
-                "script"
-              ],
+              "required": ["script"],
               "not": {
                 "anyOf": [
                   {
-                    "required": [
-                      "run"
-                    ]
+                    "required": ["run"]
                   },
                   {
-                    "required": [
-                      "py"
-                    ]
+                    "required": ["py"]
                   },
                   {
-                    "required": [
-                      "go"
-                    ]
+                    "required": ["go"]
                   }
                 ]
               }
             },
             {
-              "required": [
-                "run"
-              ],
+              "required": ["run"],
               "not": {
                 "anyOf": [
                   {
-                    "required": [
-                      "script"
-                    ]
+                    "required": ["script"]
                   },
                   {
-                    "required": [
-                      "py"
-                    ]
+                    "required": ["py"]
                   },
                   {
-                    "required": [
-                      "go"
-                    ]
+                    "required": ["go"]
                   }
                 ]
               }
             },
             {
-              "required": [
-                "py"
-              ],
+              "required": ["py"],
               "not": {
                 "anyOf": [
                   {
-                    "required": [
-                      "script"
-                    ]
+                    "required": ["script"]
                   },
                   {
-                    "required": [
-                      "run"
-                    ]
+                    "required": ["run"]
                   },
                   {
-                    "required": [
-                      "go"
-                    ]
+                    "required": ["go"]
                   }
                 ]
               }
             },
             {
-              "required": [
-                "go"
-              ],
+              "required": ["go"],
               "not": {
                 "anyOf": [
                   {
-                    "required": [
-                      "script"
-                    ]
+                    "required": ["script"]
                   },
                   {
-                    "required": [
-                      "run"
-                    ]
+                    "required": ["run"]
                   },
                   {
-                    "required": [
-                      "py"
-                    ]
+                    "required": ["py"]
                   }
                 ]
               }
@@ -7462,18 +6464,9 @@
           "description": "Runtime configuration object identified by runtime ID (e.g., 'node', 'python', 'go')",
           "properties": {
             "version": {
-              "type": [
-                "string",
-                "number"
-              ],
+              "type": ["string", "number"],
               "description": "Runtime version as a string (e.g., '22', '3.12', 'latest') or number (e.g., 22, 3.12). Numeric values are automatically converted to strings at runtime.",
-              "examples": [
-                "22",
-                "3.12",
-                "latest",
-                22,
-                3.12
-              ]
+              "examples": ["22", "3.12", "latest", 22, 3.12]
             },
             "action-repo": {
               "type": "string",
@@ -7510,9 +6503,7 @@
                     }
                   }
                 },
-                "required": [
-                  "slash_command"
-                ]
+                "required": ["slash_command"]
               },
               {
                 "properties": {
@@ -7522,9 +6513,7 @@
                     }
                   }
                 },
-                "required": [
-                  "command"
-                ]
+                "required": ["command"]
               }
             ]
           }
@@ -7543,9 +6532,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "issue_comment"
-                  ]
+                  "required": ["issue_comment"]
                 },
                 {
                   "properties": {
@@ -7555,9 +6542,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "pull_request_review_comment"
-                  ]
+                  "required": ["pull_request_review_comment"]
                 },
                 {
                   "properties": {
@@ -7567,9 +6552,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "label"
-                  ]
+                  "required": ["label"]
                 }
               ]
             }
@@ -7603,12 +6586,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": [
-            "claude",
-            "codex",
-            "copilot",
-            "custom"
-          ],
+          "enum": ["claude", "codex", "copilot", "custom"],
           "description": "Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub Copilot CLI), 'codex' (OpenAI Codex CLI), or 'custom' (user-defined steps)"
         },
         {
@@ -7617,26 +6595,13 @@
           "properties": {
             "id": {
               "type": "string",
-              "enum": [
-                "claude",
-                "codex",
-                "custom",
-                "copilot"
-              ],
+              "enum": ["claude", "codex", "custom", "copilot"],
               "description": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined GitHub Actions steps)"
             },
             "version": {
-              "type": [
-                "string",
-                "number"
-              ],
+              "type": ["string", "number"],
               "description": "Optional version of the AI engine action (e.g., 'beta', 'stable', 20). Has sensible defaults and can typically be omitted. Numeric values are automatically converted to strings at runtime.",
-              "examples": [
-                "beta",
-                "stable",
-                20,
-                3.11
-              ]
+              "examples": ["beta", "stable", 20, 3.11]
             },
             "model": {
               "type": "string",
@@ -7674,9 +6639,7 @@
                       "description": "Whether to cancel in-progress runs of the same concurrency group. Defaults to false for agentic workflow runs."
                     }
                   },
-                  "required": [
-                    "group"
-                  ],
+                  "required": ["group"],
                   "additionalProperties": false
                 }
               ],
@@ -7735,9 +6698,7 @@
                     "description": "Human-readable description of what this pattern matches"
                   }
                 },
-                "required": [
-                  "pattern"
-                ],
+                "required": ["pattern"],
                 "additionalProperties": false
               }
             },
@@ -7753,9 +6714,7 @@
               "description": "Optional array of command-line arguments to pass to the AI engine CLI. These arguments are injected after all other args but before the prompt."
             }
           },
-          "required": [
-            "id"
-          ],
+          "required": ["id"],
           "additionalProperties": false
         }
       ]
@@ -7766,18 +6725,13 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": [
-            "stdio",
-            "local"
-          ],
+          "enum": ["stdio", "local"],
           "description": "MCP connection type for stdio (local is an alias for stdio)"
         },
         "registry": {
           "type": "string",
           "description": "URI to the installation location when MCP is installed from a registry",
-          "examples": [
-            "https://api.mcp.github.com/v0/servers/microsoft/markitdown"
-          ]
+          "examples": ["https://api.mcp.github.com/v0/servers/microsoft/markitdown"]
         },
         "command": {
           "type": "string",
@@ -7792,17 +6746,9 @@
           "description": "Container image for stdio MCP connections"
         },
         "version": {
-          "type": [
-            "string",
-            "number"
-          ],
+          "type": ["string", "number"],
           "description": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0', 20, 3.11). Numeric values are automatically converted to strings at runtime.",
-          "examples": [
-            "latest",
-            "v1.0.0",
-            20,
-            3.11
-          ]
+          "examples": ["latest", "v1.0.0", 20, 3.11]
         },
         "args": {
           "type": "array",
@@ -7814,11 +6760,7 @@
         "entrypoint": {
           "type": "string",
           "description": "Optional entrypoint override for container (equivalent to docker run --entrypoint)",
-          "examples": [
-            "/bin/sh",
-            "/custom/entrypoint.sh",
-            "python"
-          ]
+          "examples": ["/bin/sh", "/custom/entrypoint.sh", "python"]
         },
         "entrypointArgs": {
           "type": "array",
@@ -7834,15 +6776,7 @@
             "pattern": "^[^:]+:[^:]+:(ro|rw)$"
           },
           "description": "Volume mounts for container in format 'source:dest:mode' where mode is 'ro' or 'rw'",
-          "examples": [
-            [
-              "/tmp/data:/data:ro"
-            ],
-            [
-              "/workspace:/workspace:rw",
-              "/config:/config:ro"
-            ]
-          ]
+          "examples": [["/tmp/data:/data:ro"], ["/workspace:/workspace:rw", "/config:/config:ro"]]
         },
         "env": {
           "type": "object",
@@ -7888,50 +6822,29 @@
           "items": {
             "type": "string"
           },
-          "examples": [
-            [
-              "*"
-            ],
-            [
-              "store_memory",
-              "retrieve_memory"
-            ],
-            [
-              "brave_web_search"
-            ]
-          ]
+          "examples": [["*"], ["store_memory", "retrieve_memory"], ["brave_web_search"]]
         }
       },
       "additionalProperties": false,
       "$comment": "Validation constraints: (1) Mutual exclusion: 'command' and 'container' cannot both be specified. (2) Requirement: Either 'command' or 'container' must be provided (via 'anyOf'). (3) Type constraint: When 'type' is 'stdio' or 'local', either 'command' or 'container' is required. Note: Per-server 'network' field is deprecated and ignored.",
       "anyOf": [
         {
-          "required": [
-            "type"
-          ]
+          "required": ["type"]
         },
         {
-          "required": [
-            "command"
-          ]
+          "required": ["command"]
         },
         {
-          "required": [
-            "container"
-          ]
+          "required": ["container"]
         }
       ],
       "not": {
         "allOf": [
           {
-            "required": [
-              "command"
-            ]
+            "required": ["command"]
           },
           {
-            "required": [
-              "container"
-            ]
+            "required": ["container"]
           }
         ]
       },
@@ -7940,24 +6853,17 @@
           "if": {
             "properties": {
               "type": {
-                "enum": [
-                  "stdio",
-                  "local"
-                ]
+                "enum": ["stdio", "local"]
               }
             }
           },
           "then": {
             "anyOf": [
               {
-                "required": [
-                  "command"
-                ]
+                "required": ["command"]
               },
               {
-                "required": [
-                  "container"
-                ]
+                "required": ["container"]
               }
             ]
           }
@@ -7970,17 +6876,13 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": [
-            "http"
-          ],
+          "enum": ["http"],
           "description": "MCP connection type for HTTP"
         },
         "registry": {
           "type": "string",
           "description": "URI to the installation location when MCP is installed from a registry",
-          "examples": [
-            "https://api.mcp.github.com/v0/servers/microsoft/markitdown"
-          ]
+          "examples": ["https://api.mcp.github.com/v0/servers/microsoft/markitdown"]
         },
         "url": {
           "type": "string",
@@ -8003,34 +6905,17 @@
           "items": {
             "type": "string"
           },
-          "examples": [
-            [
-              "*"
-            ],
-            [
-              "store_memory",
-              "retrieve_memory"
-            ],
-            [
-              "brave_web_search"
-            ]
-          ]
+          "examples": [["*"], ["store_memory", "retrieve_memory"], ["brave_web_search"]]
         }
       },
-      "required": [
-        "url"
-      ],
+      "required": ["url"],
       "additionalProperties": false
     },
     "github_token": {
       "type": "string",
       "pattern": "^\\$\\{\\{\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*(\\s*\\|\\|\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*)*\\s*\\}\\}$",
       "description": "GitHub token expression using secrets. Pattern details: `[A-Za-z_][A-Za-z0-9_]*` matches a valid secret name (starts with a letter or underscore, followed by letters, digits, or underscores). The full pattern matches expressions like `${{ secrets.NAME }}` or `${{ secrets.NAME1 || secrets.NAME2 }}`.",
-      "examples": [
-        "${{ secrets.GITHUB_TOKEN }}",
-        "${{ secrets.CUSTOM_PAT }}",
-        "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-      ]
+      "examples": ["${{ secrets.GITHUB_TOKEN }}", "${{ secrets.CUSTOM_PAT }}", "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"]
     },
     "githubActionsStep": {
       "type": "object",
@@ -8091,14 +6976,10 @@
       "additionalProperties": false,
       "anyOf": [
         {
-          "required": [
-            "uses"
-          ]
+          "required": ["uses"]
         },
         {
-          "required": [
-            "run"
-          ]
+          "required": ["run"]
         }
       ]
     }
