@@ -2,8 +2,12 @@
 title: Campaign Lifecycle
 description: Campaign execution phases, state management, and workflow coordination
 banner:
-  content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
+  content: '<strong>⚠️ Deprecated:</strong> This describes the deprecated <code>.campaign.md</code> format. Use the <code>project</code> field in workflow frontmatter instead.'
 ---
+
+:::caution[File format deprecated]
+This guide describes the deprecated `.campaign.md` file format. For current project tracking, use the `project` field in workflow frontmatter. See [Project Tracking](/gh-aw/reference/frontmatter/#project-tracking-project).
+:::
 
 Campaign orchestrators execute on a schedule to coordinate worker workflows and discover outputs. Orchestrators are dispatch-only: they can coordinate, but all GitHub writes (Projects, issues/PRs, comments) happen in worker workflows.
 

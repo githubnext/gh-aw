@@ -9,7 +9,7 @@ Example campaigns demonstrating worker coordination, standardized contracts, and
 
 ## Security Audit Campaign
 
-[**Security Audit 2026**](/gh-aw/examples/campaigns/security-auditcampaign/) demonstrates:
+**Security Audit 2026** demonstrates:
 
 - Worker discovery via tracker labels
 - Dispatch-only worker design
@@ -117,8 +117,8 @@ Workflows with schedules or event triggers should run independently and let the 
 
 ```
 .github/workflows/
-├── security-audit.campaign.md           # Campaign spec
-├── security-audit.campaign.lock.yml     # Compiled orchestrator
+├── security-audit.md                    # Campaign orchestrator workflow
+├── security-audit.lock.yml              # Compiled orchestrator
 ├── security-scanner.md                  # Worker workflow
 ├── security-fixer.md                    # Worker workflow
 └── security-reviewer.md                 # Worker workflow
