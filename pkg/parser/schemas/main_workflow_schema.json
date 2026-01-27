@@ -10,11 +10,13 @@
     "name": {
       "type": "string",
       "minLength": 1,
+      "maxLength": 256,
       "description": "Workflow name that appears in the GitHub Actions interface. If not specified, defaults to the filename without extension.",
       "examples": ["Copilot Agent PR Analysis", "Dev Hawk", "Smoke Claude"]
     },
     "description": {
       "type": "string",
+      "maxLength": 10000,
       "description": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)",
       "examples": ["Quickstart for using the GitHub Actions library"]
     },
@@ -26,6 +28,7 @@
     "tracker-id": {
       "type": "string",
       "minLength": 8,
+      "maxLength": 128,
       "pattern": "^[a-zA-Z0-9_-]+$",
       "description": "Optional tracker identifier to tag all created assets (issues, discussions, comments, pull requests). Must be at least 8 characters and contain only alphanumeric characters, hyphens, and underscores. This identifier will be inserted in the body/description of all created assets to enable searching and retrieving assets associated with this workflow.",
       "examples": ["workflow-2024-q1", "team-alpha-bot", "security_audit_v2"]
