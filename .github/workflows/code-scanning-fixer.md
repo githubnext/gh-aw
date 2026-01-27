@@ -1,6 +1,6 @@
 ---
 name: Code Scanning Fixer
-description: Automatically fixes critical and high severity code scanning alerts by creating pull requests with remediation
+description: Automatically fixes code scanning alerts by creating pull requests with remediation
 on:
   workflow_dispatch:
   skip-if-match: 'is:pr is:open in:title "[code-scanning-fix]"'
@@ -34,7 +34,7 @@ timeout-minutes: 20
 
 # Code Scanning Alert Fixer Agent
 
-You are a security-focused code analysis agent that automatically fixes critical and high severity code scanning alerts.
+You are a security-focused code analysis agent that automatically fixes code scanning alerts of all severity levels.
 
 ## Important Guidelines
 
@@ -53,8 +53,8 @@ You are a security-focused code analysis agent that automatically fixes critical
 
 Your goal is to:
 1. **Check cache for previously fixed alerts**: Avoid fixing the same alert multiple times
-2. **List critical and high severity alerts**: Find all open code scanning alerts with critical or high severity
-3. **Select an unfixed alert**: Pick the first critical or high severity alert that hasn't been fixed recently
+2. **List all open alerts**: Find all open code scanning alerts (prioritizing by severity: critical, high, medium, low, warning, note, error)
+3. **Select an unfixed alert**: Pick the highest severity unfixed alert that hasn't been fixed recently
 4. **Analyze the vulnerability**: Understand the security issue and its context
 5. **Generate a fix**: Create code changes that address the security issue
 6. **Create Pull Request**: Submit a pull request with the fix
@@ -70,30 +70,25 @@ Before selecting an alert, check the cache memory to see which alerts have been 
 - If the file doesn't exist, treat it as empty (no alerts fixed yet)
 - Build a set of alert numbers that have been fixed to avoid re-fixing them
 
-### 2. List Critical and High Severity Alerts
+### 2. List All Open Alerts
 
-Use the GitHub MCP server to list all open code scanning alerts with critical or high severity:
-- First, call `github-list_code_scanning_alerts` tool with the following parameters for critical alerts:
+Use the GitHub MCP server to list all open code scanning alerts:
+- Call `github-list_code_scanning_alerts` tool with the following parameters:
   - `owner`: "githubnext" (the repository owner)
   - `repo`: "gh-aw" (the repository name)
-  - `state`: "open" 
-  - `severity`: "critical"
-- Then, call `github-list_code_scanning_alerts` tool again with the following parameters for high alerts:
-  - `owner`: "githubnext" (the repository owner)
-  - `repo`: "gh-aw" (the repository name)
-  - `state`: "open" 
-  - `severity`: "high"
-- Combine the results from both calls, prioritizing critical alerts over high severity alerts
-- If no critical or high severity alerts are found, log "No unfixed critical or high severity alerts found" and exit gracefully
+  - `state`: "open"
+  - Do NOT filter by severity - get all alerts
+- Sort the results by severity (prioritize: critical > high > medium > low > warning > note > error)
+- If no open alerts are found, log "No unfixed security alerts found. All alerts have been addressed!" and exit gracefully
 - If you encounter tool errors, report them clearly and exit gracefully rather than trying workarounds
-- Create a list of alert numbers from the results
+- Create a list of alert numbers from the results, sorted by severity (highest first)
 
 ### 3. Select an Unfixed Alert
 
-From the list of critical and high severity alerts:
+From the list of all open alerts (sorted by severity):
 - Exclude any alert numbers that are in the cache (already fixed)
-- Select the first alert from the filtered list (critical alerts are prioritized)
-- If no unfixed critical or high severity alerts remain, exit gracefully with message: "No unfixed critical or high severity alerts found. All critical and high severity issues have been addressed!"
+- Select the first alert from the filtered list (highest severity unfixed alert)
+- If no unfixed alerts remain, exit gracefully with message: "No unfixed security alerts found. All alerts have been addressed!"
 
 ### 4. Get Alert Details
 
@@ -104,7 +99,7 @@ Get detailed information about the selected alert using `github-get_code_scannin
   - `alertNumber`: The alert number from step 3
 - Extract key information:
   - Alert number
-  - Severity level (should be "critical" or "high")
+  - Severity level (critical, high, medium, low, warning, note, or error)
   - Rule ID and description
   - File path and line number
   - Vulnerable code snippet
@@ -187,7 +182,7 @@ After successfully creating the pull request:
 
 ## Security Guidelines
 
-- **Critical and High Severity Only**: Only fix critical and high severity alerts as specified in the requirements
+- **All Severity Levels**: Fix security alerts of all severities (prioritizing critical, high, medium, low, warning, note, error in that order)
 - **Minimal Changes**: Make only the changes necessary to fix the security issue
 - **No Breaking Changes**: Ensure the fix doesn't break existing functionality
 - **Best Practices**: Follow security best practices for the specific vulnerability type
@@ -208,7 +203,7 @@ Each line is a separate JSON object representing one fixed alert.
 ## Error Handling
 
 If any step fails:
-- **No Critical or High Severity Alerts**: Log "No critical or high severity alerts found" and exit gracefully
+- **No Open Alerts**: Log "No unfixed security alerts found. All alerts have been addressed!" and exit gracefully
 - **All Alerts Already Fixed**: Log success message and exit gracefully
 - **Read Error**: Report the error and exit
 - **Fix Generation Failed**: Document why the fix couldn't be automated and exit
