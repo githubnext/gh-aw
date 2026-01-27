@@ -187,8 +187,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeArgs = append(claudeArgs, "--allowed-tools", allowedTools)
 	}
 
-	// Add debug flag
-	claudeArgs = append(claudeArgs, "--debug")
+	// Add debug-file flag to write debug logs directly to file
+	// This implicitly enables debug mode and provides cleaner, more reliable log capture
+	// than shell redirection with 2>&1 | tee
+	claudeArgs = append(claudeArgs, "--debug-file", logFile)
 
 	// Always add verbose flag for enhanced debugging output
 	claudeArgs = append(claudeArgs, "--verbose")
@@ -391,31 +393,35 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// Compute GH_AW_TOOL_BINS on the runner side (safer than shell expansion inside container)
 		toolBinsSetup := GetToolBinsSetup()
 
+		// Note: Claude Code CLI will write debug logs directly to the file specified by --debug-file
+		// We no longer need 2>&1 | tee since debug logs are written separately
+		// The JSON output will still appear on stdout for monitoring
 		if promptSetup != "" {
 			command = fmt.Sprintf(`set -o pipefail
           %s
 %s
 %s %s \
-  -- %s \
-  2>&1 | tee %s`, promptSetup, toolBinsSetup, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand, shellEscapeArg(logFile))
+  -- %s`, promptSetup, toolBinsSetup, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
 %s
 %s %s \
-  -- %s \
-  2>&1 | tee %s`, toolBinsSetup, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand, shellEscapeArg(logFile))
+  -- %s`, toolBinsSetup, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand)
 		}
 	} else {
 		// Run Claude command without AWF wrapper
+		// Note: Claude Code CLI will write debug logs directly to the file specified by --debug-file
+		// We no longer need 2>&1 | tee since debug logs are written separately
+		// The JSON output will still appear on stdout for monitoring
 		if promptSetup != "" {
 			command = fmt.Sprintf(`set -o pipefail
           %s
           # Execute Claude Code CLI with prompt from file
-          %s 2>&1 | tee %s`, promptSetup, claudeCommand, logFile)
+          %s`, promptSetup, claudeCommand)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          %s 2>&1 | tee %s`, claudeCommand, logFile)
+          %s`, claudeCommand)
 		}
 	}
 
