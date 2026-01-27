@@ -121,7 +121,6 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 		return true
 	}
 
-
 	// Regular workflow file - compile normally
 	compileHelpersLog.Printf("Compiling as regular workflow: %s", file)
 	if verbose {
