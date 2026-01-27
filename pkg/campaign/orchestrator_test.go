@@ -137,7 +137,7 @@ func TestBuildOrchestrator_DispatchOnlyPolicy(t *testing.T) {
 		spec := &CampaignSpec{
 			ID:          "dispatch-only-campaign",
 			Name:        "Dispatch Only Campaign",
-			Description: "Campaign orchestrator restricted to dispatch-workflow",
+			Description: "Campaign orchestrator with dispatch and project capabilities",
 			ProjectURL:  "https://github.com/orgs/test/projects/1",
 			Workflows:   []string{"worker-a", "worker-b"},
 			MemoryPaths: []string{"memory/campaigns/dispatch-only-campaign/**"},
@@ -158,14 +158,24 @@ func TestBuildOrchestrator_DispatchOnlyPolicy(t *testing.T) {
 		if len(data.SafeOutputs.DispatchWorkflow.Workflows) != 2 {
 			t.Fatalf("expected 2 allowlisted workflows, got %d", len(data.SafeOutputs.DispatchWorkflow.Workflows))
 		}
-		if data.SafeOutputs.CreateIssues != nil || data.SafeOutputs.AddComments != nil || data.SafeOutputs.UpdateProjects != nil || data.SafeOutputs.CreateProjectStatusUpdates != nil {
-			t.Fatalf("expected dispatch-only orchestrator to omit non-dispatch safe outputs")
+
+		// Orchestrators should have update-project and create-project-status-update for dashboard maintenance
+		if data.SafeOutputs.UpdateProjects == nil {
+			t.Fatalf("expected update-project safe output to be enabled")
+		}
+		if data.SafeOutputs.CreateProjectStatusUpdates == nil {
+			t.Fatalf("expected create-project-status-update safe output to be enabled")
 		}
 
-		// Dispatch-only policy should not grant GitHub tool access to the agent.
+		// Orchestrators should NOT have create-issue or add-comment (workers handle those)
+		if data.SafeOutputs.CreateIssues != nil || data.SafeOutputs.AddComments != nil {
+			t.Fatalf("expected orchestrator to omit create-issue and add-comment safe outputs")
+		}
+
+		// Orchestrators should not have GitHub tool access to the agent.
 		if data.Tools != nil {
 			if _, ok := data.Tools["github"]; ok {
-				t.Fatalf("expected dispatch-only orchestrator to omit github tools")
+				t.Fatalf("expected orchestrator to omit github tools")
 			}
 		}
 	})
@@ -253,8 +263,26 @@ func TestBuildOrchestrator_GovernanceDoesNotGrantWriteSafeOutputs(t *testing.T) 
 		if data.SafeOutputs.DispatchWorkflow.Max != 3 {
 			t.Fatalf("unexpected dispatch-workflow max: got %d, want %d", data.SafeOutputs.DispatchWorkflow.Max, 3)
 		}
-		if data.SafeOutputs.CreateIssues != nil || data.SafeOutputs.AddComments != nil || data.SafeOutputs.UpdateProjects != nil || data.SafeOutputs.CreateProjectStatusUpdates != nil {
-			t.Fatalf("expected orchestrator to omit non-dispatch safe outputs regardless of governance")
+
+		// Governance should control update-project max
+		if data.SafeOutputs.UpdateProjects == nil {
+			t.Fatalf("expected update-project safe output to be enabled")
+		}
+		if data.SafeOutputs.UpdateProjects.Max != 4 {
+			t.Fatalf("unexpected update-project max: got %d, want %d", data.SafeOutputs.UpdateProjects.Max, 4)
+		}
+
+		// create-project-status-update should always be enabled
+		if data.SafeOutputs.CreateProjectStatusUpdates == nil {
+			t.Fatalf("expected create-project-status-update safe output to be enabled")
+		}
+		if data.SafeOutputs.CreateProjectStatusUpdates.Max != 1 {
+			t.Fatalf("unexpected create-project-status-update max: got %d, want %d", data.SafeOutputs.CreateProjectStatusUpdates.Max, 1)
+		}
+
+		// Orchestrators should NOT have create-issue or add-comment (governance MaxCommentsPerRun doesn't grant add-comment)
+		if data.SafeOutputs.CreateIssues != nil || data.SafeOutputs.AddComments != nil {
+			t.Fatalf("expected orchestrator to omit create-issue and add-comment safe outputs regardless of governance")
 		}
 	})
 }

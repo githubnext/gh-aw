@@ -375,13 +375,15 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		appendPromptSection(markdownBuilder, "CLOSING INSTRUCTIONS (HIGHEST PRIORITY)", closingInstructions)
 	}
 
-	// Campaign orchestrators are dispatch-only: they may only dispatch allowlisted
-	// workflows via the dispatch-workflow safe output. All side effects (Projects,
-	// issues/PRs, comments) must be performed by dispatched worker workflows.
+	// Campaign orchestrators can dispatch workflows and perform limited Project operations.
+	// Project writes (update-project, create-project-status-update) are allowed to enable
+	// orchestrators to maintain campaign dashboards and status updates.
 	//
 	// Note: Campaign orchestrators intentionally omit explicit `permissions:` from
 	// the generated markdown; safe-output jobs have their own scoped permissions.
 	safeOutputs := &workflow.SafeOutputsConfig{}
+
+	// Configure dispatch-workflow for worker coordination
 	if len(spec.Workflows) > 0 {
 		dispatchWorkflowConfig := &workflow.DispatchWorkflowConfig{
 			BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 3},
@@ -391,7 +393,25 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		orchestratorLog.Printf("Campaign orchestrator '%s' configured with dispatch_workflow for %d workflows", spec.ID, len(spec.Workflows))
 	}
 
-	orchestratorLog.Printf("Campaign orchestrator '%s' built successfully with dispatch-workflow safe output", spec.ID)
+	// Configure update-project for campaign dashboard maintenance
+	maxProjectUpdates := 10 // default
+	if spec.Governance != nil && spec.Governance.MaxProjectUpdatesPerRun > 0 {
+		maxProjectUpdates = spec.Governance.MaxProjectUpdatesPerRun
+	}
+	updateProjectConfig := &workflow.UpdateProjectConfig{
+		BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: maxProjectUpdates},
+	}
+	safeOutputs.UpdateProjects = updateProjectConfig
+	orchestratorLog.Printf("Campaign orchestrator '%s' configured with update-project (max: %d)", spec.ID, maxProjectUpdates)
+
+	// Configure create-project-status-update for campaign summaries
+	statusUpdateConfig := &workflow.CreateProjectStatusUpdateConfig{
+		BaseSafeOutputConfig: workflow.BaseSafeOutputConfig{Max: 1},
+	}
+	safeOutputs.CreateProjectStatusUpdates = statusUpdateConfig
+	orchestratorLog.Printf("Campaign orchestrator '%s' configured with create-project-status-update", spec.ID)
+
+	orchestratorLog.Printf("Campaign orchestrator '%s' built successfully with dispatch-workflow, update-project, and create-project-status-update safe outputs", spec.ID)
 
 	// Extract file-glob patterns from memory-paths or metrics-glob to support
 	// multiple directory structures (e.g., both dated "campaign-id-*/**" and non-dated "campaign-id/**")
