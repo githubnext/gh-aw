@@ -72,8 +72,6 @@ func extractFileGlobPatterns(spec *CampaignSpec) []string {
 	return []string{fallbackPattern}
 }
 
-
-
 // BuildOrchestrator constructs a minimal agentic workflow representation for a
 // given CampaignSpec. The resulting WorkflowData is compiled via the standard
 // CompileWorkflowDataWithValidation pipeline, and the orchestratorPath
