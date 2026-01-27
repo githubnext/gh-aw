@@ -97,14 +97,14 @@ var MirroredEnvVars = []string{
 // GetMirroredEnvArgs returns the AWF command-line arguments for mirroring
 // environment variables from the runner into the agent container.
 //
-// AWF uses the --env flag to pass environment variables. When a variable
-// is specified without a value (just the name), AWF checks if it exists
-// on the host and passes it through if present.
+// AWF uses the --env flag to pass environment variables in KEY=VALUE format.
+// The output uses shell variable expansion syntax (e.g., JAVA_HOME=${JAVA_HOME})
+// so that the actual value is resolved at runtime from the host environment.
 //
-// Example output: ["--env", "JAVA_HOME", "--env", "ANDROID_HOME", ...]
+// Example output: ["--env", "JAVA_HOME=${JAVA_HOME}", "--env", "ANDROID_HOME=${ANDROID_HOME}", ...]
 //
 // This function always returns the same list of environment variables to mirror.
-// AWF handles the case where a variable doesn't exist on the host gracefully.
+// Variables that don't exist on the host will expand to empty strings at runtime.
 func GetMirroredEnvArgs() []string {
 	envMirrorLog.Print("Generating mirrored environment variable arguments")
 
@@ -115,7 +115,8 @@ func GetMirroredEnvArgs() []string {
 
 	var args []string
 	for _, envVar := range sortedVars {
-		args = append(args, "--env", envVar)
+		// Use shell variable expansion syntax so the value is resolved at runtime
+		args = append(args, "--env", envVar+"=${"+envVar+"}")
 	}
 
 	envMirrorLog.Printf("Generated %d environment variable mirror arguments", len(sortedVars))
