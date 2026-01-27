@@ -321,9 +321,23 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		orchestratorLog.Printf("Campaign orchestrator '%s' using default engine: %s", spec.ID, engineID)
 	}
 
-	// Deliberately omit GitHub tool access from orchestrators. All writes and GitHub
-	// API operations should be performed by dispatched worker workflows.
+	// Configure GitHub MCP for discovery with budget enforcement
+	maxDiscoveryItems := 100
+	maxDiscoveryPages := 10
+	if spec.Governance != nil {
+		if spec.Governance.MaxDiscoveryItemsPerRun > 0 {
+			maxDiscoveryItems = spec.Governance.MaxDiscoveryItemsPerRun
+		}
+		if spec.Governance.MaxDiscoveryPagesPerRun > 0 {
+			maxDiscoveryPages = spec.Governance.MaxDiscoveryPagesPerRun
+		}
+	}
+
 	tools := map[string]any{
+		"github": map[string]any{
+			"toolsets": []string{"repos", "issues", "pull_requests"},
+			"mode":     "remote",
+		},
 		"repo-memory": []any{
 			map[string]any{
 				"id":          "campaigns",
@@ -335,6 +349,8 @@ func BuildOrchestrator(spec *CampaignSpec, campaignFilePath string) (*workflow.W
 		"bash": []any{"*"},
 		"edit": nil,
 	}
+	orchestratorLog.Printf("Campaign orchestrator '%s' configured with GitHub MCP (max items: %d, max pages: %d)",
+		spec.ID, maxDiscoveryItems, maxDiscoveryPages)
 
 	data := &workflow.WorkflowData{
 		Name:            name,
