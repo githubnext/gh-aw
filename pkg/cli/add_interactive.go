@@ -69,11 +69,11 @@ func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool
 	// Clear the screen for a fresh interactive experience
 	fmt.Fprint(os.Stderr, "\033[H\033[2J")
 
-	// Step 1: Welcome message
+	// Step 1: Welcome message with teletype effect
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "🚀 Welcome to GitHub Agentic Workflows!")
+	_ = console.TeletypeWriteln(os.Stderr, "🚀 Welcome to GitHub Agentic Workflows!")
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "This tool will walk you through adding an automated workflow to your repository.")
+	_ = console.TeletypeWriteln(os.Stderr, "This tool will walk you through adding an automated workflow to your repository.")
 	fmt.Fprintln(os.Stderr, "")
 
 	// Step 1b: Resolve workflows early to get descriptions and validate specs
@@ -162,7 +162,7 @@ func (c *AddInteractiveConfig) showWorkflowDescriptions() {
 	// Show descriptions for all workflows that have one
 	for _, rw := range c.resolvedWorkflows.Workflows {
 		if rw.Description != "" {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(rw.Description))
+			_ = console.TeletypeWriteln(os.Stderr, console.FormatInfoMessage(rw.Description))
 			fmt.Fprintln(os.Stderr, "")
 		}
 	}
@@ -185,7 +185,7 @@ func (c *AddInteractiveConfig) checkGHAuthStatus() error {
 	}
 
 	if c.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("GitHub CLI authenticated"))
+		_ = console.TeletypeWriteln(os.Stderr, console.FormatSuccessMessage("GitHub CLI authenticated"))
 		addInteractiveLog.Printf("gh auth status output: %s", string(output))
 	}
 
@@ -243,7 +243,7 @@ func (c *AddInteractiveConfig) checkGitRepository() error {
 		c.RepoOverride = repoSlug
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Target repository: %s", repoSlug)))
+	_ = console.TeletypeWriteln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Target repository: %s", repoSlug)))
 	addInteractiveLog.Printf("Target repository: %s", repoSlug)
 
 	// Check if repository is public or private
@@ -297,7 +297,7 @@ func (c *AddInteractiveConfig) checkActionsEnabled() error {
 	}
 
 	if c.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("GitHub Actions is enabled"))
+		_ = console.TeletypeWriteln(os.Stderr, console.FormatSuccessMessage("GitHub Actions is enabled"))
 	}
 
 	return nil
@@ -331,7 +331,7 @@ func (c *AddInteractiveConfig) checkUserPermissions() error {
 	}
 
 	if c.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Repository permissions verified"))
+		_ = console.TeletypeWriteln(os.Stderr, console.FormatSuccessMessage("Repository permissions verified"))
 	}
 
 	return nil
@@ -472,7 +472,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 	}
 
 	c.EngineOverride = selectedEngine
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Selected engine: %s", selectedEngine)))
+	_ = console.TeletypeWriteln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Selected engine: %s", selectedEngine)))
 
 	return c.collectAPIKey(selectedEngine)
 }
