@@ -1,4 +1,4 @@
-// Package workflow provides centralized regex patterns for GitHub Actions expression matching.
+// This file provides centralized regex patterns for GitHub Actions expression matching.
 //
 // # Expression Patterns
 //
@@ -53,6 +53,7 @@
 //   - template_injection_validation.go
 //
 // Files are gradually being migrated to use these centralized patterns.
+
 package workflow
 
 import "regexp"

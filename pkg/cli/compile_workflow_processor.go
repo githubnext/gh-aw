@@ -1,4 +1,4 @@
-// Package cli provides workflow file processing functions for compilation.
+// This file provides workflow file processing functions for compilation.
 //
 // This file contains functions that process individual workflow files and
 // campaign specs, handling both regular workflows and campaign orchestrators.
@@ -20,6 +20,7 @@
 //
 // These functions abstract per-file processing, allowing the main compile
 // orchestrator to focus on coordination while these handle file processing.
+
 package cli
 
 import (

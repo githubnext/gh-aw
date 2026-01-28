@@ -1,4 +1,4 @@
-// Package workflow provides environment variable mirroring for agent containers.
+// This file provides environment variable mirroring for agent containers.
 //
 // This file contains logic for mirroring essential GitHub Actions runner environment
 // variables into the agent container. The Ubuntu runner image provides many environment
@@ -11,6 +11,7 @@
 // handling of missing variables.
 //
 // Reference: specs/ubuntulatest.md section "Environment Variables"
+
 package workflow
 
 import (

@@ -1,4 +1,4 @@
-// Package workflow provides utilities for processing GitHub Agentic Workflows.
+// This file provides utilities for processing GitHub Agentic Workflows.
 //
 // # String Processing Patterns
 //
@@ -72,6 +72,7 @@
 //   - Input is already valid but needs format conversion
 //
 // See specs/string-sanitization-normalization.md for detailed guidance.
+
 package workflow
 
 import (

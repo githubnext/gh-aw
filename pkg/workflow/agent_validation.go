@@ -1,4 +1,4 @@
-// Package workflow provides agent file and feature support validation.
+// This file provides agent file and feature support validation.
 //
 // # Agent Validation
 //
@@ -40,6 +40,7 @@
 //
 // For general validation, see validation.go.
 // For detailed documentation, see specs/validation-architecture.md
+
 package workflow
 
 import (

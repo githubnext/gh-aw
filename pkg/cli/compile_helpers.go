@@ -1,4 +1,4 @@
-// Package cli provides helper functions for workflow compilation.
+// This file provides helper functions for workflow compilation.
 //
 // This file contains shared utilities used by the compile command to process workflow
 // files, manage compilation statistics, and handle campaign workflows. These helpers
@@ -31,6 +31,7 @@
 //
 // These functions abstract common compilation patterns, allowing the main compile
 // command to focus on CLI interaction while these helpers handle the mechanics.
+
 package cli
 
 import (

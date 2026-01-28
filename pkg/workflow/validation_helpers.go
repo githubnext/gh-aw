@@ -1,4 +1,4 @@
-// Package workflow provides validation helper functions for agentic workflow compilation.
+// This file provides validation helper functions for agentic workflow compilation.
 //
 // This file contains reusable validation helpers for common validation patterns
 // such as integer range validation, string validation, and list membership checks.
@@ -31,6 +31,7 @@
 //   - Reduce cognitive overhead when writing new validators
 //
 // For the validation architecture overview, see validation.go.
+
 package workflow
 
 import (
