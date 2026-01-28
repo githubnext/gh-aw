@@ -680,7 +680,7 @@ describe("updateProject", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to add campaign label"));
   });
 
-  it("gracefully handles permission errors when adding campaign label", async () => {
+  it("reports permission errors via setFailed when adding campaign label", async () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 50, campaign_id: "test-campaign" };
 
@@ -690,8 +690,8 @@ describe("updateProject", () => {
 
     await updateProject(output);
 
-    // Permission errors should use info instead of warning
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping campaign label - insufficient permissions"));
+    // Permission errors should use setFailed to report to conclusion job
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to add campaign label due to insufficient permissions"));
     expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Failed to add campaign label"));
   });
 
