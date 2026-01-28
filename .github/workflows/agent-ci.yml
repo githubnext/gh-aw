@@ -1,15 +1,6 @@
-name: CI
+name: Agentic CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    paths:
-      - '**.go'
-      - 'pkg/workflow/**'
-      - 'actions/**'
-      - '.github/workflows/ci.yml'
-      - '.github/workflows/**/*.md'
   workflow_dispatch:
 jobs:
   test:
