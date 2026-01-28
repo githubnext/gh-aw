@@ -144,6 +144,25 @@ func TestParseFrontmatterConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("parses project as URL string (short form)", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"name":    "project-short-form",
+			"project": "https://github.com/orgs/githubnext/projects/144",
+		}
+
+		config, err := ParseFrontmatterConfig(frontmatter)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if config.Project == nil {
+			t.Fatal("Project should not be nil")
+		}
+		if config.Project.URL != "https://github.com/orgs/githubnext/projects/144" {
+			t.Errorf("Project.URL = %q, want %q", config.Project.URL, "https://github.com/orgs/githubnext/projects/144")
+		}
+	})
+
 	t.Run("parses complete workflow config", func(t *testing.T) {
 		frontmatter := map[string]any{
 			"name":        "full-workflow",

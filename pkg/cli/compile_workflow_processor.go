@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/campaign"
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -71,16 +70,8 @@ func compileWorkflowFile(
 		success: false,
 	}
 
-	// Generate lock file name, handling campaign orchestrators specially
-	// Campaign orchestrators are named *.campaign.g.md (debug artifacts)
-	// but should produce *.campaign.lock.yml (not *.campaign.g.lock.yml)
-	var lockFile string
-	if strings.HasSuffix(resolvedFile, ".campaign.g.md") {
-		// For campaign orchestrators: example.campaign.g.md -> example.campaign.lock.yml
-		lockFile = stringutil.CampaignOrchestratorToLockFile(resolvedFile)
-	} else {
-		lockFile = stringutil.MarkdownToLockFile(resolvedFile)
-	}
+	// Generate lock file name
+	lockFile := stringutil.MarkdownToLockFile(resolvedFile)
 	result.lockFile = lockFile
 	if !noEmit {
 		result.validationResult.CompiledFile = lockFile
@@ -136,6 +127,21 @@ func compileWorkflowFile(
 		return result
 	}
 	result.workflowData = workflowData
+
+	// Inject campaign orchestrator features if project field has campaign configuration
+	// This transforms the workflow into a campaign orchestrator in-place
+	if err := campaign.InjectOrchestratorFeatures(workflowData); err != nil {
+		errMsg := fmt.Sprintf("failed to inject campaign orchestrator features: %v", err)
+		if !jsonOutput {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+		}
+		result.validationResult.Valid = false
+		result.validationResult.Errors = append(result.validationResult.Errors, CompileValidationError{
+			Type:    "campaign_injection_error",
+			Message: err.Error(),
+		})
+		return result
+	}
 
 	compileWorkflowProcessorLog.Printf("Starting compilation of %s", resolvedFile)
 

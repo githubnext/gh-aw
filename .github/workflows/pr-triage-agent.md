@@ -5,6 +5,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
   pull-requests: read
   # Note: issues and discussions write handled via safe-outputs
 engine: copilot

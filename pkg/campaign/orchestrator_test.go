@@ -172,11 +172,12 @@ func TestBuildOrchestrator_DispatchOnlyPolicy(t *testing.T) {
 			t.Fatalf("expected orchestrator to omit create-issue and add-comment safe outputs")
 		}
 
-		// Orchestrators should not have GitHub tool access to the agent.
-		if data.Tools != nil {
-			if _, ok := data.Tools["github"]; ok {
-				t.Fatalf("expected orchestrator to omit github tools")
-			}
+		// Orchestrators should have GitHub tool access for discovery operations
+		if data.Tools == nil {
+			t.Fatalf("expected Tools to be configured")
+		}
+		if _, ok := data.Tools["github"]; !ok {
+			t.Fatalf("expected orchestrator to have github tools configured")
 		}
 	})
 }

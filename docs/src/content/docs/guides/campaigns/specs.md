@@ -2,14 +2,36 @@
 title: Campaign specs
 description: Campaign specification format and configuration reference
 banner:
-  content: '<strong>Do not use.</strong> Campaigns are still incomplete and may produce unreliable or unintended results.'
+  content: '<strong>⚠️ Deprecated:</strong> The <code>.campaign.md</code> file format is deprecated. Use the <code>project</code> field in workflow frontmatter instead. See <a href="/gh-aw/reference/frontmatter/#project-tracking-project">Project Tracking</a> for the current approach.'
 ---
 
-Campaign specs are YAML frontmatter configuration files at `.github/workflows/<id>.campaign.md`. The frontmatter defines pure configuration (id, project-url, workflows, governance, etc.), while the markdown body contains narrative context including objectives, KPIs, timelines, and strategy.
+:::caution[File format deprecated]
+The `.campaign.md` standalone file format described in this document is **deprecated** and has been removed from gh-aw. 
 
-## Spec structure
+**Migration:** Use the `project` field in workflow frontmatter instead:
+```yaml
+---
+on:
+  schedule:
+    - cron: "0 0 * * *"
+project:
+  url: https://github.com/orgs/myorg/projects/1
+  workflows:
+    - worker-workflow-name
+---
+```
+See [Project Tracking documentation](/gh-aw/reference/frontmatter/#project-tracking-project) for details.
+:::
 
-A minimal campaign spec is a `.github/workflows/<id>.campaign.md` file with YAML frontmatter plus a markdown body. Most fields have sensible defaults.
+Campaign specs were YAML frontmatter configuration files at `.github/workflows/<id>.campaign.md`. The frontmatter defined pure configuration (id, project-url, workflows, governance, etc.), while the markdown body contained narrative context including objectives, KPIs, timelines, and strategy.
+
+## Spec structure (deprecated)
+
+:::note[Historical reference]
+This section documents the deprecated `.campaign.md` file format for historical reference only.
+:::
+
+A minimal campaign spec was a `.github/workflows/<id>.campaign.md` file with YAML frontmatter plus a markdown body. Most fields had sensible defaults.
 
 ```markdown
 ---

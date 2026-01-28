@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -186,8 +187,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeArgs = append(claudeArgs, "--allowed-tools", allowedTools)
 	}
 
-	// Add debug flag
-	claudeArgs = append(claudeArgs, "--debug")
+	// Add debug-file flag to write debug logs directly to file
+	// This implicitly enables debug mode and provides cleaner, more reliable log capture
+	// than shell redirection with 2>&1 | tee
+	claudeArgs = append(claudeArgs, "--debug-file", logFile)
 
 	// Always add verbose flag for enhanced debugging output
 	claudeArgs = append(claudeArgs, "--verbose")
@@ -276,6 +279,17 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// Build AWF arguments: mount points + standard flags + custom args from config
 		var awfArgs []string
 		awfArgs = append(awfArgs, "--env-all")
+
+		// Add mirrored environment variables from the runner
+		// These runner-level env vars (JAVA_HOME_*, ANDROID_HOME, etc.) need explicit --env flags
+		// to be passed through to the container. AWF only passes them if they exist on the host.
+		mirroredEnvArgs := GetMirroredEnvArgs()
+		awfArgs = append(awfArgs, mirroredEnvArgs...)
+		claudeLog.Printf("Added %d mirrored environment variable arguments", len(mirroredEnvArgs)/2)
+
+		// Add GH_AW_TOOL_BINS env arg for PATH priority (computed by GetToolBinsSetup on runner)
+		// This ensures actions/setup-* installed tools take precedence over pre-installed versions
+		awfArgs = append(awfArgs, GetToolBinsEnvArg()...)
 
 		// TTY is required for Claude Code CLI
 		awfArgs = append(awfArgs, "--tty")
@@ -381,29 +395,38 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		escapedClaudeCommand := strings.ReplaceAll(claudeCommand, "'", "'\\''")
 		shellWrappedCommand := fmt.Sprintf("/bin/bash -c '%s'", escapedClaudeCommand)
 
+		// Compute GH_AW_TOOL_BINS on the runner side (safer than shell expansion inside container)
+		toolBinsSetup := GetToolBinsSetup()
+
+		// Note: Claude Code CLI will write debug logs directly to the file specified by --debug-file
+		// We no longer need 2>&1 | tee since debug logs are written separately
+		// The JSON output will still appear on stdout for monitoring
 		if promptSetup != "" {
 			command = fmt.Sprintf(`set -o pipefail
           %s
+%s
 %s %s \
-  -- %s \
-  2>&1 | tee %s`, promptSetup, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand, shellEscapeArg(logFile))
+  -- %s`, promptSetup, toolBinsSetup, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
+%s
 %s %s \
-  -- %s \
-  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand, shellEscapeArg(logFile))
+  -- %s`, toolBinsSetup, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand)
 		}
 	} else {
 		// Run Claude command without AWF wrapper
+		// Note: Claude Code CLI will write debug logs directly to the file specified by --debug-file
+		// We no longer need 2>&1 | tee since debug logs are written separately
+		// The JSON output will still appear on stdout for monitoring
 		if promptSetup != "" {
 			command = fmt.Sprintf(`set -o pipefail
           %s
           # Execute Claude Code CLI with prompt from file
-          %s 2>&1 | tee %s`, promptSetup, claudeCommand, logFile)
+          %s`, promptSetup, claudeCommand)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          %s 2>&1 | tee %s`, claudeCommand, logFile)
+          %s`, claudeCommand)
 		}
 	}
 
@@ -424,14 +447,14 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Set timeout environment variables for Claude Code
-	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeoutSeconds
-	startupTimeoutMs := constants.DefaultMCPStartupTimeoutSeconds * 1000 // convert seconds to milliseconds
+	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeout
+	startupTimeoutMs := int(constants.DefaultMCPStartupTimeout / time.Millisecond)
 	if workflowData.ToolsStartupTimeout > 0 {
 		startupTimeoutMs = workflowData.ToolsStartupTimeout * 1000 // convert seconds to milliseconds
 	}
 
-	// Use tools.timeout if specified, otherwise default to DefaultToolTimeoutSeconds
-	timeoutMs := constants.DefaultToolTimeoutSeconds * 1000 // convert seconds to milliseconds
+	// Use tools.timeout if specified, otherwise default to DefaultToolTimeout
+	timeoutMs := int(constants.DefaultToolTimeout / time.Millisecond)
 	if workflowData.ToolsTimeout > 0 {
 		timeoutMs = workflowData.ToolsTimeout * 1000 // convert seconds to milliseconds
 	}
@@ -520,7 +543,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		timeoutValue = strings.TrimPrefix(timeoutValue, "timeout-minutes: ")
 		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %s", timeoutValue))
 	} else {
-		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", constants.DefaultAgenticWorkflowTimeoutMinutes)) // Default timeout for agentic workflows
+		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", int(constants.DefaultAgenticWorkflowTimeout/time.Minute))) // Default timeout for agentic workflows
 	}
 
 	// Filter environment variables to only include allowed secrets
