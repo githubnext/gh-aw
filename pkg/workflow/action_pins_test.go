@@ -1369,3 +1369,99 @@ func TestActionPinWarningDeduplicationAcrossDifferentVersions(t *testing.T) {
 		t.Errorf("Cache should contain key for v2.0.0")
 	}
 }
+
+// TestFormatActionReference tests the formatActionReference helper function
+func TestFormatActionReference(t *testing.T) {
+	tests := []struct {
+		name     string
+		repo     string
+		sha      string
+		version  string
+		expected string
+	}{
+		{
+			name:     "standard action reference",
+			repo:     "actions/checkout",
+			sha:      "abc1234567890123456789012345678901234567",
+			version:  "v4.1.0",
+			expected: "actions/checkout@abc1234567890123456789012345678901234567 # v4.1.0",
+		},
+		{
+			name:     "action with simple version",
+			repo:     "actions/setup-node",
+			sha:      "def9876543210987654321098765432109876543",
+			version:  "v20",
+			expected: "actions/setup-node@def9876543210987654321098765432109876543 # v20",
+		},
+		{
+			name:     "action with short repo name",
+			repo:     "x/y",
+			sha:      "1234567890123456789012345678901234567890",
+			version:  "v1",
+			expected: "x/y@1234567890123456789012345678901234567890 # v1",
+		},
+		{
+			name:     "action with nested repo path",
+			repo:     "github/codeql-action/upload-sarif",
+			sha:      "abcdef1234567890abcdef1234567890abcdef12",
+			version:  "v3.27.9",
+			expected: "github/codeql-action/upload-sarif@abcdef1234567890abcdef1234567890abcdef12 # v3.27.9",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatActionReference(tt.repo, tt.sha, tt.version)
+			if result != tt.expected {
+				t.Errorf("formatActionReference(%q, %q, %q) = %q, want %q",
+					tt.repo, tt.sha, tt.version, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestFormatActionCacheKey tests the formatActionCacheKey helper function
+func TestFormatActionCacheKey(t *testing.T) {
+	tests := []struct {
+		name     string
+		repo     string
+		version  string
+		expected string
+	}{
+		{
+			name:     "standard cache key",
+			repo:     "actions/checkout",
+			version:  "v4",
+			expected: "actions/checkout@v4",
+		},
+		{
+			name:     "cache key with precise version",
+			repo:     "actions/setup-node",
+			version:  "v20.10.0",
+			expected: "actions/setup-node@v20.10.0",
+		},
+		{
+			name:     "cache key with simple version",
+			repo:     "x/y",
+			version:  "v1",
+			expected: "x/y@v1",
+		},
+		{
+			name:     "cache key with SHA",
+			repo:     "actions/upload-artifact",
+			version:  "abc1234567890123456789012345678901234567",
+			expected: "actions/upload-artifact@abc1234567890123456789012345678901234567",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatActionCacheKey(tt.repo, tt.version)
+			if result != tt.expected {
+				t.Errorf("formatActionCacheKey(%q, %q) = %q, want %q",
+					tt.repo, tt.version, result, tt.expected)
+			}
+		})
+	}
+}
+
