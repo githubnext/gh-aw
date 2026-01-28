@@ -33,6 +33,13 @@ func getAgentTaskToAgentSessionCodemod() Codemod {
 				return content, false, nil
 			}
 
+			// Check if create-agent-session already exists - if so, don't migrate to avoid data loss
+			_, hasAgentSession := safeOutputsMap["create-agent-session"]
+			if hasAgentSession {
+				agentSessionCodemodLog.Print("Skipping migration: create-agent-session already exists")
+				return content, false, nil
+			}
+
 			// Parse frontmatter to get raw lines
 			frontmatterLines, markdown, err := parseFrontmatterLines(content)
 			if err != nil {
