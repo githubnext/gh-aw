@@ -252,14 +252,20 @@ async function main() {
     const secretVerificationResult = process.env.GH_AW_SECRET_VERIFICATION_RESULT || "";
     const assignmentErrors = process.env.GH_AW_ASSIGNMENT_ERRORS || "";
     const assignmentErrorCount = process.env.GH_AW_ASSIGNMENT_ERROR_COUNT || "0";
+    const safeOutputPermissionErrors = process.env.GH_AW_SAFE_OUTPUT_PERMISSION_ERRORS || "";
+    const safeOutputPermissionErrorCount = process.env.GH_AW_SAFE_OUTPUT_PERMISSION_ERROR_COUNT || "0";
 
     core.info(`Agent conclusion: ${agentConclusion}`);
     core.info(`Workflow name: ${workflowName}`);
     core.info(`Secret verification result: ${secretVerificationResult}`);
     core.info(`Assignment error count: ${assignmentErrorCount}`);
+    core.info(`Safe output permission error count: ${safeOutputPermissionErrorCount}`);
 
     // Check if there are assignment errors (regardless of agent job status)
     const hasAssignmentErrors = parseInt(assignmentErrorCount, 10) > 0;
+
+    // Check if there are safe output permission errors
+    const hasSafeOutputPermissionErrors = parseInt(safeOutputPermissionErrorCount, 10) > 0;
 
     // Check if agent succeeded but produced no safe outputs
     let hasMissingSafeOutputs = false;
@@ -273,9 +279,9 @@ async function main() {
       }
     }
 
-    // Only proceed if the agent job actually failed OR there are assignment errors OR missing safe outputs
-    if (agentConclusion !== "failure" && !hasAssignmentErrors && !hasMissingSafeOutputs) {
-      core.info(`Agent job did not fail and no assignment errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`);
+    // Only proceed if the agent job actually failed OR there are assignment errors OR missing safe outputs OR safe output permission errors
+    if (agentConclusion !== "failure" && !hasAssignmentErrors && !hasMissingSafeOutputs && !hasSafeOutputPermissionErrors) {
+      core.info(`Agent job did not fail and no assignment errors and has safe outputs and no permission errors (conclusion: ${agentConclusion}), skipping failure handling`);
       return;
     }
 
@@ -342,6 +348,25 @@ async function main() {
           assignmentErrorsContext += "\n";
         }
 
+        // Build safe output permission errors context
+        let safeOutputPermissionErrorsContext = "";
+        if (hasSafeOutputPermissionErrors && safeOutputPermissionErrors) {
+          safeOutputPermissionErrorsContext = "\n**⚠️ Safe Output Permission Errors**: Failed to perform safe output operations due to insufficient permissions.\n\n**Permission Errors:**\n";
+          const errorLines = safeOutputPermissionErrors.split("\n").filter(line => line.trim());
+          for (const errorLine of errorLines) {
+            const parts = errorLine.split(":");
+            if (parts.length >= 5) {
+              const handler = parts[0]; // e.g., "update_project"
+              const type = parts[1]; // "issue" or "pr"
+              const number = parts[2];
+              const operation = parts[3]; // e.g., "campaign_label"
+              const error = parts.slice(4).join(":"); // Rest is the error message
+              safeOutputPermissionErrorsContext += `- ${type === "issue" ? "Issue" : "PR"} #${number} (${handler} - ${operation}): ${error}\n`;
+            }
+          }
+          safeOutputPermissionErrorsContext += "\n";
+        }
+
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
         if (hasMissingSafeOutputs) {
@@ -362,6 +387,7 @@ async function main() {
           secret_verification_context:
             secretVerificationResult === "failed" ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n" : "",
           assignment_errors_context: assignmentErrorsContext,
+          safe_output_permission_errors_context: safeOutputPermissionErrorsContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
         };
 
@@ -417,6 +443,25 @@ async function main() {
           assignmentErrorsContext += "\n";
         }
 
+        // Build safe output permission errors context
+        let safeOutputPermissionErrorsContext = "";
+        if (hasSafeOutputPermissionErrors && safeOutputPermissionErrors) {
+          safeOutputPermissionErrorsContext = "\n**⚠️ Safe Output Permission Errors**: Failed to perform safe output operations due to insufficient permissions.\n\n**Permission Errors:**\n";
+          const errorLines = safeOutputPermissionErrors.split("\n").filter(line => line.trim());
+          for (const errorLine of errorLines) {
+            const parts = errorLine.split(":");
+            if (parts.length >= 5) {
+              const handler = parts[0]; // e.g., "update_project"
+              const type = parts[1]; // "issue" or "pr"
+              const number = parts[2];
+              const operation = parts[3]; // e.g., "campaign_label"
+              const error = parts.slice(4).join(":"); // Rest is the error message
+              safeOutputPermissionErrorsContext += `- ${type === "issue" ? "Issue" : "PR"} #${number} (${handler} - ${operation}): ${error}\n`;
+            }
+          }
+          safeOutputPermissionErrorsContext += "\n";
+        }
+
         // Build missing safe outputs context
         let missingSafeOutputsContext = "";
         if (hasMissingSafeOutputs) {
@@ -437,6 +482,7 @@ async function main() {
           secret_verification_context:
             secretVerificationResult === "failed" ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n" : "",
           assignment_errors_context: assignmentErrorsContext,
+          safe_output_permission_errors_context: safeOutputPermissionErrorsContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
         };
 

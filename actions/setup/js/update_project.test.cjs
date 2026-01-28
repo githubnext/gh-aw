@@ -680,7 +680,7 @@ describe("updateProject", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to add campaign label"));
   });
 
-  it("reports permission errors via setFailed when adding campaign label", async () => {
+  it("tracks permission errors for conclusion job when adding campaign label", async () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 50, campaign_id: "test-campaign" };
 
@@ -690,9 +690,10 @@ describe("updateProject", () => {
 
     await updateProject(output);
 
-    // Permission errors should use setFailed to report to conclusion job
-    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to add campaign label due to insufficient permissions"));
-    expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Failed to add campaign label"));
+    // Permission errors should be tracked via exportVariable for conclusion job
+    expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_SAFE_OUTPUT_PERMISSION_ERRORS", expect.stringContaining("update_project:issue:50:campaign_label"));
+    expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_SAFE_OUTPUT_PERMISSION_ERROR_COUNT", "1");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Permission error adding campaign label tracked for conclusion job reporting"));
   });
 
   it("rejects non-URL project identifier", async () => {
