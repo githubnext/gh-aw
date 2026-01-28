@@ -81,7 +81,7 @@ func (ft *FileTracker) StageAllFiles(verbose bool) error {
 	fileTrackerLog.Printf("Staging %d tracked files", len(allFiles))
 	if len(allFiles) == 0 {
 		if verbose {
-			fmt.Println("No files to stage")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No files to stage"))
 		}
 		return nil
 	}
