@@ -85,16 +85,16 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - `threat-detection.log`
   - **Paths**: `/tmp/gh-aw/threat-detection/detection.log`
-  - **Used in**: 69 workflow(s) - agent-performance-analyzer.md, agent-persona-explorer.md, archie.md, brave.md, breaking-change-checker.md, changeset.md, ci-coach.md, ci-doctor.md, cli-consistency-checker.md, cloclo.md, code-scanning-fixer.md, commit-changes-analyzer.md, copilot-pr-merged-report.md, copilot-pr-nlp-analysis.md, craft.md, daily-choice-test.md, daily-copilot-token-report.md, daily-fact.md, daily-file-diet.md, daily-issues-report.md, daily-news.md, daily-observability-report.md, daily-repo-chronicle.md, daily-team-status.md, deep-report.md, dependabot-bundler.md, dependabot-go-checker.md, dev-hawk.md, dictation-prompt.md, github-mcp-structural-analysis.md, glossary-maintainer.md, go-fan.md, go-pattern-detector.md, grumpy-reviewer.md, hourly-ci-cleaner.md, issue-classifier.md, issue-triage-agent.md, layout-spec-maintainer.md, mergefest.md, notion-issue-summary.md, pdf-summary.md, plan.md, poem-bot.md, pr-nitpick-reviewer.md, pr-triage-agent.md, python-data-charts.md, q.md, release.md, repo-audit-analyzer.md, repository-quality-improver.md, research.md, scout.md, secret-scanning-triage.md, security-alert-burndown.md, security-compliance.md, security-fix-pr.md, security-guard.md, security-review.md, slide-deck-maintainer.md, stale-repo-identifier.md, super-linter.md, technical-doc-writer.md, test-create-pr-error-handling.md, tidy.md, typist.md, video-analyzer.md, weekly-issue-summary.md, workflow-generator.md, workflow-health-manager.md
+  - **Used in**: 68 workflow(s) - agent-performance-analyzer.md, agent-persona-explorer.md, archie.md, brave.md, breaking-change-checker.md, changeset.md, ci-coach.md, ci-doctor.md, cli-consistency-checker.md, cloclo.md, code-scanning-fixer.md, commit-changes-analyzer.md, copilot-pr-merged-report.md, copilot-pr-nlp-analysis.md, craft.md, daily-choice-test.md, daily-copilot-token-report.md, daily-fact.md, daily-file-diet.md, daily-issues-report.md, daily-news.md, daily-observability-report.md, daily-repo-chronicle.md, daily-team-status.md, deep-report.md, dependabot-bundler.md, dependabot-go-checker.md, dev-hawk.md, dictation-prompt.md, github-mcp-structural-analysis.md, glossary-maintainer.md, go-fan.md, go-pattern-detector.md, grumpy-reviewer.md, hourly-ci-cleaner.md, issue-classifier.md, issue-triage-agent.md, layout-spec-maintainer.md, mergefest.md, notion-issue-summary.md, pdf-summary.md, plan.md, poem-bot.md, pr-nitpick-reviewer.md, pr-triage-agent.md, python-data-charts.md, q.md, release.md, repo-audit-analyzer.md, repository-quality-improver.md, research.md, scout.md, secret-scanning-triage.md, security-compliance.md, security-fix-pr.md, security-guard.md, security-review.md, slide-deck-maintainer.md, stale-repo-identifier.md, super-linter.md, technical-doc-writer.md, test-create-pr-error-handling.md, tidy.md, typist.md, video-analyzer.md, weekly-issue-summary.md, workflow-generator.md, workflow-health-manager.md
 
 **Artifacts Downloaded:**
 
 - `agent-artifacts`
   - **Download paths**: `/tmp/gh-aw/threat-detection/`
-  - **Used in**: 69 workflow(s) - agent-performance-analyzer.md, agent-persona-explorer.md, archie.md, brave.md, breaking-change-checker.md, changeset.md, ci-coach.md, ci-doctor.md, cli-consistency-checker.md, cloclo.md, code-scanning-fixer.md, commit-changes-analyzer.md, copilot-pr-merged-report.md, copilot-pr-nlp-analysis.md, craft.md, daily-choice-test.md, daily-copilot-token-report.md, daily-fact.md, daily-file-diet.md, daily-issues-report.md, daily-news.md, daily-observability-report.md, daily-repo-chronicle.md, daily-team-status.md, deep-report.md, dependabot-bundler.md, dependabot-go-checker.md, dev-hawk.md, dictation-prompt.md, github-mcp-structural-analysis.md, glossary-maintainer.md, go-fan.md, go-pattern-detector.md, grumpy-reviewer.md, hourly-ci-cleaner.md, issue-classifier.md, issue-triage-agent.md, layout-spec-maintainer.md, mergefest.md, notion-issue-summary.md, pdf-summary.md, plan.md, poem-bot.md, pr-nitpick-reviewer.md, pr-triage-agent.md, python-data-charts.md, q.md, release.md, repo-audit-analyzer.md, repository-quality-improver.md, research.md, scout.md, secret-scanning-triage.md, security-alert-burndown.md, security-compliance.md, security-fix-pr.md, security-guard.md, security-review.md, slide-deck-maintainer.md, stale-repo-identifier.md, super-linter.md, technical-doc-writer.md, test-create-pr-error-handling.md, tidy.md, typist.md, video-analyzer.md, weekly-issue-summary.md, workflow-generator.md, workflow-health-manager.md
+  - **Used in**: 68 workflow(s) - agent-performance-analyzer.md, agent-persona-explorer.md, archie.md, brave.md, breaking-change-checker.md, changeset.md, ci-coach.md, ci-doctor.md, cli-consistency-checker.md, cloclo.md, code-scanning-fixer.md, commit-changes-analyzer.md, copilot-pr-merged-report.md, copilot-pr-nlp-analysis.md, craft.md, daily-choice-test.md, daily-copilot-token-report.md, daily-fact.md, daily-file-diet.md, daily-issues-report.md, daily-news.md, daily-observability-report.md, daily-repo-chronicle.md, daily-team-status.md, deep-report.md, dependabot-bundler.md, dependabot-go-checker.md, dev-hawk.md, dictation-prompt.md, github-mcp-structural-analysis.md, glossary-maintainer.md, go-fan.md, go-pattern-detector.md, grumpy-reviewer.md, hourly-ci-cleaner.md, issue-classifier.md, issue-triage-agent.md, layout-spec-maintainer.md, mergefest.md, notion-issue-summary.md, pdf-summary.md, plan.md, poem-bot.md, pr-nitpick-reviewer.md, pr-triage-agent.md, python-data-charts.md, q.md, release.md, repo-audit-analyzer.md, repository-quality-improver.md, research.md, scout.md, secret-scanning-triage.md, security-compliance.md, security-fix-pr.md, security-guard.md, security-review.md, slide-deck-maintainer.md, stale-repo-identifier.md, super-linter.md, technical-doc-writer.md, test-create-pr-error-handling.md, tidy.md, typist.md, video-analyzer.md, weekly-issue-summary.md, workflow-generator.md, workflow-health-manager.md
 - `agent-output`
   - **Download paths**: `/tmp/gh-aw/threat-detection/`
-  - **Used in**: 69 workflow(s) - agent-performance-analyzer.md, agent-persona-explorer.md, archie.md, brave.md, breaking-change-checker.md, changeset.md, ci-coach.md, ci-doctor.md, cli-consistency-checker.md, cloclo.md, code-scanning-fixer.md, commit-changes-analyzer.md, copilot-pr-merged-report.md, copilot-pr-nlp-analysis.md, craft.md, daily-choice-test.md, daily-copilot-token-report.md, daily-fact.md, daily-file-diet.md, daily-issues-report.md, daily-news.md, daily-observability-report.md, daily-repo-chronicle.md, daily-team-status.md, deep-report.md, dependabot-bundler.md, dependabot-go-checker.md, dev-hawk.md, dictation-prompt.md, github-mcp-structural-analysis.md, glossary-maintainer.md, go-fan.md, go-pattern-detector.md, grumpy-reviewer.md, hourly-ci-cleaner.md, issue-classifier.md, issue-triage-agent.md, layout-spec-maintainer.md, mergefest.md, notion-issue-summary.md, pdf-summary.md, plan.md, poem-bot.md, pr-nitpick-reviewer.md, pr-triage-agent.md, python-data-charts.md, q.md, release.md, repo-audit-analyzer.md, repository-quality-improver.md, research.md, scout.md, secret-scanning-triage.md, security-alert-burndown.md, security-compliance.md, security-fix-pr.md, security-guard.md, security-review.md, slide-deck-maintainer.md, stale-repo-identifier.md, super-linter.md, technical-doc-writer.md, test-create-pr-error-handling.md, tidy.md, typist.md, video-analyzer.md, weekly-issue-summary.md, workflow-generator.md, workflow-health-manager.md
+  - **Used in**: 68 workflow(s) - agent-performance-analyzer.md, agent-persona-explorer.md, archie.md, brave.md, breaking-change-checker.md, changeset.md, ci-coach.md, ci-doctor.md, cli-consistency-checker.md, cloclo.md, code-scanning-fixer.md, commit-changes-analyzer.md, copilot-pr-merged-report.md, copilot-pr-nlp-analysis.md, craft.md, daily-choice-test.md, daily-copilot-token-report.md, daily-fact.md, daily-file-diet.md, daily-issues-report.md, daily-news.md, daily-observability-report.md, daily-repo-chronicle.md, daily-team-status.md, deep-report.md, dependabot-bundler.md, dependabot-go-checker.md, dev-hawk.md, dictation-prompt.md, github-mcp-structural-analysis.md, glossary-maintainer.md, go-fan.md, go-pattern-detector.md, grumpy-reviewer.md, hourly-ci-cleaner.md, issue-classifier.md, issue-triage-agent.md, layout-spec-maintainer.md, mergefest.md, notion-issue-summary.md, pdf-summary.md, plan.md, poem-bot.md, pr-nitpick-reviewer.md, pr-triage-agent.md, python-data-charts.md, q.md, release.md, repo-audit-analyzer.md, repository-quality-improver.md, research.md, scout.md, secret-scanning-triage.md, security-compliance.md, security-fix-pr.md, security-guard.md, security-review.md, slide-deck-maintainer.md, stale-repo-identifier.md, super-linter.md, technical-doc-writer.md, test-create-pr-error-handling.md, tidy.md, typist.md, video-analyzer.md, weekly-issue-summary.md, workflow-generator.md, workflow-health-manager.md
 
 ### Job: `notion_add_comment`
 
@@ -4301,25 +4301,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `agent-output` (by name)
   - **Download path**: `/tmp/gh-aw/safeoutputs/`
-  - **Depends on jobs**: [activation agent detection safe_outputs]
-
-#### Job: `detection`
-
-**Uploads:**
-
-- **Artifact**: `threat-detection.log`
-  - **Upload paths**:
-    - `/tmp/gh-aw/threat-detection/detection.log`
-
-**Downloads:**
-
-- **Artifact**: `agent-artifacts` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
-  - **Depends on jobs**: [agent]
-
-- **Artifact**: `agent-output` (by name)
-  - **Download path**: `/tmp/gh-aw/threat-detection/`
-  - **Depends on jobs**: [agent]
+  - **Depends on jobs**: [activation agent safe_outputs]
 
 #### Job: `safe_outputs`
 
@@ -4327,7 +4309,7 @@ This section provides an overview of artifacts organized by job name, with dupli
 
 - **Artifact**: `agent-output` (by name)
   - **Download path**: `/tmp/gh-aw/safeoutputs/`
-  - **Depends on jobs**: [agent detection]
+  - **Depends on jobs**: [agent]
 
 ### security-compliance.md
 
