@@ -23,6 +23,7 @@
 #
 # Resolved workflow manifest:
 #   Imports:
+#     - shared/copilot-app.md
 #     - shared/gh.md
 #     - shared/github-queries-safe-input.md
 #     - shared/reporting.md
@@ -177,13 +178,62 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/checkout_pr_branch.cjs');
             await main();
-      - name: Validate COPILOT_GITHUB_TOKEN secret
+      - name: Validate GitHub App variables
         id: validate-secret
-        run: /opt/gh-aw/actions/validate_multi_secret.sh COPILOT_GITHUB_TOKEN 'GitHub Copilot CLI' https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default
+        run: |
+          echo "Validating GitHub App configuration for GitHub Copilot CLI..."
+          
+          # Validate app-id variable (expected: ${{ vars.APP_ID }})
+          if [ -z "${{ vars.APP_ID }}" ]; then
+            echo "❌ ERROR: GitHub App ID is not set"
+            echo ""
+            echo "To use GitHub App authentication with GitHub Copilot CLI, you need to configure:"
+            echo "  - vars.APP_ID (GitHub App ID)"
+            echo "  - secrets.APP_PRIVATE_KEY (GitHub App private key)"
+            echo ""
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+            exit 1
+          fi
+          
+          # Validate private-key secret (expected: ${{ secrets.APP_PRIVATE_KEY }})
+          if [ -z "${{ secrets.APP_PRIVATE_KEY }}" ]; then
+            echo "❌ ERROR: GitHub App private key is not set"
+            echo ""
+            echo "To use GitHub App authentication with GitHub Copilot CLI, you need to configure:"
+            echo "  - vars.APP_ID (GitHub App ID)"
+            echo "  - secrets.APP_PRIVATE_KEY (GitHub App private key)"
+            echo ""
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+            exit 1
+          fi
+          
+          echo "✅ GitHub App configuration validated successfully"
+          echo "verification_result=success" >> "$GITHUB_OUTPUT"
         env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          APP_ID: ${{ vars.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
       - name: Install GitHub Copilot CLI
         run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.395
+      - name: Generate GitHub App token for Copilot
+
+        id: copilot-engine-app-token
+
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
+
+        with:
+
+          app-id: ${{ vars.APP_ID }}
+
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+          owner: ${{ github.repository_owner }}
+
+          repositories: ${{ github.event.repository.name }}
+
+          github-api-url: ${{ github.api_url }}
+
+          permission-copilot-requests: read
+
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.11.2
       - name: Determine automatic lockdown mode for GitHub MCP server
@@ -1246,6 +1296,8 @@ jobs:
           </system>
           PROMPT_EOF
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
+          
+          
           **IMPORTANT**: Always use the `safeinputs-gh` tool for GitHub CLI commands instead of running `gh` directly via bash. The `safeinputs-gh` tool has proper authentication configured with `GITHUB_TOKEN`, while bash commands do not have GitHub CLI authentication by default.
           
           **Correct**:
@@ -1446,7 +1498,7 @@ jobs:
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          COPILOT_GITHUB_TOKEN: ${{ steps.copilot-engine-app-token.outputs.token }}
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_MODEL_AGENT_COPILOT: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || '' }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1493,8 +1545,8 @@ jobs:
             const { main } = require('/opt/gh-aw/actions/redact_secrets.cjs');
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
-          SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_AW_SECRET_NAMES: 'APP_PRIVATE_KEY,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          SECRET_APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
           SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -1593,6 +1645,19 @@ jobs:
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/agent-stdio.log
           if-no-files-found: ignore
+      - name: Invalidate Copilot engine GitHub App token
+        if: always() && steps.copilot-engine-app-token.outputs.token != ''
+        env:
+          TOKEN: ${{ steps.copilot-engine-app-token.outputs.token }}
+        run: |
+          echo "Revoking Copilot engine GitHub App installation token..."
+          # GitHub CLI will auth with the token being revoked.
+          gh api \
+            --method DELETE \
+            -H "Authorization: token $TOKEN" \
+            /installation/token || echo "Token revoke may already be expired."
+          
+          echo "Token invalidation step complete."
 
   conclusion:
     needs:

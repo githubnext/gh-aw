@@ -14,8 +14,8 @@ permissions:
   discussions: read
   actions: read
 name: Smoke Copilot
-engine: copilot
 imports:
+  - shared/copilot-app.md
   - shared/gh.md
   - shared/reporting.md
   - shared/github-queries-safe-input.md
