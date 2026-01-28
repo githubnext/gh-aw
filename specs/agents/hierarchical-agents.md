@@ -4,7 +4,7 @@ This document describes the hierarchical agent management system in GitHub Agent
 
 ## Overview
 
-The hierarchical agent system consists of specialized meta-orchestrator workflows that oversee, coordinate, and optimize the agent ecosystem. These "managerial agents" operate at a higher level than regular workflows, monitoring and managing multiple agents to ensure overall system health and effectiveness.
+The hierarchical agent system consists of specialized meta-orchestrator workflows that oversee, coordinate, and optimize the agent ecosystem. These meta-orchestrator agents operate at a higher level than regular workflows, monitoring and managing multiple agents to ensure overall system health and effectiveness.
 
 ## Meta-Orchestrator Agents
 
@@ -54,7 +54,7 @@ The hierarchical agent system consists of specialized meta-orchestrator workflow
 **Schedule:** Daily
 
 **Key Capabilities:**
-- Comprehensive health monitoring
+- System-wide health monitoring (compilation status, execution rates, error patterns)
 - Systemic issue detection
 - Dependency mapping
 - Performance optimization
@@ -193,7 +193,7 @@ Meta-orchestrators take action through safe outputs:
 
 ### Reporting
 
-Meta-orchestrators provide comprehensive reports:
+Meta-orchestrators provide detailed reports including:
 - Executive summaries for high-level overview
 - Detailed findings for investigation
 - Actionable recommendations for improvement
@@ -294,7 +294,7 @@ Meta-orchestrators provide comprehensive reports:
 
 Potential improvements to the hierarchical system:
 
-1. **Automated Remediation:** Meta-orchestrators could automatically fix simple issues
+1. **Automated Remediation:** Meta-orchestrators could automatically fix issues such as outdated dependencies, formatting violations, and broken links
 2. **Predictive Analytics:** Use ML to predict failures before they occur
 3. **Self-Optimization:** Meta-orchestrators could tune their own parameters
 4. **Cross-Repository Management:** Extend to manage agents across multiple repos

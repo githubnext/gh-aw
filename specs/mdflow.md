@@ -227,7 +227,7 @@ gh aw run workflow.md --local --staged
 
 #### 3. **Transparent Mapping**
 - Frontmatter keys directly become CLI flags (no magic)
-- Easy to understand: `model: opus` → `--model opus`
+- Direct mapping: `model: opus` → `--model opus`
 - Debugging is straightforward: `mdflow explain task.claude.md`
 
 **Lesson for gh-aw**: Add `gh aw explain` command:
@@ -439,7 +439,7 @@ network:
 ---
 ```
 
-**Impact**: Steep learning curve for simple tasks.
+**Impact**: Requires understanding frontmatter, safe outputs, and GitHub Actions for basic automation.
 
 #### 2. **GitHub-Only**
 - Cannot run outside GitHub Actions
@@ -792,7 +792,7 @@ gh aw compile
 
 #### 2. **Enhanced MCP Ecosystem**
 - MCP server registry
-- Easy discovery and installation
+- Registry-based discovery and installation
 - Shared configurations
 
 **Inspiration**: mdflow's MCP server patterns.

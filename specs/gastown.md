@@ -955,7 +955,7 @@ Gastown provides a mature, battle-tested architecture for multi-agent coordinati
 4. **Workflow Composition**: Support template inheritance and aspect-oriented programming
 5. **Progress Monitoring**: Real-time dashboards and health checks for multi-workflow campaigns
 
-These enhancements would position gh-aw as a comprehensive agentic workflow platform capable of both simple automation and complex multi-agent coordination, while maintaining its security-first approach and GitHub-native integration.
+These enhancements would position gh-aw as a full-featured agentic workflow platform capable of both basic automation and complex multi-agent coordination, while maintaining its security-first approach and GitHub-native integration.
 
 ---
 
