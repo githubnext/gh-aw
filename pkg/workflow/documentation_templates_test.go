@@ -32,10 +32,10 @@ func TestDocumentationTemplatesExist(t *testing.T) {
 // TestTemplateStructure verifies that templates have proper structure and placeholders
 func TestTemplateStructure(t *testing.T) {
 	tests := []struct {
-		name               string
-		file               string
+		name                 string
+		file                 string
 		requiredPlaceholders []string
-		requiredSections   []string
+		requiredSections     []string
 	}{
 		{
 			name: "INDEX template",
@@ -194,8 +194,8 @@ func TestTemplateInternalLinks(t *testing.T) {
 	}
 
 	expectedLinks := map[string][]string{
-		"INDEX.template.md":   {"README.md", "QUICKREF.md", "EXAMPLE.md", "CONFIG.md"},
-		"README.template.md":  {"INDEX.md", "QUICKREF.md", "EXAMPLE.md", "CONFIG.md"},
+		"INDEX.template.md":    {"README.md", "QUICKREF.md", "EXAMPLE.md", "CONFIG.md"},
+		"README.template.md":   {"INDEX.md", "QUICKREF.md", "EXAMPLE.md", "CONFIG.md"},
 		"QUICKREF.template.md": {"README.md", "EXAMPLE.md", "CONFIG.md", "INDEX.md"},
 		"EXAMPLE.template.md":  {"README.md", "QUICKREF.md", "CONFIG.md", "INDEX.md"},
 		"CONFIG.template.md":   {"README.md", "QUICKREF.md", "EXAMPLE.md", "INDEX.md"},
