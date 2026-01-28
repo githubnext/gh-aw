@@ -452,33 +452,25 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	return nil
 }
 
-// ParseWorkflowFile parses a markdown workflow file and extracts all necessary data
-
-// extractTopLevelYAMLSection extracts a top-level YAML section from the frontmatter map
-// This ensures we only extract keys at the root level, avoiding nested keys with the same name
-// parseOnSection parses the "on" section from frontmatter to extract command triggers, reactions, and other events
-
-// generateYAML generates the complete GitHub Actions YAML content
-
-// isActivationJobNeeded determines if the activation job is required
-// generateMainJobSteps generates the steps section for the main job
-
-// The original JavaScript code will use the pattern as-is with "g" flags
-
-// validateMarkdownSizeForGitHubActions is no longer used - content is now split into multiple steps
-// to handle GitHub Actions script size limits automatically
-// func (c *Compiler) validateMarkdownSizeForGitHubActions(content string) error { ... }
-
-// splitContentIntoChunks splits markdown content into chunks that fit within GitHub Actions script size limits
-
-// generatePostSteps generates the post-steps section that runs after AI execution
-
-// convertStepToYAML converts a step map to YAML string with proper indentation
-
-// generateEngineExecutionSteps uses the new GetExecutionSteps interface method
-
-// generateAgentVersionCapture generates a step that captures the agent version if the engine supports it
-
-// generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata
-
-// generateOutputCollectionStep generates a step that reads the output file and sets it as a GitHub Actions output
+// ParseWorkflowFile parses a markdown workflow file and extracts all necessary data for compilation.
+// This is the entry point for workflow compilation that coordinates frontmatter extraction,
+// validation, and preparation of workflow data for YAML generation.
+//
+// The compilation pipeline follows these steps:
+//   1. Extract and parse frontmatter YAML from markdown file (see frontmatter_extraction_yaml.go)
+//   2. Parse trigger configuration from "on" section (see compiler_safe_outputs.go:parseOnSection)
+//   3. Validate workflow configuration and security constraints
+//   4. Prepare WorkflowData structure for YAML generation (see compiler_yaml.go:generateYAML)
+//
+// Related functions (refactored into separate files for maintainability):
+//   - extractTopLevelYAMLSection: frontmatter_extraction_yaml.go
+//   - parseOnSection: compiler_safe_outputs.go
+//   - generateYAML: compiler_yaml.go
+//   - isActivationJobNeeded: compiler_jobs.go
+//   - generateMainJobSteps: compiler_yaml_main_job.go
+//   - splitContentIntoChunks: compiler_yaml.go
+//   - generatePostSteps: compiler_yaml.go
+//   - convertStepToYAML: compiler_yaml_helpers.go
+//   - generateEngineExecutionSteps: compiler_yaml_ai_execution.go
+//   - generateCreateAwInfo: compiler_yaml.go
+//   - generateOutputCollectionStep: compiler_yaml.go
