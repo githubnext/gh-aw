@@ -1,4 +1,4 @@
-// Package cli provides campaign workflow compilation and validation.
+// This file provides campaign workflow compilation and validation.
 //
 // This file handles validation of campaign spec files and their referenced workflows.
 // Campaign workflows are special workflows that orchestrate multiple sub-workflows
@@ -24,6 +24,7 @@
 //   - Campaign spec files are syntactically valid
 //   - Referenced workflow files exist in the workflows directory
 //   - Campaign configuration is complete and correct
+
 package cli
 
 import (

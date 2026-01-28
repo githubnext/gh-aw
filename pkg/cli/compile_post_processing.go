@@ -1,4 +1,4 @@
-// Package cli provides post-processing operations for workflow compilation.
+// This file provides post-processing operations for workflow compilation.
 //
 // This file contains functions that perform post-compilation operations such as
 // generating Dependabot manifests, maintenance workflows, and validating campaigns.
@@ -25,6 +25,7 @@
 //
 // These functions abstract post-processing operations, allowing the main compile
 // orchestrator to focus on coordination while these handle generation and validation.
+
 package cli
 
 import (

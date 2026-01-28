@@ -1,4 +1,4 @@
-// Package workflow provides GitHub Actions schema validation for compiled workflows.
+// This file provides GitHub Actions schema validation for compiled workflows.
 //
 // # GitHub Actions Schema Validation
 //
@@ -35,6 +35,7 @@
 //
 // For general validation, see validation.go.
 // For detailed documentation, see specs/validation-architecture.md
+
 package workflow
 
 import (

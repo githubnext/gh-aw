@@ -1,4 +1,4 @@
-// Package workflow provides a ScriptRegistry for managing JavaScript script bundling.
+// This file provides a ScriptRegistry for managing JavaScript script bundling.
 //
 // # Script Registry Pattern
 //
@@ -50,6 +50,7 @@
 // the script was registered with. This catches configuration errors at compile time
 // rather than at runtime. If there's a mismatch, a warning is logged but the script
 // is still returned to avoid breaking workflows.
+
 package workflow
 
 import (

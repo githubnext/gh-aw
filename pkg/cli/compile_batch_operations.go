@@ -1,4 +1,4 @@
-// Package cli provides batch operations for workflow compilation.
+// This file provides batch operations for workflow compilation.
 //
 // This file contains functions that perform batch operations on compiled workflows,
 // such as running linters, security scanners, and cleaning up orphaned files.
@@ -22,6 +22,7 @@
 //
 // These functions abstract batch operations, allowing the main compile
 // orchestrator to focus on coordination while these handle batch processing.
+
 package cli
 
 import (

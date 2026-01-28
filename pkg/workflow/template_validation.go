@@ -1,4 +1,4 @@
-// Package workflow provides template structure validation for agentic workflows.
+// This file provides template structure validation for agentic workflows.
 //
 // # Template Validation
 //
@@ -26,6 +26,7 @@
 //
 // For general validation, see validation.go.
 // For detailed documentation, see specs/validation-architecture.md
+
 package workflow
 
 import (
