@@ -1,4 +1,4 @@
-// Package workflow provides validation for feature flags.
+// This file provides validation for feature flags.
 //
 // # Features Validation
 //
@@ -19,6 +19,7 @@
 //   - Adding new feature flags that require specific value formats
 //   - Feature flags need cross-validation with other workflow settings
 //   - Feature flag values need format or constraint checking
+
 package workflow
 
 import (

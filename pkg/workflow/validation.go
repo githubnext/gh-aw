@@ -1,4 +1,4 @@
-// Package workflow provides validation functions for agentic workflow compilation.
+// This file provides validation functions for agentic workflow compilation.
 //
 // # Validation Architecture
 //
@@ -44,4 +44,5 @@
 //   - Size limit validation: Expression sizes, file sizes
 //   - Feature detection: Repository capabilities
 //   - Security validation: Permission restrictions, expression safety
+
 package workflow

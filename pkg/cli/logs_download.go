@@ -1,4 +1,4 @@
-// Package cli provides command-line interface functionality for gh-aw.
+// This file provides command-line interface functionality for gh-aw.
 // This file (logs_download.go) contains functions for downloading and extracting
 // GitHub Actions workflow artifacts and logs.
 //
@@ -7,6 +7,7 @@
 //   - Extracting and organizing zip archives
 //   - Flattening single-file artifact directories
 //   - Managing local file system operations
+
 package cli
 
 import (

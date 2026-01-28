@@ -1,4 +1,4 @@
-// Package workflow provides validation for GitHub Actions event filter mutual exclusivity.
+// This file provides validation for GitHub Actions event filter mutual exclusivity.
 //
 // # Filter Validation
 //
@@ -29,6 +29,7 @@
 //
 // For general validation, see validation.go.
 // For detailed documentation, see specs/validation-architecture.md
+
 package workflow
 
 import (

@@ -166,7 +166,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 			processedServer.RuntimeHint = pkg.RuntimeHint
 
 			// Extract runtime arguments
-			runtimeArgs := make([]string, 0)
+			var runtimeArgs []string
 			for _, arg := range pkg.RuntimeArguments {
 				if arg.Type == ArgumentTypePositional && arg.Value != "" {
 					runtimeArgs = append(runtimeArgs, arg.Value)
@@ -175,7 +175,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 			processedServer.RuntimeArguments = runtimeArgs
 
 			// Extract string values from package arguments as command args
-			args := make([]string, 0)
+			var args []string
 			for _, arg := range pkg.PackageArguments {
 				if arg.Type == ArgumentTypePositional && arg.Value != "" {
 					args = append(args, arg.Value)
@@ -234,7 +234,7 @@ func (c *MCPRegistryClient) SearchServers(query string) ([]MCPRegistryServerForP
 
 	// Apply local filtering if query is provided
 	if query != "" {
-		filteredServers := make([]MCPRegistryServerForProcessing, 0)
+		var filteredServers []MCPRegistryServerForProcessing
 		queryLower := strings.ToLower(query)
 
 		for _, server := range servers {
@@ -360,7 +360,7 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 				processedServer.RuntimeHint = pkg.RuntimeHint
 
 				// Extract runtime arguments
-				runtimeArgs := make([]string, 0)
+				var runtimeArgs []string
 				for _, arg := range pkg.RuntimeArguments {
 					if arg.Type == ArgumentTypePositional && arg.Value != "" {
 						runtimeArgs = append(runtimeArgs, arg.Value)
@@ -369,7 +369,7 @@ func (c *MCPRegistryClient) GetServer(serverName string) (*MCPRegistryServerForP
 				processedServer.RuntimeArguments = runtimeArgs
 
 				// Extract string values from package arguments as command args
-				args := make([]string, 0)
+				var args []string
 				for _, arg := range pkg.PackageArguments {
 					if arg.Type == ArgumentTypePositional && arg.Value != "" {
 						args = append(args, arg.Value)
