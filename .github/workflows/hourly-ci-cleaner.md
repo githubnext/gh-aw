@@ -138,8 +138,7 @@ The CI workflow has failed on the main branch. Follow the instructions from the 
 - **Verify quickly**: Re-run checks after fixes to confirm, then move on
 - **One issue at a time**: Only proceed to next step when current step passes
 - **Be concise**: Keep analysis brief and actionable
-- **Early termination**: If all checks pass, stop immediately and **call the `create_pull_request` MCP tool** to create a PR
-- **Create a pull request with all fixes using the `create_pull_request` MCP tool from the safe-outputs server**
+- **Early termination & PR creation**: If all checks pass, stop immediately and **call the `create_pull_request` MCP tool from the safe-outputs server** to create a PR with all fixes
 
 **Token Budget Awareness:**
 - Aim to complete fixes within 15-20 conversation turns
