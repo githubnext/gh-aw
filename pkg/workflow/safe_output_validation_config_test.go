@@ -257,3 +257,41 @@ func TestValidationConfigConsistency(t *testing.T) {
 		}
 	}
 }
+
+func TestMissingToolFieldOptional(t *testing.T) {
+	// Test that the 'tool' field in missing_tool is optional
+	config, found := GetValidationConfigForType("missing_tool")
+	if !found {
+		t.Fatal("missing_tool config not found")
+	}
+
+	// Verify 'tool' field exists and is optional
+	toolField, ok := config.Fields["tool"]
+	if !ok {
+		t.Fatal("tool field not found in missing_tool config")
+	}
+
+	if toolField.Required {
+		t.Error("tool field should be optional (Required: false) to match the tool description")
+	}
+
+	// Verify 'reason' field is required
+	reasonField, ok := config.Fields["reason"]
+	if !ok {
+		t.Fatal("reason field not found in missing_tool config")
+	}
+
+	if !reasonField.Required {
+		t.Error("reason field should be required")
+	}
+
+	// Verify 'alternatives' field is optional (no Required field or Required: false)
+	alternativesField, ok := config.Fields["alternatives"]
+	if !ok {
+		t.Fatal("alternatives field not found in missing_tool config")
+	}
+
+	if alternativesField.Required {
+		t.Error("alternatives field should be optional")
+	}
+}
