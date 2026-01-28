@@ -1464,4 +1464,3 @@ func TestFormatActionCacheKey(t *testing.T) {
 		})
 	}
 }
-
