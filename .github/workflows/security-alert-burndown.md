@@ -20,6 +20,7 @@ safe-outputs:
     max: 100
   create-agent-session:
     base: main
+    github-token: "${{ secrets.COPILOT_GITHUB_TOKEN }}"
 project: https://github.com/orgs/githubnext/projects/144
 ---
 
