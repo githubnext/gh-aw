@@ -1,9 +1,4 @@
 FAIL	github.com/githubnext/gh-aw/pkg/cli	600.107s
---- FAIL: TestSandboxAgentMandatory (0.91s)
-    --- FAIL: TestSandboxAgentMandatory/sandbox.agent:_awf_enables_firewall (0.44s)
-    --- FAIL: TestSandboxAgentMandatory/default_sandbox_enables_firewall_(awf) (0.46s)
---- FAIL: TestSandboxAgentEnablesDefaultTools (2.83s)
-    --- FAIL: TestSandboxAgentEnablesDefaultTools/auto-enabled_firewall_adds_edit_and_bash_tools (0.44s)
 --- FAIL: TestCustomAWFConfiguration (0.00s)
     --- FAIL: TestCustomAWFConfiguration/nil_agent_config_uses_standard_installation (0.00s)
     --- FAIL: TestCustomAWFConfiguration/agent_config_without_command_uses_standard_installation (0.00s)
