@@ -633,6 +633,89 @@ For manual feature testing in pull requests:
 
 ---
 
+## Response Complexity Calibration
+
+When generating workflow responses or documentation, calibrate the complexity level to match the request sophistication. This ensures efficient, focused responses for simple requests while providing comprehensive guidance for complex scenarios.
+
+### Complexity Tiers
+
+#### Basic Tier (Score: 1-3)
+**Characteristics:**
+- Single standard trigger (push, pull_request, issues)
+- Minimal or no tool usage
+- Straightforward linear logic
+- No advanced features
+
+**Response Calibration:**
+- **Documentation**: Concise (1-2 paragraphs, 50-150 words)
+- **Examples**: Single minimal working example
+- **Features**: No suggestions unless requested
+- **Comments**: Minimal, only for non-obvious logic
+- **Code-to-text ratio**: High (more code, less explanation)
+
+**Example Request:** "Run tests on pull requests"
+
+#### Intermediate Tier (Score: 4-7)
+**Characteristics:**
+- Multiple triggers or conditions
+- Tool combinations (bash + GitHub API)
+- Moderate configuration needs
+- Conditional logic and branching
+
+**Response Calibration:**
+- **Documentation**: Moderate (3-5 paragraphs, 200-500 words)
+- **Examples**: 2-3 examples showing variations
+- **Features**: Mention related features when relevant
+- **Comments**: Explain conditional logic and integrations
+- **Code-to-text ratio**: Balanced
+
+**Example Request:** "Triage issues using labels and assign to team members based on expertise"
+
+#### Advanced Tier (Score: 8+)
+**Characteristics:**
+- Complex multi-trigger workflows
+- Custom toolchains and MCP servers
+- Multi-stage processes with state management
+- Performance optimization needs
+- Security considerations
+
+**Response Calibration:**
+- **Documentation**: Comprehensive (6+ paragraphs, 500+ words)
+- **Examples**: Multiple detailed examples with edge cases
+- **Features**: Proactively suggest optimizations
+- **Comments**: Extensive architectural documentation
+- **Code-to-text ratio**: Lower (more explanation and guidance)
+
+**Example Request:** "Multi-repo campaign for security vulnerability detection with state persistence"
+
+### Complexity Detection
+
+**Scoring Indicators:**
+
+| Type | Indicators | Points |
+|------|-----------|--------|
+| **Basic** | Single trigger, simple verbs, no tools | 1 each |
+| **Intermediate** | Multiple triggers, conditionals, tool integration, safe-outputs | 2 each |
+| **Advanced** | Multi-stage, state management, performance needs, custom MCP, campaigns | 3 each |
+
+**Override Signals:**
+- **Force Basic**: "Keep it simple", "minimal", "just the basics"
+- **Force Advanced**: "comprehensive", "production-ready", "with all options"
+
+### Implementation Guidelines
+
+1. **Analyze request** for complexity indicators
+2. **Calculate total score** from indicators
+3. **Select appropriate tier** (Basic: 1-3, Intermediate: 4-7, Advanced: 8+)
+4. **Apply calibration** to documentation depth and detail level
+5. **Maintain quality** standards across all tiers
+
+**Key Principle**: Match sophistication to need. Basic requests deserve efficient, focused responses. Advanced requests deserve comprehensive, detailed guidance.
+
+**Implementation**: See specs/complexity-calibration.md for complete specification
+
+---
+
 ## Quick Reference
 
 ### File Locations
@@ -704,6 +787,7 @@ For detailed specifications, see individual files in `specs/`:
 - [Capitalization Guidelines](../../specs/capitalization.md)
 - [Breaking Change Rules](../../specs/breaking-cli-rules.md)
 - [CLI Command Patterns](../../specs/cli-command-patterns.md)
+- [Complexity Calibration](../../specs/complexity-calibration.md)
 - [Styles Guide](../../specs/styles-guide.md)
 - [Changesets](../../specs/changesets.md)
 - [Labels](../../specs/labels.md)

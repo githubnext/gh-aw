@@ -28,6 +28,56 @@ GitHub Agentic Workflows is a Go-based GitHub CLI extension for writing agentic 
 
 Each skill provides focused guidance on specific topics. Reference them only as needed rather than loading everything upfront.
 
+## Response Complexity Calibration
+
+When creating or reviewing workflows, agents should calibrate documentation depth and feature sophistication to match request complexity. This ensures efficient responses for simple use cases while providing comprehensive guidance for complex scenarios.
+
+### Three Complexity Tiers
+
+**Basic (Simple Workflows)**
+- **Triggers**: Single standard event (push, pull_request, issues)
+- **Tools**: Minimal or no tools
+- **Logic**: Straightforward, linear
+- **Response**: Concise documentation (50-150 words), single example, no feature suggestions
+- **Example**: "Run tests on pull requests"
+
+**Intermediate (Standard Workflows)**  
+- **Triggers**: Multiple events or conditions
+- **Tools**: Basic combinations (bash + GitHub API)
+- **Logic**: Conditional branching
+- **Response**: Moderate documentation (200-500 words), 2-3 examples, related feature mentions
+- **Example**: "Triage issues using labels and assign to team members"
+
+**Advanced (Complex Workflows)**
+- **Triggers**: Multi-stage orchestration
+- **Tools**: Custom toolchains, MCP servers, campaigns
+- **Logic**: State management, performance optimization
+- **Response**: Comprehensive documentation (500+ words), multiple detailed examples, proactive optimization suggestions
+- **Example**: "Multi-repo security scanning campaign with state persistence"
+
+### Complexity Detection
+
+Agents automatically detect complexity by analyzing:
+- **Basic indicators** (1 point each): Single trigger, simple verbs, no tools
+- **Intermediate indicators** (2 points each): Multiple triggers, conditionals, tool integration
+- **Advanced indicators** (3 points each): Multi-stage, state management, custom MCP, campaigns
+
+**Tier Assignment**: Basic (1-3), Intermediate (4-7), Advanced (8+)
+
+**Override**: Users can force a tier with phrases like "keep it simple" (basic) or "comprehensive guide" (advanced)
+
+### Quality Standards
+
+**All tiers maintain high quality standards:**
+- Correct, working examples
+- Proper error handling
+- Security best practices
+- Clear, professional documentation
+
+**The difference is depth, not quality.**
+
+See `specs/complexity-calibration.md` for complete specification.
+
 ## Critical Requirements
 
 ### ⚠️ MANDATORY PRE-COMMIT VALIDATION ⚠️
