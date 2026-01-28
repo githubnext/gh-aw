@@ -19,9 +19,24 @@ fi
 
 # Find all JSON test result files and extract test names
 # Look for lines with "Action":"run" and extract the "Test" field
-# Use grep with || true to prevent exit on no matches
+# Process each file separately to handle cases where files might be empty or have no matches
+temp_file=$(mktemp)
 find "$TEST_RESULT_DIR" -name "*.json" -type f | while read -r file; do
-  grep '"Action":"run"' "$file" 2>/dev/null | \
-    grep -o '"Test":"[^"]*"' | \
-    sed 's/"Test":"\([^"]*\)"/\1/' || true
-done | sort -u
+  if [ -s "$file" ]; then
+    # File exists and is not empty
+    grep '"Action":"run"' "$file" 2>/dev/null | \
+      grep -o '"Test":"[^"]*"' | \
+      sed 's/"Test":"\([^"]*\)"/\1/' >> "$temp_file" || true
+  fi
+done
+
+# Sort and deduplicate the results
+if [ -s "$temp_file" ]; then
+  sort -u "$temp_file"
+  rm -f "$temp_file"
+else
+  # No tests found - this is an error condition
+  rm -f "$temp_file"
+  echo "Error: No test execution records found in $TEST_RESULT_DIR" >&2
+  exit 1
+fi
