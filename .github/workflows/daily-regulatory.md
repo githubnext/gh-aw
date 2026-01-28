@@ -48,6 +48,51 @@ Review all daily report discussions from the last 24 hours and:
 
 **Important**: Use the metrics glossary at specs/metrics-glossary.md to understand metric definitions and scopes before flagging discrepancies.
 
+## Report Formatting Guidelines
+
+### Header Levels
+
+**Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
+
+The discussion title serves as h1, so all content headers should start at h3:
+- Use `###` for main sections (e.g., "### Regulatory Summary", "### Cross-Report Consistency Check")
+- Use `####` for subsections (e.g., "#### Metric Discrepancies", "#### Anomalies Detected")
+- Never use `##` (h2) or `#` (h1) in the report body
+
+### Progressive Disclosure
+
+**Wrap detailed sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+
+Use collapsible sections for:
+- Detailed metric comparison tables across all reports
+- Per-report analysis breakdowns
+- Historical anomaly logs
+- Full data validation results
+
+Example:
+```markdown
+<details>
+<summary><b>Detailed Metric Comparison</b></summary>
+
+### Issues Report vs Code Metrics Report
+
+| Metric | Issues Report | Code Metrics | Difference | Status |
+|--------|--------------|--------------|------------|--------|
+| Open Issues | 245 | 248 | +3 | ⚠️ Minor discrepancy |
+| ... | ... | ... | ... | ... |
+
+</details>
+```
+
+### Report Structure
+
+Structure your report for optimal readability:
+
+1. **Regulatory Overview** (always visible): Brief summary of compliance status, critical issues
+2. **Critical Findings** (always visible): Anomalies, discrepancies, or concerns requiring immediate attention
+3. **Detailed Analysis** (in `<details>` tags): Complete metric comparisons, validation results
+4. **Recommendations** (always visible): Actionable next steps to address issues
+
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
