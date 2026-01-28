@@ -4,10 +4,11 @@
 // the GitHub Copilot CLI and related sandbox infrastructure (AWF or SRT).
 //
 // Installation order:
-//  1. Secret validation (COPILOT_GITHUB_TOKEN)
+//  1. Secret/App variable validation
 //  2. Node.js setup
-//  3. Sandbox installation (SRT or AWF, if needed)
-//  4. Copilot CLI installation
+//  3. App token minting (if engine.app is configured)
+//  4. Sandbox installation (SRT or AWF, if needed)
+//  5. Copilot CLI installation
 //
 // The installation strategy differs based on sandbox mode:
 //   - Standard mode: Global installation using official installer script
@@ -17,6 +18,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -45,9 +47,11 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 
 	var steps []GitHubActionStep
 
+	// Check if engine.app is configured
+	hasEngineApp := workflowData.EngineConfig != nil && workflowData.EngineConfig.App != nil
+
 	// Define engine configuration for shared validation
 	config := EngineInstallConfig{
-		Secrets:         []string{"COPILOT_GITHUB_TOKEN"},
 		DocsURL:         "https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default",
 		NpmPackage:      "@github/copilot",
 		Version:         string(constants.DefaultCopilotVersion),
@@ -56,13 +60,21 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		InstallStepName: "Install GitHub Copilot CLI",
 	}
 
-	// Add secret validation step
-	secretValidation := GenerateMultiSecretValidationStep(
-		config.Secrets,
-		config.Name,
-		config.DocsURL,
-	)
-	steps = append(steps, secretValidation)
+	// Add secret validation step only if app is not configured
+	// When app is configured, we'll validate app variables instead
+	if !hasEngineApp {
+		config.Secrets = []string{"COPILOT_GITHUB_TOKEN"}
+		secretValidation := GenerateMultiSecretValidationStep(
+			config.Secrets,
+			config.Name,
+			config.DocsURL,
+		)
+		steps = append(steps, secretValidation)
+	} else {
+		// Generate app variable validation step
+		appValidationStep := generateAppVariableValidationStep(workflowData.EngineConfig.App, config.Name, config.DocsURL)
+		steps = append(steps, appValidationStep)
+	}
 
 	// Determine Copilot version
 	copilotVersion := config.Version
@@ -93,9 +105,19 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		)
 	}
 
-	// Add Node.js setup step first (before sandbox installation)
+	// Add Node.js setup step first (before sandbox installation and token minting)
 	if len(npmSteps) > 0 {
 		steps = append(steps, npmSteps[0]) // Setup Node.js step
+	}
+
+	// Add GitHub App token minting step if engine.app is configured
+	// This must come after Node.js setup but before sandbox installation
+	if hasEngineApp && workflowData.EngineConfig.App != nil {
+		copilotInstallLog.Print("Adding GitHub App token minting step for Copilot engine")
+		tokenMintSteps := e.buildCopilotEngineAppTokenMintStep(workflowData.EngineConfig.App)
+		for _, tokenStep := range tokenMintSteps {
+			steps = append(steps, GitHubActionStep([]string{tokenStep}))
+		}
 	}
 
 	// Add sandbox installation steps
@@ -176,4 +198,112 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 	}
 
 	return GitHubActionStep(stepLines)
+}
+
+// generateAppVariableValidationStep creates a GitHub Actions step to validate GitHub App variables
+// This validates that the required app-id and private-key variables/secrets are configured
+func generateAppVariableValidationStep(app *GitHubAppConfig, engineName, docsURL string) GitHubActionStep {
+	if app == nil {
+		copilotInstallLog.Print("WARNING: generateAppVariableValidationStep called with nil app config")
+		return GitHubActionStep([]string{})
+	}
+
+	stepLines := []string{
+		"      - name: Validate GitHub App variables",
+		"        id: validate-secret",
+		"        run: |",
+		"          echo \"Validating GitHub App configuration for " + engineName + "...\"",
+		"          ",
+		fmt.Sprintf("          # Validate app-id variable (expected: %s)", app.AppID),
+		"          if [ -z \"" + app.AppID + "\" ]; then",
+		"            echo \"❌ ERROR: GitHub App ID is not set\"",
+		"            echo \"\"",
+		"            echo \"To use GitHub App authentication with " + engineName + ", you need to configure:\"",
+		"            echo \"  - vars.APP_ID (GitHub App ID)\"",
+		"            echo \"  - secrets.APP_PRIVATE_KEY (GitHub App private key)\"",
+		"            echo \"\"",
+		"            echo \"Documentation: " + docsURL + "\"",
+		"            exit 1",
+		"          fi",
+		"          ",
+		fmt.Sprintf("          # Validate private-key secret (expected: %s)", app.PrivateKey),
+		"          if [ -z \"" + app.PrivateKey + "\" ]; then",
+		"            echo \"❌ ERROR: GitHub App private key is not set\"",
+		"            echo \"\"",
+		"            echo \"To use GitHub App authentication with " + engineName + ", you need to configure:\"",
+		"            echo \"  - vars.APP_ID (GitHub App ID)\"",
+		"            echo \"  - secrets.APP_PRIVATE_KEY (GitHub App private key)\"",
+		"            echo \"\"",
+		"            echo \"Documentation: " + docsURL + "\"",
+		"            exit 1",
+		"          fi",
+		"          ",
+		"          echo \"✅ GitHub App configuration validated successfully\"",
+		"          echo \"verification_result=success\" >> \"$GITHUB_OUTPUT\"",
+		"        env:",
+		fmt.Sprintf("          APP_ID: %s", app.AppID),
+		fmt.Sprintf("          APP_PRIVATE_KEY: %s", app.PrivateKey),
+	}
+
+	return GitHubActionStep(stepLines)
+}
+
+// buildCopilotEngineAppTokenMintStep generates the step to mint a GitHub App installation access token for Copilot
+// This token will have "copilot-requests: read" permission
+func (e *CopilotEngine) buildCopilotEngineAppTokenMintStep(app *GitHubAppConfig) []string {
+	copilotInstallLog.Print("Building Copilot engine GitHub App token mint step")
+	var steps []string
+
+	steps = append(steps, "      - name: Generate GitHub App token for Copilot\n")
+	steps = append(steps, "        id: copilot-engine-app-token\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/create-github-app-token")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          app-id: %s\n", app.AppID))
+	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
+
+	// Add owner - default to current repository owner if not specified
+	owner := app.Owner
+	if owner == "" {
+		owner = "${{ github.repository_owner }}"
+	}
+	steps = append(steps, fmt.Sprintf("          owner: %s\n", owner))
+
+	// Add repositories - default to current repository name if not specified
+	if len(app.Repositories) > 0 {
+		reposStr := strings.Join(app.Repositories, ",")
+		steps = append(steps, fmt.Sprintf("          repositories: %s\n", reposStr))
+	} else {
+		// Extract repo name from github.repository (which is "owner/repo")
+		steps = append(steps, "          repositories: ${{ github.event.repository.name }}\n")
+	}
+
+	// Always add github-api-url from environment variable
+	steps = append(steps, "          github-api-url: ${{ github.api_url }}\n")
+
+	// Add copilot-requests permission (read access)
+	steps = append(steps, "          permission-copilot-requests: read\n")
+
+	return steps
+}
+
+// buildCopilotEngineAppTokenInvalidationStep generates the step to invalidate the Copilot engine GitHub App token
+// This step always runs (even on failure) to ensure tokens are properly cleaned up
+func (e *CopilotEngine) buildCopilotEngineAppTokenInvalidationStep() []string {
+	var steps []string
+
+	steps = append(steps, "      - name: Invalidate Copilot engine GitHub App token\n")
+	steps = append(steps, "        if: always() && steps.copilot-engine-app-token.outputs.token != ''\n")
+	steps = append(steps, "        env:\n")
+	steps = append(steps, "          TOKEN: ${{ steps.copilot-engine-app-token.outputs.token }}\n")
+	steps = append(steps, "        run: |\n")
+	steps = append(steps, "          echo \"Revoking Copilot engine GitHub App installation token...\"\n")
+	steps = append(steps, "          # GitHub CLI will auth with the token being revoked.\n")
+	steps = append(steps, "          gh api \\\n")
+	steps = append(steps, "            --method DELETE \\\n")
+	steps = append(steps, "            -H \"Authorization: token $TOKEN\" \\\n")
+	steps = append(steps, "            /installation/token || echo \"Token revoke may already be expired.\"\n")
+	steps = append(steps, "          \n")
+	steps = append(steps, "          echo \"Token invalidation step complete.\"\n")
+
+	return steps
 }

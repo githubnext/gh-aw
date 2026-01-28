@@ -24,6 +24,7 @@ type EngineConfig struct {
 	Config      string
 	Args        []string
 	Firewall    *FirewallConfig // AWF firewall configuration
+	App         *GitHubAppConfig // GitHub App configuration for token minting
 }
 
 // NetworkPermissions represents network access permissions for workflow execution
@@ -235,6 +236,16 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 
 					config.Firewall = firewallConfig
 					engineLog.Print("Extracted firewall configuration")
+				}
+			}
+
+			// Extract optional 'app' field (GitHub App configuration for token minting)
+			if app, hasApp := engineObj["app"]; hasApp {
+				if appObj, ok := app.(map[string]any); ok {
+					config.App = parseAppConfig(appObj)
+					if config.App != nil {
+						engineLog.Print("Extracted GitHub App configuration for engine")
+					}
 				}
 			}
 

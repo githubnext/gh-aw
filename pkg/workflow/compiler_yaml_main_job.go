@@ -327,6 +327,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Generate single unified artifact upload with all collected paths
 	c.generateUnifiedArtifactUpload(yaml, artifactPaths)
 
+	// Add Copilot engine app token invalidation step if configured (runs always, even on failure)
+	c.generateCopilotEngineAppTokenInvalidationStep(yaml, data, engine)
+
 	// Add GitHub MCP app token invalidation step if configured (runs always, even on failure)
 	c.generateGitHubMCPAppTokenInvalidationStep(yaml, data)
 
@@ -336,6 +339,28 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		return fmt.Errorf("step ordering validation failed: %w", err)
 	}
 	return nil
+}
+
+// generateCopilotEngineAppTokenInvalidationStep generates a step to invalidate the GitHub App token for Copilot engine
+// This step always runs (even on failure) to ensure tokens are properly cleaned up
+func (c *Compiler) generateCopilotEngineAppTokenInvalidationStep(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
+	// Check if this is a Copilot engine with app configuration
+	copilotEngine, isCopilot := engine.(*CopilotEngine)
+	if !isCopilot {
+		return
+	}
+	
+	// Check if engine.app is configured
+	if data.EngineConfig == nil || data.EngineConfig.App == nil {
+		return
+	}
+
+	// Generate the token invalidation step
+	steps := copilotEngine.buildCopilotEngineAppTokenInvalidationStep()
+	
+	for _, step := range steps {
+		yaml.WriteString(step)
+	}
 }
 
 // addCustomStepsAsIs adds custom steps without modification

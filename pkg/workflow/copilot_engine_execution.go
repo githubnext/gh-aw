@@ -420,11 +420,22 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 %s%s 2>&1 | tee %s`, mkdirCommands.String(), copilotCommand, logFile)
 	}
 
-	// Use COPILOT_GITHUB_TOKEN
-	// If github-token is specified at workflow level, use that instead
+	// Use COPILOT_GITHUB_TOKEN (or app token if engine.app is configured)
+	// The token comes from either:
+	// 1. secrets.COPILOT_GITHUB_TOKEN (standard authentication)
+	// 2. steps.copilot-engine-app-token.outputs.token (when engine.app is configured)
+	// 3. workflowData.GitHubToken if specified at workflow level (highest precedence)
 	var copilotGitHubToken string
+	
+	// Check if engine.app is configured - if so, use app token
+	hasEngineApp := workflowData.EngineConfig != nil && workflowData.EngineConfig.App != nil
+	
 	if workflowData.GitHubToken != "" {
+		// Use custom workflow-level token (highest precedence)
 		copilotGitHubToken = workflowData.GitHubToken
+	} else if hasEngineApp {
+		// Use app token from the token mint step
+		copilotGitHubToken = "${{ steps.copilot-engine-app-token.outputs.token }}"
 	} else {
 		// #nosec G101 -- This is NOT a hardcoded credential. It's a GitHub Actions expression template
 		// that GitHub Actions runtime replaces with the actual secret value. The string "${{ secrets.COPILOT_GITHUB_TOKEN }}"
