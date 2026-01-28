@@ -899,12 +899,14 @@ func NewPermissionsContentsReadSecurityEventsWriteActionsRead() *Permissions {
 	})
 }
 
-// NewPermissionsContentsReadProjectsWrite creates permissions with contents: read and organization-projects: write
+// NewPermissionsContentsReadProjectsWrite creates permissions with contents: read, organization-projects: write, and issues: write
 // Note: organization-projects is only valid for GitHub App tokens, not workflow permissions
+// The issues: write permission is required to add campaign labels to issues during project updates
 func NewPermissionsContentsReadProjectsWrite() *Permissions {
 	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
 		PermissionContents:         PermissionRead,
 		PermissionOrganizationProj: PermissionWrite,
+		PermissionIssues:           PermissionWrite,
 	})
 }
 

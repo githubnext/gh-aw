@@ -2141,6 +2141,7 @@ jobs:
     permissions:
       actions: write
       contents: read
+      issues: write
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "claude"

@@ -1940,6 +1940,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      issues: write
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
