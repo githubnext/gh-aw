@@ -104,10 +104,11 @@ func TestStderrMessagesAfterJSON(t *testing.T) {
 	os.Stderr = w
 
 	// Start goroutine to read
-	done := make(chan bool)
+	// Channel is closed by goroutine (sender) to signal completion
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		combinedOutput.ReadFrom(r)
-		done <- true
 	}()
 
 	// Step 3: Output JSON FIRST (as our fix does)

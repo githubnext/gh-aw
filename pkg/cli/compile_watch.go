@@ -108,6 +108,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 	// Set up signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sigChan)
 
 	// Debouncing setup
 	const debounceDelay = 300 * time.Millisecond

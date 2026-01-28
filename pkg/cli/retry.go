@@ -63,6 +63,7 @@ func ExecuteWithRepeat(options RepeatOptions) error {
 	// Set up signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigChan)
 
 	// Run the specified number of additional times
 	for i := 1; i <= options.RepeatCount; i++ {
