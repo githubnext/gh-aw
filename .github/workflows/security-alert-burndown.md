@@ -14,13 +14,7 @@ tools:
   github:
     read-only: true
     toolsets: [repos, issues, pull_requests, code_security, secret_protection]
-safe-outputs:
-  noop:
-    max: 1
-  update-project:
-    max: 100
-project:
-  url: https://github.com/orgs/githubnext/projects/144
+project: https://github.com/orgs/githubnext/projects/144
 ---
 
 # Security Alert Burndown
@@ -87,7 +81,7 @@ If *no* items were found across all categories (Dependabot PRs, code scanning al
 
 ### Step 5: Update Project Board
 
-For each discovered item (up to 10 total per run):
+For each discovered item (up to 100 total per run):
 - Add or update the corresponding work item on the project board: <https://github.com/orgs/githubnext/projects/144>
 - Use the `update-project` safe output tool
 - Always include the campaign project URL (this is what makes it a campaign):
@@ -123,4 +117,4 @@ Summarize how many items were discovered and added/updated on the project board,
 - Focus only on open items:
   - PRs: open only
   - Alerts: open only
-- Limit updates to 10 items per run to respect rate limits (prioritize highest severity/most recent first)
+- Limit updates to 100 items per run to respect rate limits (prioritize highest severity/most recent first)
