@@ -44,7 +44,6 @@
 package workflow
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -84,28 +83,12 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 	// Check if the file exists
 	if _, err := os.Stat(fullAgentPath); err != nil {
 		if os.IsNotExist(err) {
-			formattedErr := console.FormatError(console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   markdownPath,
-					Line:   1,
-					Column: 1,
-				},
-				Type:    "error",
-				Message: fmt.Sprintf("agent file '%s' does not exist. Ensure the file exists in the repository and is properly imported.", agentPath),
-			})
-			return errors.New(formattedErr)
+			return formatCompilerError(markdownPath, "error",
+				fmt.Sprintf("agent file '%s' does not exist. Ensure the file exists in the repository and is properly imported.", agentPath))
 		}
 		// Other error (permissions, etc.)
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: fmt.Sprintf("failed to access agent file '%s': %v", agentPath, err),
-		})
-		return errors.New(formattedErr)
+		return formatCompilerError(markdownPath, "error",
+			fmt.Sprintf("failed to access agent file '%s': %v", agentPath, err))
 	}
 
 	if c.verbose {
@@ -245,28 +228,11 @@ func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markd
 
 	if c.strictMode {
 		// In strict mode, this is an error
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: message,
-		})
-		return errors.New(formattedErr)
+		return formatCompilerError(markdownPath, "error", message)
 	}
 
 	// In normal mode, this is a warning
-	formattedWarning := console.FormatError(console.CompilerError{
-		Position: console.ErrorPosition{
-			File:   markdownPath,
-			Line:   1,
-			Column: 1,
-		},
-		Type:    "warning",
-		Message: message,
-	})
+	formattedWarning := formatCompilerMessage(markdownPath, "warning", message)
 	fmt.Fprintln(os.Stderr, formattedWarning)
 	c.IncrementWarningCount()
 
