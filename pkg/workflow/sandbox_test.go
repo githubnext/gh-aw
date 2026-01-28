@@ -262,6 +262,9 @@ func TestValidateSandboxConfig(t *testing.T) {
 				},
 				EngineConfig: &EngineConfig{ID: "copilot"},
 				Features:     map[string]any{"sandbox-runtime": true},
+				Tools: map[string]any{
+					"github": map[string]any{}, // Add MCP server to satisfy validation
+				},
 			},
 			expectError: false,
 		},
