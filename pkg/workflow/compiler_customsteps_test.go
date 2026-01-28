@@ -80,7 +80,7 @@ strict: false
 				t.Fatalf("Failed to write test file: %v", err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Compile the workflow
 			if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -190,7 +190,7 @@ strict: false
 				t.Fatalf("Failed to write test file: %v", err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError && err == nil {

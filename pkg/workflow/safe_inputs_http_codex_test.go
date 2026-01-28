@@ -35,7 +35,7 @@ Test safe-inputs HTTP transport for Codex
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(workflowPath)
 	if err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -145,7 +145,7 @@ Test safe-inputs with secrets
 		t.Fatalf("Failed to write workflow file: %v", err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(workflowPath)
 	if err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)

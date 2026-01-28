@@ -75,7 +75,7 @@ Test content`,
 			testFile := filepath.Join(tmpDir, "test-workflow.md")
 			require.NoError(t, os.WriteFile(testFile, []byte(tt.frontmatter), 0644))
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			require.NoError(t, compiler.CompileWorkflow(testFile))
 
 			// Parse the workflow to check the config
@@ -113,7 +113,7 @@ Create test issues with grouping.
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	require.NoError(t, compiler.CompileWorkflow(testFile))
 
 	// Read the compiled output
@@ -153,7 +153,7 @@ Test grouping without explicit issues permission.
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
 	// Compile the workflow - should succeed (safe-outputs doesn't require explicit permission)
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	require.NoError(t, compiler.CompileWorkflow(testFile))
 
 	// Read the compiled output
@@ -193,7 +193,7 @@ Test grouping with title prefix.
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	require.NoError(t, compiler.CompileWorkflow(testFile))
 
 	// Read the compiled output
@@ -231,7 +231,7 @@ Test MCP config with group.
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	require.NoError(t, compiler.CompileWorkflow(testFile))
 
 	// Read the compiled output

@@ -184,7 +184,8 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	if data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequests != nil {
 		// Build environment variables for the create PR error handler
 		var createPRErrorEnvVars []string
-		createPRErrorEnvVars = append(createPRErrorEnvVars, "          CREATE_PR_ERROR_MESSAGE: ${{ needs.create_pull_request.outputs.error_message }}\n")
+		// Note: With consolidated safe outputs, individual handler errors are not exposed as outputs.
+		// The error handler script will skip gracefully if CREATE_PR_ERROR_MESSAGE is not set.
 		createPRErrorEnvVars = append(createPRErrorEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
 		createPRErrorEnvVars = append(createPRErrorEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
 
@@ -396,7 +397,7 @@ func buildSafeOutputJobsEnvVars(jobNames []string) (string, []string) {
 			urlKey = "pull_request_url"
 		case "close_discussion":
 			urlKey = "discussion_url"
-		case "create_agent_task":
+		case "create_agent_session":
 			urlKey = "task_url"
 		case "push_to_pull_request_branch":
 			urlKey = "commit_url"

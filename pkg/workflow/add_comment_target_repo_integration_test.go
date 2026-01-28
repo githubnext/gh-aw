@@ -99,7 +99,7 @@ func TestAddCommentTargetRepoIntegration(t *testing.T) {
 			}
 
 			// Create compiler with trial mode if needed
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			if tt.trialLogicalRepoSlug != "" {
 				compiler.SetTrialMode(true)
 				compiler.SetTrialLogicalRepoSlug(tt.trialLogicalRepoSlug)

@@ -7,14 +7,33 @@ applyTo: "**/*"
 
 This document provides comprehensive documentation for all gosec security rule exclusions configured in `.golangci.yml`. These exclusions have been reviewed for security impact and provide an audit trail for compliance requirements.
 
+## Configuration Source
+
+### Primary Source of Truth: `.golangci.yml`
+The `.golangci.yml` file (section `linters-settings.gosec.exclude`) serves as the authoritative source for gosec exclusion configuration. This ensures consistency across development and CI/CD environments.
+
+### Usage Locations
+The exclusions defined in `.golangci.yml` are applied in:
+1. **Makefile** (`make security-gosec` target) - Uses command-line `-exclude` flag
+2. **GitHub Actions** (`.github/workflows/security-scan.yml`) - Uses command-line `-exclude` flag
+
+**Important**: When updating gosec exclusions in `.golangci.yml`, also update the `-exclude` flags in both Makefile and GitHub Actions workflows to maintain consistency.
+
 ## Overview
 
-This project uses gosec for security scanning with specific exclusions documented below. Each exclusion includes:
+This project uses [gosec](https://github.com/securego/gosec) for security scanning with specific exclusions documented below. Each exclusion includes:
 - CWE mapping for compliance tracking
 - Detailed rationale explaining why it's excluded
 - Context about specific use cases
 - Mitigation strategies for security risks
 - Review dates for audit trail
+
+### Gosec Rules Reference
+
+For complete documentation of all available gosec rules, see:
+- **Gosec Official Documentation**: https://github.com/securego/gosec
+- **Available Rules**: https://github.com/securego/gosec#available-rules
+- **Rule Details**: Each rule below links to its specific documentation section
 
 ## Global Exclusions
 
@@ -22,6 +41,7 @@ The following gosec rules are globally excluded across the entire codebase:
 
 ### G101: Hardcoded Credentials
 - **CWE**: CWE-798 (Use of Hard-coded Credentials)
+- **Documentation**: https://github.com/securego/gosec#available-rules (G101 - Look for hardcoded credentials)
 - **Rationale**: High false positive rate on variable names containing terms like `token`, `secret`, `password`, `key`, etc. The rule triggers on identifiers, not actual values.
 - **Examples of False Positives**:
   - Variable names: `tokenURL`, `secretName`, `apiKeyHeader`
@@ -35,6 +55,7 @@ The following gosec rules are globally excluded across the entire codebase:
 
 ### G115: Integer Overflow Conversion
 - **CWE**: CWE-190 (Integer Overflow or Wraparound)
+- **Documentation**: https://github.com/securego/gosec#available-rules (G115 - Integer overflow conversion)
 - **Rationale**: Integer conversions are acceptable in most cases in this codebase. The code primarily deals with configuration values, file sizes, and counts that are within safe ranges.
 - **Context**: 
   - Configuration values are bounded and validated
@@ -48,6 +69,7 @@ The following gosec rules are globally excluded across the entire codebase:
 
 ### G602: Slice Bounds Check
 - **CWE**: CWE-118 (Improper Access of Indexable Resource)
+- **Documentation**: https://github.com/securego/gosec#available-rules (G602 - Slice access out of bounds)
 - **Rationale**: Go runtime provides automatic bounds checking. Out-of-bounds access causes a panic rather than undefined behavior or memory corruption.
 - **Context**:
   - Go's built-in bounds checking is a language safety feature
@@ -65,6 +87,7 @@ The following files have specific gosec rule exclusions with documented rational
 
 ### G204: Subprocess Execution with Variable Arguments
 - **CWE**: CWE-78 (OS Command Injection)
+- **Documentation**: https://github.com/securego/gosec#available-rules (G204 - Audit use of command execution)
 - **Files**: 
   - `pkg/cli/actionlint.go` - Docker commands for actionlint
   - `pkg/parser/remote_fetch.go` - Git commands for remote workflow fetching
@@ -91,6 +114,7 @@ The following files have specific gosec rule exclusions with documented rational
 
 ### G404: Insecure Random Number Generation
 - **CWE**: CWE-338 (Use of Cryptographically Weak PRNG)
+- **Documentation**: https://github.com/securego/gosec#available-rules (G404 - Insecure random number source)
 - **Files**:
   - `pkg/cli/add_command.go` - Random IDs for temporary resources
   - `pkg/cli/update_git.go` - Non-cryptographic random operations
@@ -106,6 +130,7 @@ The following files have specific gosec rule exclusions with documented rational
 
 ### G306: Weak File Permissions
 - **CWE**: CWE-276 (Incorrect Default Permissions)
+- **Documentation**: https://github.com/securego/gosec#available-rules (G306 - Poor file permissions used when creating a file)
 - **Files**:
   - `_test.go` (all test files) - Test file creation with 0644
   - `pkg/cli/mcp_inspect.go` - Executable script with 0755
@@ -124,6 +149,7 @@ The following files have specific gosec rule exclusions with documented rational
 
 ### G305: File Traversal in Archive Extraction
 - **CWE**: CWE-22 (Path Traversal)
+- **Documentation**: https://github.com/securego/gosec#available-rules (G305 - File traversal when extracting zip/tar archive)
 - **Files**:
   - `pkg/cli/logs_download.go` - Workflow log archive extraction
 - **Rationale**: GitHub Actions workflow logs are downloaded from GitHub API (trusted source)
@@ -136,6 +162,7 @@ The following files have specific gosec rule exclusions with documented rational
 
 ### G110: Potential Decompression Bomb
 - **CWE**: CWE-400 (Uncontrolled Resource Consumption)
+- **Documentation**: https://github.com/securego/gosec#available-rules (G110 - Potential DoS vulnerability via decompression bomb)
 - **Files**:
   - `pkg/cli/logs_download.go` - Workflow log decompression
 - **Rationale**: Workflow logs are from GitHub Actions (trusted source) with known size constraints
@@ -143,6 +170,50 @@ The following files have specific gosec rule exclusions with documented rational
   - Logs have maximum size limits imposed by GitHub Actions
   - Decompression in temporary directories with disk space monitoring
   - User-initiated operation with visible progress
+- **Review Date**: 2025-12-25
+
+### G301: Directory Permissions
+- **CWE**: CWE-276 (Incorrect Default Permissions)
+- **Documentation**: https://github.com/securego/gosec#available-rules (G301 - Poor file permissions used when creating a directory)
+- **Files**:
+  - `pkg/parser/import_cache.go` - Cache directory creation
+  - `pkg/parser/frontmatter_includes_test.go` - Test directory setup
+  - `pkg/testutil/tempdir.go` - Temporary directory utilities
+- **Rationale**: 0755 permissions are appropriate for directories (owner read/write/execute, group/others read/execute)
+- **Mitigation**:
+  - Directories created in user-controlled locations
+  - Cache directories follow standard Unix permissions
+  - Temporary directories cleaned up after use
+  - Sensitive data uses restrictive permissions where needed
+- **Review Date**: 2025-12-25
+
+### G302: File Permissions for chmod Operations
+- **CWE**: CWE-276 (Incorrect Default Permissions)
+- **Documentation**: https://github.com/securego/gosec#available-rules (G302 - Poor file permissions used with chmod)
+- **Rationale**: chmod operations with 0755 are acceptable for making files executable
+- **Context**:
+  - Used for shell scripts that need to be executed
+  - Follows standard Unix executable file permissions
+  - Only applied to generated scripts, not user data
+- **Mitigation**:
+  - chmod only applied to generated script files
+  - Permissions appropriate for the file type (executable scripts)
+  - Files created in controlled locations
+- **Review Date**: 2025-12-25
+
+### G304: File Inclusion via Variable
+- **CWE**: CWE-22 (Path Traversal)
+- **Documentation**: https://github.com/securego/gosec#available-rules (G304 - File path provided as taint input)
+- **Files**:
+  - `pkg/parser/frontmatter_content.go` - Frontmatter file reading
+  - `pkg/parser/include_expander.go` - Workflow include processing
+  - `pkg/parser/include_processor.go` - Include directive handling
+- **Rationale**: File paths are validated before use in workflow parsing and include processing
+- **Mitigation**:
+  - All file paths validated against allowed patterns
+  - Path traversal attempts detected and rejected
+  - Files only read from known safe locations
+  - Input validation on all user-provided paths
 - **Review Date**: 2025-12-25
 
 ## Suppression Guidelines

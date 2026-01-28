@@ -40,7 +40,7 @@ This workflow tests the output.add-comment configuration parsing.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow data
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -89,7 +89,7 @@ This workflow tests the output.add-comment configuration parsing with null value
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow data
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -139,7 +139,7 @@ This workflow tests the output.add-comment target configuration parsing.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow data
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -194,7 +194,7 @@ This workflow tests the add-comment max and target configuration parsing.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow data
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -254,7 +254,7 @@ This workflow tests the safe_outputs job generation.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -349,7 +349,7 @@ This workflow tests that issue comment job is skipped for non-issue/PR events.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {

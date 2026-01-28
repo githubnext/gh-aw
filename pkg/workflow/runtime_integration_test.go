@@ -42,7 +42,7 @@ Test workflow with runtime overrides.
 	}
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
 	if err != nil {
 		t.Fatalf("Failed to parse workflow: %v", err)
@@ -137,7 +137,7 @@ Test workflow with imported runtimes.
 	}
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
 	if err != nil {
 		t.Fatalf("Failed to parse workflow: %v", err)
@@ -222,7 +222,7 @@ Test workflow with runtime overrides applied to steps.
 	}
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -281,7 +281,7 @@ Test workflow with custom setup action.
 	}
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -335,7 +335,7 @@ Test workflow that uses Go without go.mod file.
 	}
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -398,7 +398,7 @@ Test workflow that uses Go with custom go.mod path via Serena.
 	}
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}

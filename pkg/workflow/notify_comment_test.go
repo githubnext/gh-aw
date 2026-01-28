@@ -140,7 +140,7 @@ func TestConclusionJob(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a test workflow
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			workflowData := &WorkflowData{
 				Name:       "Test Workflow",
 				AIReaction: tt.aiReaction,
@@ -236,7 +236,7 @@ func TestConclusionJob(t *testing.T) {
 
 func TestConclusionJobIntegration(t *testing.T) {
 	// Test that the job is properly integrated with activation job outputs
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 	workflowData := &WorkflowData{
 		Name:       "Test Workflow",
 		AIReaction: "eyes", // This causes the activation job to create a comment
@@ -304,7 +304,7 @@ func TestConclusionJobIntegration(t *testing.T) {
 
 func TestConclusionJobWithMessages(t *testing.T) {
 	// Test that the conclusion job includes custom messages when configured
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 	workflowData := &WorkflowData{
 		Name:       "Test Workflow",
 		AIReaction: "eyes",
@@ -356,7 +356,7 @@ func TestConclusionJobWithMessages(t *testing.T) {
 
 func TestConclusionJobWithoutMessages(t *testing.T) {
 	// Test that the conclusion job does NOT include messages env var when not configured
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 	workflowData := &WorkflowData{
 		Name:       "Test Workflow",
 		AIReaction: "eyes",
@@ -397,7 +397,7 @@ func TestConclusionJobWithoutMessages(t *testing.T) {
 
 func TestActivationJobWithMessages(t *testing.T) {
 	// Test that the activation job includes custom messages when configured
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 	workflowData := &WorkflowData{
 		Name:       "Test Workflow",
 		AIReaction: "eyes",
@@ -446,7 +446,7 @@ func TestActivationJobWithMessages(t *testing.T) {
 
 func TestActivationJobWithoutMessages(t *testing.T) {
 	// Test that the activation job does NOT include messages env var when not configured
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 	workflowData := &WorkflowData{
 		Name:       "Test Workflow",
 		AIReaction: "eyes",
@@ -485,7 +485,7 @@ func TestActivationJobWithoutMessages(t *testing.T) {
 // TestConclusionJobWithGeneratedAssets tests that the conclusion job includes environment variables
 // for safe output job URLs when safe output jobs are present
 func TestConclusionJobWithGeneratedAssets(t *testing.T) {
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 
 	// Create workflow data with safe outputs configuration
 	workflowData := &WorkflowData{

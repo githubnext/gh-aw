@@ -114,7 +114,7 @@ func TestHasSafeOutputsEnabledWithUploadAsset(t *testing.T) {
 
 func TestUploadAssetsJobUsesFileInput(t *testing.T) {
 	// Test that the upload_assets job reads from file (via env var) not JSON payload
-	c := NewCompiler(false, "", "")
+	c := NewCompiler()
 	data := &WorkflowData{
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{

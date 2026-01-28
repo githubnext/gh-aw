@@ -16,7 +16,7 @@ import (
 func TestStepOrderingValidation_SecretRedactionBeforeUploads(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "step-order-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test with a workflow that has secrets
 	workflowWithSecrets := `---
@@ -82,7 +82,7 @@ This workflow has a secret reference and safe-outputs.
 func TestStepOrderingValidation_NoSecretsStillHasRedaction(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "step-order-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test with a workflow that has NO secrets at compile time
 	workflowNoSecrets := `---
@@ -132,7 +132,7 @@ This workflow has no secret references.
 func TestStepOrderingValidation_UploadedPathsCoverage(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "step-order-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test with a workflow that uploads artifacts
 	workflow := `---

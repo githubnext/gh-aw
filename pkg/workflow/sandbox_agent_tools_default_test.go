@@ -30,7 +30,7 @@ Test workflow to verify sandbox.agent: awf enables edit and bash tools.
 		require.NoError(t, err, "Failed to write workflow file")
 
 		// Compile the workflow
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetSkipValidation(true)
 
 		err = compiler.CompileWorkflow(workflowPath)
@@ -72,7 +72,7 @@ Test workflow to verify sandbox.agent: srt enables edit and bash tools.
 		require.NoError(t, err, "Failed to write workflow file")
 
 		// Compile the workflow
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetSkipValidation(true)
 
 		err = compiler.CompileWorkflow(workflowPath)
@@ -109,7 +109,7 @@ Test workflow to verify default sandbox.agent (awf) does not enable extra tools.
 		require.NoError(t, err, "Failed to write workflow file")
 
 		// Compile the workflow
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetSkipValidation(true)
 
 		err = compiler.CompileWorkflow(workflowPath)
@@ -154,7 +154,7 @@ Test workflow without sandbox config.
 		require.NoError(t, err, "Failed to write workflow file")
 
 		// Compile the workflow
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetSkipValidation(true)
 
 		err = compiler.CompileWorkflow(workflowPath)
@@ -197,7 +197,7 @@ Test workflow where explicit tools.bash should take precedence over default.
 		require.NoError(t, err, "Failed to write workflow file")
 
 		// Compile the workflow
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetSkipValidation(true)
 
 		err = compiler.CompileWorkflow(workflowPath)
@@ -239,7 +239,7 @@ Test workflow where firewall is auto-enabled via network restrictions.
 		require.NoError(t, err, "Failed to write workflow file")
 
 		// Compile the workflow
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetSkipValidation(true)
 
 		err = compiler.CompileWorkflow(workflowPath)

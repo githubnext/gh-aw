@@ -15,7 +15,7 @@ func TestRunsOnSection(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "workflow-runs-on-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name           string
@@ -105,7 +105,7 @@ This is a test workflow.
 }
 
 func TestNetworkPermissionsDefaultBehavior(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tmpDir := testutil.TempDir(t, "test-*")
 

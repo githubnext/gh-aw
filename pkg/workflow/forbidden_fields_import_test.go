@@ -76,7 +76,9 @@ This workflow imports a shared workflow with forbidden field.
 			require.NoError(t, os.WriteFile(mainPath, []byte(mainContent), 0644))
 
 			// Try to compile - should fail because shared workflow has forbidden field
-			compiler := NewCompiler(false, tempDir, "test")
+			compiler := NewCompiler(
+				WithCustomOutput(tempDir),
+			)
 			err := compiler.CompileWorkflow(mainPath)
 
 			// Should get error about forbidden field
@@ -154,7 +156,9 @@ This workflow imports a shared workflow with allowed field.
 			require.NoError(t, os.WriteFile(mainPath, []byte(mainContent), 0644))
 
 			// Compile - should succeed because shared workflow has allowed field
-			compiler := NewCompiler(false, tempDir, "test")
+			compiler := NewCompiler(
+				WithCustomOutput(tempDir),
+			)
 			err := compiler.CompileWorkflow(mainPath)
 
 			// Should NOT get error about forbidden field
@@ -217,7 +221,9 @@ This workflow imports a shared workflow that itself has imports (nested).
 	require.NoError(t, os.WriteFile(mainPath, []byte(mainContent), 0644))
 
 	// Compile - should succeed because shared workflows can have imports (nested imports are supported)
-	compiler := NewCompiler(false, tempDir, "test")
+	compiler := NewCompiler(
+		WithCustomOutput(tempDir),
+	)
 	err := compiler.CompileWorkflow(mainPath)
 
 	// Should NOT get error about forbidden field

@@ -93,6 +93,7 @@ type SpinnerWrapper struct {
 	enabled bool
 	running bool
 	mu      sync.Mutex
+	wg      sync.WaitGroup
 }
 
 // NewSpinner creates a new spinner with the given message using MiniDot style.
@@ -120,8 +121,12 @@ func (s *SpinnerWrapper) Start() {
 			return
 		}
 		s.running = true
+		s.wg.Add(1)
 		s.mu.Unlock()
-		go func() { _, _ = s.program.Run() }()
+		go func() {
+			defer s.wg.Done()
+			_, _ = s.program.Run()
+		}()
 	}
 }
 
@@ -132,6 +137,7 @@ func (s *SpinnerWrapper) Stop() {
 			s.running = false
 			s.mu.Unlock()
 			s.program.Quit()
+			s.wg.Wait() // Wait for the goroutine to complete
 			fmt.Fprint(os.Stderr, "\r\033[K")
 		} else {
 			s.mu.Unlock()
@@ -146,6 +152,7 @@ func (s *SpinnerWrapper) StopWithMessage(msg string) {
 			s.running = false
 			s.mu.Unlock()
 			s.program.Quit()
+			s.wg.Wait() // Wait for the goroutine to complete
 			fmt.Fprintf(os.Stderr, "\r\033[K%s\n", msg)
 		} else {
 			s.mu.Unlock()

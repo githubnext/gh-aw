@@ -11,7 +11,8 @@ When creating or modifying GitHub resources, **use MCP tool calls directly** (no
 - `create_project` - Create project board
 - `update_project` - Create/update project fields, views, and items
 - `update_issue` - Update issue details
-- `assign_to_agent` - Assign to agent
+- `create_agent_session` - Create a Copilot coding agent session (preferred handoff)
+- `assign_to_agent` - Assign to agent (optional; use for existing issues/PRs)
 
 ## Workflow
 
@@ -24,7 +25,7 @@ When creating or modifying GitHub resources, **use MCP tool calls directly** (no
 5. Discover workflows: scan `.github/workflows/*.md` and check [agentics collection](https://github.com/githubnext/agentics)
 6. Generate `.campaign.md` spec in `.github/workflows/`
 7. Update the triggering issue with a human-readable status + Copilot Coding Agent instructions
-8. Assign to Copilot Coding Agent
+8. Create a Copilot coding agent session (preferred) or assign to agent (fallback)
 
 **Agent Responsibilities:** Compile with `gh aw compile`, commit files, create PR
 
@@ -79,7 +80,7 @@ Create them before adding any items to the project.
 
 ## Copilot Coding Agent Handoff (Required)
 
-Before calling `assign_to_agent`, update the triggering issue (via `update_issue`) to include a clear, human-friendly status update.
+Before creating an agent session, update the triggering issue (via `update_issue`) to include a clear, human-friendly status update.
 
 The issue update MUST be easy to follow for someone unfamiliar with campaigns. Include:
 
@@ -111,7 +112,7 @@ Add a section like this (fill in real values):
 - Selected workflows: `<workflow-1>`, `<workflow-2>`
 
 ### What happens next
-1. Copilot Coding Agent will open a pull request with the generated files.
+1. Copilot Coding Agent will open a pull request with the generated files (via agent session).
 2. You review the PR and merge it.
 3. After merge, run the orchestrator workflow from the Actions tab.
 
@@ -119,6 +120,7 @@ Add a section like this (fill in real values):
 - **Campaign ID:** `<campaign-id>`
 - **Project URL:** <project-url>
 - **Workflows:** `<workflow-1>`, `<workflow-2>`
+- **Agent session:** <session-url (if created)>
 
 Run:
 ```bash
@@ -166,14 +168,14 @@ In addition to the structure above, include these exact items:
 **Safe Outputs (Least Privilege):**
 
 - For this campaign generator workflow, use `update-issue` for status updates (this workflow does not enable `add-comment`).
-- Project-based: `create-project`, `update-project`, `update-issue`, `assign-to-agent` (in order)
+- Project-based: `create-project`, `update-project`, `update-issue`, `create-agent-session` (preferred)
 
 **Operation Order for Project Setup:**
 
 1. `create-project` (creates project + views)
 2. `update-project` (adds items/fields)
 3. `update-issue` (updates metadata, optional)
-4. `assign-to-agent` (assigns agents, optional)
+4. `create-agent-session` (preferred) or `assign-to-agent` (fallback)
 
 **Example Safe Outputs Configuration for Project-Based Campaigns:**
 
@@ -197,7 +199,8 @@ safe-outputs:
     max: 10
     github-token: "<GH_AW_PROJECT_GITHUB_TOKEN>"  # Provide via workflow secret/env; avoid secrets expressions in runtime-import files
   update-issue:
-  assign-to-agent:
+  create-agent-session:
+    base: "${{ github.ref_name }}"  # Prefer main/default branch when appropriate
 ```
 
 **Risk Levels:**

@@ -302,7 +302,7 @@ YAML error that demonstrates column position handling.`,
 			}
 
 			// Create compiler
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Attempt compilation - should fail with proper error formatting
 			err := compiler.CompileWorkflow(testFile)
@@ -427,7 +427,7 @@ Test content.`,
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.CompileWorkflow(testFile)
 			if err == nil {
 				t.Errorf("%s: expected compilation to fail", tt.description)
@@ -474,7 +474,7 @@ Test content.`,
 
 // TestConvertGoPatternToJavaScript tests the convertGoPatternToJavaScript method
 func TestConvertGoPatternToJavaScript(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name      string
@@ -520,7 +520,7 @@ func TestConvertGoPatternToJavaScript(t *testing.T) {
 }
 
 func TestAddCustomStepsAsIsBasic(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name        string
@@ -600,7 +600,7 @@ This is a test workflow.`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("CompileWorkflow() error: %v", err)
 	}
@@ -652,7 +652,7 @@ Test content.`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("CompileWorkflow() error: %v", err)
 	}
@@ -693,7 +693,7 @@ Test content.`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("CompileWorkflow() error: %v", err)
 	}
@@ -738,7 +738,7 @@ Test content.`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("CompileWorkflow() error: %v", err)
 	}
@@ -782,7 +782,7 @@ Test content.`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("CompileWorkflow() error: %v", err)
 	}
@@ -825,7 +825,7 @@ Test content.`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("CompileWorkflow() error: %v", err)
 	}
@@ -886,7 +886,7 @@ Test content.`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("CompileWorkflow() error: %v", err)
 	}
@@ -916,7 +916,7 @@ func TestGenerateYAMLStripsANSIFromImportedFiles(t *testing.T) {
 
 	// Create a workflow that will have imported files
 	// We'll create it manually by modifying WorkflowData
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Create a simple workflow file first
 	frontmatter := `---
@@ -987,7 +987,7 @@ func TestGenerateYAMLStripsANSIFromStopTimeAndManualApproval(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "yaml-ansi-stoptime-test")
 
 	// Create workflow with stop-time and manual-approval containing ANSI codes
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	frontmatter := `---
 name: Test Workflow
@@ -1050,7 +1050,7 @@ Test content.`
 func TestGenerateYAMLStripsANSIMultilineDescription(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "yaml-ansi-multiline-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Create workflow with simple description first
 	frontmatter := `---

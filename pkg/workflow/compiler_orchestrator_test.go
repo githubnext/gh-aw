@@ -33,7 +33,7 @@ This is a valid main workflow with an 'on' field.
 	testFile := filepath.Join(tmpDir, "main-workflow.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err, "Valid main workflow should parse successfully")
 	require.NotNil(t, workflowData, "WorkflowData should not be nil")
@@ -61,7 +61,7 @@ This can be imported by other workflows.
 	testFile := filepath.Join(tmpDir, "shared-workflow.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 
 	// Should return SharedWorkflowError
@@ -86,7 +86,7 @@ This file has no frontmatter section.
 	testFile := filepath.Join(tmpDir, "no-frontmatter.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 
 	require.Error(t, err, "Should error when frontmatter is missing")
@@ -112,7 +112,7 @@ Content
 	testFile := filepath.Join(tmpDir, "invalid-yaml.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 
 	require.Error(t, err, "Should error with invalid YAML")
@@ -121,7 +121,7 @@ Content
 
 // TestParseWorkflowFile_PathTraversal tests path traversal protection
 func TestParseWorkflowFile_PathTraversal(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Try various path traversal patterns
 	pathsToTest := []string{
@@ -151,7 +151,7 @@ engine: copilot
 	testFile := filepath.Join(tmpDir, "no-markdown.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 
 	require.Error(t, err, "Main workflow without markdown content should error")
@@ -199,7 +199,7 @@ on: push
 			testFile := filepath.Join(tmpDir, "engine-test-"+tt.name+".md")
 			require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			workflowData, err := compiler.ParseWorkflowFile(testFile)
 			require.NoError(t, err)
 			require.NotNil(t, workflowData)
@@ -233,7 +233,9 @@ Content
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
 	// Create compiler with engine override
-	compiler := NewCompiler(false, "claude", "test")
+	compiler := NewCompiler(
+		WithEngineOverride("claude"),
+	)
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err)
 	require.NotNil(t, workflowData)
@@ -282,7 +284,7 @@ network:
 			testFile := filepath.Join(tmpDir, "network-test-"+tt.name+".md")
 			require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			workflowData, err := compiler.ParseWorkflowFile(testFile)
 			require.NoError(t, err)
 			require.NotNil(t, workflowData)
@@ -353,7 +355,7 @@ func TestParseWorkflowFile_StrictMode(t *testing.T) {
 			testFile := filepath.Join(tmpDir, "strict-test-"+tt.name+".md")
 			require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-			compiler := NewCompiler(tt.cliStrict, "", "test")
+			compiler := NewCompiler()
 			_, err := compiler.ParseWorkflowFile(testFile)
 
 			if tt.expectError {
@@ -372,7 +374,7 @@ func ptrBool(b bool) *bool {
 
 // TestCopyFrontmatterWithoutInternalMarkers tests internal marker removal
 func TestCopyFrontmatterWithoutInternalMarkers(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name     string
@@ -445,7 +447,7 @@ func TestCopyFrontmatterWithoutInternalMarkers(t *testing.T) {
 
 // TestDetectTextOutputUsageInOrchestrator tests text output detection in markdown
 func TestDetectTextOutputUsageInOrchestrator(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name           string
@@ -523,7 +525,7 @@ Test content
 	testFile := filepath.Join(tmpDir, "yaml-test.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err)
 	require.NotNil(t, workflowData)
@@ -568,7 +570,7 @@ post-steps:
 	testFile := filepath.Join(tmpDir, "post-steps.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err)
 	require.NotNil(t, workflowData)
@@ -603,7 +605,7 @@ bots:
 	testFile := filepath.Join(tmpDir, "configs.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err)
 	require.NotNil(t, workflowData)
@@ -631,7 +633,7 @@ engine: copilot
 	testFile := filepath.Join(tmpDir, "filters.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err)
 	require.NotNil(t, workflowData)
@@ -662,7 +664,7 @@ Test content
 	testFile := filepath.Join(tmpDir, "initial.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err)
 	require.NotNil(t, workflowData)

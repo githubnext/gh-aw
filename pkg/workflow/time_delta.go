@@ -371,7 +371,8 @@ func ResolveRelativeDate(dateStr string, baseTime time.Time) (string, error) {
 
 // parseExpiresFromConfig parses expires value from config map.
 // Supports both integer (hours or days) and string formats like "2h", "7d", "2w", "1m", "1y"
-// Returns the number of hours, or 0 if invalid or not present
+// Also supports boolean false to explicitly disable expiration (returns -1)
+// Returns the number of hours, -1 if explicitly disabled (false), or 0 if invalid or not present
 // Note: For uint64 values, returns 0 if the value would overflow int.
 // Note: Integer values without units are treated as days and converted to hours (for backward compatibility)
 func parseExpiresFromConfig(configMap map[string]any) int {
@@ -379,6 +380,14 @@ func parseExpiresFromConfig(configMap map[string]any) int {
 	if expires, exists := configMap["expires"]; exists {
 		// Try numeric types first
 		switch v := expires.(type) {
+		case bool:
+			// false explicitly disables expiration
+			if !v {
+				timeDeltaLog.Print("expires set to false, expiration disabled")
+				return -1
+			}
+			// true is not a valid expires value
+			return 0
 		case int:
 			// Integer values without units are treated as days for backward compatibility
 			return v * 24

@@ -126,7 +126,7 @@ tools:
 			r, w, _ := os.Pipe()
 			os.Stderr = w
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compiler.SetStrictMode(tt.strict)
 			err := compiler.CompileWorkflow(testFile)
 
@@ -205,7 +205,7 @@ tools:
 	r, w, _ := os.Pipe()
 	os.Stderr = w
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetStrictMode(false)
 	err := compiler.CompileWorkflow(testFile)
 

@@ -128,7 +128,7 @@ Test workflow for dependabot PRs`,
 				t.Fatalf("Failed to write test markdown: %v", err)
 			}
 
-			c := NewCompiler(false, "", "test")
+			c := NewCompiler()
 
 			err := c.CompileWorkflow(mdFile)
 
@@ -232,7 +232,7 @@ Test`,
 				t.Fatalf("Failed to write test markdown: %v", err)
 			}
 
-			c := NewCompiler(false, "", "test")
+			c := NewCompiler()
 
 			err := c.CompileWorkflow(mdFile)
 			if err != nil {
@@ -303,7 +303,7 @@ Test`,
 				t.Fatalf("Failed to write test markdown: %v", err)
 			}
 
-			c := NewCompiler(false, "", "test")
+			c := NewCompiler()
 
 			err := c.CompileWorkflow(mdFile)
 			if err != nil {

@@ -68,7 +68,7 @@ func TestCreateProjectGitHubTokenEnvVar(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Parse frontmatter
 			workflowData := &WorkflowData{

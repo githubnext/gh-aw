@@ -64,7 +64,7 @@ func TestGitHubToolsModeSeparation(t *testing.T) {
 // TestApplyDefaultToolsNoLongerAddsDefaults verifies that applyDefaultTools no longer adds default tools
 // The MCP server should use ["*"] to allow all tools instead
 func TestApplyDefaultToolsNoLongerAddsDefaults(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name               string

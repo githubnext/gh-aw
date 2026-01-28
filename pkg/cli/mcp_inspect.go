@@ -49,7 +49,9 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 
 	// Use the compiler to parse the workflow file
 	// This automatically handles imports, merging, and validation
-	compiler := workflow.NewCompiler(verbose, "", "")
+	compiler := workflow.NewCompiler(
+		workflow.WithVerbose(verbose),
+	)
 	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
 	if err != nil {
 		// Handle shared workflow error separately (not a fatal error for inspection)

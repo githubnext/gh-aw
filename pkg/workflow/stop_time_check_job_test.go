@@ -15,7 +15,7 @@ import (
 func TestPreActivationJob(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "pre-activation-job-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	t.Run("pre_activation_job_created_with_stop_after", func(t *testing.T) {
 		workflowContent := `---

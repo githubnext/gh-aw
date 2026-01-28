@@ -226,7 +226,7 @@ func TestSafeOutputJobsIntegration(t *testing.T) {
 			}
 
 			// Create compiler instance
-			c := NewCompiler(false, "", "test")
+			c := NewCompiler()
 
 			// Build workflow data with the specific safe output configuration
 			workflowData := &WorkflowData{
@@ -547,7 +547,7 @@ func TestConsolidatedSafeOutputsJobIntegration(t *testing.T) {
 				t.Skip("Known issue: This safe output type doesn't generate a consolidated job when configured alone.")
 			}
 
-			c := NewCompiler(false, "", "test")
+			c := NewCompiler()
 
 			workflowData := &WorkflowData{
 				Name:        "test-workflow",
@@ -694,7 +694,7 @@ func TestSafeOutputJobsWithCustomEnvVars(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create compiler instance
-			c := NewCompiler(false, "", "test")
+			c := NewCompiler()
 
 			// Build workflow data with custom env vars
 			workflowData := &WorkflowData{
@@ -763,7 +763,7 @@ func TestSafeOutputJobsMissingConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewCompiler(false, "", "test")
+			c := NewCompiler()
 			workflowData := &WorkflowData{
 				Name:   "test-workflow",
 				Source: "test-source",
@@ -789,7 +789,7 @@ func TestSafeOutputJobsMissingConfig(t *testing.T) {
 // TestConsolidatedSafeOutputsJobWithCustomEnv tests that custom environment variables
 // are properly included in the consolidated safe outputs job.
 func TestConsolidatedSafeOutputsJobWithCustomEnv(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:   "test-workflow",

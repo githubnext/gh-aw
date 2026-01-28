@@ -12,8 +12,11 @@ import (
 
 var compilerYamlLog = logger.New("workflow:compiler_yaml")
 
-func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, error) {
-	compilerYamlLog.Printf("Generating YAML for workflow: %s", data.Name)
+// buildJobsAndValidate builds all workflow jobs and validates their dependencies.
+// It resets the job manager, builds jobs from the workflow data, and performs
+// dependency and duplicate step validation.
+func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string) error {
+	compilerYamlLog.Printf("Building and validating jobs for workflow: %s", data.Name)
 
 	// Reset job manager for this compilation
 	c.jobManager = NewJobManager()
@@ -21,26 +24,28 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// Build all jobs
 	if err := c.buildJobs(data, markdownPath); err != nil {
 		compilerYamlLog.Printf("Failed to build jobs: %v", err)
-		return "", fmt.Errorf("failed to build jobs: %w", err)
+		return fmt.Errorf("failed to build jobs: %w", err)
 	}
 
 	compilerYamlLog.Printf("Built %d jobs successfully", len(c.jobManager.GetAllJobs()))
 
 	// Validate job dependencies
 	if err := c.jobManager.ValidateDependencies(); err != nil {
-		return "", fmt.Errorf("job dependency validation failed: %w", err)
+		return fmt.Errorf("job dependency validation failed: %w", err)
 	}
 
 	// Validate no duplicate steps within jobs (compiler bug detection)
 	if err := c.jobManager.ValidateDuplicateSteps(); err != nil {
-		return "", fmt.Errorf("duplicate step validation failed: %w", err)
+		return fmt.Errorf("duplicate step validation failed: %w", err)
 	}
 
-	// Pre-allocate builder capacity based on estimated workflow size
-	// Average workflow generates ~200KB, allocate 256KB to minimize reallocations
-	var yaml strings.Builder
-	yaml.Grow(256 * 1024)
+	return nil
+}
 
+// generateWorkflowHeader generates the YAML header section including comments
+// for description, source, imports/includes, stop-time, and manual-approval.
+// All ANSI escape codes are stripped from the output.
+func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowData) {
 	// Add workflow header with logo and instructions
 	sourceFile := "the corresponding .md file"
 	if data.Source != "" {
@@ -51,21 +56,19 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	// Add description comment if provided
 	if data.Description != "" {
-		// Strip ANSI escape codes to prevent terminal color codes in YAML
 		cleanDescription := stringutil.StripANSIEscapeCodes(data.Description)
 		// Split description into lines and prefix each with "# "
 		descriptionLines := strings.Split(strings.TrimSpace(cleanDescription), "\n")
 		for _, line := range descriptionLines {
-			fmt.Fprintf(&yaml, "# %s\n", strings.TrimSpace(line))
+			fmt.Fprintf(yaml, "# %s\n", strings.TrimSpace(line))
 		}
 	}
 
 	// Add source comment if provided
 	if data.Source != "" {
 		yaml.WriteString("#\n")
-		// Strip ANSI escape codes from source path
 		cleanSource := stringutil.StripANSIEscapeCodes(data.Source)
-		fmt.Fprintf(&yaml, "# Source: %s\n", cleanSource)
+		fmt.Fprintf(yaml, "# Source: %s\n", cleanSource)
 	}
 
 	// Add manifest of imported/included files if any exist
@@ -76,18 +79,16 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		if len(data.ImportedFiles) > 0 {
 			yaml.WriteString("#   Imports:\n")
 			for _, file := range data.ImportedFiles {
-				// Strip ANSI escape codes from file paths
 				cleanFile := stringutil.StripANSIEscapeCodes(file)
-				fmt.Fprintf(&yaml, "#     - %s\n", cleanFile)
+				fmt.Fprintf(yaml, "#     - %s\n", cleanFile)
 			}
 		}
 
 		if len(data.IncludedFiles) > 0 {
 			yaml.WriteString("#   Includes:\n")
 			for _, file := range data.IncludedFiles {
-				// Strip ANSI escape codes from file paths
 				cleanFile := stringutil.StripANSIEscapeCodes(file)
-				fmt.Fprintf(&yaml, "#     - %s\n", cleanFile)
+				fmt.Fprintf(yaml, "#     - %s\n", cleanFile)
 			}
 		}
 	}
@@ -95,23 +96,25 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// Add stop-time comment if configured
 	if data.StopTime != "" {
 		yaml.WriteString("#\n")
-		// Strip ANSI escape codes from stop time
 		cleanStopTime := stringutil.StripANSIEscapeCodes(data.StopTime)
-		fmt.Fprintf(&yaml, "# Effective stop-time: %s\n", cleanStopTime)
+		fmt.Fprintf(yaml, "# Effective stop-time: %s\n", cleanStopTime)
 	}
 
 	// Add manual-approval comment if configured
 	if data.ManualApproval != "" {
 		yaml.WriteString("#\n")
-		// Strip ANSI escape codes from manual approval environment
 		cleanManualApproval := stringutil.StripANSIEscapeCodes(data.ManualApproval)
-		fmt.Fprintf(&yaml, "# Manual approval required: environment '%s'\n", cleanManualApproval)
+		fmt.Fprintf(yaml, "# Manual approval required: environment '%s'\n", cleanManualApproval)
 	}
 
 	yaml.WriteString("\n")
+}
 
+// generateWorkflowBody generates the main workflow structure including name, triggers,
+// permissions, concurrency, run-name, environment variables, cache comments, and jobs.
+func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowData) {
 	// Write basic workflow structure
-	fmt.Fprintf(&yaml, "name: \"%s\"\n", data.Name)
+	fmt.Fprintf(yaml, "name: \"%s\"\n", data.Name)
 	yaml.WriteString(data.On + "\n\n")
 
 	// Note: GitHub Actions doesn't support workflow-level if conditions
@@ -136,6 +139,26 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	// Generate jobs section using JobManager
 	yaml.WriteString(c.jobManager.RenderToYAML())
+}
+
+func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, error) {
+	compilerYamlLog.Printf("Generating YAML for workflow: %s", data.Name)
+
+	// Build all jobs and validate dependencies
+	if err := c.buildJobsAndValidate(data, markdownPath); err != nil {
+		return "", err
+	}
+
+	// Pre-allocate builder capacity based on estimated workflow size
+	// Average workflow generates ~200KB, allocate 256KB to minimize reallocations
+	var yaml strings.Builder
+	yaml.Grow(256 * 1024)
+
+	// Generate workflow header comments
+	c.generateWorkflowHeader(&yaml, data)
+
+	// Generate workflow body structure
+	c.generateWorkflowBody(&yaml, data)
 
 	yamlContent := yaml.String()
 

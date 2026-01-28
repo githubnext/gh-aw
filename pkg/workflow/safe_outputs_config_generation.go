@@ -34,10 +34,14 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateIssues.Group {
 				config["group"] = true
 			}
+			// Add expires value if set (0 means explicitly disabled or not set)
+			if data.SafeOutputs.CreateIssues.Expires > 0 {
+				config["expires"] = data.SafeOutputs.CreateIssues.Expires
+			}
 			safeOutputsConfig["create_issue"] = config
 		}
 		if data.SafeOutputs.CreateAgentSessions != nil {
-			safeOutputsConfig["create_agent_task"] = generateMaxConfig(
+			safeOutputsConfig["create_agent_session"] = generateMaxConfig(
 				data.SafeOutputs.CreateAgentSessions.Max,
 				1, // default max
 			)
@@ -50,11 +54,16 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			)
 		}
 		if data.SafeOutputs.CreateDiscussions != nil {
-			safeOutputsConfig["create_discussion"] = generateMaxWithAllowedLabelsConfig(
+			config := generateMaxWithAllowedLabelsConfig(
 				data.SafeOutputs.CreateDiscussions.Max,
 				1, // default max
 				data.SafeOutputs.CreateDiscussions.AllowedLabels,
 			)
+			// Add expires value if set (0 means explicitly disabled or not set)
+			if data.SafeOutputs.CreateDiscussions.Expires > 0 {
+				config["expires"] = data.SafeOutputs.CreateDiscussions.Expires
+			}
+			safeOutputsConfig["create_discussion"] = config
 		}
 		if data.SafeOutputs.CloseDiscussions != nil {
 			safeOutputsConfig["close_discussion"] = generateMaxWithDiscussionFieldsConfig(
@@ -515,7 +524,7 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 		enabledTools["create_issue"] = true
 	}
 	if data.SafeOutputs.CreateAgentSessions != nil {
-		enabledTools["create_agent_task"] = true
+		enabledTools["create_agent_session"] = true
 	}
 	if data.SafeOutputs.CreateDiscussions != nil {
 		enabledTools["create_discussion"] = true
@@ -768,7 +777,7 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 			hasAllowedRepos = len(config.AllowedRepos) > 0
 			targetRepoSlug = config.TargetRepoSlug
 		}
-	case "create_agent_task":
+	case "create_agent_session":
 		if config := safeOutputs.CreateAgentSessions; config != nil {
 			hasAllowedRepos = len(config.AllowedRepos) > 0
 			targetRepoSlug = config.TargetRepoSlug

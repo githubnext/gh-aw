@@ -140,7 +140,7 @@ strict: false
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Compile the workflow
 			if err := compiler.CompileWorkflow(testFile); err != nil {

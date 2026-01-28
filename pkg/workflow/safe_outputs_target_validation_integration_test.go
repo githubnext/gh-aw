@@ -43,7 +43,7 @@ This workflow should fail to compile because "event" is not a valid target value
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Attempt to compile the workflow - should fail with validation error
 	err := compiler.CompileWorkflow(workflowPath)
@@ -134,7 +134,7 @@ This workflow should compile successfully.
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Compile the workflow - should succeed
 			err := compiler.CompileWorkflow(workflowPath)
@@ -183,7 +183,7 @@ This workflow should fail because close-issue has an invalid target.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Attempt to compile the workflow - should fail
 	err := compiler.CompileWorkflow(workflowPath)
@@ -253,7 +253,7 @@ This workflow should fail to compile.
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Attempt to compile the workflow - should fail
 			err := compiler.CompileWorkflow(workflowPath)

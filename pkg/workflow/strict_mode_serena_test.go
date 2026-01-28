@@ -7,7 +7,7 @@ import (
 
 // TestValidateStrictTools_SerenaLocalMode tests that serena local mode is rejected in strict mode
 func TestValidateStrictTools_SerenaLocalMode(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"tools": map[string]any{
@@ -31,7 +31,7 @@ func TestValidateStrictTools_SerenaLocalMode(t *testing.T) {
 
 // TestValidateStrictTools_SerenaDockerMode tests that serena docker mode is allowed in strict mode
 func TestValidateStrictTools_SerenaDockerMode(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"tools": map[string]any{
@@ -52,7 +52,7 @@ func TestValidateStrictTools_SerenaDockerMode(t *testing.T) {
 
 // TestValidateStrictTools_SerenaNoMode tests that serena without mode is allowed (defaults to docker)
 func TestValidateStrictTools_SerenaNoMode(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"tools": map[string]any{
@@ -72,7 +72,7 @@ func TestValidateStrictTools_SerenaNoMode(t *testing.T) {
 
 // TestValidateStrictTools_NoSerena tests that validation passes without serena
 func TestValidateStrictTools_NoSerena(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"tools": map[string]any{

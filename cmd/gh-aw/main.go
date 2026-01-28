@@ -228,7 +228,7 @@ Examples:
 		}
 
 		// Check for updates (non-blocking, runs once per day)
-		cli.CheckForUpdatesAsync(noCheckUpdate, verbose)
+		cli.CheckForUpdatesAsync(cmd.Context(), noCheckUpdate, verbose)
 
 		// If --fix is specified, run fix --write first
 		if fix {

@@ -98,7 +98,7 @@ This is a test.`,
 			}
 
 			// Parse the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			workflowData, err := compiler.ParseWorkflowFile(workflowFile)
 			if err != nil {
 				t.Fatalf("Failed to parse workflow: %v", err)
@@ -198,7 +198,7 @@ This is a test.`
 	}
 
 	// Parse and generate YAML
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(workflowFile)
 	if err != nil {
 		t.Fatalf("Failed to parse workflow: %v", err)

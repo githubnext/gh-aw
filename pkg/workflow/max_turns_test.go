@@ -101,7 +101,7 @@ This workflow tests max-turns with timeout.`,
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			if err := compiler.CompileWorkflow(testFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
@@ -241,7 +241,7 @@ engine:
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError && err == nil {
@@ -283,7 +283,7 @@ This tests max-turns feature with custom engine.`
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow with custom engine and max-turns: %v", err)
 	}

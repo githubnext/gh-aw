@@ -137,7 +137,7 @@ func TestCopilotFirewallDefaultIntegration(t *testing.T) {
 		}
 
 		// Create compiler
-		c := NewCompiler(false, "", "test")
+		c := NewCompiler()
 		c.SetSkipValidation(true)
 
 		// Extract engine config
@@ -204,7 +204,7 @@ func TestCopilotFirewallDefaultIntegration(t *testing.T) {
 		}
 
 		// Create compiler
-		c := NewCompiler(false, "", "test")
+		c := NewCompiler()
 		c.SetSkipValidation(true)
 
 		// Extract engine config
@@ -269,7 +269,7 @@ func TestCopilotFirewallDefaultIntegration(t *testing.T) {
 		}
 
 		// Create compiler
-		c := NewCompiler(false, "", "test")
+		c := NewCompiler()
 		c.SetSkipValidation(true)
 
 		// Extract engine config
@@ -307,7 +307,7 @@ func TestDailyTeamStatusFirewallEnabled(t *testing.T) {
 		}
 
 		// Create compiler
-		c := NewCompiler(false, "", "test")
+		c := NewCompiler()
 		c.SetSkipValidation(true)
 
 		// Extract engine config (should default to copilot)
@@ -348,7 +348,7 @@ func TestDailyTeamStatusFirewallEnabled(t *testing.T) {
 // TestStrictModeFirewallValidation tests strict mode firewall validation
 func TestStrictModeFirewallValidation(t *testing.T) {
 	t.Run("strict mode requires firewall for copilot with network restrictions", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetStrictMode(true)
 
 		networkPerms := &NetworkPermissions{
@@ -369,7 +369,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 	})
 
 	t.Run("strict mode allows firewall disabled when allowed is wildcard", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetStrictMode(true)
 
 		networkPerms := &NetworkPermissions{
@@ -385,7 +385,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 	})
 
 	t.Run("strict mode passes when firewall is enabled", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetStrictMode(true)
 
 		networkPerms := &NetworkPermissions{
@@ -403,7 +403,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 	})
 
 	t.Run("strict mode skips validation for non-copilot engines", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetStrictMode(true)
 
 		networkPerms := &NetworkPermissions{
@@ -419,7 +419,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 	})
 
 	t.Run("strict mode refuses sandbox.agent: false for copilot", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetStrictMode(true)
 
 		networkPerms := &NetworkPermissions{
@@ -445,7 +445,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 	})
 
 	t.Run("strict mode refuses sandbox.agent: false for all engines", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetStrictMode(true)
 
 		networkPerms := &NetworkPermissions{
@@ -472,7 +472,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 	})
 
 	t.Run("strict mode skips validation when SRT is enabled", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetStrictMode(true)
 
 		networkPerms := &NetworkPermissions{
@@ -492,7 +492,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 	})
 
 	t.Run("non-strict mode does not validate firewall", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetStrictMode(false)
 
 		networkPerms := &NetworkPermissions{
@@ -508,7 +508,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 	})
 
 	t.Run("sandbox.agent: false is rejected even in non-strict mode", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetStrictMode(false)
 
 		networkPerms := &NetworkPermissions{

@@ -41,7 +41,7 @@ This workflow tests that duplicate checkout steps are properly deduplicated.
 	}
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(mdFile)
 	if err != nil {
 		// The error should NOT be about duplicate steps since we fixed the bug

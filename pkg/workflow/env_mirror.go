@@ -1,4 +1,4 @@
-// Package workflow provides environment variable mirroring for agent containers.
+// This file provides environment variable mirroring for agent containers.
 //
 // This file contains logic for mirroring essential GitHub Actions runner environment
 // variables into the agent container. The Ubuntu runner image provides many environment
@@ -11,6 +11,7 @@
 // handling of missing variables.
 //
 // Reference: specs/ubuntulatest.md section "Environment Variables"
+
 package workflow
 
 import (
@@ -116,7 +117,8 @@ func GetMirroredEnvArgs() []string {
 	var args []string
 	for _, envVar := range sortedVars {
 		// Use shell variable expansion syntax so the value is resolved at runtime
-		args = append(args, "--env", envVar+"=${"+envVar+"}")
+		// Pre-wrap in double quotes so shellEscapeArg preserves them (allowing shell expansion)
+		args = append(args, "--env", "\""+envVar+"=${"+envVar+"}\"")
 	}
 
 	envMirrorLog.Printf("Generated %d environment variable mirror arguments", len(sortedVars))

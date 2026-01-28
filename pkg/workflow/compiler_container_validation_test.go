@@ -51,8 +51,10 @@ This workflow has an invalid container image.
 	}
 
 	// Create compiler with validation enabled (default behavior)
-	compiler := NewCompiler(false, "", "test")
-	compiler.SetSkipValidation(false) // Ensure validation is enabled
+	compiler := NewCompiler(
+		WithVersion("test"),
+		WithSkipValidation(false), // Ensure validation is enabled
+	)
 
 	// Compile the workflow - this should succeed with a warning, not fail with an error
 	err := compiler.CompileWorkflow(workflowFile)
@@ -103,7 +105,7 @@ This workflow has an invalid container image.
 	}
 
 	// Create compiler with validation disabled
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetSkipValidation(true) // Disable validation
 
 	// Compile the workflow - this should succeed without validation

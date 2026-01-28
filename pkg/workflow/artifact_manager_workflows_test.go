@@ -50,7 +50,7 @@ func TestGenerateArtifactsReference(t *testing.T) {
 
 	// Compile each workflow and extract artifact information
 	// Use dry-run mode (noEmit) so we don't write lock.yml files
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetNoEmit(true) // Enable dry-run mode - validate without generating lock files
 	successCount := 0
 

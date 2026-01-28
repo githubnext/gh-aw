@@ -7,7 +7,7 @@ import (
 
 func TestCreateIssueJobWithStagedFlag(t *testing.T) {
 	// Create a compiler instance
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	// Test with staged: true
 	workflowData := &WorkflowData{
@@ -51,7 +51,7 @@ func TestCreateIssueJobWithStagedFlag(t *testing.T) {
 
 func TestCreateIssueJobWithoutSafeOutputs(t *testing.T) {
 	// Create a compiler instance
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	// Test with no SafeOutputs config - this should fail
 	workflowData := &WorkflowData{

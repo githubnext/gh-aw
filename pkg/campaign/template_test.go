@@ -157,7 +157,7 @@ func TestRenderClosingInstructions(t *testing.T) {
 			"Execute all four steps in strict order",
 			"Read State (no writes)",
 			"Make Decisions (no writes)",
-			"Dispatch Workers (dispatch-workflow only)",
+			"Apply Updates (writes)",
 			"Report",
 			"Workers are immutable and campaign-agnostic",
 			"GitHub Project board is the single source of truth",

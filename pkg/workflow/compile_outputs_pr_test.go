@@ -42,7 +42,7 @@ This workflow tests the output pull request configuration parsing.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow data
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -112,7 +112,7 @@ This workflow tests the create_pull_request job generation.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -221,7 +221,7 @@ This workflow tests the create_pull_request job generation with draft: false.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -297,7 +297,7 @@ This workflow tests the create_pull_request job generation with draft: true.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -369,7 +369,7 @@ This workflow tests the create-pull-request if-no-changes configuration parsing.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow data
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -479,7 +479,7 @@ This test verifies that the aw.patch artifact is downloaded in the safe_outputs 
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -560,7 +560,7 @@ This test verifies that auto-merge configuration is properly handled.
 	}
 
 	// Create compiler and parse the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(mdFile)
 	if err != nil {
 		t.Fatalf("Failed to parse workflow: %v", err)

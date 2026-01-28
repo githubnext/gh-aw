@@ -122,7 +122,7 @@ Test workflow without checkout (has permissions but checkout should be condition
 			}
 
 			// Compile workflow
-			compiler := NewCompiler(false, "", "test-version")
+			compiler := NewCompiler()
 			// Use dev mode to test with local action paths
 			compiler.SetActionMode(ActionModeDev)
 			if err := compiler.CompileWorkflow(workflowPath); err != nil {
@@ -201,7 +201,7 @@ Test workflow with pull_request triggers.
 	}
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}

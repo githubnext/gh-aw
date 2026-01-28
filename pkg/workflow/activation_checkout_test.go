@@ -78,7 +78,7 @@ strict: false
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "dev")
+			compiler := NewCompilerWithVersion("dev")
 			// Use dev mode to use local action paths
 			compiler.SetActionMode(ActionModeDev)
 

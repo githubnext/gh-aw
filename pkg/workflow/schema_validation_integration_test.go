@@ -46,7 +46,7 @@ This is a valid workflow.
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compiler.SetSkipValidation(false) // Enable schema validation
 
 			err := compiler.CompileWorkflow(testFile)

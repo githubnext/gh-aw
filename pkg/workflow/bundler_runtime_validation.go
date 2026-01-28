@@ -1,4 +1,4 @@
-// Package workflow provides JavaScript runtime mode validation for agentic workflows.
+// This file provides JavaScript runtime mode validation for agentic workflows.
 //
 // # Runtime Mode Validation
 //
@@ -37,6 +37,7 @@
 // For script content validation, see bundler_script_validation.go.
 // For general validation, see validation.go.
 // For detailed documentation, see specs/validation-architecture.md
+
 package workflow
 
 import (

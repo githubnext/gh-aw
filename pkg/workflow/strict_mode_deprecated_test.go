@@ -80,7 +80,7 @@ strict: false
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 
 			// Determine if we should enable strict mode based on test name
 			if strings.Contains(tt.name, "strict mode") && !strings.Contains(tt.name, "non-strict") {
@@ -129,7 +129,7 @@ network:
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 	compiler.SetStrictMode(true)
 	err = compiler.CompileWorkflow(testFile)
 

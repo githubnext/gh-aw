@@ -166,7 +166,7 @@ func (c *ActionCache) marshalSorted() ([]byte, error) {
 
 // Get retrieves a cached entry if it exists
 func (c *ActionCache) Get(repo, version string) (string, bool) {
-	key := repo + "@" + version
+	key := formatActionCacheKey(repo, version)
 	entry, exists := c.Entries[key]
 	if !exists {
 		actionCacheLog.Printf("Cache miss for key=%s", key)
@@ -191,7 +191,7 @@ func (c *ActionCache) FindEntryBySHA(repo, sha string) (ActionCacheEntry, bool) 
 
 // Set stores a new cache entry
 func (c *ActionCache) Set(repo, version, sha string) {
-	key := repo + "@" + version
+	key := formatActionCacheKey(repo, version)
 
 	// Check if there are existing entries with the same repo+SHA but different version
 	for existingKey, entry := range c.Entries {
@@ -238,8 +238,8 @@ func (c *ActionCache) deduplicateEntries() {
 	}
 
 	// For each group with multiple entries, keep only the most precise one
-	toDelete := make([]string, 0)
-	deduplicationDetails := make([]string, 0) // Track details for user-friendly message
+	var toDelete []string
+	var deduplicationDetails []string // Track details for user-friendly message
 
 	for ek, keys := range groups {
 		if len(keys) <= 1 {
@@ -276,7 +276,7 @@ func (c *ActionCache) deduplicateEntries() {
 
 		// Keep the most precise version, mark others for deletion
 		keepVersion := keyInfos[0].versionRef
-		removedVersions := make([]string, 0)
+		var removedVersions []string
 		for i := 1; i < len(keyInfos); i++ {
 			toDelete = append(toDelete, keyInfos[i].key)
 			removedVersions = append(removedVersions, keyInfos[i].versionRef)

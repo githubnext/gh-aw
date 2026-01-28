@@ -104,7 +104,7 @@ description: Standalone workflow
 
 	// Build dependency graph
 	graph := NewDependencyGraph(workflowsDir)
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := graph.BuildGraph(compiler); err != nil {
 		t.Fatalf("BuildGraph() error = %v", err)
 	}
@@ -192,7 +192,7 @@ imports:
 
 	// Build dependency graph
 	graph := NewDependencyGraph(workflowsDir)
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := graph.BuildGraph(compiler); err != nil {
 		t.Fatalf("BuildGraph() error = %v", err)
 	}
@@ -281,7 +281,7 @@ imports:
 
 	// Build dependency graph
 	graph := NewDependencyGraph(workflowsDir)
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := graph.BuildGraph(compiler); err != nil {
 		t.Fatalf("BuildGraph() error = %v", err)
 	}
@@ -337,7 +337,7 @@ imports:
 
 	// Build dependency graph
 	graph := NewDependencyGraph(workflowsDir)
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := graph.BuildGraph(compiler); err != nil {
 		t.Fatalf("BuildGraph() error = %v", err)
 	}
@@ -408,7 +408,7 @@ imports:
 
 	// Build dependency graph - should handle circular imports gracefully
 	graph := NewDependencyGraph(workflowsDir)
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := graph.BuildGraph(compiler); err != nil {
 		t.Fatalf("BuildGraph() error = %v", err)
 	}
@@ -445,7 +445,7 @@ description: Helper workflow
 
 	// Build initial dependency graph
 	graph := NewDependencyGraph(workflowsDir)
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := graph.BuildGraph(compiler); err != nil {
 		t.Fatalf("BuildGraph() error = %v", err)
 	}
@@ -522,7 +522,7 @@ func TestDependencyGraph_EmptyGraph(t *testing.T) {
 
 	// Build dependency graph with no workflows
 	graph := NewDependencyGraph(workflowsDir)
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := graph.BuildGraph(compiler); err != nil {
 		t.Fatalf("BuildGraph() error = %v", err)
 	}
@@ -646,7 +646,7 @@ imports:
 
 	// Build dependency graph
 	graph := NewDependencyGraph(workflowsDir)
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := graph.BuildGraph(compiler); err != nil {
 		t.Fatalf("BuildGraph() error = %v", err)
 	}
@@ -744,7 +744,7 @@ imports:
 
 	// Build dependency graph
 	graph := NewDependencyGraph(workflowsDir)
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := graph.BuildGraph(compiler); err != nil {
 		t.Fatalf("BuildGraph() error = %v", err)
 	}

@@ -222,7 +222,7 @@ const SafeInputsFeatureFlag = "safe-inputs"
 **Benefits**:
 - Single source of truth for feature flag names
 - Prevents typos when checking feature flags
-- Easy to find all usages through IDE navigation
+- Supports IDE navigation to find all usages
 
 #### Tool Configuration Types
 
@@ -620,7 +620,7 @@ type CodingAgentEngine interface {
 
 **Benefits**:
 - Multiple engine implementations (Copilot, Claude, Codex)
-- Easy to add new engines
+- New engines can be added by implementing the Engine interface
 - Testable with mock implementations
 - Clear contract for engine behavior
 
@@ -818,7 +818,7 @@ func ProcessConfig(config Config) error {
 **Problem**: Primitive types don't convey meaning and enable mistakes
 
 ```go
-// ❌ BAD - Easy to mix up timeout and retry count
+// ❌ BAD - Callers may confuse timeout and retry count
 func CallAPI(url string, timeout int, retries int) error {
     // Which int is which?
     CallAPI("https://api.example.com", 3, 5)  // Wrong order!

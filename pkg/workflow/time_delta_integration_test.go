@@ -127,7 +127,7 @@ on:
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test-version")
+			compiler := NewCompiler()
 			if err := compiler.CompileWorkflow(mdFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
@@ -260,7 +260,7 @@ This is a test workflow with invalid stop-after.`, tt.stopTime)
 			}
 
 			// Compile the workflow - should fail
-			compiler := NewCompiler(false, "", "test-version")
+			compiler := NewCompiler()
 			err = compiler.CompileWorkflow(mdFile)
 			if err == nil {
 				t.Errorf("Expected compilation to fail with invalid stop-after format %q but it succeeded", tt.stopTime)

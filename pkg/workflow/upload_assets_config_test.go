@@ -5,7 +5,7 @@ import (
 )
 
 func TestUploadAssetsConfigDefaults(t *testing.T) {
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 
 	// Test default configuration
 	outputMap := map[string]any{
@@ -36,7 +36,7 @@ func TestUploadAssetsConfigDefaults(t *testing.T) {
 }
 
 func TestUploadAssetsConfigCustomExtensions(t *testing.T) {
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 
 	// Test custom configuration like dev.md
 	outputMap := map[string]any{

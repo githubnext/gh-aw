@@ -347,7 +347,7 @@ Test workflow with custom container and version.`,
 			require.NoError(t, err, "Failed to write test workflow file")
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test-version")
+			compiler := NewCompiler()
 			err = compiler.CompileWorkflow(testFile)
 			require.NoError(t, err, "Failed to compile workflow")
 
@@ -438,7 +438,7 @@ tools:
 Test that TAVILY_API_KEY is passed to gateway container.
 `
 
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 
 	tmpDir := t.TempDir()
 	inputFile := filepath.Join(tmpDir, "test.md")
@@ -497,7 +497,7 @@ tools:
 Test that multiple secrets are passed to gateway container.
 `
 
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 
 	tmpDir := t.TempDir()
 	inputFile := filepath.Join(tmpDir, "test.md")

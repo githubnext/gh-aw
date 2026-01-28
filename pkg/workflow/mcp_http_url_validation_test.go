@@ -79,7 +79,7 @@ mcp-servers:
 			}
 
 			// Create compiler and try to compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.CompileWorkflow(workflowPath)
 
 			if tt.expectError {

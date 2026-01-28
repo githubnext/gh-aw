@@ -7,7 +7,7 @@ import (
 
 func TestBranchNormalizationInlinedInMainJob(t *testing.T) {
 	// Test that normalization logic is inlined in upload_assets.cjs when upload-assets is configured
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 
 	// Create test workflow data with upload-assets configured
 	data := &WorkflowData{
@@ -48,7 +48,7 @@ func TestBranchNormalizationInlinedInMainJob(t *testing.T) {
 
 func TestBranchNormalizationStepNotAddedWhenNoUploadAssets(t *testing.T) {
 	// Test that no normalization-related content appears when upload-assets is not configured
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 
 	// Create test workflow data WITHOUT upload-assets
 	data := &WorkflowData{

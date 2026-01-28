@@ -67,7 +67,7 @@ func TestCopyProjectConfiguration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Parse frontmatter
 			config := compiler.extractSafeOutputsConfig(tt.frontmatter)
@@ -153,7 +153,7 @@ func TestCopyProjectGitHubTokenEnvVar(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Parse frontmatter
 			workflowData := &WorkflowData{
@@ -195,7 +195,7 @@ func TestCopyProjectGitHubTokenEnvVar(t *testing.T) {
 
 // TestCopyProjectStepCondition verifies that the copy_project step has the correct condition
 func TestCopyProjectStepCondition(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	frontmatter := map[string]any{
 		"name": "Test Workflow",
@@ -301,7 +301,7 @@ func TestCopyProjectSourceAndTargetConfiguration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Parse frontmatter
 			config := compiler.extractSafeOutputsConfig(tt.frontmatter)

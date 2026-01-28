@@ -12,7 +12,7 @@ import (
 
 // TestSafeOutputsAppConfiguration tests that app configuration is correctly parsed
 func TestSafeOutputsAppConfiguration(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	markdown := `---
 on: issues
@@ -50,7 +50,7 @@ Test workflow with app configuration.
 
 // TestSafeOutputsAppConfigurationMinimal tests minimal app configuration without repositories
 func TestSafeOutputsAppConfigurationMinimal(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	markdown := `---
 on: issues
@@ -85,7 +85,7 @@ Test workflow with minimal app configuration.
 
 // TestSafeOutputsAppTokenMintingStep tests that token minting step is generated
 func TestSafeOutputsAppTokenMintingStep(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	markdown := `---
 on: issues
@@ -137,7 +137,7 @@ Test workflow with app token minting.
 
 // TestSafeOutputsAppTokenMintingStepWithRepositories tests token minting with repositories
 func TestSafeOutputsAppTokenMintingStepWithRepositories(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	markdown := `---
 on: issues
@@ -181,7 +181,7 @@ Test workflow with app token minting and repository restrictions.
 
 // TestSafeOutputsAppWithoutSafeOutputs tests that app without safe outputs doesn't break
 func TestSafeOutputsAppWithoutSafeOutputs(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	markdown := `---
 on: issues
@@ -207,7 +207,7 @@ Test workflow without safe outputs.
 
 // TestSafeOutputsAppTokenDiscussionsPermission tests that discussions permission is included
 func TestSafeOutputsAppTokenDiscussionsPermission(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	markdown := `---
 on: issues

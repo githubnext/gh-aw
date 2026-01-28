@@ -40,7 +40,7 @@ Test workflow with invalid reaction value.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow - should fail with validation error
 	var err error
@@ -123,7 +123,7 @@ Test workflow with numeric reaction value.
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			workflowData, err := compiler.ParseWorkflowFile(testFile)
 			if err != nil {
@@ -168,7 +168,7 @@ Test workflow with invalid numeric reaction value.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow - should fail with validation error
 	_, err := compiler.ParseWorkflowFile(testFile)

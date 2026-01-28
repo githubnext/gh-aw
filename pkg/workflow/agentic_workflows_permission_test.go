@@ -93,7 +93,7 @@ tools:
 			}
 
 			// Compile workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.CompileWorkflow(workflowPath)
 
 			if tt.expectError {

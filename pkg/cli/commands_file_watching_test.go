@@ -25,7 +25,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 		os.Chdir(tempDir)
 		defer os.Chdir(oldDir)
 
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 
 		err := watchAndCompileWorkflows("", compiler, false)
 		if err == nil {
@@ -50,7 +50,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 			t.Fatalf("Failed to init git repo: %v", initErr)
 		}
 
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 
 		err := watchAndCompileWorkflows("", compiler, false)
 		if err == nil {
@@ -77,7 +77,7 @@ func TestWatchAndCompileWorkflows(t *testing.T) {
 		workflowsDir := filepath.Join(tempDir, ".github/workflows")
 		os.MkdirAll(workflowsDir, 0755)
 
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 
 		err := watchAndCompileWorkflows("nonexistent.md", compiler, false)
 		if err == nil {
@@ -166,7 +166,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		}
 
 		// Create a basic compiler
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 
 		stats, err := compileAllWorkflowFiles(compiler, workflowsDir, true)
 		if err != nil {
@@ -213,7 +213,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		invalidContent := "---\nmalformed: yaml: content:\n  - missing\n    proper: structure\n---\n# Invalid\n\nThis should fail"
 		os.WriteFile(invalidFile, []byte(invalidContent), 0644)
 
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 
 		// This should not return an error (it prints errors but continues)
 		stats, err := compileAllWorkflowFiles(compiler, workflowsDir, false)
@@ -235,7 +235,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		content := "---\non: push\nengine: claude\n---\n# Verbose Test\n\nTest content for verbose mode"
 		os.WriteFile(testFile, []byte(content), 0644)
 
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 
 		// Test verbose mode (should not error)
 		stats, err := compileAllWorkflowFiles(compiler, workflowsDir, true)
@@ -269,7 +269,7 @@ func TestCompileModifiedFiles(t *testing.T) {
 		oldTime := time.Now().Add(-2 * time.Hour)
 		os.Chtimes(file2, oldTime, oldTime)
 
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 
 		// Test with recent files - compileModifiedFiles takes a slice of files
 		modifiedFiles := []string{file1} // Only include the recent file
@@ -284,7 +284,7 @@ func TestCompileModifiedFiles(t *testing.T) {
 	})
 
 	t.Run("compile modified files with no files", func(t *testing.T) {
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 
 		// Test with empty file list (should not error)
 		emptyFiles := []string{}
@@ -293,7 +293,7 @@ func TestCompileModifiedFiles(t *testing.T) {
 	})
 
 	t.Run("compile modified files with invalid files", func(t *testing.T) {
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 
 		// Test with invalid file paths
 		invalidFiles := []string{"nonexistent/path/file.md"}
@@ -311,7 +311,7 @@ func TestCompileModifiedFiles(t *testing.T) {
 		content := "---\non: push\nengine: claude\n---\n# Recent Test\n\nRecent content"
 		os.WriteFile(recentFile, []byte(content), 0644)
 
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 
 		// Test verbose mode
 		modifiedFiles := []string{recentFile}
@@ -414,7 +414,7 @@ func TestCompileSingleFile(t *testing.T) {
 		content := "---\non: push\nengine: claude\n---\n# Test\n\nTest workflow content"
 		os.WriteFile(filePath, []byte(content), 0644)
 
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 		stats := &CompilationStats{}
 
 		// Compile without checking existence
@@ -449,7 +449,7 @@ func TestCompileSingleFile(t *testing.T) {
 		content := "---\nmalformed: yaml: content:\n  - missing\n    proper: structure\n---\n# Invalid\n"
 		os.WriteFile(filePath, []byte(content), 0644)
 
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 		stats := &CompilationStats{}
 
 		// Compile without checking existence
@@ -486,7 +486,7 @@ func TestCompileSingleFile(t *testing.T) {
 		content := "---\non: push\nengine: claude\n---\n# Test\n\nTest workflow content"
 		os.WriteFile(filePath, []byte(content), 0644)
 
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 		stats := &CompilationStats{}
 
 		// Compile with existence check
@@ -509,7 +509,7 @@ func TestCompileSingleFile(t *testing.T) {
 		// Use a non-existent file path
 		filePath := filepath.Join(workflowsDir, "nonexistent.md")
 
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 		stats := &CompilationStats{}
 
 		// Compile with existence check - should skip
@@ -534,7 +534,7 @@ func TestCompileSingleFile(t *testing.T) {
 		content := "---\non: push\nengine: claude\n---\n# Verbose Test\n\nTest workflow content"
 		os.WriteFile(filePath, []byte(content), 0644)
 
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 		stats := &CompilationStats{}
 
 		// Compile in verbose mode

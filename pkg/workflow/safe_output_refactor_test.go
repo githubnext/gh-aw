@@ -12,7 +12,7 @@ import (
 // TestCreatePRReviewCommentUsesHelper verifies that create_pr_review_comment.go
 // uses the buildSafeOutputJobEnvVars helper correctly
 func TestCreatePRReviewCommentUsesHelper(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -47,7 +47,7 @@ func TestCreatePRReviewCommentUsesHelper(t *testing.T) {
 // TestCreateDiscussionUsesHelper verifies that create_discussion.go
 // uses the buildSafeOutputJobEnvVars helper correctly (standalone job still uses env vars)
 func TestCreateDiscussionUsesHelper(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -82,7 +82,7 @@ func TestCreateDiscussionUsesHelper(t *testing.T) {
 // TestTrialModeWithoutTargetRepo verifies that trial mode without explicit
 // target-repo config uses the trial repo slug
 func TestTrialModeWithoutTargetRepo(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 	c.SetTrialMode(true)
 	c.SetTrialLogicalRepoSlug("owner/trial-repo")
 
@@ -120,7 +120,7 @@ func TestTrialModeWithoutTargetRepo(t *testing.T) {
 // TestNoStagedNorTrialMode verifies that neither staged flag nor target repo slug
 // are added when not configured
 func TestNoStagedNorTrialMode(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -153,7 +153,7 @@ func TestNoStagedNorTrialMode(t *testing.T) {
 // TestTargetRepoOverridesTrialRepo verifies that explicit target-repo config
 // takes precedence over trial mode repo slug
 func TestTargetRepoOverridesTrialRepo(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 	c.SetTrialMode(true)
 	c.SetTrialLogicalRepoSlug("owner/trial-repo")
 
@@ -303,7 +303,7 @@ safe-outputs:
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			if err := compiler.CompileWorkflow(testFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
@@ -423,7 +423,7 @@ safe-outputs:
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			if err := compiler.CompileWorkflow(testFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}

@@ -65,7 +65,7 @@ func TestRepositoryFeaturesValidationIntegration(t *testing.T) {
 			},
 		}
 
-		compiler := NewCompiler(true, "", "test")
+		compiler := NewCompiler()
 		err := compiler.validateRepositoryFeatures(workflowData)
 
 		// After the fix, validation should never return an error for discussions
@@ -91,7 +91,7 @@ func TestRepositoryFeaturesValidationIntegration(t *testing.T) {
 			},
 		}
 
-		compiler := NewCompiler(true, "", "test")
+		compiler := NewCompiler()
 		err := compiler.validateRepositoryFeatures(workflowData)
 
 		hasIssues, checkErr := checkRepositoryHasIssues(repo, false)
@@ -153,7 +153,7 @@ Test workflow for discussions validation.
 	}
 
 	// Try to compile the workflow
-	compiler := NewCompiler(true, "", "test")
+	compiler := NewCompiler()
 	compiler.SetNoEmit(true) // Don't write lock file
 
 	err = compiler.CompileWorkflow(workflowPath)

@@ -3,7 +3,7 @@ package workflow
 import "testing"
 
 func TestIsActivationJobNeeded(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	t.Run("no_conditions", func(t *testing.T) {
 		data := &WorkflowData{

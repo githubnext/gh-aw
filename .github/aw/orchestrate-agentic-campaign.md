@@ -2,9 +2,9 @@
 
 This orchestrator coordinates a single campaign by discovering worker outputs and making deterministic decisions.
 
-**Scope:** orchestration only (discovery, planning, pacing, reporting).
-**Actuation model:** **dispatch-only** — the orchestrator may only act by dispatching allowlisted worker workflows.
-**Write authority:** all GitHub writes (Projects, issues/PRs, comments, status updates) must happen in worker workflows.
+**Scope:** orchestration + project sync + reporting (discovery, planning, pacing, writing, reporting).
+**Actuation model:** **hybrid** — the orchestrator may update campaign state directly (Projects and status updates) and may also dispatch allowlisted worker workflows.
+**Write authority:** the orchestrator may write GitHub state when explicitly allowlisted via safe outputs; delegate repo/code changes (e.g., PRs) to workers unless this campaign explicitly defines otherwise.
 
 ---
 
@@ -47,7 +47,7 @@ This orchestrator coordinates a single campaign by discovering worker outputs an
 3. Correlation is explicit (tracker-id AND labels)
 4. Reads and writes are separate steps (never interleave)
 5. Idempotent operation is mandatory (safe to re-run)
-6. Orchestrators do not write GitHub state directly
+6. Orchestrator writes must be deterministic and minimal
 
 ---
 
@@ -83,19 +83,31 @@ This orchestrator coordinates a single campaign by discovering worker outputs an
 
 7) Reads and writes are separate steps (never interleave).
 
-### Step 3 — Dispatch Workers (Execution) [DISPATCH ONLY]
+### Step 3 — Apply Updates (Execution) [WRITES]
 
-8) For each selected unit of work, dispatch a worker workflow using `dispatch-workflow`.
+8) Apply required GitHub state updates in a single write phase.
+
+Allowed writes (when allowlisted via safe outputs):
+- Update the campaign Project board (add/update items and fields)
+- Post status updates (e.g., update an issue or add a comment)
+- Create Copilot agent sessions for repo-side work (use when you need code changes)
+
+Constraints:
+- Use only allowlisted safe outputs.
+- Keep within configured max counts and API budgets.
+- Do not interleave reads and writes.
+
+### Step 4 — Dispatch Workers (Optional) [DISPATCH]
+
+9) For repo-side actions (e.g., code changes), dispatch allowlisted worker workflows using `dispatch-workflow`.
 
 Constraints:
 - Only dispatch allowlisted workflows.
 - Keep within the dispatch-workflow max for this run.
 
-### Step 4 — Report (No Writes)
+### Step 5 — Report
 
-9) Summarize what you dispatched, what remains, and what should run next.
-
-If a status update is required on the GitHub Project, dispatch a dedicated reporting/sync worker to perform that write.
+10) Summarize what you updated and/or dispatched, what remains, and what should run next.
 
     **Discovered:** 25 items (15 issues, 10 PRs)
     **Processed:** 10 items added to project, 5 updated

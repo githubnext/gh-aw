@@ -76,10 +76,10 @@ func TestBuildOrchestrator_CompletionInstructions(t *testing.T) {
 			t.Fatalf("expected non-nil WorkflowData")
 		}
 
-		// Governed invariant: completion is reported explicitly in Step 4.
+		// Governed invariant: completion is reported explicitly in Step 5.
 		expectedPhrases := []string{
-			"### Step 4 — Report",
-			"completion state (work items only)",
+			"### Step 5 — Report",
+			"**Completion:**",
 		}
 		for _, expected := range expectedPhrases {
 			if !strings.Contains(data.MarkdownContent, expected) {

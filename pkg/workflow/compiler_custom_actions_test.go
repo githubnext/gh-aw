@@ -53,7 +53,7 @@ func TestActionModeString(t *testing.T) {
 
 // TestCompilerActionModeDefault tests that the compiler defaults to dev mode
 func TestCompilerActionModeDefault(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 	if compiler.GetActionMode() != ActionModeDev {
 		t.Errorf("Default action mode should be dev, got %s", compiler.GetActionMode())
 	}
@@ -61,7 +61,7 @@ func TestCompilerActionModeDefault(t *testing.T) {
 
 // TestCompilerSetActionMode tests setting the action mode
 func TestCompilerSetActionMode(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	compiler.SetActionMode(ActionModeRelease)
 	if compiler.GetActionMode() != ActionModeRelease {
@@ -185,7 +185,7 @@ core.info('Creating issue');
 	}()
 
 	// Compile with dev action mode
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 	compiler.SetActionMode(ActionModeDev)
 	compiler.SetNoEmit(false)
 
@@ -246,7 +246,7 @@ Test workflow with dev mode.
 	}
 
 	// Compile with dev mode (default)
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 	compiler.SetActionMode(ActionModeDev)
 	compiler.SetNoEmit(false)
 
@@ -323,7 +323,7 @@ Test fallback to inline mode.
 	}()
 
 	// Compile with dev action mode
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 	compiler.SetActionMode(ActionModeDev)
 	compiler.SetNoEmit(false)
 
@@ -370,7 +370,7 @@ Test workflow with script mode.
 	}
 
 	// Compile with script mode (will be overridden by feature flag)
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 	compiler.SetNoEmit(false)
 
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {

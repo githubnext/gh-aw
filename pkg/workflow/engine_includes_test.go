@@ -52,7 +52,7 @@ This should inherit the engine from the included file.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(mainFile)
 	if err != nil {
 		t.Fatalf("Expected successful compilation, got error: %v", err)
@@ -121,7 +121,7 @@ This should fail due to multiple engine specifications.
 	}
 
 	// Compile the workflow - should fail
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(mainFile)
 	if err == nil {
 		t.Fatal("Expected compilation to fail due to multiple engine specifications")
@@ -177,7 +177,7 @@ This should inherit the claude engine from the included file.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(mainFile)
 	if err != nil {
 		t.Fatalf("Expected successful compilation, got error: %v", err)
@@ -229,7 +229,7 @@ This should use the default engine.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(mainFile)
 	if err != nil {
 		t.Fatalf("Expected successful compilation, got error: %v", err)
@@ -284,7 +284,7 @@ This workflow specifies claude engine directly without any includes.
 	}
 
 	// Compile the workflow (no includes, so no conflict)
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(mainFile)
 	if err != nil {
 		t.Fatalf("Expected successful compilation, got error: %v", err)
@@ -363,7 +363,7 @@ This should fail due to multiple engine specifications in includes.
 	}
 
 	// Compile the workflow - should fail
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(mainFile)
 	if err == nil {
 		t.Fatal("Expected compilation to fail due to multiple engine specifications")
@@ -432,7 +432,7 @@ This workflow imports a custom engine with steps.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(mainFile)
 	if err != nil {
 		t.Fatalf("Expected successful compilation, got error: %v", err)
@@ -515,7 +515,7 @@ This workflow imports a custom engine with env vars.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(mainFile)
 	if err != nil {
 		t.Fatalf("Expected successful compilation, got error: %v", err)
@@ -545,7 +545,7 @@ This workflow imports a custom engine with env vars.
 
 // TestExtractEngineConfigFromJSON tests the extractEngineConfigFromJSON function
 func TestExtractEngineConfigFromJSON(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name          string

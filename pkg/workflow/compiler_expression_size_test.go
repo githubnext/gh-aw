@@ -46,7 +46,7 @@ The content is reasonable and won't generate overly long environment variables.
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		err := compiler.CompileWorkflow(testFile)
 		if err != nil {
 			t.Errorf("Expected no error for workflow with normal expressions, got: %v", err)
@@ -92,7 +92,7 @@ safe-outputs:
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetSkipValidation(false) // Enable validation to test expression size limits
 		err := compiler.CompileWorkflow(testFile)
 
@@ -140,7 +140,7 @@ safe-outputs:
 
 		// Create compiler without calling SetSkipValidation(false) - expression size
 		// validation should still run because it's a mandatory GitHub Actions limit
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		err := compiler.CompileWorkflow(testFile)
 
 		// This should fail with an expression size validation error even without explicit validation enablement

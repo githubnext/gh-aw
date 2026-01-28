@@ -42,7 +42,7 @@ This workflow should generate add_reaction job with comment outputs.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -116,7 +116,7 @@ This workflow should generate add_reaction job with GH_AW_WORKFLOW_NAME environm
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)

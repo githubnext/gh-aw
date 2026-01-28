@@ -6,7 +6,7 @@ import (
 
 // TestGitHubToolDisabled tests the github: false functionality to disable the GitHub MCP server
 func TestGitHubToolDisabled(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name         string

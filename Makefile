@@ -40,15 +40,15 @@ build-darwin:
 build-windows:
 	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-windows-amd64.exe ./cmd/gh-aw
 
-# Test the code (runs both unit and integration tests)
+# Test the code (runs both unlabelled unit tests and integration tests)
 .PHONY: test
 test:
 	go test -v -timeout=3m -tags 'integration' -run='^Test' ./...
 
-# Test unit tests only (excludes integration tests)
+# Test unit tests only (excludes labelled integration tests)
 .PHONY: test-unit
 test-unit:
-	go test -v -timeout=3m -tags '!integration' -run='^Test' ./...
+	go test -v -timeout=3m -run='^Test' ./...
 
 # Update golden test files
 .PHONY: update-golden
@@ -153,6 +153,8 @@ security-scan: security-gosec security-govulncheck security-trivy
 security-gosec:
 	@echo "Running gosec security scanner..."
 	@command -v gosec >/dev/null || go install github.com/securego/gosec/v2/cmd/gosec@v2.22.11
+	@# Exclusions configured in .golangci.yml (linters-settings.gosec.exclude)
+	@# Keep this list in sync with .golangci.yml for consistency
 	@GOPATH=$$(go env GOPATH); \
 	PATH="$$GOPATH/bin:$$PATH" gosec -fmt=json -out=gosec-report.json -stdout -exclude-generated -track-suppressions \
 		-exclude=G101,G115,G602,G301,G302,G304,G306 \
@@ -447,24 +449,24 @@ fmt: fmt-go fmt-cjs fmt-json
 
 .PHONY: fmt-go
 fmt-go:
-	@GOPATH=$$(go env GOPATH); \
-	if command -v golangci-lint >/dev/null 2>&1 || [ -x "$$GOPATH/bin/golangci-lint" ]; then \
-		PATH="$$GOPATH/bin:$$PATH" golangci-lint fmt; \
-	else \
-		echo "golangci-lint is not installed. Run 'make deps-dev' to install dependencies."; \
-		exit 1; \
-	fi
+	@echo "→ Formatting Go code..."
+	@go fmt ./...
+	@echo "✓ Go code formatted"
 
 # Format JavaScript (.cjs and .js) and JSON files in actions/setup/js directory
 .PHONY: fmt-cjs
 fmt-cjs:
-	cd actions/setup/js && npm run format:cjs
-	npx prettier --write 'scripts/**/*.js' --ignore-path .prettierignore
+	@echo "→ Formatting JavaScript files..."
+	@cd actions/setup/js && npm run format:cjs
+	@npx prettier --write 'scripts/**/*.js' --ignore-path .prettierignore
+	@echo "✓ JavaScript files formatted"
 
 # Format JSON files in pkg directory (excluding actions/setup/js, which is handled by npm script)
 .PHONY: fmt-json
 fmt-json:
-	cd actions/setup/js && npm run format:pkg-json
+	@echo "→ Formatting JSON files..."
+	@cd actions/setup/js && npm run format:pkg-json
+	@echo "✓ JSON files formatted"
 
 # Check formatting
 .PHONY: fmt-check

@@ -39,7 +39,7 @@ Please make changes and push them to the feature branch.
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -117,7 +117,7 @@ This workflow allows pushing to any pull request.
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -169,7 +169,7 @@ This workflow uses the default branch value.
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// This should succeed and use default branch "triggering"
 	err := compiler.CompileWorkflow(mdFile)
@@ -217,7 +217,7 @@ This workflow uses null configuration which should default to "triggering".
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// This should succeed and use default branch "triggering"
 	err := compiler.CompileWorkflow(mdFile)
@@ -269,7 +269,7 @@ This workflow has minimal push-to-pull-request-branch configuration.
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -332,7 +332,7 @@ This workflow fails when there are no changes.
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -379,7 +379,7 @@ This workflow ignores when there are no changes.
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -425,7 +425,7 @@ This workflow uses default if-no-changes behavior.
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -472,7 +472,7 @@ This workflow explicitly sets branch to "triggering".
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -525,7 +525,7 @@ This workflow validates PR title prefix.
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -573,7 +573,7 @@ This workflow validates PR labels.
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -622,7 +622,7 @@ This workflow validates both PR title prefix and labels.
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -673,7 +673,7 @@ This workflow appends a suffix to commit titles.
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -720,7 +720,7 @@ since it's not supported by actions/github-script.
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -777,7 +777,7 @@ Test that the push-to-pull-request-branch job receives activation comment enviro
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -843,7 +843,7 @@ This test verifies that the aw.patch artifact is downloaded in the safe_outputs 
 	}
 
 	// Create compiler and compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)

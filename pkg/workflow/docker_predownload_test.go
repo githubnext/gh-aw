@@ -196,7 +196,7 @@ Test workflow - safe outputs MCP server without GitHub tool.`,
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test-version")
+			compiler := NewCompiler()
 			if err := compiler.CompileWorkflow(testFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
@@ -252,7 +252,7 @@ Test workflow.`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}

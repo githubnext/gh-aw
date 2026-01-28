@@ -1,6 +1,6 @@
 ---
 name: Security Alert Burndown
-description: Discovers Dependabot PRs and assigns them to Copilot for review
+description: Discovers security work items (Dependabot PRs, code scanning alerts, secret scanning alerts)
 on:
   #schedule:
   #  - cron: "0 * * * *"
@@ -9,30 +9,184 @@ permissions:
   issues: read
   pull-requests: read
   contents: read
-project:
-  url: https://github.com/orgs/githubnext/projects/144
+  security-events: read
+tools:
+  github:
+    toolsets: [repos, issues, pull_requests]
+safe-outputs:
+  github-token: ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+  update-project:
+    max: 100
+  create-issue:
+    max: 1
+  assign-to-agent:
+    max: 1
+    name: copilot
+    allowed: [copilot]
+    target: "*"
+project: https://github.com/orgs/githubnext/projects/144
 ---
 
-# Security Alert Burndown Campaign
+# Security Alert Burndown
 
-This campaign discovers Dependabot-created pull requests for JavaScript dependencies and assigns them to the Copilot coding agent for automated review and merging.
+This workflow discovers security alert work items in the githubnext/gh-aw repository and updates the project board with their status:
 
-## Objective
+- Dependabot-created PRs for JavaScript dependency updates
 
-Systematically process Dependabot dependency update PRs to keep JavaScript dependencies up-to-date and secure.
+## Task
 
-## Discovery Strategy
+You need to discover and update security work items on the project board. Follow these steps:
 
-Discover Dependabot pull requests with labels: `dependencies`, `javascript`.
+### Step 1: Discover Dependabot PRs
 
-Prioritize open PRs by age (oldest first). Skip items already marked "Done" on the project board.
+Use the GitHub MCP server to search for pull requests in the `githubnext/gh-aw` repository with:
+- Author: `app/dependabot`
+- Labels: `dependencies`, `javascript`
+- State: open
 
-## Campaign Execution
+Example search query:
+```
+repo:githubnext/gh-aw is:pr author:app/dependabot label:dependencies label:javascript is:open
+```
 
-Each run discovers and processes Dependabot PRs, updating the project board with current status.
+### Step 2: Check for Work
 
-## Success Criteria
+If *no* Dependabot PRs are found:
+- Call the `noop` tool with message: "No security alerts found to process"
+- Exit successfully
 
-- JavaScript dependency PRs are automatically triaged
-- Copilot agent reviews and processes assigned PRs
-- Project board reflects current state of dependency updates
+### Step 3: Update Project Board
+
+For each discovered item (up to 100 total per run):
+- Add or update the corresponding work item on the project board:
+- Use the `update-project` safe output tool
+- Always include the campaign project URL (this is what makes it a campaign):
+  - `project`: "https://github.com/orgs/githubnext/projects/144"
+- Always include the content identity:
+  - `content_type`: `pull_request` (Dependabot PRs)
+  - `content_number`: PR/issue number
+- Set fields:
+  - `campaign_id`: "security-alert-burndown"
+  - `status`: "Todo" (for open items)
+  - `target_repo`: "githubnext/gh-aw"
+  - `worker_workflow`: who discovered it, using one of:
+    - "dependabot"
+  - `priority`: Estimate priority:
+    - "High" for critical/severe alerts
+    - "Medium" for moderate alerts
+    - "Low" for low/none alerts
+  - `size`: Estimate size:
+    - "Small" for single dependency updates
+    - "Medium" for multiple dependency updates
+    - "Large" for complex updates with breaking changes
+  - `start_date`: Item created date (YYYY-MM-DD format)
+  - `end_date`: Item closed date (YYYY-MM-DD format) or today's date if still open
+
+### Step 4: Assign work
+
+After updating project items, **create one parent tracking issue** that captures the bundling plan and links the PRs, then **assign that issue to an agent**.
+
+**Selection Criteria:**
+1. Review all discovered PRs
+2. Group by **runtime** (Node.js, Python, etc.) and **target dependency file**
+3. Select up to **3 bundles** total following the bundling rules below
+
+**Dependabot Bundling Rules:**
+
+- Group work by **runtime** (Node.js, Python, etc.). Never mix runtimes.
+- Group changes by **target dependency file**. Each PR must modify **one manifest (and its lockfile) only**.
+- Bundle updates **only within a single target file**.
+- Patch and minor updates **may be bundled**; major updates **should be isolated** unless dependencies are tightly coupled.
+- Bundled releases **must include a research report** describing:
+  - Packages updated and old → new versions
+  - Breaking or behavioral changes
+  - Migration steps or code impact
+  - Risk level and test coverage impact
+- Prioritize **security alerts and high-risk updates** first within each runtime.
+- Enforce **one runtime + one target file per PR**.
+- All PRs must pass **CI and relevant runtime tests** before merge.
+
+**Create Parent Issue:**
+
+Create a single issue that contains:
+- The bundling rules (copied below)
+- The proposed bundles (grouped by runtime + target manifest)
+- A checklist of the PRs to bundle, one checkbox per PR
+
+Use the `create_issue` tool:
+
+```
+create_issue(title="Security Alert Burndown: Dependabot bundling plan (YYYY-MM-DD)", body="<paste body from template below>")
+```
+
+**Add Parent Issue to the Campaign Board:**
+
+Immediately after creating the issue, add it to the project board using `update_project` (so it’s tracked like the other campaign items):
+
+```
+update_project(
+  project="https://github.com/orgs/githubnext/projects/144",
+  content_type="issue",
+  content_number=<new_issue_number>,
+  fields={
+    "campaign_id": "security-alert-burndown",
+    "status": "Todo",
+    "target_repo": "githubnext/gh-aw",
+    "worker_workflow": "dependabot",
+    "priority": "High",
+    "size": "Medium",
+    "start_date": "YYYY-MM-DD"
+  }
+)
+```
+
+**Issue Body Template (paste into `body=`):**
+
+```markdown
+## Context
+This issue tracks Dependabot PR bundling work discovered by the Security Alert Burndown campaign.
+
+## Bundling Rules
+- Group work by runtime. Never mix runtimes.
+- Group changes by target dependency file (one manifest + its lockfile).
+- Patch/minor updates may be bundled; major updates should be isolated unless tightly coupled.
+- Bundled releases must include a research report (packages, versions, breaking changes, migration, risk, tests).
+
+## Planned Bundles
+
+### [runtime] — [manifest file]
+PRs:
+- [ ] #123 - [title] ([old] → [new])
+- [ ] #456 - [title] ([old] → [new])
+
+### [runtime] — [manifest file]
+PRs:
+- [ ] #789 - [title] ([old] → [new])
+
+## Agent Task
+1. For each bundle section above, research each update for breaking changes and summarize risks.
+2. Bundle PRs per section into a single PR (one runtime + one manifest).
+3. Ensure CI passes; run relevant runtime tests.
+4. Add the research report to the bundled PR.
+5. Update this issue checklist as PRs are merged.
+```
+
+**Assign Parent Issue to Agent:**
+
+After creating the issue, call `assign_to_agent` and explicitly provide the `issue_number` of the new issue (since `target: "*"`):
+
+```
+assign_to_agent(issue_number=<new_issue_number>, name="copilot")
+```
+
+### Step 5: Report
+
+Summarize how many items were discovered and added/updated on the project board, broken down by category, and include the parent tracking issue number that was created and assigned.
+
+## Important
+
+- Always use the `update-project` tool for project board updates
+- If no work is found, call `noop` to indicate successful completion with no actions
+- Focus only on open items:
+  - PRs: open only
+- Limit updates to 100 items per run to respect rate limits (prioritize highest severity/most recent first)

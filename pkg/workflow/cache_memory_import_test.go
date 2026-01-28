@@ -64,7 +64,7 @@ Test cache-memory import without local definition.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(mainPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}

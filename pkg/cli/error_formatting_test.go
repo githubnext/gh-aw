@@ -34,7 +34,7 @@ This is not valid frontmatter
 	os.Stderr = w
 
 	// Create compiler and attempt to compile
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	_ = CompileWorkflowWithValidation(compiler, invalidWorkflow, false, false, false, false, false, false)
 
 	// Restore stderr and read captured output

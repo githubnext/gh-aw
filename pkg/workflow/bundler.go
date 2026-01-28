@@ -1,4 +1,4 @@
-// Package workflow provides JavaScript bundling for agentic workflows.
+// This file provides JavaScript bundling for agentic workflows.
 //
 // # JavaScript Bundler with Runtime Mode Support
 //
@@ -40,6 +40,7 @@
 //
 // These validations prevent runtime errors when JavaScript is executed in environments
 // without a module system.
+
 package workflow
 
 import (

@@ -303,6 +303,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// Always mount /tmp for temporary files and cache
 		awfArgs = append(awfArgs, "--mount", "/tmp:/tmp:rw")
 
+		// Mount the user's cache directory for Go build cache, npm cache, etc.
+		awfArgs = append(awfArgs, "--mount", "\"${HOME}/.cache:${HOME}/.cache:rw\"")
+
 		// Always mount the workspace directory so Claude CLI can access it
 		// Use double quotes to allow shell variable expansion
 		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"")
@@ -405,11 +408,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			command = fmt.Sprintf(`set -o pipefail
           %s
 %s
+mkdir -p "$HOME/.cache"
 %s %s \
   -- %s`, promptSetup, toolBinsSetup, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand)
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
 %s
+mkdir -p "$HOME/.cache"
 %s %s \
   -- %s`, toolBinsSetup, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand)
 		}

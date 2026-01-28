@@ -6,7 +6,7 @@ import (
 )
 
 func TestEngineArgsFieldExtraction(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	t.Run("Engine args field extraction with []any", func(t *testing.T) {
 		frontmatter := map[string]any{

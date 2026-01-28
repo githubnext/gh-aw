@@ -53,7 +53,7 @@ This workflow tests the post-steps functionality.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -138,7 +138,7 @@ This workflow tests post-steps without pre-steps.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -182,7 +182,7 @@ func TestStopAfterCompiledAway(t *testing.T) {
 	// Test that stop-after is properly compiled away and doesn't appear in final YAML
 	tmpDir := testutil.TempDir(t, "stop-after-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name             string

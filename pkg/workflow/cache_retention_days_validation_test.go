@@ -67,7 +67,7 @@ func TestCacheMemoryRetentionDaysValidationObject(t *testing.T) {
 				t.Fatalf("Failed to parse tools config: %v", err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			config, err := compiler.extractCacheMemoryConfig(toolsConfig)
 
 			if tt.wantError {
@@ -145,7 +145,7 @@ func TestCacheMemoryRetentionDaysValidationArray(t *testing.T) {
 				t.Fatalf("Failed to parse tools config: %v", err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			config, err := compiler.extractCacheMemoryConfig(toolsConfig)
 
 			if tt.wantError {
@@ -188,7 +188,7 @@ func TestCacheMemoryRetentionDaysNoValue(t *testing.T) {
 		t.Fatalf("Failed to parse tools config: %v", err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	config, err := compiler.extractCacheMemoryConfig(toolsConfig)
 
 	if err != nil {

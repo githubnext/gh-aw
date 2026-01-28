@@ -103,23 +103,24 @@ func TestSpinnerConcurrentAccess(t *testing.T) {
 	spinner := NewSpinner("Test message")
 
 	// Test concurrent access to spinner methods
-	done := make(chan bool, 3)
+	// Buffered channel with fixed synchronization - no close needed (waits for exactly 3 sends)
+	done := make(chan struct{}, 3)
 
 	go func() {
 		spinner.Start()
-		done <- true
+		done <- struct{}{}
 	}()
 
 	go func() {
 		time.Sleep(5 * time.Millisecond)
 		spinner.UpdateMessage("Updated")
-		done <- true
+		done <- struct{}{}
 	}()
 
 	go func() {
 		time.Sleep(15 * time.Millisecond)
 		spinner.Stop()
-		done <- true
+		done <- struct{}{}
 	}()
 
 	// Wait for all goroutines

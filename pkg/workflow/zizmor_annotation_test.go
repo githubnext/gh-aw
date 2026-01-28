@@ -6,7 +6,7 @@ import (
 )
 
 func TestAddZizmorIgnoreForWorkflowRun(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	tests := []struct {
 		name     string

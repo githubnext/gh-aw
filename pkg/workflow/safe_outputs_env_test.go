@@ -5,7 +5,7 @@ import (
 )
 
 func TestSafeOutputsEnvConfiguration(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	t.Run("Should parse env configuration in safe-outputs", func(t *testing.T) {
 		frontmatter := map[string]any{

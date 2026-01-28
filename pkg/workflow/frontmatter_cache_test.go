@@ -65,7 +65,7 @@ engine: copilot
 			testFile := filepath.Join(tmpDir, "test-"+tt.name+".md")
 			require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			workflowData, err := compiler.ParseWorkflowFile(testFile)
 			require.NoError(t, err)
 			require.NotNil(t, workflowData)
@@ -101,7 +101,7 @@ Test content`
 	testFile := filepath.Join(tmpDir, "test-filter.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	require.NoError(t, err)
 	require.NotNil(t, workflowData)

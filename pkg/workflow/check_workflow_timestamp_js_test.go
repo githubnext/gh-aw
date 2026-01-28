@@ -15,7 +15,7 @@ import (
 func TestWorkflowTimestampCheckUsesJavaScript(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "workflow-timestamp-js-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowContent := `---
 on:

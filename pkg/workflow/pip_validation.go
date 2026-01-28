@@ -1,4 +1,4 @@
-// Package workflow provides Python package validation for agentic workflows.
+// This file provides Python package validation for agentic workflows.
 //
 // # Python Package Validation
 //
@@ -31,6 +31,7 @@
 // For package extraction functions, see pip.go.
 // For general validation, see validation.go.
 // For detailed documentation, see specs/validation-architecture.md
+
 package workflow
 
 import (

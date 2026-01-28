@@ -97,7 +97,7 @@ Test no secrets in allowed_domains.
 			tmpFile.Close()
 
 			// Create compiler and compile workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compiler.SetSkipValidation(true)
 
 			// Parse the workflow file to get WorkflowData

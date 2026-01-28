@@ -13,7 +13,7 @@ func TestConcurrencyRules(t *testing.T) {
 	// Test the new concurrency rules for pull_request and alias workflows
 	tmpDir := testutil.TempDir(t, "concurrency-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name                string

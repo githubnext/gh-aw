@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/sliceutil"
 )
@@ -11,7 +13,7 @@ func TestCheckAndPrepareDockerImages_NoToolsRequested(t *testing.T) {
 	ResetDockerPullState()
 
 	// When no tools are requested, should return nil
-	err := CheckAndPrepareDockerImages(false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), false, false, false)
 	if err != nil {
 		t.Errorf("Expected no error when no tools requested, got: %v", err)
 	}
@@ -27,7 +29,7 @@ func TestCheckAndPrepareDockerImages_ImageAlreadyDownloading(t *testing.T) {
 	SetDockerImageDownloading(ZizmorImage, true)
 
 	// Should return an error indicating to retry
-	err := CheckAndPrepareDockerImages(true, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), true, false, false)
 	if err == nil {
 		t.Error("Expected error when image is downloading, got nil")
 	}
@@ -126,7 +128,7 @@ func TestCheckAndPrepareDockerImages_MultipleImages(t *testing.T) {
 	SetDockerImageDownloading(PoutineImage, true)
 
 	// Request all tools
-	err := CheckAndPrepareDockerImages(true, true, true)
+	err := CheckAndPrepareDockerImages(context.Background(), true, true, true)
 	if err == nil {
 		t.Error("Expected error when images are downloading, got nil")
 	}
@@ -152,7 +154,7 @@ func TestCheckAndPrepareDockerImages_RetryMessageFormat(t *testing.T) {
 	// Simulate zizmor downloading
 	SetDockerImageDownloading(ZizmorImage, true)
 
-	err := CheckAndPrepareDockerImages(true, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), true, false, false)
 	if err == nil {
 		t.Fatal("Expected error when image is downloading")
 	}
@@ -187,7 +189,7 @@ func TestCheckAndPrepareDockerImages_StartedDownloadingMessage(t *testing.T) {
 	// when the image is marked as downloading
 	SetDockerImageDownloading(ZizmorImage, true)
 
-	err := CheckAndPrepareDockerImages(true, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), true, false, false)
 	if err == nil {
 		t.Fatal("Expected error when image is downloading")
 	}
@@ -211,7 +213,7 @@ func TestCheckAndPrepareDockerImages_ImageAlreadyAvailable(t *testing.T) {
 	SetMockImageAvailable(ZizmorImage, true)
 
 	// Should not return an error since the image is available
-	err := CheckAndPrepareDockerImages(true, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), true, false, false)
 	if err != nil {
 		t.Errorf("Expected no error when image is available, got: %v", err)
 	}
@@ -283,7 +285,7 @@ func TestStartDockerImageDownload_ConcurrentCalls(t *testing.T) {
 	for i := 0; i < numGoroutines; i++ {
 		go func(index int) {
 			<-startChan // Wait for the signal to start
-			started[index] = StartDockerImageDownload(testImage)
+			started[index] = StartDockerImageDownload(context.Background(), testImage)
 			doneChan <- index
 		}(i)
 	}
@@ -339,7 +341,7 @@ func TestStartDockerImageDownload_ConcurrentCallsWithAvailableImage(t *testing.T
 	for i := 0; i < numGoroutines; i++ {
 		go func(index int) {
 			<-startChan
-			started[index] = StartDockerImageDownload(testImage)
+			started[index] = StartDockerImageDownload(context.Background(), testImage)
 			doneChan <- index
 		}(i)
 	}
@@ -391,7 +393,7 @@ func TestStartDockerImageDownload_RaceWithExternalDownload(t *testing.T) {
 
 	for i := 0; i < numGoroutines; i++ {
 		go func() {
-			results <- StartDockerImageDownload(testImage)
+			results <- StartDockerImageDownload(context.Background(), testImage)
 		}()
 	}
 
@@ -406,6 +408,42 @@ func TestStartDockerImageDownload_RaceWithExternalDownload(t *testing.T) {
 	// Should only have one successful start
 	if downloadStarts != 1 {
 		t.Errorf("Expected exactly 1 download to start, got %d", downloadStarts)
+	}
+
+	// Clean up
+	ResetDockerPullState()
+}
+
+func TestStartDockerImageDownload_ContextCancellation(t *testing.T) {
+	// Test that download respects context cancellation
+	ResetDockerPullState()
+
+	testImage := "test/cancel-image:v1.0.0"
+	SetMockImageAvailable(testImage, false)
+
+	// Create a cancellable context
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Start the download
+	started := StartDockerImageDownload(ctx, testImage)
+	if !started {
+		t.Fatal("Expected download to start")
+	}
+
+	// Verify it's marked as downloading
+	if !IsDockerImageDownloading(testImage) {
+		t.Error("Expected image to be marked as downloading")
+	}
+
+	// Cancel the context immediately
+	cancel()
+
+	// Wait a bit for the goroutine to notice the cancellation
+	time.Sleep(100 * time.Millisecond)
+
+	// The image should no longer be marked as downloading after cancellation
+	if IsDockerImageDownloading(testImage) {
+		t.Error("Expected image to not be downloading after context cancellation")
 	}
 
 	// Clean up

@@ -1,4 +1,4 @@
-// Package cli provides compiler initialization and configuration for workflow compilation.
+// This file provides compiler initialization and configuration for workflow compilation.
 //
 // This file contains functions that create and configure the workflow compiler
 // instance with various settings like validation, strict mode, trial mode, and
@@ -24,6 +24,7 @@
 //
 // These functions abstract compiler setup, allowing the main compile
 // orchestrator to focus on coordination while these handle configuration.
+
 package cli
 
 import (
@@ -88,8 +89,11 @@ func createAndConfigureCompiler(config CompileConfig) *workflow.Compiler {
 		}
 	}
 
-	// Create compiler with verbose flag and AI engine override
-	compiler := workflow.NewCompiler(config.Verbose, config.EngineOverride, GetVersion())
+	// Create compiler with auto-detected version and action mode
+	compiler := workflow.NewCompiler(
+		workflow.WithVerbose(config.Verbose),
+		workflow.WithEngineOverride(config.EngineOverride),
+	)
 	compileCompilerSetupLog.Print("Created compiler instance")
 
 	// Configure compiler flags

@@ -37,7 +37,7 @@ Test workflow.
 	tmpFile.Close()
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(tmpFile.Name())
 	if err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)

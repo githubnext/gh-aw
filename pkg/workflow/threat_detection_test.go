@@ -8,7 +8,7 @@ import (
 )
 
 func TestParseThreatDetectionConfig(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name           string
@@ -137,7 +137,7 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 }
 
 func TestBuildThreatDetectionJob(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name        string
@@ -238,7 +238,7 @@ func TestBuildThreatDetectionJob(t *testing.T) {
 }
 
 func TestThreatDetectionDefaultBehavior(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test that threat detection is enabled by default when safe-outputs exist
 	frontmatter := map[string]any{
@@ -258,7 +258,7 @@ func TestThreatDetectionDefaultBehavior(t *testing.T) {
 }
 
 func TestThreatDetectionExplicitDisable(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test that threat detection can be explicitly disabled
 	frontmatter := map[string]any{
@@ -280,7 +280,7 @@ func TestThreatDetectionExplicitDisable(t *testing.T) {
 
 func TestThreatDetectionJobDependencies(t *testing.T) {
 	// Test that safe-output jobs depend on detection job when threat detection is enabled
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
@@ -342,7 +342,7 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 
 func TestThreatDetectionCustomPrompt(t *testing.T) {
 	// Test that custom prompt instructions are included in the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	customPrompt := "Look for suspicious API calls to external services and check for backdoor installations."
 	data := &WorkflowData{
@@ -380,7 +380,7 @@ func TestThreatDetectionCustomPrompt(t *testing.T) {
 }
 
 func TestThreatDetectionWithCustomEngine(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name           string
@@ -450,7 +450,7 @@ func TestThreatDetectionWithCustomEngine(t *testing.T) {
 }
 
 func TestThreatDetectionStepsOrdering(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
@@ -507,7 +507,7 @@ func TestThreatDetectionStepsOrdering(t *testing.T) {
 }
 
 func TestBuildEngineStepsWithThreatDetectionEngine(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name           string
@@ -581,7 +581,7 @@ func TestBuildEngineStepsWithThreatDetectionEngine(t *testing.T) {
 }
 
 func TestBuildUploadDetectionLogStep(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test that upload detection log step is created with correct properties
 	steps := compiler.buildUploadDetectionLogStep()
@@ -611,7 +611,7 @@ func TestBuildUploadDetectionLogStep(t *testing.T) {
 }
 
 func TestThreatDetectionStepsIncludeUpload(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
@@ -649,7 +649,7 @@ func TestThreatDetectionStepsIncludeUpload(t *testing.T) {
 }
 
 func TestEchoAgentOutputsStep(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test that the echo step is created with correct properties
 	steps := compiler.buildEchoAgentOutputsStep("agent")
@@ -690,7 +690,7 @@ func TestEchoAgentOutputsStep(t *testing.T) {
 }
 
 func TestThreatDetectionStepsIncludeEcho(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
@@ -725,7 +725,7 @@ func TestThreatDetectionStepsIncludeEcho(t *testing.T) {
 }
 
 func TestDownloadArtifactStepIncludesPrompt(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test that the download artifact step includes unified agent-artifacts download
 	steps := compiler.buildDownloadArtifactStep("agent")
@@ -773,7 +773,7 @@ func TestDownloadPatchArtifactHasConditional(t *testing.T) {
 }
 
 func TestSetupScriptReferencesPromptFile(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test that the setup script requires the external .cjs file
 	script := compiler.buildSetupScriptRequire()
@@ -795,7 +795,7 @@ func TestSetupScriptReferencesPromptFile(t *testing.T) {
 }
 
 func TestBuildWorkflowContextEnvVarsExcludesMarkdown(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	data := &WorkflowData{
 		Name:            "Test Workflow",
@@ -823,7 +823,7 @@ func TestBuildWorkflowContextEnvVarsExcludesMarkdown(t *testing.T) {
 }
 
 func TestThreatDetectionEngineFalse(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test that engine: false is properly parsed
 	frontmatter := map[string]any{
@@ -866,7 +866,7 @@ func TestThreatDetectionEngineFalse(t *testing.T) {
 // TestDetectionJobSkipCondition verifies that the detection job has the correct
 // conditional logic to skip when there are no safe outputs and no patches
 func TestDetectionJobSkipCondition(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	frontmatter := map[string]any{
 		"on": "issues",
@@ -926,7 +926,7 @@ func TestDetectionJobSkipCondition(t *testing.T) {
 // TestCopilotDetectionDefaultModel verifies that the copilot engine uses the
 // default model gpt-5.1-codex-mini for the detection job when no model is specified
 func TestCopilotDetectionDefaultModel(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name               string

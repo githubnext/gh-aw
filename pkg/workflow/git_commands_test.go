@@ -6,7 +6,7 @@ import (
 )
 
 func TestApplyDefaultGitCommandsForSafeOutputs(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	engine := NewClaudeEngine()
 
 	tests := []struct {
@@ -131,7 +131,7 @@ func TestApplyDefaultGitCommandsForSafeOutputs(t *testing.T) {
 }
 
 func TestAdditionalClaudeToolsForSafeOutputs(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	engine := NewClaudeEngine()
 
 	tests := []struct {

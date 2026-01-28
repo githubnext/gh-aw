@@ -117,7 +117,7 @@ Test that explicit container configuration overrides auto-assignment.
 			tmpFile.Close()
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compiler.SetSkipValidation(true) // Skip validation for test
 
 			workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
@@ -175,7 +175,7 @@ Test that multiple MCP servers get appropriate containers.
 	tmpFile.Close()
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetSkipValidation(true)
 
 	workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
@@ -229,7 +229,7 @@ Test that environment variables are preserved with auto-containerization.
 	tmpFile.Close()
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetSkipValidation(true)
 
 	workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())

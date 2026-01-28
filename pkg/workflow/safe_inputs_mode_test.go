@@ -51,7 +51,7 @@ Test safe-inputs HTTP mode
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err = compiler.CompileWorkflow(workflowPath)
 			if err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)

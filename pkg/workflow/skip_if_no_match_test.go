@@ -15,7 +15,7 @@ import (
 func TestSkipIfNoMatchPreActivationJob(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "skip-if-no-match-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	t.Run("pre_activation_job_created_with_skip_if_no_match", func(t *testing.T) {
 		workflowContent := `---

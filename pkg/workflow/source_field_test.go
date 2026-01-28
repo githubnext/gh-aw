@@ -16,7 +16,7 @@ import (
 func TestSourceFieldRendering(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "source-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name           string
@@ -177,7 +177,7 @@ This is a test workflow to verify source field rendering.
 
 // TestSourceFieldExtraction tests that the extractSource method works correctly
 func TestSourceFieldExtraction(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name        string

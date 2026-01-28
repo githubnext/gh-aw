@@ -1,6 +1,7 @@
-// Package workflow provides workflow compilation and safe-output configuration.
+// This file provides workflow compilation and safe-output configuration.
 // This file contains tests for the safe-outputs messages configuration feature,
 // which allows customizing footer and notification messages in safe-output jobs.
+
 package workflow
 
 import (
@@ -10,7 +11,7 @@ import (
 )
 
 func TestSafeOutputsMessagesConfiguration(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	t.Run("Should parse messages configuration in safe-outputs", func(t *testing.T) {
 		frontmatter := map[string]any{
@@ -192,7 +193,7 @@ func TestSerializeMessagesConfig(t *testing.T) {
 }
 
 func TestMessagesEnvVarInSafeOutputJobs(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	t.Run("Should include GH_AW_SAFE_OUTPUT_MESSAGES env var when messages configured", func(t *testing.T) {
 		data := &WorkflowData{

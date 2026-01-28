@@ -83,7 +83,7 @@ strict: false
 			}
 
 			// Compile the workflow
-			c := NewCompiler(false, "", "test-version")
+			c := NewCompiler()
 			if err := c.CompileWorkflow(mdFile); err != nil {
 				t.Fatalf("CompileWorkflow() error = %v", err)
 			}

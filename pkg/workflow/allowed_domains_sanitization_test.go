@@ -185,7 +185,7 @@ Test workflow with ecosystem identifiers.
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			if err := compiler.CompileWorkflow(testFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
@@ -315,7 +315,7 @@ Test that empty allowed-domains falls back to network config.
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			if err := compiler.CompileWorkflow(testFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
@@ -433,7 +433,7 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a compiler and workflow data
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			data := &WorkflowData{
 				EngineConfig: &EngineConfig{
 					ID: tt.engineID,

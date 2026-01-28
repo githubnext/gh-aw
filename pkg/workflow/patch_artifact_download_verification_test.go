@@ -46,7 +46,7 @@ in the consolidated safe_outputs job when create-pull-request is enabled.
 		t.Fatalf("Failed to write test markdown file: %v", err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -140,7 +140,7 @@ push-to-pull-request-branch is enabled.
 		t.Fatalf("Failed to write test markdown file: %v", err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -193,7 +193,7 @@ only non-PR safe outputs are enabled.
 		t.Fatalf("Failed to write test markdown file: %v", err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(mdFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}

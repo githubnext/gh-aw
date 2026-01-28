@@ -59,7 +59,7 @@ This workflow imports an MCP server with headers and url fields.
 	}
 
 	// Compile the workflow - should succeed without schema validation errors
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed with schema validation error: %v", err)
 	}
@@ -116,7 +116,7 @@ imports:
 		t.Fatalf("Failed to write workflow file: %v", err)
 	}
 
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -168,7 +168,7 @@ imports:
 		t.Fatalf("Failed to write workflow file: %v", err)
 	}
 
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -216,7 +216,7 @@ imports:
 		t.Fatalf("Failed to write workflow file: %v", err)
 	}
 
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}

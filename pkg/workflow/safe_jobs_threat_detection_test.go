@@ -11,7 +11,7 @@ import (
 // TestSafeOutputsJobsEnableThreatDetectionByDefault verifies that when safe-outputs.jobs
 // is configured, threat detection is automatically enabled even if not mentioned in frontmatter
 func TestSafeOutputsJobsEnableThreatDetectionByDefault(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	frontmatter := map[string]any{
 		"safe-outputs": map[string]any{
@@ -48,7 +48,7 @@ func TestSafeOutputsJobsEnableThreatDetectionByDefault(t *testing.T) {
 // TestSafeOutputsJobsRespectExplicitThreatDetectionFalse verifies that when
 // threat-detection is explicitly set to false, it respects that setting
 func TestSafeOutputsJobsRespectExplicitThreatDetectionFalse(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	frontmatter := map[string]any{
 		"safe-outputs": map[string]any{
@@ -81,7 +81,7 @@ func TestSafeOutputsJobsRespectExplicitThreatDetectionFalse(t *testing.T) {
 // TestSafeOutputsJobsRespectExplicitThreatDetectionTrue verifies that when
 // threat-detection is explicitly set to true, it respects that setting
 func TestSafeOutputsJobsRespectExplicitThreatDetectionTrue(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	frontmatter := map[string]any{
 		"safe-outputs": map[string]any{
@@ -114,7 +114,7 @@ func TestSafeOutputsJobsRespectExplicitThreatDetectionTrue(t *testing.T) {
 // TestSafeOutputsJobsDependOnDetectionJob verifies that custom safe-output jobs
 // depend on the detection job when threat detection is enabled
 func TestSafeOutputsJobsDependOnDetectionJob(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -179,7 +179,7 @@ func TestSafeOutputsJobsDependOnDetectionJob(t *testing.T) {
 // TestSafeOutputsJobsDoNotDependOnDetectionWhenDisabled verifies that custom safe-output jobs
 // do NOT depend on the detection job when threat detection is disabled
 func TestSafeOutputsJobsDoNotDependOnDetectionWhenDisabled(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -264,7 +264,7 @@ func TestHasSafeOutputsEnabledWithoutJobs(t *testing.T) {
 // TestSafeJobsWithThreatDetectionConfigObject verifies that threat detection
 // configuration object is properly handled
 func TestSafeJobsWithThreatDetectionConfigObject(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	frontmatter := map[string]any{
 		"safe-outputs": map[string]any{
@@ -305,7 +305,7 @@ func TestSafeJobsWithThreatDetectionConfigObject(t *testing.T) {
 // TestSafeJobsIntegrationWithWorkflowCompilation is an integration test that verifies
 // the entire workflow compilation process with safe-output jobs and threat detection
 func TestSafeJobsIntegrationWithWorkflowCompilation(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	markdown := `---
 on: issues

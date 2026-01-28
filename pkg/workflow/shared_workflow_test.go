@@ -38,7 +38,7 @@ This is a reusable shared workflow component.
 	}
 
 	// Try to parse the workflow - it should return SharedWorkflowError
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	_, err := compiler.ParseWorkflowFile(sharedPath)
 
 	// Check that we got a SharedWorkflowError
@@ -88,7 +88,7 @@ invalid_field: "This field should not be allowed"
 	}
 
 	// Try to parse the workflow - it should return a validation error (not SharedWorkflowError)
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	_, err := compiler.ParseWorkflowFile(sharedPath)
 
 	// Check that we got an error (validation error, not SharedWorkflowError)
@@ -132,7 +132,7 @@ This is a main workflow with an on trigger.
 	}
 
 	// Parse the workflow - it should succeed
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(mainPath)
 
 	// Check that we got no error
@@ -175,7 +175,7 @@ engine:
 	}
 
 	// Try to parse the workflow - it should return SharedWorkflowError
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	_, err := compiler.ParseWorkflowFile(sharedPath)
 
 	// Check that we got a SharedWorkflowError
@@ -211,7 +211,7 @@ mcp-servers:
 	}
 
 	// Try to parse the workflow - it should return SharedWorkflowError
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	_, err := compiler.ParseWorkflowFile(sharedPath)
 
 	// Check that we got a SharedWorkflowError
@@ -244,7 +244,7 @@ mcp-servers:
 	}
 
 	// Try to parse the workflow - it should return SharedWorkflowError (not "no markdown content" error)
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	_, err := compiler.ParseWorkflowFile(sharedPath)
 
 	// Check that we got a SharedWorkflowError
@@ -285,7 +285,7 @@ engine: copilot
 	}
 
 	// Try to parse the workflow - it should fail with "no markdown content" error
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	_, err := compiler.ParseWorkflowFile(mainPath)
 
 	// Check that we got an error

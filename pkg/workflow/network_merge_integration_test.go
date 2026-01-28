@@ -79,7 +79,7 @@ This workflow should have merged network domains from multiple sources.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}

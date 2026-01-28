@@ -6,7 +6,7 @@ import (
 
 func TestCompiler_SetFileTracker_Basic(t *testing.T) {
 	// Create compiler
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 
 	// Initial state should have nil tracker
 	if compiler.fileTracker != nil {
@@ -39,8 +39,5 @@ type SimpleBasicMockFileTracker struct {
 }
 
 func (s *SimpleBasicMockFileTracker) TrackCreated(filePath string) {
-	if s.tracked == nil {
-		s.tracked = make([]string, 0)
-	}
 	s.tracked = append(s.tracked, filePath)
 }

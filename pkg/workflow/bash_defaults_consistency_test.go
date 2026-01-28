@@ -7,7 +7,7 @@ import (
 
 // TestBashDefaultsConsistency tests that Claude and Copilot engines handle default bash tools consistently
 func TestBashDefaultsConsistency(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	claudeEngine := NewClaudeEngine()
 	copilotEngine := NewCopilotEngine()
 

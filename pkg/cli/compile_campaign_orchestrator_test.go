@@ -23,10 +23,12 @@ func TestGenerateAndCompileCampaignOrchestrator(t *testing.T) {
 		MemoryPaths: []string{"memory/campaigns/test-campaign/**"},
 	}
 
-	compiler := workflow.NewCompiler(false, "", GetVersion())
-	compiler.SetSkipValidation(true)
-	compiler.SetNoEmit(false)
-	compiler.SetStrictMode(false)
+	// Compiler with auto-detected version and action mode
+	compiler := workflow.NewCompiler(
+		workflow.WithSkipValidation(true),
+		workflow.WithNoEmit(false),
+		workflow.WithStrictMode(false),
+	)
 
 	orchestratorPath, err := generateAndCompileCampaignOrchestrator(GenerateCampaignOrchestratorOptions{
 		Compiler:             compiler,
@@ -149,10 +151,11 @@ func TestCampaignSourceCommentStability(t *testing.T) {
 		MemoryPaths: []string{"memory/campaigns/test-campaign/**"},
 	}
 
-	compiler := workflow.NewCompiler(false, "", GetVersion())
-	compiler.SetSkipValidation(true)
-	compiler.SetNoEmit(false)
-	compiler.SetStrictMode(false)
+	compiler := workflow.NewCompiler(
+		workflow.WithSkipValidation(true),
+		workflow.WithNoEmit(false),
+		workflow.WithStrictMode(false),
+	)
 
 	// Save original working directory
 	originalWd, err := os.Getwd()

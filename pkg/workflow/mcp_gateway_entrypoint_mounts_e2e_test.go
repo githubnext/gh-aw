@@ -39,7 +39,7 @@ Test that entrypoint is properly extracted and included in the compiled workflow
 	require.NoError(t, err, "Failed to write test file")
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(testFile)
 	require.NoError(t, err, "Compilation should succeed")
 
@@ -92,7 +92,7 @@ Test that mounts are properly extracted and included in the compiled workflow.
 	require.NoError(t, err, "Failed to write test file")
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(testFile)
 	require.NoError(t, err, "Compilation should succeed")
 
@@ -143,7 +143,7 @@ Test that both entrypoint and mounts are properly extracted and included in the 
 	require.NoError(t, err, "Failed to write test file")
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(testFile)
 	require.NoError(t, err, "Compilation should succeed")
 
@@ -195,7 +195,7 @@ Test that workflows without entrypoint or mounts still compile correctly.
 	require.NoError(t, err, "Failed to write test file")
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(testFile)
 	require.NoError(t, err, "Compilation should succeed")
 
@@ -243,7 +243,7 @@ Test that entrypoint with special characters in args is properly handled.
 	require.NoError(t, err, "Failed to write test file")
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(testFile)
 	require.NoError(t, err, "Compilation should succeed")
 
@@ -292,7 +292,7 @@ Test that mounts with environment variables are properly handled.
 	require.NoError(t, err, "Failed to write test file")
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(testFile)
 	require.NoError(t, err, "Compilation should succeed")
 

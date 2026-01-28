@@ -185,7 +185,7 @@ func TestValidateGitHubActionsSchemaWithExamples(t *testing.T) {
 	// Note: This test requires the schema to be loaded, which happens in validateGitHubActionsSchema
 	// We'll test the integration by using the actual compiler method
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetSkipValidation(false) // Enable validation for this test
 
 	tests := []struct {

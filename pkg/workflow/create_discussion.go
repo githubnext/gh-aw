@@ -35,13 +35,23 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 	configData, _ := outputMap["create-discussion"].(map[string]any)
 
 	// Pre-process the expires field (convert to hours before unmarshaling)
+	expiresDisabled := false
 	if configData != nil {
-		if _, exists := configData["expires"]; exists {
-			// Parse the expires value (string or integer) and convert to hours
+		if expires, exists := configData["expires"]; exists {
+			// Always parse the expires value through parseExpiresFromConfig
+			// This handles: integers (days), strings (time specs like "48h"), and boolean false
 			expiresInt := parseExpiresFromConfig(configData)
-			if expiresInt > 0 {
+			if expiresInt == -1 {
+				// Explicitly disabled with false
+				expiresDisabled = true
+				configData["expires"] = 0
+			} else if expiresInt > 0 {
 				configData["expires"] = expiresInt
+			} else {
+				// Invalid or missing - set to 0
+				configData["expires"] = 0
 			}
+			discussionLog.Printf("Parsed expires value %v to %d hours (disabled=%t)", expires, expiresInt, expiresDisabled)
 		}
 	}
 
@@ -58,10 +68,13 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 		config.Max = 1
 	}
 
-	// Set default expires to 7 days (168 hours) if not specified
-	if config.Expires == 0 {
+	// Set default expires to 7 days (168 hours) if not specified and not explicitly disabled
+	if config.Expires == 0 && !expiresDisabled {
 		config.Expires = 168 // 7 days = 168 hours
 		discussionLog.Print("Using default expiration: 7 days (168 hours)")
+	} else if expiresDisabled {
+		config.Expires = 0
+		discussionLog.Print("Expiration explicitly disabled")
 	}
 
 	// Validate target-repo (wildcard "*" is not allowed)

@@ -396,13 +396,13 @@ describe("Safe Output Handler Manager", () => {
       const messages = [
         { type: "create_issue", title: "Issue" },
         { type: "update_project", project: "https://github.com/orgs/myorg/projects/42" },
-        { type: "create_agent_task", title: "Task" },
+        { type: "create_agent_session", title: "Task" },
       ];
 
       const mockHandler = vi.fn().mockResolvedValue({ success: true });
 
       // Only create_issue handler is available
-      // update_project and create_agent_task are handled by standalone steps
+      // update_project and create_agent_session are handled by standalone steps
       const handlers = new Map([["create_issue", mockHandler]]);
 
       const result = await processMessages(handlers, messages);
@@ -422,24 +422,24 @@ describe("Safe Output Handler Manager", () => {
 
       // Third message should also be skipped (standalone step)
       expect(result.results[2].success).toBe(false);
-      expect(result.results[2].type).toBe("create_agent_task");
+      expect(result.results[2].type).toBe("create_agent_session");
       expect(result.results[2].skipped).toBe(true);
       expect(result.results[2].reason).toBe("Handled by standalone step");
 
       // Should NOT have logged warnings for standalone step types
       expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("No handler loaded for message type 'update_project'"));
-      expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("No handler loaded for message type 'create_agent_task'"));
+      expect(core.warning).not.toHaveBeenCalledWith(expect.stringContaining("No handler loaded for message type 'create_agent_session'"));
 
       // Should have logged debug messages
       expect(core.debug).toHaveBeenCalledWith(expect.stringContaining("update_project"));
-      expect(core.debug).toHaveBeenCalledWith(expect.stringContaining("create_agent_task"));
+      expect(core.debug).toHaveBeenCalledWith(expect.stringContaining("create_agent_session"));
     });
 
     it("should track skipped message types for logging", async () => {
       const messages = [
         { type: "create_issue", title: "Issue" },
         { type: "update_project", project: "https://github.com/orgs/myorg/projects/42" },
-        { type: "create_agent_task", title: "Task" },
+        { type: "create_agent_session", title: "Task" },
         { type: "unknown_type", data: "test" },
         { type: "another_unknown", data: "test2" },
       ];
@@ -456,7 +456,7 @@ describe("Safe Output Handler Manager", () => {
       // Collect skipped standalone types
       const skippedStandaloneResults = result.results.filter(r => r.skipped && r.reason === "Handled by standalone step");
       const standaloneTypes = [...new Set(skippedStandaloneResults.map(r => r.type))];
-      expect(standaloneTypes).toEqual(expect.arrayContaining(["update_project", "create_agent_task"]));
+      expect(standaloneTypes).toEqual(expect.arrayContaining(["update_project", "create_agent_session"]));
 
       // Collect skipped no-handler types
       const skippedNoHandlerResults = result.results.filter(r => !r.success && !r.skipped && r.error?.includes("No handler loaded"));

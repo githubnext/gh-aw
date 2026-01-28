@@ -1,4 +1,4 @@
-// Package cli provides command-line interface functionality for gh-aw.
+// This file provides command-line interface functionality for gh-aw.
 // This file (logs_parsing_js.go) contains functionality for executing
 // JavaScript log parsers to generate markdown summaries.
 //
@@ -6,6 +6,7 @@
 //   - Running JavaScript log parser scripts
 //   - Mocking GitHub Actions environment for parsers
 //   - Generating markdown log summaries
+
 package cli
 
 import (

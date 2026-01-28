@@ -1,5 +1,3 @@
-//go:build !integration
-
 package workflow
 
 import (
@@ -299,7 +297,7 @@ Test workflow with additional text in secret.`,
 			}
 
 			// Compile workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err = compiler.CompileWorkflow(workflowPath)
 
 			if tt.expectError {
@@ -410,7 +408,7 @@ Test for schema validation.`,
 				t.Fatalf("Failed to write test file: %v", err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err = compiler.CompileWorkflow(workflowPath)
 
 			if tt.expectError {
@@ -472,7 +470,7 @@ This workflow deploys the application using reusable workflows with proper secre
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(workflowPath)
 
 	if err != nil {

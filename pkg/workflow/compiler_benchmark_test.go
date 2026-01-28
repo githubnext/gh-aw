@@ -45,7 +45,7 @@ Issue details: ${{ needs.activation.outputs.text }}
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -94,7 +94,7 @@ Review the pull request changes and provide feedback.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -153,7 +153,7 @@ Research latest developments and create a summary.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -196,8 +196,10 @@ Analyze the issue with strict validation enabled.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
-	compiler.SetStrictMode(true)
+	compiler := NewCompiler(
+		WithVersion("test"),
+		WithStrictMode(true),
+	)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -271,7 +273,7 @@ Repository: ${{ github.repository }}
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -310,8 +312,10 @@ Analyze repository commits.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
-	compiler.SetNoEmit(true) // Don't write files
+	compiler := NewCompiler(
+		WithVersion("test"),
+		WithNoEmit(true), // Don't write files
+	)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -398,8 +402,10 @@ Debug mode: ${{ github.event.inputs.debug }}
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
-	compiler.SetNoEmit(true) // Don't write files
+	compiler := NewCompiler(
+		WithVersion("test"),
+		WithNoEmit(true), // Don't write files
+	)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
