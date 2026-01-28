@@ -153,7 +153,7 @@ const HANDLER_MAP = {
  * Note: Project-related types (create_project, create_project_status_update, update_project, copy_project)
  * require GH_AW_PROJECT_GITHUB_TOKEN and are processed in the dedicated project handler manager
  */
-const STANDALONE_STEP_TYPES = new Set(["assign_to_agent", "create_agent_task", "create_project", "create_project_status_update", "update_project", "copy_project", "upload_asset", "noop"]);
+const STANDALONE_STEP_TYPES = new Set(["assign_to_agent", "create_agent_session", "create_project", "create_project_status_update", "update_project", "copy_project", "upload_asset", "noop"]);
 
 /**
  * Load configuration for safe outputs

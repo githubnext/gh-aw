@@ -183,7 +183,7 @@ func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
 		},
 		Filesystem: &SRTFilesystemConfig{
 			DenyRead:   []string{},
-			AllowWrite: []string{".", "/home/runner/.copilot", "/tmp"},
+			AllowWrite: []string{".", "/home/runner/.copilot", "/home/runner/.cache", "/tmp"},
 			DenyWrite:  []string{},
 		},
 		IgnoreViolations:          map[string][]string{},

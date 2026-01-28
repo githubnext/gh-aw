@@ -411,9 +411,9 @@ func TestGetHostedToolcachePathSetup_UsesToolBins(t *testing.T) {
 func TestGetToolBinsSetup(t *testing.T) {
 	toolBinsSetup := GetToolBinsSetup()
 
-	// Should check GOROOT for Go
-	if !strings.Contains(toolBinsSetup, "GOROOT") || !strings.Contains(toolBinsSetup, "$GOROOT/bin") {
-		t.Errorf("GetToolBinsSetup should handle GOROOT, got: %s", toolBinsSetup)
+	// Should use `go env GOROOT` for Go (actions/setup-go doesn't export GOROOT env var)
+	if !strings.Contains(toolBinsSetup, "command -v go") || !strings.Contains(toolBinsSetup, "$(go env GOROOT)/bin") {
+		t.Errorf("GetToolBinsSetup should use `go env GOROOT` for Go, got: %s", toolBinsSetup)
 	}
 
 	// Should check JAVA_HOME for Java
@@ -469,7 +469,7 @@ func TestGetToolBinsEnvArg(t *testing.T) {
 		t.Errorf("First element should be --env, got: %s", envArg[0])
 	}
 
-	if envArg[1] != "GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS" {
-		t.Errorf("Second element should be GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS, got: %s", envArg[1])
+	if envArg[1] != "\"GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS\"" {
+		t.Errorf("Second element should be \"GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS\" (with outer double quotes), got: %s", envArg[1])
 	}
 }

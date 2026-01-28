@@ -119,6 +119,10 @@ async function main() {
         taskOutput = await exec.getExecOutput("gh", ghArgs, {
           silent: false,
           ignoreReturnCode: false,
+          env: {
+            ...process.env,
+            GH_TOKEN: process.env.GITHUB_TOKEN || "",
+          },
         });
       } catch (execError) {
         const errorMessage = execError instanceof Error ? execError.message : String(execError);

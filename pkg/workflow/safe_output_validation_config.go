@@ -54,7 +54,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
-	"create_agent_task": {
+	"create_agent_session": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
 			"body": {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},

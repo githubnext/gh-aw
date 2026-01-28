@@ -43,7 +43,7 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 		}
 
-	case "create_agent_task":
+	case "create_agent_session":
 		if config := safeOutputs.CreateAgentSessions; config != nil {
 			if config.Max > 0 {
 				constraints = append(constraints, fmt.Sprintf("Maximum %d agent task(s) can be created.", config.Max))
