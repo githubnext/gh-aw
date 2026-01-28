@@ -30,5 +30,5 @@ func TestNewPermissionsContentsReadProjectsWrite(t *testing.T) {
 	assert.Equal(t, PermissionWrite, issuesLevel, "issues should be write")
 
 	// Verify no unexpected permissions are set
-	assert.Equal(t, 3, len(perms.permissions), "should have exactly 3 permissions")
+	assert.Len(t, perms.permissions, 3, "should have exactly 3 permissions")
 }
