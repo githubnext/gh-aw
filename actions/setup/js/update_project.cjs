@@ -814,7 +814,14 @@ async function updateProject(output) {
           try {
             await github.rest.issues.addLabels({ owner, repo, issue_number: contentNumber, labels: [formatCampaignLabel(campaignId)] });
           } catch (labelError) {
-            core.warning(`Failed to add campaign label: ${getErrorMessage(labelError)}`);
+            const errorMessage = getErrorMessage(labelError);
+            // Gracefully handle permission errors - use info instead of warning
+            if (errorMessage.includes("Resource not accessible by personal access token") || errorMessage.includes("Resource not accessible by integration") || errorMessage.includes("Insufficient permissions")) {
+              core.info(`Skipping campaign label - insufficient permissions: ${errorMessage}`);
+            } else {
+              // Non-permission errors should still be warned about
+              core.warning(`Failed to add campaign label: ${errorMessage}`);
+            }
           }
         }
       }

@@ -667,7 +667,7 @@ describe("updateProject", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining('Failed to create field "NonExistentField"'));
   });
 
-  it("warns when adding the campaign label fails", async () => {
+  it("warns when adding the campaign label fails with non-permission error", async () => {
     const projectUrl = "https://github.com/orgs/testowner/projects/60";
     const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 50, campaign_id: "test-campaign" };
 
@@ -678,6 +678,21 @@ describe("updateProject", () => {
     await updateProject(output);
 
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to add campaign label"));
+  });
+
+  it("gracefully handles permission errors when adding campaign label", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = { type: "update_project", project: projectUrl, content_type: "issue", content_number: 50, campaign_id: "test-campaign" };
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 60, "project-label"), issueResponse("issue-id-50"), emptyItemsResponse(), { addProjectV2ItemById: { item: { id: "item-label" } } }]);
+
+    mockGithub.rest.issues.addLabels.mockRejectedValueOnce(new Error("Resource not accessible by personal access token"));
+
+    await updateProject(output);
+
+    // Permission errors should use info instead of warning
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Skipping campaign label - insufficient permissions"));
+    expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Failed to add campaign label"));
   });
 
   it("rejects non-URL project identifier", async () => {
