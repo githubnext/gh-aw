@@ -6,6 +6,8 @@ engine:
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
 ---
 
+<!--
+
 # GitHub Copilot with App Authentication
 
 This shared workflow configures the GitHub Copilot engine to use GitHub App authentication instead of personal access tokens.
@@ -48,3 +50,5 @@ Additional permissions can be inherited from workflow-level `permissions:` confi
 - **Audit**: App activity tracked separately in GitHub audit logs
 - **Rotation**: No need to rotate tokens manually
 - **Least privilege**: Minimal permissions for Copilot access
+
+-->
