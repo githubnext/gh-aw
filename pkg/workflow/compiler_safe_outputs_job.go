@@ -369,7 +369,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		}
 
 		// Insert app token steps
-		newSteps := make([]string, 0)
+		var newSteps []string
 		newSteps = append(newSteps, steps[:insertIndex]...)
 		newSteps = append(newSteps, appTokenSteps...)
 		newSteps = append(newSteps, steps[insertIndex:]...)

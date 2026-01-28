@@ -39,7 +39,6 @@ type StepOrderTracker struct {
 // NewStepOrderTracker creates a new step order tracker
 func NewStepOrderTracker() *StepOrderTracker {
 	return &StepOrderTracker{
-		steps:     make([]StepRecord, 0),
 		nextOrder: 0,
 	}
 }
