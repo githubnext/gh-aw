@@ -4,13 +4,13 @@ Execute all four steps in strict order:
 
 1. Read State (no writes)
 2. Make Decisions (no writes)
-3. Dispatch Workers (dispatch-workflow only)
+3. Apply Updates (writes)
 4. Report
 
 The following rules are mandatory and override inferred behavior:
 
 - The GitHub Project board is the single source of truth.
-- All project writes MUST comply with the Project Update Instructions (in workers).
+- All project writes MUST comply with the Project Update Instructions.
 - State reads and state writes MUST NOT be interleaved.
 - Do NOT infer missing data or invent values.
 - Do NOT reorganize hierarchy.
