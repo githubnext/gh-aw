@@ -24,12 +24,6 @@ GitHub Agentic Workflows use AI [coding agents or engines](/gh-aw/reference/glos
 | Bot assignments | ✅ | ❌ | ❌ |
 | Setup complexity | PAT required | API key | API key |
 
-### When to Choose
-
-- **Claude**: Best for general-purpose automation, excellent reasoning, simple API key setup
-- **Copilot**: Best when you need agent sessions or Copilot bot assignments
-- **Codex**: Alternative OpenAI-based option for API-based workflows
-
 > [!TIP]
 > 95%+ of features work identically across all engines. Only Copilot-specific features (agent sessions, bot assignments) require Copilot.
 
