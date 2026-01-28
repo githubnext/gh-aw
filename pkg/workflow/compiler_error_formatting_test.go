@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -88,10 +87,10 @@ func TestFormatCompilerError_OutputFormat(t *testing.T) {
 	errStr := err.Error()
 
 	// Verify the error format contains the standard compiler error structure
-	assert.True(t, strings.Contains(errStr, "/test/workflow.md"), "Should contain file path")
-	assert.True(t, strings.Contains(errStr, "1:1"), "Should contain line:column")
-	assert.True(t, strings.Contains(errStr, "error"), "Should contain error type")
-	assert.True(t, strings.Contains(errStr, "test message"), "Should contain message")
+	assert.Contains(t, errStr, "/test/workflow.md", "Should contain file path")
+	assert.Contains(t, errStr, "1:1", "Should contain line:column")
+	assert.Contains(t, errStr, "error", "Should contain error type")
+	assert.Contains(t, errStr, "test message", "Should contain message")
 }
 
 // TestFormatCompilerError_ErrorVsWarning tests differentiation between error and warning types
