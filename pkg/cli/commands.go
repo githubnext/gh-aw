@@ -209,11 +209,11 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 		return fmt.Errorf("failed to write agentics file '%s': %w", agenticsFile, err)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created new workflow files:")))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created new workflow files:"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Configuration: %s", workflowFile)))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Instructions:  %s", agenticsFile)))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Next steps:")))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Next steps:"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  1. Edit %s to customize agent behavior (no recompile needed)", agenticsFile)))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  2. Run '%s compile %s' to generate the GitHub Actions workflow", string(constants.CLIExtensionPrefix), workflowName)))
 
