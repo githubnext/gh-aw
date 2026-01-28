@@ -315,31 +315,45 @@ func TestApplyActionPinToStep(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a minimal WorkflowData for testing
 			data := &WorkflowData{}
-			result := ApplyActionPinToStep(tt.stepMap, data)
+
+			// Convert to typed step
+			typedStep, err := MapToStep(tt.stepMap)
+			if err != nil {
+				t.Fatalf("Failed to convert step to typed step: %v", err)
+			}
+
+			// Apply action pinning using typed version
+			pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
+			if pinnedStep == nil {
+				t.Fatal("ApplyActionPinToTypedStep returned nil")
+			}
+
+			// Convert back to map for comparison
+			result := pinnedStep.ToMap()
 
 			// Check if uses field exists in result
 			if uses, hasUses := result["uses"]; hasUses {
 				usesStr, ok := uses.(string)
 				if !ok {
-					t.Errorf("ApplyActionPinToStep returned non-string uses field")
+					t.Errorf("ApplyActionPinToTypedStep returned non-string uses field")
 					return
 				}
 
 				if usesStr != tt.expectedUses {
-					t.Errorf("ApplyActionPinToStep uses = %q, want %q", usesStr, tt.expectedUses)
+					t.Errorf("ApplyActionPinToTypedStep uses = %q, want %q", usesStr, tt.expectedUses)
 				}
 
 				// Verify other fields are preserved (check length and keys)
 				if len(result) != len(tt.stepMap) {
-					t.Errorf("ApplyActionPinToStep changed number of fields: got %d, want %d", len(result), len(tt.stepMap))
+					t.Errorf("ApplyActionPinToTypedStep changed number of fields: got %d, want %d", len(result), len(tt.stepMap))
 				}
 				for k := range tt.stepMap {
 					if _, exists := result[k]; !exists {
-						t.Errorf("ApplyActionPinToStep lost field %q", k)
+						t.Errorf("ApplyActionPinToTypedStep lost field %q", k)
 					}
 				}
 			} else if tt.expectedUses != "" {
-				t.Errorf("ApplyActionPinToStep removed uses field when it should be %q", tt.expectedUses)
+				t.Errorf("ApplyActionPinToTypedStep removed uses field when it should be %q", tt.expectedUses)
 			}
 		})
 	}
@@ -1460,6 +1474,283 @@ func TestFormatActionCacheKey(t *testing.T) {
 			if result != tt.expected {
 				t.Errorf("formatActionCacheKey(%q, %q) = %q, want %q",
 					tt.repo, tt.version, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestMapToStepWithActionPinning tests the integration of MapToStep and ApplyActionPinToTypedStep
+// This verifies the migration pattern used in compiler_jobs.go, safe_jobs.go, and custom_engine.go
+func TestMapToStepWithActionPinning(t *testing.T) {
+	tests := []struct {
+		name         string
+		stepMap      map[string]any
+		wantErr      bool
+		expectedUses string
+	}{
+		{
+			name: "valid step with action - should pin",
+			stepMap: map[string]any{
+				"name": "Checkout",
+				"uses": "actions/checkout@v5",
+			},
+			wantErr:      false,
+			expectedUses: "actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5",
+		},
+		{
+			name: "valid step with run - should not pin",
+			stepMap: map[string]any{
+				"name": "Run command",
+				"run":  "echo hello",
+			},
+			wantErr:      false,
+			expectedUses: "",
+		},
+		{
+			name: "step with complex fields",
+			stepMap: map[string]any{
+				"name": "Setup Node",
+				"uses": "actions/setup-node@v6",
+				"with": map[string]any{
+					"node-version": "20",
+					"cache":        "npm",
+				},
+				"env": map[string]string{
+					"CI": "true",
+				},
+			},
+			wantErr:      false,
+			expectedUses: "actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &WorkflowData{}
+
+			// Convert to typed step (as done in migration)
+			typedStep, err := MapToStep(tt.stepMap)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("MapToStep() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+
+			// Apply action pinning using typed version
+			pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
+			if pinnedStep == nil {
+				t.Fatal("ApplyActionPinToTypedStep returned nil")
+			}
+
+			// Verify the result
+			if tt.expectedUses != "" {
+				if pinnedStep.Uses != tt.expectedUses {
+					t.Errorf("pinnedStep.Uses = %q, want %q", pinnedStep.Uses, tt.expectedUses)
+				}
+			}
+
+			// Verify step can be converted back to map
+			resultMap := pinnedStep.ToMap()
+			if resultMap == nil {
+				t.Fatal("ToMap() returned nil")
+			}
+
+			// Verify essential fields are preserved
+			if name, ok := tt.stepMap["name"].(string); ok {
+				if resultMap["name"] != name {
+					t.Errorf("ToMap() name = %v, want %v", resultMap["name"], name)
+				}
+			}
+		})
+	}
+}
+
+// TestSliceToStepsWithActionPinning tests the integration of SliceToSteps and ApplyActionPinsToTypedSteps
+// This verifies the migration pattern used in compiler_orchestrator_workflow.go
+func TestSliceToStepsWithActionPinning(t *testing.T) {
+	tests := []struct {
+		name      string
+		steps     []any
+		wantErr   bool
+		wantCount int
+	}{
+		{
+			name: "mixed steps - some with actions, some with run",
+			steps: []any{
+				map[string]any{
+					"name": "Checkout",
+					"uses": "actions/checkout@v5",
+				},
+				map[string]any{
+					"name": "Run command",
+					"run":  "echo hello",
+				},
+				map[string]any{
+					"name": "Setup Node",
+					"uses": "actions/setup-node@v6",
+				},
+			},
+			wantErr:   false,
+			wantCount: 3,
+		},
+		{
+			name: "empty steps slice",
+			steps: []any{},
+			wantErr:   false,
+			wantCount: 0,
+		},
+		{
+			name: "all action steps",
+			steps: []any{
+				map[string]any{
+					"name": "Checkout",
+					"uses": "actions/checkout@v5",
+				},
+				map[string]any{
+					"name": "Setup Node",
+					"uses": "actions/setup-node@v6",
+				},
+			},
+			wantErr:   false,
+			wantCount: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &WorkflowData{}
+
+			// Convert to typed steps (as done in migration)
+			typedSteps, err := SliceToSteps(tt.steps)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("SliceToSteps() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+
+			if len(typedSteps) != tt.wantCount {
+				t.Errorf("SliceToSteps() returned %d steps, want %d", len(typedSteps), tt.wantCount)
+			}
+
+			// Apply action pinning using typed version
+			pinnedSteps := ApplyActionPinsToTypedSteps(typedSteps, data)
+			if len(pinnedSteps) != len(typedSteps) {
+				t.Errorf("ApplyActionPinsToTypedSteps() returned %d steps, want %d", len(pinnedSteps), len(typedSteps))
+			}
+
+			// Verify steps can be converted back to slice
+			resultSlice := StepsToSlice(pinnedSteps)
+			if len(resultSlice) != len(pinnedSteps) {
+				t.Errorf("StepsToSlice() returned %d steps, want %d", len(resultSlice), len(pinnedSteps))
+			}
+
+			// Verify action steps were pinned
+			for i, step := range pinnedSteps {
+				if step.Uses != "" && !step.IsUsesStep() {
+					t.Errorf("Step %d: Uses field set but IsUsesStep() is false", i)
+				}
+				if step.Uses != "" {
+					// Verify the uses field contains either @ or is a local action
+					if !strings.Contains(step.Uses, "@") && !strings.Contains(step.Uses, "./") {
+						t.Errorf("Step %d: Uses field %q should contain @ or be a local action", i, step.Uses)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestMapToStepErrorHandling tests error handling for invalid step maps
+func TestMapToStepErrorHandling(t *testing.T) {
+	tests := []struct {
+		name    string
+		stepMap map[string]any
+		wantErr bool
+	}{
+		{
+			name:    "nil step map",
+			stepMap: nil,
+			wantErr: true,
+		},
+		{
+			name:    "empty step map",
+			stepMap: map[string]any{},
+			wantErr: false, // Empty maps are valid, just produce empty steps
+		},
+		{
+			name: "valid step with all fields",
+			stepMap: map[string]any{
+				"name":              "Test step",
+				"id":                "test-id",
+				"uses":              "actions/checkout@v5",
+				"with":              map[string]any{"key": "value"},
+				"env":               map[string]string{"VAR": "value"},
+				"timeout-minutes":   30,
+				"continue-on-error": true,
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := MapToStep(tt.stepMap)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MapToStep() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// TestSliceToStepsErrorHandling tests error handling for invalid step slices
+func TestSliceToStepsErrorHandling(t *testing.T) {
+	tests := []struct {
+		name    string
+		steps   []any
+		wantErr bool
+	}{
+		{
+			name:    "nil slice",
+			steps:   nil,
+			wantErr: false, // nil is handled gracefully
+		},
+		{
+			name:    "empty slice",
+			steps:   []any{},
+			wantErr: false,
+		},
+		{
+			name: "slice with non-map element",
+			steps: []any{
+				"not a map",
+			},
+			wantErr: true,
+		},
+		{
+			name: "slice with mixed valid and invalid elements",
+			steps: []any{
+				map[string]any{"name": "Valid step"},
+				"not a map",
+			},
+			wantErr: true,
+		},
+		{
+			name: "slice with all valid elements",
+			steps: []any{
+				map[string]any{"name": "Step 1"},
+				map[string]any{"name": "Step 2"},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := SliceToSteps(tt.steps)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SliceToSteps() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

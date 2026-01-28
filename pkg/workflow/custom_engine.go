@@ -69,8 +69,95 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 				stepCopy[k] = v
 			}
 
-			// Apply action pinning if the step uses an action
-			stepCopy = ApplyActionPinToStep(stepCopy, workflowData)
+			// Convert to typed step for action pinning
+			typedStep, err := MapToStep(stepCopy)
+			if err != nil {
+				customEngineLog.Printf("Failed to convert step to typed step, skipping action pinning: %v", err)
+				// Continue with original stepCopy without action pinning
+				stepMap := stepCopy
+
+				// Prepare environment variables to merge
+				envVars := make(map[string]string)
+
+				// Always add GH_AW_PROMPT for agentic workflows
+				envVars["GH_AW_PROMPT"] = "/tmp/gh-aw/aw-prompts/prompt.txt"
+
+				// Add GH_AW_MCP_CONFIG for MCP server configuration
+				envVars["GH_AW_MCP_CONFIG"] = "/tmp/gh-aw/mcp-config/mcp-servers.json"
+
+				// Add GH_AW_SAFE_OUTPUTS if safe-outputs feature is used
+				applySafeOutputEnvToMap(envVars, workflowData)
+
+				// Add GH_AW_MAX_TURNS if max-turns is configured
+				if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+					envVars["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+				}
+
+				// Add GH_AW_ARGS if args are configured
+				if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
+					// Join args with space separator for environment variable
+					envVars["GH_AW_ARGS"] = strings.Join(workflowData.EngineConfig.Args, " ")
+				}
+
+				// Add custom environment variables from engine config
+				if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+					for key, value := range workflowData.EngineConfig.Env {
+						envVars[key] = value
+					}
+				}
+
+				// Merge environment variables into the step
+				if len(envVars) > 0 {
+					if existingEnv, exists := stepMap["env"]; exists {
+						// If step already has env section, merge them
+						if envMap, ok := existingEnv.(map[string]any); ok {
+							for key, value := range envVars {
+								envMap[key] = value
+							}
+							stepMap["env"] = envMap
+						} else {
+							// If env is not a map, replace it with our combined env
+							// Convert string map to any map for compatibility
+							envAny := make(map[string]any)
+							for k, v := range envVars {
+								envAny[k] = v
+							}
+							stepMap["env"] = envAny
+						}
+					} else {
+						// If no env section exists, add our env vars
+						// Convert string map to any map for compatibility
+						envAny := make(map[string]any)
+						for k, v := range envVars {
+							envAny[k] = v
+						}
+						stepMap["env"] = envAny
+					}
+				}
+
+				stepYAML, err := e.convertStepToYAML(stepMap)
+				if err != nil {
+					// Log error but continue with other steps
+					continue
+				}
+
+				// Split the step YAML into lines to create a GitHubActionStep
+				stepLines := strings.Split(strings.TrimRight(stepYAML, "\n"), "\n")
+
+				// Remove empty lines at the end
+				for len(stepLines) > 0 && strings.TrimSpace(stepLines[len(stepLines)-1]) == "" {
+					stepLines = stepLines[:len(stepLines)-1]
+				}
+
+				steps = append(steps, GitHubActionStep(stepLines))
+				continue
+			}
+
+			// Apply action pinning using type-safe version
+			pinnedStep := ApplyActionPinToTypedStep(typedStep, workflowData)
+
+			// Convert pinned step back to map for environment variable merging
+			stepMap := pinnedStep.ToMap()
 
 			// Prepare environment variables to merge
 			envVars := make(map[string]string)
@@ -104,13 +191,13 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 			// Merge environment variables into the step
 			if len(envVars) > 0 {
-				if existingEnv, exists := stepCopy["env"]; exists {
+				if existingEnv, exists := stepMap["env"]; exists {
 					// If step already has env section, merge them
 					if envMap, ok := existingEnv.(map[string]any); ok {
 						for key, value := range envVars {
 							envMap[key] = value
 						}
-						stepCopy["env"] = envMap
+						stepMap["env"] = envMap
 					} else {
 						// If env is not a map, replace it with our combined env
 						// Convert string map to any map for compatibility
@@ -118,7 +205,7 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 						for k, v := range envVars {
 							envAny[k] = v
 						}
-						stepCopy["env"] = envAny
+						stepMap["env"] = envAny
 					}
 				} else {
 					// If no env section exists, add our env vars
@@ -127,11 +214,11 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 					for k, v := range envVars {
 						envAny[k] = v
 					}
-					stepCopy["env"] = envAny
+					stepMap["env"] = envAny
 				}
 			}
 
-			stepYAML, err := e.convertStepToYAML(stepCopy)
+			stepYAML, err := e.convertStepToYAML(stepMap)
 			if err != nil {
 				// Log error but continue with other steps
 				continue
