@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -227,7 +228,8 @@ func getLatestRelease() (string, error) {
 
 // CheckForUpdatesAsync performs update check in background (best effort)
 // This is called from compile command and should never block or fail the compilation
-func CheckForUpdatesAsync(noCheckUpdate bool, verbose bool) {
+// The context can be used to cancel the update check if the program is shutting down
+func CheckForUpdatesAsync(ctx context.Context, noCheckUpdate bool, verbose bool) {
 	// Run check in goroutine to avoid blocking compilation
 	go func() {
 		// Recover from any panics in the update check
@@ -237,11 +239,23 @@ func CheckForUpdatesAsync(noCheckUpdate bool, verbose bool) {
 			}
 		}()
 
+		// Check if context was cancelled before starting
+		if ctx.Err() != nil {
+			updateCheckLog.Printf("Update check cancelled before starting: %v", ctx.Err())
+			return
+		}
+
 		checkForUpdates(noCheckUpdate, verbose)
 	}()
 
 	// Give the goroutine a small window to complete quickly
 	// This allows the message to appear before compilation starts
 	// but doesn't block if the check takes longer
-	time.Sleep(100 * time.Millisecond)
+	select {
+	case <-time.After(100 * time.Millisecond):
+		// Continue after timeout
+	case <-ctx.Done():
+		// Context cancelled during wait
+		return
+	}
 }

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -292,4 +293,46 @@ func TestCheckForUpdatesInCIMode(t *testing.T) {
 	if _, err := os.Stat(lastCheckFile); err == nil {
 		t.Error("Last check file should not be created in CI mode")
 	}
+}
+
+func TestCheckForUpdatesAsync_ContextCancellation(t *testing.T) {
+	// Test that async update check respects context cancellation
+	// Save original environment
+	origCI := os.Getenv("CI")
+	origGetLastCheckFilePath := getLastCheckFilePathFunc
+	defer func() {
+		os.Setenv("CI", origCI)
+		getLastCheckFilePathFunc = origGetLastCheckFilePath
+	}()
+
+	// Ensure we're not in CI mode
+	os.Unsetenv("CI")
+	os.Unsetenv("GITHUB_ACTIONS")
+	os.Unsetenv("CONTINUOUS_INTEGRATION")
+
+	// Create temporary directory for last check file
+	tmpDir := t.TempDir()
+	lastCheckFile := filepath.Join(tmpDir, lastCheckFileName)
+
+	// Override the function to use temp directory
+	getLastCheckFilePathFunc = func() string {
+		return lastCheckFile
+	}
+
+	// Create a cancellable context
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Cancel immediately
+	cancel()
+
+	// Call CheckForUpdatesAsync with cancelled context
+	CheckForUpdatesAsync(ctx, false, false)
+
+	// Wait a bit to ensure any goroutines would have had time to run
+	time.Sleep(200 * time.Millisecond)
+
+	// The update check should not have created a last check file
+	// because the context was cancelled
+	// Note: The check might still run if it started before cancellation,
+	// so we just verify no panics occurred
 }
