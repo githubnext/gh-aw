@@ -208,54 +208,17 @@ func generateAppVariableValidationStep(app *GitHubAppConfig, engineName, docsURL
 		return GitHubActionStep([]string{})
 	}
 
-	// Extract variable names from the expressions
-	// E.g., "${{ vars.APP_ID }}" -> "APP_ID"
-	//       "${{ secrets.APP_PRIVATE_KEY }}" -> "APP_PRIVATE_KEY"
-	appIDVarName := extractEnvVarName(app.AppID)
-	privateKeyVarName := extractEnvVarName(app.PrivateKey)
-
-	// Use shell script for validation logic with variable names as parameters
+	// Use shell script for validation logic
 	stepLines := []string{
 		"      - name: Validate GitHub App variables",
 		"        id: validate-secret",
-		fmt.Sprintf("        run: bash /opt/gh-aw/actions/validate_app_support_engine_field.sh \"%s\" \"%s\" \"%s\" \"%s\"",
-			appIDVarName, privateKeyVarName, engineName, docsURL),
+		fmt.Sprintf("        run: bash /opt/gh-aw/actions/validate_app_support_engine_field.sh \"%s\" \"%s\"", engineName, docsURL),
 		"        env:",
-		fmt.Sprintf("          %s: %s", appIDVarName, app.AppID),
-		fmt.Sprintf("          %s: %s", privateKeyVarName, app.PrivateKey),
+		fmt.Sprintf("          APP_ID: %s", app.AppID),
+		fmt.Sprintf("          APP_PRIVATE_KEY: %s", app.PrivateKey),
 	}
 
 	return GitHubActionStep(stepLines)
-}
-
-// extractEnvVarName extracts the environment variable name from a GitHub Actions expression
-// Examples:
-//
-//	"${{ vars.APP_ID }}" -> "APP_ID"
-//	"${{ secrets.APP_PRIVATE_KEY }}" -> "APP_PRIVATE_KEY"
-//	"${{ vars.MY_APP_ID }}" -> "MY_APP_ID"
-//	"literal_value" -> "literal_value" (returns as-is for non-expression values)
-func extractEnvVarName(expression string) string {
-	// Remove common prefixes and extract the variable name
-	// Pattern: ${{ vars.NAME }} or ${{ secrets.NAME }}
-	expression = strings.TrimSpace(expression)
-
-	// Remove ${{ and }}
-	expression = strings.TrimPrefix(expression, "${{")
-	expression = strings.TrimSuffix(expression, "}}")
-	expression = strings.TrimSpace(expression)
-
-	// Remove vars. or secrets. prefix
-	expression = strings.TrimPrefix(expression, "vars.")
-	expression = strings.TrimPrefix(expression, "secrets.")
-	expression = strings.TrimSpace(expression)
-
-	// Return the extracted variable name (or original if no pattern matched)
-	if expression == "" {
-		return "VALUE" // Fallback for empty strings
-	}
-
-	return expression
 }
 
 // buildCopilotEngineAppTokenMintStep generates the step to mint a GitHub App installation access token for Copilot
