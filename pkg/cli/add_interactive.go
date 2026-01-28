@@ -71,9 +71,9 @@ func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool
 
 	// Step 1: Welcome message
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "🚀 Welcome to GitHub Agentic Workflows!")
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("🚀 Welcome to GitHub Agentic Workflows!"))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "This tool will walk you through adding an automated workflow to your repository.")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("This tool will walk you through adding an automated workflow to your repository."))
 	fmt.Fprintln(os.Stderr, "")
 
 	// Step 1b: Resolve workflows early to get descriptions and validate specs
@@ -177,7 +177,7 @@ func (c *AddInteractiveConfig) checkGHAuthStatus() error {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("You are not logged in to GitHub CLI."))
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Please run the following command to authenticate:")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please run the following command to authenticate:"))
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  gh auth login"))
 		fmt.Fprintln(os.Stderr, "")
@@ -200,7 +200,7 @@ func (c *AddInteractiveConfig) checkGitRepository() error {
 	if !isGitRepo() {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Not in a git repository."))
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Please navigate to a git repository or initialize one with:")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please navigate to a git repository or initialize one with:"))
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  git init"))
 		fmt.Fprintln(os.Stderr, "")
@@ -287,11 +287,11 @@ func (c *AddInteractiveConfig) checkActionsEnabled() error {
 	if enabled != "true" {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("GitHub Actions is disabled for this repository."))
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "To enable GitHub Actions:")
-		fmt.Fprintln(os.Stderr, "  1. Go to your repository on GitHub")
-		fmt.Fprintln(os.Stderr, "  2. Navigate to Settings → Actions → General")
-		fmt.Fprintln(os.Stderr, "  3. Under 'Actions permissions', select 'Allow all actions and reusable workflows'")
-		fmt.Fprintln(os.Stderr, "  4. Click 'Save'")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To enable GitHub Actions:"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  1. Go to your repository on GitHub"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  2. Navigate to Settings → Actions → General"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  3. Under 'Actions permissions', select 'Allow all actions and reusable workflows'"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  4. Click 'Save'"))
 		fmt.Fprintln(os.Stderr, "")
 		return fmt.Errorf("GitHub Actions is not enabled for this repository")
 	}
@@ -324,8 +324,8 @@ func (c *AddInteractiveConfig) checkUserPermissions() error {
 	if !hasAccess {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("You do not have write access to %s/%s.", owner, repo)))
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "You need to be a maintainer, admin, or have write permissions on this repository.")
-		fmt.Fprintln(os.Stderr, "Please contact the repository owner or request access.")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("You need to be a maintainer, admin, or have write permissions on this repository."))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please contact the repository owner or request access."))
 		fmt.Fprintln(os.Stderr, "")
 		return fmt.Errorf("insufficient repository permissions")
 	}
@@ -513,17 +513,17 @@ func (c *AddInteractiveConfig) collectCopilotPAT() error {
 	}
 
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "GitHub Copilot requires a Personal Access Token (PAT) with Copilot permissions.")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Copilot requires a Personal Access Token (PAT) with Copilot permissions."))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Please create a token at:")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please create a token at:"))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  https://github.com/settings/personal-access-tokens/new"))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Configure the token with:")
-	fmt.Fprintln(os.Stderr, "  • Token name: Agentic Workflows Copilot")
-	fmt.Fprintln(os.Stderr, "  • Expiration: 90 days (recommended for testing)")
-	fmt.Fprintln(os.Stderr, "  • Resource owner: Your personal account")
-	fmt.Fprintln(os.Stderr, "  • Repository access: \"Public repositories\" (you must use this setting even for private repos)")
-	fmt.Fprintln(os.Stderr, "  • Account permissions → Copilot Requests: Read-only")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Configure the token with:"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  • Token name: Agentic Workflows Copilot"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  • Expiration: 90 days (recommended for testing)"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  • Resource owner: Your personal account"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  • Repository access: \"Public repositories\" (you must use this setting even for private repos)"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  • Account permissions → Copilot Requests: Read-only"))
 	fmt.Fprintln(os.Stderr, "")
 
 	var token string
@@ -576,9 +576,9 @@ func (c *AddInteractiveConfig) collectGenericAPIKey(opt *constants.EngineOption)
 	}
 
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintf(os.Stderr, "%s requires an API key.\n", opt.Label)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("%s requires an API key.", opt.Label)))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Get your API key from:")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Get your API key from:"))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s", opt.KeyURL)))
 	fmt.Fprintln(os.Stderr, "")
 
@@ -626,9 +626,9 @@ func (c *AddInteractiveConfig) determineFilesToAdd() (workflowFiles []string, in
 	}
 
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "The following workflow files will be added:")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("The following workflow files will be added:"))
 	for _, f := range workflowFiles {
-		fmt.Fprintf(os.Stderr, "  • .github/workflows/%s\n", f)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  • .github/workflows/%s", f)))
 	}
 
 	return workflowFiles, initFiles, nil
@@ -716,7 +716,7 @@ func (c *AddInteractiveConfig) applyChanges(ctx context.Context, workflowFiles, 
 	// Step 8b: Auto-merge the PR
 	if result.PRNumber == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not determine PR number"))
-		fmt.Fprintln(os.Stderr, "Please merge the PR manually from the GitHub web interface.")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please merge the PR manually from the GitHub web interface."))
 	} else {
 		if err := c.mergePullRequest(result.PRNumber); err != nil {
 			// Check if already merged
@@ -724,7 +724,7 @@ func (c *AddInteractiveConfig) applyChanges(ctx context.Context, workflowFiles, 
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Merged pull request %s", result.PRURL)))
 			} else {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to merge PR: %v", err)))
-				fmt.Fprintln(os.Stderr, "Please merge the PR manually from the GitHub web interface.")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please merge the PR manually from the GitHub web interface."))
 			}
 		} else {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Merged pull request %s", result.PRURL)))
@@ -745,9 +745,9 @@ func (c *AddInteractiveConfig) applyChanges(ctx context.Context, workflowFiles, 
 		if err := c.addRepositorySecret(secretName, secretValue); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to add secret: %v", err)))
 			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, "Please add the secret manually:")
-			fmt.Fprintln(os.Stderr, "  1. Go to your repository Settings → Secrets and variables → Actions")
-			fmt.Fprintf(os.Stderr, "  2. Click 'New repository secret' and add '%s'\n", secretName)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please add the secret manually:"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  1. Go to your repository Settings → Secrets and variables → Actions"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  2. Click 'New repository secret' and add '%s'", secretName)))
 			return fmt.Errorf("failed to add secret: %w", err)
 		}
 
