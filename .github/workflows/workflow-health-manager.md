@@ -26,7 +26,7 @@ safe-outputs:
     max: 15
   update-issue:
     max: 5
-timeout-minutes: 20
+timeout-minutes: 30
 imports:
   - shared/reporting.md
 ---
