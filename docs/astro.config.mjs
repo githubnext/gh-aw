@@ -74,7 +74,9 @@ export default defineConfig({
 		},
 			pagination: true,
 			expressiveCode: {
-				frames: false,
+				frames: {
+					showCopyToClipboardButton: true,
+				},
 				shiki: {
 						langs: /** @type {any[]} */ ([
 							"markdown",
