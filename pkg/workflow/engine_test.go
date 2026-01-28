@@ -85,7 +85,7 @@ func TestEngineVersionTypeHandling(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -125,7 +125,7 @@ func TestEngineVersionNotProvided(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -156,7 +156,7 @@ func TestEngineVersionWithOtherFields(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	_, config := compiler.ExtractEngineConfig(frontmatter)
 
 	if config == nil {
@@ -232,7 +232,7 @@ func TestEngineCommandField(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

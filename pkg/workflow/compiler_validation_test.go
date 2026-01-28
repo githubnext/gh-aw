@@ -15,7 +15,7 @@ import (
 func TestExtractTopLevelYAMLSection_NestedEnvIssue(t *testing.T) {
 	// This test verifies the fix for the nested env issue where
 	// tools.mcps.*.env was being confused with top-level env
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Create frontmatter with nested env under tools.notionApi.env
 	// but NO top-level env section
@@ -146,7 +146,7 @@ This is a test workflow with nested env.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow: %v", err)
 	}
@@ -227,7 +227,7 @@ This is a test workflow.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "v1.0.0")
+	compiler := NewCompilerWithVersion("v1.0.0")
 	err := compiler.CompileWorkflow(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error compiling workflow: %v", err)
@@ -293,7 +293,7 @@ This is a test workflow.
 }
 
 func TestValidateWorkflowSchema(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetSkipValidation(false) // Enable validation for testing
 
 	tests := []struct {
@@ -404,7 +404,7 @@ jobs:
 	}
 }
 func TestValidationCanBeSkipped(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test via CompileWorkflow - should succeed because validation is skipped by default
 	tmpDir := testutil.TempDir(t, "validation-skip-test")
@@ -455,7 +455,7 @@ This workflow tests that frontmatter is NOT embedded in the lock file (removed p
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error compiling workflow: %v", err)
@@ -485,7 +485,7 @@ This workflow tests that frontmatter is NOT embedded in the lock file (removed p
 func TestDescriptionFieldRendering(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "description-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name                string
@@ -649,7 +649,7 @@ This is a test workflow to verify description field rendering.
 }
 
 func TestGenerateJobName(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name         string

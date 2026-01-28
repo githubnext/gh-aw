@@ -35,7 +35,7 @@ Test workflow with lock-for-agent enabled.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -112,7 +112,7 @@ Test workflow with lock-for-agent but no reaction.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -183,7 +183,7 @@ Test workflow without lock-for-agent.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -248,7 +248,7 @@ Test workflow without lock-for-agent and without reaction.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -308,7 +308,7 @@ Test that lock-for-agent on issues doesn't break PR workflows.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -354,7 +354,7 @@ Test workflow with lock-for-agent enabled for issue_comment events.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -454,7 +454,7 @@ Test that lock-for-agent is commented out in generated YAML.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -523,7 +523,7 @@ Test that issue is unlocked in safe_outputs job before processing safe outputs.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)

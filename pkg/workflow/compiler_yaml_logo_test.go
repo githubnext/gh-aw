@@ -8,7 +8,7 @@ import (
 // TestASCIILogoAlignment verifies that the ASCII logo in generated YAML
 // preserves leading spaces on the first line for proper alignment
 func TestASCIILogoAlignment(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Create a minimal workflow for testing
 	data := &WorkflowData{

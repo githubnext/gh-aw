@@ -87,7 +87,7 @@ func TestMissingDataSafeOutput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Extract safe outputs config
 			safeOutputs := compiler.extractSafeOutputsConfig(tt.frontmatter)
@@ -177,7 +177,7 @@ func TestMissingDataConfigParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			config := compiler.parseMissingDataConfig(tt.configData)
 
 			if tt.expectNil {
@@ -240,7 +240,7 @@ func TestBuildCreateOutputMissingDataJob(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			data := &WorkflowData{
 				Name:   "Test Workflow",

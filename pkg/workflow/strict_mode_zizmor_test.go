@@ -48,7 +48,7 @@ network:
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			compiler.SetStrictMode(true)
 			err := compiler.CompileWorkflow(testFile)
 

@@ -70,7 +70,7 @@ Test workflow that creates issues.`,
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.CompileWorkflow(workflowFile)
 			if err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)

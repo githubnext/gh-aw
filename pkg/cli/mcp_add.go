@@ -143,7 +143,10 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 	}
 
 	mcpAddLog.Print("Compiling workflow after adding MCP tool")
-	compiler := workflow.NewCompiler(verbose, "", "")
+	compiler := workflow.NewCompiler(
+		workflow.WithVerbose(verbose),
+	)
+
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		// Security fix for CWE-312, CWE-315, CWE-359: Avoid logging detailed error messages
 		// that could contain sensitive information from secret references

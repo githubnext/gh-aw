@@ -44,8 +44,10 @@ func TestForceRefreshActionPins_ClearCache(t *testing.T) {
 	assert.Len(t, testCache.Entries, 2, "Cache should have 2 entries before force refresh")
 
 	// Create compiler with force refresh enabled
-	compiler := workflow.NewCompiler(false, "", "test")
-	compiler.SetForceRefreshActionPins(true)
+	compiler := workflow.NewCompiler(
+		workflow.WithVersion("test"),
+		workflow.WithForceRefreshActionPins(true),
+	)
 
 	// Get the shared action resolver - this should skip loading the cache
 	actionCache, _ := compiler.GetSharedActionResolverForTest()

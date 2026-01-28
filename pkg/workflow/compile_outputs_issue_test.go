@@ -40,7 +40,7 @@ This workflow tests the output configuration parsing.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow data
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -103,7 +103,7 @@ This workflow has no output configuration.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow data
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -149,7 +149,7 @@ This workflow tests the null output configuration parsing.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow data
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -235,7 +235,7 @@ This workflow tests the create-issue job generation.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {

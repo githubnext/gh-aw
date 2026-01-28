@@ -37,7 +37,7 @@ Please navigate to example.com and take a screenshot.
 	}
 
 	// Initialize compiler
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	err := compiler.CompileWorkflow(mdFile)
@@ -140,7 +140,7 @@ This workflow does not use Playwright but should still have MCP logs upload.
 	}
 
 	// Initialize compiler
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	err := compiler.CompileWorkflow(mdFile)

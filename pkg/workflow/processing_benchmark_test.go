@@ -37,7 +37,7 @@ Simple tool processing test.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -91,7 +91,7 @@ Complex tool configuration processing.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -131,7 +131,7 @@ Simple safe outputs configuration.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -186,7 +186,7 @@ Complex safe outputs configuration.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -228,7 +228,7 @@ Network permissions processing.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -269,7 +269,7 @@ Permission processing test.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -307,7 +307,7 @@ Role processing test.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

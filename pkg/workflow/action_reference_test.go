@@ -6,7 +6,7 @@ import (
 
 func TestConvertToRemoteActionRef(t *testing.T) {
 	t.Run("local path with ./ prefix and version tag", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "v1.2.3")
+		compiler := NewCompilerWithVersion("v1.2.3")
 		data := &WorkflowData{}
 		ref := compiler.convertToRemoteActionRef("./actions/create-issue", data)
 		expected := "githubnext/gh-aw/actions/create-issue@v1.2.3"
@@ -16,7 +16,7 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 	})
 
 	t.Run("local path without ./ prefix and version tag", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "v1.0.0")
+		compiler := NewCompilerWithVersion("v1.0.0")
 		data := &WorkflowData{}
 		ref := compiler.convertToRemoteActionRef("actions/create-issue", data)
 		expected := "githubnext/gh-aw/actions/create-issue@v1.0.0"
@@ -26,7 +26,7 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 	})
 
 	t.Run("nested action path with version tag", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "v2.0.0")
+		compiler := NewCompilerWithVersion("v2.0.0")
 		data := &WorkflowData{}
 		ref := compiler.convertToRemoteActionRef("./actions/nested/action", data)
 		expected := "githubnext/gh-aw/actions/nested/action@v2.0.0"
@@ -36,7 +36,7 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 	})
 
 	t.Run("dev version returns empty", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "dev")
+		compiler := NewCompilerWithVersion("dev")
 		data := &WorkflowData{}
 		ref := compiler.convertToRemoteActionRef("./actions/create-issue", data)
 		if ref != "" {
@@ -45,7 +45,7 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 	})
 
 	t.Run("empty version returns empty", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "")
+		compiler := NewCompiler()
 		data := &WorkflowData{}
 		ref := compiler.convertToRemoteActionRef("./actions/create-issue", data)
 		if ref != "" {
@@ -54,7 +54,7 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 	})
 
 	t.Run("action-tag overrides version", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "v1.0.0")
+		compiler := NewCompilerWithVersion("v1.0.0")
 		data := &WorkflowData{Features: map[string]any{"action-tag": "latest"}}
 		ref := compiler.convertToRemoteActionRef("./actions/create-issue", data)
 		expected := "githubnext/gh-aw/actions/create-issue@latest"
@@ -64,7 +64,7 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 	})
 
 	t.Run("action-tag with specific SHA", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "v1.0.0")
+		compiler := NewCompilerWithVersion("v1.0.0")
 		data := &WorkflowData{Features: map[string]any{"action-tag": "abc123def456"}}
 		ref := compiler.convertToRemoteActionRef("./actions/setup", data)
 		expected := "githubnext/gh-aw/actions/setup@abc123def456"
@@ -74,7 +74,7 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 	})
 
 	t.Run("action-tag with version tag format", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "v1.0.0")
+		compiler := NewCompilerWithVersion("v1.0.0")
 		data := &WorkflowData{Features: map[string]any{"action-tag": "v2.5.0"}}
 		ref := compiler.convertToRemoteActionRef("./actions/setup", data)
 		expected := "githubnext/gh-aw/actions/setup@v2.5.0"
@@ -84,7 +84,7 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 	})
 
 	t.Run("empty action-tag falls back to version", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "v1.5.0")
+		compiler := NewCompilerWithVersion("v1.5.0")
 		data := &WorkflowData{Features: map[string]any{"action-tag": ""}}
 		ref := compiler.convertToRemoteActionRef("./actions/create-issue", data)
 		expected := "githubnext/gh-aw/actions/create-issue@v1.5.0"
@@ -94,7 +94,7 @@ func TestConvertToRemoteActionRef(t *testing.T) {
 	})
 
 	t.Run("nil data falls back to version", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "v1.5.0")
+		compiler := NewCompilerWithVersion("v1.5.0")
 		ref := compiler.convertToRemoteActionRef("./actions/create-issue", nil)
 		expected := "githubnext/gh-aw/actions/create-issue@v1.5.0"
 		if ref != expected {
@@ -169,7 +169,7 @@ func TestResolveActionReference(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", tt.version)
+			compiler := NewCompilerWithVersion(tt.version)
 			compiler.SetActionMode(tt.actionMode)
 
 			data := &WorkflowData{}
@@ -193,7 +193,7 @@ func TestResolveActionReference(t *testing.T) {
 
 func TestCompilerActionTag(t *testing.T) {
 	t.Run("compiler actionTag overrides frontmatter action-tag", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "v1.0.0")
+		compiler := NewCompilerWithVersion("v1.0.0")
 		compiler.SetActionMode(ActionModeRelease)
 		compiler.SetActionTag("v2.0.0")
 
@@ -207,7 +207,7 @@ func TestCompilerActionTag(t *testing.T) {
 	})
 
 	t.Run("compiler actionTag overrides version", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "v1.0.0")
+		compiler := NewCompilerWithVersion("v1.0.0")
 		compiler.SetActionMode(ActionModeRelease)
 		compiler.SetActionTag("abc123def456")
 
@@ -220,7 +220,7 @@ func TestCompilerActionTag(t *testing.T) {
 	})
 
 	t.Run("compiler actionTag with dev mode forces release behavior", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "v1.0.0")
+		compiler := NewCompilerWithVersion("v1.0.0")
 		// When actionTag is set via --action-tag flag, setupActionMode sets mode to release
 		// So this test should reflect that behavior
 		compiler.SetActionTag("v2.0.0")
@@ -235,7 +235,7 @@ func TestCompilerActionTag(t *testing.T) {
 	})
 
 	t.Run("empty compiler actionTag falls back to frontmatter", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "v1.0.0")
+		compiler := NewCompilerWithVersion("v1.0.0")
 		compiler.SetActionMode(ActionModeRelease)
 		// Don't set compiler actionTag
 
@@ -248,7 +248,7 @@ func TestCompilerActionTag(t *testing.T) {
 	})
 
 	t.Run("empty compiler actionTag and no frontmatter uses version", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "v1.2.3")
+		compiler := NewCompilerWithVersion("v1.2.3")
 		compiler.SetActionMode(ActionModeRelease)
 
 		data := &WorkflowData{}

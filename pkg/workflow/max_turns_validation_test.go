@@ -108,7 +108,7 @@ This should succeed because no max-turns is specified.`,
 			}
 
 			// Create a compiler instance
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compiler.SetSkipValidation(false)
 
 			// Try to compile the workflow

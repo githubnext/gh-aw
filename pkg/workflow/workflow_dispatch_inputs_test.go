@@ -142,7 +142,7 @@ Test workflow with environment input`,
 			}
 
 			// Compile workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			err = compiler.CompileWorkflow(workflowPath)
 
@@ -279,7 +279,7 @@ Test workflow with required and optional inputs`
 	}
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	err = compiler.CompileWorkflow(workflowPath)
 	if err != nil {
@@ -346,7 +346,7 @@ Test workflow with choice input options`
 	}
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	err = compiler.CompileWorkflow(workflowPath)
 	if err != nil {
@@ -437,7 +437,7 @@ Test workflow with all input types`
 	}
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	err = compiler.CompileWorkflow(workflowPath)
 	if err != nil {
@@ -695,7 +695,7 @@ engine: copilot
 			}
 
 			// Compile workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			err = compiler.CompileWorkflow(workflowPath)
 

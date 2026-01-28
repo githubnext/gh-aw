@@ -17,13 +17,10 @@ There are hundreds of other ways to use GitHub Agentic Workflows, which you can 
 
 Before installing, ensure you have:
 
-- ✅ **AI Account** - You need one of the following:
-  - [GitHub Copilot](https://github.com/features/copilot) subscription
-  - [Anthropic Claude](https://www.anthropic.com/) API key (recommended for simple setup)
-  - [OpenAI Codex](https://openai.com/api/) API key
-- ✅ **GitHub Repository** - a GitHub repository you are a maintainer on
+- ✅ **AI Account** - A [GitHub Copilot](https://github.com/features/copilot) subscription, or a [Anthropic Claude](https://www.anthropic.com/) or [OpenAI Codex](https://openai.com/api/) API key
+- ✅ **GitHub Repository** - a GitHub repository you are maintainer on
 - ✅ **GitHub Actions** enabled in your repository
-- ✅ **GitHub CLI** (`gh`) - A command-line tool for GitHub. [Install here](https://cli.github.com) v2.0.0+ and authenticate with `gh auth login`
+- ✅ **GitHub CLI** (`gh`) - A command-line tool for GitHub. [Install here](https://cli.github.com) v2.0.0+
 - ✅ **Operating System**: Linux, macOS, or Windows with WSL
 
 ### Step 1 — Install the extension

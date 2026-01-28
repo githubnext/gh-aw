@@ -15,7 +15,7 @@ func TestLabelFilter(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "label-filter-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name         string
@@ -231,7 +231,7 @@ tools:
 func TestLabelFilterCommentedOut(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "label-filter-comment-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	frontmatter := `---
 on:

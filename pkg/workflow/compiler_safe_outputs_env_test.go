@@ -146,7 +146,7 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			if tt.trialMode {
 				compiler.SetTrialMode(true)
 			}
@@ -174,7 +174,7 @@ func TestAddAllSafeOutputConfigEnvVars(t *testing.T) {
 
 // TestStagedFlagOnlyAddedOnce tests that staged flag is not duplicated
 func TestStagedFlagOnlyAddedOnce(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
@@ -206,7 +206,7 @@ func TestStagedFlagOnlyAddedOnce(t *testing.T) {
 
 // TestNoEnvVarsWhenNoSafeOutputs tests empty output when safe outputs is nil
 func TestNoEnvVarsWhenNoSafeOutputs(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:        "Test Workflow",
@@ -241,7 +241,7 @@ func TestStagedFlagWithTargetRepo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			workflowData := &WorkflowData{
 				Name: "Test Workflow",
@@ -269,7 +269,7 @@ func TestStagedFlagWithTargetRepo(t *testing.T) {
 
 // TestTrialModeOverridesStagedFlag tests that trial mode prevents staged flag
 func TestTrialModeOverridesStagedFlag(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetTrialMode(true)
 	compiler.SetTrialLogicalRepoSlug("org/trial-repo")
 
@@ -294,7 +294,7 @@ func TestTrialModeOverridesStagedFlag(t *testing.T) {
 
 // TestEnvVarsWithMultipleSafeOutputTypes tests comprehensive env var generation
 func TestEnvVarsWithMultipleSafeOutputTypes(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
@@ -333,7 +333,7 @@ func TestEnvVarsWithMultipleSafeOutputTypes(t *testing.T) {
 
 // TestEnvVarsWithNoStagedConfig tests that no staged flag is added when staged is false
 func TestEnvVarsWithNoStagedConfig(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
@@ -361,7 +361,7 @@ func TestEnvVarsWithNoStagedConfig(t *testing.T) {
 
 // TestEnvVarFormatting tests that environment variables are correctly formatted
 func TestEnvVarFormatting(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
@@ -433,7 +433,7 @@ func TestStagedFlagPrecedence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			if tt.trialMode {
 				compiler.SetTrialMode(true)
 			}
@@ -464,7 +464,7 @@ func TestStagedFlagPrecedence(t *testing.T) {
 
 // TestAddCommentsTargetRepoStagedBehavior tests staged flag behavior for add_comments with target-repo
 func TestAddCommentsTargetRepoStagedBehavior(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
@@ -490,7 +490,7 @@ func TestAddCommentsTargetRepoStagedBehavior(t *testing.T) {
 
 // TestAddLabelsTargetRepoStagedBehavior tests staged flag behavior for add_labels with target-repo
 func TestAddLabelsTargetRepoStagedBehavior(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",

@@ -230,7 +230,7 @@ func TestValidateFirewallConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.validateFirewallConfig(tt.workflowData)
 			if tt.expectErr {
 				if err == nil {
@@ -282,7 +282,7 @@ func TestValidateLogLevelErrorMessageQuality(t *testing.T) {
 
 // TestValidateFirewallConfigIntegration tests the integration with workflow compilation
 func TestValidateFirewallConfigIntegration(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test that valid log-level passes through compilation validation
 	validWorkflow := &WorkflowData{

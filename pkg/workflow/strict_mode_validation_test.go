@@ -185,7 +185,7 @@ func TestValidateStrictPermissions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			err := compiler.validateStrictPermissions(tt.frontmatter)
 
 			if tt.expectError && err == nil {
@@ -270,7 +270,7 @@ func TestValidateStrictNetwork(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			err := compiler.validateStrictNetwork(tt.networkPermissions)
 
 			if tt.expectError && err == nil {
@@ -465,7 +465,7 @@ func TestValidateStrictMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			compiler.SetStrictMode(tt.strictMode)
 			err := compiler.validateStrictMode(tt.frontmatter, tt.networkPermissions)
 
@@ -533,7 +533,7 @@ func TestValidateStrictModeEdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			compiler.SetStrictMode(true)
 			err := compiler.validateStrictMode(tt.frontmatter, tt.networkPermissions)
 

@@ -9,7 +9,7 @@ import (
 
 func TestGenerateCreateAwInfoCustomEngine(t *testing.T) {
 	// Create a compiler instance
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	t.Run("custom engine with explicit model", func(t *testing.T) {
 		workflowData := &WorkflowData{

@@ -38,7 +38,7 @@ This workflow tests that create-issue uses the safe-outputs global github-token.
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 
 		// Compile the workflow
 		err := compiler.CompileWorkflow(testFile)
@@ -92,7 +92,7 @@ This workflow tests that create-pull-request uses the safe-outputs global github
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 
 		// Compile the workflow
 		err := compiler.CompileWorkflow(testFile)
@@ -144,7 +144,7 @@ This workflow tests that add-labels uses the safe-outputs global github-token.
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 
 		// Compile the workflow
 		err := compiler.CompileWorkflow(testFile)
@@ -197,7 +197,7 @@ This workflow tests that the global github-token still works when no individual 
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 
 		// Compile the workflow
 		err := compiler.CompileWorkflow(testFile)

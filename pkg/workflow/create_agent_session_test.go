@@ -74,7 +74,7 @@ func TestParseAgentTaskConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			config := compiler.parseAgentSessionConfig(tt.outputMap)
 
 			if (config != nil) != tt.wantConfig {
@@ -98,7 +98,7 @@ func TestParseAgentTaskConfig(t *testing.T) {
 }
 
 func TestBuildCreateOutputAgentTaskJob(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
 		SafeOutputs: &SafeOutputsConfig{
@@ -151,7 +151,7 @@ func TestBuildCreateOutputAgentTaskJob(t *testing.T) {
 }
 
 func TestExtractSafeOutputsConfigWithAgentTask(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"safe-outputs": map[string]any{
 			"create-agent-session": map[string]any{

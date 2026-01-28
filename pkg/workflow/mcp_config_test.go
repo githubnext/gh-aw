@@ -14,7 +14,7 @@ import (
 func TestGitHubMCPConfiguration(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "mcp-config-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name                string

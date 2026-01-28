@@ -77,7 +77,7 @@ Create a report based on repository analysis.`
 		t.Fatalf("Failed to write workflow without text: %v", err)
 	}
 
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 
 	// Test workflow WITH text usage
 	t.Run("workflow_with_text_usage", func(t *testing.T) {
@@ -149,7 +149,7 @@ Create a report based on repository analysis.`
 }
 
 func TestDetectTextOutputUsage(t *testing.T) {
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name          string

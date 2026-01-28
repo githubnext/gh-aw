@@ -16,7 +16,7 @@ import (
 
 // TestExtractJobsFromFrontmatter tests the extractJobsFromFrontmatter method
 func TestExtractJobsFromFrontmatter(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name        string
@@ -70,7 +70,7 @@ func TestExtractJobsFromFrontmatter(t *testing.T) {
 
 // TestBuildPreActivationJobWithPermissionCheck tests building a pre-activation job with permission checks
 func TestBuildPreActivationJobWithPermissionCheck(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:    "Test Workflow",
@@ -107,7 +107,7 @@ func TestBuildPreActivationJobWithPermissionCheck(t *testing.T) {
 
 // TestBuildPreActivationJobWithStopTime tests building a pre-activation job with stop-time
 func TestBuildPreActivationJobWithStopTime(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:        "Test Workflow",
@@ -129,7 +129,7 @@ func TestBuildPreActivationJobWithStopTime(t *testing.T) {
 
 // TestBuildActivationJob tests building an activation job
 func TestBuildActivationJob(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:        "Test Workflow",
@@ -154,7 +154,7 @@ func TestBuildActivationJob(t *testing.T) {
 
 // TestBuildActivationJobWithReaction tests building an activation job with AI reaction
 func TestBuildActivationJobWithReaction(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:        "Test Workflow",
@@ -182,7 +182,7 @@ func TestBuildActivationJobWithReaction(t *testing.T) {
 // TestBuildActivationJobCampaignOrchestratorFilename tests that campaign orchestrator
 // workflows (.campaign.g.md) generate correct GH_AW_WORKFLOW_FILE (.campaign.lock.yml)
 func TestBuildActivationJobCampaignOrchestratorFilename(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:        "Test Campaign",
@@ -208,7 +208,7 @@ func TestBuildActivationJobCampaignOrchestratorFilename(t *testing.T) {
 
 // TestBuildMainJobWithActivation tests building the main job with activation dependency
 func TestBuildMainJobWithActivation(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	// Initialize stepOrderTracker
 	compiler.stepOrderTracker = NewStepOrderTracker()
 
@@ -272,7 +272,7 @@ Test content`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("CompileWorkflow() error: %v", err)
 	}
@@ -327,7 +327,7 @@ Test content`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("CompileWorkflow() error: %v", err)
 	}
@@ -402,7 +402,7 @@ Test content`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("CompileWorkflow() error: %v", err)
 	}
@@ -455,7 +455,7 @@ Test content`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("CompileWorkflow() error: %v", err)
 	}
@@ -507,7 +507,7 @@ Test content`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("CompileWorkflow() error: %v", err)
 	}
@@ -556,7 +556,7 @@ Test content`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("CompileWorkflow() error: %v", err)
 	}

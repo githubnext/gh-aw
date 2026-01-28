@@ -37,7 +37,7 @@ This is a test workflow to verify SHA pinning.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -106,7 +106,7 @@ Create issues based on input.
 		t.Fatalf("Failed to write test workflow: %v", err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -164,7 +164,7 @@ Just a simple test workflow.
 		t.Fatalf("Failed to write test workflow: %v", err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}

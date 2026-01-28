@@ -12,7 +12,7 @@ import (
 )
 
 func TestThreatDetectionIsolation(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Create a temporary directory for the test workflow
 	tmpDir := testutil.TempDir(t, "test-*")

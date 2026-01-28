@@ -68,7 +68,7 @@ This workflow tests import with inputs.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -149,7 +149,7 @@ This workflow tests that string imports still work.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}

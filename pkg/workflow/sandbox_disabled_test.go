@@ -29,7 +29,7 @@ Test workflow with sandbox disabled.
 		err := os.WriteFile(workflowPath, []byte(markdown), 0644)
 		require.NoError(t, err)
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetStrictMode(false) // Non-strict mode to allow sandbox: false
 		compiler.SetSkipValidation(true)
 
@@ -54,7 +54,7 @@ Test workflow with sandbox disabled in strict mode.
 		err := os.WriteFile(workflowPath, []byte(markdown), 0644)
 		require.NoError(t, err)
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetStrictMode(true)
 		compiler.SetSkipValidation(true)
 
@@ -84,7 +84,7 @@ Test workflow with network restrictions but sandbox disabled.
 		err := os.WriteFile(workflowPath, []byte(markdown), 0644)
 		require.NoError(t, err)
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetStrictMode(false)
 		compiler.SetSkipValidation(true)
 
@@ -125,7 +125,7 @@ Test workflow with tools but sandbox disabled.
 		err := os.WriteFile(workflowPath, []byte(markdown), 0644)
 		require.NoError(t, err)
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetStrictMode(false)
 		compiler.SetSkipValidation(true)
 
@@ -163,7 +163,7 @@ Test workflow.
 		err := os.WriteFile(workflowPath, []byte(markdown), 0644)
 		require.NoError(t, err)
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetStrictMode(false)
 		compiler.SetSkipValidation(true)
 
@@ -197,7 +197,7 @@ Test workflow with sandbox: true.
 		err := os.WriteFile(workflowPath, []byte(markdown), 0644)
 		require.NoError(t, err)
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetStrictMode(false)
 		compiler.SetSkipValidation(true)
 
@@ -311,7 +311,7 @@ Test workflow with tools and sandbox disabled.
 	err := os.WriteFile(workflowPath, []byte(markdown), 0644)
 	require.NoError(t, err)
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetStrictMode(false)
 	compiler.SetSkipValidation(true)
 
@@ -357,7 +357,7 @@ Test workflow with direct copilot execution.
 	err := os.WriteFile(workflowPath, []byte(markdown), 0644)
 	require.NoError(t, err)
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetStrictMode(false)
 	compiler.SetSkipValidation(true)
 

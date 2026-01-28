@@ -42,7 +42,7 @@ The activation job references text output: "${{ needs.activation.outputs.text }}
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {

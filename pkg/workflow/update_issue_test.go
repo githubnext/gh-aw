@@ -39,7 +39,7 @@ This workflow tests the update-issue configuration parsing.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow data
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -114,7 +114,7 @@ This workflow tests the update-issue configuration with all options.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow data
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -186,7 +186,7 @@ This workflow tests the update-issue target configuration parsing.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow data
 	workflowData, err := compiler.ParseWorkflowFile(testFile)

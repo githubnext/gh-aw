@@ -14,7 +14,7 @@ func TestPullRequestForksArrayFilter(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "forks-array-filter-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name               string
@@ -343,7 +343,7 @@ func TestForksArrayFieldCommentingInOnSection(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "forks-array-commenting-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name         string
@@ -617,7 +617,7 @@ tools:
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Parse the workflow
 			workflowData, err := compiler.ParseWorkflowFile(testFile)

@@ -299,7 +299,7 @@ func TestMarshalWithFieldOrder(t *testing.T) {
 }
 
 func TestExtractTopLevelYAMLSectionWithOrdering(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name          string

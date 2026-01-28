@@ -18,7 +18,7 @@ func parseWorkflowFromContent(t *testing.T, content string, filename string) *Wo
 		t.Fatalf("Failed to extract frontmatter: %v", err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	safeOutputs := compiler.extractSafeOutputsConfig(result.Frontmatter)
 	topTools := extractToolsFromFrontmatter(result.Frontmatter)
 
@@ -120,7 +120,7 @@ func TestSafeOutputsEnvIntegration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Extract the safe outputs configuration
 			config := compiler.extractSafeOutputsConfig(tt.frontmatter)
@@ -219,7 +219,7 @@ Create an issue with test results.
 	}
 
 	// Build the create issue job and verify it includes our environment variables
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	job, err := compiler.buildCreateOutputIssueJob(workflowData, "main_job")
 	if err != nil {
 		t.Fatalf("Failed to build create issue job: %v", err)
@@ -274,7 +274,7 @@ This workflow tests that custom environment variables work with staged mode.
 	}
 
 	// Build the create issue job and verify it includes our environment variables and staged flag
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	job, err := compiler.buildCreateOutputIssueJob(workflowData, "main_job")
 	if err != nil {
 		t.Fatalf("Failed to build create issue job: %v", err)

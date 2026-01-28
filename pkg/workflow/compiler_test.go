@@ -40,7 +40,7 @@ This is a test workflow for compilation.
 	testFile := filepath.Join(tmpDir, "test-workflow.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(testFile)
 	require.NoError(t, err, "Valid workflow should compile without errors")
 
@@ -62,7 +62,7 @@ This is a test workflow for compilation.
 
 // TestCompileWorkflow_NonexistentFile tests error handling for missing files
 func TestCompileWorkflow_NonexistentFile(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow("/nonexistent/file.md")
 	require.Error(t, err, "Should error with nonexistent file")
 	assert.Contains(t, err.Error(), "failed to read file", "Error should mention file read failure")
@@ -70,7 +70,7 @@ func TestCompileWorkflow_NonexistentFile(t *testing.T) {
 
 // TestCompileWorkflow_EmptyPath tests error handling for empty path
 func TestCompileWorkflow_EmptyPath(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow("")
 	require.Error(t, err, "Should error with empty path")
 }
@@ -88,7 +88,7 @@ This workflow has no frontmatter.
 	testFile := filepath.Join(tmpDir, "no-frontmatter.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(testFile)
 	require.Error(t, err, "Should error when frontmatter is missing")
 	assert.Contains(t, err.Error(), "frontmatter", "Error should mention frontmatter")
@@ -112,7 +112,7 @@ Content here.
 	testFile := filepath.Join(tmpDir, "invalid-frontmatter.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(testFile)
 	require.Error(t, err, "Should error with invalid YAML frontmatter")
 }
@@ -131,7 +131,7 @@ engine: copilot
 	testFile := filepath.Join(tmpDir, "no-markdown.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(testFile)
 	require.Error(t, err, "Should error when markdown content is missing")
 	assert.Contains(t, err.Error(), "markdown content", "Error should mention markdown content")
@@ -158,7 +158,7 @@ Campaign orchestrator workflow.
 	testFile := filepath.Join(tmpDir, "test.campaign.g.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(testFile)
 	require.NoError(t, err, "Campaign orchestrator should compile")
 
@@ -192,7 +192,7 @@ Test content
 `
 	require.NoError(t, os.WriteFile(markdownPath, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflowData(workflowData, markdownPath)
 	require.NoError(t, err, "CompileWorkflowData should succeed with valid data")
 
@@ -222,7 +222,7 @@ This is a normal workflow that should generate a reasonable-sized lock file.
 	testFile := filepath.Join(tmpDir, "size-test.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(testFile)
 	require.NoError(t, err, "Workflow should compile")
 
@@ -253,7 +253,7 @@ This workflow is missing the required 'on' field.
 	testFile := filepath.Join(tmpDir, "invalid.md")
 	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(testFile)
 	require.Error(t, err, "Should error with validation issues")
 
@@ -265,7 +265,7 @@ This workflow is missing the required 'on' field.
 
 // TestCompileWorkflow_PathTraversal tests that path traversal attempts are handled safely
 func TestCompileWorkflow_PathTraversal(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Try a path with traversal elements
 	err := compiler.CompileWorkflow("../../etc/passwd")
@@ -293,7 +293,7 @@ engine: copilot
 `
 	require.NoError(t, os.WriteFile(markdownPath, []byte(testContent), 0644))
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// First compilation
 	err := compiler.CompileWorkflowData(workflowData, markdownPath)

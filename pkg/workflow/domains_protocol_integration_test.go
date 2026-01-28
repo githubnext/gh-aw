@@ -111,7 +111,7 @@ Test protocol-specific domains in safe-outputs.
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err = compiler.CompileWorkflow(workflowPath)
 			if err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
@@ -227,7 +227,7 @@ Test valid HTTPS protocol.
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err = compiler.CompileWorkflow(workflowPath)
 
 			if tt.wantErr && err == nil {
@@ -268,7 +268,7 @@ Test backward compatibility with domains without protocols.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(workflowPath)
 	if err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)

@@ -34,7 +34,7 @@ Create an issue.
 		t.Fatalf("Failed to write workflow file: %v", err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile: %v", err)
 	}
@@ -102,7 +102,7 @@ Create outputs.
 		t.Fatalf("Failed to write workflow file: %v", err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile: %v", err)
 	}

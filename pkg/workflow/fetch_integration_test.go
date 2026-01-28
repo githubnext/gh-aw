@@ -40,7 +40,7 @@ Fetch content from the web.
 	}
 
 	// Create a compiler
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	err := compiler.CompileWorkflow(workflowPath)
@@ -103,7 +103,7 @@ Fetch content from the web.
 	}
 
 	// Create a compiler
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	err := compiler.CompileWorkflow(workflowPath)
@@ -168,7 +168,7 @@ Fetch content from the web.
 	}
 
 	// Create a compiler
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	err := compiler.CompileWorkflow(workflowPath)
@@ -231,7 +231,7 @@ Run some bash commands.
 	}
 
 	// Create a compiler
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	err := compiler.CompileWorkflow(workflowPath)

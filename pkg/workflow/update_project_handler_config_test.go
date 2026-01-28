@@ -32,7 +32,7 @@ Test workflow
 	err := os.WriteFile(mdFile, []byte(testContent), 0600)
 	require.NoError(t, err, "Failed to write test markdown file")
 
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(mdFile)
 	require.NoError(t, err, "Failed to compile workflow")
 

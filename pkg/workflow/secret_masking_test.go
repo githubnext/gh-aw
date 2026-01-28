@@ -64,7 +64,7 @@ func TestExtractSecretMaskingConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewCompiler(false, "", "test")
+			c := NewCompiler()
 			config := c.extractSecretMaskingConfig(tt.frontmatter)
 
 			if tt.expectedStepCount == 0 {
@@ -143,7 +143,7 @@ func TestMergeSecretMasking(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewCompiler(false, "", "test")
+			c := NewCompiler()
 			result, err := c.MergeSecretMasking(tt.topConfig, tt.importedJSON)
 
 			if err != nil {
@@ -219,7 +219,7 @@ func TestGenerateCustomSecretMaskingStep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewCompiler(false, "", "test")
+			c := NewCompiler()
 			c.stepOrderTracker = NewStepOrderTracker()
 			var yaml strings.Builder
 
@@ -257,7 +257,7 @@ func TestSecretMaskingIntegration(t *testing.T) {
 		},
 	}
 
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 	c.SetSkipValidation(true)
 
 	config := c.extractSecretMaskingConfig(frontmatter)

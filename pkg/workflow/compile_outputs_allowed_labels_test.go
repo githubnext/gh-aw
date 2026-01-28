@@ -133,7 +133,7 @@ This workflow tests allowed-labels for all safe outputs.
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Parse the workflow data
 			workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -237,7 +237,7 @@ This workflow tests that allowed-labels are passed to safe output jobs.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -301,7 +301,7 @@ This workflow tests that allowed-labels are included in safe outputs config JSON
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)

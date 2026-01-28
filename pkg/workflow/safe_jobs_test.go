@@ -6,7 +6,7 @@ import (
 )
 
 func TestParseSafeJobsConfig(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	// Test parseSafeJobsConfig internal function which expects a "safe-jobs" key.
 	// Note: User workflows should use "safe-outputs.jobs" syntax; this test validates
@@ -166,7 +166,7 @@ func TestHasSafeJobsEnabled(t *testing.T) {
 }
 
 func TestBuildSafeJobs(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -259,7 +259,7 @@ func TestBuildSafeJobs(t *testing.T) {
 }
 
 func TestBuildSafeJobsWithNoConfiguration(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	// Test with no SafeJobs
 	workflowData := &WorkflowData{
@@ -288,7 +288,7 @@ func TestBuildSafeJobsWithNoConfiguration(t *testing.T) {
 }
 
 func TestBuildSafeJobsWithoutCustomIfCondition(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -339,7 +339,7 @@ func TestBuildSafeJobsWithoutCustomIfCondition(t *testing.T) {
 }
 
 func TestBuildSafeJobsWithDashesInName(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -515,7 +515,7 @@ func TestMergeSafeJobs(t *testing.T) {
 }
 
 func TestMergeSafeJobsFromIncludes(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	topSafeJobs := map[string]*SafeJobConfig{
 		"deploy": {
@@ -582,7 +582,7 @@ func TestMergeSafeJobsFromIncludes(t *testing.T) {
 
 // TestMergeSafeJobsFromIncludedConfigs tests merging safe-jobs from included safe-outputs configurations
 func TestMergeSafeJobsFromIncludedConfigs(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	// Top-level safe-jobs
 	topSafeJobs := map[string]*SafeJobConfig{
@@ -676,7 +676,7 @@ func TestMergeSafeJobsFromIncludedConfigs(t *testing.T) {
 // TestSafeJobsInputTypes tests that safe-jobs inputs support all input types
 // and share the same InputDefinition type with workflow_dispatch inputs
 func TestSafeJobsInputTypes(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	frontmatter := map[string]any{
 		"safe-jobs": map[string]any{

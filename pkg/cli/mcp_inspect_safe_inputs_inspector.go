@@ -44,7 +44,9 @@ func spawnSafeInputsInspector(workflowFile string, verbose bool) error {
 
 	// Use the workflow compiler to parse the file and resolve imports
 	// This ensures that imported safe-inputs are properly merged
-	compiler := workflow.NewCompiler(verbose, "", "")
+	compiler := workflow.NewCompiler(
+		workflow.WithVerbose(verbose),
+	)
 	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
 	if err != nil {
 		return fmt.Errorf("failed to parse workflow file: %w", err)

@@ -340,7 +340,7 @@ Test workflow with release mode.
 	}()
 
 	// Compile - should auto-detect release mode from GITHUB_REF
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 	// Don't set action mode explicitly - let it auto-detect
 	compiler.SetActionMode(DetectActionMode("1.0.0"))
 	compiler.SetNoEmit(false)
@@ -421,7 +421,7 @@ Test
 		}
 	}()
 
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 	compiler.SetActionMode(DetectActionMode("dev"))
 	compiler.SetNoEmit(false)
 

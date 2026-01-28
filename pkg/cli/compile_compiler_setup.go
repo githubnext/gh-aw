@@ -89,8 +89,11 @@ func createAndConfigureCompiler(config CompileConfig) *workflow.Compiler {
 		}
 	}
 
-	// Create compiler with verbose flag and AI engine override
-	compiler := workflow.NewCompiler(config.Verbose, config.EngineOverride, GetVersion())
+	// Create compiler with auto-detected version and action mode
+	compiler := workflow.NewCompiler(
+		workflow.WithVerbose(config.Verbose),
+		workflow.WithEngineOverride(config.EngineOverride),
+	)
 	compileCompilerSetupLog.Print("Created compiler instance")
 
 	// Configure compiler flags

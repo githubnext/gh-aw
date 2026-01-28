@@ -114,7 +114,7 @@ Second template
 			}
 
 			// Try to compile the workflow
-			compiler := NewCompiler(false, "", "test-version")
+			compiler := NewCompiler()
 			_, err = compiler.ParseWorkflowFile(workflowPath)
 
 			if tt.shouldError {

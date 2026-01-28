@@ -260,7 +260,7 @@ Please process the issue.
 	require.NoError(t, os.WriteFile(workflowFile, []byte(workflowContent), 0644))
 
 	// Create compiler and attempt to compile
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	err := compiler.CompileWorkflow(workflowFile)
 
@@ -308,7 +308,7 @@ Please process the issue.
 	require.NoError(t, os.WriteFile(workflowFile, []byte(workflowContent), 0644))
 
 	// Create compiler and compile
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	err := compiler.CompileWorkflow(workflowFile)
 

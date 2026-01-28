@@ -145,8 +145,10 @@ sandbox:
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
-		compiler.SetStrictMode(false)
+		compiler := NewCompiler(
+			WithVersion("test"),
+			WithStrictMode(false),
+		)
 		err = compiler.CompileWorkflow(testFile)
 		if err != nil {
 			t.Fatalf("Compilation failed: %v", err)
@@ -214,8 +216,10 @@ sandbox:
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
-		compiler.SetStrictMode(false)
+		compiler := NewCompiler(
+			WithVersion("test"),
+			WithStrictMode(false),
+		)
 		err = compiler.CompileWorkflow(testFile)
 		if err != nil {
 			t.Fatalf("Compilation failed: %v", err)
@@ -275,8 +279,10 @@ sandbox:
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
-		compiler.SetStrictMode(false)
+		compiler := NewCompiler(
+			WithVersion("test"),
+			WithStrictMode(false),
+		)
 		err = compiler.CompileWorkflow(testFile)
 		if err != nil {
 			t.Fatalf("Compilation failed: %v", err)

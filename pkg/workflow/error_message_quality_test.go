@@ -22,7 +22,7 @@ func TestErrorMessageQuality(t *testing.T) {
 		{
 			name: "manual-approval type error includes example",
 			testFunc: func() error {
-				c := NewCompiler(false, "", "")
+				c := NewCompiler()
 				frontmatter := map[string]any{
 					"on": map[string]any{
 						"manual-approval": 123, // Wrong type
@@ -41,7 +41,7 @@ func TestErrorMessageQuality(t *testing.T) {
 		{
 			name: "invalid on section format includes example",
 			testFunc: func() error {
-				c := NewCompiler(false, "", "")
+				c := NewCompiler()
 				frontmatter := map[string]any{
 					"on": []string{"invalid"}, // Wrong type
 				}
@@ -58,7 +58,7 @@ func TestErrorMessageQuality(t *testing.T) {
 		{
 			name: "invalid engine includes valid options and example",
 			testFunc: func() error {
-				c := NewCompiler(false, "", "")
+				c := NewCompiler()
 				return c.validateEngine("invalid-engine")
 			},
 			shouldContain: []string{
@@ -153,7 +153,7 @@ func TestErrorMessageQuality(t *testing.T) {
 		{
 			name: "tracker-id type error shows actual type and example",
 			testFunc: func() error {
-				c := NewCompiler(false, "", "")
+				c := NewCompiler()
 				frontmatter := map[string]any{
 					"tracker-id": 12345678, // Wrong type: integer instead of string
 				}
@@ -171,7 +171,7 @@ func TestErrorMessageQuality(t *testing.T) {
 		{
 			name: "stop-after type error shows actual type and example",
 			testFunc: func() error {
-				c := NewCompiler(false, "", "")
+				c := NewCompiler()
 				frontmatter := map[string]any{
 					"on": map[string]any{
 						"stop-after": 123, // Wrong type: integer instead of string
@@ -254,7 +254,7 @@ func TestErrorMessageQuality(t *testing.T) {
 
 // TestMultipleEngineErrorMessage tests the specific error when multiple engines are defined
 func TestMultipleEngineErrorMessage(t *testing.T) {
-	c := NewCompiler(false, "", "")
+	c := NewCompiler()
 
 	err := c.validateEngine("invalid")
 	require.Error(t, err)

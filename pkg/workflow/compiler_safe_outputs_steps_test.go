@@ -112,7 +112,7 @@ func TestBuildConsolidatedSafeOutputStep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			workflowData := &WorkflowData{
 				Name:        "Test Workflow",
@@ -210,7 +210,7 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			if tt.trialMode {
 				compiler.SetTrialMode(true)
 			}
@@ -266,7 +266,7 @@ func TestBuildSharedPRCheckoutStepsConditions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			safeOutputs := &SafeOutputsConfig{}
 			if tt.createPR {
@@ -342,7 +342,7 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			workflowData := &WorkflowData{
 				Name:        "Test Workflow",
@@ -421,7 +421,7 @@ func TestBuildProjectHandlerManagerStep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			workflowData := &WorkflowData{
 				Name:        "Test Workflow",
@@ -443,7 +443,7 @@ func TestBuildProjectHandlerManagerStep(t *testing.T) {
 
 // TestStepOrderInConsolidatedJob tests that steps appear in correct order
 func TestStepOrderInConsolidatedJob(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()
 
 	workflowData := &WorkflowData{
@@ -490,7 +490,7 @@ func TestStepOrderInConsolidatedJob(t *testing.T) {
 
 // TestHandlerManagerOrderWithProjects tests that project handler manager comes before general handler manager
 func TestHandlerManagerOrderWithProjects(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()
 
 	workflowData := &WorkflowData{
@@ -535,7 +535,7 @@ func TestHandlerManagerOrderWithProjects(t *testing.T) {
 
 // TestStepWithoutCondition tests step building without condition
 func TestStepWithoutCondition(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	config := SafeOutputStepConfig{
 		StepName: "Test Step",
@@ -591,7 +591,7 @@ func TestGitHubTokenPrecedence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			config := SafeOutputStepConfig{
 				StepName:        "Test Step",
@@ -618,7 +618,7 @@ func TestGitHubTokenPrecedence(t *testing.T) {
 
 // TestScriptNameVsInlineScript tests the two modes of script inclusion
 func TestScriptNameVsInlineScript(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:        "Test Workflow",

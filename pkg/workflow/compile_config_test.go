@@ -54,7 +54,7 @@ func TestAllowedDomainsParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewCompiler(false, "", "test")
+			c := NewCompiler()
 			config := c.extractSafeOutputsConfig(tt.frontmatter)
 
 			if tt.expectedDomains == nil {
@@ -89,7 +89,7 @@ func TestAllowedDomainsParsing(t *testing.T) {
 
 func TestAllowedDomainsInWorkflow(t *testing.T) {
 	// Create a test compiler with verbose output to check generated workflow
-	c := NewCompiler(true, "", "test")
+	c := NewCompiler()
 
 	// Test workflow with allowed domains
 	frontmatter := map[string]any{
@@ -186,7 +186,7 @@ func TestSafeOutputsConfigGeneration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			config := compiler.extractSafeOutputsConfig(tt.frontmatter)
 
 			// Test the config generation in generateOutputCollectionStep by creating a mock workflow data
@@ -317,7 +317,7 @@ func TestCreateDiscussionConfigParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewCompiler(false, "", "test")
+			c := NewCompiler()
 			config := c.extractSafeOutputsConfig(tt.frontmatter)
 
 			if !tt.expectConfig {

@@ -73,7 +73,7 @@ This workflow tests recursive imports.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -171,7 +171,7 @@ This workflow tests cyclic import detection.
 	}
 
 	// Compile the workflow - should handle the cycle gracefully
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -268,7 +268,7 @@ This workflow tests diamond import pattern.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -414,7 +414,7 @@ imports:
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}

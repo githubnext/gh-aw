@@ -449,24 +449,24 @@ fmt: fmt-go fmt-cjs fmt-json
 
 .PHONY: fmt-go
 fmt-go:
-	@GOPATH=$$(go env GOPATH); \
-	if command -v golangci-lint >/dev/null 2>&1 || [ -x "$$GOPATH/bin/golangci-lint" ]; then \
-		PATH="$$GOPATH/bin:$$PATH" golangci-lint fmt; \
-	else \
-		echo "golangci-lint is not installed. Run 'make deps-dev' to install dependencies."; \
-		exit 1; \
-	fi
+	@echo "→ Formatting Go code..."
+	@go fmt ./...
+	@echo "✓ Go code formatted"
 
 # Format JavaScript (.cjs and .js) and JSON files in actions/setup/js directory
 .PHONY: fmt-cjs
 fmt-cjs:
-	cd actions/setup/js && npm run format:cjs
-	npx prettier --write 'scripts/**/*.js' --ignore-path .prettierignore
+	@echo "→ Formatting JavaScript files..."
+	@cd actions/setup/js && npm run format:cjs
+	@npx prettier --write 'scripts/**/*.js' --ignore-path .prettierignore
+	@echo "✓ JavaScript files formatted"
 
 # Format JSON files in pkg directory (excluding actions/setup/js, which is handled by npm script)
 .PHONY: fmt-json
 fmt-json:
-	cd actions/setup/js && npm run format:pkg-json
+	@echo "→ Formatting JSON files..."
+	@cd actions/setup/js && npm run format:pkg-json
+	@echo "✓ JSON files formatted"
 
 # Check formatting
 .PHONY: fmt-check

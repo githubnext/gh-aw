@@ -6,7 +6,7 @@ import (
 
 func TestCompiler_SetFileTracker_Basic(t *testing.T) {
 	// Create compiler
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 
 	// Initial state should have nil tracker
 	if compiler.fileTracker != nil {

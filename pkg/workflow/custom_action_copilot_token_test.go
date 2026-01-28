@@ -11,7 +11,7 @@ import (
 // TestCustomActionCopilotTokenFallback tests that custom actions use the correct
 // Copilot token fallback when no custom token is provided
 func TestCustomActionCopilotTokenFallback(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Register a test custom action
 	testScript := `console.log('test');`

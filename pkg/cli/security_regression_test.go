@@ -450,7 +450,7 @@ Test content.`,
 			// This test validates the underlying compilation validation, which is the same
 			// validation used by the CLI. The CLI path validation is tested separately in
 			// TestSecurityCLIPathSanitization and TestSecurityCLIOutputDirectorySafety.
-			compiler := workflow.NewCompiler(false, "", "test")
+			compiler := workflow.NewCompiler()
 			compileErr := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {

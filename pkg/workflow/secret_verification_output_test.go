@@ -26,7 +26,7 @@ Test workflow`
 		t.Fatalf("Failed to write test workflow: %v", err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -70,7 +70,7 @@ Test workflow`
 		t.Fatalf("Failed to write test workflow: %v", err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}

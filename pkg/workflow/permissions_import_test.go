@@ -74,7 +74,7 @@ func TestValidateIncludedPermissions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.ValidateIncludedPermissions(tt.topPermissionsYAML, tt.importedPermissions)
 
 			if tt.expectError {
@@ -139,7 +139,7 @@ tools:
 		}
 
 		// Compile the workflow
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		err := compiler.CompileWorkflow(mainWorkflowPath)
 		if err != nil {
 			t.Fatalf("Expected compilation to succeed but got error: %v", err)
@@ -190,7 +190,7 @@ tools:
 		}
 
 		// Compile the workflow - should fail
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		err := compiler.CompileWorkflow(mainWorkflowPath)
 		if err == nil {
 			t.Fatalf("Expected compilation to fail due to missing permissions")
@@ -244,7 +244,7 @@ tools:
 		}
 
 		// Compile the workflow - should fail
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		err := compiler.CompileWorkflow(mainWorkflowPath)
 		if err == nil {
 			t.Fatalf("Expected compilation to fail due to insufficient permissions")
@@ -284,7 +284,7 @@ tools:
 		}
 
 		// Compile the workflow - should succeed
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		err := compiler.CompileWorkflow(mainWorkflowPath)
 		if err != nil {
 			t.Fatalf("Expected compilation to succeed but got error: %v", err)

@@ -35,7 +35,7 @@ This test verifies that the artifact manager is integrated into the compiler.
 	require.NoError(t, err)
 
 	// Create compiler
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Verify artifact manager is initialized
 	artifactManager := compiler.GetArtifactManager()
@@ -89,7 +89,7 @@ This workflow has safe outputs configured.
 	err := os.WriteFile(workflowFile, []byte(workflowContent), 0644)
 	require.NoError(t, err)
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	err = compiler.CompileWorkflow(workflowFile)
@@ -155,7 +155,7 @@ Test workflow 3.
 		},
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	artifactManager := compiler.GetArtifactManager()
 
 	for i, wf := range workflows {
@@ -234,7 +234,7 @@ Test lazy initialization.
 // artifact dependencies in a workflow
 func TestArtifactManagerValidationExample(t *testing.T) {
 	// Create a compiler with artifact manager
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	artifactManager := compiler.GetArtifactManager()
 
 	// Simulate job 1 uploading an artifact

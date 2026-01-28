@@ -51,7 +51,7 @@ PR Number: ${{ github.event.pull_request.number }}
 		b.Fatal(err)
 	}
 
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -103,7 +103,7 @@ Issue: ${{ needs.activation.outputs.text }}
 		b.Fatal(err)
 	}
 
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -149,7 +149,7 @@ Repository: ${{ github.repository }}
 		b.Fatal(err)
 	}
 
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -220,7 +220,7 @@ PR Details:
 		b.Fatal(err)
 	}
 
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -272,7 +272,7 @@ PR Number: ${{ github.event.pull_request.number }}
 		b.Fatal(err)
 	}
 
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -318,7 +318,7 @@ Process issue.
 `
 
 	var lockFiles []string
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 
 	// Create 5 workflows
 	for i := 1; i <= 5; i++ {
@@ -429,7 +429,7 @@ Triggered by: ${{ github.actor }}
 		b.Fatal(err)
 	}
 
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 
 	b.ResetTimer()
 	b.ReportAllocs()

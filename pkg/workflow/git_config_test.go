@@ -35,7 +35,7 @@ This is a test workflow to verify git configuration is included.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetSkipValidation(true)
 
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -70,7 +70,7 @@ This is a test workflow to verify git configuration is included.
 
 // TestGitConfigurationStepsHelper tests the generateGitConfigurationSteps helper directly
 func TestGitConfigurationStepsHelper(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	steps := compiler.generateGitConfigurationSteps()
 

@@ -5,7 +5,7 @@ import (
 )
 
 func TestExtractEngineConcurrencyField(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name                string

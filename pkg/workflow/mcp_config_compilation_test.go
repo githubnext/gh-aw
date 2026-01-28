@@ -46,7 +46,7 @@ Please use the markitdown MCP server to convert HTML to markdown.
 	tmpFile.Close()
 
 	// Create compiler and compile workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetSkipValidation(true) // Skip validation for test
 
 	// Parse the workflow file to get WorkflowData
@@ -172,7 +172,7 @@ This workflow tests that MCP server env vars are sorted alphabetically.
 	tmpFile.Close()
 
 	// Create compiler and compile workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetSkipValidation(true)
 
 	// Generate YAML

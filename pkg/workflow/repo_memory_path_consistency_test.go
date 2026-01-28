@@ -117,7 +117,7 @@ func TestRepoMemoryPathConsistencyAcrossLayers(t *testing.T) {
 				"Clone step should use correct branch name")
 
 			// Test 4: Validate push job artifact download
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			pushJob, err := compiler.buildPushRepoMemoryJob(data, false)
 			require.NoError(t, err, "Should successfully build push job")
 			require.NotNil(t, pushJob, "Push job should not be nil")
@@ -239,7 +239,7 @@ func TestRepoMemoryArtifactPathNoTrailingSlash(t *testing.T) {
 		"Artifact upload path must not have trailing slash")
 
 	// Test artifact download in push job
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	pushJob, err := compiler.buildPushRepoMemoryJob(data, false)
 	require.NoError(t, err)
 	require.NotNil(t, pushJob)
@@ -303,7 +303,7 @@ func TestRepoMemoryArtifactNameFormat(t *testing.T) {
 				"Artifact upload should use correct naming convention")
 
 			// Check artifact download in push job
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			pushJob, err := compiler.buildPushRepoMemoryJob(data, false)
 			require.NoError(t, err)
 			require.NotNil(t, pushJob)
@@ -416,7 +416,7 @@ func TestRepoMemoryMultipleMemoriesPathConsistency(t *testing.T) {
 		"Should use correct logs directory")
 
 	// Test push job
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	pushJob, err := compiler.buildPushRepoMemoryJob(data, false)
 	require.NoError(t, err)
 	require.NotNil(t, pushJob)
@@ -459,7 +459,7 @@ func TestRepoMemoryPathComponentIsolation(t *testing.T) {
 	var cloneBuilder strings.Builder
 	generateRepoMemorySteps(&cloneBuilder, data)
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	pushJob, err := compiler.buildPushRepoMemoryJob(data, false)
 	require.NoError(t, err)
 	require.NotNil(t, pushJob)

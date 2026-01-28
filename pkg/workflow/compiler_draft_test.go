@@ -15,7 +15,7 @@ func TestPullRequestDraftFilter(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "draft-filter-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name         string
@@ -212,7 +212,7 @@ This is a test workflow for draft filtering.
 
 // TestDraftFieldCommentingInOnSection specifically tests that the draft field is commented out in the on section
 func TestCommentOutProcessedFieldsInOnSection(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name        string

@@ -7,7 +7,7 @@ import (
 
 // TestFirewallLogLevelParsing tests that the log-level field is correctly parsed
 func TestFirewallLogLevelParsing(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetSkipValidation(true)
 
 	t.Run("log-level is parsed from network.firewall object", func(t *testing.T) {

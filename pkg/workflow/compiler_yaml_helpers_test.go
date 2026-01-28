@@ -71,7 +71,7 @@ func TestBuildJobsAndValidate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			data := tt.setupData()
 
 			err := compiler.buildJobsAndValidate(data, "test.md")
@@ -183,7 +183,7 @@ func TestGenerateWorkflowHeader(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			var yaml strings.Builder
 
 			compiler.generateWorkflowHeader(&yaml, tt.data)
@@ -259,7 +259,7 @@ func TestGenerateWorkflowBody(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compiler.jobManager = NewJobManager()
 
 			if tt.setupJobs != nil {
@@ -317,7 +317,7 @@ func TestGenerateYAMLRefactored(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			result, err := compiler.generateYAML(tt.data, "test.md")
 

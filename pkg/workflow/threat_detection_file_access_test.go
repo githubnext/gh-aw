@@ -8,7 +8,7 @@ import (
 // TestThreatDetectionUsesFilePathNotInline verifies that the threat detection job
 // references the agent output file path instead of inlining the full content
 func TestThreatDetectionUsesFilePathNotInline(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	data := &WorkflowData{
 		Name:            "Test Workflow",
@@ -55,7 +55,7 @@ func TestThreatDetectionUsesFilePathNotInline(t *testing.T) {
 
 // TestThreatDetectionHasBashReadTools verifies that bash read tools are configured
 func TestThreatDetectionHasBashReadTools(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{

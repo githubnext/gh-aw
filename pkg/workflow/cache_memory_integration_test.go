@@ -143,7 +143,7 @@ tools:
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			if err := compiler.CompileWorkflow(mdPath); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}

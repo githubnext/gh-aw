@@ -128,7 +128,7 @@ tools:
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {
@@ -187,7 +187,7 @@ safe-outputs:
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {
@@ -244,7 +244,7 @@ safe-outputs:
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {
@@ -301,7 +301,7 @@ tools:
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {
@@ -336,7 +336,7 @@ github-token: ghp_actualSecretInPlainText
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(testFile)
 
 	if err == nil {
@@ -377,7 +377,7 @@ safe-outputs:
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(testFile)
 
 	// Should fail due to plaintext token in github tool

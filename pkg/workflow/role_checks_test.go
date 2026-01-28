@@ -14,7 +14,7 @@ import (
 func TestRoleMembershipUsesGitHubToken(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "role-membership-token-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	frontmatter := `---
 on:
@@ -105,7 +105,7 @@ Test that role membership check uses GITHUB_TOKEN.`
 func TestRoleMembershipTokenWithBots(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "role-membership-token-bots-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	frontmatter := `---
 on:

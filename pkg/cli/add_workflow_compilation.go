@@ -36,8 +36,12 @@ func compileWorkflow(filePath string, verbose bool, quiet bool, engineOverride s
 // compileWorkflowWithRefresh compiles a workflow file with optional stop time refresh.
 // This function handles the compilation process and ensures .gitattributes is updated.
 func compileWorkflowWithRefresh(filePath string, verbose bool, quiet bool, engineOverride string, refreshStopTime bool) error {
-	// Create compiler and compile the workflow
-	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
+	// Create compiler with auto-detected version and action mode
+	compiler := workflow.NewCompiler(
+		workflow.WithVerbose(verbose),
+		workflow.WithEngineOverride(engineOverride),
+	)
+
 	compiler.SetRefreshStopTime(refreshStopTime)
 	compiler.SetQuiet(quiet)
 	if err := CompileWorkflowWithValidation(compiler, filePath, verbose, false, false, false, false, false); err != nil {
@@ -100,8 +104,11 @@ func compileWorkflowWithTrackingAndRefresh(filePath string, verbose bool, quiet 
 		tracker.TrackCreated(gitAttributesPath)
 	}
 
-	// Create compiler and set the file tracker
-	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
+	// Create compiler with auto-detected version and action mode
+	compiler := workflow.NewCompiler(
+		workflow.WithVerbose(verbose),
+		workflow.WithEngineOverride(engineOverride),
+	)
 	compiler.SetFileTracker(tracker)
 	compiler.SetRefreshStopTime(refreshStopTime)
 	compiler.SetQuiet(quiet)

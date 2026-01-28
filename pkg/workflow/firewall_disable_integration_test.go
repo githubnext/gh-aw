@@ -21,8 +21,10 @@ func TestFirewallDisableIntegration(t *testing.T) {
 			},
 		}
 
-		compiler := NewCompiler(false, "", "test")
-		compiler.SetSkipValidation(true)
+		compiler := NewCompiler(
+			WithVersion("test"),
+			WithSkipValidation(true),
+		)
 
 		// Extract network permissions
 		networkPerms := compiler.extractNetworkPermissions(frontmatter)
@@ -61,7 +63,7 @@ func TestFirewallDisableIntegration(t *testing.T) {
 			},
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.strictMode = true
 		compiler.SetSkipValidation(true)
 

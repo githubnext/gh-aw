@@ -825,14 +825,9 @@ func ensureMaintenanceWorkflow(verbose bool) error {
 	// Filter out README.md files
 	files = filterWorkflowFiles(files)
 
-	// Create a compiler to parse workflows
-	compiler := workflow.NewCompiler(false, "", GetVersion())
-
-	// Detect and set the action mode (dev/release) based on binary version and GitHub context
-	// This ensures the maintenance workflow uses the correct action references
-	mode := workflow.DetectActionMode(GetVersion())
-	compiler.SetActionMode(mode)
-	initLog.Printf("Action mode detected for maintenance workflow: %s", mode)
+	// Create a compiler to parse workflows (version and action mode auto-detected)
+	compiler := workflow.NewCompiler()
+	initLog.Printf("Action mode detected for maintenance workflow: %s", compiler.GetActionMode())
 
 	// Parse all workflows to collect WorkflowData
 	var workflowDataList []*workflow.WorkflowData
