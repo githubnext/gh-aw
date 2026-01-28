@@ -1,54 +1,159 @@
 {
-  "run_date": "2026-01-28T12:15:24.582Z",
-  "run_id": "21437787923",
-  "total_prs_triaged": 11,
-  "pr_details": [
-    {"number": 12208, "category": "bug", "risk": "high", "priority": {"total": 63, "impact": 40, "urgency": 15, "quality": 8}, "action": "batch_review", "draft": true, "age_hours": 5},
-    {"number": 11968, "category": "feature", "risk": "high", "priority": {"total": 62, "impact": 35, "urgency": 7, "quality": 20}, "action": "batch_review", "draft": false, "age_hours": 36},
-    {"number": 12245, "category": "bug", "risk": "high", "priority": {"total": 60, "impact": 40, "urgency": 15, "quality": 5}, "action": "batch_review", "draft": true, "age_hours": 0},
-    {"number": 12130, "category": "feature", "risk": "low", "priority": {"total": 53, "impact": 23, "urgency": 7, "quality": 23}, "action": "batch_review", "draft": true, "age_hours": 37},
-    {"number": 12085, "category": "feature", "risk": "high", "priority": {"total": 53, "impact": 35, "urgency": 7, "quality": 11}, "action": "batch_review", "draft": true, "age_hours": 41},
-    {"number": 12210, "category": "refactor", "risk": "low", "priority": {"total": 53, "impact": 20, "urgency": 15, "quality": 18}, "action": "batch_review", "draft": true, "age_hours": 5},
-    {"number": 12209, "category": "feature", "risk": "low", "priority": {"total": 50, "impact": 20, "urgency": 15, "quality": 15}, "action": "batch_review", "draft": true, "age_hours": 5},
-    {"number": 12207, "category": "chore", "risk": "low", "priority": {"total": 48, "impact": 25, "urgency": 15, "quality": 8}, "action": "batch_review", "draft": true, "age_hours": 5},
-    {"number": 12216, "category": "refactor", "risk": "low", "priority": {"total": 48, "impact": 20, "urgency": 15, "quality": 13}, "action": "batch_review", "draft": true, "age_hours": 4},
-    {"number": 12217, "category": "chore", "risk": "low", "priority": {"total": 48, "impact": 25, "urgency": 15, "quality": 8}, "action": "batch_review", "draft": true, "age_hours": 4},
-    {"number": 12215, "category": "feature", "risk": "low", "priority": {"total": 45, "impact": 15, "urgency": 15, "quality": 15}, "action": "batch_review", "draft": true, "age_hours": 4}
-  ],
+  "run_date": "2026-01-28T18:16:26Z",
+  "run_id": "21450133552",
+  "total_prs_triaged": 19,
   "statistics": {
-    "total_prs": 11,
+    "total": 19,
     "by_category": {
-      "bug": 2,
-      "feature": 5,
-      "refactor": 2,
-      "chore": 2,
-      "docs": 0,
-      "test": 0
+      "bug": 1,
+      "chore": 12,
+      "feature": 6
     },
     "by_risk": {
-      "high": 5,
-      "medium": 0,
-      "low": 6
+      "high": 6,
+      "low": 13
     },
     "by_priority": {
-      "high": 0,
-      "medium": 11,
-      "low": 0
+      "low": 12,
+      "medium": 7
     },
     "by_action": {
-      "auto_merge": 0,
-      "fast_track": 0,
-      "batch_review": 11,
-      "defer": 0,
-      "close": 0
+      "batch_review": 19
     }
   },
-  "batches": {
-    "batch-refactor-001": [12210, 12216],
-    "batch-config-001": [12217, 12207, 12208],
-    "batch-feature-001": [12215, 12209, 12130]
-  },
-  "auto_merge_candidates": [],
-  "fast_track_needed": [],
-  "close_candidates": []
+  "pr_summary": [
+    {
+      "number": 12323,
+      "category": "chore",
+      "risk": "low",
+      "priority": 35,
+      "action": "batch_review"
+    },
+    {
+      "number": 12322,
+      "category": "feature",
+      "risk": "high",
+      "priority": 47,
+      "action": "batch_review"
+    },
+    {
+      "number": 12321,
+      "category": "feature",
+      "risk": "high",
+      "priority": 47,
+      "action": "batch_review"
+    },
+    {
+      "number": 12320,
+      "category": "feature",
+      "risk": "high",
+      "priority": 47,
+      "action": "batch_review"
+    },
+    {
+      "number": 12311,
+      "category": "feature",
+      "risk": "high",
+      "priority": 52,
+      "action": "batch_review"
+    },
+    {
+      "number": 12308,
+      "category": "bug",
+      "risk": "low",
+      "priority": 60,
+      "action": "batch_review"
+    },
+    {
+      "number": 12130,
+      "category": "feature",
+      "risk": "high",
+      "priority": 47,
+      "action": "batch_review"
+    },
+    {
+      "number": 12099,
+      "category": "chore",
+      "risk": "low",
+      "priority": 35,
+      "action": "batch_review"
+    },
+    {
+      "number": 12085,
+      "category": "feature",
+      "risk": "high",
+      "priority": 47,
+      "action": "batch_review"
+    },
+    {
+      "number": 12017,
+      "category": "chore",
+      "risk": "low",
+      "priority": 35,
+      "action": "batch_review"
+    },
+    {
+      "number": 12016,
+      "category": "chore",
+      "risk": "low",
+      "priority": 35,
+      "action": "batch_review"
+    },
+    {
+      "number": 12015,
+      "category": "chore",
+      "risk": "low",
+      "priority": 35,
+      "action": "batch_review"
+    },
+    {
+      "number": 12014,
+      "category": "chore",
+      "risk": "low",
+      "priority": 35,
+      "action": "batch_review"
+    },
+    {
+      "number": 12013,
+      "category": "chore",
+      "risk": "low",
+      "priority": 35,
+      "action": "batch_review"
+    },
+    {
+      "number": 12012,
+      "category": "chore",
+      "risk": "low",
+      "priority": 35,
+      "action": "batch_review"
+    },
+    {
+      "number": 12011,
+      "category": "chore",
+      "risk": "low",
+      "priority": 35,
+      "action": "batch_review"
+    },
+    {
+      "number": 12010,
+      "category": "chore",
+      "risk": "low",
+      "priority": 35,
+      "action": "batch_review"
+    },
+    {
+      "number": 12009,
+      "category": "chore",
+      "risk": "low",
+      "priority": 35,
+      "action": "batch_review"
+    },
+    {
+      "number": 11968,
+      "category": "chore",
+      "risk": "low",
+      "priority": 35,
+      "action": "batch_review"
+    }
+  ]
 }
