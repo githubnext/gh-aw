@@ -94,7 +94,7 @@ For each discovered item (up to 100 total per run):
   - `status`: "Todo" (for open items)
   - `target_repo`: "githubnext/gh-aw"
   - `worker_workflow`: who discovered it, using one of:
-    - "dependabot-pr"
+    - "dependabot"
     - "code-scanning"
     - "secret-scanning"
   - `priority`: "Medium"
