@@ -323,6 +323,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// that cannot be bypassed, so we validate it unconditionally
 	log.Print("Validating expression sizes")
 	if err := c.validateExpressionSizes(yamlContent); err != nil {
+		// Store error first so we can write invalid YAML before returning
 		formattedErr := formatCompilerError(markdownPath, "error", fmt.Sprintf("expression size validation failed: %v", err))
 		// Write the invalid YAML to a .invalid.yml file for inspection
 		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
@@ -335,6 +336,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Validate for template injection vulnerabilities - detect unsafe expression usage in run: commands
 	log.Print("Validating for template injection vulnerabilities")
 	if err := validateNoTemplateInjection(yamlContent); err != nil {
+		// Store error first so we can write invalid YAML before returning
 		formattedErr := formatCompilerError(markdownPath, "error", err.Error())
 		// Write the invalid YAML to a .invalid.yml file for inspection
 		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
@@ -348,6 +350,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	if !c.skipValidation {
 		log.Print("Validating workflow against GitHub Actions schema")
 		if err := c.validateGitHubActionsSchema(yamlContent); err != nil {
+			// Store error first so we can write invalid YAML before returning
 			formattedErr := formatCompilerError(markdownPath, "error", fmt.Sprintf("workflow schema validation failed: %v", err))
 			// Write the invalid YAML to a .invalid.yml file for inspection
 			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
