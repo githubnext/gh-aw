@@ -69,8 +69,17 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 				stepCopy[k] = v
 			}
 
-			// Apply action pinning if the step uses an action
-			stepCopy = ApplyActionPinToStep(stepCopy, workflowData)
+			// Convert to typed step for action pinning
+			typedStep, err := MapToStep(stepCopy)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert step to typed step for custom engine: %w", err)
+			}
+
+			// Apply action pinning using type-safe version
+			pinnedStep := ApplyActionPinToTypedStep(typedStep, workflowData)
+
+			// Convert pinned step back to map for environment variable merging
+			stepMap := pinnedStep.ToMap()
 
 			// Prepare environment variables to merge
 			envVars := make(map[string]string)
@@ -104,13 +113,13 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 			// Merge environment variables into the step
 			if len(envVars) > 0 {
-				if existingEnv, exists := stepCopy["env"]; exists {
+				if existingEnv, exists := stepMap["env"]; exists {
 					// If step already has env section, merge them
 					if envMap, ok := existingEnv.(map[string]any); ok {
 						for key, value := range envVars {
 							envMap[key] = value
 						}
-						stepCopy["env"] = envMap
+						stepMap["env"] = envMap
 					} else {
 						// If env is not a map, replace it with our combined env
 						// Convert string map to any map for compatibility
@@ -118,7 +127,7 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 						for k, v := range envVars {
 							envAny[k] = v
 						}
-						stepCopy["env"] = envAny
+						stepMap["env"] = envAny
 					}
 				} else {
 					// If no env section exists, add our env vars
@@ -127,11 +136,11 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 					for k, v := range envVars {
 						envAny[k] = v
 					}
-					stepCopy["env"] = envAny
+					stepMap["env"] = envAny
 				}
 			}
 
-			stepYAML, err := e.convertStepToYAML(stepCopy)
+			stepYAML, err := e.convertStepToYAML(stepMap)
 			if err != nil {
 				// Log error but continue with other steps
 				continue
