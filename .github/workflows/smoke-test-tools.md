@@ -13,6 +13,17 @@ permissions:
 name: Agent Container Smoke Test
 engine: copilot
 strict: true
+runtimes:
+  node:
+    version: "20"
+  python:
+    version: "3.11"
+  go:
+    version: "1.24"
+  java:
+    version: "21"
+  dotnet:
+    version: "8.0"
 network:
   allowed:
     - defaults
@@ -56,7 +67,6 @@ Run each command and verify it produces valid output:
 
 4. **HTTP Tools:**
    - `curl --version` - Verify curl is available for HTTP requests
-   - `wget --version` - Verify wget is available as alternative HTTP tool
 
 5. **GitHub CLI:**
    - `gh --version` - Verify GitHub CLI is available
@@ -64,13 +74,16 @@ Run each command and verify it produces valid output:
 6. **Programming Runtimes:**
    - `node --version` - Verify Node.js runtime is available
    - `python3 --version` - Verify Python 3 runtime is available
+   - `go version` - Verify Go runtime is available
+   - `java --version` - Verify Java runtime is available
+   - `dotnet --version` - Verify .NET runtime is available (C#)
 
 ## Output Requirements
 
 After running all tests, add a **concise comment** to the pull request (if triggered by PR) with:
 
 - Each tool name with ✅ (available) or ❌ (missing) status
-- Total count: "X/10 tools available"
+- Total count: "X/12 tools available"
 - Overall status: PASS (all tools found) or FAIL (any missing)
 
 Example output format:
@@ -85,12 +98,14 @@ Example output format:
 | jq   | ✅ | 1.x |
 | yq   | ✅ | 4.x |
 | curl | ✅ | 8.x |
-| wget | ✅ | 1.x |
 | gh   | ✅ | 2.x |
 | node | ✅ | 20.x |
 | python3 | ✅ | 3.x |
+| go   | ✅ | 1.24.x |
+| java | ✅ | 21.x |
+| dotnet | ✅ | 8.x |
 
-**Result:** 10/10 tools available ✅
+**Result:** 12/12 tools available ✅
 ```
 
 ## Error Handling

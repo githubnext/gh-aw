@@ -13,9 +13,9 @@ When agentic workflows run in GitHub Actions, they depend on various system tool
 - **Shell environments** work correctly (bash, sh)
 - **Version control** is available (git)
 - **Data processing tools** are present (jq, yq)
-- **HTTP clients** are accessible (curl, wget)
+- **HTTP clients** are accessible (curl)
 - **GitHub integration** works (gh CLI)
-- **Programming runtimes** are installed (node, python3)
+- **Programming runtimes** are installed (node, python3, go, java, dotnet)
 
 ## Tested Tools
 
@@ -27,10 +27,12 @@ When agentic workflows run in GitHub Actions, they depend on various system tool
 | `jq` | JSON processing | Data parsing, API responses |
 | `yq` | YAML processing | Configuration file handling |
 | `curl` | HTTP requests | API calls, downloads |
-| `wget` | HTTP downloads | Alternative download tool |
 | `gh` | GitHub CLI | Repository interactions |
 | `node` | Node.js runtime | JavaScript-based tools |
 | `python3` | Python runtime | Python-based scripts |
+| `go` | Go runtime | Go-based tools |
+| `java` | Java runtime | Java/JVM-based tools |
+| `dotnet` | .NET runtime | C#/.NET-based tools |
 
 ## Running the Smoke Test
 
@@ -66,12 +68,14 @@ A successful run produces a summary table:
 | jq   | ✅ | 1.x |
 | yq   | ✅ | 4.x |
 | curl | ✅ | 8.x |
-| wget | ✅ | 1.x |
 | gh   | ✅ | 2.x |
 | node | ✅ | 20.x |
 | python3 | ✅ | 3.x |
+| go   | ✅ | 1.24.x |
+| java | ✅ | 21.x |
+| dotnet | ✅ | 8.x |
 
-**Result:** 10/10 tools available ✅
+**Result:** 12/12 tools available ✅
 ```
 
 ## Failure Modes
@@ -126,16 +130,18 @@ git --version
 jq --version
 yq --version
 curl --version
-wget --version
 gh --version
 node --version
 python3 --version
+go version
+java --version
+dotnet --version
 ```
 
 Or run a comprehensive check:
 
 ```bash
-for tool in bash git jq yq curl wget gh node python3; do
+for tool in bash git jq yq curl gh node python3 go java dotnet; do
   if command -v $tool &> /dev/null; then
     echo "✅ $tool: $($tool --version 2>&1 | head -1)"
   else
