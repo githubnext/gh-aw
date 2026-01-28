@@ -40,6 +40,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -234,29 +235,37 @@ func (c *Compiler) validateStrictMode(frontmatter map[string]any, networkPermiss
 
 	strictModeValidationLog.Printf("Starting strict mode validation")
 
+	var errs []error
+
 	// 1. Refuse write permissions
 	if err := c.validateStrictPermissions(frontmatter); err != nil {
-		return err
+		errs = append(errs, err)
 	}
 
 	// 2. Require network configuration and refuse "*" wildcard
 	if err := c.validateStrictNetwork(networkPermissions); err != nil {
-		return err
+		errs = append(errs, err)
 	}
 
 	// 3. Require network configuration on custom MCP servers
 	if err := c.validateStrictMCPNetwork(frontmatter, networkPermissions); err != nil {
-		return err
+		errs = append(errs, err)
 	}
 
 	// 4. Validate tools configuration
 	if err := c.validateStrictTools(frontmatter); err != nil {
-		return err
+		errs = append(errs, err)
 	}
 
 	// 5. Refuse deprecated fields
 	if err := c.validateStrictDeprecatedFields(frontmatter); err != nil {
-		return err
+		errs = append(errs, err)
+	}
+
+	// Return aggregated errors
+	if len(errs) > 0 {
+		strictModeValidationLog.Printf("Strict mode validation failed with %d error(s)", len(errs))
+		return errors.Join(errs...)
 	}
 
 	strictModeValidationLog.Printf("Strict mode validation completed successfully")

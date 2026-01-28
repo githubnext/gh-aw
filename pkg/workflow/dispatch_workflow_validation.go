@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -34,12 +35,15 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 	// Get the workflows directory
 	workflowsDir := filepath.Dir(workflowPath)
 
+	var errs []error
+
 	for _, workflowName := range config.Workflows {
 		dispatchWorkflowValidationLog.Printf("Validating workflow: %s", workflowName)
 
 		// Check for self-reference
 		if workflowName == currentWorkflowName {
-			return fmt.Errorf("dispatch-workflow: self-reference not allowed (workflow '%s' cannot dispatch itself)", workflowName)
+			errs = append(errs, fmt.Errorf("dispatch-workflow: self-reference not allowed (workflow '%s' cannot dispatch itself)", workflowName))
+			continue
 		}
 
 		// Check if the workflow file exists - support .md, .lock.yml, or .yml files
@@ -50,7 +54,8 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 
 		// Validate that all paths are within the workflows directory to prevent path traversal
 		if !isPathWithinDir(workflowFilePath, workflowsDir) || !isPathWithinDir(lockFilePath, workflowsDir) || !isPathWithinDir(ymlFilePath, workflowsDir) {
-			return fmt.Errorf("dispatch-workflow: invalid workflow name '%s' (path traversal not allowed)", workflowName)
+			errs = append(errs, fmt.Errorf("dispatch-workflow: invalid workflow name '%s' (path traversal not allowed)", workflowName))
+			continue
 		}
 
 		// Check if any workflow file exists
@@ -59,7 +64,8 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 		ymlExists := fileExists(ymlFilePath)
 
 		if !mdExists && !lockExists && !ymlExists {
-			return fmt.Errorf("dispatch-workflow: workflow '%s' not found (expected %s, %s, or %s)", workflowName, workflowFilePath, lockFilePath, ymlFilePath)
+			errs = append(errs, fmt.Errorf("dispatch-workflow: workflow '%s' not found (expected %s, %s, or %s)", workflowName, workflowFilePath, lockFilePath, ymlFilePath))
+			continue
 		}
 
 		// Validate that the workflow supports workflow_dispatch
@@ -72,29 +78,34 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 			workflowFile = lockFilePath
 			workflowContent, err = os.ReadFile(lockFilePath) // #nosec G304 -- Path is validated above via isPathWithinDir
 			if err != nil {
-				return fmt.Errorf("dispatch-workflow: failed to read workflow file %s: %w", lockFilePath, err)
+				errs = append(errs, fmt.Errorf("dispatch-workflow: failed to read workflow file %s: %w", lockFilePath, err))
+				continue
 			}
 		} else if ymlExists {
 			workflowFile = ymlFilePath
 			workflowContent, err = os.ReadFile(ymlFilePath) // #nosec G304 -- Path is validated above via isPathWithinDir
 			if err != nil {
-				return fmt.Errorf("dispatch-workflow: failed to read workflow file %s: %w", ymlFilePath, err)
+				errs = append(errs, fmt.Errorf("dispatch-workflow: failed to read workflow file %s: %w", ymlFilePath, err))
+				continue
 			}
 		} else {
 			// Only .md exists - needs to be compiled first
-			return fmt.Errorf("dispatch-workflow: workflow '%s' must be compiled first (run 'gh aw compile %s')", workflowName, workflowFilePath)
+			errs = append(errs, fmt.Errorf("dispatch-workflow: workflow '%s' must be compiled first (run 'gh aw compile %s')", workflowName, workflowFilePath))
+			continue
 		}
 
 		// Parse the workflow YAML to check for workflow_dispatch trigger
 		var workflow map[string]any
 		if err := yaml.Unmarshal(workflowContent, &workflow); err != nil {
-			return fmt.Errorf("dispatch-workflow: failed to parse workflow file %s: %w", workflowFile, err)
+			errs = append(errs, fmt.Errorf("dispatch-workflow: failed to parse workflow file %s: %w", workflowFile, err))
+			continue
 		}
 
 		// Check if the workflow has an "on" section
 		onSection, hasOn := workflow["on"]
 		if !hasOn {
-			return fmt.Errorf("dispatch-workflow: workflow '%s' does not have an 'on' trigger section", workflowName)
+			errs = append(errs, fmt.Errorf("dispatch-workflow: workflow '%s' does not have an 'on' trigger section", workflowName))
+			continue
 		}
 
 		// Check if workflow_dispatch is in the "on" section
@@ -119,10 +130,17 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 		}
 
 		if !hasWorkflowDispatch {
-			return fmt.Errorf("dispatch-workflow: workflow '%s' does not support workflow_dispatch trigger (must include 'workflow_dispatch' in the 'on' section)", workflowName)
+			errs = append(errs, fmt.Errorf("dispatch-workflow: workflow '%s' does not support workflow_dispatch trigger (must include 'workflow_dispatch' in the 'on' section)", workflowName))
+			continue
 		}
 
 		dispatchWorkflowValidationLog.Printf("Workflow '%s' is valid for dispatch (found in %s)", workflowName, workflowFile)
+	}
+
+	// Return aggregated errors
+	if len(errs) > 0 {
+		dispatchWorkflowValidationLog.Printf("Dispatch workflow validation failed with %d error(s)", len(errs))
+		return errors.Join(errs...)
 	}
 
 	dispatchWorkflowValidationLog.Printf("All %d workflows validated successfully", len(config.Workflows))

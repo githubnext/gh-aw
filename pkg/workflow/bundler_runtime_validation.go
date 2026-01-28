@@ -41,6 +41,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -69,6 +70,8 @@ func validateRuntimeModeRecursive(content string, currentPath string, sources ma
 	// Extract all local require statements
 	requireRegex := regexp.MustCompile(`require\(['"](\.\.?/[^'"]+)['"]\)`)
 	matches := requireRegex.FindAllStringSubmatch(content, -1)
+
+	var errs []error
 
 	for _, match := range matches {
 		if len(match) <= 1 {
@@ -111,8 +114,9 @@ func validateRuntimeModeRecursive(content string, currentPath string, sources ma
 
 		// Check for incompatibility
 		if detectedMode != RuntimeModeGitHubScript && targetMode != detectedMode {
-			return fmt.Errorf("runtime mode conflict: script requires '%s' which is a %s script, but the main script is compiled for %s mode.\n\nNode.js scripts cannot be bundled with GitHub Script mode scripts because they use incompatible APIs (e.g., child_process, fs).\n\nTo fix this:\n- Use only GitHub Script compatible scripts (core.*, exec.*, github.*) for GitHub Script mode\n- Or change the main script to Node.js mode if it needs Node.js APIs",
-				fullPath, detectedMode, targetMode)
+			errs = append(errs, fmt.Errorf("runtime mode conflict: script requires '%s' which is a %s script, but the main script is compiled for %s mode.\n\nNode.js scripts cannot be bundled with GitHub Script mode scripts because they use incompatible APIs (e.g., child_process, fs).\n\nTo fix this:\n- Use only GitHub Script compatible scripts (core.*, exec.*, github.*) for GitHub Script mode\n- Or change the main script to Node.js mode if it needs Node.js APIs",
+				fullPath, detectedMode, targetMode))
+			continue
 		}
 
 		// Recursively check the required file's dependencies
@@ -123,8 +127,13 @@ func validateRuntimeModeRecursive(content string, currentPath string, sources ma
 		}
 
 		if err := validateRuntimeModeRecursive(requiredContent, requiredDir, sources, targetMode, checked); err != nil {
-			return err
+			errs = append(errs, err)
 		}
+	}
+
+	// Return aggregated errors
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 
 	return nil
