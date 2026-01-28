@@ -32,8 +32,6 @@ func NewFileTracker() (*FileTracker, error) {
 	}
 	fileTrackerLog.Printf("File tracker initialized with git root: %s", gitRoot)
 	return &FileTracker{
-		CreatedFiles:    nil,
-		ModifiedFiles:   nil,
 		OriginalContent: make(map[string][]byte),
 		gitRoot:         gitRoot,
 	}, nil
