@@ -22,7 +22,7 @@ func TestGetValidationConfigJSON(t *testing.T) {
 	// Verify all expected types are present
 	expectedTypes := []string{
 		"create_issue",
-		"create_agent_task",
+		"create_agent_session",
 		"add_comment",
 		"create_pull_request",
 		"add_labels",

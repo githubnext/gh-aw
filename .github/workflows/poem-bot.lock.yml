@@ -210,7 +210,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":3,"target":"*"},"add_labels":{"allowed":["poetry","creative","automation","ai-generated","epic","haiku","sonnet","limerick"],"max":5},"create_agent_task":{"max":1},"create_discussion":{"max":2},"create_issue":{"group":true,"max":2},"create_missing_tool_issue":{"max":1,"title_prefix":"[missing tool]"},"create_pull_request":{},"create_pull_request_review_comment":{"max":2},"link_sub_issue":{"max":3},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_to_pull_request_branch":{"max":0},"update_issue":{"max":2},"upload_asset":{"max":0}}
+          {"add_comment":{"max":3,"target":"*"},"add_labels":{"allowed":["poetry","creative","automation","ai-generated","epic","haiku","sonnet","limerick"],"max":5},"create_agent_session":{"max":1},"create_discussion":{"max":2},"create_issue":{"group":true,"max":2},"create_missing_tool_issue":{"max":1,"title_prefix":"[missing tool]"},"create_pull_request":{},"create_pull_request_review_comment":{"max":2},"link_sub_issue":{"max":3},"missing_data":{},"missing_tool":{},"noop":{"max":1},"push_to_pull_request_branch":{"max":0},"update_issue":{"max":2},"upload_asset":{"max":0}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
@@ -253,6 +253,23 @@ jobs:
                 "type": "object"
               },
               "name": "create_issue"
+            },
+            {
+              "description": "Create a GitHub Copilot agent session to delegate coding work. Use this when you need another Copilot agent to implement code changes, fix bugs, or complete development tasks. The task becomes a new issue that triggers the Copilot coding agent. For non-coding tasks or manual work items, use create_issue instead. CONSTRAINTS: Maximum 1 agent task(s) can be created. Base branch for tasks: \"main\".",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Clear, detailed task description for the Copilot agent. Include specific files to modify, expected behavior, acceptance criteria, and any constraints. The description should be actionable and self-contained.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "body"
+                ],
+                "type": "object"
+              },
+              "name": "create_agent_session"
             },
             {
               "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 2 discussion(s) can be created. Title will be prefixed with \"[📜 POETRY] \". Discussions will be created in category \"General\".",
@@ -663,7 +680,7 @@ jobs:
                 }
               }
             },
-            "create_agent_task": {
+            "create_agent_session": {
               "defaultMax": 1,
               "fields": {
                 "body": {
