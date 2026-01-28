@@ -1,7 +1,11 @@
 package workflow
 
 import (
+	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -367,14 +371,9 @@ func TestGetHostedToolcachePathSetup(t *testing.T) {
 		t.Errorf("PATH setup should suppress errors with 2>/dev/null, got: %s", pathSetup)
 	}
 
-	// Should use sanitization via _GH_AW_PATH temporary variable
-	if !strings.Contains(pathSetup, "_GH_AW_PATH") {
-		t.Errorf("PATH setup should use _GH_AW_PATH for sanitization, got: %s", pathSetup)
-	}
-
-	// Should export sanitized PATH
-	if !strings.Contains(pathSetup, `export PATH="$_GH_AW_PATH"`) {
-		t.Errorf("PATH setup should export sanitized PATH, got: %s", pathSetup)
+	// Should source the sanitize_path.sh script
+	if !strings.Contains(pathSetup, "source /opt/gh-aw/actions/sanitize_path.sh") {
+		t.Errorf("PATH setup should source sanitize_path.sh script, got: %s", pathSetup)
 	}
 
 	// Should preserve existing PATH by including $PATH in the raw path
@@ -484,40 +483,33 @@ func TestGetToolBinsEnvArg(t *testing.T) {
 func TestGetSanitizedPATHExport(t *testing.T) {
 	result := GetSanitizedPATHExport("/usr/bin:/usr/local/bin")
 
-	// Should use _GH_AW_PATH temporary variable
-	if !strings.Contains(result, "_GH_AW_PATH=") {
-		t.Errorf("GetSanitizedPATHExport should use _GH_AW_PATH variable, got: %s", result)
+	// Should source the sanitize_path.sh script from /opt/gh-aw/actions/
+	if !strings.Contains(result, "source /opt/gh-aw/actions/sanitize_path.sh") {
+		t.Errorf("GetSanitizedPATHExport should source sanitize_path.sh, got: %s", result)
 	}
 
-	// Should include the raw path
+	// Should include the raw path as an argument
 	if !strings.Contains(result, "/usr/bin:/usr/local/bin") {
 		t.Errorf("GetSanitizedPATHExport should include the raw path, got: %s", result)
 	}
-
-	// Should export the sanitized PATH
-	if !strings.Contains(result, `export PATH="$_GH_AW_PATH"`) {
-		t.Errorf("GetSanitizedPATHExport should export sanitized PATH, got: %s", result)
-	}
-
-	// Should have leading colon removal (shell parameter expansion)
-	if !strings.Contains(result, "${_GH_AW_PATH#:}") {
-		t.Errorf("GetSanitizedPATHExport should remove leading colons, got: %s", result)
-	}
-
-	// Should have trailing colon removal (shell parameter expansion)
-	if !strings.Contains(result, "${_GH_AW_PATH%:}") {
-		t.Errorf("GetSanitizedPATHExport should remove trailing colons, got: %s", result)
-	}
-
-	// Should collapse multiple colons using sed
-	if !strings.Contains(result, "sed") && !strings.Contains(result, "::") {
-		t.Errorf("GetSanitizedPATHExport should collapse multiple colons, got: %s", result)
-	}
 }
 
-// TestGetSanitizedPATHExport_ShellExecution tests that the generated shell commands
-// correctly sanitize various malformed PATH inputs when executed in a real shell.
+// TestGetSanitizedPATHExport_ShellExecution tests that the sanitize_path.sh script
+// correctly sanitizes various malformed PATH inputs when executed in a real shell.
+// This test uses the script directly from actions/setup/sh/ since /opt/gh-aw/actions/
+// only exists at runtime.
 func TestGetSanitizedPATHExport_ShellExecution(t *testing.T) {
+	// Get the path to the sanitize_path.sh script relative to this test file
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("Failed to get current file path")
+	}
+	// Navigate from pkg/workflow/ to actions/setup/sh/
+	scriptPath := filepath.Join(filepath.Dir(thisFile), "..", "..", "actions", "setup", "sh", "sanitize_path.sh")
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		t.Fatalf("sanitize_path.sh script not found at %s", scriptPath)
+	}
+
 	tests := []struct {
 		name     string
 		input    string
@@ -582,12 +574,10 @@ func TestGetSanitizedPATHExport_ShellExecution(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Generate the shell command using the raw input directly (no $PATH variable)
-			shellCmd := GetSanitizedPATHExport(tt.input)
+			// Source the script directly with the input and echo the resulting PATH
+			shellCmd := fmt.Sprintf(`source '%s' '%s' && echo "$PATH"`, scriptPath, tt.input)
 
-			// Execute in a shell and capture the resulting PATH
-			// We append "; echo $PATH" to get the final value
-			cmd := exec.Command("bash", "-c", shellCmd+"; echo $PATH")
+			cmd := exec.Command("bash", "-c", shellCmd)
 			output, err := cmd.Output()
 			if err != nil {
 				t.Fatalf("Failed to execute shell command: %v\nCommand: %s", err, shellCmd)

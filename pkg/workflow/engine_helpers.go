@@ -374,37 +374,26 @@ func GetHostedToolcachePathSetup() string {
 // Empty PATH elements are a security risk because they cause the current directory
 // to be searched for executables, which could allow malicious code execution.
 //
+// The sanitization logic is implemented in actions/setup/sh/sanitize_path.sh and
+// is sourced at runtime from /opt/gh-aw/actions/sanitize_path.sh.
+//
 // Parameters:
 //   - rawPath: The unsanitized PATH value (may contain shell expansions like $PATH)
 //
 // Returns:
-//   - string: A shell command that exports the sanitized PATH
+//   - string: A shell command that sources the sanitize script to export the sanitized PATH
 //
 // Example:
 //
 //	GetSanitizedPATHExport("$GH_AW_TOOL_BINS$PATH")
-//	// Returns: _GH_AW_PATH="$GH_AW_TOOL_BINS$PATH"; while [...]; export PATH="$_GH_AW_PATH"
+//	// Returns: source /opt/gh-aw/actions/sanitize_path.sh "$GH_AW_TOOL_BINS$PATH"
 func GetSanitizedPATHExport(rawPath string) string {
-	// Use a temporary variable to build and sanitize the PATH.
-	// This approach uses POSIX-compliant shell parameter expansion.
-	//
-	// Steps:
-	// 1. Store raw path in _GH_AW_PATH
-	// 2. Remove leading colons: Loop while ${_GH_AW_PATH#:} differs from original
-	// 3. Remove trailing colons: Loop while ${_GH_AW_PATH%:} differs from original
-	// 4. Collapse multiple colons: Use sed to replace :: with : repeatedly
-	// 5. Export the sanitized PATH
-	//
-	// The loops ensure all leading/trailing colons are removed (not just one).
-	// The sed command handles internal empty elements (::) by collapsing them.
-	return fmt.Sprintf(
-		`_GH_AW_PATH="%s"; `+
-			`while [ "${_GH_AW_PATH#:}" != "$_GH_AW_PATH" ]; do _GH_AW_PATH="${_GH_AW_PATH#:}"; done; `+
-			`while [ "${_GH_AW_PATH%%:}" != "$_GH_AW_PATH" ]; do _GH_AW_PATH="${_GH_AW_PATH%%:}"; done; `+
-			`while case "$_GH_AW_PATH" in *::*) true;; *) false;; esac; do _GH_AW_PATH="$(printf '%%s' "$_GH_AW_PATH" | sed 's/::*/:/g')"; done; `+
-			`export PATH="$_GH_AW_PATH"`,
-		rawPath,
-	)
+	// Source the sanitize_path.sh script which handles:
+	// 1. Remove leading colons
+	// 2. Remove trailing colons
+	// 3. Collapse multiple colons into single colons
+	// 4. Export the sanitized PATH
+	return fmt.Sprintf(`source /opt/gh-aw/actions/sanitize_path.sh "%s"`, rawPath)
 }
 
 // GetToolBinsSetup returns a shell command that computes the GH_AW_TOOL_BINS environment
