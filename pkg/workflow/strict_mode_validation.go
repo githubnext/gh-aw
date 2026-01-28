@@ -62,13 +62,20 @@ func (c *Compiler) validateStrictPermissions(frontmatter map[string]any) error {
 	// Parse permissions using the PermissionsParser
 	perms := NewPermissionsParserFromValue(permissionsValue)
 
+	var errs []error
+
 	// Check for write permissions on sensitive scopes
 	writePermissions := []string{"contents", "issues", "pull-requests"}
 	for _, scope := range writePermissions {
 		if perms.IsAllowed(scope, "write") {
 			strictModeValidationLog.Printf("Write permission validation failed: scope=%s", scope)
-			return fmt.Errorf("strict mode: write permission '%s: write' is not allowed for security reasons. Use 'safe-outputs.create-issue', 'safe-outputs.create-pull-request', 'safe-outputs.add-comment', or 'safe-outputs.update-issue' to perform write operations safely. See: https://githubnext.github.io/gh-aw/reference/safe-outputs/", scope)
+			errs = append(errs, fmt.Errorf("strict mode: write permission '%s: write' is not allowed for security reasons. Use 'safe-outputs.create-issue', 'safe-outputs.create-pull-request', 'safe-outputs.add-comment', or 'safe-outputs.update-issue' to perform write operations safely. See: https://githubnext.github.io/gh-aw/reference/safe-outputs/", scope))
 		}
+	}
+
+	// Return aggregated errors
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 
 	strictModeValidationLog.Printf("Permissions validation passed")
