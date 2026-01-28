@@ -1,4 +1,4 @@
-// Package workflow provides JavaScript bundling for agentic workflows.
+// This file provides JavaScript bundling for agentic workflows.
 //
 // # File Mode Bundler
 //
@@ -18,6 +18,7 @@
 //   - Maximizes reuse of helper modules within the same job
 //   - Makes debugging easier (files exist on disk during execution)
 //   - Reduces memory pressure from large bundled strings
+
 package workflow
 
 import (

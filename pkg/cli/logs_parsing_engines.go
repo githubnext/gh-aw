@@ -1,4 +1,4 @@
-// Package cli provides command-line interface functionality for gh-aw.
+// This file provides command-line interface functionality for gh-aw.
 // This file (logs_parsing_engines.go) contains engine-specific log parsing
 // functionality for various AI engines (Claude, Copilot, Codex, Custom).
 //
@@ -6,6 +6,7 @@
 //   - Parsing log files using engine-specific parsers
 //   - Detecting and parsing GitHub Copilot agent logs
 //   - Falling back to generic parser when engine is unknown
+
 package cli
 
 import (

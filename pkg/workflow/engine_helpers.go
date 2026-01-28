@@ -1,4 +1,4 @@
-// Package workflow provides shared helper functions for AI engine implementations.
+// This file provides shared helper functions for AI engine implementations.
 //
 // This file contains utilities used across multiple AI engine files (copilot_engine.go,
 // claude_engine.go, codex_engine.go, custom_engine.go) to generate common workflow
@@ -28,6 +28,7 @@
 //
 // These functions encapsulate shared logic that would otherwise be duplicated across
 // engine files, maintaining DRY principles while keeping engine-specific code separate.
+
 package workflow
 
 import (

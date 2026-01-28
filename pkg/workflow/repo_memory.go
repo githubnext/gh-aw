@@ -1,4 +1,4 @@
-// Package workflow provides repository memory configuration and validation.
+// This file provides repository memory configuration and validation.
 //
 // This file handles:
 //   - Repo-memory configuration structures and defaults
@@ -14,6 +14,7 @@
 // These validation functions are co-located with repo-memory logic following the
 // principle that domain-specific validation belongs in domain files. See validation.go
 // for the validation architecture documentation.
+
 package workflow
 
 import (
