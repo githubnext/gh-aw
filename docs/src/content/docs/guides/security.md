@@ -411,6 +411,10 @@ gh aw compile --strict --zizmor     # Block on findings
 
 Analyzes `.lock.yml` for excessive permissions, insecure practices, supply chain vulnerabilities, and misconfigurations. Reports include severity, location, and context in IDE-parseable format. Requires Docker. Best practices: run during development, use `--strict --zizmor` in CI/CD, address High/Critical findings.
 
+> [!NOTE]
+> Dynamic Execution Patterns
+> Agentic workflows intentionally use dynamic command execution, producing expected obfuscation warnings from zizmor. These warnings are acceptable when proper runtime safety controls are in place. See [Dynamic Command Execution](/gh-aw/guides/dynamic-execution/) for detailed explanation of this pattern and when to be concerned.
+
 ### Network Isolation
 
 Network isolation operates at two layers:
@@ -452,6 +456,7 @@ network: {}
 
 ## See also
 
+- [Dynamic Command Execution](/gh-aw/guides/dynamic-execution/) - Understanding intentional dynamic execution patterns
 - [Threat Detection Guide](/gh-aw/guides/threat-detection/) - Comprehensive threat detection configuration and examples
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/)
 - [Network Configuration](/gh-aw/reference/network/)
