@@ -155,10 +155,27 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_agent_task":{"max":3},"create_project_status_update":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_project":{"max":100}}
+          {"create_agent_session":{"max":3},"create_project_status_update":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_project":{"max":100}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
+            {
+              "description": "Create a GitHub Copilot agent session to delegate coding work. Use this when you need another Copilot agent to implement code changes, fix bugs, or complete development tasks. The task becomes a new issue that triggers the Copilot coding agent. For non-coding tasks or manual work items, use create_issue instead. CONSTRAINTS: Maximum 3 agent task(s) can be created. Base branch for tasks: \"main\".",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "description": "Clear, detailed task description for the Copilot agent. Include specific files to modify, expected behavior, acceptance criteria, and any constraints. The description should be actionable and self-contained.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "body"
+                ],
+                "type": "object"
+              },
+              "name": "create_agent_session"
+            },
             {
               "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
               "inputSchema": {
@@ -403,7 +420,7 @@ jobs:
           EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'EOF'
           {
-            "create_agent_task": {
+            "create_agent_session": {
               "defaultMax": 1,
               "fields": {
                 "body": {

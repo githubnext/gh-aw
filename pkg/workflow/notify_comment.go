@@ -397,7 +397,7 @@ func buildSafeOutputJobsEnvVars(jobNames []string) (string, []string) {
 			urlKey = "pull_request_url"
 		case "close_discussion":
 			urlKey = "discussion_url"
-		case "create_agent_task":
+		case "create_agent_session":
 			urlKey = "task_url"
 		case "push_to_pull_request_branch":
 			urlKey = "commit_url"
