@@ -124,6 +124,30 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 // commentOutProcessedFieldsInOnSection comments out draft, fork, forks, names, manual-approval, stop-after, skip-if-match, skip-if-no-match, reaction, and lock-for-agent fields in the on section
 // These fields are processed separately and should be commented for documentation
 // Exception: names fields in sections with __gh_aw_native_label_filter__ marker in frontmatter are NOT commented out
+//
+// # State Machine Algorithm
+//
+// This function implements a line-by-line YAML parser that tracks context through boolean flags:
+//   1. Section tracking (inPullRequest, inIssues, inDiscussion, inIssueComment)
+//   2. Array tracking (inForksArray, inSkipIfMatch, inSkipIfNoMatch)
+//   3. Indentation tracking (to determine when sections/arrays end)
+//
+// The parsing flow:
+//   1. Detect section entry (e.g., "pull_request:", "issues:")
+//   2. Track current indentation level to know when section ends
+//   3. Within sections, detect special fields and comment them out
+//   4. Handle array values (forks, skip-if-match, skip-if-no-match) with sub-states
+//   5. Preserve non-special fields and structure
+//
+// Special handling for "names:" field:
+//   - If section has native label filter marker, preserve "names:" (don't comment)
+//   - Otherwise, comment out "names:" for custom label filter processing
+//   - Uses backtracking (lines 335-370) to find context when "names:" is detected
+//
+// Why this approach:
+//   - GitHub Actions "on" section requires preserving YAML structure exactly
+//   - Some fields need special processing (e.g., draft/fork for activation jobs)
+//   - Fields are commented rather than removed to maintain user documentation
 func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmatter map[string]any) string {
 	frontmatterLog.Print("Processing 'on' section to comment out processed fields")
 
@@ -328,21 +352,39 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 				commentReason = " # Label filtering applied via job conditions"
 			}
 		} else if (inPullRequest || inIssues || inDiscussion || inIssueComment) && line != "" {
-			// Check if we're in a names array (after "names:" line)
-			// Look back to see if the previous uncommented line was "names:"
-			// Only do this if NOT using native label filtering for this section
+			// Backtracking algorithm to detect array items under "names:" field
+			// 
+			// Problem: When we encounter an array item (line starting with "-"), we need to
+			// determine if it belongs to a "names:" array. We can't know this from the current
+			// line alone - we need context from previous lines.
+			//
+			// Solution: Look backward through already-processed lines to find the most recent
+			// non-empty line. If it's a commented "names:" line (with our marker), then this
+			// array item also needs commenting.
+			//
+			// Example YAML structure:
+			//   pull_request:
+			//     types:
+			//       - opened      # Don't comment (belongs to types array)
+			//     names:          # Comment this
+			//       - bug         # Comment this (belongs to names array) <- detected via backtracking
+			//       - feature     # Comment this (belongs to names array)
+			//
+			// Only perform backtracking if NOT using native label filtering for this section
 			if !nativeLabelFilterSections[currentSection] {
 				if len(result) > 0 {
+					// Iterate backward through result array to find context
 					for i := len(result) - 1; i >= 0; i-- {
 						prevLine := result[i]
 						prevTrimmed := strings.TrimSpace(prevLine)
 
-						// Skip empty lines
+						// Skip empty lines - continue searching for context
 						if prevTrimmed == "" {
 							continue
 						}
 
-						// If we find "names:", and current line is an array item, comment it
+						// Found context: if previous non-empty line was a commented "names:",
+						// then current array item is part of that names array and should also be commented
 						if strings.Contains(prevTrimmed, "names:") && strings.Contains(prevTrimmed, "# Label filtering") {
 							if strings.HasPrefix(trimmedLine, "-") {
 								shouldComment = true

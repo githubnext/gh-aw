@@ -193,7 +193,16 @@ func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData
 func validateCompileConfig(config CompileConfig) error {
 	compileValidationLog.Printf("Validating compile config: files=%d, dependabot=%v, purge=%v, workflowDir=%s", len(config.MarkdownFiles), config.Dependabot, config.Purge, config.WorkflowDir)
 
-	// Validate dependabot flag usage
+	// Validate dependabot flag usage constraints
+	//
+	// The --dependabot flag compiles a special dependabot.yml configuration, not workflow files.
+	// It has specific requirements that prevent it from working with normal workflow compilation:
+	//
+	//   1. Cannot specify individual workflow files (dependabot.yml is the only output)
+	//   2. Cannot use custom --dir (dependabot.yml must be in .github/workflows by convention)
+	//
+	// Rationale: dependabot.yml has a different structure than GitHub Actions workflows and
+	// is generated from a template rather than compiled from markdown files.
 	if config.Dependabot {
 		if len(config.MarkdownFiles) > 0 {
 			compileValidationLog.Print("Config validation failed: dependabot flag with specific files")
@@ -205,13 +214,31 @@ func validateCompileConfig(config CompileConfig) error {
 		}
 	}
 
-	// Validate purge flag usage
+	// Validate purge flag usage constraints
+	//
+	// The --purge flag removes .lock.yml files that don't have corresponding .md sources.
+	// It only makes sense when compiling all workflows in a directory, not specific files.
+	//
+	// Rationale: When compiling specific files, the user explicitly chose which workflows
+	// to compile. Purging unrelated lock files would be unexpected behavior.
+	//
+	// Example:
+	//   ✓ gh aw compile --purge               (compile all, clean orphaned locks)
+	//   ✗ gh aw compile workflow.md --purge   (ambiguous: purge what?)
 	if config.Purge && len(config.MarkdownFiles) > 0 {
 		compileValidationLog.Print("Config validation failed: purge flag with specific files")
 		return fmt.Errorf("--purge flag can only be used when compiling all markdown files (no specific files specified)")
 	}
 
-	// Validate workflow directory path
+	// Validate workflow directory path constraints
+	//
+	// The --dir flag specifies a relative directory path for workflow discovery.
+	// Absolute paths are rejected because:
+	//   1. They break portability (paths differ across machines)
+	//   2. They can leak sensitive path information
+	//   3. They bypass repository-relative path resolution
+	//
+	// Expected usage: --dir .github/workflows (relative to repo root)
 	if config.WorkflowDir != "" && filepath.IsAbs(config.WorkflowDir) {
 		compileValidationLog.Printf("Config validation failed: absolute path in workflowDir: %s", config.WorkflowDir)
 		return fmt.Errorf("--dir must be a relative path, got: %s", config.WorkflowDir)

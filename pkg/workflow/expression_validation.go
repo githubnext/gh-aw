@@ -225,9 +225,26 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 		}
 	}
 
-	// Check for OR expressions with literals (e.g., "inputs.repository || 'default'")
-	// Pattern: safe_expression || 'literal' or safe_expression || "literal" or safe_expression || `literal`
-	// Also supports numbers and booleans as literals
+	// Handle OR expressions with fallback literals (e.g., "inputs.repository || 'default'")
+	//
+	// This validation allows safe OR patterns where:
+	//   - Left side is a safe expression (e.g., inputs.repository, github.event.repository)
+	//   - Right side is a literal value (string, number, or boolean) OR another safe expression
+	//
+	// Common use cases:
+	//   - Default values: inputs.repository || 'my-org/my-repo'
+	//   - Fallback chains: needs.detect.outputs.repo || github.repository
+	//   - Conditional values: github.event.pull_request.draft || false
+	//
+	// Validation strategy:
+	//   1. Parse expression to extract left and right operands of ||
+	//   2. Recursively validate left side against authorized expressions
+	//   3. Check if right side is a literal (string/number/boolean) OR safe expression
+	//   4. Allow if both sides pass validation
+	//
+	// This prevents unsafe patterns like:
+	//   - Arbitrary code execution: inputs.x || github.run_number (both user-controlled)
+	//   - Template injection: inputs.name || steps.build.outputs.result
 	if !allowed {
 		// Match pattern: something || something_else
 		orPattern := regexp.MustCompile(`^(.+?)\s*\|\|\s*(.+)$`)
@@ -242,9 +259,11 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 
 			if leftIsSafe {
 				// Check if right side is a literal string (single, double, or backtick quotes)
+				// Literal check order: string → number → boolean
+				// This order ensures most specific checks happen first
 				// Note: Using (?:) for non-capturing group and checking each quote type separately
 				isStringLiteral := regexp.MustCompile(`^'[^']*'$|^"[^"]*"$|^` + "`[^`]*`$").MatchString(rightExpr)
-				// Check if right side is a number literal
+				// Check if right side is a number literal (supports negative and decimal)
 				isNumberLiteral := regexp.MustCompile(`^-?\d+(\.\d+)?$`).MatchString(rightExpr)
 				// Check if right side is a boolean literal
 				isBooleanLiteral := rightExpr == "true" || rightExpr == "false"
@@ -253,6 +272,7 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 					allowed = true
 				} else {
 					// If right side is also a safe expression, recursively check it
+					// This enables fallback chains: safe_expr || safe_expr
 					rightErr := validateSingleExpression(rightExpr, opts)
 					if rightErr == nil && !containsExpression(opts.UnauthorizedExpressions, rightExpr) {
 						allowed = true
@@ -262,7 +282,20 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 		}
 	}
 
-	// If not allowed as a whole, try to extract and validate property accesses from comparisons
+	// Property extraction from comparison expressions
+	//
+	// This validation allows comparisons with safe properties even if the full comparison
+	// expression isn't in the authorized list. 
+	//
+	// Example: "github.workflow == 'my-workflow'" is allowed if:
+	//   - "github.workflow" is authorized
+	//   - The comparison operator is safe (==, !=, <, >, etc.)
+	//   - The compared value is a literal
+	//
+	// This pattern is common in GitHub Actions conditionals:
+	//   if: github.event_name == 'pull_request'
+	//   if: inputs.environment != 'production'
+	//   if: needs.build.result == 'success'
 	if !allowed {
 		// Extract property accesses from comparison expressions (e.g., "github.workflow == 'value'")
 		matches := comparisonExtractionRegex.FindAllStringSubmatch(expression, -1)
