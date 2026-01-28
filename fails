@@ -1,0 +1,97 @@
+FAIL	github.com/githubnext/gh-aw/pkg/cli	600.107s
+--- FAIL: TestRenderSharedMCPConfig_CopilotFields (0.00s)
+    --- FAIL: TestRenderSharedMCPConfig_CopilotFields/Claude_engine_with_stdio_MCP_server_(no_copilot_fields) (0.00s)
+--- FAIL: TestRenderPlaywrightMCPConfigWithOptions (0.00s)
+    --- FAIL: TestRenderPlaywrightMCPConfigWithOptions/Copilot_with_inline_args_and_type/tools_fields (0.00s)
+    --- FAIL: TestRenderPlaywrightMCPConfigWithOptions/Claude/Custom_with_multi-line_args,_no_type/tools_fields (0.00s)
+--- FAIL: TestRenderPlaywrightMCPConfigTOML (0.00s)
+    --- FAIL: TestRenderPlaywrightMCPConfigTOML/Basic_Playwright_TOML_config (0.00s)
+--- FAIL: TestRenderPlaywrightMCPConfigShared (0.00s)
+    --- FAIL: TestRenderPlaywrightMCPConfigShared/basic_playwright_config_not_last (0.00s)
+    --- FAIL: TestRenderPlaywrightMCPConfigShared/basic_playwright_config_is_last (0.00s)
+    --- FAIL: TestRenderPlaywrightMCPConfigShared/playwright_config_without_domains (0.00s)
+--- FAIL: TestGitHubMCPConfiguration (0.49s)
+    --- FAIL: TestGitHubMCPConfiguration/default_Docker_server (0.49s)
+--- FAIL: TestGenerateGitHubMCPConfig (0.00s)
+    --- FAIL: TestGenerateGitHubMCPConfig/nil_github_tool (0.00s)
+    --- FAIL: TestGenerateGitHubMCPConfig/empty_github_tool_config (0.00s)
+    --- FAIL: TestGenerateGitHubMCPConfig/explicit_docker_config_(redundant) (0.00s)
+    --- FAIL: TestGenerateGitHubMCPConfig/non-map_github_tool (0.00s)
+--- FAIL: TestRenderPlaywrightMCP_JSON_Copilot (0.00s)
+--- FAIL: TestRenderPlaywrightMCP_TOML (0.00s)
+--- FAIL: TestRenderSafeOutputsMCP_JSON_Copilot (0.00s)
+--- FAIL: TestRenderSafeOutputsMCP_JSON_Claude (0.00s)
+--- FAIL: TestRenderSafeOutputsMCP_TOML (0.00s)
+--- FAIL: TestRenderGitHubMCP_JSON_Copilot_Local (0.00s)
+--- FAIL: TestRenderGitHubMCP_JSON_Claude_Local (0.00s)
+--- FAIL: TestPatchArtifactDownloadWithPushToPullRequestBranch (0.00s)
+--- FAIL: TestGenerateSafeOutputsPromptStep_IncludesWhenEnabled (0.00s)
+--- FAIL: TestParseReactionValue (0.00s)
+    --- FAIL: TestParseReactionValue/float_is_invalid (0.00s)
+--- FAIL: TestInvalidBranchPrefixRejectsConfig (0.00s)
+    --- FAIL: TestInvalidBranchPrefixRejectsConfig/too_short (0.00s)
+--- FAIL: TestCompileWorkflowWithGoRuntimeWithGoModFile (0.46s)
+--- FAIL: TestUVDetectionAddsPython (0.00s)
+--- FAIL: TestValidateSafeOutputsAllowedDomains (0.00s)
+    --- FAIL: TestValidateSafeOutputsAllowedDomains/invalid_-_wildcard_in_middle (0.00s)
+    --- FAIL: TestValidateSafeOutputsAllowedDomains/invalid_-_wildcard_at_end (0.00s)
+--- FAIL: TestValidateDomainPattern (0.00s)
+    --- FAIL: TestValidateDomainPattern/invalid_-_wildcard_in_middle (0.00s)
+    --- FAIL: TestValidateDomainPattern/invalid_-_wildcard_at_end (0.00s)
+--- FAIL: TestGetSafeOutputsToolsJSON (0.00s)
+--- FAIL: TestSandboxAgentMandatory (0.91s)
+    --- FAIL: TestSandboxAgentMandatory/sandbox.agent:_awf_enables_firewall (0.44s)
+    --- FAIL: TestSandboxAgentMandatory/default_sandbox_enables_firewall_(awf) (0.46s)
+--- FAIL: TestSandboxAgentEnablesDefaultTools (2.83s)
+    --- FAIL: TestSandboxAgentEnablesDefaultTools/auto-enabled_firewall_adds_edit_and_bash_tools (0.44s)
+--- FAIL: TestCustomAWFConfiguration (0.00s)
+    --- FAIL: TestCustomAWFConfiguration/nil_agent_config_uses_standard_installation (0.00s)
+    --- FAIL: TestCustomAWFConfiguration/agent_config_without_command_uses_standard_installation (0.00s)
+--- FAIL: TestSandboxRuntimeFeatureFlagRequired (0.89s)
+    --- FAIL: TestSandboxRuntimeFeatureFlagRequired/sandbox-runtime_without_feature_flag_fails (0.00s)
+    --- FAIL: TestSandboxRuntimeFeatureFlagRequired/sandbox-runtime_with_feature_flag_disabled_fails (0.00s)
+--- FAIL: TestValidateMountsSyntax (0.00s)
+    --- FAIL: TestValidateMountsSyntax/invalid_mount_-_too_few_parts (0.00s)
+    --- FAIL: TestValidateMountsSyntax/invalid_mount_-_too_many_parts (0.00s)
+    --- FAIL: TestValidateMountsSyntax/invalid_mount_-_empty_source (0.00s)
+    --- FAIL: TestValidateMountsSyntax/invalid_mount_-_empty_destination (0.00s)
+    --- FAIL: TestValidateMountsSyntax/mixed_valid_and_invalid_mounts (0.00s)
+--- FAIL: TestSandboxConfigWithMounts (0.00s)
+    --- FAIL: TestSandboxConfigWithMounts/invalid_mount_syntax_in_agent_config (0.00s)
+--- FAIL: TestValidateSandboxConfig (0.00s)
+    --- FAIL: TestValidateSandboxConfig/SRT_with_feature_flag_succeeds (0.00s)
+FAIL
+FAIL	github.com/githubnext/gh-aw/pkg/workflow	373.770s
+FAIL
+TestGenerateMaintenanceWorkflow_ActionModeJobs
+TestGenerateMaintenanceWorkflow_ActionModeJobs/dev_mode_-_should_include_compile-workflows_and_zizmor-scan_jobs
+TestGenerateMaintenanceWorkflow_ActionModeJobs/release_mode_-_should_NOT_include_compile-workflows_and_zizmor-scan_jobs
+TestAutoContainerizationIntegration
+TestAutoContainerizationIntegration/npx_command_auto-containerized_in_Copilot_workflow
+TestAutoContainerizationIntegration/uvx_command_auto-containerized_in_simple_custom_tool
+TestAutoContainerizationIntegration/explicit_container_overrides_auto-assignment
+TestAutoContainerizationPreservesEnvironmentVars
+TestAutoContainerAssignment
+TestAutoContainerAssignment/npx_command_gets_Node_Alpine_container
+TestAutoContainerAssignment/uvx_command_gets_Python_Alpine_container
+TestAutoContainerAssignment/explicit_container_overrides_auto-assignment
+TestAutoContainerWithArgs
+TestMCPServersCompilation
+TestRenderSharedMCPConfig_CopilotFields
+TestRenderSharedMCPConfig_CopilotFields/Claude_engine_with_stdio_MCP_server_(no_copilot_fields)
+TestRenderPlaywrightMCPConfigWithOptions
+TestRenderPlaywrightMCPConfigWithOptions/Copilot_with_inline_args_and_type/tools_fields
+TestRenderPlaywrightMCPConfigWithOptions/Claude/Custom_with_multi-line_args,_no_type/tools_fields
+TestRenderPlaywrightMCPConfigTOML
+TestRenderPlaywrightMCPConfigTOML/Basic_Playwright_TOML_config
+TestRenderPlaywrightMCPConfigShared
+TestRenderPlaywrightMCPConfigShared/basic_playwright_config_not_last
+TestRenderPlaywrightMCPConfigShared/basic_playwright_config_is_last
+TestRenderPlaywrightMCPConfigShared/playwright_config_without_domains
+TestGitHubMCPConfiguration
+TestGitHubMCPConfiguration/default_Docker_server
+TestGenerateGitHubMCPConfig
+TestGenerateGitHubMCPConfig/nil_github_tool
+TestGenerateGitHubMCPConfig/empty_github_tool_config
+TestGenerateGitHubMCPConfig/explicit_docker_config_(redundant)
+TestGenerateGitHubMCPConfig/non-map_github_tool
