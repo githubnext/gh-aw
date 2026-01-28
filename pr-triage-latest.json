@@ -1,54 +1,163 @@
 {
-  "run_date": "2026-01-27T18:14:46.243Z",
-  "run_id": "21408759013",
-  "total_prs_triaged": 10,
-  "auto_merge_candidates": [11968],
-  "fast_track_needed": [12055, 12053],
-  "batches": {
-    "batch-feature-001": {
-      "name": "Agent Container Improvements",
-      "prs": [11980, 12062, 12069],
-      "theme": "Agent environment improvements"
-    }
-  },
+  "run_date": "2026-01-28T00:34:49.205228+00:00",
+  "run_id": "21419891504",
+  "total_prs_triaged": 7,
+  "auto_merge_candidates": [
+    12135
+  ],
+  "fast_track_needed": [],
+  "batches": {},
   "close_candidates": [],
   "statistics": {
+    "total_prs": 7,
     "by_category": {
-      "feature": 4,
       "test": 1,
-      "docs": 2,
-      "refactor": 1,
-      "bug": 1,
-      "chore": 1
+      "feature": 3,
+      "docs": 1,
+      "chore": 1,
+      "refactor": 1
     },
     "by_risk": {
+      "low": 2,
       "high": 2,
-      "medium": 4,
-      "low": 4
+      "medium": 3
     },
     "by_priority": {
-      "high": 2,
+      "high": 0,
       "medium": 6,
-      "low": 2
+      "low": 1
     },
     "by_action": {
-      "auto_merge": 1,
-      "fast_track": 2,
-      "batch_review": 3,
-      "defer": 4,
-      "close": 0
+      "batch_review": 6,
+      "auto_merge": 1
     }
   },
   "pr_details": [
-    {"number": 12076, "category": "test", "risk": "low", "priority": 48, "action": "defer"},
-    {"number": 12075, "category": "docs", "risk": "low", "priority": 38, "action": "defer"},
-    {"number": 12074, "category": "refactor", "risk": "medium", "priority": 46, "action": "defer"},
-    {"number": 12069, "category": "feature", "risk": "high", "priority": 62, "action": "batch-review"},
-    {"number": 12062, "category": "feature", "risk": "medium", "priority": 58, "action": "batch-review"},
-    {"number": 12055, "category": "bug", "risk": "medium", "priority": 82, "action": "fast-track"},
-    {"number": 12053, "category": "feature", "risk": "high", "priority": 75, "action": "fast-track"},
-    {"number": 11989, "category": "docs", "risk": "low", "priority": 35, "action": "defer"},
-    {"number": 11980, "category": "feature", "risk": "medium", "priority": 68, "action": "batch-review"},
-    {"number": 11968, "category": "chore", "risk": "low", "priority": 55, "action": "auto-merge"}
+    {
+      "number": 12130,
+      "title": "Add agent-runner environment parity test suite",
+      "category": "test",
+      "risk": "low",
+      "priority": {
+        "total": 47,
+        "impact": 25,
+        "impact_rationale": "Test improvement - prevents regressions",
+        "urgency": 7,
+        "urgency_rationale": "Recent PR, CI unstable",
+        "quality": 15,
+        "quality_rationale": "CI passing"
+      },
+      "action": "batch_review",
+      "draft": true,
+      "age_hours": 1.6286680988888889
+    },
+    {
+      "number": 12062,
+      "title": "Mount recommended binaries into AWF agent container",
+      "category": "feature",
+      "risk": "high",
+      "priority": {
+        "total": 47,
+        "impact": 30,
+        "impact_rationale": "New feature - enhances capabilities",
+        "urgency": 5,
+        "urgency_rationale": "Recent PR",
+        "quality": 12,
+        "quality_rationale": "CI status unknown, ready for review"
+      },
+      "action": "batch_review",
+      "draft": false,
+      "age_hours": 7.158112551666666
+    },
+    {
+      "number": 11968,
+      "title": "Add build step and timeout updates to smoke workflows",
+      "category": "feature",
+      "risk": "medium",
+      "priority": {
+        "total": 47,
+        "impact": 30,
+        "impact_rationale": "New feature - enhances capabilities",
+        "urgency": 5,
+        "urgency_rationale": "Recent PR",
+        "quality": 12,
+        "quality_rationale": "CI status unknown, ready for review"
+      },
+      "action": "batch_review",
+      "draft": false,
+      "age_hours": 24.978390331944446
+    },
+    {
+      "number": 12085,
+      "title": "feat: mount /usr/lib shared libraries for AWF container utilities",
+      "category": "feature",
+      "risk": "high",
+      "priority": {
+        "total": 45,
+        "impact": 30,
+        "impact_rationale": "New feature - enhances capabilities",
+        "urgency": 5,
+        "urgency_rationale": "Recent PR",
+        "quality": 10,
+        "quality_rationale": "CI status unknown"
+      },
+      "action": "batch_review",
+      "draft": true,
+      "age_hours": 5.726445882222222
+    },
+    {
+      "number": 12135,
+      "title": "docs: Clarify engine selection in Quick Start guide",
+      "category": "docs",
+      "risk": "low",
+      "priority": {
+        "total": 43,
+        "impact": 18,
+        "impact_rationale": "Documentation - improves user experience",
+        "urgency": 7,
+        "urgency_rationale": "Recent PR, CI unstable",
+        "quality": 18,
+        "quality_rationale": "CI passing, small focused change"
+      },
+      "action": "auto_merge",
+      "draft": true,
+      "age_hours": 0.6389458677777778
+    },
+    {
+      "number": 12132,
+      "title": "Remove hardcoded safeoutputs tool list from agent prompt",
+      "category": "chore",
+      "risk": "medium",
+      "priority": {
+        "total": 40,
+        "impact": 20,
+        "impact_rationale": "Maintenance work",
+        "urgency": 10,
+        "urgency_rationale": "Recent PR, CI blocked",
+        "quality": 10,
+        "quality_rationale": "CI status unknown"
+      },
+      "action": "batch_review",
+      "draft": true,
+      "age_hours": 0.7139458736111111
+    },
+    {
+      "number": 12090,
+      "title": "Minor improvements for env_mirror.go",
+      "category": "refactor",
+      "risk": "medium",
+      "priority": {
+        "total": 37,
+        "impact": 22,
+        "impact_rationale": "Code quality improvement",
+        "urgency": 5,
+        "urgency_rationale": "Recent PR",
+        "quality": 10,
+        "quality_rationale": "CI status unknown"
+      },
+      "action": "batch_review",
+      "draft": true,
+      "age_hours": 5.540612546388889
+    }
   ]
 }
