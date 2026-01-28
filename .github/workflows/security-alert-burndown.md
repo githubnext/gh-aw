@@ -18,6 +18,8 @@ tools:
 safe-outputs:
   update-project:
     max: 100
+  create-agent-session:
+    base: main
 project: https://github.com/orgs/githubnext/projects/144
 ---
 
