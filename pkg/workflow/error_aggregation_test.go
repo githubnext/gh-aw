@@ -79,7 +79,7 @@ func TestStrictModeMultipleErrors(t *testing.T) {
 
 			if tt.expectError {
 				assert.Error(t, err, "expected error but got none")
-				
+
 				// Check that all expected error messages are present
 				errStr := err.Error()
 				for _, expectedMsg := range tt.errorMsgs {
@@ -95,10 +95,10 @@ func TestStrictModeMultipleErrors(t *testing.T) {
 // TestTemplateValidationMultipleErrors tests that validateNoIncludesInTemplateRegions aggregates multiple errors
 func TestTemplateValidationMultipleErrors(t *testing.T) {
 	tests := []struct {
-		name       string
-		markdown   string
-		expectErr  bool
-		errorMsgs  []string
+		name      string
+		markdown  string
+		expectErr bool
+		errorMsgs []string
 	}{
 		{
 			name: "multiple import directives in different template regions",
@@ -160,7 +160,7 @@ Some content
 
 			if tt.expectErr {
 				assert.Error(t, err, "expected error but got none")
-				
+
 				// Check that all expected error messages are present
 				errStr := err.Error()
 				for _, expectedMsg := range tt.errorMsgs {
@@ -179,7 +179,7 @@ func TestRuntimeValidationMultipleErrors(t *testing.T) {
 		// This is a complex scenario that requires proper file resolution
 		// The key improvement is that when multiple dependencies have conflicts,
 		// they are all reported together instead of one at a time
-		
+
 		mainScript := `
 const dep1 = require('./dep1.cjs');
 const dep2 = require('./dep2.cjs');
@@ -188,14 +188,14 @@ const dep2 = require('./dep2.cjs');
 			"./dep1.cjs": `const { execSync } = require('child_process'); execSync('ls');`,
 			"./dep2.cjs": `const { spawnSync } = require('child_process'); spawnSync('ls');`,
 		}
-		
+
 		err := validateNoRuntimeMixing(mainScript, sources, RuntimeModeGitHubScript)
-		
+
 		if err != nil {
 			// When there are multiple conflicts, they should all be in the error message
 			errStr := err.Error()
 			t.Logf("Got error (as expected for conflicts): %v", errStr)
-			
+
 			// The error should mention both files if both are checked
 			// Note: Due to the recursive nature and early exit on conflict,
 			// we might only see the first conflict, which is acceptable
@@ -217,10 +217,10 @@ func TestErrorsJoinUsage(t *testing.T) {
 		err1 := errors.New("error 1")
 		err2 := errors.New("error 2")
 		err3 := errors.New("error 3")
-		
+
 		result := errors.Join(err1, err2, err3)
 		assert.Error(t, result, "errors.Join should return error when given errors")
-		
+
 		errStr := result.Error()
 		assert.Contains(t, errStr, "error 1", "aggregated error should contain first error")
 		assert.Contains(t, errStr, "error 2", "aggregated error should contain second error")
@@ -229,7 +229,7 @@ func TestErrorsJoinUsage(t *testing.T) {
 
 	t.Run("errors.Join handles single error", func(t *testing.T) {
 		err1 := errors.New("single error")
-		
+
 		result := errors.Join(err1)
 		assert.Error(t, result, "errors.Join should return error for single error")
 		assert.Contains(t, result.Error(), "single error", "aggregated error should contain the error")
