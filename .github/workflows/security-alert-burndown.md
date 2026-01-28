@@ -18,6 +18,7 @@ safe-outputs:
     max: 100
   create-agent-session:
     base: main
+    max: 3
 project: https://github.com/orgs/githubnext/projects/144
 ---
 
