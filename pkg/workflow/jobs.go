@@ -44,8 +44,7 @@ type JobManager struct {
 // NewJobManager creates a new JobManager instance
 func NewJobManager() *JobManager {
 	return &JobManager{
-		jobs:     make(map[string]*Job),
-		jobOrder: make([]string, 0),
+		jobs: make(map[string]*Job),
 	}
 }
 
@@ -429,7 +428,7 @@ func (jm *JobManager) GetTopologicalOrder() ([]string, error) {
 	}
 
 	// Start with jobs that have no dependencies (in-degree = 0)
-	queue := make([]string, 0)
+	var queue []string
 	for jobName, degree := range inDegree {
 		if degree == 0 {
 			queue = append(queue, jobName)

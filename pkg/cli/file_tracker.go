@@ -32,8 +32,6 @@ func NewFileTracker() (*FileTracker, error) {
 	}
 	fileTrackerLog.Printf("File tracker initialized with git root: %s", gitRoot)
 	return &FileTracker{
-		CreatedFiles:    make([]string, 0),
-		ModifiedFiles:   make([]string, 0),
 		OriginalContent: make(map[string][]byte),
 		gitRoot:         gitRoot,
 	}, nil
@@ -83,7 +81,7 @@ func (ft *FileTracker) StageAllFiles(verbose bool) error {
 	fileTrackerLog.Printf("Staging %d tracked files", len(allFiles))
 	if len(allFiles) == 0 {
 		if verbose {
-			fmt.Println("No files to stage")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No files to stage"))
 		}
 		return nil
 	}

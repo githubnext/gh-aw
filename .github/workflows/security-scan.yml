@@ -27,7 +27,11 @@ jobs:
       - name: Run Gosec
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@v2.22.11
-          gosec -fmt sarif -out gosec-results.sarif -stdout -exclude-generated -track-suppressions ./...
+          # Exclusions configured in .golangci.yml (linters-settings.gosec.exclude)
+          # Keep this list in sync with .golangci.yml for consistency
+          gosec -fmt sarif -out gosec-results.sarif -stdout -exclude-generated -track-suppressions \
+            -exclude=G101,G115,G602,G301,G302,G304,G306 \
+            ./...
 
       - name: Upload Gosec SARIF
         uses: github/codeql-action/upload-sarif@4248455a6f2335bc3b7a8a62932f000050ec8f13 # v3

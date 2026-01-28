@@ -144,10 +144,11 @@ For each missing or incomplete feature documentation:
 If you made any documentation changes:
 
 1. **Summarize your changes** in a clear commit message
-2. **Use the `create_pull_request` tool** to create a PR
-   - **IMPORTANT**: Use the `create_pull_request` tool from safe-outputs to create the pull request
-   - Do NOT use GitHub API tools directly (like `create_pull_request` from the GitHub MCP server)
-   - The tool is automatically available because `safe-outputs.create-pull-request` is configured in the frontmatter
+2. **Call the `create_pull_request` MCP tool** to create a PR
+   - **IMPORTANT**: Call the `create_pull_request` MCP tool from the safe-outputs MCP server
+   - Do NOT use GitHub API tools directly or write JSON to files
+   - Do NOT use `create_pull_request` from the GitHub MCP server
+   - The safe-outputs MCP tool is automatically available because `safe-outputs.create-pull-request` is configured in the frontmatter
    - Call the tool with the PR title and description, and it will handle creating the branch and PR
 3. **Include in the PR description**:
    - List of features documented

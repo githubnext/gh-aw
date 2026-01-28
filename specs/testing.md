@@ -158,9 +158,9 @@ This project **intentionally avoids** mocking frameworks and test suites:
 - **Parallel execution**: Standard Go tests run in parallel efficiently
 - **Simplicity**: No suite lifecycle methods to understand
 - **Explicitness**: Setup is visible in each test
-- **Compatibility**: Works seamlessly with `go test` tooling
+- **Compatibility**: Compatible with standard `go test` tooling
 
-This approach keeps tests simple, fast, and maintainable. Tests verify real component interactions rather than mocked behavior.
+This approach keeps tests focused, fast, and maintainable. Tests verify real component interactions rather than mocked behavior.
 
 ### Running Tests
 

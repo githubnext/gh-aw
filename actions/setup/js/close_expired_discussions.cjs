@@ -28,14 +28,16 @@ function delay(ms) {
  * @param {any} github - GitHub GraphQL instance
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
- * @returns {Promise<{discussions: Array<{id: string, number: number, title: string, url: string, body: string, createdAt: string}>, stats: {pageCount: number, totalScanned: number}}>}
+ * @returns {Promise<{discussions: Array<{id: string, number: number, title: string, url: string, body: string, createdAt: string}>, stats: {pageCount: number, totalScanned: number, duplicateCount: number}}>}
  */
 async function searchDiscussionsWithExpiration(github, owner, repo) {
   const discussions = [];
+  const seenDiscussionIds = new Set(); // Track IDs to avoid duplicates
   let hasNextPage = true;
   let cursor = null;
   let pageCount = 0;
   let totalScanned = 0;
+  let duplicateCount = 0;
 
   core.info(`Starting GraphQL search for open discussions in ${owner}/${repo}`);
 
@@ -101,6 +103,15 @@ async function searchDiscussionsWithExpiration(github, owner, repo) {
 
       if (match) {
         withExpirationCount++;
+
+        // Deduplicate: check if we've already seen this discussion
+        if (seenDiscussionIds.has(discussion.id)) {
+          core.warning(`  Skipping duplicate discussion #${discussion.number} (ID: ${discussion.id}) - already seen in previous page`);
+          duplicateCount++;
+          continue;
+        }
+
+        seenDiscussionIds.add(discussion.id);
         core.info(`  Found discussion #${discussion.number} with expiration marker: "${match[1]}" - ${discussion.title}`);
         discussions.push(discussion);
       }
@@ -112,12 +123,17 @@ async function searchDiscussionsWithExpiration(github, owner, repo) {
     cursor = result.repository.discussions.pageInfo.endCursor;
   }
 
-  core.info(`Search complete: Scanned ${totalScanned} discussions across ${pageCount} pages, found ${discussions.length} with expiration markers`);
+  if (duplicateCount > 0) {
+    core.warning(`Found and skipped ${duplicateCount} duplicate discussion(s) across pages`);
+  }
+
+  core.info(`Search complete: Scanned ${totalScanned} discussions across ${pageCount} pages, found ${discussions.length} unique with expiration markers`);
   return {
     discussions,
     stats: {
       pageCount,
       totalScanned,
+      duplicateCount,
     },
   };
 }

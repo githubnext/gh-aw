@@ -187,7 +187,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"missing_tool": {
 		DefaultMax: 20,
 		Fields: map[string]FieldValidation{
-			"tool":         {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
+			"tool":         {Required: false, Type: "string", Sanitize: true, MaxLength: 128},
 			"reason":       {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
 			"alternatives": {Type: "string", Sanitize: true, MaxLength: 512},
 		},

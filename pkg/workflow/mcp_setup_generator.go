@@ -604,7 +604,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			}
 
 			// Add remaining environment variables from mcpEnvVars
-			envVarNames := make([]string, 0)
+			var envVarNames []string
 			for envVarName := range mcpEnvVars {
 				if !addedEnvVars[envVarName] {
 					envVarNames = append(envVarNames, envVarName)

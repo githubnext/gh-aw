@@ -255,10 +255,17 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		if len(jobConfig.Steps) > 0 {
 			for _, step := range jobConfig.Steps {
 				if stepMap, ok := step.(map[string]any); ok {
-					// Apply action pinning to the step before converting to YAML
-					pinnedStepMap := ApplyActionPinToStep(stepMap, data)
+					// Convert to typed step for action pinning
+					typedStep, err := MapToStep(stepMap)
+					if err != nil {
+						return nil, fmt.Errorf("failed to convert step to typed step for safe job %s: %w", jobName, err)
+					}
 
-					stepYAML, err := c.convertStepToYAML(pinnedStepMap)
+					// Apply action pinning using type-safe version
+					pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
+
+					// Convert back to map for YAML generation
+					stepYAML, err := c.convertStepToYAML(pinnedStep.ToMap())
 					if err != nil {
 						return nil, fmt.Errorf("failed to convert step to YAML for safe job %s: %w", jobName, err)
 					}

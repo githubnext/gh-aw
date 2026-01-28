@@ -1,4 +1,4 @@
-// Package workflow provides helper functions for parsing safe output configurations.
+// This file provides helper functions for parsing safe output configurations.
 //
 // This file contains parsing utilities for extracting and validating configuration
 // values from safe output config maps. These helpers are used across safe output
@@ -32,6 +32,7 @@
 // Configuration Integer Parsing:
 //   - parseExpiresFromConfig() - Extract expiration time
 //   - parseRelativeTimeSpec() - Parse relative time specifications
+
 package workflow
 
 import (

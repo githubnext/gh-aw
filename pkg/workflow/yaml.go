@@ -1,4 +1,4 @@
-// Package workflow provides utilities for compiling agentic workflows into GitHub Actions YAML.
+// This file provides utilities for compiling agentic workflows into GitHub Actions YAML.
 //
 // This file contains YAML marshaling utilities with deterministic field ordering,
 // which is essential for GitHub Actions workflows to maintain readability and consistency.
@@ -80,6 +80,7 @@
 //
 // GitHub Actions best practices:
 // https://docs.github.com/en/actions/learn-github-actions/usage-limits-billing-and-administration
+
 package workflow
 
 import (

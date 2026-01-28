@@ -1,4 +1,4 @@
-// Package cli provides command-line interface functionality for gh-aw.
+// This file provides command-line interface functionality for gh-aw.
 // This file (gateway_logs.go) contains functions for parsing and analyzing
 // MCP gateway logs from gateway.jsonl files.
 //
@@ -7,6 +7,7 @@
 //   - Extracting server and tool usage metrics
 //   - Aggregating gateway statistics
 //   - Rendering gateway metrics tables
+
 package cli
 
 import (

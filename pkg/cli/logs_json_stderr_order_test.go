@@ -146,10 +146,11 @@ func TestLogsJSONAndStderrRedirected(t *testing.T) {
 	os.Stderr = w
 
 	// Start a goroutine to read from the pipe
-	done := make(chan bool)
+	// Channel is closed by goroutine (sender) to signal completion
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		io.Copy(&combinedOutput, r)
-		done <- true
 	}()
 
 	// Call DownloadWorkflowLogs

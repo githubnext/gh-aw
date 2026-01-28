@@ -146,7 +146,7 @@ graph TD
 3. Agent Performance Analyzer identifies the agent has quality issues in this workflow
 4. Result: Single coordinated issue created referencing all three perspectives
 
-**You don't need to do anything** - the coordination happens automatically through shared memory!
+**You don't need to do anything** - the coordination happens automatically through shared memory.
 
 ## Quick Actions
 

@@ -1,4 +1,4 @@
-// Package cli provides command-line interface functionality for gh-aw.
+// This file provides command-line interface functionality for gh-aw.
 // This file (logs_display.go) contains functions for displaying workflow logs information
 // to the console, including summary tables and metrics.
 //
@@ -6,6 +6,7 @@
 //   - Rendering workflow logs overview tables
 //   - Formatting metrics for display (duration, tokens, cost)
 //   - Aggregating totals across multiple runs
+
 package cli
 
 import (

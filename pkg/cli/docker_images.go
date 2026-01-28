@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -72,7 +73,8 @@ func IsDockerImageDownloading(image string) bool {
 
 // StartDockerImageDownload starts downloading a Docker image in the background
 // Returns true if download was started, false if already downloading or available
-func StartDockerImageDownload(image string) bool {
+// The download can be cancelled by cancelling the provided context
+func StartDockerImageDownload(ctx context.Context, image string) bool {
 	// Check availability and downloading status atomically under lock
 	pullState.mu.Lock()
 	defer pullState.mu.Unlock()
@@ -103,9 +105,18 @@ func StartDockerImageDownload(image string) bool {
 		var lastOutput []byte
 
 		for attempt := 1; attempt <= maxAttempts; attempt++ {
+			// Check if context was cancelled
+			if ctx.Err() != nil {
+				dockerImagesLog.Printf("Download of image %s cancelled: %v", image, ctx.Err())
+				pullState.mu.Lock()
+				delete(pullState.downloading, image)
+				pullState.mu.Unlock()
+				return
+			}
+
 			dockerImagesLog.Printf("Attempt %d of %d: Pulling image %s", attempt, maxAttempts, image)
 
-			cmd := exec.Command("docker", "pull", image)
+			cmd := exec.CommandContext(ctx, "docker", "pull", image)
 			output, err := cmd.CombinedOutput()
 
 			if err == nil {
@@ -123,7 +134,20 @@ func StartDockerImageDownload(image string) bool {
 			// If not the last attempt, wait and retry
 			if attempt < maxAttempts {
 				dockerImagesLog.Printf("Failed to download image %s (attempt %d/%d). Retrying in %ds...", image, attempt, maxAttempts, waitTime)
-				time.Sleep(time.Duration(waitTime) * time.Second)
+
+				// Use context-aware sleep
+				select {
+				case <-time.After(time.Duration(waitTime) * time.Second):
+					// Continue to next retry
+				case <-ctx.Done():
+					// Context cancelled during sleep
+					dockerImagesLog.Printf("Download of image %s cancelled during retry wait: %v", image, ctx.Err())
+					pullState.mu.Lock()
+					delete(pullState.downloading, image)
+					pullState.mu.Unlock()
+					return
+				}
+
 				waitTime *= 2 // Exponential backoff
 			}
 		}
@@ -146,7 +170,7 @@ func StartDockerImageDownload(image string) bool {
 // Returns:
 //   - nil if all required images are available
 //   - error with retry message if any images are downloading or need to be downloaded
-func CheckAndPrepareDockerImages(useZizmor, usePoutine, useActionlint bool) error {
+func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, useActionlint bool) error {
 	var missingImages []string
 	var downloadingImages []string
 
@@ -174,7 +198,7 @@ func CheckAndPrepareDockerImages(useZizmor, usePoutine, useActionlint bool) erro
 			downloadingImages = append(downloadingImages, img.name)
 		} else {
 			// Start download
-			StartDockerImageDownload(img.image)
+			StartDockerImageDownload(ctx, img.image)
 			missingImages = append(missingImages, img.name)
 		}
 	}

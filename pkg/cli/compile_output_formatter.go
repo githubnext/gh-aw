@@ -1,4 +1,4 @@
-// Package cli provides output formatting functions for workflow compilation.
+// This file provides output formatting functions for workflow compilation.
 //
 // This file contains functions that format and display compilation results,
 // including summaries, statistics tables, and validation outputs.
@@ -19,6 +19,7 @@
 //
 // These functions abstract output formatting, allowing the main compile
 // orchestrator to focus on coordination while these handle presentation.
+
 package cli
 
 import (

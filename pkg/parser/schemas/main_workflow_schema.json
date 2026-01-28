@@ -3973,7 +3973,7 @@
     },
     "safe-outputs": {
       "type": "object",
-      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-code-scanning-alert, create-discussion, copy-project, create-issue, create-project-status-update, create-pull-request, create-pull-request-review-comment, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, missing-tool, noop, push-to-pull-request-branch, remove-labels, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
+      "$comment": "Required if workflow creates or modifies GitHub resources. Operations requiring safe-outputs: autofix-code-scanning-alert, add-comment, add-labels, add-reviewer, assign-milestone, assign-to-agent, close-discussion, close-issue, close-pull-request, create-agent-session, create-agent-task (deprecated, use create-agent-session), create-code-scanning-alert, create-discussion, copy-project, create-issue, create-project-status-update, create-pull-request, create-pull-request-review-comment, dispatch-workflow, hide-comment, link-sub-issue, mark-pull-request-as-ready-for-review, missing-tool, noop, push-to-pull-request-branch, remove-labels, threat-detection, update-discussion, update-issue, update-project, update-pull-request, update-release, upload-asset. See documentation for complete details.",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
       "examples": [
         {
@@ -5612,6 +5612,42 @@
             }
           ],
           "description": "Enable AI agents to minimize (hide) comments on issues or pull requests based on relevance, spam detection, or moderation rules."
+        },
+        "dispatch-workflow": {
+          "oneOf": [
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              },
+              "description": "Shorthand format: array of workflow names to dispatch (without .md extension). Workflows must exist in same directory and support workflow_dispatch trigger. Self-reference not allowed. Max defaults to 1."
+            },
+            {
+              "type": "object",
+              "description": "Configuration for dispatching other workflows from this workflow. Allows workflows to trigger other workflows via workflow_dispatch events. Includes self-reference prevention and path traversal protection.",
+              "properties": {
+                "workflows": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of workflow names to dispatch (without .md extension). Workflows must exist in same directory and support workflow_dispatch trigger. Self-reference not allowed."
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50,
+                  "description": "Maximum number of concurrent workflow dispatches (default: 1, maximum: 50)"
+                }
+              },
+              "required": ["workflows"],
+              "additionalProperties": false
+            }
+          ],
+          "$comment": "Self-reference prevention: workflow cannot dispatch itself (prevents infinite loops). Path traversal protection: all paths validated with isPathWithinDir(). Validation: pkg/workflow/dispatch_workflow_validation.go",
+          "description": "Enable dispatching other workflows from this workflow. Allows workflows to trigger other workflows via workflow_dispatch events with security constraints."
         },
         "missing-tool": {
           "oneOf": [

@@ -1,4 +1,4 @@
-// Package workflow provides generic package extraction utilities for agentic workflows.
+// This file provides generic package extraction utilities for agentic workflows.
 //
 // # Package Extraction Framework
 //
@@ -92,6 +92,7 @@
 //   - dependabot.go (go packages)
 //
 // For package validation, see validation.go.
+
 package workflow
 
 import (
