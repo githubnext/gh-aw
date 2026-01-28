@@ -315,31 +315,45 @@ func TestApplyActionPinToStep(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a minimal WorkflowData for testing
 			data := &WorkflowData{}
-			result := ApplyActionPinToStep(tt.stepMap, data)
+
+			// Convert to typed step
+			typedStep, err := MapToStep(tt.stepMap)
+			if err != nil {
+				t.Fatalf("Failed to convert step to typed step: %v", err)
+			}
+
+			// Apply action pinning using typed version
+			pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
+			if pinnedStep == nil {
+				t.Fatal("ApplyActionPinToTypedStep returned nil")
+			}
+
+			// Convert back to map for comparison
+			result := pinnedStep.ToMap()
 
 			// Check if uses field exists in result
 			if uses, hasUses := result["uses"]; hasUses {
 				usesStr, ok := uses.(string)
 				if !ok {
-					t.Errorf("ApplyActionPinToStep returned non-string uses field")
+					t.Errorf("ApplyActionPinToTypedStep returned non-string uses field")
 					return
 				}
 
 				if usesStr != tt.expectedUses {
-					t.Errorf("ApplyActionPinToStep uses = %q, want %q", usesStr, tt.expectedUses)
+					t.Errorf("ApplyActionPinToTypedStep uses = %q, want %q", usesStr, tt.expectedUses)
 				}
 
 				// Verify other fields are preserved (check length and keys)
 				if len(result) != len(tt.stepMap) {
-					t.Errorf("ApplyActionPinToStep changed number of fields: got %d, want %d", len(result), len(tt.stepMap))
+					t.Errorf("ApplyActionPinToTypedStep changed number of fields: got %d, want %d", len(result), len(tt.stepMap))
 				}
 				for k := range tt.stepMap {
 					if _, exists := result[k]; !exists {
-						t.Errorf("ApplyActionPinToStep lost field %q", k)
+						t.Errorf("ApplyActionPinToTypedStep lost field %q", k)
 					}
 				}
 			} else if tt.expectedUses != "" {
-				t.Errorf("ApplyActionPinToStep removed uses field when it should be %q", tt.expectedUses)
+				t.Errorf("ApplyActionPinToTypedStep removed uses field when it should be %q", tt.expectedUses)
 			}
 		})
 	}

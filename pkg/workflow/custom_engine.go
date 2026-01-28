@@ -75,7 +75,7 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 				customEngineLog.Printf("Failed to convert step to typed step, skipping action pinning: %v", err)
 				// Continue with original stepCopy without action pinning
 				stepMap := stepCopy
-				
+
 				// Prepare environment variables to merge
 				envVars := make(map[string]string)
 
