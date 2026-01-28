@@ -1,4 +1,4 @@
-// Package workflow provides sandbox validation functions for agentic workflow compilation.
+// This file provides sandbox validation functions for agentic workflow compilation.
 //
 // This file contains domain-specific validation functions for sandbox configuration:
 //   - validateMountsSyntax() - Validates container mount syntax
@@ -7,6 +7,7 @@
 // These validation functions are organized in a dedicated file following the validation
 // architecture pattern where domain-specific validation belongs in domain validation files.
 // See validation.go for the complete validation architecture documentation.
+
 package workflow
 
 import (

@@ -1,4 +1,4 @@
-// Package workflow provides embedded JavaScript scripts for GitHub Actions workflows.
+// This file provides embedded JavaScript scripts for GitHub Actions workflows.
 //
 // # Script Registry Pattern
 //
@@ -6,6 +6,7 @@
 // has been removed. Scripts are now provided by the actions/setup action at runtime.
 //
 // See script_registry.go for the ScriptRegistry implementation.
+
 package workflow
 
 import (

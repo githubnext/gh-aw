@@ -1,4 +1,4 @@
-// Package workflow provides GitHub Actions expression security validation.
+// This file provides GitHub Actions expression security validation.
 //
 // # Expression Safety Validation
 //
@@ -40,6 +40,7 @@
 //
 // For general validation, see validation.go.
 // For detailed documentation, see specs/validation-architecture.md
+
 package workflow
 
 import (

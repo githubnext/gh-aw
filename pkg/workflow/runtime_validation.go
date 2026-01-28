@@ -1,4 +1,4 @@
-// Package workflow provides runtime validation for packages, containers, and expressions.
+// This file provides runtime validation for packages, containers, and expressions.
 //
 // # Runtime Validation
 //
@@ -42,6 +42,7 @@
 //
 // For general validation, see validation.go.
 // For detailed documentation, see specs/validation-architecture.md
+
 package workflow
 
 import (

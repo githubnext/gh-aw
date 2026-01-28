@@ -285,7 +285,7 @@ func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bo
 	}
 
 	if verbose {
-		fmt.Printf("Checking if workflow '%s' exists in repository '%s'...\n", lockFileName, repoOverride)
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Checking if workflow '%s' exists in repository '%s'...", lockFileName, repoOverride)))
 	}
 
 	// Use gh CLI to list workflows in the target repository
@@ -312,8 +312,8 @@ func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bo
 	for _, wf := range workflows {
 		if strings.HasSuffix(wf.Path, lockFileName) {
 			if verbose {
-				fmt.Printf("Found workflow '%s' in repository (path: %s, state: %s)\n",
-					wf.Name, wf.Path, wf.State)
+				fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Found workflow '%s' in repository (path: %s, state: %s)",
+					wf.Name, wf.Path, wf.State)))
 			}
 			return nil
 		}

@@ -1,4 +1,4 @@
-// Package cli provides command-line interface functionality for gh-aw.
+// This file provides command-line interface functionality for gh-aw.
 // This file (logs_parsing_firewall.go) contains functionality for parsing
 // and analyzing firewall logs from workflow runs.
 //
@@ -6,6 +6,7 @@
 //   - Locating firewall logs in various directory structures
 //   - Running JavaScript firewall log parser
 //   - Generating markdown summaries of firewall activity
+
 package cli
 
 import (

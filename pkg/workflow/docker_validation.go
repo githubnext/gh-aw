@@ -1,4 +1,4 @@
-// Package workflow provides Docker image validation for agentic workflows.
+// This file provides Docker image validation for agentic workflows.
 //
 // # Docker Image Validation
 //
@@ -28,6 +28,7 @@
 // For Docker image collection functions, see docker.go.
 // For general validation, see validation.go.
 // For detailed documentation, see specs/validation-architecture.md
+
 package workflow
 
 import (

@@ -767,7 +767,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 // createPR creates a pull request using GitHub CLI and returns the PR number
 func createPR(branchName, title, body string, verbose bool) (int, string, error) {
 	if verbose {
-		fmt.Printf("Creating PR: %s\n", title)
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Creating PR: %s", title)))
 	}
 
 	// Get the current repository info to ensure PR is created in the correct repo

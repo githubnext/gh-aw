@@ -1,4 +1,4 @@
-// Package workflow provides sandbox configuration for agentic workflows.
+// This file provides sandbox configuration for agentic workflows.
 //
 // This file handles:
 //   - Sandbox type definitions (AWF, SRT)
@@ -10,6 +10,7 @@
 // Domain-specific validation functions for sandbox configuration are located in
 // sandbox_validation.go following the validation architecture pattern.
 // See validation.go for the validation architecture documentation.
+
 package workflow
 
 import (

@@ -1,4 +1,4 @@
-// Package workflow provides repository feature detection and validation.
+// This file provides repository feature detection and validation.
 //
 // # Repository Features Validation
 //
@@ -33,6 +33,7 @@
 //
 // For general validation, see validation.go.
 // For detailed documentation, see specs/validation-architecture.md
+
 package workflow
 
 import (

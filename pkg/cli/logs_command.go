@@ -1,4 +1,4 @@
-// Package cli provides command-line interface functionality for gh-aw.
+// This file provides command-line interface functionality for gh-aw.
 // This file (logs_command.go) contains the CLI command definition for the logs command.
 //
 // Key responsibilities:
@@ -6,6 +6,7 @@
 //   - Parsing command-line arguments and flags
 //   - Validating inputs (workflow names, dates, engine parameters)
 //   - Delegating execution to the orchestrator (DownloadWorkflowLogs)
+
 package cli
 
 import (

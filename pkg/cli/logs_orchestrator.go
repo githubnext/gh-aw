@@ -1,4 +1,4 @@
-// Package cli provides command-line interface functionality for gh-aw.
+// This file provides command-line interface functionality for gh-aw.
 // This file (logs_orchestrator.go) contains the main orchestration logic for downloading
 // and processing workflow logs from GitHub Actions.
 //
@@ -8,6 +8,7 @@
 //   - Concurrent downloading of artifacts from multiple runs
 //   - Applying filters (engine, firewall, staged, campaign, etc.)
 //   - Building and rendering output (console, JSON, tool graphs)
+
 package cli
 
 import (

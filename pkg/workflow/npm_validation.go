@@ -1,4 +1,4 @@
-// Package workflow provides NPM package validation for agentic workflows.
+// This file provides NPM package validation for agentic workflows.
 //
 // # NPM Package Validation
 //
@@ -28,6 +28,7 @@
 // For package extraction functions, see npm.go.
 // For general validation, see validation.go.
 // For detailed documentation, see specs/validation-architecture.md
+
 package workflow
 
 import (
