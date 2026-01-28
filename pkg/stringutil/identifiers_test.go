@@ -199,7 +199,7 @@ func TestMarkdownToLockFile(t *testing.T) {
 		{
 			name:     "absolute path",
 			input:    "/home/user/.github/workflows/daily.md",
-			expected: "/home/runner/.github/workflows/daily.lock.yml",
+			expected: "/home/user/.github/workflows/daily.lock.yml",
 		},
 	}
 

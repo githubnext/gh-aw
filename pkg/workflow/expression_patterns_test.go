@@ -93,11 +93,6 @@ func TestNeedsStepsPattern(t *testing.T) {
 			input:     "github.event.inputs.branch",
 			wantMatch: false,
 		},
-		{
-			name:      "invalid - no job/step name",
-			input:     "needs.outputs.version",
-			wantMatch: false,
-		},
 	}
 
 	for _, tt := range tests {

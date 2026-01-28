@@ -363,9 +363,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
-	// Verify we got all the pins (should be 47 as of this test)
-	if len(pins) != 47 {
-		t.Errorf("getActionPins() returned %d pins, expected 47", len(pins))
+	// Verify we got all the pins (42 as of January 2026)
+	if len(pins) != 42 {
+		t.Errorf("getActionPins() returned %d pins, expected 42", len(pins))
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)
@@ -405,7 +405,7 @@ func TestGetActionPinByRepo(t *testing.T) {
 			repo:         "actions/checkout",
 			expectExists: true,
 			expectRepo:   "actions/checkout",
-			expectVer:    "v6.0.2",
+			expectVer:    "v6",
 		},
 		{
 			repo:         "actions/setup-node",

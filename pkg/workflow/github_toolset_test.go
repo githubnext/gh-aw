@@ -81,7 +81,7 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 				"toolsets": []string{"repos", "issues", "pull_requests"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=repos,issues,pull_requests"`,
+				`"GITHUB_TOOLSETS": "repos,issues,pull_requests"`,
 			},
 			notInYAML: []string{},
 		},
@@ -101,7 +101,7 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 				"toolsets": []string{"all"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=all"`,
+				`"GITHUB_TOOLSETS": "all"`,
 			},
 			notInYAML: []string{},
 		},
@@ -111,7 +111,7 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 				"toolsets": []string{"default"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=context,repos,issues,pull_requests"`,
+				`"GITHUB_TOOLSETS": "context,repos,issues,pull_requests"`,
 			},
 			notInYAML: []string{},
 		},
@@ -121,7 +121,7 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 				"toolsets": []string{"default", "discussions"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=context,repos,issues,pull_requests,discussions"`,
+				`"GITHUB_TOOLSETS": "context,repos,issues,pull_requests,discussions"`,
 			},
 			notInYAML: []string{},
 		},
@@ -170,7 +170,7 @@ func TestCopilotEngineGitHubToolsetsRendering(t *testing.T) {
 				"toolsets": []string{"repos", "issues", "pull_requests"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=repos,issues,pull_requests"`,
+				`"GITHUB_TOOLSETS": "repos,issues,pull_requests"`,
 			},
 			notInYAML: []string{},
 		},
@@ -190,7 +190,7 @@ func TestCopilotEngineGitHubToolsetsRendering(t *testing.T) {
 				"toolsets": []string{"default"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=context,repos,issues,pull_requests"`,
+				`"GITHUB_TOOLSETS": "context,repos,issues,pull_requests"`,
 			},
 			notInYAML: []string{},
 		},
@@ -200,7 +200,7 @@ func TestCopilotEngineGitHubToolsetsRendering(t *testing.T) {
 				"toolsets": []string{"default", "actions"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=context,repos,issues,pull_requests,actions"`,
+				`"GITHUB_TOOLSETS": "context,repos,issues,pull_requests,actions"`,
 			},
 			notInYAML: []string{},
 		},
@@ -249,7 +249,7 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 				"toolsets": []string{"repos", "issues"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=repos,issues"`,
+				`"GITHUB_TOOLSETS" = "repos,issues"`,
 			},
 			notInYAML: []string{},
 		},
@@ -269,7 +269,7 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 				"toolsets": []string{"default"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=context,repos,issues,pull_requests"`,
+				`"GITHUB_TOOLSETS" = "context,repos,issues,pull_requests"`,
 			},
 			notInYAML: []string{},
 		},
@@ -279,7 +279,7 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 				"toolsets": []string{"default", "discussions"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=context,repos,issues,pull_requests,discussions"`,
+				`"GITHUB_TOOLSETS" = "context,repos,issues,pull_requests,discussions"`,
 			},
 			notInYAML: []string{},
 		},

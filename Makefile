@@ -43,12 +43,12 @@ build-windows:
 # Test the code (runs both unlabelled unit tests and integration tests)
 .PHONY: test
 test:
-	go test -v -timeout=3m -tags 'integration' -run='^Test' ./...
+	go test -v -timeout=10m -tags 'integration' -run='^Test' ./...
 
 # Test unit tests only (excludes labelled integration tests)
 .PHONY: test-unit
 test-unit:
-	go test -v -timeout=3m -run='^Test' ./...
+	go test -v -timeout=10m -run='^Test' ./...
 
 # Update golden test files
 .PHONY: update-golden

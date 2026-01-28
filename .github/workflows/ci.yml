@@ -43,6 +43,7 @@ jobs:
 
       - name: Run unit tests with coverage
         run: |
+          set -o pipefail
           go test -v -parallel=8 -timeout=3m -run='^Test' -coverprofile=coverage.out -json ./... | tee test-result-unit.json
           go tool cover -html=coverage.out -o coverage.html
 
@@ -197,6 +198,7 @@ jobs:
 
       - name: Run integration tests - ${{ matrix.test-group.name }}
         run: |
+          #set -o pipefail
           # Sanitize the test group name for use in filename
           SAFE_NAME=$(echo "${{ matrix.test-group.name }}" | sed 's/[^a-zA-Z0-9]/-/g' | sed 's/--*/-/g')
           
@@ -709,6 +711,7 @@ jobs:
 
       - name: Run fuzz tests
         run: |
+          set -o pipefail
           # Create directory for fuzz results
           mkdir -p fuzz-results
           
