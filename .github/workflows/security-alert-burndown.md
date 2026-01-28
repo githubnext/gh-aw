@@ -14,11 +14,11 @@ tools:
   github:
     toolsets: [repos, issues, pull_requests]
 safe-outputs:
+  github-token: ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   update-project:
     max: 100
   create-issue:
     max: 1
-    labels: [security, agentic-campaign, z_campaign_security-alert-burndown]
   assign-to-agent:
     max: 1
     name: copilot
