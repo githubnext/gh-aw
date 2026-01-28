@@ -820,6 +820,46 @@ It uses the Diátaxis framework and GitHub-flavored markdown with Astro Starligh
 
 See [documentation skill](skills/documentation/SKILL.md) for details.
 
+### Documentation Templates
+
+Reusable documentation templates are available in `pkg/workflow/templates/` to reduce token usage when creating workflow documentation:
+
+**Available Templates**:
+- **INDEX.template.md** - Navigation structure with links to all documentation files
+- **README.template.md** - Setup guide with prerequisites, installation, and quick start
+- **QUICKREF.template.md** - Command reference with common patterns and troubleshooting
+- **EXAMPLE.template.md** - Sample outputs and use case demonstrations
+- **CONFIG.template.md** - Configuration reference and deployment checklist
+
+**Template Usage**:
+- Templates use `{{PLACEHOLDER}}` syntax for workflow-specific content
+- All placeholders use UPPERCASE_WITH_UNDERSCORES format
+- Templates include consistent navigation links between documentation files
+- Use templates as starting points and fill in placeholders with specific values
+
+**Example Placeholders**:
+```markdown
+{{WORKFLOW_NAME}}          # Name of the workflow
+{{WORKFLOW_DESCRIPTION}}   # Brief description
+{{REPOSITORY_URL}}         # Repository URL
+{{COMMAND_1}}              # First command example
+{{EXAMPLE_1_TITLE}}        # Title for first example
+```
+
+**Benefits**:
+- Reduces token consumption by providing pre-structured documentation
+- Maintains consistency across workflow documentation
+- Includes best practices for navigation and organization
+- Ensures completeness with sections for all common documentation needs
+
+**Testing**:
+Templates have comprehensive tests in `pkg/workflow/documentation_templates_test.go` that validate:
+- Template file existence
+- Required sections and placeholders
+- Consistent placeholder syntax
+- Proper internal linking
+- Markdown structure validity
+
 ### Legacy Support
 
 This project is still in an experimental phase. When you are requested to make a change, do not add fallback or legacy support unless explicitly instructed.
