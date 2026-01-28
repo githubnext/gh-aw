@@ -104,7 +104,7 @@ func TestCompilerPanicRecovery_ErrorFormat(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	workflowPath := filepath.Join(tempDir, "test.md")
-	
+
 	// Create an invalid workflow that might trigger errors
 	invalidContent := `---
 name: Test
@@ -154,7 +154,7 @@ func TestGenerateYAML_PanicRecovery(t *testing.T) {
 
 	// Call generateYAML (internal method, but we test it to ensure panic recovery works)
 	yamlContent, err := compiler.generateYAML(workflowData, markdownPath)
-	
+
 	// Should not panic - either succeeds or returns proper error
 	if err != nil {
 		t.Logf("YAML generation error (may be expected): %v", err)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestRunAddInteractive_PanicRecovery verifies panic recovery in interactive add
@@ -17,9 +18,9 @@ func TestRunAddInteractive_PanicRecovery(t *testing.T) {
 
 	// Test that the function returns proper error instead of panicking
 	err := RunAddInteractive(context.Background(), []string{"test/repo/workflow"}, false, "", false, "", false, "")
-	
+
 	// Should get error about test mode, not a panic
-	assert.Error(t, err, "Should return error in test mode")
+	require.Error(t, err, "Should return error in test mode")
 	assert.Contains(t, err.Error(), "automated tests", "Should mention test mode restriction")
 	assert.NotContains(t, err.Error(), "panic", "Should not be a panic error in normal error path")
 }
@@ -34,9 +35,9 @@ func TestInitRepositoryInteractive_PanicRecovery(t *testing.T) {
 
 	// Test that the function returns proper error instead of panicking
 	err := InitRepositoryInteractive(false, mockCmd)
-	
+
 	// Should get error about test mode, not a panic
-	assert.Error(t, err, "Should return error in test mode")
+	require.Error(t, err, "Should return error in test mode")
 	assert.Contains(t, err.Error(), "automated tests", "Should mention test mode restriction")
 	assert.NotContains(t, err.Error(), "panic", "Should not be a panic error in normal error path")
 }
@@ -53,14 +54,14 @@ func TestRunWorkflowTrials_PanicRecovery(t *testing.T) {
 
 	// Test that invalid specs return proper errors, not panics
 	err := RunWorkflowTrials([]string{"invalid-spec-format"}, opts)
-	
+
 	// Should get a validation error, not a panic
-	assert.Error(t, err, "Should return error for invalid spec")
+	require.Error(t, err, "Should return error for invalid spec")
 	// The error should be about the invalid specification format
 	assert.True(t,
 		strings.Contains(err.Error(), "invalid") || strings.Contains(err.Error(), "panic"),
 		"Error should be about invalid spec or be a recovered panic with stack trace")
-	
+
 	// If it's a recovered panic, it should have stack trace
 	if strings.Contains(err.Error(), "panic") {
 		assert.Contains(t, err.Error(), "stack trace", "Recovered panic should include stack trace")
@@ -71,13 +72,13 @@ func TestRunWorkflowTrials_PanicRecovery(t *testing.T) {
 func TestCheckForUpdates_PanicRecovery(t *testing.T) {
 	// checkForUpdates is internal but we can test the pattern
 	// The function should never panic even with network issues
-	
+
 	// Set CI mode to skip actual update check
 	t.Setenv("CI", "true")
-	
+
 	// Call checkForUpdates - should not panic even in CI mode
 	checkForUpdates(false, false)
-	
+
 	// If we got here without panic, the test passes
 	// The function handles all errors internally and never returns errors
 }
@@ -103,11 +104,11 @@ func (m *mockCommandProvider) GenFishCompletion(w io.Writer, includeDesc bool) e
 func TestPanicRecoveryFormat_ErrorStructure(t *testing.T) {
 	// Test that if a panic is recovered, it follows the expected format
 	// This is tested indirectly through the actual functions
-	
+
 	tests := []struct {
-		name           string
-		errorMsg       string
-		shouldBePanic  bool
+		name          string
+		errorMsg      string
+		shouldBePanic bool
 	}{
 		{
 			name:          "Normal error",
