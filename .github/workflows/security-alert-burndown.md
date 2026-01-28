@@ -12,12 +12,12 @@ permissions:
   security-events: read
 tools:
   github:
-    read-only: true
-    github-token: "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-    toolsets: [repos, issues, pull_requests, code_security, secret_protection]
+    toolsets: [repos, issues, pull_requests, code_security]
 safe-outputs:
   update-project:
     max: 100
+  create-agent-session:
+    base: main
 project: https://github.com/orgs/githubnext/projects/144
 ---
 
@@ -32,16 +32,6 @@ This workflow discovers security alert work items in the githubnext/gh-aw reposi
 ## Task
 
 You need to discover and update security work items on the project board. Follow these steps:
-
-### Step 0: Token Prerequisite (for Secret Scanning)
-
-Secret scanning alerts frequently return `403 Resource not accessible by integration` when the workflow falls back to the built-in `GITHUB_TOKEN`.
-
-To enable secret scanning discovery, configure one of these repository secrets:
-- `GH_AW_GITHUB_MCP_SERVER_TOKEN` (preferred)
-- `GH_AW_GITHUB_TOKEN`
-
-Use a token that can read secret scanning alerts for `githubnext/gh-aw` (a fine-grained PAT with **Secret scanning alerts: Read** is the safest option).
 
 ### Step 1: Discover Dependabot PRs
 
@@ -141,7 +131,24 @@ Notes:
 
 Ordering tip: update alert-related items first, then Dependabot PRs.
 
-### Step 7: Report
+### Step 7: Assign work
+
+**Dependabot Burndown Rules**:
+
+- Group work by **runtime** (Node.js, Python, etc.). Never mix runtimes.
+- Group changes by **target dependency file**. Each PR must modify **one manifest (and its lockfile) only**.
+- Bundle updates **only within a single target file**.
+- Patch and minor updates **may be bundled**; major updates **should be isolated** unless dependencies are tightly coupled.
+- Bundled releases **must include a research report** describing:
+  - Packages updated and old → new versions
+  - Breaking or behavioral changes
+  - Migration steps or code impact
+  - Risk level and test coverage impact
+- Prioritize **security alerts and high-risk updates** first within each runtime.
+- Enforce **one runtime + one target file per PR**.
+- All PRs must pass **CI and relevant runtime tests** before merge.
+
+### Step 8: Report
 
 Summarize how many items were discovered and added/updated on the project board, broken down by category.
 
