@@ -56,7 +56,6 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 
 	// Add description comment if provided
 	if data.Description != "" {
-		// Strip ANSI escape codes to prevent terminal color codes in YAML
 		cleanDescription := stringutil.StripANSIEscapeCodes(data.Description)
 		// Split description into lines and prefix each with "# "
 		descriptionLines := strings.Split(strings.TrimSpace(cleanDescription), "\n")
@@ -68,7 +67,6 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// Add source comment if provided
 	if data.Source != "" {
 		yaml.WriteString("#\n")
-		// Strip ANSI escape codes from source path
 		cleanSource := stringutil.StripANSIEscapeCodes(data.Source)
 		fmt.Fprintf(yaml, "# Source: %s\n", cleanSource)
 	}
@@ -81,7 +79,6 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		if len(data.ImportedFiles) > 0 {
 			yaml.WriteString("#   Imports:\n")
 			for _, file := range data.ImportedFiles {
-				// Strip ANSI escape codes from file paths
 				cleanFile := stringutil.StripANSIEscapeCodes(file)
 				fmt.Fprintf(yaml, "#     - %s\n", cleanFile)
 			}
@@ -90,7 +87,6 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		if len(data.IncludedFiles) > 0 {
 			yaml.WriteString("#   Includes:\n")
 			for _, file := range data.IncludedFiles {
-				// Strip ANSI escape codes from file paths
 				cleanFile := stringutil.StripANSIEscapeCodes(file)
 				fmt.Fprintf(yaml, "#     - %s\n", cleanFile)
 			}
@@ -100,7 +96,6 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// Add stop-time comment if configured
 	if data.StopTime != "" {
 		yaml.WriteString("#\n")
-		// Strip ANSI escape codes from stop time
 		cleanStopTime := stringutil.StripANSIEscapeCodes(data.StopTime)
 		fmt.Fprintf(yaml, "# Effective stop-time: %s\n", cleanStopTime)
 	}
@@ -108,7 +103,6 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	// Add manual-approval comment if configured
 	if data.ManualApproval != "" {
 		yaml.WriteString("#\n")
-		// Strip ANSI escape codes from manual approval environment
 		cleanManualApproval := stringutil.StripANSIEscapeCodes(data.ManualApproval)
 		fmt.Fprintf(yaml, "# Manual approval required: environment '%s'\n", cleanManualApproval)
 	}
