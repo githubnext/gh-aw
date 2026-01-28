@@ -1227,6 +1227,57 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			wantErr:     true,
 			errContains: "additional properties",
 		},
+		{
+			name: "invalid name too long (257 chars)",
+			frontmatter: map[string]any{
+				"on":   "workflow_dispatch",
+				"name": strings.Repeat("a", 257),
+			},
+			wantErr:     true,
+			errContains: "maxLength",
+		},
+		{
+			name: "valid name at max length (256 chars)",
+			frontmatter: map[string]any{
+				"on":   "workflow_dispatch",
+				"name": strings.Repeat("a", 256),
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid description too long (10001 chars)",
+			frontmatter: map[string]any{
+				"on":          "workflow_dispatch",
+				"description": strings.Repeat("a", 10001),
+			},
+			wantErr:     true,
+			errContains: "maxLength",
+		},
+		{
+			name: "valid description at max length (10000 chars)",
+			frontmatter: map[string]any{
+				"on":          "workflow_dispatch",
+				"description": strings.Repeat("a", 10000),
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid tracker-id too long (129 chars)",
+			frontmatter: map[string]any{
+				"on":         "workflow_dispatch",
+				"tracker-id": strings.Repeat("a", 129),
+			},
+			wantErr:     true,
+			errContains: "maxLength",
+		},
+		{
+			name: "valid tracker-id at max length (128 chars)",
+			frontmatter: map[string]any{
+				"on":         "workflow_dispatch",
+				"tracker-id": strings.Repeat("a", 128),
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

@@ -286,18 +286,25 @@ See the [ProjectOps Guide](/gh-aw/examples/issue-pr-events/projectops/) for impl
 
 An initiative that coordinates multiple agentic workflows toward a shared goal. Agentic campaigns can be enterprise-scale, with explicit ownership, approval gates, and executive visibility.
 
-Campaigns use `.campaign.md` files where YAML frontmatter defines configuration (project URL, workflows, scope, governance) and the markdown body defines narrative context (objective, KPIs, timeline). The orchestrator discovers and tracks work, executes workflows sequentially, and can create missing workflows if needed.
+:::caution[File format deprecated]
+The `.campaign.md` file format is **deprecated**. Use the `project` field in workflow frontmatter for project tracking instead. See [Project Tracking](/gh-aw/reference/frontmatter/#project-tracking-project).
+:::
+
+Campaigns previously used `.campaign.md` files where YAML frontmatter defined configuration (project URL, workflows, scope, governance) and the markdown body defined narrative context (objective, KPIs, timeline). The current approach uses the `project` field in regular workflow frontmatter:
 
 ```yaml
-# Campaign example
-id: framework-upgrade
-project-url: "https://github.com/orgs/ORG/projects/1"
-workflows:
-  - framework-scanner   # Will be created if missing
-  - framework-upgrader  # Will be created if missing
-```
+# Current approach - workflow frontmatter with project field
+---
+on:
+  schedule:
+    - cron: "0 0 * * *"
+project:
+  url: https://github.com/orgs/myorg/projects/1
+  workflows:
+    - framework-scanner
+    - framework-upgrader
+---
 
-```markdown
 # Framework Upgrade
 
 ## Objective
@@ -320,9 +327,7 @@ Upgrade all services to Framework vNext.
 - Cross-team and cross-repository coordination
 - Executive dashboards and KPI reporting
 
-**File naming:** Use `.campaign.md` extension (e.g., `<campaign-id>.campaign.md`)
-
-See the [Agentic campaigns Guide](/gh-aw/guides/campaigns/) for implementation patterns and examples.
+See the [Agentic campaigns Guide](/gh-aw/guides/campaigns/) for implementation patterns (note: guides describe deprecated format).
 
 ### Command Triggers
 

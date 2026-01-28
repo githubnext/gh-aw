@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/stringutil"
 
@@ -28,7 +29,7 @@ permissions:
   contents: read
 engine: copilot
 ---`,
-			expectedTimeout: constants.DefaultAgenticWorkflowTimeoutMinutes,
+			expectedTimeout: int(constants.DefaultAgenticWorkflowTimeout / time.Minute),
 			description:     "When timeout-minutes is not specified, default should be applied",
 		},
 		{
@@ -139,10 +140,11 @@ func TestDefaultTimeoutMinutesConstantValue(t *testing.T) {
 	// If this test fails, it means the constant was changed and documentation
 	// should be updated accordingly
 	expectedDefault := 20
-	if constants.DefaultAgenticWorkflowTimeoutMinutes != expectedDefault {
-		t.Errorf("DefaultAgenticWorkflowTimeoutMinutes constant is %d, but test expects %d. "+
+	actualDefault := int(constants.DefaultAgenticWorkflowTimeout / time.Minute)
+	if actualDefault != expectedDefault {
+		t.Errorf("DefaultAgenticWorkflowTimeout constant is %d minutes, but test expects %d. "+
 			"If you changed the constant, please update the schema documentation in pkg/parser/schemas/main_workflow_schema.json",
-			constants.DefaultAgenticWorkflowTimeoutMinutes, expectedDefault)
+			actualDefault, expectedDefault)
 	}
 }
 
@@ -159,8 +161,8 @@ func TestSchemaDocumentationMatchesConstant(t *testing.T) {
 	if !strings.Contains(string(schemaContent), expectedText) {
 		t.Errorf("Schema documentation does not mention the correct default timeout.\n"+
 			"Expected to find: %q\n"+
-			"Please update the timeout-minutes description in %s to match DefaultAgenticWorkflowTimeoutMinutes constant (%d minutes)",
-			expectedText, schemaPath, constants.DefaultAgenticWorkflowTimeoutMinutes)
+			"Please update the timeout-minutes description in %s to match DefaultAgenticWorkflowTimeout constant (%d minutes)",
+			expectedText, schemaPath, int(constants.DefaultAgenticWorkflowTimeout/time.Minute))
 	}
 
 	// Count occurrences - should appear at least twice (timeout-minutes and timeout_minutes deprecated)

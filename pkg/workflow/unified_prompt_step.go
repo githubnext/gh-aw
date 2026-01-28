@@ -275,8 +275,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 		enabledTools := GetEnabledSafeOutputToolNames(data.SafeOutputs)
 		if len(enabledTools) > 0 {
 			unifiedPromptLog.Printf("Adding safe outputs section: tools=%d", len(enabledTools))
-			toolsList := strings.Join(enabledTools, ", ")
-			safeOutputsContent := fmt.Sprintf(`<safe-outputs>
+			safeOutputsContent := `<safe-outputs>
 <description>GitHub API Access Instructions</description>
 <important>
 The gh CLI is NOT authenticated. Do NOT use gh commands for GitHub operations.
@@ -284,11 +283,11 @@ The gh CLI is NOT authenticated. Do NOT use gh commands for GitHub operations.
 <instructions>
 To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
 
-**Available tools**: %s
+Discover available tools from the safeoutputs MCP server.
 
 **Critical**: Tool calls write structured data that downstream jobs process. Without tool calls, follow-up actions will be skipped.
 </instructions>
-</safe-outputs>`, toolsList)
+</safe-outputs>`
 			sections = append(sections, PromptSection{
 				Content: safeOutputsContent,
 				IsFile:  false,
@@ -332,7 +331,7 @@ To create or modify GitHub resources (issues, discussions, pull requests, etc.),
 		// This checks for issue_comment, pull_request_review_comment, or pull_request_review events
 		// For issue_comment, we also need to check if it's on a PR (github.event.issue.pull_request != null)
 		// However, for simplicity in the unified step, we'll add an environment variable to check this
-		shellCondition := `[ "$GITHUB_EVENT_NAME" = "issue_comment" -a -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]`
+		shellCondition := `[ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]`
 
 		// Add environment variable to check if issue_comment is on a PR
 		envVars := map[string]string{

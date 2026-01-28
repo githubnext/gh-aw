@@ -49,6 +49,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Build initial workflow data structure
 	workflowData := c.buildInitialWorkflowData(result, toolsResult, engineSetup, engineSetup.importsResult)
+	// Store a stable workflow identifier derived from the file name.
+	workflowData.WorkflowID = GetWorkflowIDFromPath(cleanPath)
 
 	// Use shared action cache and resolver from the compiler
 	actionCache, actionResolver := c.getSharedActionResolver()
@@ -336,6 +338,9 @@ func (c *Compiler) extractAdditionalConfigurations(
 
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
+
+	// Apply project safe-outputs if project field is present
+	workflowData.SafeOutputs = c.applyProjectSafeOutputs(frontmatter, workflowData.SafeOutputs)
 
 	// Extract safe-inputs configuration
 	workflowData.SafeInputs = c.extractSafeInputsConfig(frontmatter)

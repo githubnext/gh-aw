@@ -14,6 +14,7 @@ var compilerSafeOutputsConfigLog = logger.New("workflow:compiler_safe_outputs_co
 var autoEnabledHandlers = map[string]bool{
 	"missing_tool": true,
 	"missing_data": true,
+	"noop":         true,
 }
 
 // handlerConfigBuilder provides a fluent API for building handler configurations
@@ -398,6 +399,15 @@ var handlerRegistry = map[string]handlerBuilder{
 			return nil
 		}
 		c := cfg.MissingData
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			Build()
+	},
+	"noop": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.NoOp == nil {
+			return nil
+		}
+		c := cfg.NoOp
 		return newHandlerConfigBuilder().
 			AddIfPositive("max", c.Max).
 			Build()
