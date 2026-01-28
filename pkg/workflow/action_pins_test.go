@@ -1595,8 +1595,8 @@ func TestSliceToStepsWithActionPinning(t *testing.T) {
 			wantCount: 3,
 		},
 		{
-			name: "empty steps slice",
-			steps: []any{},
+			name:      "empty steps slice",
+			steps:     []any{},
 			wantErr:   false,
 			wantCount: 0,
 		},

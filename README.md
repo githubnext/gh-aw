@@ -61,6 +61,8 @@ Security is foundational to GitHub Agentic Workflows. Workflows run with read-on
 
 For complete documentation, examples, and guides, see the [Documentation](https://githubnext.github.io/gh-aw/).
 
+**Research & Best Practices**: Learn from our [Agent Persona Exploration research](https://githubnext.github.io/gh-aw/research/agent-persona-exploration-2026-01/) which analyzed 6 production scenarios achieving a 4.97/5.0 quality score, and explore proven [workflow patterns](https://githubnext.github.io/gh-aw/best-practices/workflow-patterns/) for triggers, tools, security, and documentation.
+
 ## Contributing
 
 We welcome contributions to GitHub Agentic Workflows! Here's how you can help:

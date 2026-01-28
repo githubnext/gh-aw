@@ -988,6 +988,55 @@ Before EVERY commit:
 - Use conventional commits for commit messages
 - do NOT commit explanation markdown files about the fixes
 
+## Workflow Quality Benchmarks
+
+Based on [Agent Persona Exploration research](https://githubnext.github.io/gh-aw/research/agent-persona-exploration-2026-01/), agentic workflows should meet these quality standards:
+
+### Production-Ready Quality Score: 4.97/5.0
+
+Research across 6 diverse scenarios achieved an average quality score of 4.97/5.0, establishing a high benchmark for workflow quality.
+
+### Quality Score Framework
+
+| Score | Quality Level | Characteristics |
+|-------|--------------|-----------------|
+| 5.0 | Exceptional | Production-ready, comprehensive docs, best practices throughout |
+| 4.5-4.9 | Excellent | Production-ready, good docs, minor improvements possible |
+| 4.0-4.4 | Good | Functional, basic docs, some refinement needed |
+| 3.5-3.9 | Adequate | Works but needs improvement, limited docs |
+| < 3.5 | Needs Work | Significant issues, incomplete, or poor quality |
+
+### Expected Quality Standards
+
+All production workflows should demonstrate:
+
+- ✅ **Clear purpose**: Single, well-defined responsibility
+- ✅ **Minimal permissions**: Read-only with safe-outputs for writes (100% compliance in research)
+- ✅ **Appropriate triggers**: Matches use case requirements
+  - `pull_request` for code review and validation (50% of workflows)
+  - `schedule` for periodic analysis (33% of workflows)
+  - `workflow_run` for post-deployment actions (17% of workflows)
+- ✅ **Proper tools**: Only what's needed, properly configured
+  - GitHub tools: Universal (100% of workflows)
+  - Playwright: For browser automation when needed
+  - AI analysis: For pattern recognition and insights
+- ✅ **Complete documentation**: At least README with setup and examples
+- ✅ **Error handling**: Graceful failures with actionable messages
+- ✅ **Business value**: Clear ROI or benefit statement
+
+### Security Compliance (100% in Research)
+
+All workflows must maintain:
+- **Read-only permissions by default**: Never request write permissions in frontmatter
+- **Safe-outputs pattern**: All write operations through sanitized safe-outputs
+- **Network isolation**: Restrict access to required domains only
+- **No secret exposure**: Automatic sanitization of sensitive data
+
+For detailed patterns and best practices, see:
+- [Workflow Patterns & Best Practices](https://githubnext.github.io/gh-aw/best-practices/workflow-patterns/)
+- [Agent Persona Exploration Research](https://githubnext.github.io/gh-aw/research/agent-persona-exploration-2026-01/)
+- [Security Best Practices](https://githubnext.github.io/gh-aw/guides/security/)
+
 ## Operational Runbooks
 
 For investigating and resolving workflow issues:
