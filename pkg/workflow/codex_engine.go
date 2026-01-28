@@ -218,6 +218,9 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		// Always mount /tmp for temporary files, cache, and CODEX_HOME
 		awfArgs = append(awfArgs, "--mount", "/tmp:/tmp:rw")
 
+		// Mount the user's cache directory for Go build cache, npm cache, etc.
+		awfArgs = append(awfArgs, "--mount", "\"${HOME}/.cache:${HOME}/.cache:rw\"")
+
 		// Always mount the workspace directory so Codex can access it
 		awfArgs = append(awfArgs, "--mount", "\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"")
 		codexEngineLog.Print("Added workspace mount to AWF")
@@ -312,6 +315,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 			agentPath := ResolveAgentFilePath(workflowData.AgentFile)
 			command = fmt.Sprintf(`set -o pipefail
 %s
+mkdir -p "$HOME/.cache"
 AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)"
 INSTRUCTION="$(printf "%%s\n\n%%s" "$AGENT_CONTENT" "$(cat "$GH_AW_PROMPT")")"
 mkdir -p "$CODEX_HOME/logs"
@@ -321,6 +325,7 @@ mkdir -p "$CODEX_HOME/logs"
 		} else {
 			command = fmt.Sprintf(`set -o pipefail
 %s
+mkdir -p "$HOME/.cache"
 INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p "$CODEX_HOME/logs"
 %s %s \
