@@ -1223,5 +1223,6 @@ describe("updateProject", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain('Missing required "project" field');
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Missing required"));
   });
 });

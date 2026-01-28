@@ -1016,8 +1016,6 @@ async function main(config = {}) {
       };
     }
 
-    processedCount++;
-
     try {
       // Validate required project field
       if (!message.project || typeof message.project !== "string" || message.project.trim() === "") {
@@ -1036,6 +1034,9 @@ async function main(config = {}) {
           error: errorMsg,
         };
       }
+
+      // Validation passed - increment processed count
+      processedCount++;
 
       // Resolve temporary project ID if present
       let effectiveProjectUrl = message.project;
