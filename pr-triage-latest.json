@@ -1,109 +1,54 @@
 {
-  "run_date": "2026-01-28T06:15:24.166037+00:00",
-  "run_id": "21427300172",
-  "total_prs_triaged": 5,
+  "run_date": "2026-01-28T12:15:24.582Z",
+  "run_id": "21437787923",
+  "total_prs_triaged": 11,
   "pr_details": [
-    {
-      "number": 11968,
-      "title": "Add build step and timeout updates to smoke workflows",
-      "category": "feature",
-      "risk": "high",
-      "priority": {
-        "total": 50,
-        "impact": 30,
-        "urgency": 5,
-        "quality": 15
-      },
-      "action": "batch_review",
-      "draft": false,
-      "created_at": "2026-01-26T23:36:07Z",
-      "age_hours": 30.654768339166665
-    },
-    {
-      "number": 12190,
-      "title": "[WIP] Eliminate redundant zero-capacity slice allocations",
-      "category": "refactor",
-      "risk": "low",
-      "priority": {
-        "total": 43,
-        "impact": 22,
-        "urgency": 12,
-        "quality": 9
-      },
-      "action": "defer",
-      "draft": true,
-      "created_at": "2026-01-28T05:59:07Z",
-      "age_hours": 0.2714349958333333
-    },
-    {
-      "number": 12085,
-      "title": "feat: mount /usr/lib shared libraries for AWF container utilities",
-      "category": "feature",
-      "risk": "high",
-      "priority": {
-        "total": 42,
-        "impact": 30,
-        "urgency": 5,
-        "quality": 7
-      },
-      "action": "defer",
-      "draft": true,
-      "created_at": "2026-01-27T18:51:14Z",
-      "age_hours": 11.402823893055556
-    },
-    {
-      "number": 12189,
-      "title": "Add package-level documentation to core packages",
-      "category": "docs",
-      "risk": "low",
-      "priority": {
-        "total": 39,
-        "impact": 18,
-        "urgency": 12,
-        "quality": 9
-      },
-      "action": "defer",
-      "draft": true,
-      "created_at": "2026-01-28T05:59:06Z",
-      "age_hours": 0.27171277666666666
-    },
-    {
-      "number": 12130,
-      "title": "Add agent-runner environment parity test suite",
-      "category": "test",
-      "risk": "low",
-      "priority": {
-        "total": 37,
-        "impact": 25,
-        "urgency": 5,
-        "quality": 7
-      },
-      "action": "defer",
-      "draft": true,
-      "created_at": "2026-01-27T22:57:06Z",
-      "age_hours": 7.305046113333334
-    }
+    {"number": 12208, "category": "bug", "risk": "high", "priority": {"total": 63, "impact": 40, "urgency": 15, "quality": 8}, "action": "batch_review", "draft": true, "age_hours": 5},
+    {"number": 11968, "category": "feature", "risk": "high", "priority": {"total": 62, "impact": 35, "urgency": 7, "quality": 20}, "action": "batch_review", "draft": false, "age_hours": 36},
+    {"number": 12245, "category": "bug", "risk": "high", "priority": {"total": 60, "impact": 40, "urgency": 15, "quality": 5}, "action": "batch_review", "draft": true, "age_hours": 0},
+    {"number": 12130, "category": "feature", "risk": "low", "priority": {"total": 53, "impact": 23, "urgency": 7, "quality": 23}, "action": "batch_review", "draft": true, "age_hours": 37},
+    {"number": 12085, "category": "feature", "risk": "high", "priority": {"total": 53, "impact": 35, "urgency": 7, "quality": 11}, "action": "batch_review", "draft": true, "age_hours": 41},
+    {"number": 12210, "category": "refactor", "risk": "low", "priority": {"total": 53, "impact": 20, "urgency": 15, "quality": 18}, "action": "batch_review", "draft": true, "age_hours": 5},
+    {"number": 12209, "category": "feature", "risk": "low", "priority": {"total": 50, "impact": 20, "urgency": 15, "quality": 15}, "action": "batch_review", "draft": true, "age_hours": 5},
+    {"number": 12207, "category": "chore", "risk": "low", "priority": {"total": 48, "impact": 25, "urgency": 15, "quality": 8}, "action": "batch_review", "draft": true, "age_hours": 5},
+    {"number": 12216, "category": "refactor", "risk": "low", "priority": {"total": 48, "impact": 20, "urgency": 15, "quality": 13}, "action": "batch_review", "draft": true, "age_hours": 4},
+    {"number": 12217, "category": "chore", "risk": "low", "priority": {"total": 48, "impact": 25, "urgency": 15, "quality": 8}, "action": "batch_review", "draft": true, "age_hours": 4},
+    {"number": 12215, "category": "feature", "risk": "low", "priority": {"total": 45, "impact": 15, "urgency": 15, "quality": 15}, "action": "batch_review", "draft": true, "age_hours": 4}
   ],
   "statistics": {
-    "total_prs": 5,
+    "total_prs": 11,
     "by_category": {
-      "feature": 2,
-      "refactor": 1,
-      "docs": 1,
-      "test": 1
+      "bug": 2,
+      "feature": 5,
+      "refactor": 2,
+      "chore": 2,
+      "docs": 0,
+      "test": 0
     },
     "by_risk": {
-      "high": 2,
-      "low": 3
+      "high": 5,
+      "medium": 0,
+      "low": 6
     },
     "by_priority": {
       "high": 0,
-      "medium": 3,
-      "low": 2
+      "medium": 11,
+      "low": 0
     },
     "by_action": {
-      "batch_review": 1,
-      "defer": 4
+      "auto_merge": 0,
+      "fast_track": 0,
+      "batch_review": 11,
+      "defer": 0,
+      "close": 0
     }
-  }
+  },
+  "batches": {
+    "batch-refactor-001": [12210, 12216],
+    "batch-config-001": [12217, 12207, 12208],
+    "batch-feature-001": [12215, 12209, 12130]
+  },
+  "auto_merge_candidates": [],
+  "fast_track_needed": [],
+  "close_candidates": []
 }
