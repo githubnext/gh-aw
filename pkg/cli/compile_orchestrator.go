@@ -230,7 +230,35 @@ func generateAndCompileCampaignOrchestrator(opts GenerateCampaignOrchestratorOpt
 	return orchestratorPath, nil
 }
 
-// CompileWorkflows compiles workflows based on the provided configuration
+// CompileWorkflows orchestrates the compilation of one or more workflow markdown files
+// into GitHub Actions YAML files (.lock.yml).
+//
+// This is the main entry point for workflow compilation. It handles:
+//   - Input validation and configuration setup
+//   - Directory resolution and file discovery
+//   - Parallel or sequential compilation of multiple workflows
+//   - Watch mode for continuous recompilation
+//   - Campaign orchestrator generation
+//   - Error aggregation and reporting
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control
+//   - config: CompileConfig with workflow files, output options, and compilation flags
+//
+// Returns:
+//   - []*workflow.WorkflowData: Compiled workflow data for each successful compilation
+//   - error: Aggregated errors from failed compilations, or nil on complete success
+//
+// The function will continue processing all workflows even if some fail, collecting
+// errors for final reporting. Use config.Validate to enable schema validation.
+// Use config.Watch to enable file watching for automatic recompilation on changes.
+//
+// Example:
+//   data, err := CompileWorkflows(ctx, CompileConfig{
+//       MarkdownFiles: []string{"workflow.md"},
+//       Validate:      true,
+//       NoEmit:        false,
+//   })
 func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.WorkflowData, error) {
 	compileOrchestratorLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v",
 		len(config.MarkdownFiles), config.Validate, config.Watch, config.NoEmit)

@@ -141,6 +141,30 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString(c.jobManager.RenderToYAML())
 }
 
+// generateYAML generates the complete GitHub Actions YAML workflow file from WorkflowData.
+//
+// This is the core YAML generation function that orchestrates the creation of a complete
+// GitHub Actions workflow with all security features, job dependencies, and execution steps.
+//
+// The generated YAML includes:
+//   - Workflow metadata (name, triggers, concurrency)
+//   - Permissions (read-only by default with explicit write grants)
+//   - Environment variables and secrets
+//   - Job definitions (main agent job, activation jobs, safe output jobs)
+//   - Step sequences for AI execution, output collection, and post-processing
+//   - Security features (SHA-pinned actions, input sanitization, network firewall)
+//
+// Parameters:
+//   - data: WorkflowData containing parsed frontmatter and workflow configuration
+//   - markdownPath: Source markdown file path for error reporting
+//
+// Returns:
+//   - string: Complete GitHub Actions YAML workflow content
+//   - error: Compilation errors or nil on success
+//
+// The function validates job dependencies, generates execution steps for the selected
+// AI engine (copilot, claude, codex, custom), and ensures all GitHub Actions best
+// practices are followed (SHA pinning, minimal permissions, timeout limits).
 func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, error) {
 	compilerYamlLog.Printf("Generating YAML for workflow: %s", data.Name)
 
@@ -264,6 +288,25 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("        run: bash /opt/gh-aw/actions/print_prompt_summary.sh\n")
 }
 
+// generatePostSteps generates custom post-execution steps from frontmatter configuration.
+//
+// Post-steps run after the AI agent completes its execution but before output collection.
+// They are useful for cleanup tasks, artifact preparation, or custom validation.
+//
+// The function processes the post-steps YAML from frontmatter (data.PostSteps) and:
+//   - Removes the "post-steps:" header line
+//   - Adjusts indentation to match GitHub Actions step format (6 spaces for step names, 8 for properties)
+//   - Preserves empty lines and structure
+//   - Generates properly formatted YAML steps
+//
+// Parameters:
+//   - yaml: StringBuilder for appending generated YAML content
+//   - data: WorkflowData containing post-steps configuration
+//
+// Example frontmatter configuration:
+//   post-steps:
+//     - name: Cleanup temporary files
+//       run: rm -rf /tmp/workspace
 func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {
 	if data.PostSteps != "" {
 		// Remove "post-steps:" line and adjust indentation, similar to CustomSteps processing
@@ -289,6 +332,35 @@ func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) 
 	}
 }
 
+// generateCreateAwInfo generates a GitHub Actions step that creates aw_info.json metadata file.
+//
+// The aw_info.json file captures essential metadata about the agentic workflow run:
+//   - Workflow name and version
+//   - AI engine and model information (resolved from engine capabilities)
+//   - Execution timestamp
+//   - Configuration flags (trial mode, safe inputs, etc.)
+//
+// This metadata is used by:
+//   - Workflow summary generation (generateWorkflowOverviewStep)
+//   - Log parsing and analysis (logs command)
+//   - Audit reports (audit command)
+//   - External integrations requiring run context
+//
+// The function performs complex model resolution:
+//   - For Claude: Uses configured model or defaults to claude-sonnet-4-20250514
+//   - For Codex: Uses configured model or "unknown"
+//   - For Copilot: Extracts model from engine.GetModel() or defaults to "unknown"
+//   - For Custom: Uses configured model or "unknown"
+//
+// Parameters:
+//   - yaml: StringBuilder for appending generated YAML content
+//   - data: WorkflowData containing workflow configuration
+//   - engine: CodingAgentEngine for model information extraction
+//
+// The generated step:
+//   - Writes aw_info.json to /tmp/gh-aw/ (excluded from PR changes)
+//   - Sets 'model' as a step output for reuse in other steps/jobs
+//   - Logs the metadata to workflow logs for debugging
 func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
 	yaml.WriteString("        id: generate_aw_info\n") // Add ID for outputs
@@ -457,6 +529,33 @@ func (c *Compiler) generateWorkflowOverviewStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("            await generateWorkflowOverview(core);\n")
 }
 
+// generateOutputCollectionStep generates steps for collecting and sanitizing agent output.
+//
+// This is a critical security boundary that processes agent-generated safe outputs before
+// they are executed in separate jobs. The function creates two steps:
+//
+// 1. Upload Safe Outputs Artifact: Uploads raw JSONL output from the agent for processing
+// 2. Ingest Agent Output: Sanitizes and validates output using collect_ndjson_output.cjs
+//
+// The ingestion step performs:
+//   - JSONL parsing and validation (each line must be valid JSON)
+//   - Domain sanitization (removes URLs not in allowed domains list)
+//   - GitHub reference escaping (prevents @mention spam in outputs)
+//   - Command trigger prevention (blocks issue/PR descriptions with workflow commands)
+//   - Configuration-based filtering (respects safe_outputs allowlist)
+//
+// Environment variables passed to sanitization:
+//   - GH_AW_SAFE_OUTPUTS: Path to agent output file
+//   - GH_AW_ALLOWED_DOMAINS: Comma-separated list of allowed domains for URLs
+//   - GH_AW_ALLOWED_GITHUB_REFS: Comma-separated list of allowed @references
+//   - GH_AW_COMMAND: Command name for trigger prevention
+//   - GITHUB_SERVER_URL/GITHUB_API_URL: Dynamic GitHub domain extraction
+//
+// Parameters:
+//   - yaml: StringBuilder for appending generated YAML content
+//   - data: WorkflowData containing safe outputs configuration
+//
+// The sanitized output is then available to safe output jobs via artifact download.
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {
 	// Record artifact upload for validation
 	c.stepOrderTracker.RecordArtifactUpload("Upload Safe Outputs", []string{"${{ env.GH_AW_SAFE_OUTPUTS }}"})

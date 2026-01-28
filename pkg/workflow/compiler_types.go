@@ -419,13 +419,111 @@ type WorkflowData struct {
 	ActionPinWarnings   map[string]bool      // cache of already-warned action pin failures (key: "repo@version")
 }
 
-// BaseSafeOutputConfig holds common configuration fields for all safe output types
+// BaseSafeOutputConfig holds common configuration fields shared by all safe output types.
+//
+// These fields provide consistent behavior across all safe output handlers:
+//   - Max: Limits the number of outputs created in a single workflow run (prevents spam)
+//   - GitHubToken: Allows per-output-type token override (for cross-repository operations)
+//
+// Example usage in frontmatter:
+//   safe-outputs:
+//     create-issues:
+//       max: 5
+//       github-token: ${{ secrets.CROSS_REPO_TOKEN }}
 type BaseSafeOutputConfig struct {
 	Max         int    `yaml:"max,omitempty"`          // Maximum number of items to create
 	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
-// SafeOutputsConfig holds configuration for automatic output routes
+// SafeOutputsConfig holds configuration for all safe output types (write operations).
+//
+// Safe outputs provide a security boundary for workflow write operations. The main agent
+// job runs read-only, and write operations are gated through separate jobs that:
+//   - Sanitize agent-generated content (remove disallowed URLs, escape @mentions)
+//   - Validate operation constraints (max limits, allowed targets)
+//   - Execute with minimal permissions (e.g., issues:write, pull-requests:write)
+//   - Prevent prompt injection attacks through input validation
+//
+// # Output Types
+//
+// GitHub Issues:
+//   - CreateIssues: Create new issues with sanitized title/body
+//   - UpdateIssues: Update existing issue title/body
+//   - CloseIssues: Close issues with optional comment
+//   - AddLabels/RemoveLabels: Manage issue labels
+//   - AssignToUser/AssignToAgent: Assign issues to users or agents
+//   - AssignMilestone: Assign issues to milestones
+//   - LinkSubIssue: Link issues as sub-issues
+//
+// GitHub Pull Requests:
+//   - CreatePullRequests: Create new PRs with sanitized content
+//   - UpdatePullRequests: Update PR title/body
+//   - ClosePullRequests: Close PRs
+//   - MarkPullRequestAsReadyForReview: Convert draft PRs to ready
+//   - AddReviewer: Request PR reviews
+//   - PushToPullRequestBranch: Push commits to PR branches
+//   - CreatePullRequestReviewComments: Add review comments
+//
+// GitHub Discussions:
+//   - CreateDiscussions: Create new discussions
+//   - UpdateDiscussions: Update discussion content
+//   - CloseDiscussions: Close discussions
+//
+// Comments:
+//   - AddComments: Add comments to issues/PRs/discussions
+//   - HideComment: Hide comments (abuse/spam moderation)
+//
+// Projects:
+//   - UpdateProjects: Smart project board management (create/add/update items)
+//   - CreateProjects: Create new GitHub Projects V2
+//   - CopyProjects: Copy project boards
+//   - CreateProjectStatusUpdates: Create project status updates
+//
+// Releases &amp; Assets:
+//   - UploadAssets: Upload release assets
+//   - UpdateRelease: Update release descriptions
+//
+// Security:
+//   - CreateCodeScanningAlerts: Create code scanning alerts
+//   - AutofixCodeScanningAlert: Auto-fix code scanning alerts
+//
+// Workflow Management:
+//   - CreateAgentSessions: Create GitHub Copilot agent sessions
+//   - DispatchWorkflow: Trigger workflow_dispatch events
+//
+// Diagnostics:
+//   - MissingTool: Report missing functionality
+//   - MissingData: Report missing data required to achieve goals
+//   - NoOp: Log-only output (always available as fallback)
+//   - ThreatDetection: Threat detection configuration
+//
+// # Global Configuration
+//
+//   - Jobs: Custom safe-jobs configuration (map[string]*SafeJobConfig)
+//   - App: GitHub App credentials for token minting
+//   - AllowedDomains: Domains allowed in output URLs (sanitization allowlist)
+//   - AllowGitHubReferences: Repositories allowed for @mentions (e.g., ["repo", "org/repo2"])
+//   - Staged: If true, emit step summary messages instead of making GitHub API calls
+//   - Env: Environment variables to pass to safe output jobs
+//   - GitHubToken: Default GitHub token for safe output jobs
+//   - MaximumPatchSize: Maximum allowed patch size in KB (defaults to 1024)
+//   - RunsOn: Runner configuration for safe-outputs jobs
+//   - Messages: Custom message templates for footer and notifications
+//   - Mentions: Configuration for @mention filtering in safe outputs
+//
+// # Example Frontmatter
+//
+//   safe-outputs:
+//     create-issues:
+//       max: 10
+//       github-token: ${{ secrets.ISSUE_TOKEN }}
+//     add-comments:
+//       max: 5
+//     allowed-domains:
+//       - github.com
+//       - githubusercontent.com
+//     allowed-github-references:
+//       - my-org/my-repo
 type SafeOutputsConfig struct {
 	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issues,omitempty"`
 	CreateDiscussions               *CreateDiscussionsConfig               `yaml:"create-discussions,omitempty"`
