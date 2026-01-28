@@ -155,26 +155,77 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_agent_session":{"max":3},"create_project_status_update":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_project":{"max":100}}
+          {"assign_to_agent":{"allowed":["copilot"],"default_agent":"copilot","max":1,"target":"*"},"create_issue":{"max":1},"create_project_status_update":{"max":1},"missing_data":{},"missing_tool":{},"noop":{"max":1},"update_project":{"max":100}}
           EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'EOF'
           [
             {
-              "description": "Create a GitHub Copilot agent session to delegate coding work. Use this when you need another Copilot agent to implement code changes, fix bugs, or complete development tasks. The task becomes a new issue that triggers the Copilot coding agent. For non-coding tasks or manual work items, use create_issue instead. CONSTRAINTS: Maximum 3 agent task(s) can be created. Base branch for tasks: \"main\".",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Labels [security agentic-campaign z_campaign_security-alert-burndown] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
                   "body": {
-                    "description": "Clear, detailed task description for the Copilot agent. Include specific files to modify, expected behavior, acceptance criteria, and any constraints. The description should be actionable and self-contained.",
+                    "description": "Detailed issue description in Markdown. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate.",
+                    "type": "string"
+                  },
+                  "labels": {
+                    "description": "Labels to categorize the issue (e.g., 'bug', 'enhancement'). Labels must exist in the repository.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "parent": {
+                    "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "temporary_id": {
+                    "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation.",
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Concise issue title summarizing the bug, feature, or task. The title appears as the main heading, so keep it brief and descriptive.",
                     "type": "string"
                   }
                 },
                 "required": [
+                  "title",
                   "body"
                 ],
                 "type": "object"
               },
-              "name": "create_agent_session"
+              "name": "create_issue"
+            },
+            {
+              "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") or assign_to_agent(pull_number=456, agent=\"copilot\") CONSTRAINTS: Maximum 1 issue(s) can be assigned to agent.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "agent": {
+                    "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified.",
+                    "type": "string"
+                  },
+                  "issue_number": {
+                    "description": "Issue number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "pull_number": {
+                    "description": "Pull request number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/pull/456). Either issue_number or pull_number must be provided, but not both.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  }
+                },
+                "type": "object"
+              },
+              "name": "assign_to_agent"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -420,7 +471,24 @@ jobs:
           EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'EOF'
           {
-            "create_agent_session": {
+            "assign_to_agent": {
+              "defaultMax": 1,
+              "fields": {
+                "agent": {
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
+                },
+                "issue_number": {
+                  "optionalPositiveInteger": true
+                },
+                "pull_number": {
+                  "optionalPositiveInteger": true
+                }
+              },
+              "customValidation": "requiresOneOf:issue_number,pull_number"
+            },
+            "create_issue": {
               "defaultMax": 1,
               "fields": {
                 "body": {
@@ -428,6 +496,28 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 65000
+                },
+                "labels": {
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 128
+                },
+                "parent": {
+                  "issueOrPRNumber": true
+                },
+                "repo": {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                "temporary_id": {
+                  "type": "string"
+                },
+                "title": {
+                  "required": true,
+                  "type": "string",
+                  "sanitize": true,
+                  "maxLength": 128
                 }
               }
             },
@@ -804,12 +894,12 @@ jobs:
           
           ### Step 4: Assign work
           
-          After updating project items, **create agent sessions** to bundle and merge Dependabot PRs:
+          After updating project items, **create one parent tracking issue** that captures the bundling plan and links the PRs, then **assign that issue to an agent**.
           
           **Selection Criteria:**
           1. Review all discovered PRs
           2. Group by **runtime** (Node.js, Python, etc.) and **target dependency file**
-          3. Select up to **3 agent sessions** total following the bundling rules below
+          3. Select up to **3 bundles** total following the bundling rules below
           
           **Dependabot Bundling Rules:**
           
@@ -826,42 +916,82 @@ jobs:
           - Enforce **one runtime + one target file per PR**.
           - All PRs must pass **CI and relevant runtime tests** before merge.
           
-          **Creating Agent Sessions:**
+          **Create Parent Issue:**
           
-          For each selected group (up to 3 total), use the `create_agent_session` tool with a detailed task description:
+          Create a single issue that contains:
+          - The bundling rules (copied below)
+          - The proposed bundles (grouped by runtime + target manifest)
+          - A checklist of the PRs to bundle, one checkbox per PR
+          
+          Use the `create_issue` tool:
           
           ```
-          create_agent_session(body="Bundle and merge Dependabot PRs for [runtime] [package.json/requirements.txt/go.mod]:
-          
-          PRs to merge:
-          - #[pr_number]: [title] ([old_version] → [new_version])
-          - #[pr_number]: [title] ([old_version] → [new_version])
-          
-          Task:
-          1. Research each package update for breaking changes
-          2. Create a research report documenting:
-             - Packages updated and version changes
-             - Breaking or behavioral changes found
-             - Migration steps or code impact
-             - Risk level and test coverage impact
-          3. Bundle the PRs into a single update
-          4. Test the bundled changes (run tests, verify CI passes)
-          5. Create a PR with the bundled update and research report
-          
-          Constraints:
-          - All changes must target [manifest file] and its lockfile only
-          - Must pass all CI checks and relevant runtime tests
-          - Research report required before merging")
+          create_issue(title="Security Alert Burndown: Dependabot bundling plan (YYYY-MM-DD)", body="<paste body from template below>")
           ```
           
-          **Important:**
-          - Create agent sessions for highest priority updates first
-          - Limit to 3 agent sessions per run (max configured in safe-outputs)
-          - Each session should target a distinct runtime + file combination
+          **Add Parent Issue to the Campaign Board:**
+          
+          Immediately after creating the issue, add it to the project board using `update_project` (so it’s tracked like the other campaign items):
+          
+          ```
+          update_project(
+            project="https://github.com/orgs/githubnext/projects/144",
+            content_type="issue",
+            content_number=<new_issue_number>,
+            fields={
+              "campaign_id": "security-alert-burndown",
+              "status": "Todo",
+              "target_repo": "githubnext/gh-aw",
+              "worker_workflow": "dependabot",
+              "priority": "High",
+              "size": "Medium",
+              "start_date": "YYYY-MM-DD"
+            }
+          )
+          ```
+          
+          **Issue Body Template (paste into `body=`):**
+          
+          ```markdown
+          ## Context
+          This issue tracks Dependabot PR bundling work discovered by the Security Alert Burndown campaign.
+          
+          ## Bundling Rules
+          - Group work by runtime. Never mix runtimes.
+          - Group changes by target dependency file (one manifest + its lockfile).
+          - Patch/minor updates may be bundled; major updates should be isolated unless tightly coupled.
+          - Bundled releases must include a research report (packages, versions, breaking changes, migration, risk, tests).
+          
+          ## Planned Bundles
+          
+          ### [runtime] — [manifest file]
+          PRs:
+          - [ ] #123 - [title] ([old] → [new])
+          - [ ] #456 - [title] ([old] → [new])
+          
+          ### [runtime] — [manifest file]
+          PRs:
+          - [ ] #789 - [title] ([old] → [new])
+          
+          ## Agent Task
+          1. For each bundle section above, research each update for breaking changes and summarize risks.
+          2. Bundle PRs per section into a single PR (one runtime + one manifest).
+          3. Ensure CI passes; run relevant runtime tests.
+          4. Add the research report to the bundled PR.
+          5. Update this issue checklist as PRs are merged.
+          ```
+          
+          **Assign Parent Issue to Agent:**
+          
+          After creating the issue, call `assign_to_agent` and explicitly provide the `issue_number` of the new issue (since `target: "*"`):
+          
+          ```
+          assign_to_agent(issue_number=<new_issue_number>, name="copilot")
+          ```
           
           ### Step 5: Report
           
-          Summarize how many items were discovered and added/updated on the project board, broken down by category.
+          Summarize how many items were discovered and added/updated on the project board, broken down by category, and include the parent tracking issue number that was created and assigned.
           
           ## Important
           
@@ -1188,6 +1318,8 @@ jobs:
           **Metrics snapshots (repo-memory)**: `memory/campaigns/security-alert-burndown/metrics/*.json`
           **File system path**: `/tmp/gh-aw/repo-memory/campaigns/security-alert-burndown/metrics/*.json`
           - Persist one append-only JSON metrics snapshot per run (new file per run; do not rewrite history).
+          PROMPT_EOF
+          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           - Use UTC date (`YYYY-MM-DD`) in the filename (example: `metrics/2025-12-22.json`).
           
           
@@ -1226,8 +1358,6 @@ jobs:
           
           ### Step 2 — Make Decisions (Planning) [NO WRITES]
           
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           5) Determine desired `status` strictly from explicit GitHub state:
           - Open → `Todo` (or `In Progress` only if explicitly indicated elsewhere)
           - Closed (issue/discussion) → `Done`
@@ -1869,6 +1999,8 @@ jobs:
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
+          GH_AW_ASSIGNMENT_ERRORS: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_errors }}
+          GH_AW_ASSIGNMENT_ERROR_COUNT: ${{ needs.safe_outputs.outputs.assign_to_agent_assignment_error_count }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -2059,8 +2191,9 @@ jobs:
       GH_AW_WORKFLOW_ID: "security-alert-burndown"
       GH_AW_WORKFLOW_NAME: "Security Alert Burndown"
     outputs:
-      create_agent_session_session_number: ${{ steps.create_agent_session.outputs.session_number }}
-      create_agent_session_session_url: ${{ steps.create_agent_session.outputs.session_url }}
+      assign_to_agent_assigned: ${{ steps.assign_to_agent.outputs.assigned }}
+      assign_to_agent_assignment_error_count: ${{ steps.assign_to_agent.outputs.assignment_error_count }}
+      assign_to_agent_assignment_errors: ${{ steps.assign_to_agent.outputs.assignment_errors }}
       process_project_safe_outputs_processed_count: ${{ steps.process_project_safe_outputs.outputs.processed_count }}
       process_project_safe_outputs_temporary_project_map: ${{ steps.process_project_safe_outputs.outputs.temporary_project_map }}
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
@@ -2107,7 +2240,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_TEMPORARY_PROJECT_MAP: ${{ steps.process_project_safe_outputs.outputs.temporary_project_map }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_issue\":{\"labels\":[\"security\",\"agentic-campaign\",\"z_campaign_security-alert-burndown\"],\"max\":1},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -2115,16 +2248,21 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
-      - name: Create Agent Session
-        id: create_agent_session
-        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_agent_session'))
+      - name: Assign To Agent
+        id: assign_to_agent
+        if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'assign_to_agent'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_AGENT_MAX_COUNT: 1
+          GH_AW_AGENT_DEFAULT: "copilot"
+          GH_AW_AGENT_TARGET: "*"
+          GH_AW_AGENT_ALLOWED: "copilot"
         with:
-          github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_AW_AGENT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/create_agent_session.cjs'); await main();
+            const { main } = require('/opt/gh-aw/actions/assign_to_agent.cjs');
+            await main();
 

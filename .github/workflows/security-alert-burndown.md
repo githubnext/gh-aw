@@ -16,9 +16,14 @@ tools:
 safe-outputs:
   update-project:
     max: 100
-  create-agent-session:
-    base: main
-    max: 3
+  create-issue:
+    max: 1
+    labels: [security, agentic-campaign, z_campaign_security-alert-burndown]
+  assign-to-agent:
+    max: 1
+    name: copilot
+    allowed: [copilot]
+    target: "*"
 project: https://github.com/orgs/githubnext/projects/144
 ---
 
@@ -79,12 +84,12 @@ For each discovered item (up to 100 total per run):
 
 ### Step 4: Assign work
 
-After updating project items, **create agent sessions** to bundle and merge Dependabot PRs:
+After updating project items, **create one parent tracking issue** that captures the bundling plan and links the PRs, then **assign that issue to an agent**.
 
 **Selection Criteria:**
 1. Review all discovered PRs
 2. Group by **runtime** (Node.js, Python, etc.) and **target dependency file**
-3. Select up to **3 agent sessions** total following the bundling rules below
+3. Select up to **3 bundles** total following the bundling rules below
 
 **Dependabot Bundling Rules:**
 
@@ -101,42 +106,82 @@ After updating project items, **create agent sessions** to bundle and merge Depe
 - Enforce **one runtime + one target file per PR**.
 - All PRs must pass **CI and relevant runtime tests** before merge.
 
-**Creating Agent Sessions:**
+**Create Parent Issue:**
 
-For each selected group (up to 3 total), use the `create_agent_session` tool with a detailed task description:
+Create a single issue that contains:
+- The bundling rules (copied below)
+- The proposed bundles (grouped by runtime + target manifest)
+- A checklist of the PRs to bundle, one checkbox per PR
+
+Use the `create_issue` tool:
 
 ```
-create_agent_session(body="Bundle and merge Dependabot PRs for [runtime] [package.json/requirements.txt/go.mod]:
-
-PRs to merge:
-- #[pr_number]: [title] ([old_version] → [new_version])
-- #[pr_number]: [title] ([old_version] → [new_version])
-
-Task:
-1. Research each package update for breaking changes
-2. Create a research report documenting:
-   - Packages updated and version changes
-   - Breaking or behavioral changes found
-   - Migration steps or code impact
-   - Risk level and test coverage impact
-3. Bundle the PRs into a single update
-4. Test the bundled changes (run tests, verify CI passes)
-5. Create a PR with the bundled update and research report
-
-Constraints:
-- All changes must target [manifest file] and its lockfile only
-- Must pass all CI checks and relevant runtime tests
-- Research report required before merging")
+create_issue(title="Security Alert Burndown: Dependabot bundling plan (YYYY-MM-DD)", body="<paste body from template below>")
 ```
 
-**Important:**
-- Create agent sessions for highest priority updates first
-- Limit to 3 agent sessions per run (max configured in safe-outputs)
-- Each session should target a distinct runtime + file combination
+**Add Parent Issue to the Campaign Board:**
+
+Immediately after creating the issue, add it to the project board using `update_project` (so it’s tracked like the other campaign items):
+
+```
+update_project(
+  project="https://github.com/orgs/githubnext/projects/144",
+  content_type="issue",
+  content_number=<new_issue_number>,
+  fields={
+    "campaign_id": "security-alert-burndown",
+    "status": "Todo",
+    "target_repo": "githubnext/gh-aw",
+    "worker_workflow": "dependabot",
+    "priority": "High",
+    "size": "Medium",
+    "start_date": "YYYY-MM-DD"
+  }
+)
+```
+
+**Issue Body Template (paste into `body=`):**
+
+```markdown
+## Context
+This issue tracks Dependabot PR bundling work discovered by the Security Alert Burndown campaign.
+
+## Bundling Rules
+- Group work by runtime. Never mix runtimes.
+- Group changes by target dependency file (one manifest + its lockfile).
+- Patch/minor updates may be bundled; major updates should be isolated unless tightly coupled.
+- Bundled releases must include a research report (packages, versions, breaking changes, migration, risk, tests).
+
+## Planned Bundles
+
+### [runtime] — [manifest file]
+PRs:
+- [ ] #123 - [title] ([old] → [new])
+- [ ] #456 - [title] ([old] → [new])
+
+### [runtime] — [manifest file]
+PRs:
+- [ ] #789 - [title] ([old] → [new])
+
+## Agent Task
+1. For each bundle section above, research each update for breaking changes and summarize risks.
+2. Bundle PRs per section into a single PR (one runtime + one manifest).
+3. Ensure CI passes; run relevant runtime tests.
+4. Add the research report to the bundled PR.
+5. Update this issue checklist as PRs are merged.
+```
+
+**Assign Parent Issue to Agent:**
+
+After creating the issue, call `assign_to_agent` and explicitly provide the `issue_number` of the new issue (since `target: "*"`):
+
+```
+assign_to_agent(issue_number=<new_issue_number>, name="copilot")
+```
 
 ### Step 5: Report
 
-Summarize how many items were discovered and added/updated on the project board, broken down by category.
+Summarize how many items were discovered and added/updated on the project board, broken down by category, and include the parent tracking issue number that was created and assigned.
 
 ## Important
 
