@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -193,7 +194,21 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 }
 
 // RunWorkflowTrials executes the main logic for trialing one or more workflows
-func RunWorkflowTrials(workflowSpecs []string, opts TrialOptions) error {
+func RunWorkflowTrials(workflowSpecs []string, opts TrialOptions) (err error) {
+	// Recover from panics during trial execution
+	defer func() {
+		if r := recover(); r != nil {
+			// Convert panic to error with stack trace
+			err = fmt.Errorf("panic during trial execution: %v\nstack trace:\n%s",
+				r, string(debug.Stack()))
+
+			// Log for debugging
+			if trialLog.Enabled() {
+				trialLog.Printf("Recovered from panic: %v", r)
+			}
+		}
+	}()
+
 	trialLog.Printf("Starting trial execution: specs=%v, logicalRepo=%s, cloneRepo=%s, hostRepo=%s, repeat=%d", workflowSpecs, opts.Repos.LogicalRepo, opts.Repos.CloneRepo, opts.Repos.HostRepo, opts.RepeatCount)
 
 	// Parse all workflow specifications

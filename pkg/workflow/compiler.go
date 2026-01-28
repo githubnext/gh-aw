@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -38,7 +39,21 @@ const (
 var githubWorkflowSchema string
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
-func (c *Compiler) CompileWorkflow(markdownPath string) error {
+func (c *Compiler) CompileWorkflow(markdownPath string) (err error) {
+	// Recover from panics during compilation
+	defer func() {
+		if r := recover(); r != nil {
+			// Convert panic to error with stack trace
+			err = fmt.Errorf("panic during workflow compilation: %v\nstack trace:\n%s",
+				r, string(debug.Stack()))
+
+			// Log for debugging
+			if log.Enabled() {
+				log.Printf("Recovered from panic: %v", r)
+			}
+		}
+	}()
+
 	// Store markdownPath for use in dynamic tool generation
 	c.markdownPath = markdownPath
 
@@ -69,7 +84,21 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 
 // CompileWorkflowData compiles a workflow from already-parsed WorkflowData
 // This avoids re-parsing when the data has already been parsed
-func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath string) error {
+func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath string) (err error) {
+	// Recover from panics during compilation
+	defer func() {
+		if r := recover(); r != nil {
+			// Convert panic to error with stack trace
+			err = fmt.Errorf("panic during workflow data compilation: %v\nstack trace:\n%s",
+				r, string(debug.Stack()))
+
+			// Log for debugging
+			if log.Enabled() {
+				log.Printf("Recovered from panic: %v", r)
+			}
+		}
+	}()
+
 	// Track compilation time for performance monitoring
 	startTime := time.Now()
 	defer func() {

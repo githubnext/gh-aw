@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	"github.com/charmbracelet/huh"
@@ -18,7 +19,21 @@ import (
 var initLog = logger.New("cli:init")
 
 // InitRepositoryInteractive runs an interactive setup for the repository
-func InitRepositoryInteractive(verbose bool, rootCmd CommandProvider) error {
+func InitRepositoryInteractive(verbose bool, rootCmd CommandProvider) (err error) {
+	// Recover from panics during interactive init
+	defer func() {
+		if r := recover(); r != nil {
+			// Convert panic to error with stack trace
+			err = fmt.Errorf("panic during interactive init: %v\nstack trace:\n%s",
+				r, string(debug.Stack()))
+
+			// Log for debugging
+			if initLog.Enabled() {
+				initLog.Printf("Recovered from panic: %v", r)
+			}
+		}
+	}()
+
 	initLog.Print("Starting interactive repository initialization")
 
 	// Assert this function is not running in automated unit tests

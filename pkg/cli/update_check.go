@@ -141,6 +141,16 @@ func updateLastCheckTime() {
 // checkForUpdates checks if a newer version of gh-aw is available
 // This function is non-blocking and ignores all errors (connectivity, API, etc.)
 func checkForUpdates(noCheckUpdate bool, verbose bool) {
+	// Recover from panics during update check
+	defer func() {
+		if r := recover(); r != nil {
+			// Log panic but don't fail - update check should never crash the command
+			if updateCheckLog.Enabled() {
+				updateCheckLog.Printf("Recovered from panic during update check: %v", r)
+			}
+		}
+	}()
+
 	// Quick check if we should even attempt the update check
 	if !shouldCheckForUpdate(noCheckUpdate) {
 		return

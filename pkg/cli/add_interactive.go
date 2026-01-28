@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -48,7 +49,21 @@ type AddInteractiveConfig struct {
 
 // RunAddInteractive runs the interactive add workflow
 // This walks the user through adding an agentic workflow to their repository
-func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool, engineOverride string, noGitattributes bool, workflowDir string, noStopAfter bool, stopAfter string) error {
+func RunAddInteractive(ctx context.Context, workflowSpecs []string, verbose bool, engineOverride string, noGitattributes bool, workflowDir string, noStopAfter bool, stopAfter string) (err error) {
+	// Recover from panics during interactive add
+	defer func() {
+		if r := recover(); r != nil {
+			// Convert panic to error with stack trace
+			err = fmt.Errorf("panic during interactive add: %v\nstack trace:\n%s",
+				r, string(debug.Stack()))
+
+			// Log for debugging
+			if addInteractiveLog.Enabled() {
+				addInteractiveLog.Printf("Recovered from panic: %v", r)
+			}
+		}
+	}()
+
 	addInteractiveLog.Print("Starting interactive add workflow")
 
 	// Assert this function is not running in automated unit tests or CI

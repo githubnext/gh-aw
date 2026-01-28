@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"runtime/debug"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -141,7 +142,21 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString(c.jobManager.RenderToYAML())
 }
 
-func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, error) {
+func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (yamlContent string, err error) {
+	// Recover from panics during YAML generation
+	defer func() {
+		if r := recover(); r != nil {
+			// Convert panic to error with stack trace
+			err = fmt.Errorf("panic during YAML generation: %v\nstack trace:\n%s",
+				r, string(debug.Stack()))
+
+			// Log for debugging
+			if compilerYamlLog.Enabled() {
+				compilerYamlLog.Printf("Recovered from panic: %v", r)
+			}
+		}
+	}()
+
 	compilerYamlLog.Printf("Generating YAML for workflow: %s", data.Name)
 
 	// Build all jobs and validate dependencies
@@ -160,7 +175,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// Generate workflow body structure
 	c.generateWorkflowBody(&yaml, data)
 
-	yamlContent := yaml.String()
+	yamlContent = yaml.String()
 
 	// If we're in non-cloning trial mode and this workflow has issue triggers,
 	// replace github.event.issue.number with inputs.issue_number
