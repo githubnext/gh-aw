@@ -67,19 +67,37 @@ Once your initial run is complete, a new issue will be created in your repositor
 
 ### Going further — Customize your workflow
 
-The report is fully customizable. If you like, you can now customize the workflow by editing the workflow markdown file located at `.github/workflows/daily-repo-status.md` in your repository. You then run
+The report is fully customizable. Edit the workflow markdown file at `.github/workflows/daily-repo-status.md` in your repository. The frontmatter section at the top controls key settings:
+
+```yaml
+---
+description: Daily repository status report
+on:
+  schedule: daily                  # Change schedule: hourly, weekly, etc.
+  workflow_dispatch:
+engine: copilot                    # AI engine: copilot, claude, codex
+permissions:
+  contents: read
+  issues: write
+safe-outputs:
+  create-issue:
+    labels: [automation, status]   # Customize issue labels
+---
+```
+
+After editing, recompile the workflow:
 
 ```bash
 gh aw compile
 ```
 
-to regenerate the workflow YAML file `.github/workflows/daily-repo-status.lock.yml`, then push to your repository. You can then trigger another run by running:
+This regenerates `.github/workflows/daily-repo-status.lock.yml`. Push to your repository, then trigger a run:
 
 ```bash
 gh aw run daily-repo-status
 ```
 
-or by using the GitHub UX.
+or use the GitHub Actions UI.
 
 Some ideas for customization:
 
