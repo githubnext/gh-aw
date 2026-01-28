@@ -635,6 +635,7 @@ case <-time.After(5 * time.Second):
 - Prefer `chan struct{}` over `chan bool` for signaling (zero memory overhead)
 - Use `chan struct{}` when only the event matters, not the value
 - Use buffered channels (`make(chan T, 1)`) when sender shouldn't block
+- **Buffered channels with fixed count**: No close needed if sender count equals receiver count (e.g., `make(chan T, N)` with exactly N sends and N receives)
 
 **Signal Handling (os.Signal)**:
 ```go

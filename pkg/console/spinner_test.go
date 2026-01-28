@@ -103,7 +103,7 @@ func TestSpinnerConcurrentAccess(t *testing.T) {
 	spinner := NewSpinner("Test message")
 
 	// Test concurrent access to spinner methods
-	// Channel is closed after all goroutines complete
+	// Buffered channel - no close needed (fixed count of sends/receives)
 	done := make(chan struct{}, 3)
 
 	go func() {
@@ -127,7 +127,6 @@ func TestSpinnerConcurrentAccess(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		<-done
 	}
-	close(done)
 }
 
 func TestSpinnerBubbleTeaModel(t *testing.T) {
