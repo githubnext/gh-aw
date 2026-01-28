@@ -71,7 +71,7 @@ jobs:
         test-group:
           - name: "CLI Compile & Poutine"
             packages: "./pkg/cli"
-            pattern: "^TestCompile[^W]|TestPoutine"  # Exclude TestCompileWorkflows to avoid duplicates
+            pattern: "^TestCompile[^W]|TestPoutine|TestBuildCommandString|TestBuildSourceString|TestBuildWorkflowDescription|TestPrintCompilationSummary|TestCompilationStats|TestModifyWorkflowForTrialMode"  # Exclude TestCompileWorkflows to avoid duplicates
           - name: "CLI MCP Playwright"
             packages: "./pkg/cli"
             pattern: "TestMCPInspectPlaywright"
@@ -80,7 +80,7 @@ jobs:
             pattern: "TestMCPGateway"
           - name: "CLI MCP Other"
             packages: "./pkg/cli"
-            pattern: "TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig"
+            pattern: "TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig|TestMCPCommand|TestIsRunningAsMCPServer|TestHeaderRoundTripper"
           - name: "CLI Logs & Firewall"
             packages: "./pkg/cli"
             pattern: "TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow"
@@ -92,10 +92,10 @@ jobs:
             pattern: "TestConnectHTTPMCPServer"
           - name: "CLI Compile Workflows"  # Isolate slow workflow compilation test
             packages: "./pkg/cli"
-            pattern: "TestCompileWorkflows_EmptyMarkdown"
+            pattern: "TestCompileWorkflows|TestCollectWorkflowFiles|TestFilterWorkflowFiles|TestNormalizeWorkflowFile"
           - name: "CLI Security Tools"  # Group security tool compilation tests
             packages: "./pkg/cli"
-            pattern: "TestCompileWithZizmor|TestCompileWithPoutine|TestCompileWithPoutineAndZizmor"
+            pattern: "TestCompileWithZizmor|TestCompileWithPoutine|TestCompileWithPoutineAndZizmor|TestParseAndDisplayZizmorOutput|TestSecurityToolsIndependentOfValidate|TestSecurity"
           - name: "CLI Add & List Commands"
             packages: "./pkg/cli"
             pattern: "^TestAdd|^TestList"
@@ -107,11 +107,65 @@ jobs:
             pattern: "^TestAudit|^TestInspect"
           - name: "CLI Docker Build"  # Isolate slow Docker build test (~38s)
             packages: "./pkg/cli"
-            pattern: "TestDockerBuild"
+            pattern: "TestDockerBuild|TestDockerfile|TestDockerImage"
+          - name: "CLI Shell Completion"  # Shell completion tests
+            packages: "./pkg/cli"
+            pattern: "TestCompletion|TestUninstall.*Completion"
+          - name: "CLI Secrets & Encryption"  # Secrets and encryption tests
+            packages: "./pkg/cli"
+            pattern: "TestSecret|TestEncrypt|TestCheckSecretsAvailability|TestResolveSecretValueForSet"
+          - name: "CLI Status & Versioning"  # Status and version command tests
+            packages: "./pkg/cli"
+            pattern: "TestStatus|TestVersion|TestWorkflowStatus|TestWorkflowRunInfo|TestShellTypeString"
+          - name: "CLI Update & Upgrade"  # Update and upgrade command tests
+            packages: "./pkg/cli"
+            pattern: "TestUpdate|TestUpgrade|TestCheckForUpdates|TestShowUpdateSummary|TestMajorVersionPreference|TestPreciseVersionPreference|TestActionKeyVersionConsistency|TestMarshalActionsLockSorted"
+          - name: "CLI Workflows Path & Discovery"  # Workflow path resolution and discovery tests
+            packages: "./pkg/cli"
+            pattern: "TestFindRunnableWorkflows|TestFindWorkflowsWithSource|TestGetAvailableWorkflowNames|TestGetWorkflowInputs|TestGetLockFilePath|TestGetMarkdownWorkflowFilesExcludesREADME|TestReadWorkflowFile|TestResolveWorkflowPath|TestIsWorkflowFile|TestWorkflowCounting|TestWorkflowResolutionWindowsCompatibility|TestSuggestWorkflowNames|TestValidateWorkflowName|TestValidateWorkflowIntent|TestValidateWorkflowInputs|TestWorkflowSpecString"
+          - name: "CLI Trial & Interactive"  # Trial mode and interactive tests
+            packages: "./pkg/cli"
+            pattern: "TestTrial|TestLipglossImportPresent|TestSectionCompositionPattern"
+          - name: "CLI Run Command"  # Run command tests
+            packages: "./pkg/cli"
+            pattern: "TestRun|TestPoll|TestTrackWorkflowFailure|TestInputValidation|TestInputFlagSignature|TestRefFlagSignature"
+          - name: "CLI Repo & Git"  # Repository and git related tests
+            packages: "./pkg/cli"
+            pattern: "TestRepo|TestGet.*RepoSlug|TestExtractBaseRepo|TestExtractIssueNumberFromURL|TestHostRepoSlugProcessing|TestHasLocalModifications|TestPushWorkflowFiles|TestCloneRepoWithVersion"
+          - name: "CLI Spec Parsing"  # Spec parsing tests
+            packages: "./pkg/cli"
+            pattern: "TestParse.*Spec|TestResolveImportPathLocal|TestIsWorkflowSpecFormatLocal|TestResolveLatestRef"
+          - name: "CLI Validators & Semver"  # Validator and semver tests
+            packages: "./pkg/cli"
+            pattern: "TestValidat|TestIsCommitSHA|TestIsPreciseVersion|TestIsSemanticVersionTag|TestIsRunnable"
+          - name: "CLI Tool Graph"  # Tool graph tests
+            packages: "./pkg/cli"
+            pattern: "TestToolGraph"
+          - name: "CLI Signal Handling"  # Signal handling tests
+            packages: "./pkg/cli"
+            pattern: "TestPollWithSignalHandling"
+          - name: "CLI Makefile & Setup"  # Makefile and setup action tests
+            packages: "./pkg/cli"
+            pattern: "TestMakefile|TestSetupCLIAction"
+          - name: "CLI Merge Content"  # Workflow content merging tests
+            packages: "./pkg/cli"
+            pattern: "TestMergeWorkflowContent"
+          - name: "CLI Workflows Actions"  # Workflow actions and action extraction tests
+            packages: "./pkg/cli"
+            pattern: "TestGetActionSHAForTag|TestExtractNpxPackages"
+          - name: "CLI Codespace Integration"  # Codespace specific tests
+            packages: "./pkg/cli"
+            pattern: "TestCodespace|TestDetectShell"
+          - name: "CLI Safe Inputs"  # Safe inputs tests
+            packages: "./pkg/cli"
+            pattern: "TestSafeInputsMCPServerCompilation"
+          - name: "CMD Main & Entry"  # CMD tests for main entry point
+            packages: "./cmd/gh-aw"
+            pattern: "TestMain|TestCommandGroup|TestCommandLine|TestArgument|TestInitFunction|TestVersion"
           - name: "CLI Completion & Other"  # Remaining catch-all (reduced from original)
             packages: "./pkg/cli"
             pattern: ""  # Catch-all for tests not matched by other CLI patterns
-            skip_pattern: "^TestCompile[^W]|TestPoutine|TestMCPInspectPlaywright|TestMCPGateway|TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig|TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow|TestProgressFlagSignature|TestConnectHTTPMCPServer|TestCompileWorkflows_EmptyMarkdown|TestCompileWithZizmor|TestCompileWithPoutine|TestCompileWithPoutineAndZizmor|^TestAdd|^TestList|^TestUpdate|^TestAudit|^TestInspect|TestDockerBuild"
+            skip_pattern: "^TestCompile|TestPoutine|TestMCPInspectPlaywright|TestMCPGateway|TestMCPAdd|TestMCPInspectGitHub|TestMCPServer|TestMCPConfig|TestMCPCommand|TestIsRunningAsMCPServer|TestHeaderRoundTripper|TestLogs|TestFirewall|TestNoStopTime|TestLocalWorkflow|TestProgressFlagSignature|TestConnectHTTPMCPServer|TestCompileWorkflows|TestCollectWorkflowFiles|TestFilterWorkflowFiles|TestNormalizeWorkflowFile|TestParseAndDisplayZizmorOutput|TestSecurityToolsIndependentOfValidate|TestSecurity|^TestAdd|^TestList|^TestUpdate|^TestUpgrade|TestCheckForUpdates|TestShowUpdateSummary|TestMajorVersionPreference|TestPreciseVersionPreference|TestActionKeyVersionConsistency|TestMarshalActionsLockSorted|^TestAudit|^TestInspect|TestDockerBuild|TestDockerfile|TestDockerImage|TestCompletion|TestUninstall.*Completion|TestSecret|TestEncrypt|TestCheckSecretsAvailability|TestResolveSecretValueForSet|TestStatus|TestVersion|TestWorkflowStatus|TestWorkflowRunInfo|TestShellTypeString|TestFindRunnableWorkflows|TestFindWorkflowsWithSource|TestGetAvailableWorkflowNames|TestGetWorkflowInputs|TestGetLockFilePath|TestGetMarkdownWorkflowFilesExcludesREADME|TestReadWorkflowFile|TestResolveWorkflowPath|TestIsWorkflowFile|TestWorkflowCounting|TestWorkflowResolutionWindowsCompatibility|TestSuggestWorkflowNames|TestValidateWorkflowName|TestValidateWorkflowIntent|TestValidateWorkflowInputs|TestWorkflowSpecString|TestTrial|TestLipglossImportPresent|TestSectionCompositionPattern|TestRun|TestPoll|TestTrackWorkflowFailure|TestInputValidation|TestInputFlagSignature|TestRefFlagSignature|TestRepo|TestGet.*RepoSlug|TestExtractBaseRepo|TestExtractIssueNumberFromURL|TestHostRepoSlugProcessing|TestHasLocalModifications|TestPushWorkflowFiles|TestCloneRepoWithVersion|TestParse.*Spec|TestResolveImportPathLocal|TestIsWorkflowSpecFormatLocal|TestResolveLatestRef|TestValidat|TestIsCommitSHA|TestIsPreciseVersion|TestIsSemanticVersionTag|TestIsRunnable|TestToolGraph|TestPollWithSignalHandling|TestMakefile|TestSetupCLIAction|TestMergeWorkflowContent|TestGetActionSHAForTag|TestExtractNpxPackages|TestCodespace|TestDetectShell|TestSafeInputsMCPServerCompilation|TestBuildCommandString|TestBuildSourceString|TestBuildWorkflowDescription|TestPrintCompilationSummary|TestCompilationStats|TestModifyWorkflowForTrialMode"
           - name: "Workflow Compiler"
             packages: "./pkg/workflow"
             pattern: "TestCompile|TestWorkflow|TestGenerate|TestParse"
@@ -120,13 +174,13 @@ jobs:
             pattern: "TestMCP|TestTool|TestSkill|TestPlaywright|TestFirewall"
           - name: "Workflow Validation"
             packages: "./pkg/workflow"
-            pattern: "TestValidat|TestLock|TestError|TestWarning"
+            pattern: "TestValidat|TestLock|TestError|TestWarning|TestRepositoryFeaturesValidation|TestBackwardCompatibilityWithClaudeFormat"
           - name: "Workflow Safe Outputs"
             packages: "./pkg/workflow"
-            pattern: "SafeOutputs|CreatePullRequest|OutputLabel|HasSafeOutputs"
+            pattern: "SafeOutputs|SafeInputs|CreatePullRequest|OutputLabel|HasSafeOutputs|ConsolidatedSafeOutputs"
           - name: "Workflow GitHub & Git"
             packages: "./pkg/workflow"
-            pattern: "GitHub|Git|PushToPullRequest|BuildFromAllowed"
+            pattern: "GitHub|Git|PushToPullRequest|BuildFromAllowed|AdditionalClaudeTools|CopilotGitCommands"
           - name: "Workflow Rendering & Bundling"
             packages: "./pkg/workflow"
             pattern: "Render|Bundle|Script|WritePromptText"
@@ -145,30 +199,30 @@ jobs:
           - name: "CMD Tests"  # All cmd/gh-aw integration tests
             packages: "./cmd/gh-aw"
             pattern: ""
-            skip_pattern: ""  # No other groups cover cmd tests
+            skip_pattern: "TestMain|TestCommandGroup|TestCommandLine|TestArgument|TestInitFunction|TestVersion"  # These are in the "CMD Main & Entry" group above
           - name: "Parser Remote Fetch & Cache"
             packages: "./pkg/parser"
-            pattern: "TestDownloadFileFromGitHub|TestResolveIncludePath|TestDownloadIncludeFromWorkflowSpec|TestImportCache"
+            pattern: "TestDownloadFileFromGitHub|TestResolveIncludePath|TestDownloadIncludeFromWorkflowSpec|TestImportCache|TestFrontmatterLocation|TestFrontmatterOffsetCalculation"
           - name: "Parser Location & Validation"
             packages: "./pkg/parser"
             pattern: ""  # Catch-all for tests not matched by other Parser patterns
-            skip_pattern: "TestDownloadFileFromGitHub|TestResolveIncludePath|TestDownloadIncludeFromWorkflowSpec|TestImportCache"
+            skip_pattern: "TestDownloadFileFromGitHub|TestResolveIncludePath|TestDownloadIncludeFromWorkflowSpec|TestImportCache|TestFrontmatterLocation|TestFrontmatterOffsetCalculation"
           - name: "Workflow Permissions"
             packages: "./pkg/workflow"
-            pattern: "TestPermissions|TestPackageExtractor|TestCollectPackagesFromWorkflow"
+            pattern: "TestPermissions|TestPackageExtractor|TestCollectPackagesFromWorkflow|TestExtractNpx"
           - name: "Workflow Misc Part 1"  # Split large catch-all into two balanced groups
             packages: "./pkg/workflow"
-            pattern: "TestAgent|TestCopilot|TestCustom|TestEngine|TestModel|TestNetwork|TestOpenAI|TestProvider"
+            pattern: "TestAgent|TestCopilot|TestCustomEngine|TestEngine|TestModel|TestNetwork|TestOpenAI|TestProvider|TestManualApprovalEnvironmentInActivationJob|TestNeutralToolsIntegration|TestIndividualGitHubToken|TestTopLevelGitHubTokenPrecedence"
           - name: "Workflow String & Sanitization"
             packages: "./pkg/workflow"
-            pattern: "String|Sanitize|Normalize|Trim|Clean|Format"
+            pattern: "String|Sanitize|Normalize|Trim|Clean|Format|SingleQuoteEscaping|WorkflowTimestampCheckUsesJavaScript"
           - name: "Workflow Runtime & Setup"
             packages: "./pkg/workflow"
-            pattern: "Runtime|Setup|Install|Download|Version|Binary"
+            pattern: "Runtime|Setup|Install|Download|Version|Binary|StopTimeResolution"
           - name: "Workflow Misc Part 2"  # Remaining workflow tests
             packages: "./pkg/workflow"
             pattern: ""
-            skip_pattern: "TestCompile|TestWorkflow|TestGenerate|TestParse|TestMCP|TestTool|TestSkill|TestPlaywright|TestFirewall|TestValidat|TestLock|TestError|TestWarning|SafeOutputs|CreatePullRequest|OutputLabel|HasSafeOutputs|GitHub|Git|PushToPullRequest|BuildFromAllowed|Render|Bundle|Script|WritePromptText|^TestCache|TestCacheDependencies|TestCacheKey|TestValidateCache|^TestActionPinSHAsMatchVersionTags|^TestAction[^P]|Container|Dependabot|Security|PII|TestPermissions|TestPackageExtractor|TestCollectPackagesFromWorkflow|TestAgent|TestCopilot|TestCustom|TestEngine|TestModel|TestNetwork|TestOpenAI|TestProvider|String|Sanitize|Normalize|Trim|Clean|Format|Runtime|Setup|Install|Download|Version|Binary"
+            skip_pattern: "TestCompile|TestWorkflow|TestGenerate|TestParse|TestMCP|TestTool|TestSkill|TestPlaywright|TestFirewall|TestValidat|TestLock|TestError|TestWarning|TestRepositoryFeaturesValidation|TestBackwardCompatibilityWithClaudeFormat|SafeOutputs|SafeInputs|CreatePullRequest|OutputLabel|HasSafeOutputs|ConsolidatedSafeOutputs|GitHub|Git|PushToPullRequest|BuildFromAllowed|AdditionalClaudeTools|CopilotGitCommands|Render|Bundle|Script|WritePromptText|^TestCache|TestCacheDependencies|TestCacheKey|TestValidateCache|^TestActionPinSHAsMatchVersionTags|^TestAction[^P]|Container|Dependabot|Security|PII|TestPermissions|TestPackageExtractor|TestCollectPackagesFromWorkflow|TestExtractNpx|TestAgent|TestCopilot|TestCustomEngine|TestEngine|TestModel|TestNetwork|TestOpenAI|TestProvider|TestManualApprovalEnvironmentInActivationJob|TestNeutralToolsIntegration|TestIndividualGitHubToken|TestTopLevelGitHubTokenPrecedence|String|Sanitize|Normalize|Trim|Clean|Format|SingleQuoteEscaping|WorkflowTimestampCheckUsesJavaScript|Runtime|Setup|Install|Download|Version|Binary|StopTimeResolution"
     concurrency:
       group: ci-${{ github.ref }}-integration-${{ matrix.test-group.name }}
       cancel-in-progress: true
