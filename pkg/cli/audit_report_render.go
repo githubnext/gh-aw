@@ -75,11 +75,11 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Fprintln(os.Stderr)
 		for _, file := range data.DownloadedFiles {
 			formattedSize := console.FormatFileSize(file.Size)
-			fmt.Fprintf(os.Stderr, "  • %s (%s)", file.Path, formattedSize)
+			fileInfo := fmt.Sprintf("  • %s (%s)", file.Path, formattedSize)
 			if file.Description != "" {
-				fmt.Fprintf(os.Stderr, " - %s", file.Description)
+				fileInfo += fmt.Sprintf(" - %s", file.Description)
 			}
-			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fileInfo))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -89,10 +89,10 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Missing Tools"))
 		fmt.Fprintln(os.Stderr)
 		for _, tool := range data.MissingTools {
-			fmt.Fprintf(os.Stderr, "  • %s\n", tool.Tool)
-			fmt.Fprintf(os.Stderr, "    Reason: %s\n", tool.Reason)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  • %s", tool.Tool)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    Reason: %s", tool.Reason)))
 			if tool.Alternatives != "" {
-				fmt.Fprintf(os.Stderr, "    Alternatives: %s\n", tool.Alternatives)
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    Alternatives: %s", tool.Alternatives)))
 			}
 		}
 		fmt.Fprintln(os.Stderr)
@@ -103,7 +103,7 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Fprintln(os.Stderr, console.FormatSectionHeader("MCP Server Failures"))
 		fmt.Fprintln(os.Stderr)
 		for _, failure := range data.MCPFailures {
-			fmt.Fprintf(os.Stderr, "  • %s: %s\n", failure.ServerName, failure.Status)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  • %s: %s", failure.ServerName, failure.Status)))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -138,9 +138,9 @@ func renderConsole(data AuditData, logsPath string) {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Errors (%d):", len(data.Errors))))
 			for _, err := range data.Errors {
 				if err.File != "" && err.Line > 0 {
-					fmt.Fprintf(os.Stderr, "    %s:%d: %s\n", filepath.Base(err.File), err.Line, err.Message)
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    %s:%d: %s", filepath.Base(err.File), err.Line, err.Message)))
 				} else {
-					fmt.Fprintf(os.Stderr, "    %s\n", err.Message)
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    %s", err.Message)))
 				}
 			}
 			fmt.Fprintln(os.Stderr)
@@ -150,9 +150,9 @@ func renderConsole(data AuditData, logsPath string) {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warnings (%d):", len(data.Warnings))))
 			for _, warn := range data.Warnings {
 				if warn.File != "" && warn.Line > 0 {
-					fmt.Fprintf(os.Stderr, "    %s:%d: %s\n", filepath.Base(warn.File), warn.Line, warn.Message)
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    %s:%d: %s", filepath.Base(warn.File), warn.Line, warn.Message)))
 				} else {
-					fmt.Fprintf(os.Stderr, "    %s\n", warn.Message)
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    %s", warn.Message)))
 				}
 			}
 			fmt.Fprintln(os.Stderr)
@@ -163,7 +163,7 @@ func renderConsole(data AuditData, logsPath string) {
 	fmt.Fprintln(os.Stderr, console.FormatSectionHeader("Logs Location"))
 	fmt.Fprintln(os.Stderr)
 	absPath, _ := filepath.Abs(logsPath)
-	fmt.Fprintf(os.Stderr, "  %s\n", absPath)
+	fmt.Fprintln(os.Stderr, console.FormatLocationMessage(fmt.Sprintf("  %s", absPath)))
 	fmt.Fprintln(os.Stderr)
 }
 
@@ -262,17 +262,17 @@ func renderToolUsageTable(toolUsage []ToolUsageInfo) {
 // renderFirewallAnalysis renders firewall analysis with summary and domain breakdown
 func renderFirewallAnalysis(analysis *FirewallAnalysis) {
 	// Summary statistics
-	fmt.Fprintf(os.Stderr, "  Total Requests : %d\n", analysis.TotalRequests)
-	fmt.Fprintf(os.Stderr, "  Allowed        : %d\n", analysis.AllowedRequests)
-	fmt.Fprintf(os.Stderr, "  Blocked        : %d\n", analysis.BlockedRequests)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Total Requests : %d", analysis.TotalRequests)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Allowed        : %d", analysis.AllowedRequests)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Blocked        : %d", analysis.BlockedRequests)))
 	fmt.Fprintln(os.Stderr)
 
 	// Allowed domains
 	if len(analysis.AllowedDomains) > 0 {
-		fmt.Fprintln(os.Stderr, "  Allowed Domains:")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Allowed Domains:"))
 		for _, domain := range analysis.AllowedDomains {
 			if stats, ok := analysis.RequestsByDomain[domain]; ok {
-				fmt.Fprintf(os.Stderr, "    ✓ %s (%d requests)\n", domain, stats.Allowed)
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("    ✓ %s (%d requests)", domain, stats.Allowed)))
 			}
 		}
 		fmt.Fprintln(os.Stderr)
@@ -280,10 +280,10 @@ func renderFirewallAnalysis(analysis *FirewallAnalysis) {
 
 	// Blocked domains
 	if len(analysis.BlockedDomains) > 0 {
-		fmt.Fprintln(os.Stderr, "  Blocked Domains:")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Blocked Domains:"))
 		for _, domain := range analysis.BlockedDomains {
 			if stats, ok := analysis.RequestsByDomain[domain]; ok {
-				fmt.Fprintf(os.Stderr, "    ✗ %s (%d requests)\n", domain, stats.Blocked)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("    ✗ %s (%d requests)", domain, stats.Blocked)))
 			}
 		}
 		fmt.Fprintln(os.Stderr)
@@ -293,14 +293,14 @@ func renderFirewallAnalysis(analysis *FirewallAnalysis) {
 // renderRedactedDomainsAnalysis renders redacted domains analysis
 func renderRedactedDomainsAnalysis(analysis *RedactedDomainsAnalysis) {
 	// Summary statistics
-	fmt.Fprintf(os.Stderr, "  Total Domains Redacted: %d\n", analysis.TotalDomains)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Total Domains Redacted: %d", analysis.TotalDomains)))
 	fmt.Fprintln(os.Stderr)
 
 	// List domains
 	if len(analysis.Domains) > 0 {
-		fmt.Fprintln(os.Stderr, "  Redacted Domains:")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Redacted Domains:"))
 		for _, domain := range analysis.Domains {
-			fmt.Fprintf(os.Stderr, "    🔒 %s\n", domain)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    🔒 %s", domain)))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -333,9 +333,9 @@ func renderKeyFindings(findings []Finding) {
 	// Render critical findings first
 	for _, finding := range critical {
 		fmt.Fprintf(os.Stderr, "  🔴 %s [%s]\n", console.FormatErrorMessage(finding.Title), finding.Category)
-		fmt.Fprintf(os.Stderr, "     %s\n", finding.Description)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("     %s", finding.Description)))
 		if finding.Impact != "" {
-			fmt.Fprintf(os.Stderr, "     Impact: %s\n", finding.Impact)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("     Impact: %s", finding.Impact)))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -343,9 +343,9 @@ func renderKeyFindings(findings []Finding) {
 	// Then high severity
 	for _, finding := range high {
 		fmt.Fprintf(os.Stderr, "  🟠 %s [%s]\n", console.FormatWarningMessage(finding.Title), finding.Category)
-		fmt.Fprintf(os.Stderr, "     %s\n", finding.Description)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("     %s", finding.Description)))
 		if finding.Impact != "" {
-			fmt.Fprintf(os.Stderr, "     Impact: %s\n", finding.Impact)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("     Impact: %s", finding.Impact)))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -353,9 +353,9 @@ func renderKeyFindings(findings []Finding) {
 	// Medium severity
 	for _, finding := range medium {
 		fmt.Fprintf(os.Stderr, "  🟡 %s [%s]\n", finding.Title, finding.Category)
-		fmt.Fprintf(os.Stderr, "     %s\n", finding.Description)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("     %s", finding.Description)))
 		if finding.Impact != "" {
-			fmt.Fprintf(os.Stderr, "     Impact: %s\n", finding.Impact)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("     Impact: %s", finding.Impact)))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -363,9 +363,9 @@ func renderKeyFindings(findings []Finding) {
 	// Low severity
 	for _, finding := range low {
 		fmt.Fprintf(os.Stderr, "  ℹ️  %s [%s]\n", finding.Title, finding.Category)
-		fmt.Fprintf(os.Stderr, "     %s\n", finding.Description)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("     %s", finding.Description)))
 		if finding.Impact != "" {
-			fmt.Fprintf(os.Stderr, "     Impact: %s\n", finding.Impact)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("     Impact: %s", finding.Impact)))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -373,9 +373,9 @@ func renderKeyFindings(findings []Finding) {
 	// Info findings
 	for _, finding := range info {
 		fmt.Fprintf(os.Stderr, "  ✅ %s [%s]\n", console.FormatSuccessMessage(finding.Title), finding.Category)
-		fmt.Fprintf(os.Stderr, "     %s\n", finding.Description)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("     %s", finding.Description)))
 		if finding.Impact != "" {
-			fmt.Fprintf(os.Stderr, "     Impact: %s\n", finding.Impact)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("     Impact: %s", finding.Impact)))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -402,9 +402,9 @@ func renderRecommendations(recommendations []Recommendation) {
 	// Render high priority first
 	for i, rec := range high {
 		fmt.Fprintf(os.Stderr, "  %d. [HIGH] %s\n", i+1, console.FormatWarningMessage(rec.Action))
-		fmt.Fprintf(os.Stderr, "     Reason: %s\n", rec.Reason)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("     Reason: %s", rec.Reason)))
 		if rec.Example != "" {
-			fmt.Fprintf(os.Stderr, "     Example: %s\n", rec.Example)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("     Example: %s", rec.Example)))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -413,9 +413,9 @@ func renderRecommendations(recommendations []Recommendation) {
 	startIdx := len(high) + 1
 	for i, rec := range medium {
 		fmt.Fprintf(os.Stderr, "  %d. [MEDIUM] %s\n", startIdx+i, rec.Action)
-		fmt.Fprintf(os.Stderr, "     Reason: %s\n", rec.Reason)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("     Reason: %s", rec.Reason)))
 		if rec.Example != "" {
-			fmt.Fprintf(os.Stderr, "     Example: %s\n", rec.Example)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("     Example: %s", rec.Example)))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -424,9 +424,9 @@ func renderRecommendations(recommendations []Recommendation) {
 	startIdx += len(medium)
 	for i, rec := range low {
 		fmt.Fprintf(os.Stderr, "  %d. [LOW] %s\n", startIdx+i, rec.Action)
-		fmt.Fprintf(os.Stderr, "     Reason: %s\n", rec.Reason)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("     Reason: %s", rec.Reason)))
 		if rec.Example != "" {
-			fmt.Fprintf(os.Stderr, "     Example: %s\n", rec.Example)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("     Example: %s", rec.Example)))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
@@ -434,18 +434,18 @@ func renderRecommendations(recommendations []Recommendation) {
 
 // renderFailureAnalysis renders failure analysis information
 func renderFailureAnalysis(analysis *FailureAnalysis) {
-	fmt.Fprintf(os.Stderr, "  Primary Failure: %s\n", console.FormatErrorMessage(analysis.PrimaryFailure))
+	fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("  Primary Failure: %s", analysis.PrimaryFailure)))
 	fmt.Fprintln(os.Stderr)
 
 	if len(analysis.FailedJobs) > 0 {
-		fmt.Fprintf(os.Stderr, "  Failed Jobs:\n")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  Failed Jobs:"))
 		for _, job := range analysis.FailedJobs {
-			fmt.Fprintf(os.Stderr, "    • %s\n", job)
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("    • %s", job)))
 		}
 		fmt.Fprintln(os.Stderr)
 	}
 
-	fmt.Fprintf(os.Stderr, "  Error Summary: %s\n", analysis.ErrorSummary)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Error Summary: %s", analysis.ErrorSummary)))
 	fmt.Fprintln(os.Stderr)
 
 	if analysis.RootCause != "" {
