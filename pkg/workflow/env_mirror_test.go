@@ -18,9 +18,11 @@ func TestGetMirroredEnvArgs(t *testing.T) {
 	for i := 0; i < len(args); i += 2 {
 		assert.Equal(t, "--env", args[i], "Even indices should be --env flag")
 		assert.NotEmpty(t, args[i+1], "Odd indices should be environment variable assignments")
-		// Verify the KEY=${KEY} format
+		// Verify the "KEY=${KEY}" format with outer double quotes
+		assert.True(t, len(args[i+1]) >= 2 && args[i+1][0] == '"' && args[i+1][len(args[i+1])-1] == '"',
+			"Should be wrapped in double quotes for shell expansion, got: %s", args[i+1])
 		assert.Contains(t, args[i+1], "=", "Should contain = for KEY=VALUE format")
-		assert.Contains(t, args[i+1], "${", "Should contain ${ for shell expansion")
+		assert.Contains(t, args[i+1], "=${", "Should contain =${ for shell expansion")
 		assert.Contains(t, args[i+1], "}", "Should contain } for shell expansion")
 	}
 }
@@ -28,16 +30,16 @@ func TestGetMirroredEnvArgs(t *testing.T) {
 func TestGetMirroredEnvArgs_ContainsExpectedVariables(t *testing.T) {
 	args := GetMirroredEnvArgs()
 
-	// Convert to a set for easy lookup (extract variable name from KEY=${KEY} format)
+	// Convert to a set for easy lookup (extract variable name from "KEY=${KEY}" format)
 	varSet := make(map[string]bool)
 	for i := 1; i < len(args); i += 2 {
 		// Extract the variable name from "KEY=${KEY}" format
 		envAssignment := args[i]
-		// Get the part before the '='
-		if idx := len(envAssignment); idx > 0 {
-			for j := 0; j < len(envAssignment); j++ {
+		// Skip the leading quote and get the part before the '='
+		if len(envAssignment) > 1 && envAssignment[0] == '"' {
+			for j := 1; j < len(envAssignment); j++ {
 				if envAssignment[j] == '=' {
-					varSet[envAssignment[:j]] = true
+					varSet[envAssignment[1:j]] = true
 					break
 				}
 			}
@@ -64,15 +66,17 @@ func TestGetMirroredEnvArgs_ContainsExpectedVariables(t *testing.T) {
 func TestGetMirroredEnvArgs_IsSorted(t *testing.T) {
 	args := GetMirroredEnvArgs()
 
-	// Extract just the variable names from KEY=${KEY} format (odd indices)
+	// Extract just the variable names from "KEY=${KEY}" format (odd indices)
 	var varNames []string
 	for i := 1; i < len(args); i += 2 {
 		envAssignment := args[i]
-		// Get the part before the '='
-		for j := 0; j < len(envAssignment); j++ {
-			if envAssignment[j] == '=' {
-				varNames = append(varNames, envAssignment[:j])
-				break
+		// Skip the leading quote and get the part before the '='
+		if len(envAssignment) > 1 && envAssignment[0] == '"' {
+			for j := 1; j < len(envAssignment); j++ {
+				if envAssignment[j] == '=' {
+					varNames = append(varNames, envAssignment[1:j])
+					break
+				}
 			}
 		}
 	}
@@ -193,23 +197,23 @@ func TestGetMirroredEnvArgs_CorrectFormat(t *testing.T) {
 	for i := 0; i < len(args); i += 2 {
 		if args[i] == "--env" && i+1 < len(args) {
 			// Check for the specific format: KEY=${KEY}
-			if args[i+1] == "ANDROID_HOME=${ANDROID_HOME}" {
+			if args[i+1] == "\"ANDROID_HOME=${ANDROID_HOME}\"" {
 				found = true
 				break
 			}
 		}
 	}
-	assert.True(t, found, "Should include ANDROID_HOME=${ANDROID_HOME} in correct KEY=${KEY} format")
+	assert.True(t, found, "Should include \"ANDROID_HOME=${ANDROID_HOME}\" in correct format with outer double quotes")
 
 	// Also verify JAVA_HOME format
 	foundJava := false
 	for i := 0; i < len(args); i += 2 {
 		if args[i] == "--env" && i+1 < len(args) {
-			if args[i+1] == "JAVA_HOME=${JAVA_HOME}" {
+			if args[i+1] == "\"JAVA_HOME=${JAVA_HOME}\"" {
 				foundJava = true
 				break
 			}
 		}
 	}
-	assert.True(t, foundJava, "Should include JAVA_HOME=${JAVA_HOME} in correct KEY=${KEY} format")
+	assert.True(t, foundJava, "Should include \"JAVA_HOME=${JAVA_HOME}\" in correct format with outer double quotes")
 }

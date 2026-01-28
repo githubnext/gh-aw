@@ -469,7 +469,7 @@ func TestGetToolBinsEnvArg(t *testing.T) {
 		t.Errorf("First element should be --env, got: %s", envArg[0])
 	}
 
-	if envArg[1] != "GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS" {
-		t.Errorf("Second element should be GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS, got: %s", envArg[1])
+	if envArg[1] != "\"GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS\"" {
+		t.Errorf("Second element should be \"GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS\" (with outer double quotes), got: %s", envArg[1])
 	}
 }

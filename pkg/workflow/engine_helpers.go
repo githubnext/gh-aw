@@ -401,5 +401,6 @@ func GetToolBinsSetup() string {
 // Returns:
 //   - []string: AWF arguments ["--env", "GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS"]
 func GetToolBinsEnvArg() []string {
-	return []string{"--env", "GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS"}
+	// Pre-wrap in double quotes so shellEscapeArg preserves them (allowing shell expansion)
+	return []string{"--env", "\"GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS\""}
 }
