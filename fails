@@ -1,8 +1,4 @@
 FAIL	github.com/githubnext/gh-aw/pkg/cli	600.107s
---- FAIL: TestPatchArtifactDownloadWithPushToPullRequestBranch (0.00s)
---- FAIL: TestGenerateSafeOutputsPromptStep_IncludesWhenEnabled (0.00s)
---- FAIL: TestInvalidBranchPrefixRejectsConfig (0.00s)
-    --- FAIL: TestInvalidBranchPrefixRejectsConfig/too_short (0.00s)
 --- FAIL: TestCompileWorkflowWithGoRuntimeWithGoModFile (0.46s)
 --- FAIL: TestUVDetectionAddsPython (0.00s)
 --- FAIL: TestValidateSafeOutputsAllowedDomains (0.00s)

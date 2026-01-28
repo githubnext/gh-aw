@@ -40,8 +40,8 @@ func TestGenerateSafeOutputsPromptStep_IncludesWhenEnabled(t *testing.T) {
 	if !strings.Contains(output, "gh CLI is NOT authenticated") {
 		t.Error("Expected prompt to warn about gh CLI not being authenticated")
 	}
-	if !strings.Contains(output, "create_issue") {
-		t.Error("Expected prompt to list create_issue tool")
+	if !strings.Contains(output, "safeoutputs MCP server") {
+		t.Error("Expected prompt to mention safeoutputs MCP server")
 	}
 }
 
