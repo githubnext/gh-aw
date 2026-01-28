@@ -15,6 +15,9 @@ tools:
     read-only: true
     github-token: "${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
     toolsets: [repos, issues, pull_requests, code_security, secret_protection]
+safe-outputs:
+  update-project:
+    max: 100
 project: https://github.com/orgs/githubnext/projects/144
 ---
 
@@ -135,6 +138,8 @@ Notes:
 - `update-project` requires an existing GitHub **issue** or **pull request** reference (`content_type` + `content_number`).
 - For alerts, prefer updating an existing tracking issue if one exists.
 - If there is no tracking issue, create a `draft_issue` so the alert still lands on the project board.
+
+Ordering tip: update alert-related items first, then Dependabot PRs.
 
 ### Step 7: Report
 
