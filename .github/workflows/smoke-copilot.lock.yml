@@ -180,7 +180,7 @@ jobs:
             await main();
       - name: Validate GitHub App variables
         id: validate-secret
-        run: bash /opt/gh-aw/actions/validate_app_support_engine_field.sh "GitHub Copilot CLI" "https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+        run: bash /opt/gh-aw/actions/validate_app_support_engine_field.sh "APP_ID" "APP_PRIVATE_KEY" "GitHub Copilot CLI" "https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
         env:
           APP_ID: ${{ vars.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
