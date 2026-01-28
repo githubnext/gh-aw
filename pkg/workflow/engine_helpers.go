@@ -382,7 +382,7 @@ func GetToolBinsSetup() string {
 	// This runs on the runner where the env vars are trusted values from actions/setup-*.
 	//
 	// Tools with /bin subdirectory:
-	//   - GOROOT: Go installation root (actions/setup-go)
+	//   - Go: Detected via `go env GOROOT` (actions/setup-go doesn't export GOROOT)
 	//   - JAVA_HOME: Java installation root (actions/setup-java)
 	//   - CARGO_HOME: Cargo/Rust installation (rustup)
 	//   - GEM_HOME: Ruby gems (actions/setup-ruby)
@@ -392,7 +392,7 @@ func GetToolBinsSetup() string {
 	//   - PIPX_BIN_DIR: pipx binary directory
 	//   - SWIFT_PATH: Swift binary path
 	//   - DOTNET_ROOT: .NET root (binaries are in root, not /bin)
-	return `GH_AW_TOOL_BINS=""; [ -n "$GOROOT" ] && GH_AW_TOOL_BINS="$GOROOT/bin:$GH_AW_TOOL_BINS"; [ -n "$JAVA_HOME" ] && GH_AW_TOOL_BINS="$JAVA_HOME/bin:$GH_AW_TOOL_BINS"; [ -n "$CARGO_HOME" ] && GH_AW_TOOL_BINS="$CARGO_HOME/bin:$GH_AW_TOOL_BINS"; [ -n "$GEM_HOME" ] && GH_AW_TOOL_BINS="$GEM_HOME/bin:$GH_AW_TOOL_BINS"; [ -n "$CONDA" ] && GH_AW_TOOL_BINS="$CONDA/bin:$GH_AW_TOOL_BINS"; [ -n "$PIPX_BIN_DIR" ] && GH_AW_TOOL_BINS="$PIPX_BIN_DIR:$GH_AW_TOOL_BINS"; [ -n "$SWIFT_PATH" ] && GH_AW_TOOL_BINS="$SWIFT_PATH:$GH_AW_TOOL_BINS"; [ -n "$DOTNET_ROOT" ] && GH_AW_TOOL_BINS="$DOTNET_ROOT:$GH_AW_TOOL_BINS"; export GH_AW_TOOL_BINS`
+	return `GH_AW_TOOL_BINS=""; command -v go >/dev/null 2>&1 && GH_AW_TOOL_BINS="$(go env GOROOT)/bin:$GH_AW_TOOL_BINS"; [ -n "$JAVA_HOME" ] && GH_AW_TOOL_BINS="$JAVA_HOME/bin:$GH_AW_TOOL_BINS"; [ -n "$CARGO_HOME" ] && GH_AW_TOOL_BINS="$CARGO_HOME/bin:$GH_AW_TOOL_BINS"; [ -n "$GEM_HOME" ] && GH_AW_TOOL_BINS="$GEM_HOME/bin:$GH_AW_TOOL_BINS"; [ -n "$CONDA" ] && GH_AW_TOOL_BINS="$CONDA/bin:$GH_AW_TOOL_BINS"; [ -n "$PIPX_BIN_DIR" ] && GH_AW_TOOL_BINS="$PIPX_BIN_DIR:$GH_AW_TOOL_BINS"; [ -n "$SWIFT_PATH" ] && GH_AW_TOOL_BINS="$SWIFT_PATH:$GH_AW_TOOL_BINS"; [ -n "$DOTNET_ROOT" ] && GH_AW_TOOL_BINS="$DOTNET_ROOT:$GH_AW_TOOL_BINS"; export GH_AW_TOOL_BINS`
 }
 
 // GetToolBinsEnvArg returns the AWF --env argument for passing GH_AW_TOOL_BINS to the container.
