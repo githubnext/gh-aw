@@ -93,28 +93,16 @@ describe("close_expired_discussions", () => {
             },
           },
         })
-        // Second call: hasExpirationComment - initial query
+        // Second call: hasExpirationComment - returns true (comment exists) and not closed
         .mockResolvedValueOnce({
           node: {
             closed: false,
             comments: {
-              totalCount: 1,
-            },
-          },
-        })
-        // Third call: hasExpirationComment - fetch comments page
-        .mockResolvedValueOnce({
-          node: {
-            comments: {
-              pageInfo: {
-                hasPreviousPage: false,
-                startCursor: null,
-              },
               nodes: [{ body: "This discussion was automatically closed because it expired on 2020-01-20T09:20:00.000Z.\n\n<!-- gh-aw-closed -->" }],
             },
           },
         })
-        // Fourth call: closeDiscussionAsOutdated
+        // Third call: closeDiscussionAsOutdated
         .mockResolvedValueOnce({
           closeDiscussion: {
             discussion: {
@@ -126,8 +114,8 @@ describe("close_expired_discussions", () => {
 
       await module.main();
 
-      // Verify that the comment was NOT added (4 graphql calls: search, check count, check comments, close)
-      expect(mockGithub.graphql).toHaveBeenCalledTimes(4);
+      // Verify that the comment was NOT added (only 3 graphql calls, not 4)
+      expect(mockGithub.graphql).toHaveBeenCalledTimes(3);
 
       // Verify that we checked for existing comments
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("already has an expiration comment"));
@@ -167,7 +155,7 @@ describe("close_expired_discussions", () => {
           node: {
             closed: true,
             comments: {
-              totalCount: 1,
+              nodes: [{ body: "This discussion was automatically closed because it expired on 2020-01-20T09:20:00.000Z.\n\n<!-- gh-aw-closed -->" }],
             },
           },
         });
@@ -175,7 +163,7 @@ describe("close_expired_discussions", () => {
       await module.main();
 
       // Verify that we only made 2 graphql calls (search and check closed state)
-      // Should NOT attempt to check comments, close, or add comment since discussion is already closed
+      // Should NOT attempt to close or add comment
       expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
 
       // Verify that we detected the discussion was already closed
@@ -211,28 +199,16 @@ describe("close_expired_discussions", () => {
             },
           },
         })
-        // Second call: hasExpirationComment - initial query
+        // Second call: hasExpirationComment - returns false (no comment exists) and not closed
         .mockResolvedValueOnce({
           node: {
             closed: false,
             comments: {
-              totalCount: 1,
-            },
-          },
-        })
-        // Third call: hasExpirationComment - fetch comments page
-        .mockResolvedValueOnce({
-          node: {
-            comments: {
-              pageInfo: {
-                hasPreviousPage: false,
-                startCursor: null,
-              },
               nodes: [{ body: "Some unrelated comment" }],
             },
           },
         })
-        // Fourth call: addDiscussionComment
+        // Third call: addDiscussionComment
         .mockResolvedValueOnce({
           addDiscussionComment: {
             comment: {
@@ -241,7 +217,7 @@ describe("close_expired_discussions", () => {
             },
           },
         })
-        // Fifth call: closeDiscussionAsOutdated
+        // Fourth call: closeDiscussionAsOutdated
         .mockResolvedValueOnce({
           closeDiscussion: {
             discussion: {
@@ -253,8 +229,8 @@ describe("close_expired_discussions", () => {
 
       await module.main();
 
-      // Verify that we made 5 graphql calls (search, check count, check comments, add comment, close)
-      expect(mockGithub.graphql).toHaveBeenCalledTimes(5);
+      // Verify that we made 4 graphql calls (search, check comments, add comment, close)
+      expect(mockGithub.graphql).toHaveBeenCalledTimes(4);
 
       // Verify that we added the comment
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Adding closing comment"));
@@ -288,12 +264,12 @@ describe("close_expired_discussions", () => {
             },
           },
         })
-        // Second call: hasExpirationComment - initial query for closed state and comment count
+        // Second call: hasExpirationComment - empty comments and not closed
         .mockResolvedValueOnce({
           node: {
             closed: false,
             comments: {
-              totalCount: 0,
+              nodes: [],
             },
           },
         })
@@ -321,83 +297,6 @@ describe("close_expired_discussions", () => {
       // Should add comment when no comments exist
       expect(mockGithub.graphql).toHaveBeenCalledTimes(4);
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Adding closing comment"));
-    });
-
-    it("should find expiration comment in discussions with more than 100 comments", async () => {
-      const module = await import("./close_expired_discussions.cjs");
-
-      mockGithub.graphql
-        // First call: searchDiscussionsWithExpiration
-        .mockResolvedValueOnce({
-          repository: {
-            discussions: {
-              pageInfo: {
-                hasNextPage: false,
-                endCursor: null,
-              },
-              nodes: [
-                {
-                  id: "D_many_comments",
-                  number: 11819,
-                  title: "Discussion with Many Comments",
-                  url: "https://github.com/testowner/testrepo/discussions/11819",
-                  body: "> AI generated by Test Workflow\n>\n> - [x] expires <!-- gh-aw-expires: 2020-01-20T09:20:00.000Z --> on Jan 20, 2020, 9:20 AM UTC",
-                  createdAt: "2020-01-19T09:20:00.000Z",
-                },
-              ],
-            },
-          },
-        })
-        // Second call: hasExpirationComment - initial query showing 150 total comments
-        .mockResolvedValueOnce({
-          node: {
-            closed: false,
-            comments: {
-              totalCount: 150,
-            },
-          },
-        })
-        // Third call: hasExpirationComment pagination - first page (last 100 comments)
-        .mockResolvedValueOnce({
-          node: {
-            comments: {
-              pageInfo: {
-                hasPreviousPage: true,
-                startCursor: "cursor_page1",
-              },
-              nodes: Array.from({ length: 100 }, (_, i) => ({ body: `Regular comment ${i + 51}` })),
-            },
-          },
-        })
-        // Fourth call: hasExpirationComment pagination - second page (comments 1-50) with expiration comment
-        .mockResolvedValueOnce({
-          node: {
-            comments: {
-              pageInfo: {
-                hasPreviousPage: false,
-                startCursor: null,
-              },
-              nodes: [...Array.from({ length: 49 }, (_, i) => ({ body: `Regular comment ${i + 1}` })), { body: "This discussion was automatically closed because it expired on 2020-01-20T09:20:00.000Z.\n\n<!-- gh-aw-closed -->" }],
-            },
-          },
-        })
-        // Fifth call: closeDiscussionAsOutdated (no comment added since one exists)
-        .mockResolvedValueOnce({
-          closeDiscussion: {
-            discussion: {
-              id: "D_many_comments",
-              url: "https://github.com/testowner/testrepo/discussions/11819",
-            },
-          },
-        });
-
-      await module.main();
-
-      // Should find existing comment through pagination and skip adding new one
-      expect(mockGithub.graphql).toHaveBeenCalledTimes(5);
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("already has an expiration comment"));
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Found expiration comment marker in page 2"));
-      expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Adding closing comment"));
     });
   });
 
@@ -455,6 +354,82 @@ describe("close_expired_discussions", () => {
 
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("is NOT expired"));
       expect(mockCore.info).toHaveBeenCalledWith("No expired discussions found");
+    });
+
+    it("should deduplicate discussions that appear in multiple pages", async () => {
+      const module = await import("./close_expired_discussions.cjs");
+
+      // Mock search returning the same discussion in two pages (pagination bug simulation)
+      const duplicateDiscussion = {
+        id: "D_duplicate",
+        number: 11819,
+        title: "Duplicate Discussion",
+        url: "https://github.com/testowner/testrepo/discussions/11819",
+        body: "> AI generated by Test Workflow\n>\n> - [x] expires <!-- gh-aw-expires: 2020-01-20T09:20:00.000Z --> on Jan 20, 2020, 9:20 AM UTC",
+        createdAt: "2020-01-19T09:20:00.000Z",
+      };
+
+      mockGithub.graphql
+        // First call: searchDiscussionsWithExpiration - page 1
+        .mockResolvedValueOnce({
+          repository: {
+            discussions: {
+              pageInfo: {
+                hasNextPage: true,
+                endCursor: "cursor1",
+              },
+              nodes: [duplicateDiscussion],
+            },
+          },
+        })
+        // Second call: searchDiscussionsWithExpiration - page 2 (same discussion!)
+        .mockResolvedValueOnce({
+          repository: {
+            discussions: {
+              pageInfo: {
+                hasNextPage: false,
+                endCursor: null,
+              },
+              nodes: [duplicateDiscussion],
+            },
+          },
+        })
+        // Third call: hasExpirationComment
+        .mockResolvedValueOnce({
+          node: {
+            closed: false,
+            comments: {
+              nodes: [],
+            },
+          },
+        })
+        // Fourth call: addDiscussionComment
+        .mockResolvedValueOnce({
+          addDiscussionComment: {
+            comment: {
+              id: "C_comment",
+              url: "https://github.com/testowner/testrepo/discussions/11819#comment",
+            },
+          },
+        })
+        // Fifth call: closeDiscussionAsOutdated
+        .mockResolvedValueOnce({
+          closeDiscussion: {
+            discussion: {
+              id: "D_duplicate",
+              url: "https://github.com/testowner/testrepo/discussions/11819",
+            },
+          },
+        });
+
+      await module.main();
+
+      // Should only process the discussion once despite appearing in 2 pages
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Skipping duplicate discussion #11819"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Found and skipped 1 duplicate"));
+
+      // Should only close once (3 GraphQL calls: 2 for search, 1 for hasExpirationComment, 1 for addComment, 1 for close = 5 total)
+      expect(mockGithub.graphql).toHaveBeenCalledTimes(5);
     });
   });
 });
