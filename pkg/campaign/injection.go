@@ -19,6 +19,10 @@ func normalizeCampaignID(id string) string {
 	id = strings.ReplaceAll(id, "_", "-")
 	id = strings.ReplaceAll(id, " ", "-")
 	id = campaignIDSanitizer.ReplaceAllString(id, "-")
+	// Collapse multiple hyphens into single hyphen
+	for strings.Contains(id, "--") {
+		id = strings.ReplaceAll(id, "--", "-")
+	}
 	id = strings.Trim(id, "-")
 	return id
 }
