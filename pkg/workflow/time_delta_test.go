@@ -1257,10 +1257,17 @@ func TestParseExpiresFromConfig(t *testing.T) {
 			config:   map[string]any{"expires": "invalid"},
 			expected: 0,
 		},
+		// Boolean false explicitly disables expiration
 		{
-			name:     "wrong type",
+			name:     "false disables expiration",
+			config:   map[string]any{"expires": false},
+			expected: -1, // -1 indicates explicitly disabled
+		},
+		// Boolean true is invalid
+		{
+			name:     "true is invalid",
 			config:   map[string]any{"expires": true},
-			expected: 0,
+			expected: 0, // true is not a valid expires value
 		},
 	}
 
