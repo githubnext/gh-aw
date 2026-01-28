@@ -21,6 +21,7 @@ safe-outputs:
     category: "agent-research"
     max: 1
     close-older-discussions: true
+    expires: false
 timeout-minutes: 180
 imports:
   - shared/reporting.md

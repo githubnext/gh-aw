@@ -34,16 +34,24 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 	// Get the config data to check for special cases before unmarshaling
 	configData, _ := outputMap["create-issue"].(map[string]any)
 
-	// Pre-process the expires field if it's a string (convert to int before unmarshaling)
+	// Pre-process the expires field (convert to hours before unmarshaling)
+	expiresDisabled := false
 	if configData != nil {
 		if expires, exists := configData["expires"]; exists {
-			if _, ok := expires.(string); ok {
-				// Parse the string format and replace with int
-				expiresInt := parseExpiresFromConfig(configData)
-				if expiresInt > 0 {
-					configData["expires"] = expiresInt
-				}
+			// Always parse the expires value through parseExpiresFromConfig
+			// This handles: integers (days), strings (time specs like "48h"), and boolean false
+			expiresInt := parseExpiresFromConfig(configData)
+			if expiresInt == -1 {
+				// Explicitly disabled with false
+				expiresDisabled = true
+				configData["expires"] = 0
+			} else if expiresInt > 0 {
+				configData["expires"] = expiresInt
+			} else {
+				// Invalid or missing - set to 0
+				configData["expires"] = 0
 			}
+			createIssueLog.Printf("Parsed expires value %v to %d hours (disabled=%t)", expires, expiresInt, expiresDisabled)
 		}
 	}
 
@@ -75,8 +83,10 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 		return nil // Invalid configuration, return nil to cause validation error
 	}
 
-	// Log expires if configured
-	if config.Expires > 0 {
+	// Log expires if configured or explicitly disabled
+	if expiresDisabled {
+		createIssueLog.Print("Issue expiration explicitly disabled")
+	} else if config.Expires > 0 {
 		createIssueLog.Printf("Issue expiration configured: %d hours", config.Expires)
 	}
 

@@ -34,6 +34,10 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateIssues.Group {
 				config["group"] = true
 			}
+			// Add expires value if set (0 means explicitly disabled or not set)
+			if data.SafeOutputs.CreateIssues.Expires > 0 {
+				config["expires"] = data.SafeOutputs.CreateIssues.Expires
+			}
 			safeOutputsConfig["create_issue"] = config
 		}
 		if data.SafeOutputs.CreateAgentSessions != nil {
@@ -50,11 +54,16 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			)
 		}
 		if data.SafeOutputs.CreateDiscussions != nil {
-			safeOutputsConfig["create_discussion"] = generateMaxWithAllowedLabelsConfig(
+			config := generateMaxWithAllowedLabelsConfig(
 				data.SafeOutputs.CreateDiscussions.Max,
 				1, // default max
 				data.SafeOutputs.CreateDiscussions.AllowedLabels,
 			)
+			// Add expires value if set (0 means explicitly disabled or not set)
+			if data.SafeOutputs.CreateDiscussions.Expires > 0 {
+				config["expires"] = data.SafeOutputs.CreateDiscussions.Expires
+			}
+			safeOutputsConfig["create_discussion"] = config
 		}
 		if data.SafeOutputs.CloseDiscussions != nil {
 			safeOutputsConfig["close_discussion"] = generateMaxWithDiscussionFieldsConfig(
