@@ -4179,7 +4179,7 @@
                   "type": "integer",
                   "description": "Maximum number of agent sessions to create (default: 1)",
                   "minimum": 1,
-                  "maximum": 1
+                  "maximum": 10
                 },
                 "target-repo": {
                   "type": "string",
