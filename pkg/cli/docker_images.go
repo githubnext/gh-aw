@@ -134,7 +134,7 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 			// If not the last attempt, wait and retry
 			if attempt < maxAttempts {
 				dockerImagesLog.Printf("Failed to download image %s (attempt %d/%d). Retrying in %ds...", image, attempt, maxAttempts, waitTime)
-				
+
 				// Use context-aware sleep
 				select {
 				case <-time.After(time.Duration(waitTime) * time.Second):
@@ -147,7 +147,7 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 					pullState.mu.Unlock()
 					return
 				}
-				
+
 				waitTime *= 2 // Exponential backoff
 			}
 		}
