@@ -4078,9 +4078,14 @@
                       "type": "string",
                       "pattern": "^[0-9]+[hHdDwWmMyY]$",
                       "description": "Relative time (e.g., '2h', '7d', '2w', '1m', '1y'); minimum 2h for hour values"
+                    },
+                    {
+                      "type": "boolean",
+                      "enum": [false],
+                      "description": "Set to false to explicitly disable expiration"
                     }
                   ],
-                  "description": "Time until the issue expires and should be automatically closed. Supports integer (days) or relative time format. Minimum duration: 2 hours. When set, a maintenance workflow will be generated."
+                  "description": "Time until the issue expires and should be automatically closed. Supports integer (days), relative time format, or false to disable expiration. Minimum duration: 2 hours. When set, a maintenance workflow will be generated."
                 },
                 "group": {
                   "type": "boolean",
@@ -4554,10 +4559,15 @@
                       "type": "string",
                       "pattern": "^[0-9]+[hHdDwWmMyY]$",
                       "description": "Relative time (e.g., '2h', '7d', '2w', '1m', '1y'); minimum 2h for hour values"
+                    },
+                    {
+                      "type": "boolean",
+                      "enum": [false],
+                      "description": "Set to false to explicitly disable expiration"
                     }
                   ],
                   "default": 7,
-                  "description": "Time until the discussion expires and should be automatically closed. Supports integer (days) or relative time format like '2h' (2 hours), '7d' (7 days), '2w' (2 weeks), '1m' (1 month), '1y' (1 year). Minimum duration: 2 hours. When set, a maintenance workflow will be generated. Defaults to 7 days if not specified."
+                  "description": "Time until the discussion expires and should be automatically closed. Supports integer (days), relative time format like '2h' (2 hours), '7d' (7 days), '2w' (2 weeks), '1m' (1 month), '1y' (1 year), or false to disable expiration. Minimum duration: 2 hours. When set, a maintenance workflow will be generated. Defaults to 7 days if not specified."
                 }
               },
               "additionalProperties": false,
