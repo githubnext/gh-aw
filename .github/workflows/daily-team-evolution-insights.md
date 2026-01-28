@@ -46,6 +46,64 @@ Analyze the last 24 hours of repository activity to extract meaningful insights 
 - Emerging technologies or practices
 - Team dynamics and productivity
 
+## Formatting Guidelines
+
+**CRITICAL**: Follow these formatting guidelines to create well-structured, readable reports:
+
+### 1. Header Levels
+**Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
+
+The discussion title serves as h1, so all content headers should start at h3:
+- Use `###` for main sections (e.g., "### Key Observations", "### Development Patterns")
+- Use `####` for subsections (e.g., "#### Team Dynamics", "#### Innovation & Learning")
+- Never use `##` (h2) or `#` (h1) in the report body
+
+### 2. Progressive Disclosure
+**Wrap detailed sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+
+Use collapsible sections for:
+- Individual contributor activity breakdowns
+- Detailed commit histories and file change lists
+- Full PR/issue/discussion activity logs
+- Complete code review conversations
+- Raw data, statistics, and technical breakdowns
+
+Example:
+```markdown
+<details>
+<summary><b>Detailed Activity Breakdown</b></summary>
+
+### Individual Contributions
+
+#### `@contributor1`
+- 15 commits across 23 files
+- 2 PRs merged (feat-x, fix-y)
+- 8 code review comments
+
+#### `@contributor2`
+- ...
+
+</details>
+```
+
+### 3. Report Structure Pattern
+
+Your report should follow this structure for optimal readability:
+
+1. **Executive Summary** (always visible): 2-3 paragraphs with key insights about team evolution
+2. **Key Observations** (always visible): Focus areas, velocity, collaboration, innovation highlights
+3. **Detailed Activity Analysis** (in `<details>` tags): Per-contributor breakdowns, commit histories
+4. **Trends & Patterns** (always visible): What the activity means for the team's evolution
+5. **Recommendations** (always visible): Actionable suggestions for improvement
+
+### Design Principles
+
+Create reports that:
+- **Build trust through clarity**: Most meaningful insights (patterns, trends, observations) immediately visible
+- **Exceed expectations**: Connect raw activity to strategic insights about team evolution
+- **Create delight**: Use progressive disclosure to show supporting data without overwhelming the narrative
+- **Maintain consistency**: Follow the same patterns as other daily reporting workflows
+
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
@@ -111,7 +169,7 @@ Always create a GitHub Discussion with your findings using this structure:
 
 [2-3 paragraph executive summary of the most interesting patterns and insights. Start with the "so what" rather than the "what" - lead with insights about what the activity means for the team's evolution.]
 
-## 🎯 Key Observations
+### 🎯 Key Observations
 
 - 🎯 **Focus Area**: [Main area of development activity and what it tells us about team priorities]
 - 🚀 **Velocity**: [Development pace, throughput, and what it suggests about team capacity]
@@ -169,40 +227,40 @@ Always create a GitHub Discussion with your findings using this structure:
 
 </details>
 
-## 💡 Emerging Trends
+### 💡 Emerging Trends
 
-### Technical Evolution
+#### Technical Evolution
 [What new technologies, patterns, or approaches are being adopted? Why does this matter?]
 
-### Process Improvements
+#### Process Improvements
 [What changes to development process or tooling are happening? What problems do they solve?]
 
-### Knowledge Sharing
+#### Knowledge Sharing
 [What documentation, discussions, or learning is happening? How is it spreading through the team?]
 
-## 🎨 Notable Work
+### 🎨 Notable Work
 
-### Standout Contributions
+#### Standout Contributions
 [Highlight particularly interesting or impactful work that deserves recognition]
 
-### Creative Solutions
+#### Creative Solutions
 [Any innovative approaches or clever solutions that others might learn from?]
 
-### Quality Improvements
+#### Quality Improvements
 [Refactoring, testing, or code quality enhancements that make the codebase better]
 
-## 🤔 Observations & Insights
+### 🤔 Observations & Insights
 
-### What's Working Well
+#### What's Working Well
 [Positive patterns and successes to celebrate - be specific with examples]
 
-### Potential Challenges
+#### Potential Challenges
 [Areas that might need attention or support - frame constructively]
 
-### Opportunities
+#### Opportunities
 [Specific, actionable suggestions for improvement or optimization]
 
-## 🔮 Looking Forward
+### 🔮 Looking Forward
 
 [Based on current patterns, what might we expect to see developing? What opportunities are emerging? What should the team keep in mind?]
 
