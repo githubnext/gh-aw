@@ -21,7 +21,7 @@ package cli
 // The main entry point is CompileWorkflows() in compile_orchestrator.go:
 //
 //   err := cli.CompileWorkflows(cli.CompileConfig{
-//       WorkflowFiles: []string{"workflow.md"},
+//       MarkdownFiles: []string{"workflow.md"},
 //       Verbose:       false,
 //       Force:         false,
 //   })

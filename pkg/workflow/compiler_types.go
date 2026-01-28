@@ -480,7 +480,7 @@ type BaseSafeOutputConfig struct {
 //   - CopyProjects: Copy project boards
 //   - CreateProjectStatusUpdates: Create project status updates
 //
-// Releases &amp; Assets:
+// Releases & Assets:
 //   - UploadAssets: Upload release assets
 //   - UpdateRelease: Update release descriptions
 //
