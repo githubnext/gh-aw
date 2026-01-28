@@ -1,4 +1,4 @@
-// Package cli contains MCP (Model Context Protocol) validation functions.
+// This file contains MCP (Model Context Protocol) validation functions.
 // This file consolidates validation logic for MCP server configurations.
 
 package cli
