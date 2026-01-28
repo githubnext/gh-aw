@@ -361,7 +361,7 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, q
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, "Locating workflow components...")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Locating workflow components..."))
 	}
 
 	workflowPath := workflow.WorkflowPath
@@ -381,12 +381,12 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, q
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To add workflows to your project:"))
 			fmt.Fprintln(os.Stderr, "")
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Use the 'add' command with repository/workflow specifications:"))
-			fmt.Fprintf(os.Stderr, "  %s add owner/repo/workflow-name\n", string(constants.CLIExtensionPrefix))
-			fmt.Fprintf(os.Stderr, "  %s add owner/repo/workflow-name@version\n", string(constants.CLIExtensionPrefix))
+			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s add owner/repo/workflow-name", string(constants.CLIExtensionPrefix))))
+			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s add owner/repo/workflow-name@version", string(constants.CLIExtensionPrefix))))
 			fmt.Fprintln(os.Stderr, "")
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Example:"))
-			fmt.Fprintf(os.Stderr, "  %s add githubnext/agentics/ci-doctor\n", string(constants.CLIExtensionPrefix))
-			fmt.Fprintf(os.Stderr, "  %s add githubnext/agentics/daily-plan@main\n", string(constants.CLIExtensionPrefix))
+			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s add githubnext/agentics/ci-doctor", string(constants.CLIExtensionPrefix))))
+			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s add githubnext/agentics/daily-plan@main", string(constants.CLIExtensionPrefix))))
 		}
 
 		return fmt.Errorf("workflow not found: %s", workflowPath)
