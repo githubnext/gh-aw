@@ -72,11 +72,22 @@ When called with a workflow name, creates a template file with comprehensive exa
 - Tools configuration (github, claude, MCPs)
 - All frontmatter options with explanations
 
+Documentation Modes:
+
+--quick: Creates minimal documentation (workflow + basic README)
+  Best for: Simple workflows, quick prototyping, minimal setup
+  Files: workflow.md, workflow-README.md (basic)
+
+Default (comprehensive): Creates detailed documentation with examples
+  Best for: Production workflows, team collaboration, complex automation
+  Files: workflow.md, workflow-README.md (detailed with examples)
+
 ` + cli.WorkflowIDExplanation + `
 
 Examples:
   ` + string(constants.CLIExtensionPrefix) + ` new                      # Interactive mode
-  ` + string(constants.CLIExtensionPrefix) + ` new my-workflow          # Create template file
+  ` + string(constants.CLIExtensionPrefix) + ` new my-workflow          # Create template with comprehensive docs
+  ` + string(constants.CLIExtensionPrefix) + ` new my-workflow --quick  # Create template with minimal docs
   ` + string(constants.CLIExtensionPrefix) + ` new my-workflow.md       # Same as above (.md extension stripped)
   ` + string(constants.CLIExtensionPrefix) + ` new my-workflow --force  # Overwrite if exists`,
 	Args: cobra.MaximumNArgs(1),
@@ -84,6 +95,7 @@ Examples:
 		forceFlag, _ := cmd.Flags().GetBool("force")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		interactiveFlag, _ := cmd.Flags().GetBool("interactive")
+		quickFlag, _ := cmd.Flags().GetBool("quick")
 
 		// If no arguments provided or interactive flag is set, use interactive mode
 		if len(args) == 0 || interactiveFlag {
@@ -103,7 +115,7 @@ Examples:
 
 		// Template mode with workflow name
 		workflowName := args[0]
-		return cli.NewWorkflow(workflowName, verbose, forceFlag)
+		return cli.NewWorkflow(workflowName, verbose, forceFlag, quickFlag)
 	},
 }
 
@@ -477,6 +489,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	// Add flags to new command
 	newCmd.Flags().BoolP("force", "f", false, "Overwrite existing files without confirmation")
 	newCmd.Flags().BoolP("interactive", "i", false, "Launch interactive workflow creation wizard")
+	newCmd.Flags().BoolP("quick", "q", false, "Create minimal documentation (workflow + basic README only)")
 
 	// Add AI flag to compile and add commands
 	compileCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")

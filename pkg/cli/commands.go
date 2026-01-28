@@ -140,8 +140,9 @@ func resolveWorkflowFileInDir(fileOrWorkflowName string, verbose bool, workflowD
 }
 
 // NewWorkflow creates a new workflow markdown file with template content
-func NewWorkflow(workflowName string, verbose bool, force bool) error {
-	commandsLog.Printf("Creating new workflow: name=%s, force=%v", workflowName, force)
+// If quick is true, creates only the workflow file; otherwise creates workflow + comprehensive README
+func NewWorkflow(workflowName string, verbose bool, force bool, quick bool) error {
+	commandsLog.Printf("Creating new workflow: name=%s, force=%v, quick=%v", workflowName, force, quick)
 
 	// Normalize the workflow name by removing .md extension if present
 	// This ensures consistent behavior whether user provides "my-workflow" or "my-workflow.md"
@@ -185,6 +186,36 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created new workflow: %s", destFile)))
+
+	// Generate documentation based on mode
+	if !quick {
+		// Comprehensive mode: Create detailed README with examples
+		readmePath := filepath.Join(githubWorkflowsDir, workflowName+"-README.md")
+		commandsLog.Printf("Creating comprehensive README: %s", readmePath)
+		
+		readmeContent := createComprehensiveReadme(workflowName)
+		if err := os.WriteFile(readmePath, []byte(readmeContent), 0600); err != nil {
+			// Non-fatal: log warning but continue
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to create README: %v", err)))
+			commandsLog.Printf("Failed to create README: %v", err)
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created documentation: %s", readmePath)))
+		}
+	} else {
+		// Quick mode: Create minimal README
+		readmePath := filepath.Join(githubWorkflowsDir, workflowName+"-README.md")
+		commandsLog.Printf("Creating quick README: %s", readmePath)
+		
+		readmeContent := createQuickReadme(workflowName)
+		if err := os.WriteFile(readmePath, []byte(readmeContent), 0600); err != nil {
+			// Non-fatal: log warning but continue
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to create README: %v", err)))
+			commandsLog.Printf("Failed to create README: %v", err)
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created minimal README: %s", readmePath)))
+		}
+	}
+
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Edit the file to customize your workflow, then run '%s compile' to generate the GitHub Actions workflow", string(constants.CLIExtensionPrefix))))
 
 	return nil
@@ -243,4 +274,185 @@ Be clear and specific about what the AI should accomplish.
 - Run ` + "`" + string(constants.CLIExtensionPrefix) + " compile`" + ` to generate the GitHub Actions workflow
 - See https://githubnext.github.io/gh-aw/ for complete configuration options and tools documentation
 `
+}
+
+// createQuickReadme generates a minimal README for the workflow
+func createQuickReadme(workflowName string) string {
+	cliPrefix := string(constants.CLIExtensionPrefix)
+	backtick := "`"
+	return fmt.Sprintf(`# %s
+
+## Quick Start
+
+1. Edit %s.github/workflows/%s.md%s to customize the workflow
+2. Run %s%s compile%s to generate the GitHub Actions workflow
+3. Commit and push the changes
+
+## What This Workflow Does
+
+[Describe the purpose of this workflow]
+
+## Triggering the Workflow
+
+This workflow can be triggered:
+- Manually via workflow_dispatch
+- [Add other triggers as configured]
+
+## Documentation
+
+For complete documentation, see https://githubnext.github.io/gh-aw/
+`, workflowName, backtick, workflowName, backtick, backtick, cliPrefix, backtick)
+}
+
+// createComprehensiveReadme generates a detailed README for the workflow
+func createComprehensiveReadme(workflowName string) string {
+	cliPrefix := string(constants.CLIExtensionPrefix)
+	backtick := "`"
+	tripleBacktick := "```"
+	return fmt.Sprintf(`# %s
+
+## Overview
+
+[Provide a comprehensive description of what this workflow does, its purpose, and when it should be used]
+
+## Features
+
+- [Feature 1]
+- [Feature 2]
+- [Feature 3]
+
+## Setup
+
+### Prerequisites
+
+- Repository must be initialized for agentic workflows (run %s%s init%s)
+- Required permissions configured in workflow frontmatter
+- Any necessary secrets or environment variables set
+
+### Installation
+
+1. Edit the workflow file at %s.github/workflows/%s.md%s
+2. Configure the triggers, permissions, and safe-outputs as needed
+3. Compile the workflow:
+   %sbash
+   %s compile %s
+   %s
+4. Commit and push the changes
+
+## Configuration
+
+### Triggers
+
+The workflow can be configured with various triggers in the frontmatter:
+
+- **workflow_dispatch**: Manual trigger (default)
+- **issues**: Trigger on issue events (opened, edited, etc.)
+- **pull_request**: Trigger on PR events (opened, synchronize, etc.)
+- **schedule**: Trigger on a schedule (daily, weekly, etc.)
+
+Example:
+%syaml
+on:
+  issues:
+    types: [opened, edited]
+  workflow_dispatch:
+%s
+
+### Permissions
+
+Configure the minimum required permissions for your workflow:
+
+%syaml
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+%s
+
+### Safe Outputs
+
+Define what actions the AI can take:
+
+%syaml
+safe-outputs:
+  create-issue:
+    max: 5
+  add-comment:
+    max: 2
+%s
+
+## Usage
+
+### Manual Trigger
+
+Navigate to Actions → %s → Run workflow
+
+### Automatic Trigger
+
+The workflow will run automatically based on the configured triggers.
+
+## Workflow Behavior
+
+[Describe in detail what the workflow does when triggered, what inputs it processes, and what outputs it produces]
+
+## Examples
+
+### Example 1: Basic Usage
+
+[Provide a concrete example of how to use this workflow]
+
+### Example 2: Advanced Configuration
+
+[Provide an advanced example with additional configuration]
+
+## Troubleshooting
+
+### Common Issues
+
+**Issue**: Workflow fails to compile
+- **Solution**: Check the frontmatter syntax and ensure all required fields are present
+
+**Issue**: Workflow runs but doesn't produce expected output
+- **Solution**: Check the workflow logs with %s%s logs %s%s
+
+### Debugging
+
+Use the audit command to investigate workflow runs:
+
+%sbash
+%s logs %s
+%s audit <run-id>
+%s
+
+## Best Practices
+
+1. **Start with minimal permissions**: Only grant what the workflow needs
+2. **Use safe-outputs**: Prefer structured outputs over raw permissions
+3. **Test thoroughly**: Run the workflow manually before enabling automatic triggers
+4. **Monitor usage**: Keep an eye on workflow runs and costs
+5. **Document behavior**: Keep this README updated with workflow changes
+
+## Additional Resources
+
+- [GitHub Agentic Workflows Documentation](https://githubnext.github.io/gh-aw/)
+- [Workflow Examples](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)
+- [Security Best Practices](https://githubnext.github.io/gh-aw/security/)
+
+## Contributing
+
+To modify this workflow:
+
+1. Edit %s.github/workflows/%s.md%s
+2. Update this README if behavior changes
+3. Recompile: %s%s compile %s%s
+4. Test the changes
+5. Commit and create a pull request
+
+## License
+
+[Your license information]
+`, workflowName, backtick, cliPrefix, backtick, backtick, workflowName, backtick, tripleBacktick, cliPrefix, workflowName, tripleBacktick,
+		tripleBacktick, tripleBacktick, tripleBacktick, tripleBacktick, tripleBacktick, tripleBacktick, workflowName,
+		backtick, cliPrefix, workflowName, backtick, tripleBacktick, cliPrefix, workflowName, cliPrefix, tripleBacktick,
+		backtick, workflowName, backtick, backtick, cliPrefix, workflowName, backtick)
 }

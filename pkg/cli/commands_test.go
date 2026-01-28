@@ -590,8 +590,8 @@ func TestNewWorkflow(t *testing.T) {
 				test.setup(t)
 			}
 
-			// Run the function
-			err := NewWorkflow(test.workflowName, false, test.force)
+			// Run the function (test comprehensive mode by default)
+			err := NewWorkflow(test.workflowName, false, test.force, false)
 
 			// Check error expectation
 			if test.expectedError && err == nil {
@@ -627,6 +627,115 @@ func TestNewWorkflow(t *testing.T) {
 					for _, element := range expectedElements {
 						if !strings.Contains(contentStr, element) {
 							t.Errorf("Template missing expected element: %s", element)
+						}
+					}
+				}
+			}
+
+			// Clean up for next test
+			os.RemoveAll(".github")
+		})
+	}
+}
+
+// TestNewWorkflowQuickMode tests the quick mode functionality
+func TestNewWorkflowQuickMode(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "test-new-workflow-quick-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Change to the temp directory
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(oldWd); err != nil {
+			t.Logf("Warning: Failed to restore working directory: %v", err)
+		}
+	}()
+
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	tests := []struct {
+		name         string
+		workflowName string
+		quick        bool
+		expectReadme bool
+	}{
+		{
+			name:         "quick mode creates minimal README",
+			workflowName: "test-quick",
+			quick:        true,
+			expectReadme: true,
+		},
+		{
+			name:         "comprehensive mode creates detailed README",
+			workflowName: "test-comprehensive",
+			quick:        false,
+			expectReadme: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// Run the function
+			err := NewWorkflow(test.workflowName, false, false, test.quick)
+			
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			// Verify the workflow file was created
+			workflowPath := ".github/workflows/" + test.workflowName + ".md"
+			if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
+				t.Errorf("Expected workflow file was not created: %s", workflowPath)
+			}
+
+			// Verify the README was created
+			if test.expectReadme {
+				readmePath := ".github/workflows/" + test.workflowName + "-README.md"
+				if _, err := os.Stat(readmePath); os.IsNotExist(err) {
+					t.Errorf("Expected README file was not created: %s", readmePath)
+				} else {
+					// Verify README content based on mode
+					content, err := os.ReadFile(readmePath)
+					if err != nil {
+						t.Errorf("Failed to read README file: %v", err)
+					} else {
+						contentStr := string(content)
+						if test.quick {
+							// Quick mode should have minimal content
+							if !strings.Contains(contentStr, "## Quick Start") {
+								t.Errorf("Quick README missing expected '## Quick Start' section")
+							}
+							// Should NOT contain comprehensive sections
+							if strings.Contains(contentStr, "## Troubleshooting") {
+								t.Errorf("Quick README should not contain '## Troubleshooting' section")
+							}
+						} else {
+							// Comprehensive mode should have detailed content
+							expectedSections := []string{
+								"## Overview",
+								"## Features",
+								"## Setup",
+								"## Configuration",
+								"## Usage",
+								"## Examples",
+								"## Troubleshooting",
+								"## Best Practices",
+							}
+							for _, section := range expectedSections {
+								if !strings.Contains(contentStr, section) {
+									t.Errorf("Comprehensive README missing expected section: %s", section)
+								}
+							}
 						}
 					}
 				}
