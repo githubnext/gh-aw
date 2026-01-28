@@ -31,20 +31,28 @@ jobs:
           # Exclusions configured in .golangci.yml (linters-settings.gosec.exclude)
           # Keep this list in sync with .golangci.yml for consistency
           START_TIME=$(date +%s)
+          set +e
           gosec -fmt sarif -out gosec-results.sarif -stdout -exclude-generated -track-suppressions \
             -exclude=G101,G115,G602,G301,G302,G304,G306 \
             ./...
+          GOSEC_EXIT_CODE=$?
+          set -e
           END_TIME=$(date +%s)
           DURATION=$((END_TIME - START_TIME))
           echo "Gosec scan completed in ${DURATION}s"
           echo "gosec_duration=${DURATION}" >> $GITHUB_OUTPUT
+          exit $GOSEC_EXIT_CODE
 
       - name: Report scan duration
         if: always()
         run: |
+          DURATION="${{ steps.gosec.outputs.gosec_duration }}"
+          if [ -z "$DURATION" ]; then
+            DURATION="N/A"
+          fi
           echo "### Gosec Scan Performance" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Duration**: ${{ steps.gosec.outputs.gosec_duration }}s" >> $GITHUB_STEP_SUMMARY
+          echo "- **Duration**: ${DURATION}s" >> $GITHUB_STEP_SUMMARY
           echo "- **Timestamp**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "> 🎯 **Baseline**: gosec v2.22.11 with performance optimizations (5-15% faster)" >> $GITHUB_STEP_SUMMARY
