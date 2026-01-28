@@ -157,9 +157,7 @@ Example: compile({"workflows": ["my-workflow.md"], "strict": true, "zizmor": tru
 		cmdArgs := []string{"compile", "--json"}
 
 		// Add individual workflows if specified
-		for _, w := range args.Workflows {
-			cmdArgs = append(cmdArgs, w)
-		}
+		cmdArgs = append(cmdArgs, args.Workflows...)
 
 		// Add flags based on arguments
 		if args.Strict {
@@ -606,9 +604,7 @@ Example: update({}) to update all workflows`,
 		// Build command arguments
 		cmdArgs := []string{"update"}
 
-		for _, w := range args.Workflows {
-			cmdArgs = append(cmdArgs, w)
-		}
+		cmdArgs = append(cmdArgs, args.Workflows...)
 
 		if args.Force {
 			cmdArgs = append(cmdArgs, "--force")
@@ -684,9 +680,7 @@ Example: fix({}) to fix all workflows`,
 		// Build command arguments
 		cmdArgs := []string{"fix"}
 
-		for _, w := range args.Workflows {
-			cmdArgs = append(cmdArgs, w)
-		}
+		cmdArgs = append(cmdArgs, args.Workflows...)
 
 		mcpToolsLog.Printf("Executing fix tool: workflows=%v", args.Workflows)
 
