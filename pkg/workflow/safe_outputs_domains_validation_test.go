@@ -264,13 +264,13 @@ func TestValidateDomainPattern(t *testing.T) {
 			name:    "invalid - wildcard in middle",
 			domain:  "api.*.github.com",
 			wantErr: true,
-			errMsg:  "invalid position",
+			errMsg:  "wildcard must be at the start followed by a dot",
 		},
 		{
 			name:    "invalid - wildcard at end",
 			domain:  "github.*",
 			wantErr: true,
-			errMsg:  "invalid position",
+			errMsg:  "wildcard must be at the start followed by a dot",
 		},
 		{
 			name:    "invalid - trailing dot",

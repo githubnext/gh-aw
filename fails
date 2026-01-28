@@ -1,8 +1,4 @@
 FAIL	github.com/githubnext/gh-aw/pkg/cli	600.107s
---- FAIL: TestValidateDomainPattern (0.00s)
-    --- FAIL: TestValidateDomainPattern/invalid_-_wildcard_in_middle (0.00s)
-    --- FAIL: TestValidateDomainPattern/invalid_-_wildcard_at_end (0.00s)
---- FAIL: TestGetSafeOutputsToolsJSON (0.00s)
 --- FAIL: TestSandboxAgentMandatory (0.91s)
     --- FAIL: TestSandboxAgentMandatory/sandbox.agent:_awf_enables_firewall (0.44s)
     --- FAIL: TestSandboxAgentMandatory/default_sandbox_enables_firewall_(awf) (0.46s)
