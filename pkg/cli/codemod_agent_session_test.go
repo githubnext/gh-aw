@@ -220,3 +220,39 @@ Creates an agent session.`
 	assert.Contains(t, result, "# Test Workflow")
 	assert.Contains(t, result, "Creates an agent session.")
 }
+
+func TestAgentSessionCodemod_SkipsWhenSessionAlreadyExists(t *testing.T) {
+	codemod := getAgentTaskToAgentSessionCodemod()
+
+	content := `---
+on: workflow_dispatch
+safe-outputs:
+  create-agent-task:
+    title: Old Task
+  create-agent-session:
+    title: New Session
+---
+
+# Test`
+
+	frontmatter := map[string]any{
+		"on": "workflow_dispatch",
+		"safe-outputs": map[string]any{
+			"create-agent-task": map[string]any{
+				"title": "Old Task",
+			},
+			"create-agent-session": map[string]any{
+				"title": "New Session",
+			},
+		},
+	}
+
+	result, applied, err := codemod.Apply(content, frontmatter)
+
+	require.NoError(t, err)
+	assert.False(t, applied, "Should not apply migration when create-agent-session already exists")
+	assert.Equal(t, content, result, "Content should remain unchanged")
+	// Verify both fields still exist unchanged
+	assert.Contains(t, result, "create-agent-task:")
+	assert.Contains(t, result, "create-agent-session:")
+}
