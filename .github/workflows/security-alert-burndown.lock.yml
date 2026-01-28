@@ -1207,8 +1207,6 @@ jobs:
           cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           4) Discovery cursor is maintained automatically in repo-memory; do not modify it manually.
           
-          PROMPT_EOF
-          cat << 'PROMPT_EOF' >> "$GH_AW_PROMPT"
           ### Step 2 — Make Decisions (Planning) [NO WRITES]
           
           5) Determine desired `status` strictly from explicit GitHub state:
