@@ -172,8 +172,16 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 		// Parse imported steps from YAML array
 		var importedSteps []any
 		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &importedSteps); err == nil {
-			// Apply action pinning to imported steps
-			importedSteps = ApplyActionPinsToSteps(importedSteps, workflowData)
+			// Convert to typed steps for action pinning
+			typedImportedSteps, err := SliceToSteps(importedSteps)
+			if err != nil {
+				orchestratorWorkflowLog.Printf("Failed to convert imported steps to typed steps: %v", err)
+			} else {
+				// Apply action pinning to imported steps using type-safe version
+				typedImportedSteps = ApplyActionPinsToTypedSteps(typedImportedSteps, workflowData)
+				// Convert back to []any for YAML marshaling
+				importedSteps = StepsToSlice(typedImportedSteps)
+			}
 
 			// If there are main workflow steps, parse and merge them
 			if workflowData.CustomSteps != "" {
@@ -182,8 +190,16 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 				if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err == nil {
 					if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
 						if mainSteps, ok := mainStepsVal.([]any); ok {
-							// Apply action pinning to main steps
-							mainSteps = ApplyActionPinsToSteps(mainSteps, workflowData)
+							// Convert to typed steps for action pinning
+							typedMainSteps, err := SliceToSteps(mainSteps)
+							if err != nil {
+								orchestratorWorkflowLog.Printf("Failed to convert main steps to typed steps: %v", err)
+							} else {
+								// Apply action pinning to main steps using type-safe version
+								typedMainSteps = ApplyActionPinsToTypedSteps(typedMainSteps, workflowData)
+								// Convert back to []any for YAML marshaling
+								mainSteps = StepsToSlice(typedMainSteps)
+							}
 
 							// Prepend imported steps to main steps
 							allSteps := append(importedSteps, mainSteps...)
@@ -213,8 +229,16 @@ func (c *Compiler) processAndMergeSteps(frontmatter map[string]any, workflowData
 		if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err == nil {
 			if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
 				if mainSteps, ok := mainStepsVal.([]any); ok {
-					// Apply action pinning to main steps
-					mainSteps = ApplyActionPinsToSteps(mainSteps, workflowData)
+					// Convert to typed steps for action pinning
+					typedMainSteps, err := SliceToSteps(mainSteps)
+					if err != nil {
+						orchestratorWorkflowLog.Printf("Failed to convert main steps to typed steps: %v", err)
+					} else {
+						// Apply action pinning to main steps using type-safe version
+						typedMainSteps = ApplyActionPinsToTypedSteps(typedMainSteps, workflowData)
+						// Convert back to []any for YAML marshaling
+						mainSteps = StepsToSlice(typedMainSteps)
+					}
 
 					// Convert back to YAML with "steps:" wrapper
 					stepsWrapper := map[string]any{"steps": mainSteps}
@@ -241,8 +265,16 @@ func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflow
 		if err := yaml.Unmarshal([]byte(workflowData.PostSteps), &postStepsWrapper); err == nil {
 			if postStepsVal, hasPostSteps := postStepsWrapper["post-steps"]; hasPostSteps {
 				if postSteps, ok := postStepsVal.([]any); ok {
-					// Apply action pinning to post steps
-					postSteps = ApplyActionPinsToSteps(postSteps, workflowData)
+					// Convert to typed steps for action pinning
+					typedPostSteps, err := SliceToSteps(postSteps)
+					if err != nil {
+						orchestratorWorkflowLog.Printf("Failed to convert post-steps to typed steps: %v", err)
+					} else {
+						// Apply action pinning to post steps using type-safe version
+						typedPostSteps = ApplyActionPinsToTypedSteps(typedPostSteps, workflowData)
+						// Convert back to []any for YAML marshaling
+						postSteps = StepsToSlice(typedPostSteps)
+					}
 
 					// Convert back to YAML with "post-steps:" wrapper
 					stepsWrapper := map[string]any{"post-steps": postSteps}
