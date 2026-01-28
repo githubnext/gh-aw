@@ -383,15 +383,15 @@ func GetHostedToolcachePathSetup() string {
 // Example:
 //
 //	GetSanitizedPATHExport("$GH_AW_TOOL_BINS$PATH")
-//	// Returns: _GH_AW_PATH="$GH_AW_TOOL_BINS$PATH"; _GH_AW_PATH="${_GH_AW_PATH#:}"; ... export PATH="$_GH_AW_PATH"
+//	// Returns: _GH_AW_PATH="$GH_AW_TOOL_BINS$PATH"; while [...]; export PATH="$_GH_AW_PATH"
 func GetSanitizedPATHExport(rawPath string) string {
 	// Use a temporary variable to build and sanitize the PATH.
 	// This approach uses POSIX-compliant shell parameter expansion.
 	//
 	// Steps:
 	// 1. Store raw path in _GH_AW_PATH
-	// 2. Remove leading colons: ${_GH_AW_PATH#:} removes one, loop removes all
-	// 3. Remove trailing colons: ${_GH_AW_PATH%:} removes one, loop removes all
+	// 2. Remove leading colons: Loop while ${_GH_AW_PATH#:} differs from original
+	// 3. Remove trailing colons: Loop while ${_GH_AW_PATH%:} differs from original
 	// 4. Collapse multiple colons: Use sed to replace :: with : repeatedly
 	// 5. Export the sanitized PATH
 	//
@@ -399,8 +399,8 @@ func GetSanitizedPATHExport(rawPath string) string {
 	// The sed command handles internal empty elements (::) by collapsing them.
 	return fmt.Sprintf(
 		`_GH_AW_PATH="%s"; `+
-			`while [ "${_GH_AW_PATH%%"${_GH_AW_PATH#:}"}" = ":" ]; do _GH_AW_PATH="${_GH_AW_PATH#:}"; done; `+
-			`while [ "${_GH_AW_PATH##"${_GH_AW_PATH%%:}"}" = ":" ]; do _GH_AW_PATH="${_GH_AW_PATH%%:}"; done; `+
+			`while [ "${_GH_AW_PATH#:}" != "$_GH_AW_PATH" ]; do _GH_AW_PATH="${_GH_AW_PATH#:}"; done; `+
+			`while [ "${_GH_AW_PATH%%:}" != "$_GH_AW_PATH" ]; do _GH_AW_PATH="${_GH_AW_PATH%%:}"; done; `+
 			`while case "$_GH_AW_PATH" in *::*) true;; *) false;; esac; do _GH_AW_PATH="$(printf '%%s' "$_GH_AW_PATH" | sed 's/::*/:/g')"; done; `+
 			`export PATH="$_GH_AW_PATH"`,
 		rawPath,
