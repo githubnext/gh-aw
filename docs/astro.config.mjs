@@ -175,6 +175,12 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Best Practices',
+					items: [
+						{ label: 'Workflow Patterns', link: '/best-practices/workflow-patterns/' },
+					],
+				},
+				{
 					label: 'Design Patterns',
 					items: [
 						{ label: 'ChatOps', link: '/examples/comment-triggered/chatops/' },
@@ -240,6 +246,12 @@ export default defineConfig({
 				{
 					label: 'Troubleshooting',
 					autogenerate: { directory: 'troubleshooting' },
+				},
+				{
+					label: 'Research',
+					items: [
+						{ label: 'Agent Persona Exploration (2026-01)', link: '/research/agent-persona-exploration-2026-01/' },
+					],
 				},
 			],
 		}),
