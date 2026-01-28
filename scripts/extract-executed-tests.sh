@@ -19,8 +19,9 @@ fi
 
 # Find all JSON test result files and extract test names
 # Look for lines with "Action":"run" and extract the "Test" field
+# Use grep with || true to prevent exit on no matches
 find "$TEST_RESULT_DIR" -name "*.json" -type f | while read -r file; do
-  grep '"Action":"run"' "$file" | \
+  grep '"Action":"run"' "$file" 2>/dev/null | \
     grep -o '"Test":"[^"]*"' | \
-    sed 's/"Test":"\([^"]*\)"/\1/'
+    sed 's/"Test":"\([^"]*\)"/\1/' || true
 done | sort -u
