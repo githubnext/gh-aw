@@ -148,7 +148,7 @@ done
 
 The smoke test serves as an early warning system:
 
-1. **Quick validation** - Runs in under 2 minutes
+1. **Quick validation** - Expected to run in under 2 minutes (5 minute timeout limit)
 2. **Blocks regressions** - Fails if essential tools are missing
 3. **Clear reporting** - Provides specific tool-by-tool status
 4. **Scheduled runs** - Catches environment drift between PRs
