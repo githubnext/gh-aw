@@ -76,53 +76,49 @@ Create an Anthropic API key at <https://console.anthropic.com/api-keys> and add 
 gh aw secrets set ANTHROPIC_API_KEY --value "<your-anthropic-api-key>"
 ```
 
-### Quick Example with Claude
+### Quick Example: Issue Triage with Claude
 
-Here's a minimal workflow that uses Claude to analyze GitHub issues:
+Here's a complete example to get started with Claude:
 
-**File**: `.github/workflows/issue-analyzer.md`
+**1. Create `.github/workflows/issue-triage.md`:**
 
-```yaml wrap
+```markdown
 ---
 engine: claude
-on: 
-  issues:
-    types: [opened]
+on: issues
 permissions:
   contents: read
-  issues: read
+  issues: write
 safe-outputs:
   add-comment:
 ---
 
-# Issue Analysis
+# Issue Triage
 
-Analyze this issue and provide:
-1. Summary of the problem
-2. Suggested labels
-3. Any immediate concerns
+Analyze this issue and provide helpful triage suggestions:
+
+1. Identify the issue type (bug, feature request, question, etc.)
+2. Check if the issue has enough information
+3. Suggest appropriate labels
+4. Provide a helpful response
 ```
 
-**Setup:**
+**2. Set up your Anthropic API key:**
 
-1. Get your API key from [Anthropic Console](https://console.anthropic.com/api-keys)
-2. Set the secret:
-   ```bash wrap
-   gh aw secrets set ANTHROPIC_API_KEY --value "<your-anthropic-api-key>"
-   ```
-3. Compile and run:
-   ```bash wrap
-   gh aw compile issue-analyzer.md
-   git add .github/workflows/issue-analyzer.lock.yml
-   git commit -m "Add issue analyzer workflow"
-   git push
-   ```
+```bash
+gh aw secrets set ANTHROPIC_API_KEY --value "sk-ant-..."
+```
 
-**What it does:**
-- Triggers on new issues
-- Claude analyzes the issue content
-- Posts a comment with analysis
-- Uses same safe-outputs system as all engines
+**3. Compile and push the workflow:**
+
+```bash
+gh aw compile .github/workflows/issue-triage.md
+git add .github/workflows/issue-triage.lock.yml
+git commit -m "Add Claude-powered issue triage workflow"
+git push
+```
+
+**4. Test it:** Open a new issue in your repository - Claude will automatically analyze and comment!
 
 ## OpenAI Codex
 
