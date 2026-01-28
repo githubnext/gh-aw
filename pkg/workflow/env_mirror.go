@@ -117,7 +117,8 @@ func GetMirroredEnvArgs() []string {
 	var args []string
 	for _, envVar := range sortedVars {
 		// Use shell variable expansion syntax so the value is resolved at runtime
-		args = append(args, "--env", envVar+"=${"+envVar+"}")
+		// Pre-wrap in double quotes so shellEscapeArg preserves them (allowing shell expansion)
+		args = append(args, "--env", "\""+envVar+"=${"+envVar+"}\"")
 	}
 
 	envMirrorLog.Printf("Generated %d environment variable mirror arguments", len(sortedVars))
