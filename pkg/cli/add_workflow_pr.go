@@ -7,10 +7,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
-	"github.com/githubnext/gh-aw/pkg/logger"
 )
-
-var addPRLog = logger.New("cli:add_workflow_pr")
 
 // addWorkflowsWithPR handles workflow addition with PR creation and returns the PR number and URL.
 func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, quiet bool, engineOverride string, name string, force bool, appendText string, push bool, noGitattributes bool, fromWildcard bool, workflowDir string, noStopAfter bool, stopAfter string) (int, string, error) {
