@@ -426,10 +426,10 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	// 2. steps.copilot-engine-app-token.outputs.token (when engine.app is configured)
 	// 3. workflowData.GitHubToken if specified at workflow level (highest precedence)
 	var copilotGitHubToken string
-	
+
 	// Check if engine.app is configured - if so, use app token
 	hasEngineApp := workflowData.EngineConfig != nil && workflowData.EngineConfig.App != nil
-	
+
 	if workflowData.GitHubToken != "" {
 		// Use custom workflow-level token (highest precedence)
 		copilotGitHubToken = workflowData.GitHubToken

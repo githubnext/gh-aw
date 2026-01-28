@@ -349,7 +349,7 @@ func (c *Compiler) generateCopilotEngineAppTokenInvalidationStep(yaml *strings.B
 	if !isCopilot {
 		return
 	}
-	
+
 	// Check if engine.app is configured
 	if data.EngineConfig == nil || data.EngineConfig.App == nil {
 		return
@@ -357,7 +357,7 @@ func (c *Compiler) generateCopilotEngineAppTokenInvalidationStep(yaml *strings.B
 
 	// Generate the token invalidation step
 	steps := copilotEngine.buildCopilotEngineAppTokenInvalidationStep()
-	
+
 	for _, step := range steps {
 		yaml.WriteString(step)
 	}

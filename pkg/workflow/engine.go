@@ -23,7 +23,7 @@ type EngineConfig struct {
 	Steps       []map[string]any
 	Config      string
 	Args        []string
-	Firewall    *FirewallConfig // AWF firewall configuration
+	Firewall    *FirewallConfig  // AWF firewall configuration
 	App         *GitHubAppConfig // GitHub App configuration for token minting
 }
 

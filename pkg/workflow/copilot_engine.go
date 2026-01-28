@@ -59,15 +59,15 @@ func (e *CopilotEngine) GetDefaultDetectionModel() string {
 // If engine.app is configured, COPILOT_GITHUB_TOKEN is not required (app token will be used)
 func (e *CopilotEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	copilotLog.Print("Collecting required secrets for Copilot engine")
-	
+
 	// Check if engine.app is configured - if so, skip COPILOT_GITHUB_TOKEN requirement
 	hasEngineApp := workflowData.EngineConfig != nil && workflowData.EngineConfig.App != nil
 	if hasEngineApp {
 		copilotLog.Print("Engine app configuration detected - skipping COPILOT_GITHUB_TOKEN requirement")
 	}
-	
+
 	var secrets []string
-	
+
 	// Only require COPILOT_GITHUB_TOKEN if engine.app is not configured
 	if !hasEngineApp {
 		secrets = append(secrets, "COPILOT_GITHUB_TOKEN")
