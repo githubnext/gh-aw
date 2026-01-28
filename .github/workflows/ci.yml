@@ -43,6 +43,7 @@ jobs:
 
       - name: Run unit tests with coverage
         run: |
+          set -o pipefail
           go test -v -parallel=8 -timeout=3m -run='^Test' -coverprofile=coverage.out -json ./... | tee test-result-unit.json
           go tool cover -html=coverage.out -o coverage.html
 
@@ -251,6 +252,7 @@ jobs:
 
       - name: Run integration tests - ${{ matrix.test-group.name }}
         run: |
+          set -o pipefail
           # Sanitize the test group name for use in filename
           SAFE_NAME=$(echo "${{ matrix.test-group.name }}" | sed 's/[^a-zA-Z0-9]/-/g' | sed 's/--*/-/g')
           
@@ -284,6 +286,7 @@ jobs:
 
       - name: List all tests in codebase
         run: |
+          set -euo pipefail
           echo "Extracting all test function names from source files..."
           ./scripts/list-all-tests.sh > all-tests.txt
           echo "Found $(wc -l < all-tests.txt) tests in codebase"
@@ -297,6 +300,7 @@ jobs:
 
       - name: List downloaded artifacts
         run: |
+          set -euo pipefail
           echo "Downloaded test result artifacts:"
           find test-results -type f -name "*.json" | sort
           echo ""
@@ -304,6 +308,7 @@ jobs:
 
       - name: Extract executed tests from artifacts
         run: |
+          set -euo pipefail
           echo "Extracting test names from JSON artifacts..."
           ./scripts/extract-executed-tests.sh test-results > executed-tests.txt
           echo "Found $(wc -l < executed-tests.txt) executed tests"
