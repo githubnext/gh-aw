@@ -140,7 +140,8 @@ func (p *PermissionsParser) parse() {
 					permissionsParserLog.Print("Set hasAll=true with level=read")
 				}
 			}
-		} // Convert any values to strings
+		}
+		// Convert any values to strings
 		for key, value := range perms {
 			if strValue, ok := value.(string); ok {
 				p.parsedPerms[key] = strValue

@@ -64,6 +64,26 @@ func (p *Permissions) Get(scope PermissionScope) (PermissionLevel, bool) {
 	return "", false
 }
 
+// mergePermissionMaps merges a map of permissions into the current permissions
+// Write permission takes precedence over read
+func (p *Permissions) mergePermissionMaps(otherPerms map[PermissionScope]PermissionLevel) {
+	for scope, otherLevel := range otherPerms {
+		currentLevel, exists := p.permissions[scope]
+		if !exists {
+			p.permissions[scope] = otherLevel
+		} else {
+			// Write takes precedence
+			if otherLevel == PermissionWrite || currentLevel == PermissionWrite {
+				p.permissions[scope] = PermissionWrite
+			} else if otherLevel == PermissionRead || currentLevel == PermissionRead {
+				p.permissions[scope] = PermissionRead
+			} else {
+				p.permissions[scope] = PermissionNone
+			}
+		}
+	}
+}
+
 // Merge merges another Permissions into this one
 // Write permission takes precedence over read (write implies read)
 // Individual scope permissions override shorthand
@@ -103,37 +123,9 @@ func (p *Permissions) Merge(other *Permissions) {
 					tempPerms[scope] = other.allLevel
 				}
 				// Merge the temporary map
-				for scope, otherLevel := range tempPerms {
-					currentLevel, exists := p.permissions[scope]
-					if !exists {
-						p.permissions[scope] = otherLevel
-					} else {
-						// Write takes precedence
-						if otherLevel == PermissionWrite || currentLevel == PermissionWrite {
-							p.permissions[scope] = PermissionWrite
-						} else if otherLevel == PermissionRead || currentLevel == PermissionRead {
-							p.permissions[scope] = PermissionRead
-						} else {
-							p.permissions[scope] = PermissionNone
-						}
-					}
-				}
+				p.mergePermissionMaps(tempPerms)
 				// Also merge explicit permissions from other if any
-				for scope, otherLevel := range other.permissions {
-					currentLevel, exists := p.permissions[scope]
-					if !exists {
-						p.permissions[scope] = otherLevel
-					} else {
-						// Write takes precedence
-						if otherLevel == PermissionWrite || currentLevel == PermissionWrite {
-							p.permissions[scope] = PermissionWrite
-						} else if otherLevel == PermissionRead || currentLevel == PermissionRead {
-							p.permissions[scope] = PermissionRead
-						} else {
-							p.permissions[scope] = PermissionNone
-						}
-					}
-				}
+				p.mergePermissionMaps(other.permissions)
 				return
 			}
 		}
@@ -186,21 +178,7 @@ func (p *Permissions) Merge(other *Permissions) {
 	}
 
 	// Merge permissions - write overrides read
-	for scope, otherLevel := range other.permissions {
-		currentLevel, exists := p.permissions[scope]
-		if !exists {
-			p.permissions[scope] = otherLevel
-		} else {
-			// Write takes precedence
-			if otherLevel == PermissionWrite || currentLevel == PermissionWrite {
-				p.permissions[scope] = PermissionWrite
-			} else if otherLevel == PermissionRead || currentLevel == PermissionRead {
-				p.permissions[scope] = PermissionRead
-			} else {
-				p.permissions[scope] = PermissionNone
-			}
-		}
-	}
+	p.mergePermissionMaps(other.permissions)
 }
 
 // RenderToYAML renders the Permissions to GitHub Actions YAML format
