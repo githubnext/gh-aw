@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -346,11 +347,6 @@ func TestShellEscapeArgWithFullyQuotedAgentPath(t *testing.T) {
 func TestGetHostedToolcachePathSetup(t *testing.T) {
 	pathSetup := GetHostedToolcachePathSetup()
 
-	// Should start with export PATH=
-	if !strings.HasPrefix(pathSetup, `export PATH="`) {
-		t.Errorf("PATH setup should start with export PATH=, got: %s", pathSetup)
-	}
-
 	// Should use find command to locate bin directories in hostedtoolcache
 	if !strings.Contains(pathSetup, "/opt/hostedtoolcache") {
 		t.Errorf("PATH setup should reference /opt/hostedtoolcache, got: %s", pathSetup)
@@ -371,9 +367,19 @@ func TestGetHostedToolcachePathSetup(t *testing.T) {
 		t.Errorf("PATH setup should suppress errors with 2>/dev/null, got: %s", pathSetup)
 	}
 
-	// Should preserve existing PATH
-	if !strings.HasSuffix(pathSetup, `$PATH"`) {
-		t.Errorf("PATH setup should end with $PATH to preserve existing PATH, got: %s", pathSetup)
+	// Should use sanitization via _GH_AW_PATH temporary variable
+	if !strings.Contains(pathSetup, "_GH_AW_PATH") {
+		t.Errorf("PATH setup should use _GH_AW_PATH for sanitization, got: %s", pathSetup)
+	}
+
+	// Should export sanitized PATH
+	if !strings.Contains(pathSetup, `export PATH="$_GH_AW_PATH"`) {
+		t.Errorf("PATH setup should export sanitized PATH, got: %s", pathSetup)
+	}
+
+	// Should preserve existing PATH by including $PATH in the raw path
+	if !strings.Contains(pathSetup, "$PATH") {
+		t.Errorf("PATH setup should include $PATH to preserve existing PATH, got: %s", pathSetup)
 	}
 }
 
@@ -471,5 +477,126 @@ func TestGetToolBinsEnvArg(t *testing.T) {
 
 	if envArg[1] != "\"GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS\"" {
 		t.Errorf("Second element should be \"GH_AW_TOOL_BINS=$GH_AW_TOOL_BINS\" (with outer double quotes), got: %s", envArg[1])
+	}
+}
+
+// TestGetSanitizedPATHExport verifies that GetSanitizedPATHExport produces correct shell commands.
+func TestGetSanitizedPATHExport(t *testing.T) {
+	result := GetSanitizedPATHExport("/usr/bin:/usr/local/bin")
+
+	// Should use _GH_AW_PATH temporary variable
+	if !strings.Contains(result, "_GH_AW_PATH=") {
+		t.Errorf("GetSanitizedPATHExport should use _GH_AW_PATH variable, got: %s", result)
+	}
+
+	// Should include the raw path
+	if !strings.Contains(result, "/usr/bin:/usr/local/bin") {
+		t.Errorf("GetSanitizedPATHExport should include the raw path, got: %s", result)
+	}
+
+	// Should export the sanitized PATH
+	if !strings.Contains(result, `export PATH="$_GH_AW_PATH"`) {
+		t.Errorf("GetSanitizedPATHExport should export sanitized PATH, got: %s", result)
+	}
+
+	// Should have leading colon removal (shell parameter expansion)
+	if !strings.Contains(result, "${_GH_AW_PATH#:}") {
+		t.Errorf("GetSanitizedPATHExport should remove leading colons, got: %s", result)
+	}
+
+	// Should have trailing colon removal (shell parameter expansion)
+	if !strings.Contains(result, "${_GH_AW_PATH%:}") {
+		t.Errorf("GetSanitizedPATHExport should remove trailing colons, got: %s", result)
+	}
+
+	// Should collapse multiple colons using sed
+	if !strings.Contains(result, "sed") && !strings.Contains(result, "::") {
+		t.Errorf("GetSanitizedPATHExport should collapse multiple colons, got: %s", result)
+	}
+}
+
+// TestGetSanitizedPATHExport_ShellExecution tests that the generated shell commands
+// correctly sanitize various malformed PATH inputs when executed in a real shell.
+func TestGetSanitizedPATHExport_ShellExecution(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "already clean PATH",
+			input:    "/usr/bin:/usr/local/bin",
+			expected: "/usr/bin:/usr/local/bin",
+		},
+		{
+			name:     "leading colon",
+			input:    ":/usr/bin:/usr/local/bin",
+			expected: "/usr/bin:/usr/local/bin",
+		},
+		{
+			name:     "trailing colon",
+			input:    "/usr/bin:/usr/local/bin:",
+			expected: "/usr/bin:/usr/local/bin",
+		},
+		{
+			name:     "multiple leading colons",
+			input:    ":::/usr/bin:/usr/local/bin",
+			expected: "/usr/bin:/usr/local/bin",
+		},
+		{
+			name:     "multiple trailing colons",
+			input:    "/usr/bin:/usr/local/bin:::",
+			expected: "/usr/bin:/usr/local/bin",
+		},
+		{
+			name:     "internal empty elements",
+			input:    "/usr/bin::/usr/local/bin",
+			expected: "/usr/bin:/usr/local/bin",
+		},
+		{
+			name:     "multiple internal empty elements",
+			input:    "/usr/bin:::/usr/local/bin",
+			expected: "/usr/bin:/usr/local/bin",
+		},
+		{
+			name:     "combined leading trailing and internal",
+			input:    ":/usr/bin:::/usr/local/bin:",
+			expected: "/usr/bin:/usr/local/bin",
+		},
+		{
+			name:     "all colons",
+			input:    ":::",
+			expected: "",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "single path no colons",
+			input:    "/usr/bin",
+			expected: "/usr/bin",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Generate the shell command using the raw input directly (no $PATH variable)
+			shellCmd := GetSanitizedPATHExport(tt.input)
+
+			// Execute in a shell and capture the resulting PATH
+			// We append "; echo $PATH" to get the final value
+			cmd := exec.Command("bash", "-c", shellCmd+"; echo $PATH")
+			output, err := cmd.Output()
+			if err != nil {
+				t.Fatalf("Failed to execute shell command: %v\nCommand: %s", err, shellCmd)
+			}
+
+			result := strings.TrimSpace(string(output))
+			if result != tt.expected {
+				t.Errorf("Sanitized PATH = %q, want %q\nShell command: %s", result, tt.expected, shellCmd)
+			}
+		})
 	}
 }
