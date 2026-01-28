@@ -185,7 +185,7 @@ All runtime binaries are automatically added to PATH inside the agent container.
 
 ```bash
 # PATH includes all hostedtoolcache binaries
-export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin)$PATH"
+export PATH="$(find /opt/hostedtoolcache -maxdepth 4 -type d -name bin 2>/dev/null | tr '\n' ':')$PATH"
 ```
 
 **Version Priority:**
