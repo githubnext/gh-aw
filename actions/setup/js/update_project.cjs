@@ -1019,6 +1019,24 @@ async function main(config = {}) {
     processedCount++;
 
     try {
+      // Validate required project field
+      if (!message.project || typeof message.project !== "string" || message.project.trim() === "") {
+        const errorMsg = 'Missing required "project" field in update_project message. The "project" field must be a full GitHub project URL (e.g., "https://github.com/orgs/myorg/projects/42").';
+        core.error(errorMsg);
+
+        // Provide helpful context based on content_type
+        if (message.content_type === "draft_issue") {
+          core.error('For draft_issue content_type, you must include: {"project": "https://...", "content_type": "draft_issue", "draft_title": "...", "fields": {...}}');
+        } else if (message.content_type === "issue" || message.content_type === "pull_request") {
+          core.error(`For ${message.content_type} content_type, you must include: {"project": "https://...", "content_type": "${message.content_type}", "content_number": 123, "fields": {...}}`);
+        }
+
+        return {
+          success: false,
+          error: errorMsg,
+        };
+      }
+
       // Resolve temporary project ID if present
       let effectiveProjectUrl = message.project;
 

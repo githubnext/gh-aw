@@ -1184,4 +1184,44 @@ describe("updateProject", () => {
     expect(updateCalls.length).toBe(1);
     expect(updateCalls[0][1].value).toEqual({ text: "my-campaign-123" });
   });
+
+  it("should reject update_project message with missing project field", async () => {
+    const messageHandler = await updateProjectHandlerFactory({});
+
+    const messageWithoutProject = {
+      type: "update_project",
+      content_type: "draft_issue",
+      draft_title: "Test Draft Issue",
+      draft_body: "This is a test",
+      fields: {
+        status: "Todo",
+      },
+      // Missing "project" field - this should fail
+    };
+
+    const result = await messageHandler(messageWithoutProject, new Map());
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Missing required "project" field');
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Missing required"));
+  });
+
+  it("should reject update_project message with empty project field", async () => {
+    const messageHandler = await updateProjectHandlerFactory({});
+
+    const messageWithEmptyProject = {
+      type: "update_project",
+      project: "",
+      content_type: "issue",
+      content_number: 123,
+      fields: {
+        status: "Todo",
+      },
+    };
+
+    const result = await messageHandler(messageWithEmptyProject, new Map());
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Missing required "project" field');
+  });
 });
