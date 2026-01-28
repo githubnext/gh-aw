@@ -887,6 +887,25 @@ Before EVERY commit:
 - Use conventional commits for commit messages
 - do NOT commit explanation markdown files about the fixes
 
+### Workflow Creation
+
+When creating new workflows, choose the appropriate documentation mode:
+
+**Quick Mode** (`--quick` flag):
+- Creates workflow + basic README (~20 lines)
+- Best for: Simple workflows, prototypes, internal use
+- Example: `gh aw new my-workflow --quick`
+
+**Comprehensive Mode** (default):
+- Creates workflow + detailed README (~140 lines) with examples, troubleshooting, best practices
+- Best for: Production workflows, team collaboration, complex automation
+- Example: `gh aw new my-workflow`
+
+**When to use each mode**:
+- Use quick mode for simple, internal workflows that don't require extensive documentation
+- Use comprehensive mode (default) for production workflows, team-shared workflows, or complex automation
+- Default to comprehensive mode when unsure - it provides better onboarding and maintenance support
+
 ## Operational Runbooks
 
 For investigating and resolving workflow issues:

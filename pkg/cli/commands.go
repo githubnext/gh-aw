@@ -192,7 +192,7 @@ func NewWorkflow(workflowName string, verbose bool, force bool, quick bool) erro
 		// Comprehensive mode: Create detailed README with examples
 		readmePath := filepath.Join(githubWorkflowsDir, workflowName+"-README.md")
 		commandsLog.Printf("Creating comprehensive README: %s", readmePath)
-		
+
 		readmeContent := createComprehensiveReadme(workflowName)
 		if err := os.WriteFile(readmePath, []byte(readmeContent), 0600); err != nil {
 			// Non-fatal: log warning but continue
@@ -205,7 +205,7 @@ func NewWorkflow(workflowName string, verbose bool, force bool, quick bool) erro
 		// Quick mode: Create minimal README
 		readmePath := filepath.Join(githubWorkflowsDir, workflowName+"-README.md")
 		commandsLog.Printf("Creating quick README: %s", readmePath)
-		
+
 		readmeContent := createQuickReadme(workflowName)
 		if err := os.WriteFile(readmePath, []byte(readmeContent), 0600); err != nil {
 			// Non-fatal: log warning but continue

@@ -686,7 +686,7 @@ func TestNewWorkflowQuickMode(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			// Run the function
 			err := NewWorkflow(test.workflowName, false, false, test.quick)
-			
+
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 				return
