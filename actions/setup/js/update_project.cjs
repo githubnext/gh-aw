@@ -977,7 +977,12 @@ async function updateProject(output) {
  */
 async function main(config = {}) {
   // Extract configuration
-  const maxCount = config.max || 10;
+  // Default is intentionally configurable via safe-outputs.update-project.max,
+  // but we keep a sane global default to avoid surprising truncation.
+  const DEFAULT_MAX_COUNT = 100;
+  const rawMax = config?.max;
+  const parsedMax = typeof rawMax === "number" ? rawMax : Number(rawMax);
+  const maxCount = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : DEFAULT_MAX_COUNT;
   const configuredViews = Array.isArray(config.views) ? config.views : [];
   const configuredFieldDefinitions = Array.isArray(config.field_definitions) ? config.field_definitions : [];
 
