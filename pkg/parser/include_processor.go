@@ -167,7 +167,7 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 				}
 
 				// Check for unexpected frontmatter fields
-				unexpectedFields := make([]string, 0)
+				var unexpectedFields []string
 				for key := range result.Frontmatter {
 					if !validFields[key] {
 						unexpectedFields = append(unexpectedFields, key)

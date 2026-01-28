@@ -31,7 +31,7 @@ func NewToolGraph() *ToolGraph {
 	return &ToolGraph{
 		Tools:       make(map[string]bool),
 		Transitions: make(map[string]int),
-		sequences:   make([][]string, 0),
+		sequences:   nil,
 	}
 }
 
