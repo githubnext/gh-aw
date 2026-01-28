@@ -39,8 +39,5 @@ type SimpleBasicMockFileTracker struct {
 }
 
 func (s *SimpleBasicMockFileTracker) TrackCreated(filePath string) {
-	if s.tracked == nil {
-		s.tracked = make([]string, 0)
-	}
 	s.tracked = append(s.tracked, filePath)
 }

@@ -1,4 +1,4 @@
-// Package cli provides command-line interface functionality for gh-aw.
+// This file provides command-line interface functionality for gh-aw.
 // This file (logs_github_api.go) contains functions for interacting with the GitHub API
 // to fetch workflow runs, job statuses, and job details.
 //
@@ -6,6 +6,7 @@
 //   - Listing workflow runs with pagination
 //   - Fetching job statuses and details for workflow runs
 //   - Handling GitHub CLI authentication and error responses
+
 package cli
 
 import (

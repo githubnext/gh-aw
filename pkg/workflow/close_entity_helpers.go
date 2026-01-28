@@ -1,4 +1,4 @@
-// Package workflow provides helper functions for closing GitHub entities.
+// This file provides helper functions for closing GitHub entities.
 //
 // This file contains shared utilities for building close entity jobs (issues,
 // pull requests, discussions). These helpers extract common patterns used across
@@ -47,6 +47,7 @@
 // For create/update operations, see:
 //   - create_*.go files for entity creation logic
 //   - update_entity_helpers.go for entity update logic
+
 package workflow
 
 import (

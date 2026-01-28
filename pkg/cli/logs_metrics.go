@@ -1,4 +1,4 @@
-// Package cli provides command-line interface functionality for gh-aw.
+// This file provides command-line interface functionality for gh-aw.
 // This file (logs_metrics.go) contains functions for extracting and analyzing
 // metrics from workflow execution logs.
 //
@@ -8,6 +8,7 @@
 //   - Detecting MCP (Model Context Protocol) server failures
 //   - Aggregating metrics across multiple log files
 //   - Processing structured output from agent execution
+
 package cli
 
 import (

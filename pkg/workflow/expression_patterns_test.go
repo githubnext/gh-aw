@@ -1,4 +1,5 @@
-// Package workflow provides tests for expression pattern matching.
+// This file provides tests for expression pattern matching.
+
 package workflow
 
 import (

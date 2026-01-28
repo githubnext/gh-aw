@@ -1,4 +1,4 @@
-// Package workflow provides Copilot engine tool permission and error pattern logic.
+// This file provides Copilot engine tool permission and error pattern logic.
 //
 // This file handles three key responsibilities:
 //
@@ -18,6 +18,7 @@
 //
 // These functions are grouped together because they all relate to tool configuration
 // and error handling in the Copilot engine.
+
 package workflow
 
 import (

@@ -1,4 +1,4 @@
-// Package cli provides compiler initialization and configuration for workflow compilation.
+// This file provides compiler initialization and configuration for workflow compilation.
 //
 // This file contains functions that create and configure the workflow compiler
 // instance with various settings like validation, strict mode, trial mode, and
@@ -24,6 +24,7 @@
 //
 // These functions abstract compiler setup, allowing the main compile
 // orchestrator to focus on coordination while these handle configuration.
+
 package cli
 
 import (

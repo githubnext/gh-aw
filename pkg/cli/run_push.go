@@ -102,7 +102,7 @@ func collectWorkflowFiles(workflowPath string, verbose bool) ([]string, error) {
 	runPushLog.Printf("Import collection completed")
 
 	// Convert map to slice
-	result := make([]string, 0)
+	var result []string
 	for file := range files {
 		result = append(result, file)
 	}

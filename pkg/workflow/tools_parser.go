@@ -1,4 +1,4 @@
-// Package workflow provides tool configuration parsing for agentic workflows.
+// This file provides tool configuration parsing for agentic workflows.
 //
 // This file handles parsing of tool configurations from the frontmatter tools section.
 // It extracts and validates tool configurations for all supported tools, converting
@@ -47,6 +47,7 @@
 //  4. Return strongly-typed configuration struct
 //
 // This provides type safety while accommodating flexible YAML syntax.
+
 package workflow
 
 import (
