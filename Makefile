@@ -40,12 +40,12 @@ build-darwin:
 build-windows:
 	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-windows-amd64.exe ./cmd/gh-aw
 
-# Test the code (runs both unit and integration tests)
+# Test the code (runs both unlabelled unit tests and integration tests)
 .PHONY: test
 test:
 	go test -v -timeout=3m -tags 'integration' -run='^Test' ./...
 
-# Test unit tests only (excludes integration tests)
+# Test unit tests only (excludes labelled integration tests)
 .PHONY: test-unit
 test-unit:
 	go test -v -timeout=3m -run='^Test' ./...
