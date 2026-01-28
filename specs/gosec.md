@@ -7,6 +7,18 @@ applyTo: "**/*"
 
 This document provides comprehensive documentation for all gosec security rule exclusions configured in `.golangci.yml`. These exclusions have been reviewed for security impact and provide an audit trail for compliance requirements.
 
+## Configuration Source
+
+### Primary Source of Truth: `.golangci.yml`
+The `.golangci.yml` file (section `linters-settings.gosec.exclude`) serves as the authoritative source for gosec exclusion configuration. This ensures consistency across development and CI/CD environments.
+
+### Usage Locations
+The exclusions defined in `.golangci.yml` are applied in:
+1. **Makefile** (`make security-gosec` target) - Uses command-line `-exclude` flag
+2. **GitHub Actions** (`.github/workflows/security-scan.yml`) - Uses command-line `-exclude` flag
+
+**Important**: When updating gosec exclusions in `.golangci.yml`, also update the `-exclude` flags in both Makefile and GitHub Actions workflows to maintain consistency.
+
 ## Overview
 
 This project uses gosec for security scanning with specific exclusions documented below. Each exclusion includes:
