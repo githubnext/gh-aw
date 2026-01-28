@@ -1,91 +1,39 @@
 {
-  "run_date": "2026-01-28T00:34:49.205228+00:00",
-  "run_id": "21419891504",
-  "total_prs_triaged": 7,
-  "auto_merge_candidates": [
-    12135
-  ],
-  "fast_track_needed": [],
-  "batches": {},
-  "close_candidates": [],
-  "statistics": {
-    "total_prs": 7,
-    "by_category": {
-      "test": 1,
-      "feature": 3,
-      "docs": 1,
-      "chore": 1,
-      "refactor": 1
-    },
-    "by_risk": {
-      "low": 2,
-      "high": 2,
-      "medium": 3
-    },
-    "by_priority": {
-      "high": 0,
-      "medium": 6,
-      "low": 1
-    },
-    "by_action": {
-      "batch_review": 6,
-      "auto_merge": 1
-    }
-  },
+  "run_date": "2026-01-28T06:15:24.166037+00:00",
+  "run_id": "21427300172",
+  "total_prs_triaged": 5,
   "pr_details": [
-    {
-      "number": 12130,
-      "title": "Add agent-runner environment parity test suite",
-      "category": "test",
-      "risk": "low",
-      "priority": {
-        "total": 47,
-        "impact": 25,
-        "impact_rationale": "Test improvement - prevents regressions",
-        "urgency": 7,
-        "urgency_rationale": "Recent PR, CI unstable",
-        "quality": 15,
-        "quality_rationale": "CI passing"
-      },
-      "action": "batch_review",
-      "draft": true,
-      "age_hours": 1.6286680988888889
-    },
-    {
-      "number": 12062,
-      "title": "Mount recommended binaries into AWF agent container",
-      "category": "feature",
-      "risk": "high",
-      "priority": {
-        "total": 47,
-        "impact": 30,
-        "impact_rationale": "New feature - enhances capabilities",
-        "urgency": 5,
-        "urgency_rationale": "Recent PR",
-        "quality": 12,
-        "quality_rationale": "CI status unknown, ready for review"
-      },
-      "action": "batch_review",
-      "draft": false,
-      "age_hours": 7.158112551666666
-    },
     {
       "number": 11968,
       "title": "Add build step and timeout updates to smoke workflows",
       "category": "feature",
-      "risk": "medium",
+      "risk": "high",
       "priority": {
-        "total": 47,
+        "total": 50,
         "impact": 30,
-        "impact_rationale": "New feature - enhances capabilities",
         "urgency": 5,
-        "urgency_rationale": "Recent PR",
-        "quality": 12,
-        "quality_rationale": "CI status unknown, ready for review"
+        "quality": 15
       },
       "action": "batch_review",
       "draft": false,
-      "age_hours": 24.978390331944446
+      "created_at": "2026-01-26T23:36:07Z",
+      "age_hours": 30.654768339166665
+    },
+    {
+      "number": 12190,
+      "title": "[WIP] Eliminate redundant zero-capacity slice allocations",
+      "category": "refactor",
+      "risk": "low",
+      "priority": {
+        "total": 43,
+        "impact": 22,
+        "urgency": 12,
+        "quality": 9
+      },
+      "action": "defer",
+      "draft": true,
+      "created_at": "2026-01-28T05:59:07Z",
+      "age_hours": 0.2714349958333333
     },
     {
       "number": 12085,
@@ -93,71 +41,69 @@
       "category": "feature",
       "risk": "high",
       "priority": {
-        "total": 45,
+        "total": 42,
         "impact": 30,
-        "impact_rationale": "New feature - enhances capabilities",
         "urgency": 5,
-        "urgency_rationale": "Recent PR",
-        "quality": 10,
-        "quality_rationale": "CI status unknown"
+        "quality": 7
       },
-      "action": "batch_review",
+      "action": "defer",
       "draft": true,
-      "age_hours": 5.726445882222222
+      "created_at": "2026-01-27T18:51:14Z",
+      "age_hours": 11.402823893055556
     },
     {
-      "number": 12135,
-      "title": "docs: Clarify engine selection in Quick Start guide",
+      "number": 12189,
+      "title": "Add package-level documentation to core packages",
       "category": "docs",
       "risk": "low",
       "priority": {
-        "total": 43,
+        "total": 39,
         "impact": 18,
-        "impact_rationale": "Documentation - improves user experience",
-        "urgency": 7,
-        "urgency_rationale": "Recent PR, CI unstable",
-        "quality": 18,
-        "quality_rationale": "CI passing, small focused change"
+        "urgency": 12,
+        "quality": 9
       },
-      "action": "auto_merge",
+      "action": "defer",
       "draft": true,
-      "age_hours": 0.6389458677777778
+      "created_at": "2026-01-28T05:59:06Z",
+      "age_hours": 0.27171277666666666
     },
     {
-      "number": 12132,
-      "title": "Remove hardcoded safeoutputs tool list from agent prompt",
-      "category": "chore",
-      "risk": "medium",
-      "priority": {
-        "total": 40,
-        "impact": 20,
-        "impact_rationale": "Maintenance work",
-        "urgency": 10,
-        "urgency_rationale": "Recent PR, CI blocked",
-        "quality": 10,
-        "quality_rationale": "CI status unknown"
-      },
-      "action": "batch_review",
-      "draft": true,
-      "age_hours": 0.7139458736111111
-    },
-    {
-      "number": 12090,
-      "title": "Minor improvements for env_mirror.go",
-      "category": "refactor",
-      "risk": "medium",
+      "number": 12130,
+      "title": "Add agent-runner environment parity test suite",
+      "category": "test",
+      "risk": "low",
       "priority": {
         "total": 37,
-        "impact": 22,
-        "impact_rationale": "Code quality improvement",
+        "impact": 25,
         "urgency": 5,
-        "urgency_rationale": "Recent PR",
-        "quality": 10,
-        "quality_rationale": "CI status unknown"
+        "quality": 7
       },
-      "action": "batch_review",
+      "action": "defer",
       "draft": true,
-      "age_hours": 5.540612546388889
+      "created_at": "2026-01-27T22:57:06Z",
+      "age_hours": 7.305046113333334
     }
-  ]
+  ],
+  "statistics": {
+    "total_prs": 5,
+    "by_category": {
+      "feature": 2,
+      "refactor": 1,
+      "docs": 1,
+      "test": 1
+    },
+    "by_risk": {
+      "high": 2,
+      "low": 3
+    },
+    "by_priority": {
+      "high": 0,
+      "medium": 3,
+      "low": 2
+    },
+    "by_action": {
+      "batch_review": 1,
+      "defer": 4
+    }
+  }
 }
