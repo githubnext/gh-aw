@@ -113,13 +113,13 @@ jobs:
             pattern: "TestCompletion|TestUninstall.*Completion"
           - name: "CLI Secrets & Encryption"  # Secrets and encryption tests
             packages: "./pkg/cli"
-            pattern: "TestSecret|TestEncrypt|TestCheckSecretsAvailability|TestResolveSecretValueForSet"
+            pattern: "TestSecret|TestEncrypt|TestCheckSecretsAvailability|TestResolveSecretValueForSet|TestExtractSecretName|TestExtractSecretsFromConfig|TestNewSecretsCommand"
           - name: "CLI Status & Versioning"  # Status and version command tests
             packages: "./pkg/cli"
             pattern: "TestStatus|TestVersion|TestWorkflowStatus|TestWorkflowRunInfo|TestShellTypeString"
           - name: "CLI Update & Upgrade"  # Update and upgrade command tests
             packages: "./pkg/cli"
-            pattern: "TestUpdate|TestUpgrade|TestCheckForUpdates|TestShowUpdateSummary|TestMajorVersionPreference|TestPreciseVersionPreference|TestActionKeyVersionConsistency|TestMarshalActionsLockSorted"
+            pattern: "TestUpdate|TestUpgrade|TestCheckForUpdates|TestShowUpdateSummary|TestMajorVersionPreference|TestPreciseVersionPreference|TestActionKeyVersionConsistency|TestMarshalActionsLockSorted|TestShouldCheckForUpdate|TestGetLastCheckFilePath|TestEnsureUpgradeAgenticWorkflowAgent|TestEnsureUpgradeAgenticWorkflowsPrompt"
           - name: "CLI Workflows Path & Discovery"  # Workflow path resolution and discovery tests
             packages: "./pkg/cli"
             pattern: "TestFindRunnableWorkflows|TestFindWorkflowsWithSource|TestGetAvailableWorkflowNames|TestGetWorkflowInputs|TestGetLockFilePath|TestGetMarkdownWorkflowFilesExcludesREADME|TestReadWorkflowFile|TestResolveWorkflowPath|TestIsWorkflowFile|TestWorkflowCounting|TestWorkflowResolutionWindowsCompatibility|TestSuggestWorkflowNames|TestValidateWorkflowName|TestValidateWorkflowIntent|TestValidateWorkflowInputs|TestWorkflowSpecString"
@@ -131,10 +131,10 @@ jobs:
             pattern: "TestRun|TestPoll|TestTrackWorkflowFailure|TestInputValidation|TestInputFlagSignature|TestRefFlagSignature"
           - name: "CLI Repo & Git"  # Repository and git related tests
             packages: "./pkg/cli"
-            pattern: "TestRepo|TestGet.*RepoSlug|TestExtractBaseRepo|TestExtractIssueNumberFromURL|TestHostRepoSlugProcessing|TestHasLocalModifications|TestPushWorkflowFiles|TestCloneRepoWithVersion"
+            pattern: "TestRepo|TestGet.*RepoSlug|TestExtractBaseRepo|TestExtractIssueNumberFromURL|TestHostRepoSlugProcessing|TestHasLocalModifications|TestPushWorkflowFiles|TestCloneRepoWithVersion|TestClearCurrentRepoSlugCache|TestIsAuthenticationError|TestRemoveWorkflows_KeepOrphansFlag"
           - name: "CLI Spec Parsing"  # Spec parsing tests
             packages: "./pkg/cli"
-            pattern: "TestParse.*Spec|TestResolveImportPathLocal|TestIsWorkflowSpecFormatLocal|TestResolveLatestRef"
+            pattern: "TestParse.*Spec|TestResolveImportPathLocal|TestIsWorkflowSpecFormatLocal|TestResolveLatestRef|TestParseAwInfo|TestParseVersion"
           - name: "CLI Validators & Semver"  # Validator and semver tests
             packages: "./pkg/cli"
             pattern: "TestValidat|TestIsCommitSHA|TestIsPreciseVersion|TestIsSemanticVersionTag|TestIsRunnable"
@@ -161,7 +161,7 @@ jobs:
             pattern: "TestSafeInputsMCPServerCompilation"
           - name: "CMD Main & Entry"  # CMD tests for main entry point
             packages: "./cmd/gh-aw"
-            pattern: "TestMain|TestCommandGroup|TestCommandLine|TestArgument|TestInitFunction|TestVersion"
+            pattern: "TestMain|TestCommandGroup|TestCommandLine|TestCommand|TestArgument|TestInitFunction|TestVersion|TestMCPCommand|TestMCPSubcommand|TestCampaignSubcommand|TestPRSubcommand|TestNoCommandsInAdditionalCommandsWithGroups"
           - name: "CLI Completion & Other"  # Remaining catch-all (reduced from original)
             packages: "./pkg/cli"
             pattern: ""  # Catch-all for tests not matched by other CLI patterns
@@ -177,7 +177,7 @@ jobs:
             pattern: "TestValidat|TestLock|TestError|TestWarning|TestRepositoryFeaturesValidation|TestBackwardCompatibilityWithClaudeFormat"
           - name: "Workflow Safe Outputs"
             packages: "./pkg/workflow"
-            pattern: "SafeOutputs|SafeInputs|CreatePullRequest|OutputLabel|HasSafeOutputs|ConsolidatedSafeOutputs"
+            pattern: "SafeOutputs|SafeInputs|CreatePullRequest|OutputLabel|HasSafeOutputs|ConsolidatedSafeOutputs|SafeOutputJobs"
           - name: "Workflow GitHub & Git"
             packages: "./pkg/workflow"
             pattern: "GitHub|Git|PushToPullRequest|BuildFromAllowed|AdditionalClaudeTools|CopilotGitCommands"
@@ -199,14 +199,14 @@ jobs:
           - name: "CMD Tests"  # All cmd/gh-aw integration tests
             packages: "./cmd/gh-aw"
             pattern: ""
-            skip_pattern: "TestMain|TestCommandGroup|TestCommandLine|TestArgument|TestInitFunction|TestVersion"  # These are in the "CMD Main & Entry" group above
+            skip_pattern: "TestMain|TestCommandGroup|TestCommandLine|TestCommand|TestArgument|TestInitFunction|TestVersion|TestMCPCommand|TestMCPSubcommand|TestCampaignSubcommand|TestPRSubcommand|TestNoCommandsInAdditionalCommandsWithGroups"  # These are in the "CMD Main & Entry" group above
           - name: "Parser Remote Fetch & Cache"
             packages: "./pkg/parser"
-            pattern: "TestDownloadFileFromGitHub|TestResolveIncludePath|TestDownloadIncludeFromWorkflowSpec|TestImportCache|TestFrontmatterLocation|TestFrontmatterOffsetCalculation"
+            pattern: "TestDownloadFileFromGitHub|TestResolveIncludePath|TestDownloadIncludeFromWorkflowSpec|TestImportCache|TestFrontmatterLocation|TestFrontmatterOffsetCalculation|TestImprovementComparison"
           - name: "Parser Location & Validation"
             packages: "./pkg/parser"
             pattern: ""  # Catch-all for tests not matched by other Parser patterns
-            skip_pattern: "TestDownloadFileFromGitHub|TestResolveIncludePath|TestDownloadIncludeFromWorkflowSpec|TestImportCache|TestFrontmatterLocation|TestFrontmatterOffsetCalculation"
+            skip_pattern: "TestDownloadFileFromGitHub|TestResolveIncludePath|TestDownloadIncludeFromWorkflowSpec|TestImportCache|TestFrontmatterLocation|TestFrontmatterOffsetCalculation|TestImprovementComparison"
           - name: "Workflow Permissions"
             packages: "./pkg/workflow"
             pattern: "TestPermissions|TestPackageExtractor|TestCollectPackagesFromWorkflow|TestExtractNpx"
