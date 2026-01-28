@@ -18,6 +18,18 @@ var actionPinsLog = logger.New("workflow:action_pins")
 //go:embed data/action_pins.json
 var actionPinsJSON []byte
 
+// formatActionReference formats an action reference with repo, SHA, and version.
+// Example: "actions/checkout@abc123 # v4.1.0"
+func formatActionReference(repo, sha, version string) string {
+	return fmt.Sprintf("%s@%s # %s", repo, sha, version)
+}
+
+// formatActionCacheKey generates a cache key for action resolution.
+// Example: "actions/checkout@v4"
+func formatActionCacheKey(repo, version string) string {
+	return fmt.Sprintf("%s@%s", repo, version)
+}
+
 // ActionPin represents a pinned GitHub Action with its commit SHA
 type ActionPin struct {
 	Repo    string `json:"repo"`    // e.g., "actions/checkout"
@@ -134,7 +146,7 @@ func GetActionPin(actionRepo string) string {
 
 	// Return the latest version (first after sorting)
 	latestPin := matchingPins[0]
-	return actionRepo + "@" + latestPin.SHA + " # " + latestPin.Version
+	return formatActionReference(actionRepo, latestPin.SHA, latestPin.Version)
 }
 
 // GetActionPinWithData returns the pinned action reference for a given action@version
@@ -156,7 +168,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 
 			// Successfully resolved - cache will be saved at end of compilation
 			actionPinsLog.Printf("Successfully resolved action pin (cache marked dirty, will save at end)")
-			result := actionRepo + "@" + sha + " # " + version
+			result := formatActionReference(actionRepo, sha, version)
 			actionPinsLog.Printf("Returning pinned reference: %s", result)
 			return result, nil
 		}
@@ -194,7 +206,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		for _, pin := range matchingPins {
 			if pin.Version == version {
 				actionPinsLog.Printf("Exact version match: requested=%s, found=%s", version, pin.Version)
-				return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
+				return formatActionReference(actionRepo, pin.SHA, pin.Version), nil
 			}
 		}
 
@@ -203,12 +215,12 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 			for _, pin := range matchingPins {
 				if pin.SHA == version {
 					actionPinsLog.Printf("Exact SHA match: requested=%s, found version=%s", version, pin.Version)
-					return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
+					return formatActionReference(actionRepo, pin.SHA, pin.Version), nil
 				}
 			}
 			// SHA provided but doesn't match any hardcoded pin - return it as-is without warnings
 			actionPinsLog.Printf("SHA %s not found in hardcoded pins, returning as-is", version)
-			return actionRepo + "@" + version + " # " + version, nil
+			return formatActionReference(actionRepo, version, version), nil
 		}
 
 		// No exact match found
@@ -243,7 +255,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 				}
 
 				// Create a cache key for this action@version combination
-				cacheKey := actionRepo + "@" + version
+				cacheKey := formatActionCacheKey(actionRepo, version)
 
 				// Only emit warning if we haven't already warned about this action
 				if !data.ActionPinWarnings[cacheKey] {
@@ -257,7 +269,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 				actionRepo, version, actionRepo, selectedPin.Version)
 			// Use the requested version in the comment, not the pin's version
 			// This preserves the user's intent (e.g., v8 instead of v8.0.0)
-			return actionRepo + "@" + selectedPin.SHA + " # " + version, nil
+			return formatActionReference(actionRepo, selectedPin.SHA, version), nil
 		}
 	}
 
@@ -275,7 +287,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 	if isAlreadySHA {
 		// If version is already a SHA and we couldn't find it in pins, return it as-is without warnings
 		actionPinsLog.Printf("SHA %s not found in hardcoded pins, returning as-is", version)
-		return actionRepo + "@" + version + " # " + version, nil
+		return formatActionReference(actionRepo, version, version), nil
 	}
 
 	// Initialize the warning cache if needed
@@ -284,7 +296,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 	}
 
 	// Create a cache key for this action@version combination
-	cacheKey := actionRepo + "@" + version
+	cacheKey := formatActionCacheKey(actionRepo, version)
 
 	// Only emit warning if we haven't already warned about this action
 	if !data.ActionPinWarnings[cacheKey] {
