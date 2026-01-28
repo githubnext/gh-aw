@@ -82,9 +82,13 @@ For each discovered item (up to 100 total per run):
   - `start_date`: Item created date (YYYY-MM-DD format)
   - `end_date`: Item closed date (YYYY-MM-DD format) or today's date if still open
 
-### Step 4: Assign work
+### Step 4: Create parent issue and assign work
 
-After updating project items, **create one parent tracking issue** that captures the bundling plan and links the PRs, then **assign that issue to an agent**.
+After updating project items, you must complete **all three actions below in order**:
+
+1. **Create the parent tracking issue** 
+2. **Add the issue to the project board**
+3. **Assign the issue to the Copilot agent**
 
 **Selection Criteria:**
 1. Review all discovered PRs
@@ -106,7 +110,7 @@ After updating project items, **create one parent tracking issue** that captures
 - Enforce **one runtime + one target file per PR**.
 - All PRs must pass **CI and relevant runtime tests** before merge.
 
-**Create Parent Issue:**
+**Action 1: Create the parent issue**
 
 Create a single issue that contains:
 - The bundling rules (copied below)
@@ -119,9 +123,11 @@ Use the `create_issue` tool:
 create_issue(title="Security Alert Burndown: Dependabot bundling plan (YYYY-MM-DD)", body="<paste body from template below>")
 ```
 
-**Add Parent Issue to the Campaign Board:**
+After calling `create_issue`, **store the returned issue number** - you will need it for actions 2 and 3.
 
-Immediately after creating the issue, add it to the project board using `update_project` (so it’s tracked like the other campaign items):
+**Action 2: Add the issue to the project board**
+
+Immediately after creating the issue, add it to the project board using `update_project`. Use the issue number from action 1:
 
 ```
 update_project(
@@ -140,8 +146,18 @@ update_project(
 )
 ```
 
-**Issue Body Template (paste into `body=`):**
+**Action 3: Assign the issue to the agent**
 
+Finally, assign the issue to the Copilot agent using `assign_to_agent`. Use the issue number from action 1:
+
+```
+assign_to_agent(issue_number=<new_issue_number>, name="copilot")
+```
+
+**CRITICAL**: You must call all three tools (create_issue, update_project, assign_to_agent) in sequence to complete this step. Do not skip any of them.
+
+
+**Issue Body Template:**
 ```markdown
 ## Context
 This issue tracks Dependabot PR bundling work discovered by the Security Alert Burndown campaign.
@@ -169,14 +185,6 @@ PRs:
 3. Ensure CI passes; run relevant runtime tests.
 4. Add the research report to the bundled PR.
 5. Update this issue checklist as PRs are merged.
-```
-
-**Assign Parent Issue to Agent:**
-
-After creating the issue, call `assign_to_agent` and explicitly provide the `issue_number` of the new issue (since `target: "*"`):
-
-```
-assign_to_agent(issue_number=<new_issue_number>, name="copilot")
 ```
 
 ### Step 5: Report
