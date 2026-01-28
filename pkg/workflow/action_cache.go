@@ -238,8 +238,8 @@ func (c *ActionCache) deduplicateEntries() {
 	}
 
 	// For each group with multiple entries, keep only the most precise one
-	toDelete := make([]string, 0)
-	deduplicationDetails := make([]string, 0) // Track details for user-friendly message
+	var toDelete []string
+	var deduplicationDetails []string // Track details for user-friendly message
 
 	for ek, keys := range groups {
 		if len(keys) <= 1 {
@@ -276,7 +276,7 @@ func (c *ActionCache) deduplicateEntries() {
 
 		// Keep the most precise version, mark others for deletion
 		keepVersion := keyInfos[0].versionRef
-		removedVersions := make([]string, 0)
+		var removedVersions []string
 		for i := 1; i < len(keyInfos); i++ {
 			toDelete = append(toDelete, keyInfos[i].key)
 			removedVersions = append(removedVersions, keyInfos[i].versionRef)
