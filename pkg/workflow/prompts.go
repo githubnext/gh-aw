@@ -21,9 +21,12 @@ import (
 // hasPlaywrightTool checks if the playwright tool is enabled in the tools configuration
 func hasPlaywrightTool(parsedTools *Tools) bool {
 	if parsedTools == nil {
+		log.Print("Checking for Playwright tool: no parsed tools provided")
 		return false
 	}
-	return parsedTools.Playwright != nil
+	hasPlaywright := parsedTools.Playwright != nil
+	log.Printf("Playwright tool enabled: %v", hasPlaywright)
+	return hasPlaywright
 }
 
 // ============================================================================
@@ -32,12 +35,16 @@ func hasPlaywrightTool(parsedTools *Tools) bool {
 
 // hasCommentRelatedTriggers checks if the workflow has any comment-related event triggers
 func (c *Compiler) hasCommentRelatedTriggers(data *WorkflowData) bool {
+	log.Printf("Checking for comment-related triggers: command_count=%d, on=%s", len(data.Command), data.On)
+
 	// Check for command trigger (which expands to comment events)
 	if len(data.Command) > 0 {
+		log.Print("Found command trigger, enabling comment-related features")
 		return true
 	}
 
 	if data.On == "" {
+		log.Print("No 'on' trigger defined")
 		return false
 	}
 
@@ -45,9 +52,11 @@ func (c *Compiler) hasCommentRelatedTriggers(data *WorkflowData) bool {
 	commentEvents := []string{"issue_comment", "pull_request_review_comment", "pull_request_review"}
 	for _, event := range commentEvents {
 		if strings.Contains(data.On, event) {
+			log.Printf("Found comment-related event trigger: %s", event)
 			return true
 		}
 	}
 
+	log.Print("No comment-related triggers found")
 	return false
 }
