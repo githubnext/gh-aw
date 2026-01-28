@@ -304,9 +304,10 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 //   - data: WorkflowData containing post-steps configuration
 //
 // Example frontmatter configuration:
-//   post-steps:
-//     - name: Cleanup temporary files
-//       run: rm -rf /tmp/workspace
+//
+//	post-steps:
+//	  - name: Cleanup temporary files
+//	    run: rm -rf /tmp/workspace
 func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {
 	if data.PostSteps != "" {
 		// Remove "post-steps:" line and adjust indentation, similar to CustomSteps processing

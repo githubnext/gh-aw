@@ -254,11 +254,12 @@ func generateAndCompileCampaignOrchestrator(opts GenerateCampaignOrchestratorOpt
 // Use config.Watch to enable file watching for automatic recompilation on changes.
 //
 // Example:
-//   data, err := CompileWorkflows(ctx, CompileConfig{
-//       MarkdownFiles: []string{"workflow.md"},
-//       Validate:      true,
-//       NoEmit:        false,
-//   })
+//
+//	data, err := CompileWorkflows(ctx, CompileConfig{
+//	    MarkdownFiles: []string{"workflow.md"},
+//	    Validate:      true,
+//	    NoEmit:        false,
+//	})
 func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.WorkflowData, error) {
 	compileOrchestratorLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v",
 		len(config.MarkdownFiles), config.Validate, config.Watch, config.NoEmit)

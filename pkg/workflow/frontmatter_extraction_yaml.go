@@ -128,16 +128,16 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 // # State Machine Algorithm
 //
 // This function implements a line-by-line YAML parser that tracks context through boolean flags:
-//   1. Section tracking (inPullRequest, inIssues, inDiscussion, inIssueComment)
-//   2. Array tracking (inForksArray, inSkipIfMatch, inSkipIfNoMatch)
-//   3. Indentation tracking (to determine when sections/arrays end)
+//  1. Section tracking (inPullRequest, inIssues, inDiscussion, inIssueComment)
+//  2. Array tracking (inForksArray, inSkipIfMatch, inSkipIfNoMatch)
+//  3. Indentation tracking (to determine when sections/arrays end)
 //
 // The parsing flow:
-//   1. Detect section entry (e.g., "pull_request:", "issues:")
-//   2. Track current indentation level to know when section ends
-//   3. Within sections, detect special fields and comment them out
-//   4. Handle array values (forks, skip-if-match, skip-if-no-match) with sub-states
-//   5. Preserve non-special fields and structure
+//  1. Detect section entry (e.g., "pull_request:", "issues:")
+//  2. Track current indentation level to know when section ends
+//  3. Within sections, detect special fields and comment them out
+//  4. Handle array values (forks, skip-if-match, skip-if-no-match) with sub-states
+//  5. Preserve non-special fields and structure
 //
 // Special handling for "names:" field:
 //   - If section has native label filter marker, preserve "names:" (don't comment)
@@ -353,7 +353,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmat
 			}
 		} else if (inPullRequest || inIssues || inDiscussion || inIssueComment) && line != "" {
 			// Backtracking algorithm to detect array items under "names:" field
-			// 
+			//
 			// Problem: When we encounter an array item (line starting with "-"), we need to
 			// determine if it belongs to a "names:" array. We can't know this from the current
 			// line alone - we need context from previous lines.

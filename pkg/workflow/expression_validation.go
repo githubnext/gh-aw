@@ -285,7 +285,7 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 	// Property extraction from comparison expressions
 	//
 	// This validation allows comparisons with safe properties even if the full comparison
-	// expression isn't in the authorized list. 
+	// expression isn't in the authorized list.
 	//
 	// Example: "github.workflow == 'my-workflow'" is allowed if:
 	//   - "github.workflow" is authorized

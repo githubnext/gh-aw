@@ -426,10 +426,11 @@ type WorkflowData struct {
 //   - GitHubToken: Allows per-output-type token override (for cross-repository operations)
 //
 // Example usage in frontmatter:
-//   safe-outputs:
-//     create-issues:
-//       max: 5
-//       github-token: ${{ secrets.CROSS_REPO_TOKEN }}
+//
+//	safe-outputs:
+//	  create-issues:
+//	    max: 5
+//	    github-token: ${{ secrets.CROSS_REPO_TOKEN }}
 type BaseSafeOutputConfig struct {
 	Max         int    `yaml:"max,omitempty"`          // Maximum number of items to create
 	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
@@ -513,17 +514,17 @@ type BaseSafeOutputConfig struct {
 //
 // # Example Frontmatter
 //
-//   safe-outputs:
-//     create-issues:
-//       max: 10
-//       github-token: ${{ secrets.ISSUE_TOKEN }}
-//     add-comments:
-//       max: 5
-//     allowed-domains:
-//       - github.com
-//       - githubusercontent.com
-//     allowed-github-references:
-//       - my-org/my-repo
+//	safe-outputs:
+//	  create-issues:
+//	    max: 10
+//	    github-token: ${{ secrets.ISSUE_TOKEN }}
+//	  add-comments:
+//	    max: 5
+//	  allowed-domains:
+//	    - github.com
+//	    - githubusercontent.com
+//	  allowed-github-references:
+//	    - my-org/my-repo
 type SafeOutputsConfig struct {
 	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issues,omitempty"`
 	CreateDiscussions               *CreateDiscussionsConfig               `yaml:"create-discussions,omitempty"`
