@@ -103,29 +103,31 @@ func TestSpinnerConcurrentAccess(t *testing.T) {
 	spinner := NewSpinner("Test message")
 
 	// Test concurrent access to spinner methods
-	done := make(chan bool, 3)
+	// Channel is closed after all goroutines complete
+	done := make(chan struct{}, 3)
 
 	go func() {
+		defer func() { done <- struct{}{} }()
 		spinner.Start()
-		done <- true
 	}()
 
 	go func() {
+		defer func() { done <- struct{}{} }()
 		time.Sleep(5 * time.Millisecond)
 		spinner.UpdateMessage("Updated")
-		done <- true
 	}()
 
 	go func() {
+		defer func() { done <- struct{}{} }()
 		time.Sleep(15 * time.Millisecond)
 		spinner.Stop()
-		done <- true
 	}()
 
 	// Wait for all goroutines
 	for i := 0; i < 3; i++ {
 		<-done
 	}
+	close(done)
 }
 
 func TestSpinnerBubbleTeaModel(t *testing.T) {

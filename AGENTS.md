@@ -579,6 +579,106 @@ When developing a new command:
 ### Go Code Style
 - **ALWAYS use `any` instead of `interface{}`** - Use the modern `any` type alias (Go 1.18+) for consistency across the codebase
 
+### Channel Lifecycle Guidelines
+
+Go channels require explicit lifecycle management to prevent goroutine leaks and resource exhaustion. Follow these guidelines when working with channels:
+
+**Ownership Rules**:
+1. **Document ownership** - Add a comment stating who closes the channel (required for every channel)
+2. **Sender closes** - The goroutine that sends on the channel must close it after the last send (use `defer close(ch)`)
+3. **Never close on receiver side** - Closing on the receiver side risks panic if the sender is still writing
+4. **Exception: Broadcast channels** - Signal channels used for coordination can be closed by the coordinator
+
+**Best Practices**:
+```go
+// ✅ CORRECT - Channel closed by sender with defer
+done := make(chan struct{})
+go func() {
+    defer close(done)  // Sender closes after work completes
+    // ... do work ...
+}()
+<-done  // Receiver blocks until channel closes
+
+// ✅ CORRECT - Buffered channel for single result
+result := make(chan error, 1)
+go func() {
+    result <- doWork()  // Send result (buffered, doesn't block)
+    // No close needed - receiver reads exactly 1 value
+}()
+err := <-result
+
+// ✅ CORRECT - Broadcast signal by closing
+start := make(chan struct{})
+for i := 0; i < 10; i++ {
+    go func() {
+        <-start  // All goroutines wait
+        // ... do work ...
+    }()
+}
+close(start)  // Broadcast to all waiting goroutines
+
+// ✅ CORRECT - Timeout pattern for safety
+done := make(chan struct{})
+go func() {
+    defer close(done)
+    // ... work ...
+}()
+select {
+case <-done:
+    // Completed successfully
+case <-time.After(5 * time.Second):
+    // Timeout - goroutine may still be running
+}
+```
+
+**Signal Channels**:
+- Prefer `chan struct{}` over `chan bool` for signaling (zero memory overhead)
+- Use `chan struct{}` when only the event matters, not the value
+- Use buffered channels (`make(chan T, 1)`) when sender shouldn't block
+
+**Signal Handling (os.Signal)**:
+```go
+// ✅ CORRECT - Signal channels require signal.Stop(), not close()
+sigChan := make(chan os.Signal, 1)
+signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+defer signal.Stop(sigChan)  // Cleanup signal handler
+```
+
+**Anti-Patterns to Avoid**:
+```go
+// ❌ WRONG - Channel never closed (goroutine leak)
+done := make(chan struct{})
+go func() {
+    // ... work ...
+    done <- struct{}{}  // Goroutine blocks forever if receiver is gone
+}()
+
+// ❌ WRONG - Using chan bool for signaling (wastes memory)
+done := make(chan bool)  // Use chan struct{} instead
+
+// ❌ WRONG - Closing on receiver side
+done := make(chan struct{})
+go func() {
+    done <- struct{}{}
+}()
+<-done
+close(done)  // Panic if sender tries to send again!
+
+// ❌ WRONG - No timeout protection
+done := make(chan struct{})
+go func() {
+    // ... might hang forever ...
+}()
+<-done  // Blocks forever if goroutine hangs
+```
+
+**Testing with Race Detector**:
+Always run tests with the race detector to catch channel-related issues:
+```bash
+make test        # Includes -race flag
+go test -race ./...
+```
+
 ### YAML Library Usage
 
 **Primary YAML Library**: `goccy/go-yaml` v1.19.1
