@@ -604,7 +604,7 @@ func TestNewWorkflow(t *testing.T) {
 			if !test.expectedError {
 				// Normalize the workflow name for file path (remove .md if present)
 				normalizedName := strings.TrimSuffix(test.workflowName, ".md")
-				
+
 				// Check workflow file
 				workflowPath := ".github/workflows/" + normalizedName + ".md"
 				if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
