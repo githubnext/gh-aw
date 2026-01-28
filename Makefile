@@ -48,7 +48,7 @@ test:
 # Test unit tests only (excludes integration tests)
 .PHONY: test-unit
 test-unit:
-	go test -v -timeout=3m -tags '!integration' -run='^Test' ./...
+	go test -v -timeout=3m -run='^Test' ./...
 
 # Update golden test files
 .PHONY: update-golden
