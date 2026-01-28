@@ -28,7 +28,7 @@ function delay(ms) {
  * @param {any} github - GitHub GraphQL instance
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
- * @returns {Promise<{discussions: Array<{id: string, number: number, title: string, url: string, body: string, createdAt: string}>, stats: {pageCount: number, totalScanned: number}}>}
+ * @returns {Promise<{discussions: Array<{id: string, number: number, title: string, url: string, body: string, createdAt: string}>, stats: {pageCount: number, totalScanned: number, duplicateCount: number}}>}
  */
 async function searchDiscussionsWithExpiration(github, owner, repo) {
   const discussions = [];
