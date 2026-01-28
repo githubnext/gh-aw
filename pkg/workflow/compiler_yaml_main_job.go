@@ -327,8 +327,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Generate single unified artifact upload with all collected paths
 	c.generateUnifiedArtifactUpload(yaml, artifactPaths)
 
-	// Add Copilot engine app token invalidation step if configured (runs always, even on failure)
-	c.generateCopilotEngineAppTokenInvalidationStep(yaml, data, engine)
+	// Add engine app token invalidation steps if configured (runs always, even on failure)
+	c.generateEngineAppTokenInvalidationStep(yaml, data, engine)
 
 	// Add GitHub MCP app token invalidation step if configured (runs always, even on failure)
 	c.generateGitHubMCPAppTokenInvalidationStep(yaml, data)
@@ -341,22 +341,28 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	return nil
 }
 
-// generateCopilotEngineAppTokenInvalidationStep generates a step to invalidate the GitHub App token for Copilot engine
+// generateEngineAppTokenInvalidationStep generates a step to invalidate the GitHub App token for any engine
 // This step always runs (even on failure) to ensure tokens are properly cleaned up
-func (c *Compiler) generateCopilotEngineAppTokenInvalidationStep(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
-	// Check if this is a Copilot engine with app configuration
-	copilotEngine, isCopilot := engine.(*CopilotEngine)
-	if !isCopilot {
-		return
-	}
-
+func (c *Compiler) generateEngineAppTokenInvalidationStep(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	// Check if engine.app is configured
 	if data.EngineConfig == nil || data.EngineConfig.App == nil {
 		return
 	}
 
-	// Generate the token invalidation step
-	steps := copilotEngine.buildCopilotEngineAppTokenInvalidationStep()
+	// Generate the token invalidation step based on engine type
+	var steps []string
+
+	switch e := engine.(type) {
+	case *CopilotEngine:
+		steps = e.buildCopilotEngineAppTokenInvalidationStep()
+	case *ClaudeEngine:
+		steps = buildClaudeEngineAppTokenInvalidationStep()
+	case *CodexEngine:
+		steps = buildCodexEngineAppTokenInvalidationStep()
+	default:
+		// No app token invalidation for other engines
+		return
+	}
 
 	for _, step := range steps {
 		yaml.WriteString(step)

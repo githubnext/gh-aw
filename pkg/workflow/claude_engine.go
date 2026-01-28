@@ -36,8 +36,20 @@ func NewClaudeEngine() *ClaudeEngine {
 
 // GetRequiredSecretNames returns the list of secrets required by the Claude engine
 // This includes ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, and optionally MCP_GATEWAY_API_KEY
+// If engine.app is configured, API key secrets are not required (app token will be used)
 func (e *ClaudeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
-	secrets := []string{"ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"}
+	// Check if engine.app is configured - if so, skip API key requirements
+	hasEngineApp := workflowData.EngineConfig != nil && workflowData.EngineConfig.App != nil
+	if hasEngineApp {
+		claudeLog.Print("Engine app configuration detected - skipping API key secret requirements")
+	}
+
+	var secrets []string
+
+	// Only require API keys if engine.app is not configured
+	if !hasEngineApp {
+		secrets = append(secrets, "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN")
+	}
 
 	// Add MCP gateway API key if MCP servers are present (gateway is always started with MCP servers)
 	if HasMCPServers(workflowData) {
@@ -66,9 +78,11 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 
 	var steps []GitHubActionStep
 
+	// Check if engine.app is configured
+	hasEngineApp := workflowData.EngineConfig != nil && workflowData.EngineConfig.App != nil
+
 	// Define engine configuration for shared validation
 	config := EngineInstallConfig{
-		Secrets:         []string{"CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"},
 		DocsURL:         "https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code",
 		NpmPackage:      "@anthropic-ai/claude-code",
 		Version:         string(constants.DefaultClaudeCodeVersion),
@@ -77,13 +91,20 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		InstallStepName: "Install Claude Code CLI",
 	}
 
-	// Add secret validation step
-	secretValidation := GenerateMultiSecretValidationStep(
-		config.Secrets,
-		config.Name,
-		config.DocsURL,
-	)
-	steps = append(steps, secretValidation)
+	// Add secret validation step only if app is not configured
+	if !hasEngineApp {
+		config.Secrets = []string{"CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"}
+		secretValidation := GenerateMultiSecretValidationStep(
+			config.Secrets,
+			config.Name,
+			config.DocsURL,
+		)
+		steps = append(steps, secretValidation)
+	} else {
+		// Generate app variable validation step
+		appValidationStep := generateAppVariableValidationStep(workflowData.EngineConfig.App, config.Name, config.DocsURL)
+		steps = append(steps, appValidationStep)
+	}
 
 	// Determine Claude version
 	claudeVersion := config.Version
@@ -91,7 +112,7 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		claudeVersion = workflowData.EngineConfig.Version
 	}
 
-	// Add Node.js setup step first (before sandbox installation)
+	// Add Node.js setup step first (before sandbox installation and token minting)
 	npmSteps := GenerateNpmInstallSteps(
 		config.NpmPackage,
 		claudeVersion,
@@ -102,6 +123,16 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 
 	if len(npmSteps) > 0 {
 		steps = append(steps, npmSteps[0]) // Setup Node.js step
+	}
+
+	// Add GitHub App token minting step if engine.app is configured
+	// This must come after Node.js setup but before sandbox installation
+	if hasEngineApp && workflowData.EngineConfig.App != nil {
+		claudeLog.Print("Adding GitHub App token minting step for Claude engine")
+		tokenMintSteps := buildClaudeEngineAppTokenMintStep(workflowData.EngineConfig.App)
+		for _, tokenStep := range tokenMintSteps {
+			steps = append(steps, GitHubActionStep([]string{tokenStep}))
+		}
 	}
 
 	// Add AWF installation if firewall is enabled
@@ -426,8 +457,20 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Build environment variables map
+	// Check if engine.app is configured - if so, use app token as API key
+	hasEngineApp := workflowData.EngineConfig != nil && workflowData.EngineConfig.App != nil
+
+	var anthropicAPIKey string
+	if hasEngineApp {
+		// Use app token from the token mint step
+		anthropicAPIKey = "${{ steps.claude-engine-app-token.outputs.token }}"
+	} else {
+		// Use standard secret
+		anthropicAPIKey = "${{ secrets.ANTHROPIC_API_KEY }}"
+	}
+
 	env := map[string]string{
-		"ANTHROPIC_API_KEY":       "${{ secrets.ANTHROPIC_API_KEY }}",
+		"ANTHROPIC_API_KEY":       anthropicAPIKey,
 		"CLAUDE_CODE_OAUTH_TOKEN": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
 		"DISABLE_TELEMETRY":       "1",
 		"DISABLE_ERROR_REPORTING": "1",
@@ -583,6 +626,59 @@ func (e *ClaudeEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubAct
 	} else {
 		claudeLog.Print("Firewall disabled, skipping Squid logs upload")
 	}
+
+	return steps
+}
+
+// buildClaudeEngineAppTokenMintStep generates the step to mint a GitHub App installation access token for Claude
+// This token will be used as the ANTHROPIC_API_KEY
+func buildClaudeEngineAppTokenMintStep(app *GitHubAppConfig) []string {
+	var steps []string
+
+	steps = append(steps, "      - name: Generate GitHub App token for Claude\n")
+	steps = append(steps, "        id: claude-engine-app-token\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/create-github-app-token")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          app-id: %s\n", app.AppID))
+	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
+
+	// Add owner - default to current repository owner if not specified
+	owner := app.Owner
+	if owner == "" {
+		owner = "${{ github.repository_owner }}"
+	}
+	steps = append(steps, fmt.Sprintf("          owner: %s\n", owner))
+
+	// Add repositories - default to current repository name if not specified
+	if len(app.Repositories) > 0 {
+		reposStr := strings.Join(app.Repositories, ",")
+		steps = append(steps, fmt.Sprintf("          repositories: %s\n", reposStr))
+	} else {
+		steps = append(steps, "          repositories: ${{ github.event.repository.name }}\n")
+	}
+
+	// Always add github-api-url from environment variable
+	steps = append(steps, "          github-api-url: ${{ github.api_url }}\n")
+
+	return steps
+}
+
+// buildClaudeEngineAppTokenInvalidationStep generates the step to invalidate the Claude engine GitHub App token
+func buildClaudeEngineAppTokenInvalidationStep() []string {
+	var steps []string
+
+	steps = append(steps, "      - name: Invalidate Claude engine GitHub App token\n")
+	steps = append(steps, "        if: always() && steps.claude-engine-app-token.outputs.token != ''\n")
+	steps = append(steps, "        env:\n")
+	steps = append(steps, "          TOKEN: ${{ steps.claude-engine-app-token.outputs.token }}\n")
+	steps = append(steps, "        run: |\n")
+	steps = append(steps, "          echo \"Revoking Claude engine GitHub App installation token...\"\n")
+	steps = append(steps, "          gh api \\\n")
+	steps = append(steps, "            --method DELETE \\\n")
+	steps = append(steps, "            -H \"Authorization: token $TOKEN\" \\\n")
+	steps = append(steps, "            /installation/token || echo \"Token revoke may already be expired.\"\n")
+	steps = append(steps, "          \n")
+	steps = append(steps, "          echo \"Token invalidation step complete.\"\n")
 
 	return steps
 }

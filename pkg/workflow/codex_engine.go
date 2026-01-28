@@ -47,8 +47,20 @@ func NewCodexEngine() *CodexEngine {
 
 // GetRequiredSecretNames returns the list of secrets required by the Codex engine
 // This includes CODEX_API_KEY, OPENAI_API_KEY, and optionally MCP_GATEWAY_API_KEY
+// If engine.app is configured, API key secrets are not required (app token will be used)
 func (e *CodexEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
-	secrets := []string{"CODEX_API_KEY", "OPENAI_API_KEY"}
+	// Check if engine.app is configured - if so, skip API key requirements
+	hasEngineApp := workflowData.EngineConfig != nil && workflowData.EngineConfig.App != nil
+	if hasEngineApp {
+		codexEngineLog.Print("Engine app configuration detected - skipping API key secret requirements")
+	}
+
+	var secrets []string
+
+	// Only require API keys if engine.app is not configured
+	if !hasEngineApp {
+		secrets = append(secrets, "CODEX_API_KEY", "OPENAI_API_KEY")
+	}
 
 	// Add MCP gateway API key if MCP servers are present (gateway is always started with MCP servers)
 	if HasMCPServers(workflowData) {
@@ -75,15 +87,49 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		return []GitHubActionStep{}
 	}
 
+	// Check if engine.app is configured
+	hasEngineApp := workflowData.EngineConfig != nil && workflowData.EngineConfig.App != nil
+
 	// Use base installation steps (secret validation + npm install)
-	steps := GetBaseInstallationSteps(EngineInstallConfig{
-		Secrets:    []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
-		DocsURL:    "https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
-		NpmPackage: "@openai/codex",
-		Version:    string(constants.DefaultCodexVersion),
-		Name:       "Codex",
-		CliName:    "codex",
-	}, workflowData)
+	var steps []GitHubActionStep
+
+	if !hasEngineApp {
+		// Use standard secret validation
+		steps = GetBaseInstallationSteps(EngineInstallConfig{
+			Secrets:    []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
+			DocsURL:    "https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
+			NpmPackage: "@openai/codex",
+			Version:    string(constants.DefaultCodexVersion),
+			Name:       "Codex",
+			CliName:    "codex",
+		}, workflowData)
+	} else {
+		// Use app variable validation
+		appValidationStep := generateAppVariableValidationStep(workflowData.EngineConfig.App, "Codex", "https://githubnext.github.io/gh-aw/reference/engines/#openai-codex")
+		steps = append(steps, appValidationStep)
+
+		// Add Node.js setup and npm install steps
+		codexVersion := string(constants.DefaultCodexVersion)
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+			codexVersion = workflowData.EngineConfig.Version
+		}
+
+		npmSteps := GenerateNpmInstallSteps(
+			"@openai/codex",
+			codexVersion,
+			"Install Codex CLI",
+			"codex",
+			true, // Include Node.js setup
+		)
+		steps = append(steps, npmSteps...)
+
+		// Add GitHub App token minting step
+		codexEngineLog.Print("Adding GitHub App token minting step for Codex engine")
+		tokenMintSteps := buildCodexEngineAppTokenMintStep(workflowData.EngineConfig.App)
+		for _, tokenStep := range tokenMintSteps {
+			steps = append(steps, GitHubActionStep([]string{tokenStep}))
+		}
+	}
 
 	// Add AWF installation step if firewall is enabled
 	if isFirewallEnabled(workflowData) {
@@ -348,16 +394,28 @@ mkdir -p "$CODEX_HOME/logs"
 	// Get effective GitHub token based on precedence: top-level github-token > default
 	effectiveGitHubToken := getEffectiveGitHubToken("", workflowData.GitHubToken)
 
+	// Check if engine.app is configured - if so, use app token as API key
+	hasEngineApp := workflowData.EngineConfig != nil && workflowData.EngineConfig.App != nil
+
+	var codexAPIKey string
+	if hasEngineApp {
+		// Use app token from the token mint step
+		codexAPIKey = "${{ steps.codex-engine-app-token.outputs.token }}"
+	} else {
+		// Use standard secret with fallback
+		codexAPIKey = "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}"
+	}
+
 	env := map[string]string{
-		"CODEX_API_KEY":                "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
+		"CODEX_API_KEY":                codexAPIKey,
 		"GITHUB_STEP_SUMMARY":          "${{ env.GITHUB_STEP_SUMMARY }}",
 		"GH_AW_PROMPT":                 "/tmp/gh-aw/aw-prompts/prompt.txt",
 		"GH_AW_MCP_CONFIG":             "/tmp/gh-aw/mcp-config/config.toml",
 		"CODEX_HOME":                   "/tmp/gh-aw/mcp-config",
 		"RUST_LOG":                     "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
 		"GH_AW_GITHUB_TOKEN":           effectiveGitHubToken,
-		"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveGitHubToken,                                     // Used by GitHub MCP server via env_vars
-		"OPENAI_API_KEY":               "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}", // Fallback for CODEX_API_KEY
+		"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveGitHubToken, // Used by GitHub MCP server via env_vars
+		"OPENAI_API_KEY":               codexAPIKey,          // Fallback for CODEX_API_KEY
 	}
 
 	// Add GH_AW_SAFE_OUTPUTS if output is needed
@@ -621,3 +679,56 @@ func (e *CodexEngine) renderShellEnvironmentPolicy(yaml *strings.Builder, tools 
 // extractCodexTokenUsage is implemented in codex_logs.go
 
 // GetLogParserScriptId is implemented in codex_logs.go
+
+// buildCodexEngineAppTokenMintStep generates the step to mint a GitHub App installation access token for Codex
+// This token will be used as the CODEX_API_KEY/OPENAI_API_KEY
+func buildCodexEngineAppTokenMintStep(app *GitHubAppConfig) []string {
+	var steps []string
+
+	steps = append(steps, "      - name: Generate GitHub App token for Codex\n")
+	steps = append(steps, "        id: codex-engine-app-token\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/create-github-app-token")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          app-id: %s\n", app.AppID))
+	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
+
+	// Add owner - default to current repository owner if not specified
+	owner := app.Owner
+	if owner == "" {
+		owner = "${{ github.repository_owner }}"
+	}
+	steps = append(steps, fmt.Sprintf("          owner: %s\n", owner))
+
+	// Add repositories - default to current repository name if not specified
+	if len(app.Repositories) > 0 {
+		reposStr := strings.Join(app.Repositories, ",")
+		steps = append(steps, fmt.Sprintf("          repositories: %s\n", reposStr))
+	} else {
+		steps = append(steps, "          repositories: ${{ github.event.repository.name }}\n")
+	}
+
+	// Always add github-api-url from environment variable
+	steps = append(steps, "          github-api-url: ${{ github.api_url }}\n")
+
+	return steps
+}
+
+// buildCodexEngineAppTokenInvalidationStep generates the step to invalidate the Codex engine GitHub App token
+func buildCodexEngineAppTokenInvalidationStep() []string {
+	var steps []string
+
+	steps = append(steps, "      - name: Invalidate Codex engine GitHub App token\n")
+	steps = append(steps, "        if: always() && steps.codex-engine-app-token.outputs.token != ''\n")
+	steps = append(steps, "        env:\n")
+	steps = append(steps, "          TOKEN: ${{ steps.codex-engine-app-token.outputs.token }}\n")
+	steps = append(steps, "        run: |\n")
+	steps = append(steps, "          echo \"Revoking Codex engine GitHub App installation token...\"\n")
+	steps = append(steps, "          gh api \\\n")
+	steps = append(steps, "            --method DELETE \\\n")
+	steps = append(steps, "            -H \"Authorization: token $TOKEN\" \\\n")
+	steps = append(steps, "            /installation/token || echo \"Token revoke may already be expired.\"\n")
+	steps = append(steps, "          \n")
+	steps = append(steps, "          echo \"Token invalidation step complete.\"\n")
+
+	return steps
+}
