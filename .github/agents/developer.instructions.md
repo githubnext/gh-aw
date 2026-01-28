@@ -377,6 +377,26 @@ actions/
 
 ---
 
+### Examples of Validation Enhancements
+
+The codebase includes automated complexity detection for workflow requests to support calibrated response depth:
+
+#### Workflow Complexity Detection
+
+**Purpose**: Automatically classify workflow requests as basic/intermediate/advanced to calibrate agent response detail level.
+
+**Implementation**:
+- Location: `pkg/workflow/complexity.go`
+- Entry point: `DetectWorkflowComplexity(content, description) *ComplexityScore`
+- Returns: Tier (basic/intermediate/advanced), numeric score, list of detected indicators
+
+**Scoring heuristics**:
+- **Basic (0-3)**: Single trigger, standard events, minimal customization
+- **Intermediate (4-7)**: Multiple triggers, 2-3 tools, conditional logic
+- **Advanced (8+)**: 4+ tools, custom toolchains, multi-stage workflows, security/performance requirements
+
+**Usage in CLI/agents**: Can be integrated into `add_interactive.go` to detect complexity from workflow description early in the interactive flow, then pass detected tier to agent context for calibrated responses.
+
 ## Security Best Practices
 
 ### Template Injection Prevention

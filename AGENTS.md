@@ -571,6 +571,65 @@ When developing a new command:
 
 ## Development Guidelines
 
+### Workflow Complexity Detection
+
+The gh-aw codebase includes automatic complexity detection for workflow requests to support tiered response calibration. The system analyzes workflow content and descriptions to classify requests as basic, intermediate, or advanced.
+
+**Complexity Tiers:**
+- **Basic (0-3 points)**: Single standard trigger, no customization, simple descriptions
+- **Intermediate (4-7 points)**: Multiple triggers, 2-3 tools, conditional logic, file path references
+- **Advanced (8+ points)**: Custom toolchains, 4+ tools, performance/security requirements, multi-stage workflows
+
+**Scoring Indicators:**
+
+*Trigger Complexity:*
+- Single standard trigger: 0 points
+- Multiple triggers (2-3): +2 points
+- Many triggers (4+): +3 points
+- Trigger with configuration: +1-4 points (based on count)
+- Scheduled trigger: +1 point
+- Reusable workflow (workflow_call): +2 points
+
+*Tool Configuration:*
+- 2-3 tools: +2 points
+- 4-5 tools: +3 points
+- 6+ tools: +4 points
+- Custom MCP servers: +1 point
+
+*Advanced Features:*
+- Network domain restrictions: +1 point
+- Custom sandbox mounts: +2 points
+- Sandbox environment variables: +1 point
+- Multi-stage workflow (multiple jobs): +2 points
+- Job dependencies: +2 points
+
+*Description Patterns:*
+- Performance/optimization/security keywords: +1 point
+- Conditional logic (if/when/otherwise): +1 point
+- File path references: +1 point
+- Integration/API/external service keywords: +1 point
+
+**Usage:**
+
+```go
+import "github.com/githubnext/gh-aw/pkg/workflow"
+
+// Detect complexity from workflow content and description
+content := "---\nname: MyWorkflow\non: push\ntools:\n  api: {url: https://api.example.com}\n---\nWorkflow body"
+description := "If tests pass, deploy to production"
+
+result := workflow.DetectWorkflowComplexity(content, description)
+fmt.Printf("Tier: %s, Score: %d\n", result.Tier, result.Score)
+fmt.Printf("Indicators: %v\n", result.Indicators)
+```
+
+**Implementation Details:**
+- Location: `pkg/workflow/complexity.go`
+- Tests: `pkg/workflow/complexity_test.go`
+- Each indicator category counts once to avoid score inflation
+- Thresholds: 0-3 (basic), 4-7 (intermediate), 8+ (advanced)
+- Gracefully handles invalid frontmatter by analyzing description only
+
 ### Code Organization
 - Prefer many smaller files grouped by functionality
 - Add new files for new features rather than extending existing ones
