@@ -1,29 +1,146 @@
 {
-  "last_updated": "2026-01-26T01:19:00Z",
-  "run_id": "21343053201",
-  "critical_vulnerability_found": false,
-  "docker_in_docker_patched": true,
-  "patch_version": "v0.9.1",
+  "last_updated": "2026-01-28T01:19:00Z",
+  "run_id": "21420899998",
   "techniques": [
-    {"name": "RTSP Protocol Bypass", "category": "Protocol-level bypass", "description": "Attempted Real Time Streaming Protocol on port 554", "result": "failure", "date": "2026-01-26", "details": "Port 554 not allowed, iptables DROP", "novelty": "NEW"},
-    {"name": "SIP Protocol Bypass", "category": "Protocol-level bypass", "description": "Attempted Session Initiation Protocol on port 5060", "result": "failure", "date": "2026-01-26", "details": "Port 5060 blocked by iptables", "novelty": "NEW"},
-    {"name": "XMPP/Jabber Protocol", "category": "Protocol-level bypass", "description": "Attempted XMPP messaging on port 5222", "result": "failure", "date": "2026-01-26", "details": "Port 5222 blocked by default DROP", "novelty": "NEW"},
-    {"name": "MQTT Protocol", "category": "IoT protocol bypass", "description": "Attempted MQTT on port 1883", "result": "failure", "date": "2026-01-26", "details": "Port 1883 not allowed", "novelty": "NEW"},
-    {"name": "CoAP Protocol", "category": "IoT protocol bypass", "description": "Attempted CoAP on UDP port 5683", "result": "failure", "date": "2026-01-26", "details": "UDP traffic blocked except DNS", "novelty": "NEW"},
-    {"name": "IPv6 Multicast Exploitation", "category": "IPv6 exploitation", "description": "Attempted ff02::1 all-nodes multicast", "result": "failure", "date": "2026-01-26", "details": "ping6 not installed", "novelty": "NEW"},
-    {"name": "IPv6 Teredo Tunneling", "category": "IPv6 tunneling", "description": "IPv6-over-IPv4 via UDP 3544", "result": "failure", "date": "2026-01-26", "details": "UDP port 3544 blocked, timeout", "novelty": "NEW"},
-    {"name": "IPv6 6to4 Tunneling", "category": "IPv6 tunneling", "description": "Protocol 41 IPv6-in-IPv4 encapsulation", "result": "failure", "date": "2026-01-26", "details": "CAP_NET_RAW not granted", "novelty": "NEW"},
-    {"name": "SCTP Protocol", "category": "Alternative transport", "description": "Stream Control Transmission Protocol", "result": "failure", "date": "2026-01-26", "details": "SCTP blocked by iptables", "novelty": "NEW"},
-    {"name": "DCCP Protocol", "category": "Alternative transport", "description": "Datagram Congestion Control Protocol", "result": "failure", "date": "2026-01-26", "details": "SOCK_DCCP not available", "novelty": "NEW"},
-    {"name": "GRE Tunneling", "category": "Network tunneling", "description": "Generic Routing Encapsulation Protocol 47", "result": "failure", "date": "2026-01-26", "details": "CAP_NET_RAW required, denied", "novelty": "NEW"},
-    {"name": "TCP Timestamp Covert Channel", "category": "Timing attack", "description": "Encode data in TCP timestamps", "result": "failure", "date": "2026-01-26", "details": "Redirected to Squid, ACL filtered", "novelty": "NEW"},
-    {"name": "DNS Query Timing Side Channel", "category": "Timing attack", "description": "Infer data via DNS timing", "result": "failure", "date": "2026-01-26", "details": "Timing observable but no HTTP path", "novelty": "NEW"},
-    {"name": "HTTP Keep-Alive Timing Race", "category": "Application-layer smuggling", "description": "Reuse keep-alive connection for domain switch", "result": "failure", "date": "2026-01-26", "details": "Both requests independently filtered", "novelty": "NEW"},
-    {"name": "Binfmt_misc Exploitation", "category": "Kernel exploitation", "description": "Register custom binary format", "result": "failure", "date": "2026-01-26", "details": "File not found, no access", "novelty": "NEW"},
-    {"name": "Kernel Perf Events", "category": "Kernel side-channel", "description": "perf_event_open syscall 298", "result": "failure", "date": "2026-01-26", "details": "Syscall returned -1, blocked", "novelty": "NEW"},
-    {"name": "Futex Exploitation", "category": "Kernel primitive", "description": "Futex syscall 202 manipulation", "result": "failure", "date": "2026-01-26", "details": "No network escape vector", "novelty": "NEW"},
-    {"name": "Fanotify File Events", "category": "Kernel monitoring", "description": "fanotify_init syscall 300", "result": "failure", "date": "2026-01-26", "details": "Syscall returned -1, blocked", "novelty": "NEW"},
-    {"name": "Pidfd File Descriptors", "category": "Kernel process descriptor", "description": "pidfd_open syscall 434", "result": "failure", "date": "2026-01-26", "details": "Succeeded but no network escape", "novelty": "NEW"},
-    {"name": "Alternative HTTP Ports Enumeration", "category": "Port scanning", "description": "Tested ports 8000-9090", "result": "failure", "date": "2026-01-26", "details": "Only 80/443 allowed", "novelty": "NEW"}
+    {
+      "name": "Squid Manager Interface Access",
+      "category": "Squid-specific attack",
+      "description": "Attempt to access Squid cache manager interface for configuration disclosure",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "WebSocket Upgrade Bypass",
+      "category": "Application-layer smuggling",
+      "description": "Use WebSocket upgrade headers to bypass HTTP proxy filtering",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "HTTP CONNECT Non-Standard Port",
+      "category": "Proxy manipulation",
+      "description": "Use CONNECT method on port 8080 to bypass domain ACL",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "DNS over HTTPS (DoH) Bypass",
+      "category": "DNS advanced",
+      "description": "Use Google DoH service to bypass traditional DNS filtering",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "FTP Protocol Bypass",
+      "category": "Protocol-level bypass",
+      "description": "Use FTP protocol (port 21) to bypass HTTP proxy",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "Gopher Protocol Bypass",
+      "category": "Protocol-level bypass",
+      "description": "Use legacy Gopher protocol (port 70) to bypass filtering",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "Raw Socket Creation",
+      "category": "Network stack manipulation",
+      "description": "Create raw sockets to send packets bypassing iptables NAT",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "Netcat Direct Connection",
+      "category": "Application-layer bypass",
+      "description": "Use netcat to connect directly to IP address bypassing proxy",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "Telnet Direct Connection",
+      "category": "Application-layer bypass",
+      "description": "Use telnet for direct TCP connection to target",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "Python urllib No Proxy",
+      "category": "Application-layer bypass",
+      "description": "Clear proxy environment variables and use urllib directly",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "Python Raw Sockets",
+      "category": "Network stack manipulation",
+      "description": "Use Python socket library to create raw TCP connections",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "HTTP/1.0 No Host Header",
+      "category": "Application-layer smuggling",
+      "description": "Use HTTP/1.0 without Host header to bypass modern filtering",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "ICMP Ping Network Layer",
+      "category": "Network layer bypass",
+      "description": "Use ICMP ping to bypass HTTP-only filtering",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "SSH Protocol Bypass",
+      "category": "Protocol-level bypass",
+      "description": "Attempt SSH connection on port 22 to bypass HTTP proxy",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "DNS TXT Record Exfiltration",
+      "category": "DNS side-channel",
+      "description": "Use DNS TXT queries for data exfiltration side channel",
+      "result": "partial",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "Wget No-Proxy Flag",
+      "category": "Proxy manipulation",
+      "description": "Use wget --no-proxy flag to bypass proxy configuration",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "Node.js HTTP Agent Bypass",
+      "category": "Application-layer bypass",
+      "description": "Use Node.js http module with agent:false to bypass proxy",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "IPv6 Direct Access",
+      "category": "IPv6 exploitation",
+      "description": "Use IPv6 address directly to bypass IPv4 NAT rules",
+      "result": "failure",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "EDNS Client Subnet",
+      "category": "DNS advanced",
+      "description": "Use EDNS Client Subnet extension for DNS manipulation",
+      "result": "success",
+      "date": "2026-01-28"
+    },
+    {
+      "name": "HTTP Request Smuggling CL.TE",
+      "category": "Application-layer smuggling",
+      "description": "Use Content-Length and Transfer-Encoding conflict for request smuggling",
+      "result": "failure",
+      "date": "2026-01-28"
+    }
   ]
 }
