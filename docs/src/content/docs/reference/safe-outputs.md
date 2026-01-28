@@ -95,7 +95,7 @@ safe-outputs:
     labels: [automation, agentic]    # labels to attach
     assignees: [user1, copilot]      # assignees (use 'copilot' for bot)
     max: 5                           # max issues (default: 1)
-    expires: 7                       # auto-close after 7 days
+    expires: 7                       # auto-close after 7 days (or false to disable)
     group: true                      # group as sub-issues under parent
     close-older-issues: true         # close previous issues from same workflow
     target-repo: "owner/repo"        # cross-repository
@@ -103,7 +103,7 @@ safe-outputs:
 
 #### Auto-Expiration
 
-The `expires` field auto-closes issues after a time period. Supports integers (days) or relative formats: `2h`, `7d`, `2w`, `1m`, `1y`. Generates `agentics-maintenance.yml` workflow that runs at the minimum required frequency based on the shortest expiration time across all workflows:
+The `expires` field auto-closes issues after a time period. Supports integers (days), relative formats (`2h`, `7d`, `2w`, `1m`, `1y`), or `false` to disable expiration. Generates `agentics-maintenance.yml` workflow that runs at the minimum required frequency based on the shortest expiration time across all workflows:
 
 - 1 day or less → every 2 hours
 - 2 days → every 6 hours
@@ -111,6 +111,8 @@ The `expires` field auto-closes issues after a time period. Supports integers (d
 - 5+ days → daily
 
 Hours less than 24 are treated as 1 day minimum for expiration calculation.
+
+To explicitly disable expiration (useful when create-issue has a default expiration), use `expires: false`:
 
 #### Issue Grouping
 
@@ -826,14 +828,14 @@ This rewards honest AI behavior and helps teams improve data accessibility for f
 
 ### Discussion Creation (`create-discussion:`)
 
-Creates discussions with optional `category` (slug, name, or ID; defaults to first available). `expires` field auto-closes after period (integers or `2h`, `7d`, `2w`, `1m`, `1y`, hours < 24 treated as 1 day) as "OUTDATED" with comment. Generates maintenance workflow with dynamic frequency based on shortest expiration time (see Auto-Expiration section above).
+Creates discussions with optional `category` (slug, name, or ID; defaults to first available). `expires` field auto-closes after period (integers, `2h`, `7d`, `2w`, `1m`, `1y`, or `false` to disable; hours < 24 treated as 1 day) as "OUTDATED" with comment. Generates maintenance workflow with dynamic frequency based on shortest expiration time (see Auto-Expiration section above).
 
 ```yaml wrap
 safe-outputs:
   create-discussion:
     title-prefix: "[ai] "     # prefix for titles
     category: "general"       # category slug, name, or ID
-    expires: 3                # auto-close after 3 days
+    expires: 3                # auto-close after 3 days (or false to disable)
     max: 3                    # max discussions (default: 1)
     target-repo: "owner/repo" # cross-repository
 ```
