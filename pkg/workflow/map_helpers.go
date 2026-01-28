@@ -1,4 +1,4 @@
-// Package workflow provides generic map and type conversion utilities.
+// This file provides generic map and type conversion utilities.
 //
 // This file contains low-level helper functions for working with map[string]any
 // structures and type conversions. These utilities are used throughout the workflow
@@ -24,6 +24,7 @@
 //
 // These utilities handle common type conversion and map manipulation patterns that
 // occur frequently during YAML-to-struct parsing and configuration processing.
+
 package workflow
 
 import "github.com/githubnext/gh-aw/pkg/logger"

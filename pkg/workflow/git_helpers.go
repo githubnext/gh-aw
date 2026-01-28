@@ -1,4 +1,4 @@
-// Package workflow provides Git repository utilities for workflow compilation.
+// This file provides Git repository utilities for workflow compilation.
 //
 // This file contains helper functions for interacting with Git repositories
 // to extract metadata such as tags and version information. These helpers are
@@ -26,6 +26,7 @@
 //   - Detect release contexts (tags vs. regular commits)
 //   - Extract version information for releases
 //   - Support conditional workflow behavior based on Git state
+
 package workflow
 
 import (

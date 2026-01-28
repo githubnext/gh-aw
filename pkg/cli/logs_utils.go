@@ -1,9 +1,10 @@
-// Package cli provides command-line interface functionality for gh-aw.
+// This file provides command-line interface functionality for gh-aw.
 // This file (logs_utils.go) contains utility functions used by the logs command.
 //
 // Key responsibilities:
 //   - Discovering agentic workflow names from .lock.yml files
 //   - Utility functions for slice operations
+
 package cli
 
 import (

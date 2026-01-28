@@ -413,10 +413,17 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 					if stepsList, ok := steps.([]any); ok {
 						for _, step := range stepsList {
 							if stepMap, ok := step.(map[string]any); ok {
-								// Apply action pinning before converting to YAML
-								stepMap = ApplyActionPinToStep(stepMap, data)
+								// Convert to typed step for action pinning
+								typedStep, err := MapToStep(stepMap)
+								if err != nil {
+									return fmt.Errorf("failed to convert step to typed step for job '%s': %w", jobName, err)
+								}
 
-								stepYAML, err := c.convertStepToYAML(stepMap)
+								// Apply action pinning using type-safe version
+								pinnedStep := ApplyActionPinToTypedStep(typedStep, data)
+
+								// Convert back to map for YAML generation
+								stepYAML, err := c.convertStepToYAML(pinnedStep.ToMap())
 								if err != nil {
 									return fmt.Errorf("failed to convert step to YAML for job '%s': %w", jobName, err)
 								}

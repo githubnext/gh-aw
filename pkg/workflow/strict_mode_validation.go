@@ -1,4 +1,4 @@
-// Package workflow provides strict mode security validation for agentic workflows.
+// This file provides strict mode security validation for agentic workflows.
 //
 // # Strict Mode Validation
 //
@@ -36,6 +36,7 @@
 //
 // For general validation, see validation.go.
 // For detailed documentation, see specs/validation-architecture.md
+
 package workflow
 
 import (

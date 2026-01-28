@@ -1,4 +1,4 @@
-// Package cli provides main orchestration logic for workflow compilation.
+// This file provides main orchestration logic for workflow compilation.
 //
 // This file contains the primary compilation orchestration functions that coordinate
 // the compilation of specific files or all files in a directory.
@@ -18,6 +18,7 @@
 //   - compileAllFilesInDirectory() - Compile all workflows in a directory
 //
 // These functions handle the complete compilation pipeline for their respective scenarios.
+
 package cli
 
 import (

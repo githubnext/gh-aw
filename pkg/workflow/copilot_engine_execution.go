@@ -1,4 +1,4 @@
-// Package workflow provides Copilot engine execution logic.
+// This file provides Copilot engine execution logic.
 //
 // This file contains the GetExecutionSteps function which generates the complete
 // GitHub Actions workflow for executing GitHub Copilot CLI. This is the largest
@@ -18,6 +18,7 @@
 //
 // This function is intentionally kept in a separate file due to its size (~430 lines)
 // and complexity. Future refactoring may split it further if needed.
+
 package workflow
 
 import (

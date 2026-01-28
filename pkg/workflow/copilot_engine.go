@@ -1,4 +1,4 @@
-// Package workflow implements the GitHub Copilot CLI agentic engine.
+// This file implements the GitHub Copilot CLI agentic engine.
 //
 // The Copilot engine is organized into focused modules:
 //   - copilot_engine.go: Core engine interface and constructor
@@ -12,6 +12,7 @@
 //
 // This modular organization improves maintainability and makes it easier
 // to locate and modify specific functionality.
+
 package workflow
 
 import (

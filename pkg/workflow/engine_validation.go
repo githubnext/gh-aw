@@ -1,4 +1,4 @@
-// Package workflow provides engine validation for agentic workflows.
+// This file provides engine validation for agentic workflows.
 //
 // # Engine Validation
 //
@@ -30,6 +30,7 @@
 // For engine configuration extraction, see engine.go.
 // For general validation, see validation.go.
 // For detailed documentation, see specs/validation-architecture.md
+
 package workflow
 
 import (

@@ -1,4 +1,4 @@
-// Package workflow provides helper functions for generating prompt workflow steps.
+// This file provides helper functions for generating prompt workflow steps.
 //
 // This file contains utilities for building GitHub Actions workflow steps that
 // append prompt text to prompt files used by AI engines. These helpers extract
@@ -66,6 +66,7 @@
 // For other prompt-related functionality, see:
 //   - *_engine.go files for engine-specific prompt generation
 //   - engine_helpers.go for shared engine utilities
+
 package workflow
 
 import (

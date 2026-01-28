@@ -1,4 +1,4 @@
-// Package workflow provides template injection vulnerability detection.
+// This file provides template injection vulnerability detection.
 //
 // # Template Injection Detection
 //
@@ -44,6 +44,7 @@
 // For general validation, see validation.go.
 // For detailed documentation, see specs/validation-architecture.md and
 // specs/template-injection-prevention.md
+
 package workflow
 
 import (

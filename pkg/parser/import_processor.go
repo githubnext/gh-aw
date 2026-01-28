@@ -589,7 +589,7 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 	importLog.Printf("Calculated in-degrees: %v", inDegree)
 
 	// Start with imports that have no dependencies (in-degree = 0) - these are the roots
-	queue := make([]string, 0)
+	var queue []string
 	for _, imp := range imports {
 		if inDegree[imp] == 0 {
 			queue = append(queue, imp)

@@ -310,27 +310,6 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 	return "", nil
 }
 
-// ApplyActionPinToStep applies SHA pinning to a step map if it contains a "uses" field
-// with a pinned action. Returns a modified copy of the step map with pinned references.
-// If the step doesn't use an action or the action is not pinned, returns the original map.
-//
-// Deprecated: Use ApplyActionPinToTypedStep for type-safe step manipulation
-func ApplyActionPinToStep(stepMap map[string]any, data *WorkflowData) map[string]any {
-	// Convert to typed step, apply pin, convert back
-	step, err := MapToStep(stepMap)
-	if err != nil {
-		// If conversion fails, return original map
-		return stepMap
-	}
-
-	pinnedStep := ApplyActionPinToTypedStep(step, data)
-	if pinnedStep == nil {
-		return stepMap
-	}
-
-	return pinnedStep.ToMap()
-}
-
 // ApplyActionPinToTypedStep applies SHA pinning to a WorkflowStep if it uses an action.
 // Returns a modified copy of the step with pinned references.
 // If the step doesn't use an action or the action is not pinned, returns the original step.
@@ -407,20 +386,6 @@ func extractActionVersion(uses string) string {
 	}
 	// Return everything after the @
 	return uses[idx+1:]
-}
-
-// ApplyActionPinsToSteps applies SHA pinning to a slice of step maps
-// Returns a new slice with pinned references
-func ApplyActionPinsToSteps(steps []any, data *WorkflowData) []any {
-	result := make([]any, len(steps))
-	for i, step := range steps {
-		if stepMap, ok := step.(map[string]any); ok {
-			result[i] = ApplyActionPinToStep(stepMap, data)
-		} else {
-			result[i] = step
-		}
-	}
-	return result
 }
 
 // ApplyActionPinsToTypedSteps applies SHA pinning to a slice of typed WorkflowStep pointers
