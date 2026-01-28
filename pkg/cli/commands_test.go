@@ -600,34 +600,66 @@ func TestNewWorkflow(t *testing.T) {
 				t.Errorf("Unexpected error: %v", err)
 			}
 
-			// If no error expected, verify the file was created
+			// If no error expected, verify both files were created
 			if !test.expectedError {
 				// Normalize the workflow name for file path (remove .md if present)
 				normalizedName := strings.TrimSuffix(test.workflowName, ".md")
-				filePath := ".github/workflows/" + normalizedName + ".md"
-				if _, err := os.Stat(filePath); os.IsNotExist(err) {
-					t.Errorf("Expected workflow file was not created: %s", filePath)
+				
+				// Check workflow file
+				workflowPath := ".github/workflows/" + normalizedName + ".md"
+				if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
+					t.Errorf("Expected workflow file was not created: %s", workflowPath)
 				}
 
-				// Verify the content contains expected template elements
-				content, err := os.ReadFile(filePath)
+				// Check agentics file
+				agenticsPath := ".github/agentics/" + normalizedName + ".md"
+				if _, err := os.Stat(agenticsPath); os.IsNotExist(err) {
+					t.Errorf("Expected agentics file was not created: %s", agenticsPath)
+				}
+
+				// Verify the workflow file contains expected template elements
+				workflowContent, err := os.ReadFile(workflowPath)
 				if err != nil {
 					t.Errorf("Failed to read created workflow file: %v", err)
 				} else {
-					contentStr := string(content)
-					// Check for key template elements
+					contentStr := string(workflowContent)
+					// Check for key workflow config elements
 					expectedElements := []string{
 						"# Trigger - when should this workflow run?",
 						"on:",
 						"permissions:",
 						"safe-outputs:",
-						"# " + normalizedName,
 						"workflow_dispatch:",
+						"{{#runtime-import agentics/" + normalizedName + ".md}}",
 					}
 					for _, element := range expectedElements {
 						if !strings.Contains(contentStr, element) {
-							t.Errorf("Template missing expected element: %s", element)
+							t.Errorf("Workflow template missing expected element: %s", element)
 						}
+					}
+				}
+
+				// Verify the agentics file contains expected template elements
+				agenticsContent, err := os.ReadFile(agenticsPath)
+				if err != nil {
+					t.Errorf("Failed to read created agentics file: %v", err)
+				} else {
+					contentStr := string(agenticsContent)
+					// Check for key agentics body elements
+					expectedElements := []string{
+						"# " + normalizedName,
+						"## Instructions",
+						"## Notes",
+						"Changes to this file take effect immediately",
+					}
+					for _, element := range expectedElements {
+						if !strings.Contains(contentStr, element) {
+							t.Errorf("Agentics template missing expected element: %s", element)
+						}
+					}
+					// Ensure no frontmatter in agentics file
+					if strings.HasPrefix(contentStr, "---\n") {
+						t.Errorf("Agentics file should not contain frontmatter")
 					}
 				}
 			}

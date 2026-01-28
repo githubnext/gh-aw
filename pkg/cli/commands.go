@@ -139,7 +139,9 @@ func resolveWorkflowFileInDir(fileOrWorkflowName string, verbose bool, workflowD
 	return absPath, nil
 }
 
-// NewWorkflow creates a new workflow markdown file with template content
+// NewWorkflow creates a new workflow with a two-file structure:
+// - .github/workflows/<workflow-name>.md: frontmatter + runtime-import
+// - .github/agentics/<workflow-name>.md: markdown body only
 func NewWorkflow(workflowName string, verbose bool, force bool) error {
 	commandsLog.Printf("Creating new workflow: name=%s, force=%v", workflowName, force)
 
@@ -150,7 +152,7 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 
 	console.LogVerbose(verbose, fmt.Sprintf("Creating new workflow: %s", workflowName))
 
-	// Get current working directory for .github/workflows
+	// Get current working directory
 	workingDir, err := os.Getwd()
 	if err != nil {
 		commandsLog.Printf("Failed to get working directory: %v", err)
@@ -166,32 +168,60 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 		return fmt.Errorf("failed to create .github/workflows directory: %w", err)
 	}
 
-	// Construct the destination file path
-	destFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
-	commandsLog.Printf("Destination file: %s", destFile)
+	// Create .github/agentics directory if it doesn't exist
+	githubAgenticsDir := filepath.Join(workingDir, ".github", "agentics")
+	commandsLog.Printf("Creating agentics directory: %s", githubAgenticsDir)
 
-	// Check if destination file already exists
-	if _, err := os.Stat(destFile); err == nil && !force {
-		commandsLog.Printf("Workflow file already exists and force=false: %s", destFile)
-		return fmt.Errorf("workflow file '%s' already exists. Use --force to overwrite", destFile)
+	if err := os.MkdirAll(githubAgenticsDir, 0755); err != nil {
+		commandsLog.Printf("Failed to create agentics directory: %v", err)
+		return fmt.Errorf("failed to create .github/agentics directory: %w", err)
 	}
 
-	// Create the template content
-	template := createWorkflowTemplate(workflowName)
+	// Construct the destination file paths
+	workflowFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
+	agenticsFile := filepath.Join(githubAgenticsDir, workflowName+".md")
+	commandsLog.Printf("Workflow file: %s", workflowFile)
+	commandsLog.Printf("Agentics file: %s", agenticsFile)
 
-	// Write the template to file with restrictive permissions (owner-only)
-	if err := os.WriteFile(destFile, []byte(template), 0600); err != nil {
-		return fmt.Errorf("failed to write workflow file '%s': %w", destFile, err)
+	// Check if destination files already exist
+	if !force {
+		if _, err := os.Stat(workflowFile); err == nil {
+			commandsLog.Printf("Workflow file already exists and force=false: %s", workflowFile)
+			return fmt.Errorf("workflow file '%s' already exists. Use --force to overwrite", workflowFile)
+		}
+		if _, err := os.Stat(agenticsFile); err == nil {
+			commandsLog.Printf("Agentics file already exists and force=false: %s", agenticsFile)
+			return fmt.Errorf("agentics file '%s' already exists. Use --force to overwrite", agenticsFile)
+		}
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created new workflow: %s", destFile)))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Edit the file to customize your workflow, then run '%s compile' to generate the GitHub Actions workflow", string(constants.CLIExtensionPrefix))))
+	// Create the template content for both files
+	workflowContent := createWorkflowConfigTemplate(workflowName)
+	agenticsContent := createAgenticsBodyTemplate(workflowName)
+
+	// Write the workflow config file with restrictive permissions (owner-only)
+	if err := os.WriteFile(workflowFile, []byte(workflowContent), 0600); err != nil {
+		return fmt.Errorf("failed to write workflow file '%s': %w", workflowFile, err)
+	}
+
+	// Write the agentics body file with restrictive permissions (owner-only)
+	if err := os.WriteFile(agenticsFile, []byte(agenticsContent), 0600); err != nil {
+		return fmt.Errorf("failed to write agentics file '%s': %w", agenticsFile, err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Created new workflow files:")))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Configuration: %s", workflowFile)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  Instructions:  %s", agenticsFile)))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Next steps:")))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  1. Edit %s to customize agent behavior (no recompile needed)", agenticsFile)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  2. Run '%s compile %s' to generate the GitHub Actions workflow", string(constants.CLIExtensionPrefix), workflowName)))
 
 	return nil
 }
 
-// createWorkflowTemplate generates a concise workflow template with essential options
-func createWorkflowTemplate(workflowName string) string {
+// createWorkflowConfigTemplate generates the workflow configuration file with frontmatter + runtime-import
+func createWorkflowConfigTemplate(workflowName string) string {
 	return `---
 # Trigger - when should this workflow run?
 on:
@@ -209,8 +239,6 @@ on:
 # Permissions - what can this workflow access?
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
 
 # Outputs - what APIs and tools can the AI use?
 safe-outputs:
@@ -223,6 +251,16 @@ safe-outputs:
   # add-labels:
 
 ---
+
+<!-- Edit the file linked below to modify the agent without recompilation. Feel free to move the entire markdown body to that file. -->
+{{#runtime-import agentics/` + workflowName + `.md}}
+`
+}
+
+// createAgenticsBodyTemplate generates the agentics file with markdown body only (no frontmatter)
+func createAgenticsBodyTemplate(workflowName string) string {
+	return `<!-- This prompt will be imported in the agentic workflow .github/workflows/` + workflowName + `.md at runtime. -->
+<!-- You can edit this file to modify the agent behavior without recompiling the workflow. -->
 
 # ` + workflowName + `
 
@@ -240,7 +278,8 @@ Be clear and specific about what the AI should accomplish.
 
 ## Notes
 
-- Run ` + "`" + string(constants.CLIExtensionPrefix) + " compile`" + ` to generate the GitHub Actions workflow
+- Changes to this file take effect immediately on the next workflow run (no recompile needed)
+- To change configuration (triggers, permissions, tools), edit .github/workflows/` + workflowName + `.md and recompile
 - See https://githubnext.github.io/gh-aw/ for complete configuration options and tools documentation
 `
 }
