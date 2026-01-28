@@ -636,7 +636,7 @@ func TestGenerateSafeOutputsConfig(t *testing.T) {
 
 // TestFormatSafeOutputsRunsOn tests the formatSafeOutputsRunsOn function
 func TestFormatSafeOutputsRunsOn(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name           string
@@ -972,7 +972,7 @@ func TestBuildStandardSafeOutputEnvVars(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			if tt.trialMode {
 				compiler.SetTrialMode(true)
 				compiler.SetTrialLogicalRepoSlug(tt.trialRepoSlug)

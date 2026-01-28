@@ -113,7 +113,7 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compiler.jobManager = NewJobManager()
 
 			workflowData := &WorkflowData{
@@ -273,7 +273,7 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			if tt.trialMode {
 				compiler.SetTrialMode(true)
 			}
@@ -314,7 +314,7 @@ func TestBuildDetectionSuccessCondition(t *testing.T) {
 
 // TestJobConditionWithThreatDetection tests job condition building with threat detection
 func TestJobConditionWithThreatDetection(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()
 
 	workflowData := &WorkflowData{
@@ -342,7 +342,7 @@ func TestJobConditionWithThreatDetection(t *testing.T) {
 
 // TestJobWithGitHubApp tests job building with GitHub App configuration
 func TestJobWithGitHubApp(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()
 
 	workflowData := &WorkflowData{
@@ -374,7 +374,7 @@ func TestJobWithGitHubApp(t *testing.T) {
 
 // TestJobOutputs tests that job outputs are correctly configured
 func TestJobOutputs(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()
 
 	workflowData := &WorkflowData{
@@ -441,7 +441,7 @@ func TestJobDependencies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compiler.jobManager = NewJobManager()
 
 			workflowData := &WorkflowData{

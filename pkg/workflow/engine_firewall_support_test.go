@@ -72,7 +72,7 @@ func TestHasNetworkRestrictions(t *testing.T) {
 }
 
 func TestCheckNetworkSupport_NoRestrictions(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	t.Run("no restrictions with copilot engine", func(t *testing.T) {
 		engine := NewCopilotEngine()
@@ -103,7 +103,7 @@ func TestCheckNetworkSupport_NoRestrictions(t *testing.T) {
 
 func TestCheckNetworkSupport_WithRestrictions(t *testing.T) {
 	t.Run("copilot engine with restrictions - no warning", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		engine := NewCopilotEngine()
 		perms := &NetworkPermissions{
 			Allowed: []string{"example.com", "api.github.com"},
@@ -120,7 +120,7 @@ func TestCheckNetworkSupport_WithRestrictions(t *testing.T) {
 	})
 
 	t.Run("claude engine with restrictions - no warning (supports firewall)", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		engine := NewClaudeEngine()
 		perms := &NetworkPermissions{
 			Allowed: []string{"example.com"},
@@ -137,7 +137,7 @@ func TestCheckNetworkSupport_WithRestrictions(t *testing.T) {
 	})
 
 	t.Run("codex engine with restrictions - no warning", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		engine := NewCodexEngine()
 		perms := &NetworkPermissions{
 			Allowed: []string{"api.openai.com"},
@@ -154,7 +154,7 @@ func TestCheckNetworkSupport_WithRestrictions(t *testing.T) {
 	})
 
 	t.Run("custom engine with restrictions - warning emitted", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		engine := NewCustomEngine()
 		perms := &NetworkPermissions{
 			Allowed: []string{"example.com"},
@@ -173,7 +173,7 @@ func TestCheckNetworkSupport_WithRestrictions(t *testing.T) {
 
 func TestCheckNetworkSupport_StrictMode(t *testing.T) {
 	t.Run("strict mode: copilot engine with restrictions - no error", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.strictMode = true
 		engine := NewCopilotEngine()
 		perms := &NetworkPermissions{
@@ -187,7 +187,7 @@ func TestCheckNetworkSupport_StrictMode(t *testing.T) {
 	})
 
 	t.Run("strict mode: claude engine with restrictions - no error (claude supports firewall)", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.strictMode = true
 		engine := NewClaudeEngine()
 		perms := &NetworkPermissions{
@@ -201,7 +201,7 @@ func TestCheckNetworkSupport_StrictMode(t *testing.T) {
 	})
 
 	t.Run("strict mode: codex engine with restrictions - no error", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.strictMode = true
 		engine := NewCodexEngine()
 		perms := &NetworkPermissions{
@@ -215,7 +215,7 @@ func TestCheckNetworkSupport_StrictMode(t *testing.T) {
 	})
 
 	t.Run("strict mode: custom engine with restrictions - error", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.strictMode = true
 		engine := NewCustomEngine()
 		perms := &NetworkPermissions{
@@ -229,7 +229,7 @@ func TestCheckNetworkSupport_StrictMode(t *testing.T) {
 	})
 
 	t.Run("strict mode: no restrictions - no error", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.strictMode = true
 		engine := NewClaudeEngine()
 		perms := &NetworkPermissions{Allowed: []string{"defaults"}}
@@ -243,7 +243,7 @@ func TestCheckNetworkSupport_StrictMode(t *testing.T) {
 
 func TestCheckFirewallDisable(t *testing.T) {
 	t.Run("firewall enabled - no validation", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		engine := NewCopilotEngine()
 		perms := &NetworkPermissions{
 			Allowed: []string{"example.com"},
@@ -259,7 +259,7 @@ func TestCheckFirewallDisable(t *testing.T) {
 	})
 
 	t.Run("firewall disabled with no restrictions - no warning", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		engine := NewCopilotEngine()
 		perms := &NetworkPermissions{
 			Firewall: &FirewallConfig{
@@ -278,7 +278,7 @@ func TestCheckFirewallDisable(t *testing.T) {
 	})
 
 	t.Run("firewall disabled with restrictions - warning emitted", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		engine := NewCopilotEngine()
 		perms := &NetworkPermissions{
 			Allowed: []string{"example.com"},
@@ -298,7 +298,7 @@ func TestCheckFirewallDisable(t *testing.T) {
 	})
 
 	t.Run("strict mode: firewall disabled with restrictions - error", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.strictMode = true
 		engine := NewCopilotEngine()
 		perms := &NetworkPermissions{
@@ -318,7 +318,7 @@ func TestCheckFirewallDisable(t *testing.T) {
 	})
 
 	t.Run("strict mode: firewall disabled with unsupported engine - error", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.strictMode = true
 		engine := NewCustomEngine() // Custom engine doesn't support firewall
 		perms := &NetworkPermissions{
@@ -336,7 +336,7 @@ func TestCheckFirewallDisable(t *testing.T) {
 	})
 
 	t.Run("nil firewall config - no validation", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		engine := NewCopilotEngine()
 		perms := &NetworkPermissions{
 			Allowed: []string{"example.com"},

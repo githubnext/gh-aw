@@ -719,9 +719,7 @@ Includes validation methods `IsValid()`, `IsDev()`, `IsRelease()`, `IsScript()`,
 #### 2. Compiler Support (`pkg/workflow/compiler_types.go`)
 
 - Added `actionMode` field to `Compiler` struct
-- Added `SetActionMode()` and `GetActionMode()` methods
 - Default mode is `ActionModeInline` for backward compatibility
-- Both `NewCompiler()` and `NewCompilerWithCustomOutput()` initialize with inline mode
 
 #### 3. Script Registry Extensions (`pkg/workflow/script_registry.go`)
 
@@ -802,21 +800,21 @@ workflow.DefaultScriptRegistry.RegisterWithAction(
 
 **Dev mode** (local action references):
 ```go
-compiler := workflow.NewCompiler(false, "", "1.0.0")
+compiler := workflow.NewCompilerWithVersion("1.0.0")
 compiler.SetActionMode(workflow.ActionModeDev)
 compiler.CompileWorkflow("workflow.md")
 ```
 
 **Release mode** (SHA-pinned remote references):
 ```go
-compiler := workflow.NewCompiler(false, "", "1.0.0")
+compiler := workflow.NewCompilerWithVersion("1.0.0")
 compiler.SetActionMode(workflow.ActionModeRelease)
 compiler.CompileWorkflow("workflow.md")
 ```
 
 **Script mode** (direct shell script execution):
 ```go
-compiler := workflow.NewCompiler(false, "", "1.0.0")
+compiler := workflow.NewCompilerWithVersion("1.0.0")
 compiler.SetActionMode(workflow.ActionModeScript)
 compiler.CompileWorkflow("workflow.md")
 ```
@@ -979,7 +977,7 @@ workflow.DefaultScriptRegistry.RegisterWithAction(
 )
 
 // Compile with dev action mode
-compiler := workflow.NewCompiler(false, "", "1.0.0")
+compiler := workflow.NewCompilerWithVersion("1.0.0")
 compiler.SetActionMode(workflow.ActionModeDev)
 compiler.CompileWorkflow("workflow.md")
 ```text

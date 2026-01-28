@@ -56,7 +56,7 @@ This is a test workflow.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -139,7 +139,7 @@ This is a test workflow with multiple imports.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -215,7 +215,7 @@ This is a test workflow with imported MCP server.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}

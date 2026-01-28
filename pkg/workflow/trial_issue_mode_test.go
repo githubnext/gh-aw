@@ -7,7 +7,7 @@ import (
 )
 
 func TestTrialModeIssueDetection(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	testCases := []struct {
 		name      string
@@ -71,7 +71,7 @@ func TestTrialModeIssueDetection(t *testing.T) {
 }
 
 func TestWorkflowDispatchInjection(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	testCases := []struct {
 		name      string
@@ -112,7 +112,7 @@ func TestWorkflowDispatchInjection(t *testing.T) {
 }
 
 func TestIssueNumberReplacement(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	testCases := []struct {
 		name     string
@@ -223,7 +223,7 @@ Process the issue ${{ github.event.issue.number }} and create a response.
 
 	// Test trial mode compilation with issue triggers
 	t.Run("Trial Mode with Issue Triggers", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetTrialMode(true)      // Trial mode
 		compiler.SetSkipValidation(true) // Skip validation for test
 
@@ -266,7 +266,7 @@ Process the issue ${{ github.event.issue.number }} and create a response.
 
 	// Test normal mode (no injection)
 	t.Run("Normal Mode with Issue Triggers", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetTrialMode(false)     // Normal mode
 		compiler.SetSkipValidation(true) // Skip validation for test
 

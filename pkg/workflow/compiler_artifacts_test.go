@@ -12,7 +12,7 @@ import (
 )
 
 func TestAccessLogUploadConditional(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name        string
@@ -141,7 +141,7 @@ Test post-steps indentation fix.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -251,7 +251,7 @@ This workflow should generate a unified artifact upload step that includes the p
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}

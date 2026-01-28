@@ -30,7 +30,7 @@ This is a test workflow.`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}

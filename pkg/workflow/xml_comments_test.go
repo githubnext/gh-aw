@@ -215,7 +215,7 @@ End`,
 }
 
 func TestGeneratePromptRemovesXMLComments(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	data := &WorkflowData{
 		MarkdownContent: `# Workflow Title
@@ -303,7 +303,7 @@ func TestCompileWorkflowWithChunking(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "chunking-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test that normal-sized content compiles successfully with single step
 	normalContent := `---

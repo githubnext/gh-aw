@@ -15,7 +15,7 @@ import (
 // TestPreActivationCustomSteps tests that custom steps from jobs.pre-activation are imported
 func TestPreActivationCustomSteps(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "pre-activation-custom-steps-test")
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	t.Run("custom_steps_imported", func(t *testing.T) {
 		workflowContent := `---
@@ -318,7 +318,7 @@ Test that both pre-activation and pre_activation are imported
 
 // TestExtractPreActivationCustomFields tests the extractPreActivationCustomFields method directly
 func TestExtractPreActivationCustomFields(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name          string

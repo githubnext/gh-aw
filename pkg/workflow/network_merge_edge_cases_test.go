@@ -55,7 +55,7 @@ imports:
 			t.Fatal(err)
 		}
 
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {
 			t.Fatal(err)
 		}
@@ -127,7 +127,7 @@ imports:
 			t.Fatal(err)
 		}
 
-		compiler := workflow.NewCompiler(false, "", "test")
+		compiler := workflow.NewCompiler()
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {
 			t.Fatal(err)
 		}

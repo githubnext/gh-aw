@@ -7,7 +7,7 @@ import (
 
 // TestCodeScanningAlertsConfig tests the parsing of create-code-scanning-alert configuration
 func TestCodeScanningAlertsConfig(t *testing.T) {
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name           string
@@ -98,7 +98,7 @@ func TestCodeScanningAlertsConfig(t *testing.T) {
 
 // TestBuildCreateOutputCodeScanningAlertJob tests the creation of code scanning alert job
 func TestBuildCreateOutputCodeScanningAlertJob(t *testing.T) {
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 
 	// Test valid configuration
 	data := &WorkflowData{
@@ -228,7 +228,7 @@ func TestBuildCreateOutputCodeScanningAlertJob(t *testing.T) {
 
 // TestParseCodeScanningAlertsConfig tests the parsing function directly
 func TestParseCodeScanningAlertsConfig(t *testing.T) {
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name           string

@@ -7,7 +7,7 @@ import (
 
 func TestStagedFlag(t *testing.T) {
 	// Create a compiler instance
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	// Test frontmatter with staged: true
 	frontmatter := map[string]any{
@@ -35,7 +35,7 @@ func TestStagedFlag(t *testing.T) {
 
 func TestStagedFlagDefault(t *testing.T) {
 	// Create a compiler instance
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	// Test frontmatter without staged flag
 	frontmatter := map[string]any{
@@ -58,7 +58,7 @@ func TestStagedFlagDefault(t *testing.T) {
 
 func TestStagedFlagFalse(t *testing.T) {
 	// Create a compiler instance
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	// Test frontmatter with staged: false
 	frontmatter := map[string]any{

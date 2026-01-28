@@ -98,7 +98,7 @@ Simple custom workflow with one step.`,
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compiler.SetSkipValidation(true) // Skip validation for test simplicity
 
 			err := compiler.CompileWorkflow(testFile)
@@ -159,7 +159,7 @@ This workflow uses the custom engine but doesn't define any steps.`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetSkipValidation(true)
 
 	if err := compiler.CompileWorkflow(testFile); err != nil {

@@ -12,7 +12,7 @@ import (
 
 // TestGitHubMCPAppTokenConfiguration tests that app configuration is correctly parsed for GitHub tool
 func TestGitHubMCPAppTokenConfiguration(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	markdown := `---
 on: issues
@@ -56,7 +56,7 @@ Test workflow with GitHub MCP server app configuration.
 
 // TestGitHubMCPAppTokenMintingStep tests that token minting step is generated
 func TestGitHubMCPAppTokenMintingStep(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	markdown := `---
 on: issues
@@ -115,7 +115,7 @@ Test workflow with GitHub MCP app token minting.
 
 // TestGitHubMCPAppTokenOverridesDefaultToken tests that app token overrides custom and default tokens
 func TestGitHubMCPAppTokenOverridesDefaultToken(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	markdown := `---
 on: issues
@@ -160,7 +160,7 @@ Test that app token overrides custom token.
 
 // TestGitHubMCPAppTokenWithRemoteMode tests that app token works with remote mode
 func TestGitHubMCPAppTokenWithRemoteMode(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	markdown := `---
 on: issues

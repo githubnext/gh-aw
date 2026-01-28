@@ -38,7 +38,7 @@ Test workflow content
 	require.NoError(t, err)
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(workflowPath)
 	require.NoError(t, err, "Failed to compile workflow")
 

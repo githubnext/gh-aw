@@ -45,7 +45,9 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 
 		// Use the compiler to parse the workflow file
 		// This automatically handles imports, merging, and validation
-		compiler := workflow.NewCompiler(verbose, "", "")
+		compiler := workflow.NewCompiler(
+			workflow.WithVerbose(verbose),
+		)
 		workflowData, err := compiler.ParseWorkflowFile(workflowPath)
 		if err != nil {
 			return err

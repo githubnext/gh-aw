@@ -36,7 +36,7 @@ Test workflow
 	require.NoError(t, err, "Failed to write test markdown file")
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(mdFile)
 	require.NoError(t, err, "Failed to compile workflow")
 
@@ -86,7 +86,7 @@ Test workflow
 	require.NoError(t, err, "Failed to write test markdown file")
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(mdFile)
 	require.NoError(t, err, "Failed to compile workflow")
 
@@ -148,7 +148,7 @@ Test workflow
 	require.NoError(t, err, "Failed to write test markdown file")
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(mdFile)
 	require.NoError(t, err, "Failed to compile workflow")
 

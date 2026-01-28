@@ -291,7 +291,7 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Extract cache-memory config from tools if present
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(tt.tools)
 			result := engine.computeAllowedClaudeToolsString(tt.tools, nil, cacheMemoryConfig)
 
@@ -411,7 +411,7 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Extract cache-memory config from tools if present
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfigFromMap(tt.tools)
 			result := engine.computeAllowedClaudeToolsString(tt.tools, tt.safeOutputs, cacheMemoryConfig)
 

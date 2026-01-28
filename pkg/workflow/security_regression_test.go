@@ -190,7 +190,7 @@ Testing secrets injection: ${{ secrets.GITHUB_TOKEN }}`,
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {
@@ -317,7 +317,7 @@ func TestSecurityDoSViaNestedYAML(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// The compiler should complete without hanging
 			// We don't check error here, just that it completes
@@ -376,7 +376,7 @@ Testing simple anchor reference.`,
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Should complete without exponential expansion
 			err := compiler.CompileWorkflow(testFile)
@@ -520,7 +520,7 @@ Test secrets: ${{ secrets.PREFIX }}`,
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.CompileWorkflow(testFile)
 
 			if tt.expectError {
@@ -594,7 +594,7 @@ Test network defaults.`,
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.CompileWorkflow(testFile)
 			if err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)

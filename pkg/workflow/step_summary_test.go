@@ -41,7 +41,7 @@ This workflow tests that the step summary includes both JSONL and processed outp
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -104,7 +104,7 @@ This workflow tests that the step summary includes agentic run information.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -216,7 +216,7 @@ This workflow tests the workflow overview for Claude engine.
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Compile the workflow
 			if err := compiler.CompileWorkflow(testFile); err != nil {

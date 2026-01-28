@@ -14,7 +14,7 @@ import (
 func TestGitHubRemoteModeConfiguration(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "github-remote-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name          string
@@ -390,7 +390,7 @@ func TestGitHubRemoteModeHelperFunctions(t *testing.T) {
 // MCP gateway validates ${VAR} references in headers at config load time.
 func TestCopilotGitHubRemotePersonalAccessTokenExport(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "copilot-github-remote-pat-test")
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	frontmatter := `---
 on: issues
@@ -457,7 +457,7 @@ This tests that GITHUB_PERSONAL_ACCESS_TOKEN is exported and passed to Docker.
 // since Claude uses a different auth pattern (direct $GITHUB_MCP_SERVER_TOKEN).
 func TestClaudeGitHubRemoteNoPersonalAccessToken(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "claude-github-remote-no-pat-test")
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	frontmatter := `---
 on: issues

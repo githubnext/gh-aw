@@ -123,7 +123,7 @@ func TestCLIVersionInAwInfo(t *testing.T) {
 			// Set the release flag for this test
 			SetIsRelease(tt.isRelease)
 
-			compiler := NewCompiler(false, "", tt.cliVersion)
+			compiler := NewCompilerWithVersion(tt.cliVersion)
 			registry := GetGlobalEngineRegistry()
 			engine, err := registry.GetEngine(tt.engineID)
 			if err != nil {
@@ -190,7 +190,7 @@ func TestAwfVersionInAwInfo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "1.0.0")
+			compiler := NewCompilerWithVersion("1.0.0")
 			registry := GetGlobalEngineRegistry()
 			engine, err := registry.GetEngine("copilot")
 			if err != nil {
@@ -232,7 +232,7 @@ func TestBothVersionsInAwInfo(t *testing.T) {
 	SetIsRelease(true)
 
 	// Test that both CLI version and AWF version are present simultaneously
-	compiler := NewCompiler(false, "", "2.0.0-beta.5")
+	compiler := NewCompilerWithVersion("2.0.0-beta.5")
 	registry := GetGlobalEngineRegistry()
 	engine, err := registry.GetEngine("copilot")
 	if err != nil {
@@ -295,7 +295,7 @@ func TestAwmgVersionInAwInfo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "1.0.0")
+			compiler := NewCompilerWithVersion("1.0.0")
 			registry := GetGlobalEngineRegistry()
 			engine, err := registry.GetEngine("copilot")
 			if err != nil {
@@ -336,7 +336,7 @@ func TestAllVersionsInAwInfo(t *testing.T) {
 	SetIsRelease(true)
 
 	// Test that CLI version, AWF version, and AWMG version are present simultaneously
-	compiler := NewCompiler(false, "", "2.0.0-beta.5")
+	compiler := NewCompilerWithVersion("2.0.0-beta.5")
 	registry := GetGlobalEngineRegistry()
 	engine, err := registry.GetEngine("copilot")
 	if err != nil {

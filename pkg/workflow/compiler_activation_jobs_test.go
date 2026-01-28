@@ -11,7 +11,7 @@ import (
 
 // TestBuildPreActivationJob_WithPermissionCheck tests building pre-activation job with permission checks
 func TestBuildPreActivationJob_WithPermissionCheck(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:    "Test Workflow",
@@ -40,7 +40,7 @@ func TestBuildPreActivationJob_WithPermissionCheck(t *testing.T) {
 
 // TestBuildPreActivationJob_WithoutPermissionCheck tests building pre-activation job without permission checks
 func TestBuildPreActivationJob_WithoutPermissionCheck(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:    "Test Workflow",
@@ -59,7 +59,7 @@ func TestBuildPreActivationJob_WithoutPermissionCheck(t *testing.T) {
 
 // TestBuildPreActivationJob_WithStopTime tests building pre-activation job with stop-time validation
 func TestBuildPreActivationJob_WithStopTime(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:     "Test Workflow",
@@ -83,7 +83,7 @@ func TestBuildPreActivationJob_WithStopTime(t *testing.T) {
 
 // TestBuildPreActivationJob_WithReaction tests building pre-activation job with reaction
 func TestBuildPreActivationJob_WithReaction(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name               string
@@ -148,7 +148,7 @@ func TestBuildPreActivationJob_WithReaction(t *testing.T) {
 
 // TestBuildPreActivationJob_WithCustomStepsAndOutputs tests custom steps/outputs extraction
 func TestBuildPreActivationJob_WithCustomStepsAndOutputs(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Create workflow data with custom pre-activation job
 	workflowData := &WorkflowData{
@@ -184,7 +184,7 @@ func TestBuildPreActivationJob_WithCustomStepsAndOutputs(t *testing.T) {
 
 // TestBuildActivationJob_Basic tests building a basic activation job
 func TestBuildActivationJob_Basic(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:            "Test Workflow",
@@ -202,7 +202,7 @@ func TestBuildActivationJob_Basic(t *testing.T) {
 
 // TestBuildActivationJob_WithPreActivation tests activation job when pre-activation exists
 func TestBuildActivationJob_WithPreActivation(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:            "Test Workflow",
@@ -221,7 +221,7 @@ func TestBuildActivationJob_WithPreActivation(t *testing.T) {
 
 // TestBuildActivationJob_WithReaction tests activation job with reaction configuration
 func TestBuildActivationJob_WithReaction(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:            "Test Workflow",
@@ -242,7 +242,7 @@ func TestBuildActivationJob_WithReaction(t *testing.T) {
 
 // TestBuildMainJob_Basic tests building a basic main job
 func TestBuildMainJob_Basic(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:            "Test Workflow",
@@ -261,7 +261,7 @@ func TestBuildMainJob_Basic(t *testing.T) {
 
 // TestBuildMainJob_WithActivation tests main job when activation job exists
 func TestBuildMainJob_WithActivation(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:            "Test Workflow",
@@ -281,7 +281,7 @@ func TestBuildMainJob_WithActivation(t *testing.T) {
 
 // TestBuildMainJob_WithPermissions tests main job permission handling
 func TestBuildMainJob_WithPermissions(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:            "Test Workflow",
@@ -303,7 +303,7 @@ func TestBuildMainJob_WithPermissions(t *testing.T) {
 
 // TestExtractPreActivationCustomFields_NoCustomJob tests extraction when no custom job exists
 func TestExtractPreActivationCustomFields_NoCustomJob(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	jobs := map[string]any{
 		"other-job": map[string]any{
@@ -319,7 +319,7 @@ func TestExtractPreActivationCustomFields_NoCustomJob(t *testing.T) {
 
 // TestExtractPreActivationCustomFields_WithCustomFields tests extraction with custom fields
 func TestExtractPreActivationCustomFields_WithCustomFields(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	jobs := map[string]any{
 		"pre-activation": map[string]any{
@@ -352,7 +352,7 @@ func TestExtractPreActivationCustomFields_WithCustomFields(t *testing.T) {
 
 // TestExtractPreActivationCustomFields_InvalidSteps tests error handling for invalid steps
 func TestExtractPreActivationCustomFields_InvalidSteps(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	jobs := map[string]any{
 		"pre-activation": map[string]any{
@@ -369,7 +369,7 @@ func TestExtractPreActivationCustomFields_InvalidSteps(t *testing.T) {
 
 // TestBuildPreActivationJob_Integration tests complete pre-activation job with multiple features
 func TestBuildPreActivationJob_Integration(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:       "Integration Test Workflow",
@@ -404,7 +404,7 @@ func TestBuildPreActivationJob_Integration(t *testing.T) {
 
 // TestBuildActivationJob_WithWorkflowRunRepoSafety tests activation with workflow_run repo safety
 func TestBuildActivationJob_WithWorkflowRunRepoSafety(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:            "Test Workflow",
@@ -444,7 +444,7 @@ func TestBuildMainJob_EngineSpecific(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			workflowData := &WorkflowData{
 				Name:            "Test Workflow",

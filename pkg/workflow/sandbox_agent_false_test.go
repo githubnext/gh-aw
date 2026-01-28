@@ -33,7 +33,7 @@ Test workflow to verify sandbox.agent: false is rejected.
 		}
 
 		// Compile the workflow
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 
 		// Should fail due to schema validation error
 		if err := compiler.CompileWorkflow(workflowPath); err == nil {
@@ -70,7 +70,7 @@ Test workflow to verify sandbox.agent: awf enables firewall.
 		}
 
 		// Compile the workflow
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetSkipValidation(true)
 
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {
@@ -115,7 +115,7 @@ Test workflow to verify default sandbox.agent behavior (awf).
 		}
 
 		// Compile the workflow
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetSkipValidation(true)
 
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {
@@ -163,7 +163,7 @@ Test workflow to verify network.firewall still works (deprecated).
 		}
 
 		// Compile the workflow
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetSkipValidation(true)
 
 		// The compilation should succeed (deprecated fields should still work)
@@ -175,7 +175,7 @@ Test workflow to verify network.firewall still works (deprecated).
 
 func TestSandboxAgentFalseExtraction(t *testing.T) {
 	t.Run("extractAgentSandboxConfig rejects false", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 
 		// Test with false value - should return nil now (invalid)
 		agentConfig := compiler.extractAgentSandboxConfig(false)
@@ -185,7 +185,7 @@ func TestSandboxAgentFalseExtraction(t *testing.T) {
 	})
 
 	t.Run("extractAgentSandboxConfig rejects true (invalid)", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 
 		// Test with true value (should be invalid)
 		agentConfig := compiler.extractAgentSandboxConfig(true)
@@ -195,7 +195,7 @@ func TestSandboxAgentFalseExtraction(t *testing.T) {
 	})
 
 	t.Run("extractAgentSandboxConfig handles string", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 
 		// Test with "awf" string
 		agentConfig := compiler.extractAgentSandboxConfig("awf")

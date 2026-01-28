@@ -8,7 +8,7 @@ import (
 )
 
 func TestParseProjectConfig(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name           string
@@ -111,7 +111,7 @@ func TestParseProjectConfig(t *testing.T) {
 }
 
 func TestApplyProjectSafeOutputs(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name                string
@@ -228,7 +228,7 @@ func TestApplyProjectSafeOutputs(t *testing.T) {
 }
 
 func TestProjectConfigIntegration(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test full integration: frontmatter -> safe-outputs config
 	frontmatter := map[string]any{

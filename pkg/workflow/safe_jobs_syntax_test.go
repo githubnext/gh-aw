@@ -11,7 +11,7 @@ import (
 
 // TestOldSafeJobsSyntaxRejected verifies that the old top-level safe-jobs syntax is rejected
 func TestOldSafeJobsSyntaxRejected(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	// Create a temporary workflow file with old safe-jobs syntax
 	tmpDir := testutil.TempDir(t, "test-*")
@@ -52,7 +52,7 @@ Test old syntax
 
 // TestNewSafeOutputsJobsSyntaxAccepted verifies that the new safe-outputs.jobs syntax works
 func TestNewSafeOutputsJobsSyntaxAccepted(t *testing.T) {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	// Create a temporary workflow file with new safe-outputs.jobs syntax
 	tmpDir := testutil.TempDir(t, "test-*")

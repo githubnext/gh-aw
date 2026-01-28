@@ -15,7 +15,7 @@ func TestOnSection(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "workflow-on-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name        string
@@ -129,7 +129,7 @@ func TestCommandSection(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "workflow-command-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name            string
@@ -250,7 +250,7 @@ func TestCommandWithOtherEvents(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "workflow-command-merge-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name             string

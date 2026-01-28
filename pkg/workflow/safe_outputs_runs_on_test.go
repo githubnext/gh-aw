@@ -61,7 +61,7 @@ This is a test workflow.`,
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			if err := compiler.CompileWorkflow(testFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
@@ -107,7 +107,7 @@ This is a test workflow.`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -153,7 +153,7 @@ This is a test workflow.`
 }
 
 func TestFormatSafeOutputsRunsOnEdgeCases(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name           string

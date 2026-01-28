@@ -12,7 +12,7 @@ import (
 )
 
 func TestNeutralToolsIntegration(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetSkipValidation(true) // Skip schema validation for this test
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -109,7 +109,7 @@ Test workflow with neutral tools format.
 }
 
 func TestBackwardCompatibilityWithClaudeFormat(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetSkipValidation(true) // Skip schema validation for this test
 	tempDir := testutil.TempDir(t, "test-*")
 

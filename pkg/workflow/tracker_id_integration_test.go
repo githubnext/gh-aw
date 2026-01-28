@@ -132,7 +132,7 @@ Create a pull request.
 				t.Fatalf("Failed to write test workflow: %v", err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			// Use dev mode to test with local action paths
 			compiler.SetActionMode(ActionModeDev)
 			compiler.verbose = false

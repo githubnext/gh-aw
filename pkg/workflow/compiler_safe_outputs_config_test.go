@@ -214,7 +214,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			workflowData := &WorkflowData{
 				Name:        "Test Workflow",
@@ -262,7 +262,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 
 // TestHandlerConfigMaxValues tests max value configuration
 func TestHandlerConfigMaxValues(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
@@ -304,7 +304,7 @@ func TestHandlerConfigMaxValues(t *testing.T) {
 
 // TestHandlerConfigAllowedLabels tests allowed labels configuration
 func TestHandlerConfigAllowedLabels(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
@@ -397,7 +397,7 @@ func TestHandlerConfigBooleanFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			workflowData := &WorkflowData{
 				Name:        "Test Workflow",
@@ -468,7 +468,7 @@ func TestHandlerConfigUpdateFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			workflowData := &WorkflowData{
 				Name: "Test Workflow",
@@ -509,7 +509,7 @@ func TestHandlerConfigUpdateFields(t *testing.T) {
 
 // TestEmptySafeOutputsConfig tests behavior with no safe outputs
 func TestEmptySafeOutputsConfig(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name:        "Test Workflow",
@@ -525,7 +525,7 @@ func TestEmptySafeOutputsConfig(t *testing.T) {
 
 // TestHandlerConfigTargetRepo tests target-repo configuration
 func TestHandlerConfigTargetRepo(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "Test Workflow",
@@ -584,7 +584,7 @@ func TestHandlerConfigPatchSize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			workflowData := &WorkflowData{
 				Name: "Test Workflow",
@@ -715,7 +715,7 @@ func TestAutoEnabledHandlers(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			workflowData := &WorkflowData{
 				Name:        "Test Workflow",

@@ -47,7 +47,7 @@ steps:
 	}
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -174,7 +174,7 @@ steps:
 	}
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}

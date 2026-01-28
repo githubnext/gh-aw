@@ -13,7 +13,7 @@ import (
 func TestBotsFieldExtraction(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "workflow-bots-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name         string
@@ -101,7 +101,7 @@ Test workflow content.`,
 func TestBotsEnvironmentVariableGeneration(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "workflow-bots-env-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	frontmatter := `---
 on:
@@ -150,7 +150,7 @@ Test workflow content.`
 func TestBotsWithDefaultRoles(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "workflow-bots-default-roles-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	frontmatter := `---
 on:
@@ -198,7 +198,7 @@ Test workflow content with bot and default roles.`
 func TestBotsWithRolesAll(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "workflow-bots-roles-all-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	frontmatter := `---
 on:

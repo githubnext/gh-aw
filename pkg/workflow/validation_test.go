@@ -70,7 +70,7 @@ func TestValidateContainerImages(t *testing.T) {
 				}
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.validateContainerImages(tt.workflowData)
 
 			if tt.expectError && err == nil {
@@ -277,7 +277,7 @@ func TestValidateRuntimePackages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.validateRuntimePackages(tt.workflowData)
 
 			// If we expect an error and got one, or don't expect one and didn't get one, test passes

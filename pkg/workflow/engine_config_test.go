@@ -11,7 +11,7 @@ import (
 )
 
 func TestExtractEngineConfig(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name                  string
@@ -399,7 +399,7 @@ This is a test workflow.`,
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			workflowData, err := compiler.ParseWorkflowFile(testFile)
 			if err != nil {
 				t.Fatalf("Failed to parse workflow: %v", err)

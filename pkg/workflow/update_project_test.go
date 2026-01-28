@@ -123,7 +123,7 @@ func TestParseUpdateProjectConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			config := compiler.parseUpdateProjectConfig(tt.outputMap)
 
 			if tt.expectedNil {
@@ -139,7 +139,7 @@ func TestParseUpdateProjectConfig(t *testing.T) {
 }
 
 func TestUpdateProjectConfig_DefaultMax(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	outputMap := map[string]any{
 		"update-project": map[string]any{
@@ -174,7 +174,7 @@ func TestUpdateProjectConfig_TokenPrecedence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			outputMap := map[string]any{
 				"update-project": map[string]any{
@@ -249,7 +249,7 @@ func TestBuildUpdateProjectJob(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			job, err := compiler.buildUpdateProjectJob(tt.workflowData, "main")
 
@@ -269,7 +269,7 @@ func TestBuildUpdateProjectJob(t *testing.T) {
 }
 
 func TestUpdateProjectJob_EnvironmentVariables(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -302,7 +302,7 @@ func TestUpdateProjectJob_EnvironmentVariables(t *testing.T) {
 }
 
 func TestUpdateProjectJob_Permissions(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowData := &WorkflowData{
 		Name: "test-workflow",

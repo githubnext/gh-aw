@@ -12,7 +12,7 @@ import (
 
 // testCompiler creates a test compiler with validation skipped
 func testCompiler() *Compiler {
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 	c.SetSkipValidation(true)
 	return c
 }

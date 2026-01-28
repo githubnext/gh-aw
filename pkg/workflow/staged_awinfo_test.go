@@ -7,7 +7,7 @@ import (
 
 func TestGenerateCreateAwInfoWithStaged(t *testing.T) {
 	// Create a compiler instance
-	c := NewCompiler(false, "", "test")
+	c := NewCompiler()
 
 	// Test with staged: true
 	workflowData := &WorkflowData{

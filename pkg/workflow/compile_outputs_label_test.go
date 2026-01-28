@@ -43,7 +43,7 @@ This workflow tests the output labels configuration parsing.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow data
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -108,7 +108,7 @@ This workflow tests the safe_outputs job generation.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -216,7 +216,7 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -295,7 +295,7 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -378,7 +378,7 @@ This workflow tests the output labels null configuration parsing.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow data
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -439,7 +439,7 @@ This workflow tests the output labels max configuration parsing.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow data
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -507,7 +507,7 @@ This workflow tests the default max behavior.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow data
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -557,7 +557,7 @@ This workflow tests the safe_outputs job generation with max.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -629,7 +629,7 @@ This workflow tests the safe_outputs job generation with default max.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -692,7 +692,7 @@ This workflow tests validation of empty allowed labels.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow - should fail with empty allowed labels
 	err := compiler.CompileWorkflow(testFile)
@@ -736,7 +736,7 @@ This workflow tests that missing allowed field is now optional.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow - should now succeed with missing allowed labels
 	if err := compiler.CompileWorkflow(testFile); err != nil {

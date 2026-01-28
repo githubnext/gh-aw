@@ -23,7 +23,7 @@ safe-outputs:
 This is a test workflow that should automatically get Git commands when create-pull-request is enabled.
 `
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow content and get both result and allowed tools arguments for Copilot
 	_, allowedToolArgs, err := compiler.parseCopilotWorkflowMarkdownContentWithToolArgs(workflowContent)
@@ -75,7 +75,7 @@ safe-outputs:
 This workflow should NOT get Git commands since it doesn't use create-pull-request or push-to-pull-request-branch.
 `
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow content and get allowed tool arguments
 	_, allowedToolArgs, err := compiler.parseCopilotWorkflowMarkdownContentWithToolArgs(workflowContent)

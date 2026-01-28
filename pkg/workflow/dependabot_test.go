@@ -71,7 +71,7 @@ func TestParseNpmPackage(t *testing.T) {
 }
 
 func TestCollectNpmDependencies(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name         string
@@ -148,7 +148,7 @@ func TestCollectNpmDependencies(t *testing.T) {
 }
 
 func TestGeneratePackageJSON(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	tempDir := testutil.TempDir(t, "test-*")
 	packageJSONPath := filepath.Join(tempDir, "package.json")
 
@@ -200,7 +200,7 @@ func TestGeneratePackageJSON(t *testing.T) {
 }
 
 func TestGeneratePackageJSON_MergeExisting(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	tempDir := testutil.TempDir(t, "test-*")
 	packageJSONPath := filepath.Join(tempDir, "package.json")
 
@@ -258,7 +258,7 @@ func TestGeneratePackageJSON_MergeExisting(t *testing.T) {
 }
 
 func TestGenerateDependabotConfig(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	tempDir := testutil.TempDir(t, "test-*")
 	dependabotPath := filepath.Join(tempDir, "dependabot.yml")
 
@@ -307,7 +307,7 @@ func TestGenerateDependabotConfig(t *testing.T) {
 }
 
 func TestGenerateDependabotConfig_PreserveExisting(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	tempDir := testutil.TempDir(t, "test-*")
 	dependabotPath := filepath.Join(tempDir, "dependabot.yml")
 
@@ -343,7 +343,7 @@ func TestGenerateDependabotConfig_PreserveExisting(t *testing.T) {
 }
 
 func TestGenerateDependabotManifests_NoDependencies(t *testing.T) {
-	compiler := NewCompiler(true, "", "test")
+	compiler := NewCompiler()
 	tempDir := testutil.TempDir(t, "test-*")
 
 	// Workflow with no npm dependencies
@@ -366,7 +366,7 @@ func TestGenerateDependabotManifests_NoDependencies(t *testing.T) {
 }
 
 func TestGenerateDependabotManifests_WithDependencies(t *testing.T) {
-	compiler := NewCompiler(true, "", "test")
+	compiler := NewCompiler()
 	tempDir := testutil.TempDir(t, "test-*")
 	workflowDir := filepath.Join(tempDir, ".github", "workflows")
 	os.MkdirAll(workflowDir, 0755)
@@ -402,7 +402,7 @@ func TestGenerateDependabotManifests_WithDependencies(t *testing.T) {
 }
 
 func TestGenerateDependabotManifests_StrictMode(t *testing.T) {
-	compiler := NewCompiler(true, "", "test")
+	compiler := NewCompiler()
 	compiler.SetStrictMode(true)
 	tempDir := testutil.TempDir(t, "test-*")
 	workflowDir := filepath.Join(tempDir, ".github", "workflows")
@@ -484,7 +484,7 @@ func TestParsePipPackage(t *testing.T) {
 }
 
 func TestCollectPipDependencies(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name         string
@@ -561,7 +561,7 @@ func TestCollectPipDependencies(t *testing.T) {
 }
 
 func TestGenerateRequirementsTxt(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	tempDir := testutil.TempDir(t, "test-*")
 	requirementsPath := filepath.Join(tempDir, "requirements.txt")
 
@@ -639,7 +639,7 @@ func TestParseGoPackage(t *testing.T) {
 }
 
 func TestCollectGoDependencies(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name         string
@@ -716,7 +716,7 @@ func TestCollectGoDependencies(t *testing.T) {
 }
 
 func TestGenerateGoMod(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	tempDir := testutil.TempDir(t, "test-*")
 	goModPath := filepath.Join(tempDir, "go.mod")
 
@@ -760,7 +760,7 @@ func TestGenerateGoMod(t *testing.T) {
 // Tests for multi-ecosystem support
 
 func TestGenerateDependabotConfig_MultipleEcosystems(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	tempDir := testutil.TempDir(t, "test-*")
 	dependabotPath := filepath.Join(tempDir, "dependabot.yml")
 
@@ -820,7 +820,7 @@ func TestGenerateDependabotConfig_MultipleEcosystems(t *testing.T) {
 }
 
 func TestGenerateDependabotManifests_AllEcosystems(t *testing.T) {
-	compiler := NewCompiler(true, "", "test")
+	compiler := NewCompiler()
 	tempDir := testutil.TempDir(t, "test-*")
 	workflowDir := filepath.Join(tempDir, ".github", "workflows")
 	os.MkdirAll(workflowDir, 0755)

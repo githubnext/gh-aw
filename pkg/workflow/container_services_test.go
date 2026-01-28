@@ -105,7 +105,7 @@ This is a test without container.`,
 			}
 
 			// Parse the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			workflowData, err := compiler.ParseWorkflowFile(workflowFile)
 			if err != nil {
 				t.Fatalf("Failed to parse workflow: %v", err)
@@ -262,7 +262,7 @@ This is a test without services.`,
 			}
 
 			// Parse the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			workflowData, err := compiler.ParseWorkflowFile(workflowFile)
 			if err != nil {
 				t.Fatalf("Failed to parse workflow: %v", err)
@@ -355,7 +355,7 @@ This workflow uses both container and services.`
 	}
 
 	// Parse and generate YAML
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(workflowFile)
 	if err != nil {
 		t.Fatalf("Failed to parse workflow: %v", err)

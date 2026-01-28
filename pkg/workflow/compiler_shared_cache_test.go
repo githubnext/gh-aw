@@ -16,7 +16,7 @@ func TestCompilerSharedActionCache(t *testing.T) {
 	t.Chdir(tmpDir)
 
 	// Create a compiler instance
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Get the shared action resolver (first time - should initialize)
 	cache1, resolver1 := compiler.getSharedActionResolver()
@@ -92,7 +92,7 @@ Test content
 	}
 
 	// Create a compiler
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetSkipValidation(true)
 	compiler.SetNoEmit(true)
 
@@ -134,7 +134,7 @@ func TestCompilerForceRefreshClearsOnlyOnce(t *testing.T) {
 	t.Chdir(tmpDir)
 
 	// Create a compiler with forceRefreshActionPins enabled
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetForceRefreshActionPins(true)
 
 	// Get the shared action resolver (first time - should initialize empty)

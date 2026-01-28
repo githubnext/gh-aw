@@ -772,7 +772,7 @@ Actor: ${{ github.actor }}`
 	require.NoError(t, err, "Should write test workflow file")
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(workflowFile)
 	require.NoError(t, err, "Should compile workflow successfully")
 
@@ -822,7 +822,7 @@ Do something simple.`
 	err := os.WriteFile(workflowFile, []byte(testWorkflow), 0644)
 	require.NoError(t, err)
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(workflowFile)
 	require.NoError(t, err, "Should compile minimal workflow")
 
@@ -864,7 +864,7 @@ Manage issues based on comments.`
 	err := os.WriteFile(workflowFile, []byte(testWorkflow), 0644)
 	require.NoError(t, err)
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(workflowFile)
 	require.NoError(t, err)
 
@@ -907,7 +907,7 @@ Actor: ${{ github.actor }}`
 	err := os.WriteFile(workflowFile, []byte(testWorkflow), 0644)
 	require.NoError(t, err)
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(workflowFile)
 	require.NoError(t, err)
 

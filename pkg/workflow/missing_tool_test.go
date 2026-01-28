@@ -88,7 +88,7 @@ func TestMissingToolSafeOutput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Extract safe outputs config
 			safeOutputs := compiler.extractSafeOutputsConfig(tt.frontmatter)
@@ -139,7 +139,7 @@ func TestMissingToolSafeOutput(t *testing.T) {
 }
 
 func TestGeneratePromptIncludesGitHubAWPrompt(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	data := &WorkflowData{
 		MarkdownContent: "Test workflow content",
@@ -162,7 +162,7 @@ func TestGeneratePromptIncludesGitHubAWPrompt(t *testing.T) {
 }
 
 func TestMissingToolPromptGeneration(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Create workflow data with missing-tool enabled
 	data := &WorkflowData{
@@ -185,7 +185,7 @@ func TestMissingToolPromptGeneration(t *testing.T) {
 }
 
 func TestMissingToolNotEnabledByDefault(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test with completely empty frontmatter
 	emptyFrontmatter := map[string]any{}
@@ -208,7 +208,7 @@ func TestMissingToolNotEnabledByDefault(t *testing.T) {
 }
 
 func TestMissingToolConfigParsing(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name              string

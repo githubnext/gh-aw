@@ -160,7 +160,7 @@ tools:
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "v1.0.0")
+			compiler := NewCompilerWithVersion("v1.0.0")
 			err := compiler.CompileWorkflow(testFile)
 			if err != nil {
 				t.Fatalf("Unexpected error compiling workflow: %v", err)
@@ -219,7 +219,7 @@ This workflow should get default permissions applied automatically.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -337,7 +337,7 @@ This workflow has custom permissions that should override defaults.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {

@@ -44,7 +44,7 @@ Be helpful and concise.`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name             string
@@ -239,7 +239,7 @@ engine: claude
 
 Handle the issue.`
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	testFile := filepath.Join(tmpDir, "test-workflow.md")
 	if err := os.WriteFile(testFile, []byte(workflowContent), 0644); err != nil {
 		t.Fatal(err)

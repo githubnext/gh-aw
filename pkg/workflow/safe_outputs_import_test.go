@@ -11,7 +11,7 @@ import (
 
 // TestSafeOutputsImport tests that safe-output types can be imported from shared workflows
 func TestSafeOutputsImport(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -76,7 +76,7 @@ This workflow uses the imported create-issue configuration.
 
 // TestSafeOutputsImportMultipleTypes tests importing multiple safe-output types from a shared workflow
 func TestSafeOutputsImportMultipleTypes(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -143,7 +143,7 @@ imports:
 
 // TestSafeOutputsImportOverride tests that when the same safe-output type is defined in both main and imported workflow, the main workflow's definition takes precedence
 func TestSafeOutputsImportOverride(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -203,7 +203,7 @@ safe-outputs:
 
 // TestSafeOutputsImportConflictBetweenImports tests that a conflict error is returned when the same safe-output type is defined in multiple imported workflows
 func TestSafeOutputsImportConflictBetweenImports(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -272,7 +272,7 @@ imports:
 
 // TestSafeOutputsImportNoConflictDifferentTypes tests that importing different safe-output types does not cause a conflict
 func TestSafeOutputsImportNoConflictDifferentTypes(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -337,7 +337,7 @@ safe-outputs:
 
 // TestSafeOutputsImportFromMultipleWorkflows tests importing different safe-output types from multiple workflows
 func TestSafeOutputsImportFromMultipleWorkflows(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -412,7 +412,7 @@ imports:
 
 // TestMergeSafeOutputsUnit tests the MergeSafeOutputs function directly
 func TestMergeSafeOutputsUnit(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	tests := []struct {
 		name          string
@@ -503,7 +503,7 @@ func TestMergeSafeOutputsUnit(t *testing.T) {
 
 // TestMergeSafeOutputsMessagesUnit tests the MergeSafeOutputs function for messages field
 func TestMergeSafeOutputsMessagesUnit(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	tests := []struct {
 		name             string
@@ -619,7 +619,7 @@ func TestMergeSafeOutputsMessagesUnit(t *testing.T) {
 
 // TestSafeOutputsImportMetaFields tests that safe-output meta fields can be imported from shared workflows
 func TestSafeOutputsImportMetaFields(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -700,7 +700,7 @@ This workflow uses the imported meta configuration.
 
 // TestSafeOutputsImportMetaFieldsMainTakesPrecedence tests that main workflow meta fields take precedence over imports
 func TestSafeOutputsImportMetaFieldsMainTakesPrecedence(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -769,7 +769,7 @@ This workflow has its own meta configuration that should take precedence.
 
 // TestSafeOutputsImportMetaFieldsFromOnlyImport tests that meta fields are correctly imported when main has no safe-outputs section
 func TestSafeOutputsImportMetaFieldsFromOnlyImport(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -841,7 +841,7 @@ This workflow uses only imported safe-outputs configuration.
 
 // TestSafeOutputsImportJobsFromSharedWorkflow tests that safe-outputs.jobs can be imported from shared workflows
 func TestSafeOutputsImportJobsFromSharedWorkflow(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -918,7 +918,7 @@ This workflow imports safe-jobs from a shared workflow.
 
 // TestSafeOutputsImportJobsWithMainWorkflowJobs tests importing jobs when main workflow also has jobs
 func TestSafeOutputsImportJobsWithMainWorkflowJobs(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -998,7 +998,7 @@ This workflow has its own jobs and imports more jobs.
 
 // TestSafeOutputsImportJobsConflict tests that a conflict error is returned when the same job name is defined in both main and imported workflow
 func TestSafeOutputsImportJobsConflict(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -1065,7 +1065,7 @@ safe-outputs:
 
 // TestSafeOutputsImportMessagesFromSharedWorkflow tests that safe-outputs.messages can be imported from shared workflows
 func TestSafeOutputsImportMessagesFromSharedWorkflow(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -1141,7 +1141,7 @@ This workflow imports messages from a shared workflow.
 
 // TestSafeOutputsImportMessagesMainOverrides tests that main workflow messages take precedence over imports
 func TestSafeOutputsImportMessagesMainOverrides(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -1222,7 +1222,7 @@ Main workflow defines some messages that should take precedence.
 
 // TestSafeOutputsImportMessagesWithNoMainSafeOutputs tests messages import when main has no safe-outputs section
 func TestSafeOutputsImportMessagesWithNoMainSafeOutputs(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -1290,7 +1290,7 @@ Uses only imported safe-outputs including messages.
 // TestMergeSafeOutputsJobsNotMerged tests that Jobs are NOT merged in MergeSafeOutputs
 // because they are handled separately in the orchestrator via mergeSafeJobsFromIncludedConfigs
 func TestMergeSafeOutputsJobsNotMerged(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a top-level config with a job
 	topConfig := &SafeOutputsConfig{
@@ -1322,7 +1322,7 @@ func TestMergeSafeOutputsJobsNotMerged(t *testing.T) {
 
 // TestMergeSafeOutputsJobsSkippedWhenEmpty tests that Jobs field is not created if not present
 func TestMergeSafeOutputsJobsSkippedWhenEmpty(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a top-level config without jobs
 	topConfig := &SafeOutputsConfig{
@@ -1349,7 +1349,7 @@ func TestMergeSafeOutputsJobsSkippedWhenEmpty(t *testing.T) {
 // TestMergeSafeOutputsErrorPropagation tests error propagation from mergeSafeOutputConfig
 // This test verifies the error handling infrastructure is in place
 func TestMergeSafeOutputsErrorPropagation(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	tests := []struct {
 		name          string
@@ -1404,7 +1404,7 @@ func TestMergeSafeOutputsErrorPropagation(t *testing.T) {
 // This verifies that Jobs ARE properly imported when going through ParseWorkflowFile
 // (which uses the orchestrator's mergeSafeJobsFromIncludedConfigs)
 func TestMergeSafeOutputsWithJobsIntegration(t *testing.T) {
-	compiler := NewCompiler(false, "", "1.0.0")
+	compiler := NewCompilerWithVersion("1.0.0")
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()

@@ -238,7 +238,7 @@ func TestParseUpdateEntityConfigWithFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			result, _ := compiler.parseUpdateEntityConfigWithFields(tt.outputMap, tt.opts)
 
 			if tt.wantNil {
@@ -327,7 +327,7 @@ func TestParseUpdateEntityConfigTyped(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			result := parseUpdateEntityConfigTyped(compiler, tt.outputMap,
 				tt.entityType, tt.configKey, logger.New("test"),
 				func(cfg *UpdateIssuesConfig) []UpdateEntityFieldSpec {
@@ -363,7 +363,7 @@ func TestParseUpdateEntityConfigTypedWithCustomParser(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	result := parseUpdateEntityConfigTyped(compiler, outputMap,
 		UpdateEntityDiscussion, "update-discussion", logger.New("test"),
 		func(cfg *UpdateDiscussionsConfig) []UpdateEntityFieldSpec {

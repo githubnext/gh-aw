@@ -341,7 +341,7 @@ permissions:
 	err := os.WriteFile(testFile, []byte(content), 0644)
 	require.NoError(t, err)
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetStrictMode(false)
 	err = compiler.CompileWorkflow(testFile)
 	require.NoError(t, err)
@@ -379,7 +379,7 @@ permissions:
 	err := os.WriteFile(testFile, []byte(content), 0644)
 	require.NoError(t, err)
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetStrictMode(false)
 	err = compiler.CompileWorkflow(testFile)
 	require.NoError(t, err)

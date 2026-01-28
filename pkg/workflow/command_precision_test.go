@@ -15,7 +15,7 @@ import (
 func TestCommandConditionPrecision(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "workflow-command-precision-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name             string

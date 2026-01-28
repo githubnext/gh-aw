@@ -72,7 +72,7 @@ ${{ needs.activation.outputs.text }}
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -170,7 +170,7 @@ This expression needs wrapping.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -255,7 +255,7 @@ Steps expression - will be wrapped.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)

@@ -108,7 +108,7 @@ permissions:
 			r, w, _ := os.Pipe()
 			os.Stderr = w
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compiler.SetStrictMode(false)
 			err := compiler.CompileWorkflow(testFile)
 
@@ -242,7 +242,7 @@ permissions:
 			r, w, _ := os.Pipe()
 			os.Stderr = w
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compiler.SetStrictMode(false)
 			err := compiler.CompileWorkflow(testFile)
 
@@ -300,7 +300,7 @@ permissions:
 	r, w, _ := os.Pipe()
 	os.Stderr = w
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetStrictMode(false)
 	err := compiler.CompileWorkflow(testFile)
 

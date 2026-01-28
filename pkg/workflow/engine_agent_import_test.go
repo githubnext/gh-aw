@@ -223,7 +223,7 @@ This is a test agent file.
 
 	// Test 1: Valid agent file
 	t.Run("valid_agent_file", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "")
+		compiler := NewCompiler()
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{
 				ID: "copilot",
@@ -240,7 +240,7 @@ This is a test agent file.
 
 	// Test 2: Non-existent agent file
 	t.Run("nonexistent_agent_file", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "")
+		compiler := NewCompiler()
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{
 				ID: "copilot",
@@ -259,7 +259,7 @@ This is a test agent file.
 
 	// Test 3: No agent file specified
 	t.Run("no_agent_file", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "")
+		compiler := NewCompiler()
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{
 				ID: "copilot",
@@ -275,7 +275,7 @@ This is a test agent file.
 
 	// Test 4: Nil engine config
 	t.Run("nil_engine_config", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "")
+		compiler := NewCompiler()
 		workflowData := &WorkflowData{}
 
 		workflowPath := filepath.Join(workflowsDir, "test.md")
@@ -289,7 +289,7 @@ This is a test agent file.
 // TestCheckoutWithAgentFromImports tests that checkout step is added when agent file is imported
 func TestCheckoutWithAgentFromImports(t *testing.T) {
 	t.Run("checkout_added_with_agent", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "")
+		compiler := NewCompiler()
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{
 				ID: "copilot",
@@ -305,7 +305,7 @@ func TestCheckoutWithAgentFromImports(t *testing.T) {
 	})
 
 	t.Run("checkout_added_with_agent_no_contents_permission", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "")
+		compiler := NewCompiler()
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{
 				ID: "copilot",
@@ -321,7 +321,7 @@ func TestCheckoutWithAgentFromImports(t *testing.T) {
 	})
 
 	t.Run("no_checkout_without_agent_and_permissions", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "")
+		compiler := NewCompiler()
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{
 				ID: "copilot",
@@ -336,7 +336,7 @@ func TestCheckoutWithAgentFromImports(t *testing.T) {
 	})
 
 	t.Run("checkout_with_custom_steps_containing_checkout", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "")
+		compiler := NewCompiler()
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{
 				ID: "copilot",

@@ -8,7 +8,7 @@ import (
 )
 
 func TestCompilerNetworkPermissionsExtraction(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Helper function to create a temporary workflow file for testing
 	createTempWorkflowFile := func(content string) (string, func()) {

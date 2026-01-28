@@ -38,7 +38,7 @@ Test that top-level github-token is used in engine configuration.
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		err := compiler.CompileWorkflow(testFile)
 		if err != nil {
 			t.Fatalf("Unexpected error compiling workflow: %v", err)
@@ -89,7 +89,7 @@ Test that safe-outputs github-token overrides top-level.
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		err := compiler.CompileWorkflow(testFile)
 		if err != nil {
 			t.Fatalf("Unexpected error compiling workflow: %v", err)
@@ -141,7 +141,7 @@ Test that safe-outputs github-token overrides top-level token.
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		err := compiler.CompileWorkflow(testFile)
 		if err != nil {
 			t.Fatalf("Unexpected error compiling workflow: %v", err)
@@ -202,7 +202,7 @@ Test that top-level github-token is used in Codex engine.
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		err := compiler.CompileWorkflow(testFile)
 		if err != nil {
 			t.Fatalf("Unexpected error compiling workflow: %v", err)
@@ -257,7 +257,7 @@ Test that top-level github-token is used in Copilot engine.
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		err := compiler.CompileWorkflow(testFile)
 		if err != nil {
 			t.Fatalf("Unexpected error compiling workflow: %v", err)
@@ -299,7 +299,7 @@ Test that default fallback includes GH_AW_GITHUB_MCP_SERVER_TOKEN.
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		err := compiler.CompileWorkflow(testFile)
 		if err != nil {
 			t.Fatalf("Unexpected error compiling workflow: %v", err)

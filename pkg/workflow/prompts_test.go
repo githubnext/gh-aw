@@ -101,7 +101,7 @@ This is a test workflow with cache-memory enabled.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -171,7 +171,7 @@ This is a test workflow without cache-memory.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -230,7 +230,7 @@ This is a test workflow with multiple cache-memory entries.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -297,7 +297,7 @@ This is a test workflow with playwright enabled.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -351,7 +351,7 @@ This is a test workflow without playwright.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -406,7 +406,7 @@ This is a test workflow to verify playwright instructions come after temp folder
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -474,7 +474,7 @@ This is a test workflow with issue_comment trigger.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -530,7 +530,7 @@ This is a test workflow with command trigger.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -579,7 +579,7 @@ This is a test workflow with push trigger only.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -632,7 +632,7 @@ This is a test workflow without contents read permission.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}

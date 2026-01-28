@@ -62,7 +62,7 @@ network:
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			compiler.SetStrictMode(true)
 			err := compiler.CompileWorkflow(testFile)
 
@@ -247,7 +247,7 @@ features:
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			compiler.SetStrictMode(true)
 			err := compiler.CompileWorkflow(testFile)
 
@@ -352,7 +352,7 @@ network: {}
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			compiler.SetStrictMode(true)
 			err := compiler.CompileWorkflow(testFile)
 
@@ -406,7 +406,7 @@ tools:
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			compiler.SetStrictMode(true)
 			err := compiler.CompileWorkflow(testFile)
 
@@ -581,7 +581,7 @@ network:
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			compiler.SetStrictMode(true)
 			err := compiler.CompileWorkflow(testFile)
 
@@ -629,7 +629,7 @@ network:
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 	// Do NOT set strict mode - should allow everything
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Errorf("Non-strict mode should allow all configurations, but got error: %v", err)
@@ -725,7 +725,7 @@ features:
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			// Do NOT set strict mode via CLI - let frontmatter control it
 			err := compiler.CompileWorkflow(testFile)
 
@@ -765,7 +765,7 @@ features:
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 	compiler.SetStrictMode(true) // CLI flag sets strict mode
 	err := compiler.CompileWorkflow(testFile)
 
@@ -822,7 +822,7 @@ strict: false
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 	// Do NOT set strict mode via CLI - let frontmatter control it
 
 	// Compile strict workflow first - should succeed now
@@ -916,7 +916,7 @@ network:
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			compiler.SetStrictMode(true)
 			err := compiler.CompileWorkflow(testFile)
 

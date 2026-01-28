@@ -41,7 +41,7 @@ Test command workflow with reaction explicitly disabled.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -128,7 +128,7 @@ Test command workflow with default (eyes) reaction.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -217,7 +217,7 @@ Test command workflow with explicit rocket reaction.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -294,7 +294,7 @@ Test workflow triggered by issue template with "eyes" reaction.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)

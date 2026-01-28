@@ -225,7 +225,7 @@ strict: false
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Compile the workflow
 			if err := compiler.CompileWorkflow(testFile); err != nil {
@@ -360,7 +360,7 @@ func TestShouldAddCheckoutStep(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

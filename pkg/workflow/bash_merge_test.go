@@ -6,7 +6,7 @@ import (
 
 // TestBashToolsMergeCustomWithDefaults tests that custom bash tools get merged with defaults
 func TestBashToolsMergeCustomWithDefaults(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name        string

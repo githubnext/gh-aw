@@ -50,7 +50,7 @@ This is common setup content that should be prepended.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name                string
@@ -183,7 +183,7 @@ This comes from @include directive.`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowContent := `---
 on: issues
@@ -290,7 +290,7 @@ More imported content here.`
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	workflowContent := `---
 on: issues

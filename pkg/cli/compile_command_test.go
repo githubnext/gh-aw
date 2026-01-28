@@ -204,7 +204,7 @@ func TestTrackWorkflowFailure(t *testing.T) {
 
 // TestCompileWorkflowWithValidation_InvalidFile tests error handling
 func TestCompileWorkflowWithValidation_InvalidFile(t *testing.T) {
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 
 	// Try to compile a non-existent file
 	err := CompileWorkflowWithValidation(
@@ -369,8 +369,10 @@ This is a test workflow.
 	}
 
 	// Create compiler with noEmit flag
-	compiler := workflow.NewCompiler(false, "", "test")
-	compiler.SetNoEmit(true)
+	compiler := workflow.NewCompiler(
+		workflow.WithVersion("test"),
+		workflow.WithNoEmit(true),
+	)
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(testFile)
@@ -426,7 +428,7 @@ This is a test workflow.
 	}
 
 	// Create compiler
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 
 	// Compile the workflow
 	err := CompileWorkflowWithValidation(
@@ -758,7 +760,7 @@ This is a test workflow.
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := workflow.NewCompiler(false, "", "test")
+			compiler := workflow.NewCompiler()
 			// Note: SetSkipValidation controls schema validation, which is
 			// different from the validateActionSHAs parameter we're testing.
 			// We skip schema validation here to focus on the security tool independence test.

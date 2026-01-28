@@ -44,7 +44,7 @@ This is a test workflow for compilation.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name        string
@@ -93,7 +93,7 @@ func TestEmptyMarkdownContentError(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "empty-markdown-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name             string
@@ -309,7 +309,7 @@ This is a test workflow with a colon in the header.
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test compilation
 	if err := compiler.CompileWorkflow(testFile); err != nil {

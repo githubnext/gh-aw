@@ -59,7 +59,7 @@ Uses imported playwright tool.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -134,7 +134,7 @@ Uses imported serena tool.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -212,7 +212,7 @@ Uses imported agentic-workflows tool.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -289,7 +289,7 @@ Uses all imported tools.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -373,7 +373,7 @@ Uses imported serena with language config.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -457,7 +457,7 @@ Uses imported playwright with custom args.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -527,7 +527,7 @@ Missing actions:read permission.
 	}
 
 	// Compile the workflow - should fail due to missing permission
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	err := compiler.CompileWorkflow(workflowPath)
 
 	if err == nil {
@@ -578,7 +578,7 @@ Uses imported edit tool.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -637,7 +637,7 @@ Uses imported web-fetch tool.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -694,7 +694,7 @@ Uses imported web-search tool.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -753,7 +753,7 @@ Uses imported timeout setting.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -815,7 +815,7 @@ Uses imported startup-timeout setting.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -881,7 +881,7 @@ Uses all imported neutral tools.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -963,7 +963,7 @@ Uses imported serena in local mode.
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}
@@ -1061,7 +1061,7 @@ permissions:
 	}
 
 	// Compile the workflow
-	compiler := workflow.NewCompiler(false, "", "test")
+	compiler := workflow.NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("CompileWorkflow failed: %v", err)
 	}

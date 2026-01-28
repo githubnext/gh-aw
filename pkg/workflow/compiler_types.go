@@ -9,9 +9,82 @@ import (
 
 var logTypes = logger.New("workflow:compiler_types")
 
+// CompilerOption is a functional option for configuring a Compiler
+type CompilerOption func(*Compiler)
+
+// WithVerbose sets the verbose logging flag
+func WithVerbose(verbose bool) CompilerOption {
+	return func(c *Compiler) { c.verbose = verbose }
+}
+
+// WithEngineOverride sets the AI engine override
+func WithEngineOverride(engine string) CompilerOption {
+	return func(c *Compiler) { c.engineOverride = engine }
+}
+
+// WithCustomOutput sets a custom output path for the compiled workflow
+func WithCustomOutput(path string) CompilerOption {
+	return func(c *Compiler) { c.customOutput = path }
+}
+
+// WithVersion overrides the auto-detected version
+func WithVersion(version string) CompilerOption {
+	return func(c *Compiler) { c.version = version }
+}
+
+// WithActionMode overrides the auto-detected action mode
+func WithActionMode(mode ActionMode) CompilerOption {
+	return func(c *Compiler) { c.actionMode = mode }
+}
+
+// WithSkipValidation configures whether to skip schema validation
+func WithSkipValidation(skip bool) CompilerOption {
+	return func(c *Compiler) { c.skipValidation = skip }
+}
+
+// WithNoEmit configures whether to validate without generating lock files
+func WithNoEmit(noEmit bool) CompilerOption {
+	return func(c *Compiler) { c.noEmit = noEmit }
+}
+
+// WithStrictMode configures whether to enable strict validation mode
+func WithStrictMode(strict bool) CompilerOption {
+	return func(c *Compiler) { c.strictMode = strict }
+}
+
+// WithForceRefreshActionPins configures whether to force refresh of action pins
+func WithForceRefreshActionPins(force bool) CompilerOption {
+	return func(c *Compiler) { c.forceRefreshActionPins = force }
+}
+
+// WithWorkflowIdentifier sets the identifier for the current workflow being compiled
+func WithWorkflowIdentifier(identifier string) CompilerOption {
+	return func(c *Compiler) { c.workflowIdentifier = identifier }
+}
+
+// WithRepositorySlug sets the repository slug for schedule scattering
+func WithRepositorySlug(slug string) CompilerOption {
+	return func(c *Compiler) { c.repositorySlug = slug }
+}
+
 // FileTracker interface for tracking files created during compilation
 type FileTracker interface {
 	TrackCreated(filePath string)
+}
+
+// defaultVersion holds the version string for compiler creation
+// This is set by the CLI package during initialization
+var defaultVersion = "dev"
+
+// SetDefaultVersion sets the default version for compiler creation
+// This should be called once during CLI initialization
+func SetDefaultVersion(version string) {
+	defaultVersion = version
+}
+
+// GetDefaultVersion returns the default version
+func GetDefaultVersion() string {
+	return defaultVersion
 }
 
 // Compiler handles converting markdown workflows to GitHub Actions YAML
@@ -48,41 +121,44 @@ type Compiler struct {
 	scheduleFriendlyFormats map[int]string      // Maps schedule item index to friendly format string for current workflow
 }
 
-// NewCompiler creates a new workflow compiler with optional configuration
-func NewCompiler(verbose bool, engineOverride string, version string) *Compiler {
+// NewCompiler creates a new workflow compiler with functional options.
+// By default, it auto-detects the version and action mode.
+// Common options: WithVerbose, WithEngineOverride, WithCustomOutput, WithVersion, WithActionMode
+func NewCompiler(opts ...CompilerOption) *Compiler {
+	// Get default version
+	version := defaultVersion
+
+	// Create compiler with defaults
 	c := &Compiler{
-		verbose:           verbose,
-		engineOverride:    engineOverride,
+		verbose:           false,
+		engineOverride:    "",
 		version:           version,
-		skipValidation:    true,          // Skip validation by default for now since existing workflows don't fully comply
-		actionMode:        ActionModeDev, // Default to dev mode (local action paths)
+		skipValidation:    true,                      // Skip validation by default for now since existing workflows don't fully comply
+		actionMode:        DetectActionMode(version), // Auto-detect action mode based on version
 		jobManager:        NewJobManager(),
 		engineRegistry:    GetGlobalEngineRegistry(),
 		stepOrderTracker:  NewStepOrderTracker(),
 		artifactManager:   NewArtifactManager(),
 		actionPinWarnings: make(map[string]bool), // Initialize warning cache
 	}
+
+	// Apply functional options
+	for _, opt := range opts {
+		opt(c)
+	}
+	// Auto-detect action mode based on version in case version has been update
+	c.actionMode = DetectActionMode(c.version)
 
 	return c
 }
 
-// NewCompilerWithCustomOutput creates a new workflow compiler with custom output path
-func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutput string, version string) *Compiler {
-	c := &Compiler{
-		verbose:           verbose,
-		engineOverride:    engineOverride,
-		customOutput:      customOutput,
-		version:           version,
-		skipValidation:    true,          // Skip validation by default for now since existing workflows don't fully comply
-		actionMode:        ActionModeDev, // Default to dev mode (local action paths)
-		jobManager:        NewJobManager(),
-		engineRegistry:    GetGlobalEngineRegistry(),
-		stepOrderTracker:  NewStepOrderTracker(),
-		artifactManager:   NewArtifactManager(),
-		actionPinWarnings: make(map[string]bool), // Initialize warning cache
-	}
-
-	return c
+// NewCompilerWithVersion creates a new workflow compiler with the legacy signature.
+// Deprecated: Use NewCompiler with functional options instead.
+// This function is kept for backward compatibility during migration.
+func NewCompilerWithVersion(version string) *Compiler {
+	return NewCompiler(
+		WithVersion(version),
+	)
 }
 
 // SetSkipValidation configures whether to skip schema validation

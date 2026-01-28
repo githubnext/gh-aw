@@ -16,7 +16,7 @@ import (
 // and labeled (when GitHub applies labels from issue forms).
 func TestCampaignTriggerEvents(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "campaign-trigger-test")
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name        string
@@ -108,7 +108,7 @@ tools:
 // The workflow uses 'labeled' event with the 'create-agentic-campaign' label filter
 // to trigger campaign creation.
 func TestCampaignGeneratorWorkflow(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test compilation of the actual agentic-campaign-generator workflow
 	workflowPath := "../../.github/workflows/agentic-campaign-generator.md"

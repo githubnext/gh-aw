@@ -5,7 +5,7 @@ import (
 )
 
 func TestAddCommentsConfigTargetRepo(t *testing.T) {
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name           string
@@ -91,7 +91,7 @@ func TestAddCommentsConfigTargetRepo(t *testing.T) {
 }
 
 func TestAddCommentsConfigHideOlderComments(t *testing.T) {
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name                      string
@@ -157,7 +157,7 @@ func TestAddCommentsConfigHideOlderComments(t *testing.T) {
 }
 
 func TestAddCommentsConfigAllowedReasons(t *testing.T) {
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name             string

@@ -52,7 +52,7 @@ Please do the following tasks:
 	}
 
 	// Create compiler with verbose enabled for testing
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 
 	// Compile the workflow
 	if err := compiler.CompileWorkflow(mdFile); err != nil {

@@ -118,7 +118,7 @@ Test auto-determination with remote GitHub MCP.
 			}
 
 			// Compile workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			if err := compiler.CompileWorkflow(workflowPath); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
@@ -203,7 +203,7 @@ Test automatic lockdown determination with Claude.
 	}
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}

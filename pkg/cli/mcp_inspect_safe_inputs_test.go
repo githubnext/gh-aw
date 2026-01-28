@@ -96,7 +96,7 @@ This workflow has safe-inputs configuration.
 
 	// Parse the workflow using the compiler to get safe-inputs config
 	// (including any imported safe-inputs)
-	compiler := workflow.NewCompiler(false, "", "")
+	compiler := workflow.NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
 	if err != nil {
 		t.Fatalf("Failed to parse workflow: %v", err)
@@ -198,7 +198,7 @@ This workflow imports safe-inputs from shared/shared.md.
 
 	// Parse the workflow using the compiler to get safe-inputs config
 	// This should include both local and imported safe-inputs
-	compiler := workflow.NewCompiler(false, "", "")
+	compiler := workflow.NewCompiler()
 	workflowData, err := compiler.ParseWorkflowFile(workflowPath)
 	if err != nil {
 		t.Fatalf("Failed to parse workflow: %v", err)

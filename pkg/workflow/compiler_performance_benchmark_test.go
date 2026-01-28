@@ -38,7 +38,7 @@ Analyze the issue: ${{ needs.activation.outputs.text }}
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -99,7 +99,7 @@ Review the pull request: ${{ github.event.pull_request.number }}
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -150,7 +150,7 @@ Review and test the pull request with multiple tools.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -203,7 +203,7 @@ Standard workflow for memory profiling.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -244,7 +244,7 @@ Test parsing performance.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -289,7 +289,7 @@ Test validation performance.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetStrictMode(true)
 
 	b.ResetTimer()
@@ -326,7 +326,7 @@ Test YAML generation.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetNoEmit(true)
 
 	b.ResetTimer()

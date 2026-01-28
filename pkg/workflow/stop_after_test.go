@@ -178,7 +178,7 @@ jobs:
 
 	// Test 1: Default behavior should preserve existing stop time
 	t.Run("default behavior preserves stop time", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetRefreshStopTime(false)
 
 		frontmatter := map[string]any{
@@ -201,7 +201,7 @@ jobs:
 
 	// Test 2: With refresh flag, should generate new stop time
 	t.Run("refresh flag generates new stop time", func(t *testing.T) {
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetRefreshStopTime(true)
 
 		frontmatter := map[string]any{
@@ -232,7 +232,7 @@ jobs:
 		// Remove the lock file for this test
 		os.Remove(lockFile)
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetRefreshStopTime(false)
 
 		frontmatter := map[string]any{

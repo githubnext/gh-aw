@@ -45,7 +45,7 @@ This is a normal workflow that should compile successfully.
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		err := compiler.CompileWorkflow(testFile)
 		if err != nil {
 			t.Errorf("Expected no error for normal workflow, got: %v", err)
@@ -90,7 +90,7 @@ This workflow tests the file size validation logic.
 			t.Fatal(err)
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		err := compiler.CompileWorkflow(testFile)
 		if err != nil {
 			t.Errorf("Expected no error for normal workflow, got: %v", err)

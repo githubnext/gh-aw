@@ -44,7 +44,7 @@ This workflow uses the old format without assignees and should continue to work.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Legacy workflow should compile without errors: %v", err)
 	}
@@ -118,7 +118,7 @@ Create an issue with minimal configuration.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Minimal workflow should compile without errors: %v", err)
 	}

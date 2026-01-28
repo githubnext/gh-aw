@@ -7,7 +7,7 @@ import (
 
 // TestValidateStrictMCPNetwork_NoMCPServers tests that validation passes when no mcp-servers are configured
 func TestValidateStrictMCPNetwork_NoMCPServers(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 	}
@@ -20,7 +20,7 @@ func TestValidateStrictMCPNetwork_NoMCPServers(t *testing.T) {
 
 // TestValidateStrictMCPNetwork_EmptyMCPServers tests that validation passes with empty mcp-servers map
 func TestValidateStrictMCPNetwork_EmptyMCPServers(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on":          "push",
 		"mcp-servers": map[string]any{},
@@ -34,7 +34,7 @@ func TestValidateStrictMCPNetwork_EmptyMCPServers(t *testing.T) {
 
 // TestValidateStrictMCPNetwork_InvalidMCPServersType tests that validation skips invalid mcp-servers type
 func TestValidateStrictMCPNetwork_InvalidMCPServersType(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on":          "push",
 		"mcp-servers": "invalid-type",
@@ -48,7 +48,7 @@ func TestValidateStrictMCPNetwork_InvalidMCPServersType(t *testing.T) {
 
 // TestValidateStrictMCPNetwork_ContainerWithTopLevelNetwork tests that validation passes with container + top-level network
 func TestValidateStrictMCPNetwork_ContainerWithTopLevelNetwork(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -71,7 +71,7 @@ func TestValidateStrictMCPNetwork_ContainerWithTopLevelNetwork(t *testing.T) {
 
 // TestValidateStrictMCPNetwork_ContainerWithoutNetwork tests that validation fails without top-level network config
 func TestValidateStrictMCPNetwork_ContainerWithoutNetwork(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -93,7 +93,7 @@ func TestValidateStrictMCPNetwork_ContainerWithoutNetwork(t *testing.T) {
 
 // TestValidateStrictMCPNetwork_ExplicitStdioTypeContainerWithNetwork tests stdio type with container and top-level network
 func TestValidateStrictMCPNetwork_ExplicitStdioTypeContainerWithNetwork(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -117,7 +117,7 @@ func TestValidateStrictMCPNetwork_ExplicitStdioTypeContainerWithNetwork(t *testi
 
 // TestValidateStrictMCPNetwork_ExplicitStdioTypeContainerWithoutNetwork tests stdio type with container but no network
 func TestValidateStrictMCPNetwork_ExplicitStdioTypeContainerWithoutNetwork(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -136,7 +136,7 @@ func TestValidateStrictMCPNetwork_ExplicitStdioTypeContainerWithoutNetwork(t *te
 
 // TestValidateStrictMCPNetwork_LocalTypeContainerWithNetwork tests local type (converted to stdio) with top-level network
 func TestValidateStrictMCPNetwork_LocalTypeContainerWithNetwork(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -160,7 +160,7 @@ func TestValidateStrictMCPNetwork_LocalTypeContainerWithNetwork(t *testing.T) {
 
 // TestValidateStrictMCPNetwork_LocalTypeContainerWithoutNetwork tests local type with container but no network
 func TestValidateStrictMCPNetwork_LocalTypeContainerWithoutNetwork(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -179,7 +179,7 @@ func TestValidateStrictMCPNetwork_LocalTypeContainerWithoutNetwork(t *testing.T)
 
 // TestValidateStrictMCPNetwork_HTTPTypeNoValidation tests that HTTP type servers don't require network validation
 func TestValidateStrictMCPNetwork_HTTPTypeNoValidation(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -198,7 +198,7 @@ func TestValidateStrictMCPNetwork_HTTPTypeNoValidation(t *testing.T) {
 
 // TestValidateStrictMCPNetwork_StdioWithCommandNoContainer tests stdio with command but no container (allowed)
 func TestValidateStrictMCPNetwork_StdioWithCommandNoContainer(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -218,7 +218,7 @@ func TestValidateStrictMCPNetwork_StdioWithCommandNoContainer(t *testing.T) {
 
 // TestValidateStrictMCPNetwork_InvalidServerConfigType tests that invalid server config type is skipped
 func TestValidateStrictMCPNetwork_InvalidServerConfigType(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -234,7 +234,7 @@ func TestValidateStrictMCPNetwork_InvalidServerConfigType(t *testing.T) {
 
 // TestValidateStrictMCPNetwork_NonMCPServerSkipped tests that non-MCP server configs are skipped
 func TestValidateStrictMCPNetwork_NonMCPServerSkipped(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -253,7 +253,7 @@ func TestValidateStrictMCPNetwork_NonMCPServerSkipped(t *testing.T) {
 
 // TestValidateStrictMCPNetwork_MultipleServers tests validation with multiple MCP servers
 func TestValidateStrictMCPNetwork_MultipleServers(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -284,7 +284,7 @@ func TestValidateStrictMCPNetwork_MultipleServers(t *testing.T) {
 
 // TestValidateStrictMCPNetwork_MultipleServersOneFails tests that one failing server causes validation error
 func TestValidateStrictMCPNetwork_MultipleServersOneFails(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -309,7 +309,7 @@ func TestValidateStrictMCPNetwork_MultipleServersOneFails(t *testing.T) {
 
 // TestValidateStrictMCPNetwork_InferredStdioFromContainer tests container field infers stdio type
 func TestValidateStrictMCPNetwork_InferredStdioFromContainer(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -333,7 +333,7 @@ func TestValidateStrictMCPNetwork_InferredStdioFromContainer(t *testing.T) {
 
 // TestValidateStrictMCPNetwork_InferredHTTPFromURL tests URL field infers HTTP type (no validation needed)
 func TestValidateStrictMCPNetwork_InferredHTTPFromURL(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -352,7 +352,7 @@ func TestValidateStrictMCPNetwork_InferredHTTPFromURL(t *testing.T) {
 
 // TestValidateStrictMCPNetwork_InferredStdioFromCommand tests command field infers stdio type (no container, allowed)
 func TestValidateStrictMCPNetwork_InferredStdioFromCommand(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -372,7 +372,7 @@ func TestValidateStrictMCPNetwork_InferredStdioFromCommand(t *testing.T) {
 
 // TestValidateStrictMCPNetwork_ContainerWithNoNetworkConfig tests container without any network config fails
 func TestValidateStrictMCPNetwork_ContainerWithNoNetworkConfig(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -395,7 +395,7 @@ func TestValidateStrictMCPNetwork_ContainerWithNoNetworkConfig(t *testing.T) {
 
 // TestValidateStrictMCPNetwork_ContainerWithEmptyTopLevelNetwork tests container with empty top-level network fails
 func TestValidateStrictMCPNetwork_ContainerWithEmptyTopLevelNetwork(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{
@@ -423,7 +423,7 @@ func TestValidateStrictMCPNetwork_ContainerWithEmptyTopLevelNetwork(t *testing.T
 
 // TestValidateStrictMCPNetwork_MultipleServersWithTopLevelNetwork tests multiple servers with top-level network
 func TestValidateStrictMCPNetwork_MultipleServersWithTopLevelNetwork(t *testing.T) {
-	compiler := NewCompiler(true, "", "")
+	compiler := NewCompiler()
 	frontmatter := map[string]any{
 		"on": "push",
 		"mcp-servers": map[string]any{

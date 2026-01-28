@@ -8,7 +8,7 @@ import (
 // TestMultilineStringHandling tests that multiline strings in with parameters
 // are correctly serialized with proper YAML indentation
 func TestMultilineStringHandling(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	testCases := []struct {
 		name             string

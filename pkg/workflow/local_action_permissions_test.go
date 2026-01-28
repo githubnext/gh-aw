@@ -68,7 +68,7 @@ strict: false
 				t.Fatal(err)
 			}
 
-			compiler := NewCompiler(false, "", "dev")
+			compiler := NewCompilerWithVersion("dev")
 			// Use dev mode to enable local action paths
 			compiler.SetActionMode(ActionModeDev)
 
@@ -171,7 +171,7 @@ command: /fix
 		t.Fatal(err)
 	}
 
-	compiler := NewCompiler(false, "", "v1.0.0")
+	compiler := NewCompilerWithVersion("v1.0.0")
 	// Use release mode to test production behavior (no local action checkouts)
 	compiler.SetActionMode(ActionModeRelease)
 

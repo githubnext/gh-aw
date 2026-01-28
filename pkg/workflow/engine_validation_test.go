@@ -54,7 +54,7 @@ func TestValidateEngine(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			err := compiler.validateEngine(tt.engineID)
 
 			if tt.expectError && err == nil {
@@ -72,7 +72,7 @@ func TestValidateEngine(t *testing.T) {
 
 // TestValidateEngineErrorMessageQuality verifies that error messages follow the style guide
 func TestValidateEngineErrorMessageQuality(t *testing.T) {
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 	err := compiler.validateEngine("invalid-engine")
 
 	if err == nil {
@@ -196,7 +196,7 @@ func TestValidateSingleEngineSpecification(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "")
+			compiler := NewCompiler()
 			result, err := compiler.validateSingleEngineSpecification(tt.mainEngineSetting, tt.includedEnginesJSON)
 
 			if tt.expectError && err == nil {
@@ -218,7 +218,7 @@ func TestValidateSingleEngineSpecification(t *testing.T) {
 
 // TestValidateSingleEngineSpecificationErrorMessageQuality verifies error messages follow the style guide
 func TestValidateSingleEngineSpecificationErrorMessageQuality(t *testing.T) {
-	compiler := NewCompiler(false, "", "")
+	compiler := NewCompiler()
 
 	t.Run("multiple engines error includes example", func(t *testing.T) {
 		_, err := compiler.validateSingleEngineSpecification("copilot", []string{`"claude"`})

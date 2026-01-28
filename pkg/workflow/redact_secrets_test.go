@@ -106,7 +106,7 @@ Test workflow for secret redaction.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(testFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}

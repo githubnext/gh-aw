@@ -83,7 +83,7 @@ This workflow tests custom 2MB patch size configuration.`,
 			}
 
 			// Compile workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			if err := compiler.CompileWorkflow(mdFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}
@@ -171,7 +171,7 @@ This workflow tests large valid patch size configuration.`,
 			}
 
 			// Compile workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			if err := compiler.CompileWorkflow(mdFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
 			}

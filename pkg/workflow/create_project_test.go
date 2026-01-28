@@ -177,7 +177,7 @@ func TestParseCreateProjectsConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			config := compiler.parseCreateProjectsConfig(tt.outputMap)
 
 			if tt.expectedNil {
@@ -212,7 +212,7 @@ func TestParseCreateProjectsConfig(t *testing.T) {
 }
 
 func TestCreateProjectsConfig_DefaultMax(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	outputMap := map[string]any{
 		"create-project": map[string]any{
@@ -228,7 +228,7 @@ func TestCreateProjectsConfig_DefaultMax(t *testing.T) {
 }
 
 func TestCreateProjectsConfig_ViewsParsing(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	outputMap := map[string]any{
 		"create-project": map[string]any{
@@ -263,7 +263,7 @@ func TestCreateProjectsConfig_ViewsParsing(t *testing.T) {
 }
 
 func TestCreateProjectsConfig_FieldDefinitionsParsing(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	outputMap := map[string]any{
 		"create-project": map[string]any{
@@ -307,7 +307,7 @@ func TestCreateProjectsConfig_FieldDefinitionsParsing(t *testing.T) {
 }
 
 func TestCreateProjectsConfig_FieldDefinitionsWithUnderscores(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Test underscore variant of field-definitions and data-type
 	outputMap := map[string]any{
@@ -331,7 +331,7 @@ func TestCreateProjectsConfig_FieldDefinitionsWithUnderscores(t *testing.T) {
 }
 
 func TestCreateProjectsConfig_ViewsAndFieldDefinitions(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	outputMap := map[string]any{
 		"create-project": map[string]any{

@@ -95,7 +95,7 @@ Do something on issue.`,
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			if err := compiler.CompileWorkflow(workflowFile); err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)
@@ -184,7 +184,7 @@ This workflow runs when CI workflows fail to help diagnose issues.`
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(workflowFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -271,7 +271,7 @@ Do something on push.`
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(workflowFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
@@ -323,7 +323,7 @@ Test workflow with workflow_run trigger.`
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	if err := compiler.CompileWorkflow(workflowFile); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)

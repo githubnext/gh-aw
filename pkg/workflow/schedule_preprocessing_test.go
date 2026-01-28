@@ -98,7 +98,7 @@ func TestScheduleWorkflowDispatchAutomatic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			// Set workflow identifier for fuzzy schedule scattering
 			compiler.SetWorkflowIdentifier("test-workflow.md")
 
@@ -245,7 +245,7 @@ func TestSchedulePreprocessingShorthandOnString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			// Set workflow identifier for fuzzy schedule scattering
 			// (required for all schedule tests to avoid fuzzy schedule errors)
 			compiler.SetWorkflowIdentifier("test-workflow.md")
@@ -492,7 +492,7 @@ func TestSchedulePreprocessing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err := compiler.preprocessScheduleFields(tt.frontmatter, "", "")
 
 			if tt.expectedError {
@@ -536,7 +536,7 @@ func TestScheduleFriendlyComments(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetWorkflowIdentifier("test-workflow.md")
 
 	// Preprocess to convert and store friendly formats
@@ -609,7 +609,7 @@ func TestFuzzyScheduleScattering(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			if tt.workflowIdentifier != "" {
 				compiler.SetWorkflowIdentifier(tt.workflowIdentifier)
 			}
@@ -669,7 +669,7 @@ func TestFuzzyScheduleScatteringDeterministic(t *testing.T) {
 			},
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetWorkflowIdentifier(wf)
 
 		err := compiler.preprocessScheduleFields(frontmatter, "", "")
@@ -764,7 +764,7 @@ func TestSchedulePreprocessingWithFuzzyDaily(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compiler.SetWorkflowIdentifier("test-workflow.md")
 
 			err := compiler.preprocessScheduleFields(tt.frontmatter, "", "")
@@ -823,7 +823,7 @@ func TestSchedulePreprocessingWithFuzzyDaily(t *testing.T) {
 
 func TestSchedulePreprocessingDailyVariations(t *testing.T) {
 	// Test that "daily" produces a valid scattered schedule
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetWorkflowIdentifier("daily-variation-test.md")
 
 	frontmatter := map[string]any{
@@ -920,7 +920,7 @@ func TestSlashCommandShorthand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compiler.SetWorkflowIdentifier("test-workflow.md")
 
 			err := compiler.preprocessScheduleFields(tt.frontmatter, "", "")
@@ -1035,7 +1035,7 @@ func TestFuzzyScheduleScatteringWithRepositorySlug(t *testing.T) {
 				},
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compiler.SetWorkflowIdentifier(tt.workflowIdentifier)
 			if tt.repositorySlug != "" {
 				compiler.SetRepositorySlug(tt.repositorySlug)
@@ -1126,7 +1126,7 @@ func TestFuzzyScheduleScatteringAcrossOrganization(t *testing.T) {
 			},
 		}
 
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 		compiler.SetRepositorySlug(repo.slug)
 		compiler.SetWorkflowIdentifier(repo.workflowName)
 
@@ -1192,7 +1192,7 @@ func TestFuzzyScheduleScatteringWarningWithoutRepoSlug(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetWorkflowIdentifier("test-workflow.md")
 	// Explicitly NOT setting repository slug
 
@@ -1239,7 +1239,7 @@ func TestFuzzyScheduleScatteringWarningWithoutRepoSlug(t *testing.T) {
 // deterministically and don't carry over between compilations
 func TestFriendlyFormatDeterminism(t *testing.T) {
 	// Create a compiler instance
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compiler.SetWorkflowIdentifier("test-workflow.md")
 
 	// Frontmatter with daily schedule

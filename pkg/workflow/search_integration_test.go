@@ -47,7 +47,7 @@ Search the web for information.
 	os.Stderr = w
 
 	// Create a compiler
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow - should succeed with a warning
 	err := compiler.CompileWorkflow(workflowPath)
@@ -110,7 +110,7 @@ Search the web for information.
 	}
 
 	// Create a compiler
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow - should succeed
 	err := compiler.CompileWorkflow(workflowPath)
@@ -165,7 +165,7 @@ Search the web for information.
 	}
 
 	// Create a compiler
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow - should succeed
 	err := compiler.CompileWorkflow(workflowPath)
@@ -209,7 +209,7 @@ Do something without web search.
 	}
 
 	// Create a compiler
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Compile the workflow - should succeed
 	err := compiler.CompileWorkflow(workflowPath)

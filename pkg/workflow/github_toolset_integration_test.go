@@ -133,7 +133,7 @@ This workflow combines toolsets with read-only mode.
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compileErr := compiler.CompileWorkflow(mdPath)
 			if compileErr != nil {
 				t.Fatalf("Failed to compile workflow: %v", compileErr)
@@ -191,7 +191,7 @@ This workflow tests remote mode with array toolsets.
 	}
 
 	// Compile the workflow
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	compileErr := compiler.CompileWorkflow(mdPath)
 	if compileErr != nil {
 		t.Fatalf("Failed to compile workflow: %v", compileErr)
@@ -329,7 +329,7 @@ Remote mode with toolsets and read-only.
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compileErr := compiler.CompileWorkflow(mdPath)
 			if compileErr != nil {
 				t.Fatalf("Failed to compile workflow: %v", compileErr)

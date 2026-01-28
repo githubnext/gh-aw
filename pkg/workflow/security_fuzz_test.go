@@ -133,7 +133,7 @@ items: [1, 2, 3
 
 		// Create a mock compiler and try to parse
 		// This should never panic
-		compiler := NewCompiler(false, "", "test")
+		compiler := NewCompiler()
 
 		// Try to validate expression safety on the content
 		// This exercises the expression parser

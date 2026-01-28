@@ -97,7 +97,7 @@ Test Codex workflow with safe inputs
 				t.Fatalf("Failed to write workflow file: %v", err)
 			}
 
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err = compiler.CompileWorkflow(workflowPath)
 			if err != nil {
 				t.Fatalf("Failed to compile workflow: %v", err)

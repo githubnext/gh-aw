@@ -43,7 +43,7 @@ Test workflow with custom AWF arguments.
 		}
 
 		// Compile the workflow
-		compiler := NewCompiler(false, "", "test-firewall-args")
+		compiler := NewCompilerWithVersion("test-firewall-args")
 		compiler.SetSkipValidation(true)
 
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {
@@ -117,7 +117,7 @@ Test workflow without custom AWF arguments.
 		}
 
 		// Compile the workflow
-		compiler := NewCompiler(false, "", "test-no-custom-args")
+		compiler := NewCompilerWithVersion("test-no-custom-args")
 		compiler.SetSkipValidation(true)
 
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {

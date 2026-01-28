@@ -18,7 +18,7 @@ func TestTeamMemberCheckForCommandWorkflows(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "workflow-team-member-test")
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	tests := []struct {
 		name                  string

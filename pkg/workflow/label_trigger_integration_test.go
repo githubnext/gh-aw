@@ -10,7 +10,7 @@ func TestLabelTriggerIntegrationSimple(t *testing.T) {
 		"on": "issue labeled bug enhancement",
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.preprocessScheduleFields(frontmatter, "", "")
 	if err != nil {
 		t.Fatalf("preprocessScheduleFields() error = %v", err)
@@ -89,7 +89,7 @@ func TestLabelTriggerIntegrationIssue(t *testing.T) {
 		"on": "issue labeled bug",
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.preprocessScheduleFields(frontmatter, "", "")
 	if err != nil {
 		t.Fatalf("preprocessScheduleFields() error = %v", err)
@@ -119,7 +119,7 @@ func TestLabelTriggerIntegrationPullRequest(t *testing.T) {
 		"on": "pull_request labeled needs-review approved",
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.preprocessScheduleFields(frontmatter, "", "")
 	if err != nil {
 		t.Fatalf("preprocessScheduleFields() error = %v", err)
@@ -185,7 +185,7 @@ func TestLabelTriggerIntegrationDiscussion(t *testing.T) {
 		"on": "discussion labeled question announcement",
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.preprocessScheduleFields(frontmatter, "", "")
 	if err != nil {
 		t.Fatalf("preprocessScheduleFields() error = %v", err)
@@ -248,7 +248,7 @@ func TestLabelTriggerIntegrationError(t *testing.T) {
 		"on": "labeled bug",
 	}
 
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 	err := compiler.preprocessScheduleFields(frontmatter, "", "")
 	if err != nil {
 		t.Fatalf("preprocessScheduleFields() unexpected error = %v", err)

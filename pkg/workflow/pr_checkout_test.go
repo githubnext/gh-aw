@@ -197,7 +197,7 @@ Test workflow with permissions but checkout should be conditional.
 			}
 
 			// Compile workflow
-			compiler := NewCompiler(false, "", "test-version")
+			compiler := NewCompiler()
 			// Use dev mode to test with local action paths
 			compiler.SetActionMode(ActionModeDev)
 			if err := compiler.CompileWorkflow(workflowPath); err != nil {
@@ -290,7 +290,7 @@ Test workflow with multiple comment triggers.
 	}
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}
@@ -363,7 +363,7 @@ Test workflow to verify GH_TOKEN configuration.
 	}
 
 	// Compile workflow
-	compiler := NewCompiler(false, "", "test-version")
+	compiler := NewCompiler()
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
 		t.Fatalf("Failed to compile workflow: %v", err)
 	}

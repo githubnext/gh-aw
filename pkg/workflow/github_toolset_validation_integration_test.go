@@ -227,7 +227,7 @@ Test content.
 			}
 
 			// Create a compiler instance
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 
 			// Try to compile the workflow
 			err = compiler.CompileWorkflow(workflowPath)
@@ -291,7 +291,7 @@ Test content.
 	}
 
 	// Create a compiler instance
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Try to compile the workflow
 	err = compiler.CompileWorkflow(workflowPath)
@@ -348,7 +348,7 @@ Test content.
 	}
 
 	// Create a compiler instance
-	compiler := NewCompiler(false, "", "test")
+	compiler := NewCompiler()
 
 	// Try to compile the workflow
 	err = compiler.CompileWorkflow(workflowPath)

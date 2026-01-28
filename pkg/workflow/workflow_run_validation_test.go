@@ -187,7 +187,7 @@ Test workflow content.`,
 			}
 
 			// Create compiler with appropriate mode
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compiler.SetStrictMode(tt.strictMode)
 			compiler.SetNoEmit(true) // Don't write lock files for these tests
 
@@ -273,7 +273,7 @@ Test workflow content.`,
 			}
 
 			// Create compiler in normal mode
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compiler.SetNoEmit(true)
 
 			// Compile the workflow

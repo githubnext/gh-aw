@@ -137,7 +137,7 @@ This workflow uses all with redundant repos.
 			os.Stderr = w
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			compileErr := compiler.CompileWorkflow(mdPath)
 			require.NoError(t, compileErr, "Failed to compile workflow")
 

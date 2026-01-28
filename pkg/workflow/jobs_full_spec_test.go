@@ -189,7 +189,7 @@ jobs:
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err = compiler.CompileWorkflow(testFile)
 
 			if tt.shouldError {
@@ -316,7 +316,7 @@ jobs:
 			}
 
 			// Compile the workflow
-			compiler := NewCompiler(false, "", "test")
+			compiler := NewCompiler()
 			err = compiler.CompileWorkflow(testFile)
 
 			if tt.shouldError {
