@@ -8,8 +8,8 @@ sidebar:
 GitHub Agentic Workflows use AI [coding agents or engines](/gh-aw/reference/glossary/#engine) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
 
 > [!NOTE]
-> Experimental Engines
-> Claude and Codex engines are available but marked as experimental. They are not documented here but can still be used by setting `engine: claude` or `engine: codex` in your workflow frontmatter. For production workflows, we recommend using the GitHub Copilot CLI engine.
+> Multiple AI Engines Supported
+> GitHub Agentic Workflows supports multiple AI engines: GitHub Copilot CLI (default), Anthropic Claude, and OpenAI Codex. All engines support the same tools, triggers, and safe outputs. Choose the engine that best fits your needs and API access.
 
 ## GitHub Copilot CLI
 
@@ -58,7 +58,7 @@ gh aw secrets set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "<your-github-pat>"
 
 ## Anthropic Claude
 
-[Anthropic Claude Code](https://www.anthropic.com/index/claude) is an experimental AI engine option.
+[Anthropic Claude Code](https://www.anthropic.com/index/claude) is an AI engine option.
 
 ### Claude Setup
 
