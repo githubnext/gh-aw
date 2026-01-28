@@ -18,7 +18,7 @@ safe-outputs:
   noop:
     max: 1
   update-project:
-    max: 10
+    max: 100
 project:
   url: https://github.com/orgs/githubnext/projects/144
 ---
@@ -88,13 +88,21 @@ If *no* items were found across all categories (Dependabot PRs, code scanning al
 ### Step 5: Update Project Board
 
 For each discovered item (up to 10 total per run):
-- Add or update the corresponding work item on the project board: https://github.com/orgs/githubnext/projects/144
+- Add or update the corresponding work item on the project board: <https://github.com/orgs/githubnext/projects/144>
 - Use the `update-project` safe output tool
+- Always include the campaign project URL (this is what makes it a campaign):
+  - `project`: "<https://github.com/orgs/githubnext/projects/144>"
+- Always include the content identity:
+  - `content_type`: `pull_request` (Dependabot PRs) or `issue` (tracking issues)
+  - `content_number`: PR/issue number
 - Set fields:
   - `campaign_id`: "security-alert-burndown"
-  - `status`: "Todo" (for open PRs)
+  - `status`: "Todo" (for open items)
   - `target_repo`: "githubnext/gh-aw"
-  - `worker_workflow`: "unknown"
+  - `worker_workflow`: who discovered it, using one of:
+    - "dependabot-pr"
+    - "code-scanning"
+    - "secret-scanning"
   - `priority`: "Medium"
   - `size`: "Small"
   - `start_date`: Item created date (YYYY-MM-DD format)
