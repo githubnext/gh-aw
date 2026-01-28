@@ -87,7 +87,7 @@ func TestValidateSafeOutputsAllowedDomains(t *testing.T) {
 				AllowedDomains: []string{"github.*.com"},
 			},
 			wantErr: true,
-			errMsg:  "wildcard in invalid position",
+			errMsg:  "wildcard must be at the start followed by a dot",
 		},
 		{
 			name: "invalid - wildcard at end",
@@ -95,7 +95,7 @@ func TestValidateSafeOutputsAllowedDomains(t *testing.T) {
 				AllowedDomains: []string{"github.*"},
 			},
 			wantErr: true,
-			errMsg:  "wildcard in invalid position",
+			errMsg:  "wildcard must be at the start followed by a dot",
 		},
 		{
 			name: "invalid - trailing dot",

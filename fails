@@ -1,9 +1,4 @@
 FAIL	github.com/githubnext/gh-aw/pkg/cli	600.107s
---- FAIL: TestCompileWorkflowWithGoRuntimeWithGoModFile (0.46s)
---- FAIL: TestUVDetectionAddsPython (0.00s)
---- FAIL: TestValidateSafeOutputsAllowedDomains (0.00s)
-    --- FAIL: TestValidateSafeOutputsAllowedDomains/invalid_-_wildcard_in_middle (0.00s)
-    --- FAIL: TestValidateSafeOutputsAllowedDomains/invalid_-_wildcard_at_end (0.00s)
 --- FAIL: TestValidateDomainPattern (0.00s)
     --- FAIL: TestValidateDomainPattern/invalid_-_wildcard_in_middle (0.00s)
     --- FAIL: TestValidateDomainPattern/invalid_-_wildcard_at_end (0.00s)
