@@ -310,7 +310,6 @@ jobs:
                   "maxLength": 256
                 },
                 "tool": {
-                  "required": true,
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 128
