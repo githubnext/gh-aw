@@ -37,6 +37,39 @@ const (
 //go:embed schemas/github-workflow.json
 var githubWorkflowSchema string
 
+// formatCompilerError creates a formatted compiler error message
+// filePath: the file path to include in the error (typically markdownPath or lockFile)
+// errType: the error type ("error" or "warning")
+// message: the error message text
+func formatCompilerError(filePath string, errType string, message string) error {
+	formattedErr := console.FormatError(console.CompilerError{
+		Position: console.ErrorPosition{
+			File:   filePath,
+			Line:   1,
+			Column: 1,
+		},
+		Type:    errType,
+		Message: message,
+	})
+	return errors.New(formattedErr)
+}
+
+// formatCompilerMessage creates a formatted compiler message string (for warnings printed to stderr)
+// filePath: the file path to include in the message (typically markdownPath or lockFile)
+// msgType: the message type ("error" or "warning")
+// message: the message text
+func formatCompilerMessage(filePath string, msgType string, message string) string {
+	return console.FormatError(console.CompilerError{
+		Position: console.ErrorPosition{
+			File:   filePath,
+			Line:   1,
+			Column: 1,
+		},
+		Type:    msgType,
+		Message: message,
+	})
+}
+
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
 func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	// Store markdownPath for use in dynamic tool generation
@@ -52,16 +85,7 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			return err
 		}
 		// Otherwise, create a basic formatted error
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: err.Error(),
-		})
-		return errors.New(formattedErr)
+		return formatCompilerError(markdownPath, "error", err.Error())
 	}
 
 	return c.CompileWorkflowData(workflowData, markdownPath)
@@ -102,16 +126,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Validate expression safety - check that all GitHub Actions expressions are in the allowed list
 	log.Printf("Validating expression safety")
 	if err := validateExpressionSafety(workflowData.MarkdownContent); err != nil {
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: err.Error(),
-		})
-		return errors.New(formattedErr)
+		return formatCompilerError(markdownPath, "error", err.Error())
 	}
 
 	// Validate expressions in runtime-import files at compile time
@@ -121,31 +136,13 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	githubDir := filepath.Dir(workflowDir)    // .github
 	workspaceDir := filepath.Dir(githubDir)   // repo root
 	if err := validateRuntimeImportFiles(workflowData.MarkdownContent, workspaceDir); err != nil {
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: err.Error(),
-		})
-		return errors.New(formattedErr)
+		return formatCompilerError(markdownPath, "error", err.Error())
 	}
 
 	// Validate feature flags
 	log.Printf("Validating feature flags")
 	if err := validateFeatures(workflowData); err != nil {
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: err.Error(),
-		})
-		return errors.New(formattedErr)
+		return formatCompilerError(markdownPath, "error", err.Error())
 	}
 
 	// Check for action-mode feature flag override
@@ -154,16 +151,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			if actionModeStr, ok := actionModeVal.(string); ok && actionModeStr != "" {
 				mode := ActionMode(actionModeStr)
 				if !mode.IsValid() {
-					formattedErr := console.FormatError(console.CompilerError{
-						Position: console.ErrorPosition{
-							File:   markdownPath,
-							Line:   1,
-							Column: 1,
-						},
-						Type:    "error",
-						Message: fmt.Sprintf("invalid action-mode feature flag '%s'. Must be 'dev', 'release', or 'script'", actionModeStr),
-					})
-					return errors.New(formattedErr)
+					return formatCompilerError(markdownPath, "error", fmt.Sprintf("invalid action-mode feature flag '%s'. Must be 'dev', 'release', or 'script'", actionModeStr))
 				}
 				log.Printf("Overriding action mode from feature flag: %s", mode)
 				c.SetActionMode(mode)
@@ -174,16 +162,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Validate dangerous permissions
 	log.Printf("Validating dangerous permissions")
 	if err := validateDangerousPermissions(workflowData); err != nil {
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: err.Error(),
-		})
-		return errors.New(formattedErr)
+		return formatCompilerError(markdownPath, "error", err.Error())
 	}
 
 	// Validate agent file exists if specified in engine config
@@ -195,61 +174,25 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Validate sandbox configuration
 	log.Printf("Validating sandbox configuration")
 	if err := validateSandboxConfig(workflowData); err != nil {
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: err.Error(),
-		})
-		return errors.New(formattedErr)
+		return formatCompilerError(markdownPath, "error", err.Error())
 	}
 
 	// Validate safe-outputs target configuration
 	log.Printf("Validating safe-outputs target fields")
 	if err := validateSafeOutputsTarget(workflowData.SafeOutputs); err != nil {
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: err.Error(),
-		})
-		return errors.New(formattedErr)
+		return formatCompilerError(markdownPath, "error", err.Error())
 	}
 
 	// Validate safe-outputs allowed-domains configuration
 	log.Printf("Validating safe-outputs allowed-domains")
 	if err := validateSafeOutputsAllowedDomains(workflowData.SafeOutputs); err != nil {
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: err.Error(),
-		})
-		return errors.New(formattedErr)
+		return formatCompilerError(markdownPath, "error", err.Error())
 	}
 
 	// Validate network allowed domains configuration
 	log.Printf("Validating network allowed domains")
 	if err := validateNetworkAllowedDomains(workflowData.NetworkPermissions); err != nil {
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: err.Error(),
-		})
-		return errors.New(formattedErr)
+		return formatCompilerError(markdownPath, "error", err.Error())
 	}
 
 	// Emit experimental warning for sandbox-runtime feature
@@ -302,28 +245,10 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			if len(validationResult.MissingPermissions) > 0 {
 				if c.strictMode {
 					// In strict mode, missing permissions are errors
-					formattedErr := console.FormatError(console.CompilerError{
-						Position: console.ErrorPosition{
-							File:   markdownPath,
-							Line:   1,
-							Column: 1,
-						},
-						Type:    "error",
-						Message: message,
-					})
-					return errors.New(formattedErr)
+					return formatCompilerError(markdownPath, "error", message)
 				} else {
 					// In non-strict mode, missing permissions are warnings
-					formattedWarning := console.FormatError(console.CompilerError{
-						Position: console.ErrorPosition{
-							File:   markdownPath,
-							Line:   1,
-							Column: 1,
-						},
-						Type:    "warning",
-						Message: message,
-					})
-					fmt.Fprintln(os.Stderr, formattedWarning)
+					fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
 					c.IncrementWarningCount()
 				}
 			}
@@ -339,16 +264,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 
 		// Validate that all allowed tools have their toolsets enabled
 		if err := ValidateGitHubToolsAgainstToolsets(allowedTools, enabledToolsets); err != nil {
-			formattedErr := console.FormatError(console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   markdownPath,
-					Line:   1,
-					Column: 1,
-				},
-				Type:    "error",
-				Message: err.Error(),
-			})
-			return errors.New(formattedErr)
+			return formatCompilerError(markdownPath, "error", err.Error())
 		}
 
 		// Print informational message if "projects" toolset is explicitly specified
@@ -380,31 +296,13 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			message += "permissions:\n"
 			message += "  actions: read"
 
-			formattedErr := console.FormatError(console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   markdownPath,
-					Line:   1,
-					Column: 1,
-				},
-				Type:    "error",
-				Message: message,
-			})
-			return errors.New(formattedErr)
+			return formatCompilerError(markdownPath, "error", message)
 		}
 
 		// Validate dispatch-workflow configuration
 		log.Print("Validating dispatch-workflow configuration")
 		if err := c.validateDispatchWorkflow(workflowData, markdownPath); err != nil {
-			formattedErr := console.FormatError(console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   markdownPath,
-					Line:   1,
-					Column: 1,
-				},
-				Type:    "error",
-				Message: fmt.Sprintf("dispatch-workflow validation failed: %v", err),
-			})
-			return errors.New(formattedErr)
+			return formatCompilerError(markdownPath, "error", fmt.Sprintf("dispatch-workflow validation failed: %v", err))
 		}
 	}
 
@@ -418,78 +316,48 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Generate the YAML content
 	yamlContent, err := c.generateYAML(workflowData, markdownPath)
 	if err != nil {
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: fmt.Sprintf("failed to generate YAML: %v", err),
-		})
-		return errors.New(formattedErr)
+		return formatCompilerError(markdownPath, "error", fmt.Sprintf("failed to generate YAML: %v", err))
 	}
 
 	// Always validate expression sizes - this is a hard limit from GitHub Actions (21KB)
 	// that cannot be bypassed, so we validate it unconditionally
 	log.Print("Validating expression sizes")
 	if err := c.validateExpressionSizes(yamlContent); err != nil {
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: fmt.Sprintf("expression size validation failed: %v", err),
-		})
+		// Store error first so we can write invalid YAML before returning
+		formattedErr := formatCompilerError(markdownPath, "error", fmt.Sprintf("expression size validation failed: %v", err))
 		// Write the invalid YAML to a .invalid.yml file for inspection
 		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Invalid workflow YAML written to: %s", console.ToRelativePath(invalidFile))))
 		}
-		return errors.New(formattedErr)
+		return formattedErr
 	}
 
 	// Validate for template injection vulnerabilities - detect unsafe expression usage in run: commands
 	log.Print("Validating for template injection vulnerabilities")
 	if err := validateNoTemplateInjection(yamlContent); err != nil {
-		formattedErr := console.FormatError(console.CompilerError{
-			Position: console.ErrorPosition{
-				File:   markdownPath,
-				Line:   1,
-				Column: 1,
-			},
-			Type:    "error",
-			Message: err.Error(),
-		})
+		// Store error first so we can write invalid YAML before returning
+		formattedErr := formatCompilerError(markdownPath, "error", err.Error())
 		// Write the invalid YAML to a .invalid.yml file for inspection
 		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow with template injection risks written to: %s", console.ToRelativePath(invalidFile))))
 		}
-		return errors.New(formattedErr)
+		return formattedErr
 	}
 
 	// Validate against GitHub Actions schema (unless skipped)
 	if !c.skipValidation {
 		log.Print("Validating workflow against GitHub Actions schema")
 		if err := c.validateGitHubActionsSchema(yamlContent); err != nil {
-			formattedErr := console.FormatError(console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   markdownPath,
-					Line:   1,
-					Column: 1,
-				},
-				Type:    "error",
-				Message: fmt.Sprintf("workflow schema validation failed: %v", err),
-			})
+			// Store error first so we can write invalid YAML before returning
+			formattedErr := formatCompilerError(markdownPath, "error", fmt.Sprintf("workflow schema validation failed: %v", err))
 			// Write the invalid YAML to a .invalid.yml file for inspection
 			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Invalid workflow YAML written to: %s", console.ToRelativePath(invalidFile))))
 			}
-			return errors.New(formattedErr)
+			return formattedErr
 		}
 
 		// Validate container images used in MCP configurations
@@ -497,62 +365,26 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		if err := c.validateContainerImages(workflowData); err != nil {
 			// Treat container image validation failures as warnings, not errors
 			// This is because validation may fail due to auth issues locally (e.g., private registries)
-			formattedWarning := console.FormatError(console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   markdownPath,
-					Line:   1,
-					Column: 1,
-				},
-				Type:    "warning",
-				Message: fmt.Sprintf("container image validation failed: %v", err),
-			})
-			fmt.Fprintln(os.Stderr, formattedWarning)
+			fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", fmt.Sprintf("container image validation failed: %v", err)))
 			c.IncrementWarningCount()
 		}
 
 		// Validate runtime packages (npx, uv)
 		log.Print("Validating runtime packages")
 		if err := c.validateRuntimePackages(workflowData); err != nil {
-			formattedErr := console.FormatError(console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   markdownPath,
-					Line:   1,
-					Column: 1,
-				},
-				Type:    "error",
-				Message: fmt.Sprintf("runtime package validation failed: %v", err),
-			})
-			return errors.New(formattedErr)
+			return formatCompilerError(markdownPath, "error", fmt.Sprintf("runtime package validation failed: %v", err))
 		}
 
 		// Validate firewall configuration (log-level enum)
 		log.Print("Validating firewall configuration")
 		if err := c.validateFirewallConfig(workflowData); err != nil {
-			formattedErr := console.FormatError(console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   markdownPath,
-					Line:   1,
-					Column: 1,
-				},
-				Type:    "error",
-				Message: fmt.Sprintf("firewall configuration validation failed: %v", err),
-			})
-			return errors.New(formattedErr)
+			return formatCompilerError(markdownPath, "error", fmt.Sprintf("firewall configuration validation failed: %v", err))
 		}
 
 		// Validate repository features (discussions, issues)
 		log.Print("Validating repository features")
 		if err := c.validateRepositoryFeatures(workflowData); err != nil {
-			formattedErr := console.FormatError(console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   markdownPath,
-					Line:   1,
-					Column: 1,
-				},
-				Type:    "error",
-				Message: fmt.Sprintf("repository feature validation failed: %v", err),
-			})
-			return errors.New(formattedErr)
+			return formatCompilerError(markdownPath, "error", fmt.Sprintf("repository feature validation failed: %v", err))
 		}
 	} else if c.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
@@ -584,16 +416,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		}
 
 		if err := os.WriteFile(lockFile, []byte(yamlContent), 0644); err != nil {
-			formattedErr := console.FormatError(console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   lockFile,
-					Line:   1,
-					Column: 1,
-				},
-				Type:    "error",
-				Message: fmt.Sprintf("failed to write lock file: %v", err),
-			})
-			return errors.New(formattedErr)
+			return formatCompilerError(lockFile, "error", fmt.Sprintf("failed to write lock file: %v", err))
 		}
 
 		if shouldForceWrite {
