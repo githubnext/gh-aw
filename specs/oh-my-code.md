@@ -695,7 +695,7 @@ inputs:
 
 **Benefits of Stateless Model**:
 - Predictable, reproducible runs
-- Easy to reason about (no hidden state)
+- Transparent behavior (no hidden state)
 - Scales horizontally (parallel runs)
 - Audit trail via GitHub Actions logs
 
@@ -1048,7 +1048,7 @@ gh aw mcp inspect issue-responder
 
 **Scalability**:
 - **Horizontal**: Run multiple OpenCode instances (different projects)
-- **Vertical**: More powerful machine = more background agents
+- **Vertical**: Higher-spec machine (more CPU/RAM) = more background agents
 - **Cost**: Pay for LLM API usage only (no CI/CD minutes)
 
 **Optimization Tips**:
@@ -1640,7 +1640,7 @@ oh-my-opencode and GitHub Agentic Workflows represent two complementary approach
 - Repository-wide coordination
 
 **Neither replaces the other** - they solve different problems in different contexts:
-- Use **oh-my-opencode** when you need powerful local development with AI agents as teammates
+- Use **oh-my-opencode** when you need full-featured local development with AI agents as teammates
 - Use **gh-aw** when you need secure, auditable automation for team/org workflows
 
 **Together, they provide a comprehensive AI-powered development stack**:

@@ -109,7 +109,7 @@ tool := &mcp.Tool{
    - Comprehensive error reporting
 
 4. **Developer-Friendly API**
-   - Simple, intuitive function signatures
+   - Concise function signatures following Go idioms
    - Good integration with Go idioms
    - Clear documentation and examples
 
@@ -181,7 +181,7 @@ While not officially released, upstream development suggests:
    - ✅ Clear error messages for schema generation failures
 
 3. **Type Safety**
-   - ✅ Excellent use of generics for compile-time safety
+   - ✅ Uses generics for compile-time type safety
    - ✅ No runtime type assertions needed
    - 💡 Could extend pattern to other schema operations
 

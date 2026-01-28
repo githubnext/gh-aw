@@ -878,8 +878,7 @@ jobs:
           - **Verify quickly**: Re-run checks after fixes to confirm, then move on
           - **One issue at a time**: Only proceed to next step when current step passes
           - **Be concise**: Keep analysis brief and actionable
-          - **Early termination**: If all checks pass, stop immediately and create PR
-          - **Create a pull request with all fixes using the safe-outputs create-pull-request tool**
+          - **Early termination & PR creation**: If all checks pass, stop immediately and **call the `create_pull_request` MCP tool from the safe-outputs server** to create a PR with all fixes
           
           **Token Budget Awareness:**
           - Aim to complete fixes within 15-20 conversation turns
@@ -889,7 +888,7 @@ jobs:
           
           ## Pull Request Guidelines
           
-          After all fixes are completed and validated, **use the create-pull-request safe-output** to create a PR with your changes.
+          After all fixes are completed and validated, **call the `create_pull_request` MCP tool** (from the safe-outputs MCP server) to create a PR with your changes.
           
           Your pull request should:
           - Have a clear title describing what was fixed (e.g., "Fix formatting and linting issues", "Fix test failures in pkg/cli")
@@ -901,14 +900,16 @@ jobs:
           
           **To create the pull request:**
           1. Commit all your changes to a new branch
-          2. Use the `create_pull_request` tool with:
-             - **Title**: Clear description of what was fixed
-             - **Body**: Detailed description including:
+          2. **Call the `create_pull_request` MCP tool** (available through the safe-outputs MCP server) with:
+             - **title**: Clear description of what was fixed
+             - **body**: Detailed description including:
                - Summary of CI failures discovered
                - List of fixes applied (formatting, linting, test fixes, recompilation)
                - Confirmation that `make fmt`, `make lint`, `make test-unit`, and `make recompile` all pass
                - Link to the failed CI run that triggered this fix
              - The title will automatically be prefixed with "[ca] " as configured in safe-outputs
+             
+          **Important**: Do NOT write JSON to files manually. Use the MCP tool by calling it directly. The tool is available in your environment and will handle creating the pull request.
           
           Begin by checking out the main branch and running the CI cleaner steps.
           

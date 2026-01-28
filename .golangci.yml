@@ -47,7 +47,10 @@ linters-settings:
       - badCall           # filepath.Join with 1 arg is acceptable
   gosec:
     # NOTE: gosec is disabled in golangci-lint due to configuration bugs in v2.
-    # The following exclusions are applied when running gosec directly via 'make security-gosec':
+    # The following exclusions are the source of truth and are applied when running
+    # gosec directly via 'make security-gosec' and in GitHub Actions.
+    # Update the -exclude flags in Makefile and .github/workflows/security-scan.yml
+    # when changing these exclusions to maintain consistency.
     # - G101: Potential hardcoded credentials (often false positives)
     # - G115: Integer overflow conversion (acceptable in most cases)
     # - G602: Slice bounds check (handled by runtime)
