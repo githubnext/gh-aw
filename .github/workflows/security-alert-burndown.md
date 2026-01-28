@@ -79,7 +79,14 @@ For each discovered item (up to 100 total per run):
 
 ### Step 4: Assign work
 
-**Dependabot Burndown Rules**:
+After updating project items, **create agent sessions** to bundle and merge Dependabot PRs:
+
+**Selection Criteria:**
+1. Review all discovered PRs
+2. Group by **runtime** (Node.js, Python, etc.) and **target dependency file**
+3. Select up to **3 agent sessions** total following the bundling rules below
+
+**Dependabot Bundling Rules:**
 
 - Group work by **runtime** (Node.js, Python, etc.). Never mix runtimes.
 - Group changes by **target dependency file**. Each PR must modify **one manifest (and its lockfile) only**.
@@ -93,6 +100,39 @@ For each discovered item (up to 100 total per run):
 - Prioritize **security alerts and high-risk updates** first within each runtime.
 - Enforce **one runtime + one target file per PR**.
 - All PRs must pass **CI and relevant runtime tests** before merge.
+
+**Creating Agent Sessions:**
+
+For each selected group (up to 3 total), use the `create_agent_session` tool with a detailed task description:
+
+```
+create_agent_session(body="Bundle and merge Dependabot PRs for [runtime] [package.json/requirements.txt/go.mod]:
+
+PRs to merge:
+- #[pr_number]: [title] ([old_version] → [new_version])
+- #[pr_number]: [title] ([old_version] → [new_version])
+
+Task:
+1. Research each package update for breaking changes
+2. Create a research report documenting:
+   - Packages updated and version changes
+   - Breaking or behavioral changes found
+   - Migration steps or code impact
+   - Risk level and test coverage impact
+3. Bundle the PRs into a single update
+4. Test the bundled changes (run tests, verify CI passes)
+5. Create a PR with the bundled update and research report
+
+Constraints:
+- All changes must target [manifest file] and its lockfile only
+- Must pass all CI checks and relevant runtime tests
+- Research report required before merging")
+```
+
+**Important:**
+- Create agent sessions for highest priority updates first
+- Limit to 3 agent sessions per run (max configured in safe-outputs)
+- Each session should target a distinct runtime + file combination
 
 ### Step 5: Report
 
