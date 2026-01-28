@@ -180,35 +180,7 @@ jobs:
             await main();
       - name: Validate GitHub App variables
         id: validate-secret
-        run: |
-          echo "Validating GitHub App configuration for GitHub Copilot CLI..."
-          
-          # Validate app-id variable (expected: ${{ vars.APP_ID }})
-          if [ -z "${{ vars.APP_ID }}" ]; then
-            echo "❌ ERROR: GitHub App ID is not set"
-            echo ""
-            echo "To use GitHub App authentication with GitHub Copilot CLI, you need to configure:"
-            echo "  - vars.APP_ID (GitHub App ID)"
-            echo "  - secrets.APP_PRIVATE_KEY (GitHub App private key)"
-            echo ""
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
-            exit 1
-          fi
-          
-          # Validate private-key secret (expected: ${{ secrets.APP_PRIVATE_KEY }})
-          if [ -z "${{ secrets.APP_PRIVATE_KEY }}" ]; then
-            echo "❌ ERROR: GitHub App private key is not set"
-            echo ""
-            echo "To use GitHub App authentication with GitHub Copilot CLI, you need to configure:"
-            echo "  - vars.APP_ID (GitHub App ID)"
-            echo "  - secrets.APP_PRIVATE_KEY (GitHub App private key)"
-            echo ""
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
-            exit 1
-          fi
-          
-          echo "✅ GitHub App configuration validated successfully"
-          echo "verification_result=success" >> "$GITHUB_OUTPUT"
+        run: bash /opt/gh-aw/actions/validate_app_support_engine_field.sh "GitHub Copilot CLI" "https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
         env:
           APP_ID: ${{ vars.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
