@@ -651,6 +651,10 @@ source: test/repo/workflow.md@v1.0.0
 
 // TestCompileWorkflowWithRefresh tests that compileWorkflowWithRefresh properly passes refreshStopTime
 func TestCompileWorkflowWithRefresh(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping long-running workflow compilation test in short mode")
+	}
+
 	// Create a temporary directory for test files
 	tmpDir := testutil.TempDir(t, "test-*")
 

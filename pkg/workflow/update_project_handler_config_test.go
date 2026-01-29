@@ -11,6 +11,10 @@ import (
 )
 
 func TestUpdateProjectHandlerConfigIncludesFieldDefinitions(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping long-running workflow compilation test in short mode")
+	}
+
 	tmpDir := testutil.TempDir(t, "handler-config-test")
 
 	testContent := `---

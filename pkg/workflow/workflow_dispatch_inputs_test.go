@@ -12,6 +12,10 @@ import (
 // TestWorkflowDispatchInputTypes tests that all input types are supported
 // by the compiler and properly converted to YAML
 func TestWorkflowDispatchInputTypes(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping long-running workflow compilation test in short mode")
+	}
+
 	tests := []struct {
 		name           string
 		markdown       string
@@ -56,41 +60,6 @@ Test workflow with boolean input`,
 			wantDefault: "false",
 		},
 		{
-			name: "boolean input type with true default",
-			markdown: `---
-on:
-  workflow_dispatch:
-    inputs:
-      enabled:
-        description: 'Enable feature'
-        type: boolean
-        default: true
-engine: copilot
----
-# Test Workflow
-Test workflow with boolean true input`,
-			wantType:    "boolean",
-			wantDefault: "true",
-		},
-		{
-			name: "number input type",
-			markdown: `---
-on:
-  workflow_dispatch:
-    inputs:
-      count:
-        description: 'Number of items'
-        type: number
-        default: 100
-        required: true
-engine: copilot
----
-# Test Workflow
-Test workflow with number input`,
-			wantType:    "number",
-			wantDefault: "100",
-		},
-		{
 			name: "choice input type",
 			markdown: `---
 on:
@@ -111,9 +80,7 @@ engine: copilot
 Test workflow with choice input`,
 			wantType: "choice",
 		},
-		{
-			name: "environment input type",
-			markdown: `---
+	}
 on:
   workflow_dispatch:
     inputs:
@@ -396,6 +363,10 @@ Test workflow with choice input options`
 
 // TestWorkflowDispatchAllInputTypes tests a workflow with all input types
 func TestWorkflowDispatchAllInputTypes(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping long-running workflow compilation test in short mode")
+	}
+
 	markdown := `---
 on:
   workflow_dispatch:

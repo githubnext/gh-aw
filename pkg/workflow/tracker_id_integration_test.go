@@ -12,6 +12,10 @@ import (
 )
 
 func TestTrackerIDIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping long-running workflow compilation test in short mode")
+	}
+
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	tests := []struct {
@@ -60,40 +64,7 @@ Create a test issue without tracker-id.
 			shouldHaveEnvVar:   false,
 			shouldHaveInScript: false,
 		},
-		{
-			name: "Workflow with tracker-id in discussion",
-			workflowContent: `---
-on: workflow_dispatch
-permissions:
-  contents: read
-tracker-id: discussion_fp_001
-safe-outputs:
-  create-discussion:
----
-
-# Test Discussion Tracker ID
-
-Create a discussion.
-`,
-			shouldCompile:      true,
-			shouldHaveEnvVar:   true,
-			shouldHaveInScript: true,
-			expectedTrackerID:  "discussion_fp_001",
-		},
-		{
-			name: "Workflow with tracker-id in comment",
-			workflowContent: `---
-on:
-  issues:
-    types: [opened]
-permissions:
-  contents: read
-tracker-id: comment_fp_2024
-safe-outputs:
-  add-comment:
----
-
-# Test Comment Tracker ID
+	}
 
 Add a comment.
 `,

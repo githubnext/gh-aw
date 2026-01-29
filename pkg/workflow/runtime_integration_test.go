@@ -364,4 +364,3 @@ Test workflow that uses Go without go.mod file.
 		t.Error("Should not use go-version-file when go.mod doesn't exist")
 	}
 }
-
