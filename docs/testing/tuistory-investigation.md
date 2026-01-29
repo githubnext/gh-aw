@@ -434,10 +434,57 @@ jobs:
 - [gh-aw Interactive Command Implementation](../../pkg/cli/add_interactive.go)
 - [Existing Test Patterns](../../pkg/cli/interactive_test.go)
 
-## Conclusion
+## Conclusion and Current Status
 
-**Tuistory is a viable and recommended solution for testing the interactive add command.**
+### Investigation Status: ⚠️ Blocked - Package Not Available
 
-It provides true end-to-end testing capabilities that would be difficult to achieve with other approaches. While it adds some complexity and requires JavaScript/TypeScript infrastructure, the benefits of being able to test the actual user experience outweigh these costs.
+**Current Findings (as of January 2026):**
 
-The hybrid testing strategy (Go unit tests + JavaScript integration tests) provides the best balance of coverage, maintainability, and confidence in the interactive features of gh-aw.
+The tuistory npm package (v1.0.0) is published but **empty** - it contains only a package.json file with no actual code. This appears to be an incomplete publication or work-in-progress by the maintainer.
+
+```bash
+$ npm install tuistory@1.0.0
+# Package installs but contains no code
+$ ls node_modules/tuistory/
+package.json  # Only file present, no index.js or source code
+```
+
+### Updated Recommendation
+
+**Status: Hold on tuistory integration until package is properly published**
+
+While tuistory's design and API (as documented on GitHub) would be an excellent solution for testing the interactive add command, we cannot proceed with integration until the package is properly published to npm.
+
+### Alternative Actions
+
+1. **Short-term (Current Sprint)**
+   - Continue with unit testing approach for business logic
+   - Document manual testing procedures for interactive flows
+   - Monitor tuistory repository for updates
+
+2. **Alternative Testing Tools to Evaluate**
+   - **expect-test** (Go native): Consider for basic terminal interaction testing
+   - **Manual E2E tests**: Document comprehensive manual test procedures
+   - **Refactor for testability**: Extract business logic from interactive UI code
+
+3. **Long-term (If tuistory becomes available)**
+   - Re-evaluate integration once package is complete
+   - Follow the implementation plan outlined in this document
+   - The hybrid testing strategy remains valid
+
+### Benefits of This Investigation
+
+Even though we cannot proceed with tuistory immediately, this investigation has:
+- Validated the testing approach and architecture
+- Documented integration patterns for future use
+- Created reusable test infrastructure (`tests/integration/` directory)
+- Established proof-of-concept test structure
+
+### Next Steps
+
+1. **Monitor tuistory**: Watch the GitHub repository for updates
+2. **Document workarounds**: Create manual testing documentation
+3. **Investigate alternatives**: Research other terminal testing libraries
+4. **Consider contribution**: Potentially contribute to tuistory if it aligns with our needs
+
+The hybrid testing strategy (Go unit tests + eventual integration tests) remains the recommended approach once appropriate tooling becomes available.

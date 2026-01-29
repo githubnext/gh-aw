@@ -35,12 +35,16 @@ npm run test:ui
 
 ## Current Status
 
-**Proof of Concept** - Basic tests demonstrating tuistory integration.
+**⚠️ BLOCKED - Tuistory Package Not Available**
 
-The current tests validate:
-- Tuistory can launch and interact with the gh-aw binary
-- Terminal text can be captured and verified
-- Test infrastructure is in place
+The tuistory npm package (v1.0.0) is published but contains no actual code - only a package.json file. This appears to be an incomplete publication.
+
+**Investigation Complete**: Test infrastructure and approach documented in [docs/testing/tuistory-investigation.md](../../docs/testing/tuistory-investigation.md).
+
+**Next Steps**: 
+- Monitor tuistory repository for updates
+- Consider alternative testing approaches
+- Document manual testing procedures in the meantime
 
 ## Future Work
 
