@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -64,9 +63,12 @@ func TestClaudeEngine(t *testing.T) {
 	if !strings.Contains(installStep, "Install Claude Code CLI") {
 		t.Errorf("Expected 'Install Claude Code CLI' in installation step, got: %s", installStep)
 	}
-	expectedInstallCommand := fmt.Sprintf("npm install -g --silent @anthropic-ai/claude-code@%s", constants.DefaultClaudeCodeVersion)
-	if !strings.Contains(installStep, expectedInstallCommand) {
-		t.Errorf("Expected '%s' in install step, got: %s", expectedInstallCommand, installStep)
+	// Check for environment variable pattern
+	if !strings.Contains(installStep, "CLI_VERSION: ${{ env.GH_AW_CLAUDE_VERSION || '"+string(constants.DefaultClaudeCodeVersion)+"' }}") {
+		t.Errorf("Expected environment variable pattern in install step, got: %s", installStep)
+	}
+	if !strings.Contains(installStep, "@anthropic-ai/claude-code@\"${CLI_VERSION}\"") {
+		t.Errorf("Expected CLI_VERSION variable reference in npm install command, got: %s", installStep)
 	}
 
 	// Test execution steps

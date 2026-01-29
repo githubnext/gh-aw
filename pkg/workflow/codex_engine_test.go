@@ -102,23 +102,22 @@ func TestCodexEngine(t *testing.T) {
 func TestCodexEngineWithVersion(t *testing.T) {
 	engine := NewCodexEngine()
 
-	// Test installation steps without version (should use pinned default version)
+	// Test installation steps without version (should use pinned default version with env var override)
 	stepsNoVersion := engine.GetInstallationSteps(&WorkflowData{})
 	foundNoVersionInstall := false
-	expectedPackage := fmt.Sprintf("@openai/codex@%s", constants.DefaultCodexVersion)
+	expectedEnvPattern := fmt.Sprintf("CLI_VERSION: ${{ env.GH_AW_CODEX_VERSION || '%s' }}", constants.DefaultCodexVersion)
 	for _, step := range stepsNoVersion {
-		for _, line := range step {
-			if strings.Contains(line, "npm install") && strings.Contains(line, expectedPackage) {
-				foundNoVersionInstall = true
-				break
-			}
+		stepContent := strings.Join(step, "\n")
+		if strings.Contains(stepContent, expectedEnvPattern) && strings.Contains(stepContent, "@openai/codex@\"${CLI_VERSION}\"") {
+			foundNoVersionInstall = true
+			break
 		}
 	}
 	if !foundNoVersionInstall {
-		t.Errorf("Expected npm install command with @%s when no version specified", constants.DefaultCodexVersion)
+		t.Errorf("Expected npm install command with env var override pattern for default version %s", constants.DefaultCodexVersion)
 	}
 
-	// Test installation steps with version
+	// Test installation steps with custom version
 	engineConfig := &EngineConfig{
 		ID:      "codex",
 		Version: "3.0.1",
@@ -128,16 +127,16 @@ func TestCodexEngineWithVersion(t *testing.T) {
 	}
 	stepsWithVersion := engine.GetInstallationSteps(workflowData)
 	foundVersionInstall := false
+	expectedCustomEnvPattern := "CLI_VERSION: ${{ env.GH_AW_CODEX_VERSION || '3.0.1' }}"
 	for _, step := range stepsWithVersion {
-		for _, line := range step {
-			if strings.Contains(line, "npm install") && strings.Contains(line, "@openai/codex@3.0.1") {
-				foundVersionInstall = true
-				break
-			}
+		stepContent := strings.Join(step, "\n")
+		if strings.Contains(stepContent, expectedCustomEnvPattern) && strings.Contains(stepContent, "@openai/codex@\"${CLI_VERSION}\"") {
+			foundVersionInstall = true
+			break
 		}
 	}
 	if !foundVersionInstall {
-		t.Error("Expected versioned npm install command with @openai/codex@3.0.1")
+		t.Error("Expected versioned npm install command with env var override pattern for version 3.0.1")
 	}
 }
 
