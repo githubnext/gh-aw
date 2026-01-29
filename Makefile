@@ -50,6 +50,13 @@ test:
 test-unit:
 	go test -v -timeout=3m -run='^Test' ./...
 
+# Test agent-runner environment parity
+.PHONY: test-parity
+test-parity:
+	@echo "Running agent-runner environment parity tests..."
+	go test -v -timeout=3m -tags 'integration' -run '^TestAgentRunnerParity' ./pkg/workflow
+	@echo "✓ Agent parity tests completed"
+
 # Update golden test files
 .PHONY: update-golden
 update-golden:
