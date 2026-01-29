@@ -43,6 +43,7 @@ func TestGetCurrentRepoSlug(t *testing.T) {
 
 // TestClearCurrentRepoSlugCache tests that clearing the cache allows a fresh call
 func TestClearCurrentRepoSlugCache(t *testing.T) {
+
 	// Clear the cache
 	ClearCurrentRepoSlugCache()
 

@@ -651,6 +651,7 @@ source: test/repo/workflow.md@v1.0.0
 
 // TestCompileWorkflowWithRefresh tests that compileWorkflowWithRefresh properly passes refreshStopTime
 func TestCompileWorkflowWithRefresh(t *testing.T) {
+
 	// Create a temporary directory for test files
 	tmpDir := testutil.TempDir(t, "test-*")
 
@@ -795,6 +796,7 @@ func TestMarshalActionsLockSorted(t *testing.T) {
 
 // TestGetActionSHAForTag tests that we can look up action SHAs (requires network)
 func TestGetActionSHAForTag(t *testing.T) {
+
 	// This test requires network access and GitHub API, so skip in CI
 	if os.Getenv("CI") != "" {
 		t.Skip("Skipping network test in CI")

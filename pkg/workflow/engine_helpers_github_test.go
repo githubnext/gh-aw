@@ -50,9 +50,6 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 			expected: []string{
 				`"type": "stdio"`,
 				`"container": "ghcr.io/github/github-mcp-server:latest"`,
-				`"tools": [`,
-				`"create_issue"`,
-				`"issue_read"`,
 				`"env": {`,
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
 				`"GITHUB_TOOLSETS": "default"`,
@@ -60,6 +57,7 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 			notFound: []string{
 				`"command": "docker"`,
 				`"run"`,
+				// Note: tools field is added by converter script, not rendered here
 			},
 		},
 		{
@@ -119,7 +117,7 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 			expected: []string{
 				`"type": "stdio"`,
 				`"container": "ghcr.io/github/github-mcp-server:latest"`,
-				`"tools": ["*"]`,
+				// Note: tools field is added by converter script, not rendered here
 			},
 			notFound: []string{
 				`"command": "docker"`,
