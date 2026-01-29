@@ -22,7 +22,8 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			stepName:        "Install GitHub Copilot CLI",
 			expectedVersion: "0.0.369",
 			shouldContain: []string{
-				"/opt/gh-aw/actions/install_copilot_cli.sh 0.0.369",
+				"COPILOT_VERSION: ${{ env.GH_AW_COPILOT_VERSION || '0.0.369' }}",
+				"/opt/gh-aw/actions/install_copilot_cli.sh \"${COPILOT_VERSION}\"",
 				"name: Install GitHub Copilot CLI",
 			},
 			shouldNotContain: []string{
@@ -35,7 +36,8 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			stepName:        "Install GitHub Copilot CLI",
 			expectedVersion: "v0.0.370",
 			shouldContain: []string{
-				"/opt/gh-aw/actions/install_copilot_cli.sh v0.0.370",
+				"COPILOT_VERSION: ${{ env.GH_AW_COPILOT_VERSION || 'v0.0.370' }}",
+				"/opt/gh-aw/actions/install_copilot_cli.sh \"${COPILOT_VERSION}\"",
 			},
 			shouldNotContain: []string{
 				"gh.io/copilot-install | sudo bash",
@@ -47,7 +49,8 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			stepName:        "Custom Install Step",
 			expectedVersion: "1.2.3",
 			shouldContain: []string{
-				"/opt/gh-aw/actions/install_copilot_cli.sh 1.2.3",
+				"COPILOT_VERSION: ${{ env.GH_AW_COPILOT_VERSION || '1.2.3' }}",
+				"/opt/gh-aw/actions/install_copilot_cli.sh \"${COPILOT_VERSION}\"",
 				"name: Custom Install Step",
 			},
 			shouldNotContain: []string{
@@ -60,7 +63,8 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			stepName:        "Install GitHub Copilot CLI",
 			expectedVersion: string(constants.DefaultCopilotVersion), // Should use DefaultCopilotVersion
 			shouldContain: []string{
-				"/opt/gh-aw/actions/install_copilot_cli.sh " + string(constants.DefaultCopilotVersion),
+				"COPILOT_VERSION: ${{ env.GH_AW_COPILOT_VERSION || '" + string(constants.DefaultCopilotVersion) + "' }}",
+				"/opt/gh-aw/actions/install_copilot_cli.sh \"${COPILOT_VERSION}\"",
 			},
 			shouldNotContain: []string{
 				"gh.io/copilot-install | sudo bash",
@@ -93,10 +97,10 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 				}
 			}
 
-			// Verify the version is correctly passed to the install script
-			expectedVersionLine := "/opt/gh-aw/actions/install_copilot_cli.sh " + tt.expectedVersion
+			// Verify the version is correctly set as default in the env var
+			expectedVersionLine := "COPILOT_VERSION: ${{ env.GH_AW_COPILOT_VERSION || '" + tt.expectedVersion + "' }}"
 			if !strings.Contains(stepContent, expectedVersionLine) {
-				t.Errorf("Expected version to be set to '%s', but step content was:\n%s", tt.expectedVersion, stepContent)
+				t.Errorf("Expected version to be set to '%s' in environment variable, but step content was:\n%s", tt.expectedVersion, stepContent)
 			}
 		})
 	}
@@ -132,10 +136,10 @@ func TestCopilotInstallerVersionPassthrough(t *testing.T) {
 		t.Fatal("Could not find install step with install_copilot_cli.sh")
 	}
 
-	// Should contain the default version from constants
-	expectedVersionLine := "/opt/gh-aw/actions/install_copilot_cli.sh " + string(constants.DefaultCopilotVersion)
+	// Should contain the default version from constants as the fallback in the env var
+	expectedVersionLine := "COPILOT_VERSION: ${{ env.GH_AW_COPILOT_VERSION || '" + string(constants.DefaultCopilotVersion) + "' }}"
 	if !strings.Contains(installStep, expectedVersionLine) {
-		t.Errorf("Expected default version %s in install step, got:\n%s", string(constants.DefaultCopilotVersion), installStep)
+		t.Errorf("Expected default version %s in install step environment variable, got:\n%s", string(constants.DefaultCopilotVersion), installStep)
 	}
 }
 
@@ -167,9 +171,9 @@ func TestCopilotInstallerCustomVersion(t *testing.T) {
 		t.Fatal("Could not find install step with install_copilot_cli.sh")
 	}
 
-	// Should contain the custom version
-	expectedVersionLine := "/opt/gh-aw/actions/install_copilot_cli.sh " + customVersion
+	// Should contain the custom version as the fallback in the env var
+	expectedVersionLine := "COPILOT_VERSION: ${{ env.GH_AW_COPILOT_VERSION || '" + customVersion + "' }}"
 	if !strings.Contains(installStep, expectedVersionLine) {
-		t.Errorf("Expected custom version %s in install step, got:\n%s", customVersion, installStep)
+		t.Errorf("Expected custom version %s in install step environment variable, got:\n%s", customVersion, installStep)
 	}
 }

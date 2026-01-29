@@ -204,7 +204,9 @@ jobs:
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.11.2
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.20
+        env:
+          CLI_VERSION: ${{ env.GH_AW_CLAUDE_VERSION || '2.1.20' }}
+        run: npm install -g --silent @anthropic-ai/claude-code@"${CLI_VERSION}"
       - name: Determine automatic lockdown mode for GitHub MCP server
         id: determine-automatic-lockdown
         env:
@@ -2235,7 +2237,9 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.20
+        env:
+          CLI_VERSION: ${{ env.GH_AW_CLAUDE_VERSION || '2.1.20' }}
+        run: npm install -g --silent @anthropic-ai/claude-code@"${CLI_VERSION}"
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

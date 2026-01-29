@@ -184,8 +184,10 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.92.0
+      - name: Install Codex CLI
+        env:
+          CLI_VERSION: ${{ env.GH_AW_CODEX_VERSION || '0.92.0' }}
+        run: npm install -g --silent @openai/codex@"${CLI_VERSION}"
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.11.2
       - name: Determine automatic lockdown mode for GitHub MCP server
@@ -2216,8 +2218,10 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Install Codex
-        run: npm install -g --silent @openai/codex@0.92.0
+      - name: Install Codex CLI
+        env:
+          CLI_VERSION: ${{ env.GH_AW_CODEX_VERSION || '0.92.0' }}
+        run: npm install -g --silent @openai/codex@"${CLI_VERSION}"
       - name: Run Codex
         run: |
           set -o pipefail
