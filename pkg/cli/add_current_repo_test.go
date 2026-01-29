@@ -11,6 +11,10 @@ import (
 
 // TestAddWorkflowsFromCurrentRepository tests that adding workflows from the current repository is prevented
 func TestAddWorkflowsFromCurrentRepository(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping add workflow test in short mode (makes network calls)")
+	}
+
 	// Create a temporary git repository to simulate being in a repository
 	tempDir := testutil.TempDir(t, "test-*")
 
@@ -88,6 +92,10 @@ func TestAddWorkflowsFromCurrentRepository(t *testing.T) {
 
 // TestAddWorkflowsFromCurrentRepositoryMultiple tests prevention for multiple workflows
 func TestAddWorkflowsFromCurrentRepositoryMultiple(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping add workflow test in short mode (makes network calls)")
+	}
+
 	// Create a temporary git repository to simulate being in a repository
 	tempDir := testutil.TempDir(t, "test-*")
 
