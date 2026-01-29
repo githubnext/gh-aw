@@ -264,6 +264,18 @@ const DefaultCopilotVersion Version = "0.0.395"
 // Updated to gpt-5.1-codex-mini after gpt-5-mini deprecation on 2026-01-17
 const DefaultCopilotDetectionModel ModelName = "gpt-5.1-codex-mini"
 
+// Environment variable names for engine version configuration
+const (
+	// EnvVarCopilotVersion allows overriding the default Copilot CLI version
+	EnvVarCopilotVersion = "GH_AW_COPILOT_VERSION"
+
+	// EnvVarClaudeVersion allows overriding the default Claude Code CLI version
+	EnvVarClaudeVersion = "GH_AW_CLAUDE_VERSION"
+
+	// EnvVarCodexVersion allows overriding the default Codex CLI version
+	EnvVarCodexVersion = "GH_AW_CODEX_VERSION"
+)
+
 // Environment variable names for model configuration
 const (
 	// EnvVarModelAgentCopilot configures the default Copilot model for agent execution

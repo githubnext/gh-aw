@@ -59,6 +59,9 @@ type EngineInstallConfig struct {
 	CliName string
 	// InstallStepName is the display name for the npm install step (e.g., "Install Claude Code CLI")
 	InstallStepName string
+	// EnvVarName is the environment variable name for version override (e.g., "GH_AW_CODEX_VERSION")
+	// If empty, no environment variable override is supported
+	EnvVarName string
 }
 
 // GetBaseInstallationSteps returns the common installation steps for an engine.
@@ -90,14 +93,35 @@ func GetBaseInstallationSteps(config EngineInstallConfig, workflowData *Workflow
 		stepName = fmt.Sprintf("Install %s", config.Name)
 	}
 
-	// Add npm package installation steps
-	npmSteps := BuildStandardNpmEngineInstallSteps(
-		config.NpmPackage,
-		config.Version,
-		stepName,
-		config.CliName,
-		workflowData,
-	)
+	// Determine version (use engine config if provided, otherwise use default)
+	version := config.Version
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		version = workflowData.EngineConfig.Version
+	}
+
+	// Add npm package installation steps with environment variable override support
+	var npmSteps []GitHubActionStep
+	if config.EnvVarName != "" {
+		// Use environment variable override for version
+		npmSteps = GenerateNpmInstallStepsWithEnvOverride(
+			config.NpmPackage,
+			version,
+			config.EnvVarName,
+			stepName,
+			config.CliName,
+			true, // Include Node.js setup
+			true, // Install globally
+		)
+	} else {
+		// Use standard npm installation without environment variable override
+		npmSteps = BuildStandardNpmEngineInstallSteps(
+			config.NpmPackage,
+			version,
+			stepName,
+			config.CliName,
+			workflowData,
+		)
+	}
 	steps = append(steps, npmSteps...)
 
 	return steps

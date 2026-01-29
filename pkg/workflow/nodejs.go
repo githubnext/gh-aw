@@ -36,6 +36,15 @@ func GenerateNpmInstallSteps(packageName, version, stepName, cacheKeyPrefix stri
 }
 
 // GenerateNpmInstallStepsWithScope generates npm installation steps with control over global vs local installation
+// Parameters:
+//   - packageName: The npm package name
+//   - version: The package version (can be a runtime expression like "${{ env.VAR }}")
+//   - stepName: The display name for the install step
+//   - cacheKeyPrefix: Unused, kept for API compatibility
+//   - includeNodeSetup: If true, includes Node.js setup step
+//   - isGlobal: If true, installs globally with -g flag
+//
+// Returns steps for installing the npm package with optional Node.js setup
 func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPrefix string, includeNodeSetup bool, isGlobal bool) []GitHubActionStep {
 	nodejsLog.Printf("Generating npm install steps: package=%s, version=%s, includeNodeSetup=%v, isGlobal=%v", packageName, version, includeNodeSetup, isGlobal)
 
@@ -57,6 +66,49 @@ func GenerateNpmInstallStepsWithScope(packageName, version, stepName, cacheKeyPr
 		fmt.Sprintf("      - name: %s", stepName),
 		fmt.Sprintf("        run: %s", installCmd),
 	})
+
+	return steps
+}
+
+// GenerateNpmInstallStepsWithEnvOverride generates npm installation steps with environment variable override support
+// This function allows runtime version override through environment variables like GH_AW_CLAUDE_VERSION
+//
+// Parameters:
+//   - packageName: The npm package name (e.g., "@anthropic-ai/claude-code")
+//   - defaultVersion: The default version to use if env var is not set
+//   - envVarName: The environment variable name for version override (e.g., "GH_AW_CLAUDE_VERSION")
+//   - stepName: The display name for the install step
+//   - cacheKeyPrefix: Unused, kept for API compatibility
+//   - includeNodeSetup: If true, includes Node.js setup step
+//   - isGlobal: If true, installs globally with -g flag
+//
+// Returns steps for installing the npm package with optional Node.js setup
+func GenerateNpmInstallStepsWithEnvOverride(packageName, defaultVersion, envVarName, stepName, cacheKeyPrefix string, includeNodeSetup bool, isGlobal bool) []GitHubActionStep {
+	nodejsLog.Printf("Generating npm install steps with env override: package=%s, defaultVersion=%s, envVar=%s", packageName, defaultVersion, envVarName)
+
+	var steps []GitHubActionStep
+
+	// Add Node.js setup if requested
+	if includeNodeSetup {
+		nodejsLog.Print("Including Node.js setup step")
+		steps = append(steps, GenerateNodeJsSetupStep())
+	}
+
+	// Add npm install step with environment variable override
+	globalFlag := ""
+	if isGlobal {
+		globalFlag = "-g "
+	}
+
+	// Use GitHub Actions environment variable syntax: ${{ env.VAR || 'default' }}
+	stepLines := []string{
+		fmt.Sprintf("      - name: %s", stepName),
+		"        env:",
+		fmt.Sprintf("          CLI_VERSION: ${{ env.%s || '%s' }}", envVarName, defaultVersion),
+		fmt.Sprintf("        run: npm install %s--silent %s@\"${CLI_VERSION}\"", globalFlag, packageName),
+	}
+
+	steps = append(steps, GitHubActionStep(stepLines))
 
 	return steps
 }

@@ -85,19 +85,23 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 	)
 	steps = append(steps, secretValidation)
 
-	// Determine Claude version
+	// Determine Claude version (supports environment variable override)
+	// Priority: workflow config > environment variable > default constant
 	claudeVersion := config.Version
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 		claudeVersion = workflowData.EngineConfig.Version
 	}
+	// Version will be resolved at runtime using: ${{ env.GH_AW_CLAUDE_VERSION || "default-version" }}
 
-	// Add Node.js setup step first (before sandbox installation)
-	npmSteps := GenerateNpmInstallSteps(
+	// Add Node.js setup and Claude CLI installation steps with environment variable override
+	npmSteps := GenerateNpmInstallStepsWithEnvOverride(
 		config.NpmPackage,
 		claudeVersion,
+		constants.EnvVarClaudeVersion,
 		config.InstallStepName,
 		config.CliName,
 		true, // Include Node.js setup
+		true, // Install globally
 	)
 
 	if len(npmSteps) > 0 {

@@ -23,9 +23,12 @@ func GenerateCopilotInstallerSteps(version, stepName string) []GitHubActionStep 
 
 	// Use the install_copilot_cli.sh script from actions/setup/sh
 	// This script includes retry logic for robustness against transient network failures
+	// Support environment variable override: ${{ env.GH_AW_COPILOT_VERSION || "default-version" }}
 	stepLines := []string{
 		fmt.Sprintf("      - name: %s", stepName),
-		fmt.Sprintf("        run: /opt/gh-aw/actions/install_copilot_cli.sh %s", version),
+		"        env:",
+		fmt.Sprintf("          COPILOT_VERSION: ${{ env.GH_AW_COPILOT_VERSION || '%s' }}", version),
+		"        run: /opt/gh-aw/actions/install_copilot_cli.sh \"${COPILOT_VERSION}\"",
 	}
 
 	return []GitHubActionStep{GitHubActionStep(stepLines)}

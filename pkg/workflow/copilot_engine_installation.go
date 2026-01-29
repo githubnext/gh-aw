@@ -65,11 +65,13 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	)
 	steps = append(steps, secretValidation)
 
-	// Determine Copilot version
+	// Determine Copilot version (supports environment variable override)
+	// Priority: workflow config > environment variable > default constant
 	copilotVersion := config.Version
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 		copilotVersion = workflowData.EngineConfig.Version
 	}
+	// Version will be resolved at runtime using: ${{ env.GH_AW_COPILOT_VERSION || "default-version" }}
 
 	// Determine if Copilot should be installed globally or locally
 	// For SRT, install locally so npx can find it without network access
