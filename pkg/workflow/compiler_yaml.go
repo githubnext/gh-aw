@@ -350,10 +350,39 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	}
 	fmt.Fprintf(yaml, "              version: \"%s\",\n", version)
 
-	// Agent version - use the actual installation version (includes defaults)
-	// This matches what BuildStandardNpmEngineInstallSteps uses
-	agentVersion := getInstallationVersion(data, engine)
-	fmt.Fprintf(yaml, "              agent_version: \"%s\",\n", agentVersion)
+	// Agent version - resolve from explicit config, environment variable, or default
+	// If version is explicitly configured, use it directly
+	// Otherwise, resolve from environment variable at runtime (matches installation behavior)
+	versionConfigured := data.EngineConfig != nil && data.EngineConfig.Version != ""
+	if versionConfigured {
+		// Explicit version - output as static string
+		fmt.Fprintf(yaml, "              agent_version: \"%s\",\n", data.EngineConfig.Version)
+	} else {
+		// Version from environment variable with default fallback - resolve at runtime
+		var versionEnvVar string
+		var defaultVersion string
+
+		switch engineID {
+		case "copilot":
+			versionEnvVar = constants.EnvVarCopilotVersion
+			defaultVersion = string(constants.DefaultCopilotVersion)
+		case "claude":
+			versionEnvVar = constants.EnvVarClaudeVersion
+			defaultVersion = string(constants.DefaultClaudeCodeVersion)
+		case "codex":
+			versionEnvVar = constants.EnvVarCodexVersion
+			defaultVersion = string(constants.DefaultCodexVersion)
+		default:
+			// For custom or unknown engines, use static default
+			defaultVersion = getInstallationVersion(data, engine)
+			fmt.Fprintf(yaml, "              agent_version: \"%s\",\n", defaultVersion)
+			goto skipEnvVar
+		}
+
+		// Generate JavaScript to resolve version from environment variable at runtime
+		fmt.Fprintf(yaml, "              agent_version: process.env.%s || \"%s\",\n", versionEnvVar, defaultVersion)
+	skipEnvVar:
+	}
 
 	// CLI version - only include for released builds
 	// Excludes development builds containing "dev", "dirty", or "test"

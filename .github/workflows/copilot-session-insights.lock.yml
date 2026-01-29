@@ -517,7 +517,7 @@ jobs:
               engine_name: "Claude Code",
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "2.1.20",
+              agent_version: process.env.GH_AW_CLAUDE_VERSION || "2.1.20",
               workflow_name: "Copilot Session Insights",
               experimental: true,
               supports_tools_allowlist: true,

@@ -101,10 +101,36 @@ func TestAgentVersionInAwInfo(t *testing.T) {
 			output := yaml.String()
 
 			// Check that agent_version is set correctly
-			expectedLine := `agent_version: "` + tt.expectedAgentVersion + `"`
-			if !strings.Contains(output, expectedLine) {
-				t.Errorf("%s: Expected output to contain '%s', got:\n%s",
-					tt.description, expectedLine, output)
+			if tt.explicitVersion != "" {
+				// For explicit versions, check for the static string
+				expectedLine := `agent_version: "` + tt.expectedAgentVersion + `"`
+				if !strings.Contains(output, expectedLine) {
+					t.Errorf("%s: Expected output to contain '%s', got:\n%s",
+						tt.description, expectedLine, output)
+				}
+			} else if tt.engineID == "copilot" || tt.engineID == "claude" || tt.engineID == "codex" {
+				// For default versions with supported engines, check for environment variable pattern
+				var envVarName string
+				switch tt.engineID {
+				case "copilot":
+					envVarName = constants.EnvVarCopilotVersion
+				case "claude":
+					envVarName = constants.EnvVarClaudeVersion
+				case "codex":
+					envVarName = constants.EnvVarCodexVersion
+				}
+				expectedPattern := "agent_version: process.env." + envVarName + ` || "` + tt.expectedAgentVersion + `"`
+				if !strings.Contains(output, expectedPattern) {
+					t.Errorf("%s: Expected output to contain environment variable pattern '%s', got:\n%s",
+						tt.description, expectedPattern, output)
+				}
+			} else {
+				// For custom engines without explicit version, check for the static string
+				expectedLine := `agent_version: "` + tt.expectedAgentVersion + `"`
+				if !strings.Contains(output, expectedLine) {
+					t.Errorf("%s: Expected output to contain '%s', got:\n%s",
+						tt.description, expectedLine, output)
+				}
 			}
 
 			// Also verify that the version field matches (for non-custom engines with defaults)

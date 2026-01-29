@@ -496,7 +496,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: process.env.GH_AW_MODEL_AGENT_COPILOT || "",
               version: "",
-              agent_version: "0.0.395",
+              agent_version: process.env.GH_AW_COPILOT_VERSION || "0.0.395",
               workflow_name: "Sub-Issue Closer",
               experimental: false,
               supports_tools_allowlist: true,

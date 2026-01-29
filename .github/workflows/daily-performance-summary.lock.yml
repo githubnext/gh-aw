@@ -1053,7 +1053,7 @@ jobs:
               engine_name: "Codex",
               model: process.env.GH_AW_MODEL_AGENT_CODEX || "",
               version: "",
-              agent_version: "0.92.0",
+              agent_version: process.env.GH_AW_CODEX_VERSION || "0.92.0",
               workflow_name: "Daily Project Performance Summary Generator (Using Safe Inputs)",
               experimental: true,
               supports_tools_allowlist: true,

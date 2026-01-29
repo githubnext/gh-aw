@@ -245,7 +245,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "gpt-5.1-codex-mini",
               version: "",
-              agent_version: "0.0.395",
+              agent_version: process.env.GH_AW_COPILOT_VERSION || "0.0.395",
               workflow_name: "Chroma Issue Indexer",
               experimental: false,
               supports_tools_allowlist: true,
