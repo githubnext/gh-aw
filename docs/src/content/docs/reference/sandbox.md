@@ -78,6 +78,15 @@ network:
     - "api.example.com"
 ```
 
+
+> [!WARNING]
+> Mounts expand container access to host files.
+> Prefer read-only mounts and avoid system paths
+> like `/usr`, `/lib`, `/etc`, `/home`, `/proc`,
+> `/sys`, `/dev`, and `/var/run`. See
+> [Container Mount Security](/gh-aw/guides/security/container-mounts/)
+> for threat modeling and review guidance.
+
 #### Default Mounted Volumes
 
 AWF automatically mounts several paths from the host into the container to enable agent functionality:

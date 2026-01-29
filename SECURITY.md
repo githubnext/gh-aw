@@ -30,6 +30,18 @@ This information will help us triage your report more quickly.
 
 See [GitHub's Safe Harbor Policy](https://docs.github.com/en/github/site-policy/github-bug-bounty-program-legal-safe-harbor#1-safe-harbor-terms)
 
+
+## Container Mount Security
+
+Agentic workflows run in containers, and mounting host paths
+increases exposure of runner files. Default mounts are kept
+narrow and read-only where possible, and Docker socket access
+is explicitly blocked. Avoid mounting system directories or
+user home paths unless a security review confirms the need.
+
+See [Container Mount Security](https://githubnext.github.io/gh-aw/guides/security/container-mounts/)
+for best practices and the review checklist.
+
 ## Software Bill of Materials (SBOM)
 
 We generate Software Bill of Materials (SBOM) for this project to provide complete visibility into the dependency tree, enabling compliance reporting, vulnerability tracking, and supply chain risk assessment.

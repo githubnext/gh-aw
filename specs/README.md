@@ -24,13 +24,14 @@ This directory contains design specifications and implementation documentation f
 | [YAML Version Compatibility](./yaml-version-gotchas.md) | ✅ Documented | `pkg/workflow/compiler.go` |
 | [Schema Validation](./SCHEMA_VALIDATION.md) | ✅ Documented | `pkg/parser/schemas/` |
 | [GitHub Actions Security Best Practices](./github-actions-security-best-practices.md) | ✅ Documented | Workflow security guidelines and patterns |
+| [Container Mount Security Model](./container-security-model.md) | ✅ Documented | Threat model and checklist for host path mounts |
 | [End-to-End Feature Testing](./end-to-end-feature-testing.md) | ✅ Documented | `.github/workflows/dev.md`, `.github/workflows/dev-hawk.md` |
 
 ## Security Reviews
 
 | Document | Date | Status |
 |----------|------|--------|
-| [Template Injection Security Review](./SECURITY_REVIEW_TEMPLATE_INJECTION.md) | 2025-11-11 | ✅ No vulnerabilities found |
+| [Template Injection Security Review](./security_review.md) | 2025-11-11 | ✅ No vulnerabilities found |
 
 ## Comparative Analysis
 

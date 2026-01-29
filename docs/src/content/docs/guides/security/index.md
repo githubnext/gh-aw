@@ -106,6 +106,18 @@ Compilation-time security measures include:
 
 Apply defense-in-depth consistently: least privilege by default, default-deny approach, separation of concerns (plan/apply with approval gates), and supply chain integrity (pin to immutable SHAs).
 
+
+## Container Mount Security
+
+Mounting host paths into the agent container expands what the
+workflow can access on the runner. Use mounts only when you
+cannot install tools inside the container or pass data through
+workflow inputs.
+
+See [Container Mount Security](/gh-aw/guides/security/container-mounts/)
+for the threat model, safe vs unsafe examples, and the reviewer
+checklist for new mounts.
+
 ## Implementation Guidelines
 
 ### Workflow Permissions and Triggers
@@ -452,6 +464,7 @@ network: {}
 
 ## See also
 
+- [Container Mount Security](/gh-aw/guides/security/container-mounts/)
 - [Threat Detection Guide](/gh-aw/guides/threat-detection/) - Comprehensive threat detection configuration and examples
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/)
 - [Network Configuration](/gh-aw/reference/network/)
