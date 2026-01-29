@@ -33,7 +33,7 @@ func TestMCPServer_ErrorCodes_InvalidParams(t *testing.T) {
 	}, nil)
 
 	// Start the MCP server as a subprocess
-	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server")
+	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server", "--cmd", filepath.Join(originalDir, binaryPath))
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -121,7 +121,7 @@ This is a test workflow.
 		}
 
 		// Start new MCP server in the temp directory
-		serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server")
+		serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server", "--cmd", filepath.Join(originalDir, binaryPath))
 		serverCmd.Dir = tmpDir
 		transport := &mcp.CommandTransport{Command: serverCmd}
 
@@ -175,7 +175,7 @@ func TestMCPServer_ErrorCodes_InternalError(t *testing.T) {
 	}, nil)
 
 	// Start the MCP server as a subprocess
-	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server")
+	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server", "--cmd", filepath.Join(originalDir, binaryPath))
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

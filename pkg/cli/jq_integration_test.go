@@ -29,6 +29,12 @@ func TestMCPServer_StatusToolWithJq(t *testing.T) {
 		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
 	}
 
+	// Get absolute path to binary before changing directories
+	absBinaryPath, err := filepath.Abs(binaryPath)
+	if err != nil {
+		t.Fatalf("Failed to get absolute path to binary: %v", err)
+	}
+
 	// Create a temporary directory with a workflow file
 	tmpDir := testutil.TempDir(t, "test-*")
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
@@ -63,8 +69,8 @@ engine: copilot
 		Version: "1.0.0",
 	}, nil)
 
-	// Start the MCP server as a subprocess
-	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server")
+	// Start the MCP server as a subprocess with --cmd flag to use binary directly
+	serverCmd := exec.Command(absBinaryPath, "mcp-server", "--cmd", absBinaryPath)
 	serverCmd.Dir = tmpDir
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
