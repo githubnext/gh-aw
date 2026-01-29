@@ -45,6 +45,55 @@ Generate a daily report analyzing secret usage in all `.lock.yml` files in the r
 5. Post results as a discussion
 6. Close older daily secrets discussions
 
+## Report Formatting Guidelines
+
+### Header Levels
+
+**Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
+
+The discussion title serves as h1, so all content headers should start at h3:
+- Use `###` for main sections (e.g., "### 🔐 Secret Usage Overview", "### 🛡️ Security Analysis")
+- Use `####` for subsections (e.g., "#### By Secret Type", "#### Anomaly Detection")
+- Never use `##` (h2) or `#` (h1) in the report body
+
+### Progressive Disclosure
+
+**Wrap detailed sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+
+This is **critical** for this workflow since we analyze 125+ workflow files. Use collapsible sections for:
+- Complete per-workflow secret usage lists
+- Full secret reference tables for all 125+ workflows
+- Detailed change history showing secret additions/removals
+- Raw data extracts and analysis details
+
+Example:
+```markdown
+<details>
+<summary><b>Per-Workflow Secret Usage</b></summary>
+
+### All Workflows with Secrets
+
+| Workflow | Secret Types | Total References |
+|----------|--------------|------------------|
+| workflow-1.lock.yml | GITHUB_TOKEN, ANTHROPIC_API_KEY | 8 |
+| workflow-2.lock.yml | GITHUB_TOKEN | 3 |
+| ... (125+ workflows) |
+
+</details>
+```
+
+### Recommended Report Structure
+
+For optimal readability, structure your report as follows:
+
+1. **Security Summary** (always visible): Total workflows scanned, secret usage overview, critical findings
+2. **Top Secret Types** (always visible): Most commonly used secrets and their distribution
+3. **Security Concerns** (always visible): Anomalies, unusual patterns, potential issues
+4. **Detailed Analysis** (in `<details>` tags): Complete workflow-by-workflow breakdown
+5. **Recommendations** (always visible): Security best practices and action items
+
+This structure ensures key security metrics and concerns are immediately visible while keeping detailed per-workflow information collapsed to avoid overwhelming the reader.
+
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
@@ -194,71 +243,109 @@ echo "Stats saved for tomorrow's comparison"
 
 ## Generate Discussion Report
 
-Create a comprehensive markdown report with your findings:
+Create a comprehensive markdown report with your findings following the formatting guidelines above.
 
-### Report Structure
+### Report Template
 
-Use the following template for the discussion post:
+Use the following structure for the discussion post. **Remember**: Use h3 (###) or lower for all headers, and wrap detailed sections in `<details>` tags.
 
 ```markdown
-# 🔐 Daily Secrets Analysis Report
+Brief 2-3 paragraph executive summary highlighting key findings: total workflows analyzed, overall secret usage patterns, security posture, and any critical concerns requiring immediate attention.
 
-**Date**: [Today's Date]  
-**Workflow Files Analyzed**: [TOTAL_WORKFLOWS]  
-**Run**: [Link to workflow run]
-
-## 📊 Executive Summary
-
+**Key Metrics**:
+- **Workflow Files Analyzed**: [TOTAL_WORKFLOWS]
 - **Total Secret References**: [SECRET_REFS] (`secrets.*`)
 - **GitHub Token References**: [TOKEN_REFS] (`github.token`)
 - **Unique Secret Types**: [SECRET_TYPES]
-- **Job-Level Usage**: [JOB_LEVEL] ([percentage]%)
-- **Step-Level Usage**: [STEP_LEVEL] ([percentage]%)
 
-## 🔑 Top 10 Secrets by Usage
+### 🔑 Top Secret Types
 
-| Rank | Secret Name | Occurrences | Type |
-|------|-------------|-------------|------|
-| 1 | GITHUB_TOKEN | [count] | GitHub Token |
-| 2 | GH_AW_GITHUB_TOKEN | [count] | GitHub Token |
+Most commonly used secrets across all workflows:
+
+| Rank | Secret Name | Occurrences | % of Total |
+|------|-------------|-------------|------------|
+| 1 | GITHUB_TOKEN | [count] | [percentage]% |
+| 2 | GH_AW_GITHUB_TOKEN | [count] | [percentage]% |
+| 3 | ANTHROPIC_API_KEY | [count] | [percentage]% |
 | ... | ... | ... | ... |
 
-## 🛡️ Security Posture
+### 🛡️ Security Posture
 
-### Protection Mechanisms
+#### Protection Mechanisms
 
-✅ **Redaction System**: [REDACTION_COUNT]/[TOTAL_WORKFLOWS] workflows have redaction steps  
+✅ **Redaction System**: [REDACTION_COUNT]/[TOTAL_WORKFLOWS] workflows have redaction steps ([percentage]%)  
 ✅ **Token Cascades**: [CASCADE_COUNT] instances of fallback chains  
 ✅ **Permission Blocks**: [PERMISSION_BLOCKS] explicit permission definitions  
 
-### Security Checks
+#### Security Checks
 
 [Include results from Step 6 - template injection checks, secrets in outputs, etc.]
 
-## 📈 Trends
+- ✅/⚠️ **Template Injection Risks**: [status and count]
+- ✅/⚠️ **Secrets in Outputs**: [status and count]
 
-[If historical data available, show changes from previous day]
+### 🎯 Key Findings
 
-- Secret references: [change]
-- New secret types: [list any new secrets]
-- Removed secrets: [list any removed secrets]
-
-## 🎯 Key Findings
-
-[Summarize important findings, patterns, or anomalies]
+[Summarize 3-5 important findings, patterns, or anomalies]
 
 1. **Finding 1**: Description
 2. **Finding 2**: Description
 3. **Finding 3**: Description
 
-## 💡 Recommendations
+### 📈 Trends
+
+[If historical data available, show changes from previous day]
+
+- Secret references: [change with trend indicator]
+- New secret types: [list any new secrets]
+- Removed secrets: [list any removed secrets]
+
+<details>
+<summary><b>📊 Detailed Per-Workflow Analysis</b></summary>
+
+### Secret Usage by Workflow
+
+Complete breakdown of secret usage across all 125+ workflow files:
+
+| Workflow | Secret Types | Total References | Job-Level | Step-Level |
+|----------|--------------|------------------|-----------|------------|
+| workflow-1.lock.yml | GITHUB_TOKEN, ANTHROPIC_API_KEY | 8 | 2 | 6 |
+| workflow-2.lock.yml | GITHUB_TOKEN | 3 | 1 | 2 |
+| ... (include all workflows) |
+
+### Secret Distribution Details
+
+#### Job-Level Usage
+- **Count**: [JOB_LEVEL] references ([percentage]% of total)
+- **Description**: Secrets set at job level via env blocks
+
+#### Step-Level Usage
+- **Count**: [STEP_LEVEL] references ([percentage]% of total)
+- **Description**: Secrets set at individual step level
+
+### Complete Secret Reference List
+
+List all unique secrets found and where they are used:
+
+#### GITHUB_TOKEN
+- Used in: [list of workflows]
+- Total references: [count]
+- Pattern: [job-level/step-level distribution]
+
+#### [Other Secret Names]
+[Similar breakdown for each secret type]
+
+</details>
+
+### 💡 Recommendations
 
 [Provide actionable recommendations based on analysis]
 
 1. **Recommendation 1**: Action to take
 2. **Recommendation 2**: Action to take
+3. **Recommendation 3**: Action to take
 
-## 📖 Reference Documentation
+### 📖 Reference Documentation
 
 For detailed information about secret usage patterns, see:
 - Specification: [`specs/secrets-yml.md`](https://github.com/githubnext/gh-aw/blob/main/specs/secrets-yml.md)
@@ -267,6 +354,7 @@ For detailed information about secret usage patterns, see:
 ---
 
 **Generated**: [Timestamp]  
+**Run**: [Link to workflow run]  
 **Workflow**: [Link to this workflow definition]
 ```
 
