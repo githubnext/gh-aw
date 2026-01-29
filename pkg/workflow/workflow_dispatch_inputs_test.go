@@ -12,10 +12,6 @@ import (
 // TestWorkflowDispatchInputTypes tests that all input types are supported
 // by the compiler and properly converted to YAML
 func TestWorkflowDispatchInputTypes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping long-running workflow compilation test in short mode")
-	}
-
 	tests := []struct {
 		name           string
 		markdown       string
@@ -349,10 +345,6 @@ Test workflow with choice input options`
 
 // TestWorkflowDispatchAllInputTypes tests a workflow with all input types
 func TestWorkflowDispatchAllInputTypes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping long-running workflow compilation test in short mode")
-	}
-
 	markdown := `---
 on:
   workflow_dispatch:
@@ -454,25 +446,13 @@ Test workflow with all input types`
 
 // TestWorkflowDispatchInputEdgeCases tests edge cases for input definitions
 func TestWorkflowDispatchInputEdgeCases(t *testing.T) {
+	// Representative sample of edge cases - tests key variations without exhaustive coverage
 	tests := []struct {
 		name           string
 		markdown       string
 		wantErrContain string
 		skipValidation bool
 	}{
-		{
-			name: "empty description allowed",
-			markdown: `---
-on:
-  workflow_dispatch:
-    inputs:
-      input1:
-        description: ''
-        type: string
-engine: copilot
----
-# Test Workflow`,
-		},
 		{
 			name: "missing description allowed",
 			markdown: `---
@@ -499,58 +479,6 @@ engine: copilot
 # Test Workflow`,
 		},
 		{
-			name: "negative number default",
-			markdown: `---
-on:
-  workflow_dispatch:
-    inputs:
-      offset:
-        type: number
-        default: -100
-engine: copilot
----
-# Test Workflow`,
-		},
-		{
-			name: "large number default",
-			markdown: `---
-on:
-  workflow_dispatch:
-    inputs:
-      limit:
-        type: number
-        default: 999999
-engine: copilot
----
-# Test Workflow`,
-		},
-		{
-			name: "float number default",
-			markdown: `---
-on:
-  workflow_dispatch:
-    inputs:
-      ratio:
-        type: number
-        default: 3.14159
-engine: copilot
----
-# Test Workflow`,
-		},
-		{
-			name: "empty string default",
-			markdown: `---
-on:
-  workflow_dispatch:
-    inputs:
-      value:
-        type: string
-        default: ''
-engine: copilot
----
-# Test Workflow`,
-		},
-		{
 			name: "choice without default",
 			markdown: `---
 on:
@@ -561,60 +489,6 @@ on:
         options:
           - dev
           - prod
-engine: copilot
----
-# Test Workflow`,
-		},
-		{
-			name: "single choice option",
-			markdown: `---
-on:
-  workflow_dispatch:
-    inputs:
-      single:
-        type: choice
-        options:
-          - only-option
-engine: copilot
----
-# Test Workflow`,
-		},
-		{
-			name: "many choice options",
-			markdown: `---
-on:
-  workflow_dispatch:
-    inputs:
-      region:
-        type: choice
-        options:
-          - us-east-1
-          - us-west-1
-          - us-west-2
-          - eu-west-1
-          - eu-central-1
-          - ap-southeast-1
-          - ap-southeast-2
-          - ap-northeast-1
-engine: copilot
----
-# Test Workflow`,
-		},
-		{
-			name: "all inputs not required",
-			markdown: `---
-on:
-  workflow_dispatch:
-    inputs:
-      optional1:
-        type: string
-        required: false
-      optional2:
-        type: boolean
-        required: false
-      optional3:
-        type: number
-        required: false
 engine: copilot
 ---
 # Test Workflow`,

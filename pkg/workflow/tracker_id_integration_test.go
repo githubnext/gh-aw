@@ -12,10 +12,6 @@ import (
 )
 
 func TestTrackerIDIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping long-running workflow compilation test in short mode")
-	}
-
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	tests := []struct {

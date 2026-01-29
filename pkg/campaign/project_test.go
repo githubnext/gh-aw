@@ -116,9 +116,6 @@ func TestUpdateSpecWithProjectURL_FileNotFound(t *testing.T) {
 }
 
 func TestIsGHCLIAvailable(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping GitHub CLI availability test in short mode")
-	}
 
 	// This test just verifies the function doesn't panic
 	// The actual result depends on the test environment

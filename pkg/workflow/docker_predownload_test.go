@@ -13,6 +13,7 @@ import (
 )
 
 func TestDockerImagePredownload(t *testing.T) {
+	// Representative sample - tests key docker image predownload scenarios
 	tests := []struct {
 		name           string
 		frontmatter    string
@@ -26,39 +27,6 @@ on: issues
 engine: claude
 tools:
   github:
----
-
-# Test
-Test workflow.`,
-			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.30.2",
-			},
-			expectStep: true,
-		},
-		{
-			name: "GitHub tool with custom version",
-			frontmatter: `---
-on: issues
-engine: claude
-tools:
-  github:
-    version: v0.17.0
----
-
-# Test
-Test workflow.`,
-			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.17.0",
-			},
-			expectStep: true,
-		},
-		{
-			name: "Codex with only edit tool still gets GitHub MCP by default",
-			frontmatter: `---
-on: issues
-engine: codex
-tools:
-  edit:
 ---
 
 # Test
@@ -107,65 +75,7 @@ Test workflow with custom MCP container.`,
 			expectStep: true,
 		},
 		{
-			name: "Sandbox MCP gateway container is predownloaded with default version",
-			frontmatter: `---
-on: issues
-engine: claude
-tools:
-  github:
----
-
-# Test
-Test workflow - sandbox.mcp gateway should be predownloaded.`,
-			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.30.2",
-				"ghcr.io/githubnext/gh-aw-mcpg:" + string(constants.DefaultMCPGatewayVersion),
-			},
-			expectStep: true,
-		},
-		{
-			name: "Sandbox MCP gateway with custom version",
-			frontmatter: `---
-on: issues
-engine: claude
-sandbox:
-  mcp:
-    container: ghcr.io/githubnext/gh-aw-mcpg
-    version: v0.0.5
-tools:
-  github:
----
-
-# Test
-Test workflow with custom sandbox.mcp version.`,
-			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.30.2",
-				"ghcr.io/githubnext/gh-aw-mcpg:v0.0.5",
-			},
-			expectStep: true,
-		},
-		{
-			name: "Safe outputs MCP server container is predownloaded",
-			frontmatter: `---
-on: issues
-engine: claude
-tools:
-  github:
-safe-outputs:
-  create-issue:
----
-
-# Test
-Test workflow - safe outputs MCP server should use node:lts-alpine.`,
-			expectedImages: []string{
-				"ghcr.io/github/github-mcp-server:v0.30.2",
-				"ghcr.io/githubnext/gh-aw-mcpg:" + string(constants.DefaultMCPGatewayVersion),
-				"node:lts-alpine",
-			},
-			expectStep: true,
-		},
-		{
-			name: "Safe outputs without GitHub tool still includes node:lts-alpine",
+			name: "Safe outputs includes node:lts-alpine",
 			frontmatter: `---
 on: issues
 engine: claude

@@ -10,9 +10,6 @@ import (
 
 // TestCompileWorkflowsWithCustomWorkflowDir tests the --workflows-dir flag functionality
 func TestCompileWorkflowsWithCustomWorkflowDir(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping long-running workflow compilation test in short mode")
-	}
 
 	// Save current directory and defer restoration
 	originalWd, err := os.Getwd()
@@ -147,9 +144,6 @@ This is a test workflow in a custom directory.
 
 // TestCompileWorkflowsCustomDirValidation tests the validation of workflow directory paths
 func TestCompileWorkflowsCustomDirValidation(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping long-running workflow compilation test in short mode")
-	}
 
 	tests := []struct {
 		name        string

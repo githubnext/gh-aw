@@ -9,10 +9,6 @@ import (
 )
 
 func TestToolsTimeoutValidation(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping long-running workflow compilation test in short mode")
-	}
-
 	tests := []struct {
 		name          string
 		workflowMd    string

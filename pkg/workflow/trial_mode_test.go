@@ -7,10 +7,6 @@ import (
 )
 
 func TestTrialModeCompilation(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping long-running workflow compilation test in short mode")
-	}
-
 	// Create a test markdown workflow file with safe outputs
 	workflowContent := `---
 on:
@@ -218,10 +214,6 @@ This is a test workflow for trial mode compilation.
 }
 
 func TestTrialModeWithDifferentSafeOutputs(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping long-running workflow compilation test in short mode")
-	}
-
 	// Test different combinations of safe outputs
 	testCases := []struct {
 		name          string

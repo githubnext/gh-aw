@@ -8,10 +8,6 @@ import (
 )
 
 func TestTriggerShorthandIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping long-running workflow compilation test in short mode")
-	}
-
 	tests := []struct {
 		name           string
 		markdown       string

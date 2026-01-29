@@ -1,6 +1,0 @@
---- FAIL: TestRunWorkflowOnGitHub_FlagCombinations (1.02s)
-    --- FAIL: TestRunWorkflowOnGitHub_FlagCombinations/push_flag_with_remote_repo (1.02s)
---- FAIL: TestUpgradeCommand_NoActionsFlag (0.75s)
-FAIL
-FAIL	github.com/githubnext/gh-aw/pkg/cli	99.328s
-FAIL

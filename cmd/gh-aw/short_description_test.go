@@ -13,9 +13,6 @@ import (
 // - No trailing punctuation (periods, exclamation marks, question marks)
 // - This is a common convention for CLI tools (e.g., Git, kubectl, gh)
 func TestShortDescriptionConsistency(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping short description consistency test in short mode")
-	}
 
 	// Create commands that have subcommands
 	mcpCmd := cli.NewMCPCommand()

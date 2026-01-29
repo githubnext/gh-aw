@@ -1,3 +1,5 @@
+//go:build integration
+
 package cli
 
 import (
@@ -70,9 +72,6 @@ This is a test workflow.
 }
 
 func TestUpgradeCommand_AppliesCodemods(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping long-running workflow compilation test in short mode")
-	}
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -237,9 +236,6 @@ func TestUpgradeCommand_NonGitRepo(t *testing.T) {
 }
 
 func TestUpgradeCommand_CompilesWorkflows(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping long-running workflow compilation test in short mode")
-	}
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
@@ -465,9 +461,6 @@ This workflow is already up to date.
 }
 
 func TestUpgradeCommand_UpdatesActionPins(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping long-running test that updates GitHub Actions in short mode")
-	}
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()

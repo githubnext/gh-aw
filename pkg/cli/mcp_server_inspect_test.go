@@ -1,3 +1,5 @@
+//go:build integration
+
 package cli
 
 import (
@@ -71,9 +73,6 @@ func TestMCPServer_InspectTool(t *testing.T) {
 
 // TestMCPServer_InspectToolInvocation tests calling the mcp-inspect tool
 func TestMCPServer_InspectToolInvocation(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping long-running MCP server integration test in short mode")
-	}
 
 	// Skip if the binary doesn't exist
 	binaryPath := "../../gh-aw"

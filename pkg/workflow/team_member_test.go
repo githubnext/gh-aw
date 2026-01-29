@@ -15,10 +15,6 @@ import (
 
 // TestTeamMemberCheckForCommandWorkflows tests that team member checks are only added to command workflows
 func TestTeamMemberCheckForCommandWorkflows(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping long-running workflow compilation test in short mode")
-	}
-
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "workflow-team-member-test")
 

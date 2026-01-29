@@ -12,10 +12,6 @@ import (
 )
 
 func TestThreatDetectionIsolation(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping long-running workflow compilation test in short mode")
-	}
-
 	compiler := NewCompiler()
 
 	// Create a temporary directory for the test workflow

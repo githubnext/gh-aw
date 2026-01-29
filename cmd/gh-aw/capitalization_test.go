@@ -13,9 +13,6 @@ import (
 // - Use lowercase "agentic workflows" when referring generically to workflow files/functionality
 // - Use capitalized "Agentic Workflows" only when explicitly referring to the product as a whole
 func TestCapitalizationConsistency(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping capitalization consistency test in short mode")
-	}
 
 	// Test root command uses product name with capital
 	if !strings.Contains(rootCmd.Short, "GitHub Agentic Workflows") {
