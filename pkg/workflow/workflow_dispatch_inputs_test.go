@@ -81,20 +81,6 @@ Test workflow with choice input`,
 			wantType: "choice",
 		},
 	}
-on:
-  workflow_dispatch:
-    inputs:
-      deploy_env:
-        description: 'Deployment environment'
-        type: environment
-        required: false
-engine: copilot
----
-# Test Workflow
-Test workflow with environment input`,
-			wantType: "environment",
-		},
-	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

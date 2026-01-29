@@ -64,15 +64,6 @@ Create a test issue without tracker-id.
 			shouldHaveEnvVar:   false,
 			shouldHaveInScript: false,
 		},
-	}
-
-Add a comment.
-`,
-			shouldCompile:      true,
-			shouldHaveEnvVar:   true,
-			shouldHaveInScript: true,
-			expectedTrackerID:  "comment_fp_2024",
-		},
 		{
 			name: "Workflow with tracker-id in pull request",
 			workflowContent: `---

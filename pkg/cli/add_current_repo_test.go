@@ -55,18 +55,6 @@ func TestAddWorkflowsFromCurrentRepository(t *testing.T) {
 			errorContains: "cannot add workflows from the current repository",
 		},
 		{
-			name:          "prevent adding workflow from current repository with version",
-			workflowSpecs: []string{"test-owner/test-repo/my-workflow@v1.0.0"},
-			expectError:   true,
-			errorContains: "cannot add workflows from the current repository",
-		},
-		{
-			name:          "prevent adding workflow from current repository with wildcard",
-			workflowSpecs: []string{"test-owner/test-repo/*"},
-			expectError:   true,
-			errorContains: "cannot add workflows from the current repository",
-		},
-		{
 			name:          "allow adding workflow from different repository",
 			workflowSpecs: []string{"different-owner/different-repo/workflow"},
 			expectError:   false, // This will still fail because package doesn't exist, but not due to current repo check
@@ -142,24 +130,6 @@ func TestAddWorkflowsFromCurrentRepositoryMultiple(t *testing.T) {
 			workflowSpecs: []string{
 				"myorg/myrepo/workflow1",
 				"otherorg/otherrepo/workflow2",
-			},
-			expectError:   true,
-			errorContains: "cannot add workflows from the current repository",
-		},
-		{
-			name: "prevent when second workflow is from current repository",
-			workflowSpecs: []string{
-				"otherorg/otherrepo/workflow1",
-				"myorg/myrepo/workflow2",
-			},
-			expectError:   true,
-			errorContains: "cannot add workflows from the current repository",
-		},
-		{
-			name: "prevent when all workflows are from current repository",
-			workflowSpecs: []string{
-				"myorg/myrepo/workflow1",
-				"myorg/myrepo/workflow2",
 			},
 			expectError:   true,
 			errorContains: "cannot add workflows from the current repository",

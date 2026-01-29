@@ -799,6 +799,10 @@ func TestMarshalActionsLockSorted(t *testing.T) {
 
 // TestGetActionSHAForTag tests that we can look up action SHAs (requires network)
 func TestGetActionSHAForTag(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping network test in short mode")
+	}
+
 	// This test requires network access and GitHub API, so skip in CI
 	if os.Getenv("CI") != "" {
 		t.Skip("Skipping network test in CI")
