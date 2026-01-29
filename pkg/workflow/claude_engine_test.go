@@ -263,10 +263,11 @@ func TestClaudeEngineWithVersion(t *testing.T) {
 		t.Fatalf("Expected 3 installation steps (secret validation + Node.js setup + install), got %d", len(installSteps))
 	}
 
-	// Check that install step uses the custom version (third step, index 2)
+	// Check that install step uses the custom version with environment variable pattern
 	installStep := strings.Join([]string(installSteps[2]), "\n")
-	if !strings.Contains(installStep, "npm install -g --silent @anthropic-ai/claude-code@v1.2.3") {
-		t.Errorf("Expected npm install with custom version v1.2.3 in install step:\n%s", installStep)
+	expectedEnvPattern := "CLI_VERSION: ${{ env.GH_AW_CLAUDE_VERSION || 'v1.2.3' }}"
+	if !strings.Contains(installStep, expectedEnvPattern) || !strings.Contains(installStep, "@anthropic-ai/claude-code@\"${CLI_VERSION}\"") {
+		t.Errorf("Expected npm install with custom version v1.2.3 using environment variable pattern in install step:\n%s", installStep)
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
