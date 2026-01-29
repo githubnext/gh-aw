@@ -25,7 +25,7 @@ filesystem boundary. Consider three main threats:
 
 ## Current security controls
 
-gh-aw limits the default mount set and applies defense in depth:
+gh-aw limits the default mount set and applies defense-in-depth:
 
 - **Read-only mounts for system tools.** Only specific binaries
   such as `gh` and `yq` are mounted, not entire system paths.
