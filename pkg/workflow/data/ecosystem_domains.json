@@ -125,6 +125,8 @@
     "get.pnpm.io",
     "bun.sh",
     "deno.land",
+    "jsr.io",
+    "*.jsr.io",
     "registry.bower.io"
   ],
   "perl": ["cpan.org", "www.cpan.org", "metacpan.org", "cpan.metacpan.org"],
