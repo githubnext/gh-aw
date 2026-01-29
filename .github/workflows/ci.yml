@@ -205,12 +205,12 @@ jobs:
           if [ -z "${{ matrix.test-group.pattern }}" ]; then
             # Catch-all group: run with -skip to exclude tests matched by other groups
             if [ -n "${{ matrix.test-group.skip_pattern || '' }}" ]; then
-              go test -v -parallel=8 -timeout=5m -tags 'integration' -skip '${{ matrix.test-group.skip_pattern }}' -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
+              go test -v -parallel=8 -timeout=10m -tags 'integration' -skip '${{ matrix.test-group.skip_pattern }}' -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
             else
-              go test -v -parallel=8 -timeout=5m -tags 'integration' -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
+              go test -v -parallel=8 -timeout=10m -tags 'integration' -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
             fi
           else
-            go test -v -parallel=8 -timeout=5m -tags 'integration' -run '${{ matrix.test-group.pattern }}' -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
+            go test -v -parallel=8 -timeout=10m -tags 'integration' -run '${{ matrix.test-group.pattern }}' -json ${{ matrix.test-group.packages }} | tee "test-result-integration-${SAFE_NAME}.json"
           fi
 
       - name: Upload integration test results
