@@ -115,10 +115,8 @@ This is a test workflow.
 			t.Fatalf("Failed to write workflow file: %v", err)
 		}
 
-		// Initialize git repository in the temp directory
-		initCmd := exec.Command("git", "init")
-		initCmd.Dir = tmpDir
-		if err := initCmd.Run(); err != nil {
+		// Initialize git repository using shared helper
+		if err := initTestGitRepo(tmpDir); err != nil {
 			t.Fatalf("Failed to initialize git repository: %v", err)
 		}
 
