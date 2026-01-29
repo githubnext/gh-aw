@@ -66,6 +66,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 
 - [**Dispatch Workflow**](#workflow-dispatch-dispatch-workflow) (`dispatch-workflow`) — Trigger other workflows with inputs (max: 3, same-repo only)
 - [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) (`create-code-scanning-alert`) — Generate SARIF security advisories (max: unlimited, same-repo only)
+- [**Autofix Code Scanning Alerts**](#autofix-code-scanning-alerts-autofix-code-scanning-alert) (`autofix-code-scanning-alert`) — Create automated fixes for code scanning alerts (max: 10)
 - [**Create Agent Session**](#agent-session-creation-create-agent-session) (`create-agent-session`) — Create Copilot agent sessions (max: 1)
 
 ### System Types (Auto-Enabled)
@@ -707,6 +708,60 @@ safe-outputs:
   create-code-scanning-alert:
     max: 50  # max findings (default: unlimited)
 ```
+
+### Autofix Code Scanning Alerts (`autofix-code-scanning-alert:`)
+
+Creates automated fixes for existing code scanning alerts. The agent analyzes security vulnerabilities and generates code fixes that are submitted directly to GitHub Code Scanning via the autofix API.
+
+```yaml wrap
+safe-outputs:
+  autofix-code-scanning-alert:
+    max: 10  # max autofixes (default: 10)
+    github-token: ${{ secrets.CUSTOM_TOKEN }}  # optional custom token
+```
+
+#### Configuration
+
+- **`max`** (optional) — Maximum number of autofixes to create per workflow run (default: 10, minimum: 1)
+- **`github-token`** (optional) — Custom GitHub token for this specific output type. Overrides global `github-token` if specified.
+
+#### Agent Output Format
+
+The agent must output JSONL with the following fields:
+
+```jsonl
+{"type": "autofix_code_scanning_alert", "alert_number": 123, "fix_description": "Fix SQL injection by using parameterized queries instead of string concatenation", "fix_code": "const query = db.prepare('SELECT * FROM users WHERE id = ?').bind(userId);"}
+```
+
+**Required Fields:**
+- **`alert_number`** — Numeric ID of the code scanning alert to fix
+- **`fix_description`** — Clear explanation of what the fix does and why it addresses the vulnerability
+- **`fix_code`** — Complete corrected code that resolves the security issue
+
+#### Usage Notes
+
+**When to use `autofix-code-scanning-alert`:**
+- Automating security vulnerability remediation
+- Creating fixes for code scanning alerts at scale
+- Building security automation workflows that respond to alerts
+
+**How it works:**
+1. Agent analyzes a code scanning alert using GitHub API tools
+2. Agent generates a secure fix for the vulnerability
+3. Agent outputs the fix via the `autofix_code_scanning_alert` tool
+4. Separate job with appropriate permissions submits the autofix to GitHub Code Scanning
+5. GitHub Code Scanning displays the autofix suggestion on the alert
+
+**Related Operations:**
+- Use `create-code-scanning-alert` to create new security findings
+- Use `autofix-code-scanning-alert` to fix existing alerts
+- Both operations maintain security through read-only agent execution
+
+**Security Considerations:**
+- Agent runs with read-only permissions (`security-events: read`)
+- Separate job handles autofix submission with appropriate write permissions
+- Autofixes are suggestions that require review before application
+- Maximum limit prevents excessive API usage
 
 ### Push to PR Branch (`push-to-pull-request-branch:`)
 
