@@ -49,10 +49,8 @@ This is a test workflow for compilation.
 	defer os.Chdir(originalDir)
 	os.Chdir(tmpDir)
 
-	// Initialize git repository in the temp directory
-	initCmd := exec.Command("git", "init")
-	initCmd.Dir = tmpDir
-	if err := initCmd.Run(); err != nil {
+	// Initialize git repository using shared helper
+	if err := initTestGitRepo(tmpDir); err != nil {
 		t.Fatalf("Failed to initialize git repository: %v", err)
 	}
 
@@ -212,10 +210,8 @@ This is the second test workflow.
 	defer os.Chdir(originalDir)
 	os.Chdir(tmpDir)
 
-	// Initialize git repository in the temp directory
-	initCmd := exec.Command("git", "init")
-	initCmd.Dir = tmpDir
-	if err := initCmd.Run(); err != nil {
+	// Initialize git repository using shared helper
+	if err := initTestGitRepo(tmpDir); err != nil {
 		t.Fatalf("Failed to initialize git repository: %v", err)
 	}
 
@@ -306,10 +302,8 @@ This workflow has a syntax error in the frontmatter.
 	defer os.Chdir(originalDir)
 	os.Chdir(tmpDir)
 
-	// Initialize git repository in the temp directory
-	initCmd := exec.Command("git", "init")
-	initCmd.Dir = tmpDir
-	if err := initCmd.Run(); err != nil {
+	// Initialize git repository using shared helper
+	if err := initTestGitRepo(tmpDir); err != nil {
 		t.Fatalf("Failed to initialize git repository: %v", err)
 	}
 
@@ -424,10 +418,8 @@ This workflow has an unknown field.
 	defer os.Chdir(originalDir)
 	os.Chdir(tmpDir)
 
-	// Initialize git repository
-	initCmd := exec.Command("git", "init")
-	initCmd.Dir = tmpDir
-	if err := initCmd.Run(); err != nil {
+	// Initialize git repository using shared helper
+	if err := initTestGitRepo(tmpDir); err != nil {
 		t.Fatalf("Failed to initialize git repository: %v", err)
 	}
 
@@ -522,10 +514,8 @@ This workflow has strict mode disabled in frontmatter.
 	defer os.Chdir(originalDir)
 	os.Chdir(tmpDir)
 
-	// Initialize git repository
-	initCmd := exec.Command("git", "init")
-	initCmd.Dir = tmpDir
-	if err := initCmd.Run(); err != nil {
+	// Initialize git repository using shared helper
+	if err := initTestGitRepo(tmpDir); err != nil {
 		t.Fatalf("Failed to initialize git repository: %v", err)
 	}
 
@@ -612,10 +602,8 @@ Test workflow for jq filtering.
 	defer os.Chdir(originalDir)
 	os.Chdir(tmpDir)
 
-	// Initialize git repository
-	initCmd := exec.Command("git", "init")
-	initCmd.Dir = tmpDir
-	if err := initCmd.Run(); err != nil {
+	// Initialize git repository using shared helper
+	if err := initTestGitRepo(tmpDir); err != nil {
 		t.Fatalf("Failed to initialize git repository: %v", err)
 	}
 
@@ -707,10 +695,8 @@ Test workflow.
 	defer os.Chdir(originalDir)
 	os.Chdir(tmpDir)
 
-	// Initialize git repository
-	initCmd := exec.Command("git", "init")
-	initCmd.Dir = tmpDir
-	if err := initCmd.Run(); err != nil {
+	// Initialize git repository using shared helper
+	if err := initTestGitRepo(tmpDir); err != nil {
 		t.Fatalf("Failed to initialize git repository: %v", err)
 	}
 
@@ -809,10 +795,8 @@ Second test workflow.
 	defer os.Chdir(originalDir)
 	os.Chdir(tmpDir)
 
-	// Initialize git repository
-	initCmd := exec.Command("git", "init")
-	initCmd.Dir = tmpDir
-	if err := initCmd.Run(); err != nil {
+	// Initialize git repository using shared helper
+	if err := initTestGitRepo(tmpDir); err != nil {
 		t.Fatalf("Failed to initialize git repository: %v", err)
 	}
 
