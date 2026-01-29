@@ -226,14 +226,14 @@ This is a test workflow with deprecated timeout_minutes field.
 		// We need to check only the frontmatter, not the markdown body
 		// The frontmatter is between the first and second "---" lines
 		contentStr := string(updatedContent)
-		
+
 		// Extract frontmatter section (between first two ---)
 		parts := strings.SplitN(contentStr, "---", 3)
 		if len(parts) < 3 {
 			t.Fatal("Could not parse frontmatter from updated file")
 		}
 		frontmatter := parts[1]
-		
+
 		if strings.Contains(frontmatter, "timeout_minutes") {
 			t.Error("Expected timeout_minutes to be replaced in frontmatter, but it still exists")
 		}
