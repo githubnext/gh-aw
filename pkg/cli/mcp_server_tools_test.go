@@ -267,6 +267,7 @@ func TestMCPServer_ToolIcons(t *testing.T) {
 		"mcp-inspect": "🔎",
 		"add":         "➕",
 		"update":      "🔄",
+		"fix":         "🔧",
 	}
 
 	// Verify each tool has an icon

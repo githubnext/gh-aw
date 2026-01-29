@@ -189,25 +189,25 @@ func TestMCPServer_ErrorCodes_InternalError(t *testing.T) {
 	}
 	defer session.Close()
 
-	// Test: audit tool with invalid run_id (should cause internal error)
+	// Test: audit tool with invalid run_id_or_url (should cause internal error)
 	t.Run("audit_invalid_run_id", func(t *testing.T) {
 		params := &mcp.CallToolParams{
 			Name: "audit",
 			Arguments: map[string]any{
-				"run_id": int64(1), // Invalid run ID
+				"run_id_or_url": "1", // Invalid run ID
 			},
 		}
 
 		_, err := session.CallTool(ctx, params)
 		if err == nil {
-			t.Error("Expected error for invalid run_id, got nil")
+			t.Error("Expected error for invalid run_id_or_url, got nil")
 			return
 		}
 
-		// The error message should contain the failed audit error
+		// The error message should contain the failed audit error or validation error
 		errMsg := err.Error()
-		if !strings.Contains(errMsg, "failed to audit workflow run") {
-			t.Errorf("Expected error message about failed audit, got: %s", errMsg)
+		if !strings.Contains(errMsg, "failed to audit") && !strings.Contains(errMsg, "could not determine repository") {
+			t.Errorf("Expected error message about failed audit or invalid parameters, got: %s", errMsg)
 		} else {
 			t.Logf("✓ Correct error for failed audit: %s", errMsg)
 		}
