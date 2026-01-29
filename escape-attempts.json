@@ -1,146 +1,146 @@
 {
-  "last_updated": "2026-01-28T01:19:00Z",
-  "run_id": "21420899998",
+  "last_updated": "2026-01-29T01:18:00Z",
+  "run_id": "21461787203",
   "techniques": [
     {
-      "name": "Squid Manager Interface Access",
-      "category": "Squid-specific attack",
-      "description": "Attempt to access Squid cache manager interface for configuration disclosure",
-      "result": "failure",
-      "date": "2026-01-28"
-    },
-    {
-      "name": "WebSocket Upgrade Bypass",
+      "name": "HTTP Trailer Header Smuggling",
       "category": "Application-layer smuggling",
-      "description": "Use WebSocket upgrade headers to bypass HTTP proxy filtering",
+      "description": "Use HTTP/1.1 chunked encoding with trailer headers to smuggle forbidden domain",
       "result": "failure",
-      "date": "2026-01-28"
+      "date": "2026-01-29"
     },
     {
-      "name": "HTTP CONNECT Non-Standard Port",
+      "name": "HTTP Method Override Headers",
+      "category": "Application-layer smuggling",
+      "description": "POST with X-HTTP-Method-Override to bypass GET filtering",
+      "result": "failure",
+      "date": "2026-01-29"
+    },
+    {
+      "name": "WPAD Proxy Auto-Config Discovery",
       "category": "Proxy manipulation",
-      "description": "Use CONNECT method on port 8080 to bypass domain ACL",
+      "description": "Attempted retrieval of proxy auto-config to reveal bypass mechanisms",
       "result": "failure",
-      "date": "2026-01-28"
+      "date": "2026-01-29"
     },
     {
-      "name": "DNS over HTTPS (DoH) Bypass",
-      "category": "DNS advanced",
-      "description": "Use Google DoH service to bypass traditional DNS filtering",
-      "result": "failure",
-      "date": "2026-01-28"
-    },
-    {
-      "name": "FTP Protocol Bypass",
-      "category": "Protocol-level bypass",
-      "description": "Use FTP protocol (port 21) to bypass HTTP proxy",
-      "result": "failure",
-      "date": "2026-01-28"
-    },
-    {
-      "name": "Gopher Protocol Bypass",
-      "category": "Protocol-level bypass",
-      "description": "Use legacy Gopher protocol (port 70) to bypass filtering",
-      "result": "failure",
-      "date": "2026-01-28"
-    },
-    {
-      "name": "Raw Socket Creation",
-      "category": "Network stack manipulation",
-      "description": "Create raw sockets to send packets bypassing iptables NAT",
-      "result": "failure",
-      "date": "2026-01-28"
-    },
-    {
-      "name": "Netcat Direct Connection",
-      "category": "Application-layer bypass",
-      "description": "Use netcat to connect directly to IP address bypassing proxy",
-      "result": "failure",
-      "date": "2026-01-28"
-    },
-    {
-      "name": "Telnet Direct Connection",
-      "category": "Application-layer bypass",
-      "description": "Use telnet for direct TCP connection to target",
-      "result": "failure",
-      "date": "2026-01-28"
-    },
-    {
-      "name": "Python urllib No Proxy",
-      "category": "Application-layer bypass",
-      "description": "Clear proxy environment variables and use urllib directly",
-      "result": "failure",
-      "date": "2026-01-28"
-    },
-    {
-      "name": "Python Raw Sockets",
-      "category": "Network stack manipulation",
-      "description": "Use Python socket library to create raw TCP connections",
-      "result": "failure",
-      "date": "2026-01-28"
-    },
-    {
-      "name": "HTTP/1.0 No Host Header",
+      "name": "HTTP Absolute-Form URI",
       "category": "Application-layer smuggling",
-      "description": "Use HTTP/1.0 without Host header to bypass modern filtering",
+      "description": "Use absolute URI form in request line per RFC 9112",
       "result": "failure",
-      "date": "2026-01-28"
+      "date": "2026-01-29"
     },
     {
-      "name": "ICMP Ping Network Layer",
-      "category": "Network layer bypass",
-      "description": "Use ICMP ping to bypass HTTP-only filtering",
+      "name": "HTTP 100-Continue Bypass",
+      "category": "Application-layer smuggling",
+      "description": "Use Expect: 100-continue to create timing window for smuggling",
       "result": "failure",
-      "date": "2026-01-28"
+      "date": "2026-01-29"
     },
     {
-      "name": "SSH Protocol Bypass",
-      "category": "Protocol-level bypass",
-      "description": "Attempt SSH connection on port 22 to bypass HTTP proxy",
+      "name": "Chrome DevTools Protocol Port Discovery",
+      "category": "Application-layer bypass",
+      "description": "Scan for Chrome/Chromium remote debugging ports (9222-9224)",
       "result": "failure",
-      "date": "2026-01-28"
+      "date": "2026-01-29"
     },
     {
-      "name": "DNS TXT Record Exfiltration",
-      "category": "DNS side-channel",
-      "description": "Use DNS TXT queries for data exfiltration side channel",
-      "result": "partial",
-      "date": "2026-01-28"
+      "name": "Ambiguous Content-Length Headers",
+      "category": "Application-layer smuggling",
+      "description": "Send multiple Content-Length headers to confuse parser",
+      "result": "failure",
+      "date": "2026-01-29"
     },
     {
-      "name": "Wget No-Proxy Flag",
+      "name": "Python Custom Connection Class",
+      "category": "Application-layer bypass",
+      "description": "Override Python socket to bypass proxy detection",
+      "result": "failure",
+      "date": "2026-01-29"
+    },
+    {
+      "name": "DNS NAPTR Records",
+      "category": "DNS advanced",
+      "description": "Query NAPTR records for service discovery that might bypass filtering",
+      "result": "failure",
+      "date": "2026-01-29"
+    },
+    {
+      "name": "HTTP Authorization Header Injection",
+      "category": "Application-layer smuggling",
+      "description": "Basic Auth with encoded domain to bypass ACL",
+      "result": "failure",
+      "date": "2026-01-29"
+    },
+    {
+      "name": "cURL Proxy Protocol Downgrade",
       "category": "Proxy manipulation",
-      "description": "Use wget --no-proxy flag to bypass proxy configuration",
+      "description": "Force HTTP/1.0 proxy protocol with --proxy1.0",
       "result": "failure",
-      "date": "2026-01-28"
+      "date": "2026-01-29"
     },
     {
-      "name": "Node.js HTTP Agent Bypass",
-      "category": "Application-layer bypass",
-      "description": "Use Node.js http module with agent:false to bypass proxy",
-      "result": "failure",
-      "date": "2026-01-28"
-    },
-    {
-      "name": "IPv6 Direct Access",
-      "category": "IPv6 exploitation",
-      "description": "Use IPv6 address directly to bypass IPv4 NAT rules",
-      "result": "failure",
-      "date": "2026-01-28"
-    },
-    {
-      "name": "EDNS Client Subnet",
-      "category": "DNS advanced",
-      "description": "Use EDNS Client Subnet extension for DNS manipulation",
-      "result": "success",
-      "date": "2026-01-28"
-    },
-    {
-      "name": "HTTP Request Smuggling CL.TE",
+      "name": "RFC 7239 Forwarded Header",
       "category": "Application-layer smuggling",
-      "description": "Use Content-Length and Transfer-Encoding conflict for request smuggling",
+      "description": "Use Forwarded header to mask true destination",
       "result": "failure",
-      "date": "2026-01-28"
+      "date": "2026-01-29"
+    },
+    {
+      "name": "Node.js IPv4 Family Forcing",
+      "category": "Application-layer bypass",
+      "description": "Force IPv4 socket family to bypass IPv6 filtering",
+      "result": "failure",
+      "date": "2026-01-29"
+    },
+    {
+      "name": "Python Environment Variable Clearing",
+      "category": "Proxy manipulation",
+      "description": "Remove all proxy environment variables before socket creation",
+      "result": "failure",
+      "date": "2026-01-29"
+    },
+    {
+      "name": "HTTP Referer Header Spoofing",
+      "category": "Application-layer smuggling",
+      "description": "Set Referer to allowed domain to trick ACL",
+      "result": "failure",
+      "date": "2026-01-29"
+    },
+    {
+      "name": "HTTP Cookie-Based Bypass",
+      "category": "Application-layer smuggling",
+      "description": "Set cookies to alter Squid's ACL decision",
+      "result": "failure",
+      "date": "2026-01-29"
+    },
+    {
+      "name": "HTTP Cache-Control Directives",
+      "category": "Application-layer smuggling",
+      "description": "Use cache directives to force different code path",
+      "result": "failure",
+      "date": "2026-01-29"
+    },
+    {
+      "name": "Perl LWP Custom Protocol",
+      "category": "Application-layer bypass",
+      "description": "Perl LWP::UserAgent with custom protocol handler",
+      "result": "failure",
+      "date": "2026-01-29"
+    },
+    {
+      "name": "Ephemeral Port Range Exhaustion",
+      "category": "Network stack manipulation",
+      "description": "Exhaust port range to cause NAT failure",
+      "result": "failure",
+      "date": "2026-01-29"
+    },
+    {
+      "name": "Git Protocol Bypass",
+      "category": "Protocol-level bypass",
+      "description": "Use git:// protocol on port 9418",
+      "result": "failure",
+      "date": "2026-01-29"
     }
   ]
 }

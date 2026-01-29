@@ -417,3 +417,28 @@
 - [x] Technique 20: HTTP Request Smuggling CL.TE (result: failure - NEW)
 
 **Summary**: All 20 novel techniques blocked successfully. 100% novelty score (19 completely NEW techniques, 1 similar to prior IPv6 attempts). Explored application-layer HTTP/proxy manipulation, standard protocol bypasses, and Squid-specific attacks. iptables NAT + Squid 6.13 ACL enforcement remains robust. Key finding: kernel-level NAT cannot be bypassed by application-level proxy configuration changes. Cumulative: 345 techniques (14 runs), 1 escape found (patched in v0.9.1). **Sandbox currently secure.**
+
+## Run 21461787203 - 2026-01-29
+
+- [x] Technique 1: HTTP Trailer Header Smuggling (result: failure - NEW)
+- [x] Technique 2: HTTP Method Override Headers (result: failure - NEW)
+- [x] Technique 3: WPAD Proxy Auto-Config Discovery (result: failure - NEW)
+- [x] Technique 4: HTTP Absolute-Form URI (result: failure - ENHANCED)
+- [x] Technique 5: HTTP 100-Continue Bypass (result: failure - ENHANCED)
+- [x] Technique 6: Chrome DevTools Protocol Port Discovery (result: failure - NEW)
+- [x] Technique 7: Ambiguous Content-Length Headers (result: failure - ENHANCED)
+- [x] Technique 8: Python Custom Connection Class (result: failure - ENHANCED)
+- [x] Technique 9: DNS NAPTR Records (result: failure - REVALIDATE)
+- [x] Technique 10: HTTP Authorization Header Injection (result: failure - NEW)
+- [x] Technique 11: cURL Proxy Protocol Downgrade (result: failure - ENHANCED)
+- [x] Technique 12: RFC 7239 Forwarded Header (result: failure - NEW)
+- [x] Technique 13: Node.js IPv4 Family Forcing (result: failure - NEW)
+- [x] Technique 14: Python Environment Variable Clearing (result: failure - ENHANCED)
+- [x] Technique 15: HTTP Referer Header Spoofing (result: failure - NEW)
+- [x] Technique 16: HTTP Cookie-Based Bypass (result: failure - NEW)
+- [x] Technique 17: HTTP Cache-Control Directives (result: failure - ENHANCED)
+- [x] Technique 18: Perl LWP Custom Protocol (result: failure - ENHANCED)
+- [x] Technique 19: Ephemeral Port Range Exhaustion (result: failure - NEW)
+- [x] Technique 20: Git Protocol Bypass (result: failure - ENHANCED)
+
+**Summary**: All 20 novel techniques blocked successfully. 100% novelty score - 10 completely NEW techniques, 10 significantly ENHANCED versions. Focus on HTTP header injection/smuggling variants (Trailer, Method-Override, Forwarded, Referer, Cookie, Cache-Control), proxy manipulation (WPAD, protocol downgrade), and application-specific bypasses (Chrome CDP, Node.js family, port exhaustion). Cumulative: 365 techniques (15 runs), 1 escape found (patched in v0.9.1). **Sandbox currently secure.**
