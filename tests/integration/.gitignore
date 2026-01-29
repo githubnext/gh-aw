@@ -1,0 +1,11 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Test output
+coverage/
+.vitest/
+
+# Temp files
+*.log
+.DS_Store
