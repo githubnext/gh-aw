@@ -3,6 +3,7 @@
 
 const { executeExpiredEntityCleanup } = require("./expired_entity_main_flow.cjs");
 const { generateExpiredEntityFooter } = require("./generate_footer.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * Add comment to a GitHub Pull Request using REST API
@@ -18,7 +19,7 @@ async function addPullRequestComment(github, owner, repo, prNumber, message) {
     owner: owner,
     repo: repo,
     issue_number: prNumber,
-    body: message,
+    body: sanitizeContent(message),
   });
 
   return result.data;

@@ -4,6 +4,7 @@
 const { getCloseOlderDiscussionMessage } = require("./messages_close_discussion.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getWorkflowIdMarkerContent } = require("./generate_footer.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * Maximum number of older discussions to close
@@ -156,7 +157,7 @@ async function addDiscussionComment(github, discussionId, message) {
         }
       }
     }`,
-    { dId: discussionId, body: message }
+    { dId: discussionId, body: sanitizeContent(message) }
   );
 
   return result.addDiscussionComment.comment;

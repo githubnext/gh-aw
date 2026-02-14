@@ -9,6 +9,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getRunSuccessMessage, getRunFailureMessage, getDetectionFailureMessage } = require("./messages_run_status.cjs");
 const { getMessages } = require("./messages_core.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * Collect generated asset URLs from safe output jobs
@@ -212,7 +213,8 @@ async function main() {
               }
             }`;
 
-        const variables = replyToId ? { dId: discussionId, body: message, replyToId } : { dId: discussionId, body: message };
+        const sanitizedMessage = sanitizeContent(message);
+        const variables = replyToId ? { dId: discussionId, body: sanitizedMessage, replyToId } : { dId: discussionId, body: sanitizedMessage };
         const result = await github.graphql(mutation, variables);
         const created = result?.addDiscussionComment?.comment;
         core.info("Successfully created append-only discussion comment");
@@ -228,11 +230,12 @@ async function main() {
         return;
       }
 
+      const sanitizedMessage = sanitizeContent(message);
       const response = await github.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
         owner: repoOwner,
         repo: repoName,
         issue_number: issueNumber,
-        body: message,
+        body: sanitizedMessage,
         headers: {
           Accept: "application/vnd.github+json",
         },
@@ -258,6 +261,8 @@ async function main() {
   // Check if this is a discussion comment (GraphQL node ID format)
   const isDiscussionComment = commentId.startsWith("DC_");
 
+  const sanitizedMessage = sanitizeContent(message);
+
   try {
     if (isDiscussionComment) {
       // Update discussion comment using GraphQL
@@ -271,7 +276,7 @@ async function main() {
             }
           }
         }`,
-        { commentId: commentId, body: message }
+        { commentId: commentId, body: sanitizedMessage }
       );
 
       const comment = result.updateDiscussionComment.comment;
@@ -284,7 +289,7 @@ async function main() {
         owner: repoOwner,
         repo: repoName,
         comment_id: parseInt(commentId, 10),
-        body: message,
+        body: sanitizedMessage,
         headers: {
           Accept: "application/vnd.github+json",
         },

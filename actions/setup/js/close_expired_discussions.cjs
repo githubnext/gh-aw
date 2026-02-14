@@ -3,6 +3,7 @@
 
 const { executeExpiredEntityCleanup } = require("./expired_entity_main_flow.cjs");
 const { generateExpiredEntityFooter } = require("./generate_footer.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * Add comment to a GitHub Discussion using GraphQL
@@ -22,7 +23,7 @@ async function addDiscussionComment(github, discussionId, message) {
         }
       }
     }`,
-    { dId: discussionId, body: message }
+    { dId: discussionId, body: sanitizeContent(message) }
   );
 
   return result.addDiscussionComment.comment;

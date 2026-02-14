@@ -3,6 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getWorkflowIdMarkerContent } = require("./generate_footer.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * Maximum number of older issues to close
@@ -123,7 +124,7 @@ async function addIssueComment(github, owner, repo, issueNumber, message) {
     owner,
     repo,
     issue_number: issueNumber,
-    body: message,
+    body: sanitizeContent(message),
   });
 
   core.info(`  ✓ Comment created successfully with ID: ${result.data.id}`);
