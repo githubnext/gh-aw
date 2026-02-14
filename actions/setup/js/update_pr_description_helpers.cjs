@@ -8,6 +8,7 @@
  */
 
 const { getFooterMessage } = require("./messages_footer.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * Build the AI footer with workflow attribution
@@ -77,11 +78,14 @@ function findIsland(body, workflowId) {
 function updateBody(params) {
   const { currentBody, newContent, operation, workflowName, runUrl, workflowId, includeFooter = true } = params;
   const aiFooter = includeFooter ? buildAIFooter(workflowName, runUrl) : "";
+  
+  // Sanitize new content to prevent injection attacks
+  const sanitizedNewContent = sanitizeContent(newContent);
 
   if (operation === "replace") {
     // Replace: use new content with optional AI footer
     core.info("Operation: replace (full body replacement)");
-    return newContent + aiFooter;
+    return sanitizedNewContent + aiFooter;
   }
 
   if (operation === "replace-island") {
@@ -93,7 +97,7 @@ function updateBody(params) {
       core.info(`Operation: replace-island (updating existing island for workflow ${workflowId})`);
       const startMarker = buildIslandStartMarker(workflowId);
       const endMarker = buildIslandEndMarker(workflowId);
-      const islandContent = `${startMarker}\n${newContent}${aiFooter}\n${endMarker}`;
+      const islandContent = `${startMarker}\n${sanitizedNewContent}${aiFooter}\n${endMarker}`;
 
       const before = currentBody.substring(0, island.startIndex);
       const after = currentBody.substring(island.endIndex);
@@ -103,7 +107,7 @@ function updateBody(params) {
       core.info(`Operation: replace-island (island not found for workflow ${workflowId}, falling back to append)`);
       const startMarker = buildIslandStartMarker(workflowId);
       const endMarker = buildIslandEndMarker(workflowId);
-      const islandContent = `${startMarker}\n${newContent}${aiFooter}\n${endMarker}`;
+      const islandContent = `${startMarker}\n${sanitizedNewContent}${aiFooter}\n${endMarker}`;
       const appendSection = `\n\n---\n\n${islandContent}`;
       return currentBody + appendSection;
     }
@@ -112,13 +116,13 @@ function updateBody(params) {
   if (operation === "prepend") {
     // Prepend: add content, AI footer (if enabled), and horizontal line at the start
     core.info("Operation: prepend (add to start with separator)");
-    const prependSection = `${newContent}${aiFooter}\n\n---\n\n`;
+    const prependSection = `${sanitizedNewContent}${aiFooter}\n\n---\n\n`;
     return prependSection + currentBody;
   }
 
   // Default to append
   core.info("Operation: append (add to end with separator)");
-  const appendSection = `\n\n---\n\n${newContent}${aiFooter}`;
+  const appendSection = `\n\n---\n\n${sanitizedNewContent}${aiFooter}`;
   return currentBody + appendSection;
 }
 

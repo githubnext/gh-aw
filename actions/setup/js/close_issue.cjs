@@ -7,6 +7,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * Get issue details using REST API
@@ -151,6 +152,9 @@ async function main(config = {}) {
     }
 
     core.info(`Comment body determined: length=${commentToPost.length}, source=${commentSource}`);
+
+    // Sanitize content to prevent injection attacks
+    commentToPost = sanitizeContent(commentToPost);
 
     // Resolve and validate target repository
     const repoResult = resolveAndValidateRepo(item, defaultTargetRepo, allowedRepos, "issue");

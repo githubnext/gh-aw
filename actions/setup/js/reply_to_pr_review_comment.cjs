@@ -8,6 +8,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getPRNumber } = require("./update_context_helpers.cjs");
 
 /**
@@ -151,10 +152,10 @@ async function main(config = {}) {
       }
 
       // Append footer with workflow information when enabled
-      let finalBody = body;
+      let finalBody = sanitizeContent(body);
       if (includeFooter) {
         const footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, undefined, triggeringPRNumber, undefined);
-        finalBody = body.trimEnd() + footer;
+        finalBody = finalBody.trimEnd() + footer;
       }
 
       core.info(`Replying to review comment ${numericCommentId} on PR #${targetPRNumber} (${owner}/${repo})`);

@@ -4,6 +4,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -147,6 +148,9 @@ async function main(config = {}) {
     }
 
     core.info(`Comment body determined: length=${commentToPost.length}, source=${commentSource}`);
+
+    // Sanitize content to prevent injection attacks
+    commentToPost = sanitizeContent(commentToPost);
 
     // Determine PR number
     let prNumber;

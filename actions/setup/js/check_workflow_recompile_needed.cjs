@@ -103,7 +103,7 @@ async function main() {
       const footer = getFooterWorkflowRecompileCommentMessage(ctx);
       const xmlMarker = generateXMLMarker(workflowName, runUrl);
 
-      const commentBody = `Workflows are still out of sync.\n\n---\n${footer}\n\n${xmlMarker}`;
+      const commentBody = sanitizeContent(`Workflows are still out of sync.\n\n---\n${footer}\n\n${xmlMarker}`);
 
       await github.rest.issues.createComment({
         owner,
@@ -158,6 +158,7 @@ async function main() {
   const footer = getFooterWorkflowRecompileMessage(ctx);
   const xmlMarker = generateXMLMarker(workflowName, runUrl);
   issueBody += "\n\n---\n" + footer + "\n\n" + xmlMarker + "\n";
+  issueBody = sanitizeContent(issueBody);
 
   try {
     const newIssue = await github.rest.issues.create({

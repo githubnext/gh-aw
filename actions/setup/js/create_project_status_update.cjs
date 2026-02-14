@@ -3,6 +3,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -361,7 +362,7 @@ async function main(config = {}, githubClient = null) {
       const status = validateStatus(output.status);
       const startDate = formatDate(output.start_date);
       const targetDate = formatDate(output.target_date);
-      const body = String(output.body);
+      const body = sanitizeContent(String(output.body));
 
       core.info(`Creating status update: ${status} (${startDate} → ${targetDate})`);
       core.info(`Body preview: ${body.substring(0, 100)}${body.length > 100 ? "..." : ""}`);

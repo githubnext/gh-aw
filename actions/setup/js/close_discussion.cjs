@@ -6,6 +6,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * Get discussion details using GraphQL with pagination for labels
@@ -264,7 +265,8 @@ async function main(config = {}) {
       // Add comment if body is provided
       let commentUrl;
       if (item.body) {
-        const comment = await addDiscussionComment(github, discussion.id, item.body);
+        const sanitizedBody = sanitizeContent(item.body);
+        const comment = await addDiscussionComment(github, discussion.id, sanitizedBody);
         core.info(`Added comment to discussion #${discussionNumber}: ${comment.url}`);
         commentUrl = comment.url;
       }

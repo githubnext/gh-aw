@@ -14,6 +14,7 @@ const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 const { getMessages } = require("./messages_core.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "add_comment";
@@ -462,6 +463,9 @@ async function main(config = {}) {
 
     // Replace temporary ID references in body
     let processedBody = replaceTemporaryIdReferences(item.body || "", temporaryIdMap, itemRepo);
+
+    // Sanitize content to prevent injection attacks
+    processedBody = sanitizeContent(processedBody);
 
     // Enforce max limits before processing (validates user-provided content)
     try {

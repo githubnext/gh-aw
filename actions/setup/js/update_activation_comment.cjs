@@ -3,6 +3,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getMessages } = require("./messages_core.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * Update the activation comment with a link to the created pull request or issue
@@ -107,7 +108,8 @@ async function updateActivationCommentWithMessage(github, context, core, message
               }
             }`;
 
-        const variables = replyToId ? { dId: discussionId, body: message, replyToId } : { dId: discussionId, body: message };
+        const sanitizedMessage = sanitizeContent(message);
+        const variables = replyToId ? { dId: discussionId, body: sanitizedMessage, replyToId } : { dId: discussionId, body: sanitizedMessage };
         const result = await github.graphql(mutation, variables);
         const created = result?.addDiscussionComment?.comment;
         const successMessage = label ? `Successfully created append-only discussion comment with ${label} link` : "Successfully created append-only discussion comment";
@@ -124,11 +126,12 @@ async function updateActivationCommentWithMessage(github, context, core, message
         return;
       }
 
+      const sanitizedMessage = sanitizeContent(message);
       const response = await github.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
         owner: repoOwner,
         repo: repoName,
         issue_number: issueNumber,
-        body: message,
+        body: sanitizedMessage,
         headers: {
           Accept: "application/vnd.github+json",
         },
@@ -216,7 +219,7 @@ async function updateActivationCommentWithMessage(github, context, core, message
         return;
       }
       const currentBody = currentComment.data.body;
-      const updatedBody = currentBody + message;
+      const updatedBody = sanitizeContent(currentBody + message);
 
       // Update issue/PR comment using REST API
       const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {

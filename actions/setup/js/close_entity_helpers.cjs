@@ -6,6 +6,7 @@ const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * @typedef {'issue' | 'pull_request'} EntityType
@@ -57,7 +58,10 @@ function buildCommentBody(body, triggeringIssueNumber, triggeringPRNumber) {
   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
   const runUrl = buildRunUrl();
 
-  return body.trim() + getTrackerID("markdown") + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined);
+  // Sanitize the body content to prevent injection attacks
+  const sanitizedBody = sanitizeContent(body);
+
+  return sanitizedBody.trim() + getTrackerID("markdown") + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined);
 }
 
 /**

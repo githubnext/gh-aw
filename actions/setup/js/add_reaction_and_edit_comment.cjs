@@ -4,6 +4,7 @@
 const { getRunStartedMessage } = require("./messages_run_status.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 async function main() {
   // Read inputs from environment variables
@@ -353,6 +354,9 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     // Add comment type marker to identify this as a reaction comment
     // This prevents it from being hidden by hide-older-comments
     commentBody += `\n\n<!-- gh-aw-comment-type: reaction -->`;
+
+    // Sanitize content to prevent injection attacks (defense in depth for custom message templates)
+    commentBody = sanitizeContent(commentBody);
 
     // Handle discussion events specially
     if (eventName === "discussion") {

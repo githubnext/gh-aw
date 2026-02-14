@@ -7,6 +7,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request_review_comment";
@@ -282,7 +283,7 @@ async function main(config = {}) {
     const bufferedComment = {
       path: commentItem.path,
       line: line,
-      body: commentItem.body.trim(),
+      body: sanitizeContent(commentItem.body.trim()),
       side: side,
     };
 
