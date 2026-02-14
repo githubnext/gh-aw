@@ -78,7 +78,7 @@ function findIsland(body, workflowId) {
 function updateBody(params) {
   const { currentBody, newContent, operation, workflowName, runUrl, workflowId, includeFooter = true } = params;
   const aiFooter = includeFooter ? buildAIFooter(workflowName, runUrl) : "";
-  
+
   // Sanitize new content to prevent injection attacks
   const sanitizedNewContent = sanitizeContent(newContent);
 
