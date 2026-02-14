@@ -18,6 +18,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, normalizeTemporaryId, loadTemporaryIdMap, isTemporaryId } = require("./temporary_id.cjs");
 const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 const { setCollectedMissings } = require("./missing_messages_helper.cjs");
 const { writeSafeOutputSummaries } = require("./safe_output_summary.cjs");
 const { getIssuesToAssignCopilot } = require("./create_issue.cjs");
@@ -759,7 +760,7 @@ async function updateIssueBody(github, context, repo, issueNumber, updatedBody) 
     owner,
     repo: repoName,
     issue_number: issueNumber,
-    body: updatedBody,
+    body: sanitizeContent(updatedBody),
   });
 
   core.info(`✓ Updated issue ${repo}#${issueNumber}`);
@@ -812,7 +813,7 @@ async function updateDiscussionBody(github, context, repo, discussionNumber, upd
 
   await github.graphql(mutation, {
     discussionId,
-    body: updatedBody,
+    body: sanitizeContent(updatedBody),
   });
 
   core.info(`✓ Updated discussion ${repo}#${discussionNumber}`);
@@ -833,6 +834,8 @@ async function updateCommentBody(github, context, repo, commentId, updatedBody, 
 
   core.info(`Updating comment ${commentId} body with resolved temporary IDs`);
 
+  const sanitizedBody = sanitizeContent(updatedBody);
+
   if (isDiscussion) {
     // For discussion comments, we need to use GraphQL
     // Get the comment node ID first
@@ -848,7 +851,7 @@ async function updateCommentBody(github, context, repo, commentId, updatedBody, 
 
     await github.graphql(mutation, {
       commentId,
-      body: updatedBody,
+      body: sanitizedBody,
     });
   } else {
     // For issue/PR comments, use REST API
@@ -856,7 +859,7 @@ async function updateCommentBody(github, context, repo, commentId, updatedBody, 
       owner,
       repo: repoName,
       comment_id: commentId,
-      body: updatedBody,
+      body: sanitizedBody,
     });
   }
 

@@ -16,6 +16,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * @typedef {Object} UpdateRunnerConfig
@@ -130,6 +131,9 @@ function buildUpdateData(params) {
       if (titleForDedup) {
         processedBody = removeDuplicateTitleFromDescription(titleForDedup, processedBody);
       }
+
+      // Sanitize content to prevent injection attacks
+      processedBody = sanitizeContent(processedBody);
 
       updateData.body = processedBody;
       hasUpdates = true;
