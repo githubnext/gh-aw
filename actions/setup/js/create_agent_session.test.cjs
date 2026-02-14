@@ -36,7 +36,7 @@ describe("create_agent_session.cjs", () => {
         await main();
       } catch (error) {}
     };
-  (describe("basic functionality", () => {
+  ((describe("basic functionality", () => {
     (it("should handle missing environment variable", async () => {
       (delete process.env.GH_AW_AGENT_OUTPUT,
         await runScript(),
@@ -61,85 +61,82 @@ describe("create_agent_session.cjs", () => {
         (createAgentOutput([{ type: "create_issue", title: "Test", body: "Content" }]), await runScript(), expect(mockCore.info).toHaveBeenCalledWith("No create-agent-session items found in agent output"));
       }));
   }),
-    describe("staged mode", () => {
-      (beforeEach(() => {
-        ((process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true"), (process.env.GITHUB_AW_AGENT_SESSION_BASE = "main"), (process.env.GITHUB_REPOSITORY = "owner/repo"));
-      }),
-        it("should preview agent sessions in staged mode", async () => {
-          (createAgentOutput([
-            { type: "create_agent_session", body: "Implement feature X" },
-            { type: "create_agent_session", body: "Fix bug Y" },
-          ]),
-            await runScript(),
-            expect(mockCore.info).toHaveBeenCalled());
-          const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-          (expect(summaryCall[0]).toContain("🎭 Staged Mode: Create Agent Sessions Preview"),
-            expect(summaryCall[0]).toContain("Implement feature X"),
-            expect(summaryCall[0]).toContain("Fix bug Y"),
-            expect(summaryCall[0]).toContain("**Base Branch:** main"),
-            expect(summaryCall[0]).toContain("**Target Repository:** owner/repo"),
-            expect(mockCore.summary.write).toHaveBeenCalled());
-        }),
-        it("should handle task without body in staged mode", async () => {
-          (createAgentOutput([{ type: "create_agent_session", body: "" }]), await runScript());
-          const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-          expect(summaryCall[0]).toContain("No description provided");
-        }),
-        it("should use target repo when specified", async () => {
-          ((process.env.GITHUB_AW_TARGET_REPO = "org/target-repo"), createAgentOutput([{ type: "create_agent_session", body: "Test task" }]), await runScript());
-          const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-          expect(summaryCall[0]).toContain("**Target Repository:** org/target-repo");
-        }));
+  describe("staged mode", () => {
+    (beforeEach(() => {
+      ((process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true"), (process.env.GITHUB_AW_AGENT_SESSION_BASE = "main"), (process.env.GITHUB_REPOSITORY = "owner/repo"));
     }),
-    describe("agent session creation", () => {
-      (beforeEach(() => {
-        ((process.env.GITHUB_AW_AGENT_SESSION_BASE = "develop"), (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "false"));
+      it("should preview agent sessions in staged mode", async () => {
+        (createAgentOutput([
+          { type: "create_agent_session", body: "Implement feature X" },
+          { type: "create_agent_session", body: "Fix bug Y" },
+        ]),
+          await runScript(),
+          expect(mockCore.info).toHaveBeenCalled());
+        const summaryCall = mockCore.summary.addRaw.mock.calls[0];
+        (expect(summaryCall[0]).toContain("🎭 Staged Mode: Create Agent Sessions Preview"),
+          expect(summaryCall[0]).toContain("Implement feature X"),
+          expect(summaryCall[0]).toContain("Fix bug Y"),
+          expect(summaryCall[0]).toContain("**Base Branch:** main"),
+          expect(summaryCall[0]).toContain("**Target Repository:** owner/repo"),
+          expect(mockCore.summary.write).toHaveBeenCalled());
       }),
-        it("should skip tasks with empty body", async () => {
-          (createAgentOutput([
-            { type: "create_agent_session", body: "" },
-            { type: "create_agent_session", body: "  \n\t  " },
-          ]),
-            await runScript(),
-            expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Agent task description is empty, skipping")));
-        }),
-        it("should log agent output content length", async () => {
-          (createAgentOutput([{ type: "create_agent_session", body: "Test agent session description" }]),
-            await runScript(),
-            expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Agent output content length:")),
-            expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Found 1 create-agent-session item(s)")));
-        }));
-    }),
-    describe("output initialization", () => {
-      it("should initialize outputs to empty strings", async () => {
-        (delete process.env.GH_AW_AGENT_OUTPUT, await runScript(), expect(mockCore.setOutput).toHaveBeenCalledWith("session_number", ""), expect(mockCore.setOutput).toHaveBeenCalledWith("session_url", ""));
-      });
-    }),
-    describe("edge cases", () => {
-      (it("should handle output with no items array", async () => {
-        (fs.writeFileSync(testOutputFile, JSON.stringify({})), (process.env.GH_AW_AGENT_OUTPUT = testOutputFile), await runScript(), expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output"));
+      it("should handle task without body in staged mode", async () => {
+        (createAgentOutput([{ type: "create_agent_session", body: "" }]), await runScript());
+        const summaryCall = mockCore.summary.addRaw.mock.calls[0];
+        expect(summaryCall[0]).toContain("No description provided");
       }),
-        it("should handle output with non-array items", async () => {
-          (fs.writeFileSync(testOutputFile, JSON.stringify({ items: "not an array" })),
-            (process.env.GH_AW_AGENT_OUTPUT = testOutputFile),
-            await runScript(),
-            expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output"));
-        }),
-        it("should use default base branch when not specified", async () => {
-          (delete process.env.GITHUB_AW_AGENT_SESSION_BASE, delete process.env.GITHUB_REF_NAME, (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true"), createAgentOutput([{ type: "create_agent_session", body: "Test" }]), await runScript());
-          const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-          expect(summaryCall[0]).toContain("**Base Branch:** main");
-        }),
-        it("should use GITHUB_REF_NAME as fallback for base branch", async () => {
-          (delete process.env.GITHUB_AW_AGENT_SESSION_BASE,
-            (process.env.GITHUB_REF_NAME = "feature-branch"),
-            (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true"),
-            createAgentOutput([{ type: "create_agent_session", body: "Test" }]),
-            await runScript());
-          const summaryCall = mockCore.summary.addRaw.mock.calls[0];
-          expect(summaryCall[0]).toContain("**Base Branch:** main");
-        }));
-    })),
+      it("should use target repo when specified", async () => {
+        ((process.env.GITHUB_AW_TARGET_REPO = "org/target-repo"), createAgentOutput([{ type: "create_agent_session", body: "Test task" }]), await runScript());
+        const summaryCall = mockCore.summary.addRaw.mock.calls[0];
+        expect(summaryCall[0]).toContain("**Target Repository:** org/target-repo");
+      }));
+  }),
+  describe("agent session creation", () => {
+    (beforeEach(() => {
+      ((process.env.GITHUB_AW_AGENT_SESSION_BASE = "develop"), (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "false"));
+    }),
+      it("should skip tasks with empty body", async () => {
+        (createAgentOutput([
+          { type: "create_agent_session", body: "" },
+          { type: "create_agent_session", body: "  \n\t  " },
+        ]),
+          await runScript(),
+          expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Agent task description is empty, skipping")));
+      }),
+      it("should log agent output content length", async () => {
+        (createAgentOutput([{ type: "create_agent_session", body: "Test agent session description" }]),
+          await runScript(),
+          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Agent output content length:")),
+          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Found 1 create-agent-session item(s)")));
+      }));
+  }),
+  describe("output initialization", () => {
+    it("should initialize outputs to empty strings", async () => {
+      (delete process.env.GH_AW_AGENT_OUTPUT, await runScript(), expect(mockCore.setOutput).toHaveBeenCalledWith("session_number", ""), expect(mockCore.setOutput).toHaveBeenCalledWith("session_url", ""));
+    });
+  }),
+  describe("edge cases", () => {
+    (it("should handle output with no items array", async () => {
+      (fs.writeFileSync(testOutputFile, JSON.stringify({})), (process.env.GH_AW_AGENT_OUTPUT = testOutputFile), await runScript(), expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output"));
+    }),
+      it("should handle output with non-array items", async () => {
+        (fs.writeFileSync(testOutputFile, JSON.stringify({ items: "not an array" })), (process.env.GH_AW_AGENT_OUTPUT = testOutputFile), await runScript(), expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output"));
+      }),
+      it("should use default base branch when not specified", async () => {
+        (delete process.env.GITHUB_AW_AGENT_SESSION_BASE, delete process.env.GITHUB_REF_NAME, (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true"), createAgentOutput([{ type: "create_agent_session", body: "Test" }]), await runScript());
+        const summaryCall = mockCore.summary.addRaw.mock.calls[0];
+        expect(summaryCall[0]).toContain("**Base Branch:** main");
+      }),
+      it("should use GITHUB_REF_NAME as fallback for base branch", async () => {
+        (delete process.env.GITHUB_AW_AGENT_SESSION_BASE,
+          (process.env.GITHUB_REF_NAME = "feature-branch"),
+          (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true"),
+          createAgentOutput([{ type: "create_agent_session", body: "Test" }]),
+          await runScript());
+        const summaryCall = mockCore.summary.addRaw.mock.calls[0];
+        expect(summaryCall[0]).toContain("**Base Branch:** main");
+      }));
+  })),
     describe("Cross-repository allowlist validation", () => {
       it("should reject target repository not in allowlist", async () => {
         process.env.GITHUB_AW_TARGET_REPO = "other-owner/other-repo";
@@ -191,5 +188,5 @@ describe("create_agent_session.cjs", () => {
         expect(mockCore.setFailed).not.toHaveBeenCalled();
         expect(mockCore.setOutput).toHaveBeenCalledWith("session_number", "123");
       });
-    });
+    }));
 });
