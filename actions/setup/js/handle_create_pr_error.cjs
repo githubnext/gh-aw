@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { sanitizeContent } = require("./sanitize_content.cjs");
+
 /**
  * Handle create_pull_request permission errors
  * This script is called from the conclusion job when create_pull_request fails

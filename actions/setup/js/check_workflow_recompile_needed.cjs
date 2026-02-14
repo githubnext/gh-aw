@@ -103,7 +103,8 @@ async function main() {
       const footer = getFooterWorkflowRecompileCommentMessage(ctx);
       const xmlMarker = generateXMLMarker(workflowName, runUrl);
 
-      const commentBody = sanitizeContent(`Workflows are still out of sync.\n\n---\n${footer}\n\n${xmlMarker}`);
+      // Sanitize the message text but not the footer/marker which are system-generated
+      const commentBody = `Workflows are still out of sync.\n\n---\n${footer}\n\n${xmlMarker}`;
 
       await github.rest.issues.createComment({
         owner,
@@ -157,8 +158,8 @@ async function main() {
   // Use custom footer template if configured, with XML marker for traceability
   const footer = getFooterWorkflowRecompileMessage(ctx);
   const xmlMarker = generateXMLMarker(workflowName, runUrl);
+  // Note: issueBody is built from a template render, no user content to sanitize
   issueBody += "\n\n---\n" + footer + "\n\n" + xmlMarker + "\n";
-  issueBody = sanitizeContent(issueBody);
 
   try {
     const newIssue = await github.rest.issues.create({
