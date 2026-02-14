@@ -15,31 +15,31 @@ var importLog = logger.New("parser:import_processor")
 
 // ImportsResult holds the result of processing imports from frontmatter
 type ImportsResult struct {
-	MergedTools         string   // Merged tools configuration from all imports
-	MergedMCPServers    string   // Merged mcp-servers configuration from all imports
-	MergedEngines       []string // Merged engine configurations from all imports
-	MergedSafeOutputs   []string // Merged safe-outputs configurations from all imports
-	MergedSafeInputs    []string // Merged safe-inputs configurations from all imports
-	MergedMarkdown      string   // Only contains imports WITH inputs (for compile-time substitution)
-	ImportPaths         []string // List of import file paths for runtime-import macro generation (replaces MergedMarkdown)
-	MergedSteps         string   // Merged steps configuration from all imports (excluding copilot-setup-steps)
-	CopilotSetupSteps   string   // Steps from copilot-setup-steps.yml (inserted at start)
-	MergedRuntimes      string   // Merged runtimes configuration from all imports
-	MergedServices      string   // Merged services configuration from all imports
-	MergedNetwork       string   // Merged network configuration from all imports
-	MergedPermissions   string   // Merged permissions configuration from all imports
-	MergedSecretMasking string   // Merged secret-masking steps from all imports
-	MergedBots          []string // Merged bots list from all imports (union of bot names)
-	MergedPlugins       []string // Merged plugins list from all imports (union of plugin repos)
-	MergedPostSteps     string   // Merged post-steps configuration from all imports (appended in order)
-	MergedLabels        []string // Merged labels from all imports (union of label names)
-	MergedCaches        []string // Merged cache configurations from all imports (appended in order)
-	MergedJobs          string   // Merged jobs from imported YAML workflows (JSON format)
-	MergedFeatures      string   // Merged features configuration from all imports (JSON format)
-	ImportedFiles       []string // List of imported file paths (for manifest)
-	AgentFile           string   // Path to custom agent file (if imported)
-	AgentImportSpec     string   // Original import specification for agent file (e.g., "owner/repo/path@ref")
-	RepositoryImports   []string // List of repository imports (format: "owner/repo@ref") for .github folder merging
+	MergedTools         string           // Merged tools configuration from all imports
+	MergedMCPServers    string           // Merged mcp-servers configuration from all imports
+	MergedEngines       []string         // Merged engine configurations from all imports
+	MergedSafeOutputs   []string         // Merged safe-outputs configurations from all imports
+	MergedSafeInputs    []string         // Merged safe-inputs configurations from all imports
+	MergedMarkdown      string           // Only contains imports WITH inputs (for compile-time substitution)
+	ImportPaths         []string         // List of import file paths for runtime-import macro generation (replaces MergedMarkdown)
+	MergedSteps         string           // Merged steps configuration from all imports (excluding copilot-setup-steps)
+	CopilotSetupSteps   string           // Steps from copilot-setup-steps.yml (inserted at start)
+	MergedRuntimes      string           // Merged runtimes configuration from all imports
+	MergedServices      string           // Merged services configuration from all imports
+	MergedNetwork       string           // Merged network configuration from all imports
+	MergedPermissions   string           // Merged permissions configuration from all imports
+	MergedSecretMasking string           // Merged secret-masking steps from all imports
+	MergedBots          []string         // Merged bots list from all imports (union of bot names)
+	MergedPlugins       []string         // Merged plugins list from all imports (union of plugin repos)
+	MergedPostSteps     string           // Merged post-steps configuration from all imports (appended in order)
+	MergedLabels        []string         // Merged labels from all imports (union of label names)
+	MergedCaches        []string         // Merged cache configurations from all imports (appended in order)
+	MergedJobs          string           // Merged jobs from imported YAML workflows (JSON format)
+	MergedFeatures      []map[string]any // Merged features configuration from all imports (parsed YAML structures)
+	ImportedFiles       []string         // List of imported file paths (for manifest)
+	AgentFile           string           // Path to custom agent file (if imported)
+	AgentImportSpec     string           // Original import specification for agent file (e.g., "owner/repo/path@ref")
+	RepositoryImports   []string         // List of repository imports (format: "owner/repo@ref") for .github folder merging
 	// ImportInputs uses map[string]any because input values can be different types (string, number, boolean).
 	// This is parsed from YAML frontmatter where the structure is dynamic and not known at compile time.
 	// This is an appropriate use of 'any' for dynamic YAML/JSON data.
@@ -190,7 +190,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	labelsSet := make(map[string]bool)   // Set for deduplicating labels
 	var caches []string                  // Track cache configurations (appended in order)
 	var jobsBuilder strings.Builder      // Track jobs from imported YAML workflows
-	var featuresBuilder strings.Builder  // Track features configurations from imports
+	var features []map[string]any        // Track features configurations from imports (parsed structures)
 	var agentFile string                 // Track custom agent file
 	var agentImportSpec string           // Track agent import specification for remote imports
 	var repositoryImports []string       // Track repository-only imports for .github folder merging
@@ -641,10 +641,15 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			caches = append(caches, cacheContent)
 		}
 
-		// Extract features from imported file
+		// Extract features from imported file (parse as map structure)
 		featuresContent, err := extractFeaturesFromContent(string(content))
 		if err == nil && featuresContent != "" && featuresContent != "{}" {
-			featuresBuilder.WriteString(featuresContent + "\n")
+			// Parse JSON to map structure
+			var featuresMap map[string]any
+			if jsonErr := json.Unmarshal([]byte(featuresContent), &featuresMap); jsonErr == nil {
+				features = append(features, featuresMap)
+				log.Printf("Extracted features from import: %d entries", len(featuresMap))
+			}
 		}
 	}
 
@@ -675,7 +680,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		MergedLabels:        labels,
 		MergedCaches:        caches,
 		MergedJobs:          jobsBuilder.String(),
-		MergedFeatures:      featuresBuilder.String(),
+		MergedFeatures:      features,
 		ImportedFiles:       topologicalOrder,
 		AgentFile:           agentFile,
 		AgentImportSpec:     agentImportSpec,

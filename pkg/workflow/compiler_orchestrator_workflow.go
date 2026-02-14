@@ -67,7 +67,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	c.extractYAMLSections(result.Frontmatter, workflowData)
 
 	// Merge features from imports
-	if engineSetup.importsResult.MergedFeatures != "" {
+	if len(engineSetup.importsResult.MergedFeatures) > 0 {
 		mergedFeatures, err := c.MergeFeatures(workflowData.Features, engineSetup.importsResult.MergedFeatures)
 		if err != nil {
 			return nil, fmt.Errorf("failed to merge features from imports: %w", err)

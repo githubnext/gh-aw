@@ -691,11 +691,11 @@ func mergeMessagesConfig(result, imported *SafeOutputMessagesConfig) *SafeOutput
 
 // MergeFeatures merges features configurations from imports with top-level features
 // Features from top-level take precedence over imported features
-func (c *Compiler) MergeFeatures(topFeatures map[string]any, importedFeaturesJSON string) (map[string]any, error) {
+func (c *Compiler) MergeFeatures(topFeatures map[string]any, importedFeatures []map[string]any) (map[string]any, error) {
 	importsLog.Print("Merging features from imports")
 
 	// If no imported features, return top-level features as-is
-	if importedFeaturesJSON == "" || importedFeaturesJSON == "{}" {
+	if len(importedFeatures) == 0 {
 		importsLog.Print("No imported features to merge")
 		return topFeatures, nil
 	}
@@ -709,25 +709,12 @@ func (c *Compiler) MergeFeatures(topFeatures map[string]any, importedFeaturesJSO
 		importsLog.Printf("Starting with %d top-level features", len(topFeatures))
 	}
 
-	// Split by newlines to handle multiple JSON objects from different imports
-	lines := strings.Split(importedFeaturesJSON, "\n")
-	importsLog.Printf("Processing %d feature definition lines", len(lines))
+	// Process each imported features map
+	importsLog.Printf("Processing %d imported feature maps", len(importedFeatures))
 
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || line == "{}" {
-			continue
-		}
-
-		// Parse JSON line to features map
-		var importedFeatures map[string]any
-		if err := json.Unmarshal([]byte(line), &importedFeatures); err != nil {
-			importsLog.Printf("Skipping malformed feature entry: %v", err)
-			continue // Skip invalid lines
-		}
-
+	for _, importedFeaturesMap := range importedFeatures {
 		// Merge features - top-level features take precedence over imported ones
-		for featureName, featureValue := range importedFeatures {
+		for featureName, featureValue := range importedFeaturesMap {
 			// Only add feature if it's not already defined in top-level
 			if _, exists := result[featureName]; !exists {
 				importsLog.Printf("Merging feature from import: %s", featureName)
