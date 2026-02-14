@@ -79,13 +79,13 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	// Build AWF arguments
 	awfArgs := BuildAWFArgs(config)
 
-	// Wrap engine command in shell
-	shellWrappedCommand := WrapCommandInShell(config.EngineCommand, config.PathSetup)
+	// Wrap engine command in shell (command already includes any internal setup like npm PATH)
+	shellWrappedCommand := WrapCommandInShell(config.EngineCommand)
 
 	// Build the complete command with proper formatting
 	var command string
 	if config.PathSetup != "" {
-		// Include path setup before AWF command
+		// Include path setup before AWF command (runs on host before AWF)
 		command = fmt.Sprintf(`set -o pipefail
 %s
 %s %s \
@@ -94,11 +94,11 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 			awfCommand,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
-			config.LogFile)
+			shellEscapeArg(config.LogFile))
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
 %s %s \
-  -- %s 2>&1 | tee %s`,
+  -- %s 2>&1 | tee -a %s`,
 			awfCommand,
 			shellJoinArgs(awfArgs),
 			shellWrappedCommand,
@@ -231,24 +231,15 @@ func GetAWFCommandPrefix(workflowData *WorkflowData) string {
 // This is needed because AWF requires commands to be wrapped in shell for proper execution.
 //
 // Parameters:
-//   - command: The engine command to wrap
-//   - pathSetup: Optional PATH setup commands to prepend
+//   - command: The engine command to wrap (may include PATH setup and other initialization)
 //
 // Returns:
 //   - string: Shell-wrapped command suitable for AWF execution
-func WrapCommandInShell(command string, pathSetup string) string {
+func WrapCommandInShell(command string) string {
 	awfHelpersLog.Print("Wrapping command in shell for AWF execution")
 
-	// Combine path setup and command if path setup is provided
-	var fullCommand string
-	if pathSetup != "" {
-		fullCommand = fmt.Sprintf(`%s && %s`, pathSetup, command)
-	} else {
-		fullCommand = command
-	}
-
 	// Escape single quotes in the command by replacing ' with '\''
-	escapedCommand := strings.ReplaceAll(fullCommand, "'", "'\\''")
+	escapedCommand := strings.ReplaceAll(command, "'", "'\\''")
 
 	// Wrap in shell invocation
 	return fmt.Sprintf("/bin/bash -c '%s'", escapedCommand)
