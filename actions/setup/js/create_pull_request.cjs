@@ -24,6 +24,35 @@ const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const HANDLER_TYPE = "create_pull_request";
 
 /**
+ * Maximum limits for pull request parameters to prevent resource exhaustion.
+ * These limits align with GitHub's API constraints and security best practices.
+ */
+/** @type {number} Maximum number of files allowed per pull request */
+const MAX_FILES = 100;
+
+/**
+ * Enforces maximum limits on pull request parameters to prevent resource exhaustion attacks.
+ * Per Safe Outputs specification requirement SEC-003, limits must be enforced before API calls.
+ *
+ * @param {string} patchContent - Patch content to validate
+ * @throws {Error} When any limit is exceeded, with error code E003 and details
+ */
+function enforcePullRequestLimits(patchContent) {
+  if (!patchContent || !patchContent.trim()) {
+    return;
+  }
+
+  // Count files in patch by looking for "diff --git" lines
+  const fileMatches = patchContent.match(/^diff --git /gm);
+  const fileCount = fileMatches ? fileMatches.length : 0;
+
+  // Check file count - max limit exceeded check
+  if (fileCount > MAX_FILES) {
+    throw new Error(`E003: Cannot create pull request with more than ${MAX_FILES} files (received ${fileCount})`);
+  }
+}
+
+/**
  * Generate a patch preview with max 500 lines and 2000 chars for issue body
  * @param {string} patchContent - The full patch content
  * @returns {string} Formatted patch preview
@@ -218,6 +247,9 @@ async function main(config = {}) {
       patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
       isEmpty = !patchContent || !patchContent.trim();
     }
+
+    // Enforce max limits on patch before processing
+    enforcePullRequestLimits(patchContent);
 
     // Check for actual error conditions (but allow empty patches as valid noop)
     if (patchContent.includes("Failed to generate patch")) {

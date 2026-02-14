@@ -19,6 +19,27 @@ const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 
 /**
+ * Maximum limits for discussion parameters to prevent resource exhaustion.
+ * These limits align with GitHub's API constraints and security best practices.
+ */
+/** @type {number} Maximum number of labels allowed per discussion */
+const MAX_LABELS = 10;
+
+/**
+ * Enforces maximum limits on discussion parameters to prevent resource exhaustion attacks.
+ * Per Safe Outputs specification requirement SEC-003, limits must be enforced before API calls.
+ *
+ * @param {string[]} labels - Labels array to validate
+ * @throws {Error} When any limit is exceeded, with error code E003 and details
+ */
+function enforceDiscussionLimits(labels) {
+  // Check labels count - max limit exceeded check
+  if (labels && labels.length > MAX_LABELS) {
+    throw new Error(`E003: Cannot add more than ${MAX_LABELS} labels (received ${labels.length})`);
+  }
+}
+
+/**
  * Fetch repository ID and discussion categories for a repository
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
@@ -482,6 +503,9 @@ async function main(config = {}) {
       .filter(Boolean)
       .map(label => (label.length > 64 ? label.substring(0, 64) : label))
       .filter((label, index, arr) => arr.indexOf(label) === index);
+
+    // Enforce max limits on labels before API calls
+    enforceDiscussionLimits(discussionLabels);
 
     // Build title
     let title = item.title ? item.title.trim() : "";

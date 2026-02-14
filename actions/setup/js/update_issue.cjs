@@ -15,6 +15,36 @@ const { loadTemporaryProjectMap, replaceTemporaryProjectReferences } = require("
 const { sanitizeTitle } = require("./sanitize_title.cjs");
 
 /**
+ * Maximum limits for issue update parameters to prevent resource exhaustion.
+ * These limits align with GitHub's API constraints and security best practices.
+ */
+/** @type {number} Maximum number of labels allowed per issue */
+const MAX_LABELS = 10;
+
+/** @type {number} Maximum number of assignees allowed per issue */
+const MAX_ASSIGNEES = 5;
+
+/**
+ * Enforces maximum limits on issue update parameters to prevent resource exhaustion attacks.
+ * Per Safe Outputs specification requirement SEC-003, limits must be enforced before API calls.
+ *
+ * @param {string[]|undefined} labels - Labels array to validate
+ * @param {string[]|undefined} assignees - Assignees array to validate
+ * @throws {Error} When any limit is exceeded, with error code E003 and details
+ */
+function enforceIssueUpdateLimits(labels, assignees) {
+  // Check labels count - max limit exceeded check
+  if (labels && Array.isArray(labels) && labels.length > MAX_LABELS) {
+    throw new Error(`E003: Cannot update issue with more than ${MAX_LABELS} labels (received ${labels.length})`);
+  }
+
+  // Check assignees count - max limit exceeded check
+  if (assignees && Array.isArray(assignees) && assignees.length > MAX_ASSIGNEES) {
+    throw new Error(`E003: Cannot update issue with more than ${MAX_ASSIGNEES} assignees (received ${assignees.length})`);
+  }
+}
+
+/**
  * Execute the issue update API call
  * @param {any} github - GitHub API client
  * @param {any} context - GitHub Actions context
@@ -143,6 +173,9 @@ function buildIssueUpdateData(item, config) {
   if (item.milestone !== undefined) {
     updateData.milestone = item.milestone;
   }
+
+  // Enforce max limits on labels and assignees before API calls
+  enforceIssueUpdateLimits(updateData.labels, updateData.assignees);
 
   // Pass footer config to executeUpdate (default to true)
   updateData._includeFooter = config.footer !== false;
