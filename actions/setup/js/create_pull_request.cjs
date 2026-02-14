@@ -51,7 +51,6 @@ function enforcePullRequestLimits(patchContent) {
     throw new Error(`E003: Cannot create pull request with more than ${MAX_FILES} files (received ${fileCount})`);
   }
 }
-
 /**
  * Generate a patch preview with max 500 lines and 2000 chars for issue body
  * @param {string} patchContent - The full patch content
@@ -252,7 +251,7 @@ async function main(config = {}) {
     try {
       enforcePullRequestLimits(patchContent);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       core.warning(`Pull request limit exceeded: ${errorMessage}`);
       return { success: false, error: errorMessage };
     }

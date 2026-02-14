@@ -11,6 +11,7 @@ const HANDLER_TYPE = "add_labels";
 const { validateLabels } = require("./safe_output_validator.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 
 /**
  * Maximum limits for label parameters to prevent resource exhaustion.
@@ -18,20 +19,6 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
  */
 /** @type {number} Maximum number of labels allowed per operation */
 const MAX_LABELS = 10;
-
-/**
- * Enforces maximum limits on label parameters to prevent resource exhaustion attacks.
- * Per Safe Outputs specification requirement SEC-003, limits must be enforced before API calls.
- *
- * @param {string[]} labels - Labels array to validate
- * @throws {Error} When any limit is exceeded, with error code E003 and details
- */
-function enforceLabelLimits(labels) {
-  // Check labels count - max limit exceeded check
-  if (labels && labels.length > MAX_LABELS) {
-    throw new Error(`E003: Cannot add more than ${MAX_LABELS} labels (received ${labels.length})`);
-  }
-}
 
 /**
  * Main handler factory for add_labels
@@ -111,12 +98,10 @@ async function main(config = {}) {
     }
 
     // Enforce max limits on labels before validation
-    try {
-      enforceLabelLimits(requestedLabels);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      core.warning(`Label limit exceeded: ${errorMessage}`);
-      return { success: false, error: errorMessage };
+    const limitResult = tryEnforceArrayLimit(requestedLabels, MAX_LABELS, "labels");
+    if (!limitResult.success) {
+      core.warning(`Label limit exceeded: ${limitResult.error}`);
+      return { success: false, error: limitResult.error };
     }
 
     // Use validation helper to sanitize and validate labels

@@ -13,6 +13,7 @@ const { createUpdateHandlerFactory } = require("./update_handler_factory.cjs");
 const { updateBody } = require("./update_pr_description_helpers.cjs");
 const { loadTemporaryProjectMap, replaceTemporaryProjectReferences } = require("./temporary_id.cjs");
 const { sanitizeTitle } = require("./sanitize_title.cjs");
+const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 
 /**
  * Maximum limits for issue update parameters to prevent resource exhaustion.
@@ -23,26 +24,6 @@ const MAX_LABELS = 10;
 
 /** @type {number} Maximum number of assignees allowed per issue */
 const MAX_ASSIGNEES = 5;
-
-/**
- * Enforces maximum limits on issue update parameters to prevent resource exhaustion attacks.
- * Per Safe Outputs specification requirement SEC-003, limits must be enforced before API calls.
- *
- * @param {string[]|undefined} labels - Labels array to validate
- * @param {string[]|undefined} assignees - Assignees array to validate
- * @throws {Error} When any limit is exceeded, with error code E003 and details
- */
-function enforceIssueUpdateLimits(labels, assignees) {
-  // Check labels count - max limit exceeded check
-  if (labels && Array.isArray(labels) && labels.length > MAX_LABELS) {
-    throw new Error(`E003: Cannot update issue with more than ${MAX_LABELS} labels (received ${labels.length})`);
-  }
-
-  // Check assignees count - max limit exceeded check
-  if (assignees && Array.isArray(assignees) && assignees.length > MAX_ASSIGNEES) {
-    throw new Error(`E003: Cannot update issue with more than ${MAX_ASSIGNEES} assignees (received ${assignees.length})`);
-  }
-}
 
 /**
  * Execute the issue update API call
@@ -175,12 +156,16 @@ function buildIssueUpdateData(item, config) {
   }
 
   // Enforce max limits on labels and assignees before API calls
-  try {
-    enforceIssueUpdateLimits(updateData.labels, updateData.assignees);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    core.warning(`Issue update limit exceeded: ${errorMessage}`);
-    return { success: false, error: errorMessage };
+  const labelsLimitResult = tryEnforceArrayLimit(updateData.labels, MAX_LABELS, "labels");
+  if (!labelsLimitResult.success) {
+    core.warning(`Issue update limit exceeded: ${labelsLimitResult.error}`);
+    return { success: false, error: labelsLimitResult.error };
+  }
+
+  const assigneesLimitResult = tryEnforceArrayLimit(updateData.assignees, MAX_ASSIGNEES, "assignees");
+  if (!assigneesLimitResult.success) {
+    core.warning(`Issue update limit exceeded: ${assigneesLimitResult.error}`);
+    return { success: false, error: assigneesLimitResult.error };
   }
 
   // Pass footer config to executeUpdate (default to true)

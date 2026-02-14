@@ -17,6 +17,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
+const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 
 /**
  * Maximum limits for discussion parameters to prevent resource exhaustion.
@@ -24,20 +25,6 @@ const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
  */
 /** @type {number} Maximum number of labels allowed per discussion */
 const MAX_LABELS = 10;
-
-/**
- * Enforces maximum limits on discussion parameters to prevent resource exhaustion attacks.
- * Per Safe Outputs specification requirement SEC-003, limits must be enforced before API calls.
- *
- * @param {string[]} labels - Labels array to validate
- * @throws {Error} When any limit is exceeded, with error code E003 and details
- */
-function enforceDiscussionLimits(labels) {
-  // Check labels count - max limit exceeded check
-  if (labels && labels.length > MAX_LABELS) {
-    throw new Error(`E003: Cannot add more than ${MAX_LABELS} labels (received ${labels.length})`);
-  }
-}
 
 /**
  * Fetch repository ID and discussion categories for a repository
@@ -505,12 +492,10 @@ async function main(config = {}) {
       .filter((label, index, arr) => arr.indexOf(label) === index);
 
     // Enforce max limits on labels before API calls
-    try {
-      enforceDiscussionLimits(discussionLabels);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      core.warning(`Discussion limit exceeded: ${errorMessage}`);
-      return { success: false, error: errorMessage };
+    const limitResult = tryEnforceArrayLimit(discussionLabels, MAX_LABELS, "labels");
+    if (!limitResult.success) {
+      core.warning(`Discussion limit exceeded: ${limitResult.error}`);
+      return { success: false, error: limitResult.error };
     }
 
     // Build title

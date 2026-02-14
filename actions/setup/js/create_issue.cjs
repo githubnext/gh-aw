@@ -38,6 +38,7 @@ const { renderTemplate } = require("./messages_core.cjs");
 const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { closeOlderIssues } = require("./close_older_issues.cjs");
+const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const fs = require("fs");
 
 /**
@@ -62,26 +63,6 @@ const MAX_LABELS = 10;
 
 /** @type {number} Maximum number of assignees allowed per issue */
 const MAX_ASSIGNEES = 5;
-
-/**
- * Enforces maximum limits on issue parameters to prevent resource exhaustion attacks.
- * Per Safe Outputs specification requirement SEC-003, limits must be enforced before API calls.
- *
- * @param {string[]} labels - Labels array to validate
- * @param {string[]} assignees - Assignees array to validate
- * @throws {Error} When any limit is exceeded, with error code E003 and details
- */
-function enforceIssueLimits(labels, assignees) {
-  // Check labels count - max limit exceeded check
-  if (labels && labels.length > MAX_LABELS) {
-    throw new Error(`E003: Cannot add more than ${MAX_LABELS} labels (received ${labels.length})`);
-  }
-
-  // Check assignees count - max limit exceeded check
-  if (assignees && assignees.length > MAX_ASSIGNEES) {
-    throw new Error(`E003: Cannot add more than ${MAX_ASSIGNEES} assignees (received ${assignees.length})`);
-  }
-}
 
 /**
  * Searches for an existing parent issue that can accept more sub-issues
@@ -416,12 +397,16 @@ async function main(config = {}) {
     assignees = assignees.filter(assignee => assignee !== "copilot");
 
     // Enforce max limits on labels and assignees before API calls
-    try {
-      enforceIssueLimits(labels, assignees);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      core.warning(`Issue limit exceeded: ${errorMessage}`);
-      return { success: false, error: errorMessage };
+    const labelsLimitResult = tryEnforceArrayLimit(labels, MAX_LABELS, "labels");
+    if (!labelsLimitResult.success) {
+      core.warning(`Issue limit exceeded: ${labelsLimitResult.error}`);
+      return { success: false, error: labelsLimitResult.error };
+    }
+
+    const assigneesLimitResult = tryEnforceArrayLimit(assignees, MAX_ASSIGNEES, "assignees");
+    if (!assigneesLimitResult.success) {
+      core.warning(`Issue limit exceeded: ${assigneesLimitResult.error}`);
+      return { success: false, error: assigneesLimitResult.error };
     }
 
     let title = message.title?.trim() ?? "";
