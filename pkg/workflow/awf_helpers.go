@@ -27,6 +27,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -161,12 +162,12 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 	}
 
 	// Set log level
-	var awfLogLevel = "info"
+	awfLogLevel := string(constants.AWFDefaultLogLevel)
 	if firewallConfig != nil && firewallConfig.LogLevel != "" {
 		awfLogLevel = firewallConfig.LogLevel
 	}
 	awfArgs = append(awfArgs, "--log-level", awfLogLevel)
-	awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
+	awfArgs = append(awfArgs, "--proxy-logs-dir", string(constants.AWFProxyLogsDir))
 
 	// Add --enable-host-access when MCP servers are configured (gateway is used)
 	if HasMCPServers(config.WorkflowData) {
@@ -224,7 +225,7 @@ func GetAWFCommandPrefix(workflowData *WorkflowData) string {
 	}
 
 	awfHelpersLog.Print("Using standard AWF command")
-	return "sudo -E awf"
+	return string(constants.AWFDefaultCommand)
 }
 
 // WrapCommandInShell wraps an engine command in a shell invocation for AWF execution.
