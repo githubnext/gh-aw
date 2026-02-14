@@ -306,7 +306,7 @@ describe("update_pr_description_helpers.cjs", () => {
       const currentBody = "<!-- gh-aw-island-start:test-workflow -->\nOld\n<!-- gh-aw-island-end:test-workflow -->";
       const result = updateBody({
         currentBody,
-        newContent: "Content with **markdown**, `code`, [links](http://example.com)",
+        newContent: "Content with **markdown**, `code`, [links](https://github.com/example/repo)",
         operation: "replace-island",
         workflowName: "Test",
         runUrl: "https://github.com/test/actions/runs/123",
@@ -314,7 +314,7 @@ describe("update_pr_description_helpers.cjs", () => {
       });
       expect(result).toContain("**markdown**");
       expect(result).toContain("`code`");
-      expect(result).toContain("[links](http://example.com)");
+      expect(result).toContain("[links](https://github.com/example/repo)");
     });
 
     it("should handle newlines and whitespace correctly", () => {
