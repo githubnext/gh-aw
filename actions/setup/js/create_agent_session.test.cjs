@@ -1,21 +1,25 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 describe("create_agent_session.cjs", () => {
-  let mockCore, mockExec, testOutputFile;
+  let mockCore, mockExec, mockContext, testOutputFile;
   (beforeEach(() => {
     ((mockCore = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn(), setOutput: vi.fn(), summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() } }),
-      (mockExec = { exec: vi.fn().mockResolvedValue(0) }),
+      (mockExec = { exec: vi.fn().mockResolvedValue(0), getExecOutput: vi.fn() }),
+      (mockContext = { repo: { owner: "test-owner", repo: "test-repo" } }),
       (global.core = mockCore),
       (global.exec = mockExec),
+      (global.context = mockContext),
       (testOutputFile = `/tmp/test_agent_output_${Date.now()}.json`));
   }),
     afterEach(() => {
       (delete global.core,
         delete global.exec,
+        delete global.context,
         delete process.env.GH_AW_AGENT_OUTPUT,
         delete process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED,
         delete process.env.GITHUB_AW_AGENT_SESSION_BASE,
         delete process.env.GITHUB_AW_TARGET_REPO,
+        delete process.env.GH_AW_AGENT_SESSION_ALLOWED_REPOS,
         delete process.env.GITHUB_REPOSITORY,
         fs.existsSync(testOutputFile) && fs.unlinkSync(testOutputFile));
     }));
@@ -24,7 +28,7 @@ describe("create_agent_session.cjs", () => {
       (fs.writeFileSync(testOutputFile, JSON.stringify(output)), (process.env.GH_AW_AGENT_OUTPUT = testOutputFile));
     },
     runScript = async () => {
-      ((global.core = mockCore), (global.exec = mockExec));
+      ((global.core = mockCore), (global.exec = mockExec), (global.context = mockContext));
       const scriptPath = require("path").join(process.cwd(), "create_agent_session.cjs");
       delete require.cache[require.resolve(scriptPath)];
       try {

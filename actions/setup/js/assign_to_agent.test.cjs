@@ -489,6 +489,7 @@ describe("assign_to_agent", () => {
 
   it("should use target repository when configured", async () => {
     process.env.GH_AW_TARGET_REPO = "other-owner/other-repo";
+    process.env.GH_AW_AGENT_ALLOWED_REPOS = "other-owner/other-repo"; // Add to allowlist
     setAgentOutput({
       items: [
         {
