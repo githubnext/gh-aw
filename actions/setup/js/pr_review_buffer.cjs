@@ -7,6 +7,10 @@
  * Creates a buffer instance that collects PR review comments and review metadata
  * so they can be submitted as a single GitHub PR review via pulls.createReview().
  *
+ * Cross-repository validation: The review buffer receives pre-validated repository
+ * information from handlers like create_pr_review_comment.cjs which use
+ * validateTargetRepo/checkAllowedRepo before setting the review context.
+ *
  * Usage:
  *   const { createReviewBuffer } = require("./pr_review_buffer.cjs");
  *   const buffer = createReviewBuffer();

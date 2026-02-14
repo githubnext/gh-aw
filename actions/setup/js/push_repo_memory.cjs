@@ -7,6 +7,7 @@ const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { execGitSync } = require("./git_helpers.cjs");
+const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
 
 /**
  * Push repo-memory changes to git branch
@@ -89,6 +90,17 @@ async function main() {
   // Validate required environment variables
   if (!artifactDir || !memoryId || !targetRepo || !branchName || !ghToken) {
     core.setFailed("Missing required environment variables: ARTIFACT_DIR, MEMORY_ID, TARGET_REPO, BRANCH_NAME, GH_TOKEN");
+    return;
+  }
+
+  // Validate target repository against allowlist
+  const allowedReposEnv = process.env.REPO_MEMORY_ALLOWED_REPOS?.trim();
+  const allowedRepos = parseAllowedRepos(allowedReposEnv);
+  const defaultRepo = `${context.repo.owner}/${context.repo.repo}`;
+
+  const repoValidation = validateRepo(targetRepo, defaultRepo, allowedRepos);
+  if (!repoValidation.valid) {
+    core.setFailed(`E004: ${repoValidation.error}`);
     return;
   }
 

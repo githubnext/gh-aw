@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
+
 /**
  * Get the repository URL for different purposes
  * This helper handles trial mode where target repository URLs are different from execution context
@@ -14,9 +16,30 @@ function getRepositoryUrl(config) {
   // First check if there's a target-repo in config
   if (config && config["target-repo"]) {
     targetRepoSlug = config["target-repo"];
+
+    // Validate target repository against allowlist
+    const allowedRepos = parseAllowedRepos(config["allowed-repos"] || config.allowed_repos);
+    const defaultRepo = `${context.repo.owner}/${context.repo.repo}`;
+
+    const repoValidation = validateRepo(targetRepoSlug, defaultRepo, allowedRepos);
+    if (!repoValidation.valid) {
+      throw new Error(`E004: ${repoValidation.error}`);
+    }
   } else {
     // Fall back to env var for backward compatibility
     targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+
+    if (targetRepoSlug) {
+      // Validate env var target repository against allowlist
+      const allowedReposEnv = process.env.GH_AW_TARGET_REPO_ALLOWED_REPOS?.trim();
+      const allowedRepos = parseAllowedRepos(allowedReposEnv);
+      const defaultRepo = `${context.repo.owner}/${context.repo.repo}`;
+
+      const repoValidation = validateRepo(targetRepoSlug, defaultRepo, allowedRepos);
+      if (!repoValidation.valid) {
+        throw new Error(`E004: ${repoValidation.error}`);
+      }
+    }
   }
 
   if (targetRepoSlug) {

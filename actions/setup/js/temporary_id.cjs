@@ -1,6 +1,18 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+/**
+ * Temporary ID helper utilities for safe outputs
+ *
+ * This module provides helper functions for generating, validating, and resolving
+ * temporary IDs used to reference not-yet-created resources.
+ *
+ * NOTE: This is a utility library that provides helper functions for other handlers.
+ * It does not perform cross-repository operations directly. Handlers that use these
+ * utilities (like create_issue, add_comment, etc.) are responsible for validating
+ * target repositories against their configured allowlists (validateTargetRepo/checkAllowedRepo).
+ */
+
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 const crypto = require("crypto");

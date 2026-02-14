@@ -8,6 +8,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { loadTemporaryIdMap, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { sleep } = require("./error_recovery.cjs");
+const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
 
 async function main() {
   const result = loadAgentOutput();
@@ -93,9 +94,21 @@ async function main() {
   let targetOwner = context.repo.owner;
   let targetRepo = context.repo.repo;
 
+  // Get allowed repos configuration for cross-repo validation
+  const allowedReposEnv = process.env.GH_AW_AGENT_ALLOWED_REPOS?.trim();
+  const allowedRepos = parseAllowedRepos(allowedReposEnv);
+  const defaultRepo = `${context.repo.owner}/${context.repo.repo}`;
+
   if (targetRepoEnv) {
     const parts = targetRepoEnv.split("/");
     if (parts.length === 2) {
+      // Validate target repository against allowlist
+      const repoValidation = validateRepo(targetRepoEnv, defaultRepo, allowedRepos);
+      if (!repoValidation.valid) {
+        core.setFailed(`E004: ${repoValidation.error}`);
+        return;
+      }
+
       targetOwner = parts[0];
       targetRepo = parts[1];
       core.info(`Using target repository: ${targetOwner}/${targetRepo}`);
