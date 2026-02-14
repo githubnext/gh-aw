@@ -340,6 +340,29 @@ const (
 	EnvVarModelDetectionClaude = "GH_AW_MODEL_DETECTION_CLAUDE"
 	// EnvVarModelDetectionCodex configures the default Codex model for detection
 	EnvVarModelDetectionCodex = "GH_AW_MODEL_DETECTION_CODEX"
+
+	// Common environment variable names used across all engines
+
+	// EnvVarPrompt is the path to the workflow prompt file
+	EnvVarPrompt = "GH_AW_PROMPT"
+
+	// EnvVarMCPConfig is the path to the MCP configuration file
+	EnvVarMCPConfig = "GH_AW_MCP_CONFIG"
+
+	// EnvVarSafeOutputs is the safe-outputs configuration JSON
+	EnvVarSafeOutputs = "GH_AW_SAFE_OUTPUTS"
+
+	// EnvVarMaxTurns is the maximum number of turns for agent execution
+	EnvVarMaxTurns = "GH_AW_MAX_TURNS"
+
+	// EnvVarStartupTimeout is the tool startup timeout in seconds
+	EnvVarStartupTimeout = "GH_AW_STARTUP_TIMEOUT"
+
+	// EnvVarToolTimeout is the tool execution timeout in seconds
+	EnvVarToolTimeout = "GH_AW_TOOL_TIMEOUT"
+
+	// EnvVarGitHubToken is the GitHub token for repository access
+	EnvVarGitHubToken = "GH_AW_GITHUB_TOKEN"
 )
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
@@ -350,6 +373,17 @@ const DefaultGitHubMCPServerVersion Version = "v0.30.3"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion Version = "v0.18.0"
+
+// AWF (Agentic Workflow Firewall) constants
+
+// AWFDefaultCommand is the default AWF command prefix
+const AWFDefaultCommand = "sudo -E awf"
+
+// AWFProxyLogsDir is the default directory for AWF proxy logs
+const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
+
+// AWFDefaultLogLevel is the default log level for AWF
+const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
 const DefaultMCPGatewayVersion Version = "v0.1.4"
