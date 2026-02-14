@@ -478,5 +478,35 @@ describe("add_labels", () => {
       expect(addLabelsCalls[0].owner).toBe("github");
       expect(addLabelsCalls[0].repo).toBe("gh-aw");
     });
+
+    it("should enforce max limit on labels per operation", async () => {
+      const handler = await main({ max: 10 });
+
+      // Try to add more than MAX_LABELS (10)
+      const result = await handler(
+        {
+          item_number: 100,
+          labels: [
+            "label1",
+            "label2",
+            "label3",
+            "label4",
+            "label5",
+            "label6",
+            "label7",
+            "label8",
+            "label9",
+            "label10",
+            "label11", // 11th label exceeds limit
+          ],
+        },
+        {}
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("E003");
+      expect(result.error).toContain("Cannot add more than 10 labels");
+      expect(result.error).toContain("received 11");
+    });
   });
 });

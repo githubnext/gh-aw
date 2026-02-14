@@ -505,7 +505,13 @@ async function main(config = {}) {
       .filter((label, index, arr) => arr.indexOf(label) === index);
 
     // Enforce max limits on labels before API calls
-    enforceDiscussionLimits(discussionLabels);
+    try {
+      enforceDiscussionLimits(discussionLabels);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      core.warning(`Discussion limit exceeded: ${errorMessage}`);
+      return { success: false, error: errorMessage };
+    }
 
     // Build title
     let title = item.title ? item.title.trim() : "";

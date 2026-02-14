@@ -249,7 +249,13 @@ async function main(config = {}) {
     }
 
     // Enforce max limits on patch before processing
-    enforcePullRequestLimits(patchContent);
+    try {
+      enforcePullRequestLimits(patchContent);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      core.warning(`Pull request limit exceeded: ${errorMessage}`);
+      return { success: false, error: errorMessage };
+    }
 
     // Check for actual error conditions (but allow empty patches as valid noop)
     if (patchContent.includes("Failed to generate patch")) {
@@ -891,4 +897,4 @@ You can manually create a pull request from the branch if needed.${patchPreview}
   }; // End of handleCreatePullRequest
 } // End of main
 
-module.exports = { main };
+module.exports = { main, enforcePullRequestLimits };

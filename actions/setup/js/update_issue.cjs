@@ -175,7 +175,13 @@ function buildIssueUpdateData(item, config) {
   }
 
   // Enforce max limits on labels and assignees before API calls
-  enforceIssueUpdateLimits(updateData.labels, updateData.assignees);
+  try {
+    enforceIssueUpdateLimits(updateData.labels, updateData.assignees);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.warning(`Issue update limit exceeded: ${errorMessage}`);
+    return { success: false, error: errorMessage };
+  }
 
   // Pass footer config to executeUpdate (default to true)
   updateData._includeFooter = config.footer !== false;

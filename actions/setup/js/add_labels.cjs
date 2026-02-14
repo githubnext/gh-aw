@@ -111,7 +111,13 @@ async function main(config = {}) {
     }
 
     // Enforce max limits on labels before validation
-    enforceLabelLimits(requestedLabels);
+    try {
+      enforceLabelLimits(requestedLabels);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      core.warning(`Label limit exceeded: ${errorMessage}`);
+      return { success: false, error: errorMessage };
+    }
 
     // Use validation helper to sanitize and validate labels
     const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount);

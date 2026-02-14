@@ -390,4 +390,48 @@ describe("create_issue", () => {
       expect(createCall.body).toContain("Related to #456");
     });
   });
+
+  describe("max limit enforcement", () => {
+    it("should enforce max limit on labels", async () => {
+      const handler = await main({});
+
+      const result = await handler({
+        title: "Test Issue",
+        body: "Test body",
+        labels: [
+          "label1",
+          "label2",
+          "label3",
+          "label4",
+          "label5",
+          "label6",
+          "label7",
+          "label8",
+          "label9",
+          "label10",
+          "label11", // 11th label exceeds limit
+        ],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("E003");
+      expect(result.error).toContain("Cannot add more than 10 labels");
+      expect(result.error).toContain("received 11");
+    });
+
+    it("should enforce max limit on assignees", async () => {
+      const handler = await main({});
+
+      const result = await handler({
+        title: "Test Issue",
+        body: "Test body",
+        assignees: ["user1", "user2", "user3", "user4", "user5", "user6"], // 6 assignees exceeds limit of 5
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("E003");
+      expect(result.error).toContain("Cannot add more than 5 assignees");
+      expect(result.error).toContain("received 6");
+    });
+  });
 });

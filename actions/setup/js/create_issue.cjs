@@ -416,7 +416,13 @@ async function main(config = {}) {
     assignees = assignees.filter(assignee => assignee !== "copilot");
 
     // Enforce max limits on labels and assignees before API calls
-    enforceIssueLimits(labels, assignees);
+    try {
+      enforceIssueLimits(labels, assignees);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      core.warning(`Issue limit exceeded: ${errorMessage}`);
+      return { success: false, error: errorMessage };
+    }
 
     let title = message.title?.trim() ?? "";
 

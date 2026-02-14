@@ -1,5 +1,8 @@
 // @ts-check
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
 
 describe("create_pull_request - fallback-as-issue configuration", () => {
   describe("configuration parsing", () => {
@@ -44,5 +47,60 @@ describe("create_pull_request - fallback-as-issue configuration", () => {
       // - PR creation failure with fallback disabled: error_type: "pr_creation_failed"
       // - Permission error (always): error_type: "permission_denied"
     });
+  });
+});
+
+describe("create_pull_request - max limit enforcement", () => {
+  let mockFs;
+
+  beforeEach(() => {
+    // Mock fs module for patch reading
+    mockFs = {
+      existsSync: vi.fn().mockReturnValue(true),
+      readFileSync: vi.fn(),
+    };
+  });
+
+  it("should enforce max file limit on patch content", () => {
+    // Create a patch with more than MAX_FILES (100) files
+    const patchLines = [];
+    for (let i = 0; i < 101; i++) {
+      patchLines.push(`diff --git a/file${i}.txt b/file${i}.txt`);
+      patchLines.push("index 1234567..abcdefg 100644");
+      patchLines.push("--- a/file${i}.txt");
+      patchLines.push("+++ b/file${i}.txt");
+      patchLines.push("@@ -1,1 +1,1 @@");
+      patchLines.push("-old content");
+      patchLines.push("+new content");
+    }
+    const patchContent = patchLines.join("\n");
+
+    // Import the enforcement function
+    const { enforcePullRequestLimits } = require("./create_pull_request.cjs");
+
+    // Should throw E003 error
+    expect(() => enforcePullRequestLimits(patchContent)).toThrow("E003");
+    expect(() => enforcePullRequestLimits(patchContent)).toThrow("Cannot create pull request with more than 100 files");
+    expect(() => enforcePullRequestLimits(patchContent)).toThrow("received 101");
+  });
+
+  it("should allow patches under the file limit", () => {
+    // Create a patch with exactly MAX_FILES (100) files
+    const patchLines = [];
+    for (let i = 0; i < 100; i++) {
+      patchLines.push(`diff --git a/file${i}.txt b/file${i}.txt`);
+      patchLines.push("index 1234567..abcdefg 100644");
+      patchLines.push("--- a/file${i}.txt");
+      patchLines.push("+++ b/file${i}.txt");
+      patchLines.push("@@ -1,1 +1,1 @@");
+      patchLines.push("-old content");
+      patchLines.push("+new content");
+    }
+    const patchContent = patchLines.join("\n");
+
+    const { enforcePullRequestLimits } = require("./create_pull_request.cjs");
+
+    // Should not throw
+    expect(() => enforcePullRequestLimits(patchContent)).not.toThrow();
   });
 });
