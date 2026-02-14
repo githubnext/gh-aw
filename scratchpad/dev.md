@@ -1,7 +1,7 @@
 # Developer Instructions
 
-**Version**: 2.0
-**Last Updated**: 2026-02-12
+**Version**: 2.1
+**Last Updated**: 2026-02-14
 **Purpose**: Consolidated development guidelines for GitHub Agentic Workflows
 
 This document consolidates specifications from the scratchpad directory into unified developer instructions. It provides architecture patterns, security guidelines, code organization rules, and testing practices.
