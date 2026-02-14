@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -265,135 +264,36 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Build the full command based on whether firewall is enabled
 	var command string
 	if isFirewallEnabled(workflowData) {
-		// Build the AWF-wrapped command
-		firewallConfig := getFirewallConfig(workflowData)
-		agentConfig := getAgentConfig(workflowData)
-		var awfLogLevel = "info"
-		if firewallConfig != nil && firewallConfig.LogLevel != "" {
-			awfLogLevel = firewallConfig.LogLevel
-		}
-
+		// Build the AWF-wrapped command using helper function
 		// Get allowed domains (Claude defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
 		allowedDomains := GetClaudeAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 
-		// Build AWF arguments: standard flags + custom args from config
-		// AWF v0.15.0+ uses chroot mode by default, providing transparent access to host binaries
-		// and environment while maintaining network isolation
-		var awfArgs []string
-
-		// TTY is required for Claude Code CLI
-		awfArgs = append(awfArgs, "--tty")
-
-		// Pass all environment variables to the container
-		awfArgs = append(awfArgs, "--env-all")
-
-		// Set container working directory to match GITHUB_WORKSPACE
-		// This ensures pwd inside the container matches what the prompt tells the AI
-		awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")
-		claudeLog.Print("Set container working directory to GITHUB_WORKSPACE")
-
-		// Add custom mounts from agent config if specified
-		if agentConfig != nil && len(agentConfig.Mounts) > 0 {
-			// Sort mounts for consistent output
-			sortedMounts := make([]string, len(agentConfig.Mounts))
-			copy(sortedMounts, agentConfig.Mounts)
-			sort.Strings(sortedMounts)
-
-			for _, mount := range sortedMounts {
-				awfArgs = append(awfArgs, "--mount", mount)
-			}
-			claudeLog.Printf("Added %d custom mounts from agent config", len(sortedMounts))
-		}
-
-		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
-
-		// Add blocked domains if specified
-		blockedDomains := formatBlockedDomains(workflowData.NetworkPermissions)
-		if blockedDomains != "" {
-			awfArgs = append(awfArgs, "--block-domains", blockedDomains)
-			claudeLog.Printf("Added blocked domains: %s", blockedDomains)
-		}
-
-		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
-		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
-
-		// Add --enable-host-access when MCP servers are configured (gateway is used)
-		// This allows awf to access host.docker.internal for MCP gateway communication
-		if HasMCPServers(workflowData) {
-			awfArgs = append(awfArgs, "--enable-host-access")
-			claudeLog.Print("Added --enable-host-access for MCP gateway communication")
-		}
-
-		// Pin AWF Docker image version to match the installed binary version
-		awfImageTag := getAWFImageTag(firewallConfig)
-		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
-		claudeLog.Printf("Pinned AWF image tag to %s", awfImageTag)
-
-		// Skip pulling images since they are pre-downloaded in the Download container images step
-		awfArgs = append(awfArgs, "--skip-pull")
-		claudeLog.Print("Using --skip-pull since images are pre-downloaded")
-
 		// Enable API proxy sidecar if this engine supports LLM gateway
-		// The api-proxy container holds the LLM API keys and proxies requests through the firewall
 		llmGatewayPort := e.SupportsLLMGateway()
-		if llmGatewayPort > 0 {
-			awfArgs = append(awfArgs, "--enable-api-proxy")
-			claudeLog.Printf("Added --enable-api-proxy for LLM API proxying on port %d", llmGatewayPort)
-		}
+		usesAPIProxy := llmGatewayPort > 0
 
-		// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
-		sslBumpArgs := getSSLBumpArgs(firewallConfig)
-		awfArgs = append(awfArgs, sslBumpArgs...)
-
-		// Add custom args if specified in firewall config
-		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
-			awfArgs = append(awfArgs, firewallConfig.Args...)
-		}
-
-		// Add custom args from agent config if specified
-		if agentConfig != nil && len(agentConfig.Args) > 0 {
-			awfArgs = append(awfArgs, agentConfig.Args...)
-			claudeLog.Printf("Added %d custom args from agent config", len(agentConfig.Args))
-		}
-
-		// Determine the AWF command to use (custom or standard)
-		var awfCommand string
-		if agentConfig != nil && agentConfig.Command != "" {
-			awfCommand = agentConfig.Command
-			claudeLog.Printf("Using custom AWF command: %s", awfCommand)
-		} else {
-			awfCommand = "sudo -E awf"
-			claudeLog.Print("Using standard AWF command")
-		}
-
-		// Build the command with AWF wrapper
-		//
+		// Build AWF command with all configuration
+		// AWF v0.15.0+ uses chroot mode by default, providing transparent access to host binaries
 		// AWF with --enable-chroot and --env-all handles most PATH setup natively:
 		// - GOROOT, JAVA_HOME, etc. are handled via AWF_HOST_PATH and entrypoint.sh
 		// However, npm-installed CLIs (like claude) need hostedtoolcache bin directories in PATH.
-		//
-		// AWF requires the command to be wrapped in a shell invocation because the claude command
-		// contains && chains that need shell interpretation. We use bash -c with properly escaped command.
-		// Add PATH setup to find npm-installed binaries in hostedtoolcache
+		// We prepend GetNpmBinPathSetup() to the engine command so it runs inside the AWF container.
 		npmPathSetup := GetNpmBinPathSetup()
 		claudeCommandWithPath := fmt.Sprintf(`%s && %s`, npmPathSetup, claudeCommand)
-		// Escape single quotes in the command by replacing ' with '\''
-		escapedClaudeCommand := strings.ReplaceAll(claudeCommandWithPath, "'", "'\\''")
-		shellWrappedCommand := fmt.Sprintf("/bin/bash -c '%s'", escapedClaudeCommand)
 
 		// Note: Claude Code CLI writes debug logs to --debug-file and JSON output to stdout
 		// Use tee to capture stdout (stream-json output) to the log file while also displaying on console
 		// The combined output (debug logs + JSON) will be in the log file for parsing
-		if promptSetup != "" {
-			command = fmt.Sprintf(`set -o pipefail
-          %s
-%s %s \
-  -- %s 2>&1 | tee -a %s`, promptSetup, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand, logFile)
-		} else {
-			command = fmt.Sprintf(`set -o pipefail
-%s %s \
-  -- %s 2>&1 | tee -a %s`, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand, logFile)
-		}
+		command = BuildAWFCommand(AWFCommandConfig{
+			EngineName:     "claude",
+			EngineCommand:  claudeCommandWithPath, // Command with npm PATH setup runs inside AWF
+			LogFile:        logFile,
+			WorkflowData:   workflowData,
+			UsesTTY:        true, // Claude Code CLI requires TTY
+			UsesAPIProxy:   usesAPIProxy,
+			AllowedDomains: allowedDomains,
+			PathSetup:      promptSetup, // Prompt setup runs BEFORE AWF on the host
+		})
 	} else {
 		// Run Claude command without AWF wrapper
 		// Note: Claude Code CLI writes debug logs to --debug-file and JSON output to stdout
