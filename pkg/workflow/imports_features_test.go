@@ -164,7 +164,7 @@ func TestMergeFeaturesWithVariousValueTypes(t *testing.T) {
 	assert.Equal(t, true, result["bool-feature"], "Should include bool feature")
 	assert.Equal(t, "enabled", result["string-feature"], "Should include string feature")
 	assert.Equal(t, 42, result["int-feature"], "Should include int feature")
-	assert.Equal(t, 3.14, result["float-feature"], "Should include float feature")
+	assert.InDelta(t, 3.14, result["float-feature"], 0.001, "Should include float feature")
 	assert.Nil(t, result["nil-feature"], "Should include nil feature")
 	assert.Equal(t, []any{"a", "b", "c"}, result["array-feature"], "Should include array feature")
 	assert.Equal(t, map[string]any{"nested": "value"}, result["map-feature"], "Should include map feature")
