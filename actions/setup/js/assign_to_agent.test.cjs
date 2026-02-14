@@ -1033,4 +1033,114 @@ describe("assign_to_agent", () => {
     const delayMessages = mockCore.info.mock.calls.filter(call => call[0].includes("Waiting 10 seconds before processing next agent assignment"));
     expect(delayMessages).toHaveLength(2);
   }, 30000); // Increase timeout to 30 seconds to account for 2x10s delays
+
+  describe("Cross-repository allowlist validation", () => {
+    it("should reject target repository not in allowlist", async () => {
+      process.env.GH_AW_TARGET_REPO = "other-owner/other-repo";
+      process.env.GH_AW_AGENT_ALLOWED_REPOS = "allowed-owner/allowed-repo";
+
+      setAgentOutput({
+        items: [
+          {
+            type: "assign_to_agent",
+            issue_number: 42,
+            agent: "copilot",
+          },
+        ],
+        errors: [],
+      });
+
+      await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("E004:"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("not in the allowed-repos list"));
+    });
+
+    it("should allow target repository in allowlist", async () => {
+      process.env.GH_AW_TARGET_REPO = "allowed-owner/allowed-repo";
+      process.env.GH_AW_AGENT_ALLOWED_REPOS = "allowed-owner/allowed-repo,other-owner/other-repo";
+
+      setAgentOutput({
+        items: [
+          {
+            type: "assign_to_agent",
+            issue_number: 42,
+            agent: "copilot",
+          },
+        ],
+        errors: [],
+      });
+
+      // Mock GraphQL responses
+      mockGithub.graphql
+        .mockResolvedValueOnce({
+          repository: {
+            suggestedActors: {
+              nodes: [{ login: "copilot-swe-agent", id: "MDQ6VXNlcjE=" }],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          repository: {
+            issue: { id: "issue-id", assignees: { nodes: [] } },
+          },
+        })
+        .mockResolvedValueOnce({
+          addAssigneesToAssignable: {
+            assignable: { assignees: { nodes: [{ login: "copilot-swe-agent" }] } },
+          },
+        });
+
+      await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      // Check that the target repository was used and assignment proceeded
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using target repository: allowed-owner/allowed-repo"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Looking for copilot coding agent"));
+    }, 20000);
+
+    it("should allow default repository even without allowlist", async () => {
+      // Default repo is test-owner/test-repo (from mockContext)
+      process.env.GH_AW_TARGET_REPO = "test-owner/test-repo";
+      // Empty or no allowlist
+
+      setAgentOutput({
+        items: [
+          {
+            type: "assign_to_agent",
+            issue_number: 42,
+            agent: "copilot",
+          },
+        ],
+        errors: [],
+      });
+
+      // Mock GraphQL responses
+      mockGithub.graphql
+        .mockResolvedValueOnce({
+          repository: {
+            suggestedActors: {
+              nodes: [{ login: "copilot-swe-agent", id: "MDQ6VXNlcjE=" }],
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          repository: {
+            issue: { id: "issue-id", assignees: { nodes: [] } },
+          },
+        })
+        .mockResolvedValueOnce({
+          addAssigneesToAssignable: {
+            assignable: { assignees: { nodes: [{ login: "copilot-swe-agent" }] } },
+          },
+        });
+
+      await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      // Check that assignment proceeded without errors
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using target repository: test-owner/test-repo"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Looking for copilot coding agent"));
+    }, 20000);
+  });
 });

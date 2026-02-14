@@ -135,5 +135,57 @@ describe("create_agent_session.cjs", () => {
           const summaryCall = mockCore.summary.addRaw.mock.calls[0];
           expect(summaryCall[0]).toContain("**Base Branch:** main");
         }));
-    }));
+    })),
+    describe("Cross-repository allowlist validation", () => {
+      it("should reject target repository not in allowlist", async () => {
+        process.env.GITHUB_AW_TARGET_REPO = "other-owner/other-repo";
+        process.env.GH_AW_AGENT_SESSION_ALLOWED_REPOS = "allowed-owner/allowed-repo";
+
+        createAgentOutput([{ type: "create_agent_session", body: "Test task" }]);
+
+        await runScript();
+
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("E004:"));
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("not in the allowed-repos list"));
+      });
+
+      it("should allow target repository in allowlist", async () => {
+        process.env.GITHUB_AW_TARGET_REPO = "allowed-owner/allowed-repo";
+        process.env.GH_AW_AGENT_SESSION_ALLOWED_REPOS = "allowed-owner/allowed-repo";
+
+        createAgentOutput([{ type: "create_agent_session", body: "Test task" }]);
+
+        // Mock gh CLI command
+        mockExec.getExecOutput.mockResolvedValueOnce({
+          exitCode: 0,
+          stdout: "https://github.com/allowed-owner/allowed-repo/issues/123",
+          stderr: "",
+        });
+
+        await runScript();
+
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        expect(mockCore.setOutput).toHaveBeenCalledWith("session_number", "123");
+      });
+
+      it("should allow default repository without allowlist", async () => {
+        // No GITHUB_AW_TARGET_REPO set, uses default
+        delete process.env.GITHUB_AW_TARGET_REPO;
+        delete process.env.GH_AW_AGENT_SESSION_ALLOWED_REPOS;
+
+        createAgentOutput([{ type: "create_agent_session", body: "Test task" }]);
+
+        // Mock gh CLI command
+        mockExec.getExecOutput.mockResolvedValueOnce({
+          exitCode: 0,
+          stdout: "https://github.com/test-owner/test-repo/issues/123",
+          stderr: "",
+        });
+
+        await runScript();
+
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        expect(mockCore.setOutput).toHaveBeenCalledWith("session_number", "123");
+      });
+    });
 });
