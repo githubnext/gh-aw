@@ -297,17 +297,11 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		token = data.SafeOutputs.AddComments.GitHubToken
 	}
 
-	// Only add the conclusion update step if status comments are enabled
-	// Status comments are enabled when:
-	// 1. status-comment is explicitly set to true, OR
-	// 2. status-comment is not set AND ai-reaction is configured (backward compatibility)
+	// Only add the conclusion update step if status comments are explicitly enabled
+	// Status comments are only enabled when status-comment is explicitly set to true
 	shouldUpdateStatusComment := false
 	if data.StatusComment != nil {
-		// Explicit status-comment setting takes precedence
 		shouldUpdateStatusComment = *data.StatusComment
-	} else if data.AIReaction != "" && data.AIReaction != "none" {
-		// Default to true for backward compatibility when ai-reaction is set
-		shouldUpdateStatusComment = true
 	}
 
 	if shouldUpdateStatusComment {

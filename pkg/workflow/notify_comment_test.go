@@ -28,7 +28,7 @@ func TestConclusionJob(t *testing.T) {
 			command:            nil,
 			safeOutputJobNames: []string{"add_comment", "create_issue", "missing_tool"},
 			expectJob:          true,
-			expectUpdateStep:   true,
+			expectUpdateStep:   false, // No automatic bundling - status-comment must be explicit
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
@@ -43,7 +43,7 @@ func TestConclusionJob(t *testing.T) {
 			command:            nil,
 			safeOutputJobNames: []string{"add_comment", "create_issue", "missing_tool"},
 			expectJob:          true,
-			expectUpdateStep:   true,
+			expectUpdateStep:   false, // No automatic bundling - status-comment must be explicit
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
@@ -97,7 +97,7 @@ func TestConclusionJob(t *testing.T) {
 			command:            []string{"test-command"},
 			safeOutputJobNames: []string{"missing_tool"},
 			expectJob:          true,
-			expectUpdateStep:   true,
+			expectUpdateStep:   false, // No automatic bundling - status-comment must be explicit
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
@@ -111,7 +111,7 @@ func TestConclusionJob(t *testing.T) {
 			command:            []string{"mergefest"},
 			safeOutputJobNames: []string{"push_to_pull_request_branch", "missing_tool"},
 			expectJob:          true,
-			expectUpdateStep:   true,
+			expectUpdateStep:   false, // No automatic bundling - status-comment must be explicit
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
@@ -139,7 +139,7 @@ func TestConclusionJob(t *testing.T) {
 			command:            nil,
 			safeOutputJobNames: []string{"add_comment", "create_issue", "my_custom_job", "another_custom_safe_job"},
 			expectJob:          true,
-			expectUpdateStep:   true,
+			expectUpdateStep:   false, // No automatic bundling - status-comment must be explicit
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
@@ -264,9 +264,11 @@ func TestConclusionJob(t *testing.T) {
 func TestConclusionJobIntegration(t *testing.T) {
 	// Test that the job is properly integrated with activation job outputs
 	compiler := NewCompiler()
+	statusCommentTrue := true
 	workflowData := &WorkflowData{
-		Name:       "Test Workflow",
-		AIReaction: "eyes", // This causes the activation job to create a comment
+		Name:          "Test Workflow",
+		AIReaction:    "eyes",
+		StatusComment: &statusCommentTrue, // Explicitly enable status comments
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -332,9 +334,11 @@ func TestConclusionJobIntegration(t *testing.T) {
 func TestConclusionJobWithMessages(t *testing.T) {
 	// Test that the conclusion job includes custom messages when configured
 	compiler := NewCompiler()
+	statusCommentTrue := true
 	workflowData := &WorkflowData{
-		Name:       "Test Workflow",
-		AIReaction: "eyes",
+		Name:          "Test Workflow",
+		AIReaction:    "eyes",
+		StatusComment: &statusCommentTrue, // Explicitly enable status comments
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -425,9 +429,11 @@ func TestConclusionJobWithoutMessages(t *testing.T) {
 func TestActivationJobWithMessages(t *testing.T) {
 	// Test that the activation job includes custom messages when configured
 	compiler := NewCompiler()
+	statusCommentTrue := true
 	workflowData := &WorkflowData{
-		Name:       "Test Workflow",
-		AIReaction: "eyes",
+		Name:          "Test Workflow",
+		AIReaction:    "eyes",
+		StatusComment: &statusCommentTrue, // Explicitly enable status comments
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -514,9 +520,11 @@ func TestActivationJobWithoutMessages(t *testing.T) {
 func TestConclusionJobWithGeneratedAssets(t *testing.T) {
 	compiler := NewCompiler()
 
+	statusCommentTrue := true
 	// Create workflow data with safe outputs configuration
 	workflowData := &WorkflowData{
-		Name: "Test Workflow",
+		Name:          "Test Workflow",
+		StatusComment: &statusCommentTrue, // Explicitly enable status comments
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -682,11 +690,11 @@ func TestStatusCommentDecoupling(t *testing.T) {
 		safeOutputJobNames       []string
 	}{
 		{
-			name:                     "backward compatibility: ai-reaction creates status comments",
+			name:                     "ai-reaction without status-comment: no automatic bundling",
 			aiReaction:               "eyes",
 			statusComment:            nil,
-			expectActivationComment:  true,
-			expectConclusionUpdate:   true,
+			expectActivationComment:  false, // Breaking change: no automatic bundling
+			expectConclusionUpdate:   false, // Breaking change: no automatic bundling
 			expectActivationReaction: true,
 			safeOutputJobNames:       []string{"missing_tool"},
 		},

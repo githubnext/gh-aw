@@ -62,10 +62,10 @@ Test workflow with ai-reaction but no status comments.
 	assert.NotContains(t, lockContentStr, "Update reaction comment with completion status",
 		"Should NOT have conclusion update step")
 
-	// Test backward compatibility - no status-comment field
-	testWorkflowPath2 := filepath.Join(tmpDir, "test-backward-compat.md")
+	// Test reaction without status-comment (breaking change - no automatic bundling)
+	testWorkflowPath2 := filepath.Join(tmpDir, "test-reaction-only.md")
 	testWorkflowContent2 := `---
-name: test-backward-compat
+name: test-reaction-only
 on:
   reaction: eyes
   issues:
@@ -76,9 +76,9 @@ safe-outputs:
     max: 1
 ---
 
-# Test Backward Compatibility
+# Test Reaction Only
 
-Test workflow with ai-reaction and default status comments.
+Test workflow with ai-reaction but no status-comment field (should NOT create status comments).
 `
 	err = os.WriteFile(testWorkflowPath2, []byte(testWorkflowContent2), 0644)
 	require.NoError(t, err, "Failed to write test workflow 2")
@@ -88,18 +88,18 @@ Test workflow with ai-reaction and default status comments.
 	require.NoError(t, err, "Failed to compile workflow 2")
 
 	// Read the generated lock file
-	lockFilePath2 := filepath.Join(tmpDir, "test-backward-compat.lock.yml")
+	lockFilePath2 := filepath.Join(tmpDir, "test-reaction-only.lock.yml")
 	lockContent2, err := os.ReadFile(lockFilePath2)
 	require.NoError(t, err, "Failed to read lock file 2")
 	lockContentStr2 := string(lockContent2)
 
-	// Verify the workflow has reactions AND status comments
+	// Verify the workflow has reactions but NO status comments (breaking change)
 	assert.Contains(t, lockContentStr2, "Add eyes reaction for immediate feedback",
 		"Should have reaction step in pre-activation job")
-	assert.Contains(t, lockContentStr2, "Add comment with workflow run link",
-		"Should have activation comment step for backward compatibility")
-	assert.Contains(t, lockContentStr2, "Update reaction comment with completion status",
-		"Should have conclusion update step for backward compatibility")
+	assert.NotContains(t, lockContentStr2, "Add comment with workflow run link",
+		"Should NOT have activation comment step (no automatic bundling)")
+	assert.NotContains(t, lockContentStr2, "Update reaction comment with completion status",
+		"Should NOT have conclusion update step (no automatic bundling)")
 
 	// Test explicit status-comment: true
 	testWorkflowPath3 := filepath.Join(tmpDir, "test-explicit-true.md")

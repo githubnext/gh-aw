@@ -1,9 +1,9 @@
 ---
 title: Reaction Without Status Comments
-description: Example workflow showing how to decouple ai-reaction emoji from status comments
+description: Example workflow showing how to use ai-reaction and status-comment independently
 ---
 
-This example demonstrates the new `status-comment` field that allows you to have reaction emojis without posting "started/completed" status comments.
+This example demonstrates how `reaction` and `status-comment` work independently - both must be explicitly enabled.
 
 ## Use Case
 
@@ -17,7 +17,7 @@ name: reaction-only-workflow
 description: Uses ai-reaction without status comments
 on:
   reaction: eyes           # Adds 👀 reaction
-  status-comment: false    # No "started/completed" comments
+  # status-comment not specified = no status comments
   issues:
     types: [opened, labeled]
 engine: copilot
@@ -40,39 +40,27 @@ When this workflow runs:
 
 ## Comparison with Other Configurations
 
-### Reaction Only (New Feature)
+### Reaction Only (No Status Comments)
 
 ```yaml
 on:
   reaction: eyes
-  status-comment: false
+  # status-comment not specified or set to false
 ```
 
 **Result**: 👀 reaction only, no comments
 
 ---
 
-### Default Behavior (Backward Compatible)
+### Reaction + Status Comments
 
 ```yaml
 on:
   reaction: eyes
-  # status-comment not specified
+  status-comment: true    # Must be explicit
 ```
 
-**Result**: 👀 reaction + status comments (preserves existing behavior)
-
----
-
-### Explicit Status Comments
-
-```yaml
-on:
-  reaction: eyes
-  status-comment: true
-```
-
-**Result**: 👀 reaction + status comments (same as default)
+**Result**: 👀 reaction + status comments
 
 ---
 
@@ -92,6 +80,18 @@ on:
 
 ```yaml
 on:
+  status-comment: true
+  # no reaction specified
+```
+
+**Result**: Status comments only, no reaction
+
+---
+
+### Neither Enabled
+
+```yaml
+on:
   # neither reaction nor status-comment specified
   issues:
     types: [opened]
@@ -101,12 +101,12 @@ on:
 
 ## When to Use
 
-- **Use `status-comment: false`** when you want:
-  - Visual acknowledgment (reaction) without noisy status updates
+- **Use reaction only** (no `status-comment`) when you want:
+  - Visual acknowledgment without noisy status updates
   - Cleaner issue/PR conversations
   - Multiple workflows on the same trigger (avoid comment spam)
 
-- **Use default behavior** (reaction with comments) when you want:
+- **Use both** (`reaction` + `status-comment: true`) when you want:
   - Full transparency about workflow execution
-  - Links to workflow runs for debugging
+  - Visual acknowledgment + links to workflow runs for debugging
   - Status updates in the conversation thread

@@ -431,18 +431,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs["body"] = "${{ steps.compute-text.outputs.body }}"
 	}
 
-	// Add comment with workflow run link if status comments are enabled
+	// Add comment with workflow run link if status comments are explicitly enabled
 	// Note: The reaction was already added in the pre-activation job for immediate feedback
-	// Status comments are enabled when:
-	// 1. status-comment is explicitly set to true, OR
-	// 2. status-comment is not set AND ai-reaction is configured (backward compatibility)
+	// Status comments are only enabled when status-comment is explicitly set to true
 	shouldCreateStatusComment := false
 	if data.StatusComment != nil {
-		// Explicit status-comment setting takes precedence
 		shouldCreateStatusComment = *data.StatusComment
-	} else if data.AIReaction != "" && data.AIReaction != "none" {
-		// Default to true for backward compatibility when ai-reaction is set
-		shouldCreateStatusComment = true
 	}
 
 	if shouldCreateStatusComment {
