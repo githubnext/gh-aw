@@ -1472,7 +1472,7 @@ func TestCopilotEnginePluginDiscoveryWithSRT(t *testing.T) {
 			Plugins: []string{"github/auto-agentics"},
 		},
 		SandboxConfig: &SandboxConfig{
-			Type: "sandbox-runtime",
+			Type: "awf",
 		},
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")

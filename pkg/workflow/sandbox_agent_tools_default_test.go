@@ -311,7 +311,7 @@ func TestIsSandboxEnabled(t *testing.T) {
 			name: "agent srt explicitly configured",
 			sandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
-					Type: SandboxTypeSRT,
+					Type: SandboxTypeAWF,
 				},
 			},
 			networkPermissions: nil,
@@ -341,7 +341,7 @@ func TestIsSandboxEnabled(t *testing.T) {
 			name: "agent with ID srt",
 			sandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
-					ID: "srt",
+					ID: "awf",
 				},
 			},
 			networkPermissions: nil,
@@ -396,7 +396,7 @@ func TestIsSandboxEnabled(t *testing.T) {
 		{
 			name: "legacy SRT via Type field",
 			sandboxConfig: &SandboxConfig{
-				Type: SandboxTypeSRT,
+				Type: SandboxTypeAWF,
 			},
 			networkPermissions: nil,
 			expected:           true,

@@ -21,7 +21,7 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, Sandbox Runtime, MCP Gateway) for new versions
+# Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, MCP Gateway) for new versions
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -29,7 +29,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 2fcfe506ecb23c2829551c210825eb2c75bf8e8e08655a9c2a93b882fff9f412
+# frontmatter-hash: 1b10358b8d2f4999ed67f66a35cc17a28187f23df86e9ee09c277566cf9802fb
 
 name: "CLI Version Checker"
 "on":
@@ -1045,7 +1045,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "CLI Version Checker"
-          WORKFLOW_DESCRIPTION: "Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, Sandbox Runtime, MCP Gateway) for new versions"
+          WORKFLOW_DESCRIPTION: "Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright Browser, MCP Gateway) for new versions"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |

@@ -328,7 +328,6 @@ func TestFeatureFlagConstants(t *testing.T) {
 	}{
 		{"SafeInputsFeatureFlag", SafeInputsFeatureFlag, "safe-inputs"},
 		{"MCPGatewayFeatureFlag", MCPGatewayFeatureFlag, "mcp-gateway"},
-		{"SandboxRuntimeFeatureFlag", SandboxRuntimeFeatureFlag, "sandbox-runtime"},
 		{"DangerousPermissionsWriteFeatureFlag", DangerousPermissionsWriteFeatureFlag, "dangerous-permissions-write"},
 		{"DisableXPIAPromptFeatureFlag", DisableXPIAPromptFeatureFlag, "disable-xpia-prompt"},
 	}

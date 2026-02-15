@@ -80,7 +80,7 @@ func TestGetAgentType(t *testing.T) {
 			name: "ID field takes precedence over Type",
 			agent: &AgentSandboxConfig{
 				ID:   "awf",
-				Type: SandboxTypeSRT,
+				Type: SandboxTypeAWF,
 			},
 			expected: "awf",
 		},
@@ -94,9 +94,9 @@ func TestGetAgentType(t *testing.T) {
 		{
 			name: "ID field only",
 			agent: &AgentSandboxConfig{
-				ID: "srt",
+				ID: "awf",
 			},
-			expected: "srt",
+			expected: "awf",
 		},
 	}
 

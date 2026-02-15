@@ -484,7 +484,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 		}
 
 		sandboxConfig := &SandboxConfig{
-			Type: SandboxTypeRuntime,
+			Type: SandboxTypeAWF,
 		}
 
 		err := compiler.validateStrictFirewall("copilot", networkPerms, sandboxConfig)
