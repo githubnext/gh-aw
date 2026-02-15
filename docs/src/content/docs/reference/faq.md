@@ -301,7 +301,7 @@ GitHub Actions prevents the `GITHUB_TOKEN` from triggering new workflow runs to 
 
 **Workarounds:**
 
-If you need CI checks to run on PRs created by agentic workflows, you have two options:
+If you need CI checks to run on PRs created by agentic workflows, you have three options:
 
 **Option 1: Use a Personal Access Token (PAT)**
 
@@ -318,7 +318,30 @@ The PAT must have `repo` scope (or `public_repo` for public repositories only) a
 > [!CAUTION]
 > Using a PAT bypasses GitHub's recursive workflow protection. Ensure your CI workflows cannot trigger the PR creation workflow to avoid infinite loops. Consider using conditional expressions with `if: github.actor != 'automation-user'` to prevent recursive execution.
 
-**Option 2: Use workflow_run trigger**
+**Option 2: Use a GitHub App**
+
+Create a GitHub App and use its authentication token instead of `GITHUB_TOKEN`. This is the recommended approach for organizations as it provides better security, auditability, and granular permissions:
+
+```yaml wrap
+# In your workflow frontmatter
+env:
+  GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+
+steps:
+  - name: Generate token
+    id: generate-token
+    uses: actions/create-github-app-token@v1
+    with:
+      app-id: ${{ secrets.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+```
+
+The GitHub App must have **Contents** (read and write) and **Pull requests** (read and write) permissions. PRs created with the app's token will trigger CI workflows and be attributed to the app.
+
+> [!TIP]
+> GitHub Apps provide better security than PATs because they have repository-scoped permissions, automatic token expiration, and don't require a user account. They're ideal for organization-wide automation.
+
+**Option 3: Use workflow_run trigger**
 
 Configure your CI workflows to run on `workflow_run` events, which allows them to react to completed workflows:
 
@@ -333,7 +356,7 @@ This approach maintains security while allowing CI to run after PR creation. See
 
 **Recommendation:**
 
-For most use cases, **Option 1 (PAT with a service account)** provides the best balance of automation and control. Configure the PAT as a repository secret and ensure proper safeguards are in place to prevent recursive workflow execution.
+For organizations, **Option 2 (GitHub App)** provides the best security and auditability. For individual users or smaller teams, **Option 1 (PAT with a service account)** is simpler to set up. In both cases, ensure proper safeguards are in place to prevent recursive workflow execution.
 
 ## Workflow Design
 
