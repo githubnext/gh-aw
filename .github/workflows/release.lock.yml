@@ -779,7 +779,12 @@ jobs:
           # Fix permissions on firewall logs so they can be uploaded as artifacts
           # AWF runs with sudo, creating files owned by root
           sudo chmod -R a+r /tmp/gh-aw/sandbox/firewall/logs 2>/dev/null || true
-          awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
+          # Only run awf logs summary if awf command exists (it may not be installed if workflow failed before install step)
+          if command -v awf &> /dev/null; then
+            awf logs summary | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'AWF binary not installed, skipping firewall log summary'
+          fi
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
