@@ -38,7 +38,7 @@ This specification follows World Wide Web Consortium (W3C) formatting convention
 8. [Protocol Exchange Patterns](#8-protocol-exchange-patterns)
 9. [Content Integrity Mechanisms](#9-content-integrity-mechanisms)
 10. [Execution Guarantees](#10-execution-guarantees)
-11. [Appendices](#appendices)
+11. [Appendices](#appendix-a-conformance-checklist)
 
 ---
 
