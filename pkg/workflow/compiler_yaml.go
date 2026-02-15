@@ -320,22 +320,23 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// For a workflow at ".github/workflows/test.md", the runtime-import path should be ".github/workflows/test.md"
 	// This makes the path explicit and matches the actual file location in the repository
 	var workflowFilePath string
-	if strings.Contains(c.markdownPath, ".github") {
+	
+	// Normalize path separators first to handle both Unix and Windows paths consistently
+	normalizedPath := filepath.ToSlash(c.markdownPath)
+	
+	// Look for "/.github/" as a directory (not just substring in repo name like "username.github.io")
+	// We need to match the directory component, not arbitrary substrings
+	githubDirPattern := "/.github/"
+	githubIndex := strings.Index(normalizedPath, githubDirPattern)
+	
+	if githubIndex != -1 {
 		// Extract everything from ".github/" onwards (inclusive)
-		githubIndex := strings.Index(c.markdownPath, ".github")
-		if githubIndex != -1 {
-			workflowFilePath = c.markdownPath[githubIndex:]
-		} else {
-			// Fallback
-			workflowFilePath = workflowBasename
-		}
+		// +1 to skip the leading slash, so we get ".github/workflows/..." not "/.github/workflows/..."
+		workflowFilePath = normalizedPath[githubIndex+1:]
 	} else {
 		// For non-standard paths (like /tmp/test.md), just use the basename
 		workflowFilePath = workflowBasename
 	}
-
-	// Normalize to Unix paths (forward slashes) for cross-platform compatibility
-	workflowFilePath = filepath.ToSlash(workflowFilePath)
 
 	// Create a runtime-import macro for the main workflow markdown
 	// The runtime_import.cjs helper will extract and process the markdown body at runtime
