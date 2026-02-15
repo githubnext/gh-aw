@@ -12,7 +12,7 @@ engine:
       env:
         GH_AW_AGENT_VERSION: ${{ env.GH_AW_AGENT_VERSION }}
     
-    - name: Configure OpenCode MCP servers
+    - name: Configure OpenCode MCP Servers
       run: |
         set -e
         

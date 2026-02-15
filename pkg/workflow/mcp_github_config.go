@@ -293,7 +293,7 @@ func (c *Compiler) generateGitHubMCPLockdownDetectionStep(yaml *strings.Builder,
 	customToken := getGitHubToken(githubTool)
 
 	// Generate the step using the determine_automatic_lockdown.cjs action
-	yaml.WriteString("      - name: Determine automatic lockdown mode for GitHub MCP server\n")
+	yaml.WriteString("      - name: Determine automatic lockdown mode for GitHub MCP Server\n")
 	yaml.WriteString("        id: determine-automatic-lockdown\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", pinnedAction)
 	yaml.WriteString("        env:\n")

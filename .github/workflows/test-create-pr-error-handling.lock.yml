@@ -207,7 +207,7 @@ jobs:
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.18.0
       - name: Install Claude Code CLI
         run: npm install -g --silent @anthropic-ai/claude-code@2.1.42
-      - name: Determine automatic lockdown mode for GitHub MCP server
+      - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
@@ -436,7 +436,7 @@ jobs:
           
           bash /opt/gh-aw/actions/start_safe_outputs_server.sh
           
-      - name: Start MCP gateway
+      - name: Start MCP Gateway
         id: start-mcp-gateway
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -744,7 +744,7 @@ jobs:
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
-      - name: Stop MCP gateway
+      - name: Stop MCP Gateway
         if: always()
         continue-on-error: true
         env:
@@ -809,7 +809,7 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/parse_claude_log.cjs');
             await main();
-      - name: Parse MCP gateway logs for step summary
+      - name: Parse MCP Gateway logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:

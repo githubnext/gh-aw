@@ -29,7 +29,7 @@
 #     - shared/github-queries-safe-input.md
 #     - shared/opencode.md
 #
-# frontmatter-hash: d7ea9f6b705bec24bd415c5489ca46da93aee3b997063dbb0222cb233db1669a
+# frontmatter-hash: 28e9c4039471e8b2fe3bf4891f7597efb7b97942685b566faa9cd57656009e5c
 
 name: "Smoke OpenCode"
 "on":
@@ -222,7 +222,7 @@ jobs:
             
             // Set model as output for reuse in other steps/jobs
             core.setOutput('model', awInfo.model);
-      - name: Determine automatic lockdown mode for GitHub MCP server
+      - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
@@ -1027,7 +1027,7 @@ jobs:
           
           bash /opt/gh-aw/actions/start_safe_inputs_server.sh
           
-      - name: Start MCP gateway
+      - name: Start MCP Gateway
         id: start-mcp-gateway
         env:
           GH_AW_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -1258,7 +1258,7 @@ jobs:
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-      - name: Configure OpenCode MCP servers
+      - name: Configure OpenCode MCP Servers
         run: |
           set -e
 
@@ -1345,7 +1345,7 @@ jobs:
           SERVER_URL_STRIPPED="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
-      - name: Stop MCP gateway
+      - name: Stop MCP Gateway
         if: always()
         continue-on-error: true
         env:
@@ -1417,7 +1417,7 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/parse_safe_inputs_logs.cjs');
             await main();
-      - name: Parse MCP gateway logs for step summary
+      - name: Parse MCP Gateway logs for step summary
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
@@ -1624,7 +1624,7 @@ jobs:
           GH_AW_AGENT_VERSION: 0.15.13
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-      - name: Configure OpenCode MCP servers
+      - name: Configure OpenCode MCP Servers
         run: |
           set -e
 

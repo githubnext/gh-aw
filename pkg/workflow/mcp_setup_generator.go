@@ -445,7 +445,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// The MCP gateway is always enabled, even when agent sandbox is disabled
 	// Use the engine's RenderMCPConfig method
-	yaml.WriteString("      - name: Start MCP gateway\n")
+	yaml.WriteString("      - name: Start MCP Gateway\n")
 	yaml.WriteString("        id: start-mcp-gateway\n")
 
 	// Collect all MCP-related environment variables using centralized helper
