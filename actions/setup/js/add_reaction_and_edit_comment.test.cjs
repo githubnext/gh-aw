@@ -235,6 +235,50 @@ const mockCore = {
               (global.context.payload = { repository: { html_url: "https://github.com/testowner/testrepo" } }),
               await eval(`(async () => { ${reactionScript}; await main(); })()`),
               expect(mockCore.setFailed).toHaveBeenCalledWith("Unsupported event type: push"));
+          }),
+          it("should silently ignore locked issue errors (status 403)", async () => {
+            const lockedError = new Error("Issue is locked");
+            lockedError.status = 403;
+            ((process.env.GH_AW_REACTION = "eyes"),
+              (global.context.eventName = "issues"),
+              (global.context.payload = { issue: { number: 123 }, repository: { html_url: "https://github.com/testowner/testrepo" } }),
+              mockGithub.request.mockRejectedValueOnce(lockedError),
+              await eval(`(async () => { ${reactionScript}; await main(); })()`),
+              expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("resource is locked")),
+              expect(mockCore.error).not.toHaveBeenCalled(),
+              expect(mockCore.setFailed).not.toHaveBeenCalled());
+          }),
+          it("should silently ignore locked issue errors (message contains 'locked')", async () => {
+            ((process.env.GH_AW_REACTION = "eyes"),
+              (global.context.eventName = "issues"),
+              (global.context.payload = { issue: { number: 123 }, repository: { html_url: "https://github.com/testowner/testrepo" } }),
+              mockGithub.request.mockRejectedValueOnce(new Error("Lock conversation is enabled")),
+              await eval(`(async () => { ${reactionScript}; await main(); })()`),
+              expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("resource is locked")),
+              expect(mockCore.error).not.toHaveBeenCalled(),
+              expect(mockCore.setFailed).not.toHaveBeenCalled());
+          }),
+          it("should fail for 403 errors that don't mention locked", async () => {
+            const forbiddenError = new Error("Forbidden: insufficient permissions");
+            forbiddenError.status = 403;
+            ((process.env.GH_AW_REACTION = "eyes"),
+              (global.context.eventName = "issues"),
+              (global.context.payload = { issue: { number: 123 }, repository: { html_url: "https://github.com/testowner/testrepo" } }),
+              mockGithub.request.mockRejectedValueOnce(forbiddenError),
+              await eval(`(async () => { ${reactionScript}; await main(); })()`),
+              expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction")),
+              expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction")));
+          }),
+          it("should fail for other non-403 errors", async () => {
+            const serverError = new Error("Internal server error");
+            serverError.status = 500;
+            ((process.env.GH_AW_REACTION = "eyes"),
+              (global.context.eventName = "issues"),
+              (global.context.payload = { issue: { number: 123 }, repository: { html_url: "https://github.com/testowner/testrepo" } }),
+              mockGithub.request.mockRejectedValueOnce(serverError),
+              await eval(`(async () => { ${reactionScript}; await main(); })()`),
+              expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction")),
+              expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction")));
           }));
       }));
   }));
