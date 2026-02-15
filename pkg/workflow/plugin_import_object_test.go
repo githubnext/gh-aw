@@ -77,11 +77,11 @@ Test plugin imports with object format
 		"Should install top-level MCP plugin")
 
 	// Verify MCP environment variables are in the gateway step
-	assert.Contains(t, lockContent, "Start MCP gateway",
+	assert.Contains(t, lockContent, "Start MCP Gateway",
 		"Should have MCP gateway step")
 
 	// Extract the MCP gateway section
-	startIdx := strings.Index(lockContent, "Start MCP gateway")
+	startIdx := strings.Index(lockContent, "Start MCP Gateway")
 	require.Positive(t, startIdx, "MCP gateway step should exist")
 
 	endIdx := strings.Index(lockContent[startIdx:], "- name:")

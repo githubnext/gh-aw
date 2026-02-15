@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// TestGitHubToolDisabled tests the github: false functionality to disable the GitHub MCP server
+// TestGitHubToolDisabled tests the github: false functionality to disable the GitHub MCP Server
 func TestGitHubToolDisabled(t *testing.T) {
 	compiler := NewCompiler()
 

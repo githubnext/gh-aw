@@ -9,7 +9,7 @@ import (
 )
 
 // TestCollectMCPEnvironmentVariables_HTTPMCPWithSecrets tests that HTTP MCP servers
-// with secrets in headers get their environment variables added to the Start MCP gateway step
+// with secrets in headers get their environment variables added to the Start MCP Gateway step
 func TestCollectMCPEnvironmentVariables_HTTPMCPWithSecrets(t *testing.T) {
 	tools := map[string]any{
 		"github": map[string]any{

@@ -361,7 +361,7 @@ func TestTemplateInjectionRealWorldPatterns(t *testing.T) {
 		yaml := `jobs:
   agent:
     steps:
-      - name: Stop MCP gateway
+      - name: Stop MCP Gateway
         if: always()
         continue-on-error: true
         env:
@@ -382,7 +382,7 @@ func TestTemplateInjectionRealWorldPatterns(t *testing.T) {
 		yaml := `jobs:
   agent:
     steps:
-      - name: Stop MCP gateway
+      - name: Stop MCP Gateway
         if: always()
         continue-on-error: true
         env:

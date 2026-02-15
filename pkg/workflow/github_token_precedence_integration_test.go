@@ -224,7 +224,7 @@ Test that top-level github-token is used in Codex engine.
 		}
 
 		// Verify that the MCP gateway config uses GITHUB_PERSONAL_ACCESS_TOKEN with the env var reference
-		// The JSON config passes the token to the GitHub MCP server container
+		// The JSON config passes the token to the GitHub MCP Server container
 		if !strings.Contains(yamlContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"`) {
 			t.Error("Expected MCP gateway config to pass GITHUB_PERSONAL_ACCESS_TOKEN from GITHUB_MCP_SERVER_TOKEN env var")
 			t.Logf("Generated YAML:\n%s", yamlContent)

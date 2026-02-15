@@ -100,7 +100,7 @@ func (c *Compiler) generateStopMCPGateway(yaml *strings.Builder, data *WorkflowD
 	yaml.WriteString("        continue-on-error: true\n")
 
 	// Add environment variables for graceful shutdown via /close endpoint
-	// These values come from the Start MCP gateway step outputs
+	// These values come from the Start MCP Gateway step outputs
 	// Security: Pass all step outputs through environment variables to prevent template injection
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          MCP_GATEWAY_PORT: ${{ steps.start-mcp-gateway.outputs.gateway-port }}\n")

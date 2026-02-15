@@ -59,8 +59,8 @@ Test workflow to verify sandbox.agent: false is accepted and disables agent sand
 		}
 
 		// Verify that MCP gateway IS present (gateway always enabled)
-		if !strings.Contains(lockStr, "Start MCP gateway") {
-			t.Error("Expected MCP gateway to be enabled, but did not find 'Start MCP gateway' in lock file")
+		if !strings.Contains(lockStr, "Start MCP Gateway") {
+			t.Error("Expected MCP gateway to be enabled, but did not find 'Start MCP Gateway' in lock file")
 		}
 	})
 

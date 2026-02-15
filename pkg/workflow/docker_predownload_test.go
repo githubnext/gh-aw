@@ -202,7 +202,7 @@ Test workflow with both GitHub and Serena tools.`,
 }
 
 func TestDockerImagePredownloadOrdering(t *testing.T) {
-	// Test that the "Download container images" step comes before "Start MCP gateway"
+	// Test that the "Download container images" step comes before "Start MCP Gateway"
 	frontmatter := `---
 on: issues
 engine: claude
@@ -238,18 +238,18 @@ Test workflow.`
 
 	// Find the positions of both steps
 	downloadPos := strings.Index(yamlStr, "Download container images")
-	setupPos := strings.Index(yamlStr, "Start MCP gateway")
+	setupPos := strings.Index(yamlStr, "Start MCP Gateway")
 
 	if downloadPos == -1 {
 		t.Fatal("Expected 'Download container images' step not found")
 	}
 
 	if setupPos == -1 {
-		t.Fatal("Expected 'Start MCP gateway' step not found")
+		t.Fatal("Expected 'Start MCP Gateway' step not found")
 	}
 
 	// Verify the download step comes before setup step
 	if downloadPos > setupPos {
-		t.Errorf("Expected 'Download container images' to come before 'Start MCP gateway', but found it after")
+		t.Errorf("Expected 'Download container images' to come before 'Start MCP Gateway', but found it after")
 	}
 }

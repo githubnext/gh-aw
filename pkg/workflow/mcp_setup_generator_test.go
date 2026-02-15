@@ -380,7 +380,7 @@ Test workflow with custom container and version.`,
 
 			// Test 2: Check if MCP gateway setup contains the correct version
 			if tt.shouldContainInSetup {
-				setupStep := strings.Contains(yamlStr, "Start MCP gateway")
+				setupStep := strings.Contains(yamlStr, "Start MCP Gateway")
 				assert.True(t, setupStep, "Should have MCP setup step")
 
 				// The setup step should use the docker run command with the correct version
@@ -458,7 +458,7 @@ Test that TAVILY_API_KEY is passed to gateway container.
 
 	// Verify TAVILY_API_KEY is in the step's env block
 	assert.Contains(t, yamlStr, "TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}",
-		"TAVILY_API_KEY should be in the Start MCP gateway step's env block")
+		"TAVILY_API_KEY should be in the Start MCP Gateway step's env block")
 
 	// Verify TAVILY_API_KEY is passed to the docker container via -e flag
 	assert.Contains(t, yamlStr, "-e TAVILY_API_KEY",

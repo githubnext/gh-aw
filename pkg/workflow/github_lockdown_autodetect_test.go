@@ -210,7 +210,7 @@ Test that Claude engine has no automatic lockdown determination.
 	yaml := string(lockContent)
 
 	// Verify automatic detection step is present (lockdown not explicitly set)
-	detectStepPresent := strings.Contains(yaml, "Determine automatic lockdown mode for GitHub MCP server") &&
+	detectStepPresent := strings.Contains(yaml, "Determine automatic lockdown mode for GitHub MCP Server") &&
 		strings.Contains(yaml, "determine-automatic-lockdown")
 
 	if !detectStepPresent {

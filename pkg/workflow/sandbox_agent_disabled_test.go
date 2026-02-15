@@ -111,7 +111,7 @@ Test workflow with agent sandbox disabled.
 		assert.Contains(t, result, "copilot", "Workflow should contain direct copilot command")
 
 		// MCP gateway should still be present (always enabled)
-		assert.Contains(t, result, "Start MCP gateway", "MCP gateway should be present even when agent sandbox is disabled")
+		assert.Contains(t, result, "Start MCP Gateway", "MCP gateway should be present even when agent sandbox is disabled")
 		assert.Contains(t, result, "MCP_GATEWAY_PORT", "Gateway port should be set")
 		assert.Contains(t, result, "MCP_GATEWAY_API_KEY", "Gateway API key should be set")
 	})
@@ -218,7 +218,7 @@ Test workflow with tools and agent sandbox disabled.
 	assert.Contains(t, result, "mcp-config.json", "MCP config should be generated")
 
 	// Verify tools are configured in MCP config
-	assert.Contains(t, result, "github", "GitHub MCP server should be configured")
+	assert.Contains(t, result, "github", "GitHub MCP Server should be configured")
 
 	// Verify gateway configuration is present
 	assert.Contains(t, result, "MCP_GATEWAY_PORT", "Gateway port should be present")

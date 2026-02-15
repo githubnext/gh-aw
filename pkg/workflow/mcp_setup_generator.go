@@ -25,7 +25,7 @@
 //  5. Setup safe-inputs config and tool files (JavaScript, Python, Shell, Go)
 //  6. Generate and start safe-inputs HTTP server
 //  7. Start Serena local mode server
-//  8. Start MCP gateway with all environment variables
+//  8. Start MCP Gateway with all environment variables
 //  9. Render engine-specific MCP configuration
 //
 // MCP tools supported:
@@ -55,7 +55,7 @@
 //   - Start safe-outputs HTTP server on port 3001
 //   - Write safe-inputs config to /opt/gh-aw/safe-inputs/
 //   - Start safe-inputs HTTP server on port 3000
-//   - Start MCP gateway on port 80
+//   - Start MCP Gateway on port 80
 //   - Render MCP config based on engine (copilot/claude/codex/custom)
 package workflow
 
