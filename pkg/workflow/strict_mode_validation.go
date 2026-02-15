@@ -430,7 +430,7 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 	// In strict mode, firewall MUST be enabled (either explicitly or via sandbox)
 	firewallEnabled := (networkPermissions.Firewall != nil && networkPermissions.Firewall.Enabled) ||
 		isSandboxEnabled(sandboxConfig, networkPermissions)
-	
+
 	if !firewallEnabled {
 		strictModeValidationLog.Printf("Firewall validation failed: firewall not enabled in strict mode")
 		return fmt.Errorf("strict mode: firewall must be enabled for %s engine with network restrictions. The firewall should be enabled by default, but if you've explicitly disabled it with 'network.firewall: false' or 'sandbox.agent: false', this is not allowed in strict mode for security reasons. See: https://github.github.com/gh-aw/reference/network/", engineID)
