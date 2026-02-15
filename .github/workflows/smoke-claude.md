@@ -7,6 +7,7 @@ on:
     types: [labeled]
     names: ["smoke"]
   reaction: "heart"
+  status-comment: true
 permissions:
   contents: read
   issues: read

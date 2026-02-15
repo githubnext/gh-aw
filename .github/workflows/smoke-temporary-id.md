@@ -8,6 +8,7 @@ on:
     types: [labeled]
     names: ["smoke"]
   reaction: "eyes"
+  status-comment: true
 permissions:
   contents: read
   issues: read
