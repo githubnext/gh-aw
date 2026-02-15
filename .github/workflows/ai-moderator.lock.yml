@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: c42003f624a512e9c2ab41be36e9ed0f40c2e22644530ab000c14f4cd5b89fe9
+# frontmatter-hash: 8c8c0cf5f9b5c9de3acbec28f94efe65b00e4c888c6be93df443665a560ce698
 
 name: "AI Moderator"
 "on":
@@ -38,6 +38,11 @@ name: "AI Moderator"
     # lock-for-agent: true # Lock-for-agent processed as issue locking in activation job
     types:
     - opened
+  # skip-roles: # Skip-roles processed as role check in pre-activation job
+  # - admin # Skip-roles processed as role check in pre-activation job
+  # - maintainer # Skip-roles processed as role check in pre-activation job
+  # - write # Skip-roles processed as role check in pre-activation job
+  # - triage # Skip-roles processed as role check in pre-activation job
 
 permissions: {}
 
@@ -48,6 +53,8 @@ run-name: "AI Moderator"
 
 jobs:
   activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -89,10 +96,7 @@ jobs:
             await main();
 
   agent:
-    needs:
-      - activation
-      - check_external_user
-    if: needs.check_external_user.outputs.should_skip != 'true'
+    needs: activation
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -803,58 +807,6 @@ jobs:
             /tmp/gh-aw/agent/
           if-no-files-found: ignore
 
-  check_external_user:
-    needs: activation
-    runs-on: ubuntu-slim
-    outputs:
-      should_skip: ${{ steps.check_actor.outputs.should_skip || github.event_name == 'workflow_dispatch' }}
-    steps:
-      - name: Check if actor is external user or GitHub Action bot
-        id: check_actor
-        if: ${{ github.event_name != 'workflow_dispatch' }}
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const actor = context.actor;
-            const { owner, repo } = context.repo;
-
-            // Skip if the issue was opened by GitHub Action bot or Copilot bot
-            const excludedBots = ['github-actions[bot]', 'github-actions', 'copilot[bot]'];
-            if (actor.endsWith('[bot]') && excludedBots.includes(actor)) {
-              core.info(`⏭️  Skipping workflow - issue opened by bot: ${actor}`);
-              core.setOutput('should_skip', 'true');
-              return;
-            }
-
-            try {
-              core.info(`Checking permissions for user: ${actor}`);
-
-              // Get the user's permission level
-              const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
-                owner,
-                repo,
-                username: actor
-              });
-
-              const userPermission = permission.permission;
-              core.info(`User ${actor} has permission: ${userPermission}`);
-
-              // Skip workflow for team members (admin, maintain, write)
-              const teamPermissions = ['admin', 'maintain', 'write'];
-              if (teamPermissions.includes(userPermission)) {
-                core.info(`⏭️  Skipping workflow - ${actor} is a team member with ${userPermission} access`);
-                core.setOutput('should_skip', 'true');
-              } else {
-                core.info(`✅ Running workflow - ${actor} is external user with ${userPermission} access`);
-                core.setOutput('should_skip', 'false');
-              }
-            } catch (error) {
-              // If we can't determine permission (e.g., user not a collaborator), assume external and run
-              core.info(`⚠️  Could not determine permissions for ${actor}: ${error.message}`);
-              core.info(`✅ Running workflow - assuming external user`);
-              core.setOutput('should_skip', 'false');
-            }
-
   conclusion:
     needs:
       - activation
@@ -964,6 +916,53 @@ jobs:
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/unlock-issue.cjs');
+            await main();
+
+  pre_activation:
+    runs-on: ubuntu-slim
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      activated: ${{ (steps.check_skip_roles.outputs.skip_roles_ok == 'true') && (steps.check_rate_limit.outputs.rate_limit_ok == 'true') }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            actions
+          persist-credentials: false
+      - name: Setup Scripts
+        uses: ./actions/setup
+        with:
+          destination: /opt/gh-aw/actions
+      - name: Check user rate limit
+        id: check_rate_limit
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_RATE_LIMIT_MAX: "5"
+          GH_AW_RATE_LIMIT_WINDOW: "60"
+          GH_AW_RATE_LIMIT_EVENTS: "issue_comment,issues"
+          GH_AW_RATE_LIMIT_IGNORED_ROLES: "admin,maintain,write"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_rate_limit.cjs');
+            await main();
+      - name: Check skip-roles
+        id: check_skip_roles
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_SKIP_ROLES: admin,maintainer,write,triage
+          GH_AW_WORKFLOW_NAME: "AI Moderator"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/check_skip_roles.cjs');
             await main();
 
   safe_outputs:

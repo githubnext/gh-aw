@@ -9,6 +9,7 @@ on:
   issue_comment:
     types: [created]
     lock-for-agent: true
+  skip-roles: [admin, maintainer, write, triage]
 rate-limit:
   max: 5
   window: 60
@@ -20,7 +21,6 @@ tools:
     mode: local
     read-only: true
     toolsets: [default]
-if: needs.check_external_user.outputs.should_skip != 'true'
 permissions:
   contents: read
   issues: read
@@ -33,57 +33,6 @@ safe-outputs:
     max: 5
     allowed-reasons: [spam]
   threat-detection: false
-jobs:
-  check_external_user:
-    runs-on: ubuntu-slim
-    outputs:
-      should_skip: ${{ steps.check_actor.outputs.should_skip || github.event_name == 'workflow_dispatch' }}
-    steps:
-      - name: Check if actor is external user or GitHub Action bot
-        id: check_actor
-        uses: actions/github-script@v8
-        if: ${{ github.event_name != 'workflow_dispatch' }}
-        with:
-          script: |
-            const actor = context.actor;
-            const { owner, repo } = context.repo;
-            
-            // Skip if the issue was opened by GitHub Action bot or Copilot bot
-            const excludedBots = ['github-actions[bot]', 'github-actions', 'copilot[bot]'];
-            if (actor.endsWith('[bot]') && excludedBots.includes(actor)) {
-              core.info(`⏭️  Skipping workflow - issue opened by bot: ${actor}`);
-              core.setOutput('should_skip', 'true');
-              return;
-            }
-            
-            try {
-              core.info(`Checking permissions for user: ${actor}`);
-              
-              // Get the user's permission level
-              const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
-                owner,
-                repo,
-                username: actor
-              });
-              
-              const userPermission = permission.permission;
-              core.info(`User ${actor} has permission: ${userPermission}`);
-              
-              // Skip workflow for team members (admin, maintain, write)
-              const teamPermissions = ['admin', 'maintain', 'write'];
-              if (teamPermissions.includes(userPermission)) {
-                core.info(`⏭️  Skipping workflow - ${actor} is a team member with ${userPermission} access`);
-                core.setOutput('should_skip', 'true');
-              } else {
-                core.info(`✅ Running workflow - ${actor} is external user with ${userPermission} access`);
-                core.setOutput('should_skip', 'false');
-              }
-            } catch (error) {
-              // If we can't determine permission (e.g., user not a collaborator), assume external and run
-              core.info(`⚠️  Could not determine permissions for ${actor}: ${error.message}`);
-              core.info(`✅ Running workflow - assuming external user`);
-              core.setOutput('should_skip', 'false');
-            }
 imports:
   - shared/mood.md
 ---
