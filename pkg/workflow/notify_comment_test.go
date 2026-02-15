@@ -708,6 +708,15 @@ func TestStatusCommentDecoupling(t *testing.T) {
 			safeOutputJobNames:       []string{"missing_tool"},
 		},
 		{
+			name:                     "ai-reaction with explicit status-comment: false",
+			aiReaction:               "eyes",
+			statusComment:            boolPtr(false),
+			expectActivationComment:  false,
+			expectConclusionUpdate:   false,
+			expectActivationReaction: true,
+			safeOutputJobNames:       []string{"missing_tool"},
+		},
+		{
 			name:                     "neither ai-reaction nor status-comment",
 			aiReaction:               "",
 			statusComment:            nil,
