@@ -286,12 +286,8 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		token = data.SafeOutputs.AddComments.GitHubToken
 	}
 
-	// Only add the conclusion update step if status comments are enabled
-	// StatusComment defaults to true when AIReaction is set (and not "none")
-	shouldAddStatusComment := (data.StatusComment == nil && data.AIReaction != "" && data.AIReaction != "none") ||
-		(data.StatusComment != nil && *data.StatusComment)
-	
-	if shouldAddStatusComment {
+	// Only add the conclusion update step if status comments are explicitly enabled
+	if data.StatusComment != nil && *data.StatusComment {
 		// Build the conclusion GitHub Script step (without artifact downloads - already added above)
 		scriptSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
 			StepName:      "Update reaction comment with completion status",

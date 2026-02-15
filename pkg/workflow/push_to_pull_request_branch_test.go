@@ -763,6 +763,7 @@ on:
   pull_request:
     types: [opened]
   reaction: rocket
+  status-comment: true
 safe-outputs:
   push-to-pull-request-branch:
 ---

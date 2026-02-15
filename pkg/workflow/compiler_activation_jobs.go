@@ -458,13 +458,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs["body"] = "${{ steps.compute-text.outputs.body }}"
 	}
 
-	// Add comment with workflow run link if status comments are enabled
+	// Add comment with workflow run link if status comments are explicitly enabled
 	// Note: The reaction was already added in the pre-activation job for immediate feedback
-	// StatusComment defaults to true when AIReaction is set (and not "none")
-	shouldAddStatusComment := (data.StatusComment == nil && data.AIReaction != "" && data.AIReaction != "none") ||
-		(data.StatusComment != nil && *data.StatusComment)
-	
-	if shouldAddStatusComment {
+	if data.StatusComment != nil && *data.StatusComment {
 		reactionCondition := BuildReactionCondition()
 
 		steps = append(steps, "      - name: Add comment with workflow run link\n")

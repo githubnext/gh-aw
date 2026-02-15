@@ -24,6 +24,7 @@ on:
   pull_request:
     types: [opened]
   reaction: eyes
+  status-comment: true
 permissions:
   contents: read
   issues: write
@@ -101,6 +102,7 @@ on:
   issues:
     types: [opened]
   reaction: rocket
+  status-comment: true
 permissions:
   contents: read
   issues: write
