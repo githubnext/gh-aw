@@ -185,13 +185,13 @@ on:
   issue_comment:
     types: [created]
   skip-roles: [admin, maintainer]
-roles: [write, read]
+roles: [write, triage]
 engine: claude
 ---
 
 # Skip Roles with Permission Check
 
-This workflow requires write or read permission, but skips admin and maintainer.
+This workflow requires write or triage permission, but skips admin and maintainer.
 `
 		workflowFile := filepath.Join(tmpDir, "skip-roles-permission.md")
 		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {

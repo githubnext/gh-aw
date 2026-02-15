@@ -8,7 +8,11 @@ const { checkRepositoryPermission } = require("./check_permissions_utils.cjs");
  * @returns {string[]} Array of roles that should be skipped
  */
 function parseSkipRoles() {
-  return process.env.GH_AW_SKIP_ROLES?.split(",").filter(r => r.trim()) ?? [];
+  return (
+    process.env.GH_AW_SKIP_ROLES?.split(",")
+      .map(r => r.trim())
+      .filter(r => r) ?? []
+  );
 }
 
 async function main() {

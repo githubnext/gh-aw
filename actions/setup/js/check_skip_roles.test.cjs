@@ -57,9 +57,7 @@ describe("check_skip_roles", () => {
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_roles_ok", "true");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "no_skip_roles");
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringContaining("No skip-roles configured"),
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No skip-roles configured"));
     });
 
     it("should allow workflow to proceed when skip-roles is empty", async () => {
@@ -81,9 +79,7 @@ describe("check_skip_roles", () => {
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_roles_ok", "true");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "safe_event");
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringContaining("safe event"),
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("safe event"));
       expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
     });
 
@@ -112,18 +108,10 @@ describe("check_skip_roles", () => {
       await checkSkipRoles.main();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_roles_ok", "false");
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "result",
-        "user_should_be_skipped",
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "user_should_be_skipped");
       expect(mockCore.setOutput).toHaveBeenCalledWith("user_permission", "admin");
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "error_message",
-        expect.stringContaining("Workflow skipped"),
-      );
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringContaining("has role 'admin'"),
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("error_message", expect.stringContaining("Workflow skipped"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("has role 'admin'"));
     });
 
     it("should skip workflow when actor has write permission", async () => {
@@ -138,10 +126,7 @@ describe("check_skip_roles", () => {
       await checkSkipRoles.main();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_roles_ok", "false");
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "result",
-        "user_should_be_skipped",
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "user_should_be_skipped");
       expect(mockCore.setOutput).toHaveBeenCalledWith("user_permission", "write");
     });
 
@@ -157,10 +142,7 @@ describe("check_skip_roles", () => {
       await checkSkipRoles.main();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_roles_ok", "false");
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "result",
-        "user_should_be_skipped",
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "user_should_be_skipped");
       expect(mockCore.setOutput).toHaveBeenCalledWith("user_permission", "maintain");
     });
   });
@@ -178,14 +160,9 @@ describe("check_skip_roles", () => {
       await checkSkipRoles.main();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_roles_ok", "true");
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "result",
-        "user_not_in_skip_roles",
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "user_not_in_skip_roles");
       expect(mockCore.setOutput).toHaveBeenCalledWith("user_permission", "triage");
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringContaining("does not have any skip-roles"),
-      );
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("does not have any skip-roles"));
     });
 
     it("should allow workflow when actor has read permission", async () => {
@@ -200,10 +177,7 @@ describe("check_skip_roles", () => {
       await checkSkipRoles.main();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_roles_ok", "true");
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "result",
-        "user_not_in_skip_roles",
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "user_not_in_skip_roles");
       expect(mockCore.setOutput).toHaveBeenCalledWith("user_permission", "read");
     });
 
@@ -219,10 +193,7 @@ describe("check_skip_roles", () => {
       await checkSkipRoles.main();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_roles_ok", "true");
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "result",
-        "user_not_in_skip_roles",
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "user_not_in_skip_roles");
       expect(mockCore.setOutput).toHaveBeenCalledWith("user_permission", "none");
     });
   });
@@ -230,41 +201,28 @@ describe("check_skip_roles", () => {
   describe("API error handling", () => {
     it("should allow workflow to proceed on API error", async () => {
       process.env.GH_AW_SKIP_ROLES = "admin,write";
-      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(
-        new Error("API rate limit exceeded"),
-      );
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(new Error("API rate limit exceeded"));
 
       await checkSkipRoles.main();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_roles_ok", "true");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "api_error");
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "error_message",
-        expect.stringContaining("Skip-roles check failed"),
-      );
-      expect(mockCore.warning).toHaveBeenCalledWith(
-        expect.stringContaining("Could not verify user permissions"),
-      );
-      expect(mockCore.info).toHaveBeenCalledWith(
-        expect.stringContaining("Allowing workflow to proceed due to API error"),
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("error_message", expect.stringContaining("Skip-roles check failed"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not verify user permissions"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Allowing workflow to proceed due to API error"));
     });
 
     it("should allow workflow on 404 error (user not found)", async () => {
       process.env.GH_AW_SKIP_ROLES = "admin,write";
       const error = new Error("Not Found");
       error.status = 404;
-      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(
-        error,
-      );
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(error);
 
       await checkSkipRoles.main();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_roles_ok", "true");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "api_error");
-      expect(mockCore.warning).toHaveBeenCalledWith(
-        expect.stringContaining("Could not verify user permissions"),
-      );
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not verify user permissions"));
     });
   });
 
@@ -281,10 +239,7 @@ describe("check_skip_roles", () => {
       await checkSkipRoles.main();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_roles_ok", "false");
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "result",
-        "user_should_be_skipped",
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "user_should_be_skipped");
     });
 
     it("should handle whitespace in skip-roles list", async () => {
@@ -299,17 +254,14 @@ describe("check_skip_roles", () => {
       await checkSkipRoles.main();
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_roles_ok", "false");
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "result",
-        "user_should_be_skipped",
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "user_should_be_skipped");
     });
 
     it("should handle case-sensitive role matching", async () => {
       process.env.GH_AW_SKIP_ROLES = "admin,write";
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
         data: {
-          permission: "ADMIN", // API returns lowercase, but testing uppercase
+          permission: "ADMIN", // Testing uppercase vs lowercase
           role_name: "admin",
         },
       });
@@ -317,9 +269,9 @@ describe("check_skip_roles", () => {
       await checkSkipRoles.main();
 
       // Should not match due to case sensitivity (permission is "ADMIN" not "admin")
-      // However, GitHub API typically returns lowercase, so this would be skip_roles_ok: false
-      // Let's verify the actual behavior based on checkRepositoryPermission implementation
-      expect(mockCore.setOutput).toHaveBeenCalledWith("skip_roles_ok", "false");
+      // Since GitHub API returns lowercase in practice, this is edge case testing
+      expect(mockCore.setOutput).toHaveBeenCalledWith("skip_roles_ok", "true");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "user_not_in_skip_roles");
     });
   });
 });

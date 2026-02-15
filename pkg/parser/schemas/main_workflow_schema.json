@@ -1298,13 +1298,13 @@
               "oneOf": [
                 {
                   "type": "string",
-                  "description": "Single repository permission level that should skip the workflow (e.g., 'admin', 'maintain', 'write', 'triage', 'read')"
+                  "description": "Single repository permission level that should skip the workflow (e.g., 'admin', 'maintainer', 'maintain', 'write', 'triage', 'read')"
                 },
                 {
                   "type": "array",
                   "items": {
                     "type": "string",
-                    "enum": ["admin", "maintain", "write", "triage", "read"]
+                    "enum": ["admin", "maintainer", "maintain", "write", "triage", "read"]
                   },
                   "minItems": 1,
                   "description": "Array of repository permission levels that should skip the workflow. Users with any of these roles will have the workflow skipped for them."
@@ -6357,13 +6357,13 @@
       "oneOf": [
         {
           "type": "string",
-          "description": "Single repository permission level that should skip the workflow (e.g., 'admin', 'maintain', 'write', 'triage', 'read')"
+          "description": "Single repository permission level that should skip the workflow (e.g., 'admin', 'maintainer', 'maintain', 'write', 'triage', 'read')"
         },
         {
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["admin", "maintain", "write", "triage", "read"]
+            "enum": ["admin", "maintainer", "maintain", "write", "triage", "read"]
           },
           "minItems": 1,
           "description": "Array of repository permission levels that should skip the workflow. Users with any of these roles will have the workflow skipped for them."
