@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.10.0  
+**Version**: 1.11.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-02-14  
+**Publication Date**: 2026-02-15  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/reference/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -1817,12 +1817,15 @@ This section provides complete normative definitions for all safe output types. 
 ```json
 {
   "name": "add_comment",
-  "description": "Add a comment to an existing issue, pull request, or discussion.",
+  "description": "Add a comment to an existing issue, pull request, or discussion. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters, 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance.",
   "inputSchema": {
     "type": "object",
     "required": ["body"],
     "properties": {
-      "body": {"type": "string", "description": "Comment text in Markdown"},
+      "body": {
+        "type": "string",
+        "description": "Comment text in Markdown. CONSTRAINTS: Maximum 65536 characters, maximum 10 mentions (@username), maximum 50 links (http/https URLs). If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
+      },
       "item_number": {
         "type": "number",
         "description": "Issue/PR/discussion number (auto-resolved from context if omitted)"
@@ -1835,10 +1838,21 @@ This section provides complete normative definitions for all safe output types. 
 
 **Operational Semantics**:
 
-1. **Context Resolution**: When `item_number` omitted, resolves from workflow trigger context.
-2. **Related Items**: When multiple outputs created, adds related items section to comments.
-3. **Footer Injection**: Appends footer according to configuration.
-4. **Cross-Repository**: Supports `target-repo` configuration.
+1. **Constraint Enforcement**: The MCP server validates body content before recording operations. Violations trigger immediate error responses with specific guidance (see Section 8.3).
+2. **Context Resolution**: When `item_number` omitted, resolves from workflow trigger context.
+3. **Related Items**: When multiple outputs created, adds related items section to comments.
+4. **Footer Injection**: Appends footer according to configuration.
+5. **Cross-Repository**: Supports `target-repo` configuration.
+
+**Enforced Constraints**:
+
+| Constraint | Limit | Error Code | Example Error Message |
+|------------|-------|------------|----------------------|
+| Body length | 65536 characters | E006 | "Comment body exceeds maximum length of 65536 characters (got 70000)" |
+| Mentions | 10 per comment | E007 | "Comment contains 15 mentions, maximum is 10" |
+| Links | 50 per comment | E008 | "Comment contains 60 links, maximum is 50" |
+
+These constraints are enforced at both MCP server (tool invocation) and safe output processor (execution) layers for defense-in-depth.
 
 **Configuration Parameters**:
 - `max`: Operation limit (default: 1)
@@ -2855,7 +2869,118 @@ Content-Type: application/json
 }
 ```
 
-### 8.3 NDJSON Persistence
+### 8.3 MCP Server Constraint Enforcement
+
+**Requirement MCE1: Early Validation**
+
+MCP servers MUST enforce operational constraints during tool invocation (Phase 4) rather than deferring all validation to safe output processing (Phase 6). This provides immediate feedback to the LLM, enabling corrective action before operations are recorded to NDJSON.
+
+**Constraint Categories**:
+
+1. **Length Limits**: Character count restrictions on text fields
+2. **Entity Limits**: Maximum counts for mentions, links, or other entities
+3. **Format Requirements**: Pattern validation, encoding checks
+4. **Business Rules**: Type-specific constraints based on safe output configuration
+
+**Requirement MCE2: Tool Description Disclosure**
+
+Tool descriptions (MCP tool schemas) MUST surface enforced constraints to the LLM through the `description` field. This enables the LLM to self-regulate and avoid constraint violations.
+
+**Example - add_comment constraints**:
+
+```json
+{
+  "name": "add_comment",
+  "description": "Add a comment to an existing GitHub issue, pull request, or discussion. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters, 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "body": {
+        "type": "string",
+        "description": "The comment text in Markdown format. CONSTRAINTS: Maximum 65536 characters, maximum 10 mentions (@username), maximum 50 links (http/https URLs). If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
+      }
+    }
+  }
+}
+```
+
+**Requirement MCE3: Actionable Error Responses**
+
+When constraints are violated, MCP servers MUST return error responses that:
+
+1. **Identify the violated constraint** with specific name and limit
+2. **Report the actual value** that triggered the violation
+3. **Provide remediation guidance** on how to correct the issue
+4. **Use standard error codes** (E006-E008 for add_comment limits)
+
+**Example - Mention Limit Violation**:
+
+```json
+{
+  "error": {
+    "code": -32602,
+    "message": "E007: Comment contains 15 mentions, maximum is 10",
+    "data": {
+      "constraint": "max_mentions",
+      "limit": 10,
+      "actual": 15,
+      "guidance": "Reduce the number of @mentions in your comment to 10 or fewer. Consider tagging only essential participants."
+    }
+  }
+}
+```
+
+**Requirement MCE4: Dual Enforcement**
+
+Constraints MUST be enforced at both invocation time (MCP server) and processing time (safe output processor) to provide defense-in-depth:
+
+- **MCP Server Enforcement**: Provides immediate LLM feedback during agent execution
+- **Processor Enforcement**: Validates operations recorded to NDJSON as final safety check
+
+This dual enforcement pattern ensures constraints cannot be bypassed through malformed NDJSON or direct artifact manipulation.
+
+**Implementation Pattern**:
+
+```javascript
+// MCP Server - Immediate validation during tool call
+function handleAddComment(args) {
+  enforceCommentLimits(args.body); // Throws if limits exceeded
+  recordOperation('add_comment', args);
+  return {result: {content: [{type: "text", text: '{"result":"success"}'}]}};
+}
+
+// Safe Output Processor - Final validation before API call  
+async function processAddComment(operation) {
+  enforceCommentLimits(operation.body); // Defense-in-depth
+  const sanitized = sanitizeContent(operation);
+  await github.rest.issues.createComment(sanitized);
+}
+```
+
+**Requirement MCE5: Constraint Configuration Consistency**
+
+Constraint limits defined in MCP tool descriptions MUST match the enforcement logic in both the MCP server and safe output processor implementations. Inconsistent limits between these components violate the specification.
+
+**Verification**:
+- **Method**: Code review and integration testing
+- **Tool**: Automated tests comparing tool descriptions to handler enforcement code
+- **Criteria**: All constraint limits are identical across tool schema, MCP server, and processor
+
+**Example Constraints for Common Safe Output Types**:
+
+| Type | Constraint | Limit | Error Code |
+|------|-----------|-------|------------|
+| `add_comment` | Body length | 65536 chars | E006 |
+| `add_comment` | Mentions | 10 | E007 |
+| `add_comment` | Links | 50 | E008 |
+| `create_issue` | Title length | 256 chars | E009 |
+| `create_issue` | Body length | 65536 chars | E006 |
+| `create_pull_request` | Title length | 256 chars | E009 |
+| `create_pull_request` | Body length | 65536 chars | E006 |
+
+**Rationale**: Early constraint enforcement transforms validation failures from post-execution errors (requiring workflow reruns) into correctable feedback during agent reasoning. This improves agent effectiveness by enabling iterative refinement and reduces wasted compute on operations that will ultimately fail validation.
+
+### 8.4 NDJSON Persistence
 
 **File**: `/tmp/gh-aw/safeoutputs/output.ndjson`  
 **Format**: One JSON object per line  
@@ -3507,6 +3632,14 @@ safe-outputs:
 ---
 
 ## Appendix F: Document History
+
+**Version 1.11.0** (2026-02-15):
+- **Added**: Section 8.3 "MCP Server Constraint Enforcement" specifying requirements for early validation during tool invocation (MCE1-MCE5)
+- **Enhanced**: Tool descriptions to surface operational constraints to the LLM (e.g., add_comment mention/link/length limits)
+- **Clarified**: Dual enforcement pattern requiring validation at both MCP server and safe output processor layers
+- **Added**: Constraint consistency requirement (MCE5) ensuring limits are identical across tool schemas and enforcement code
+- **Added**: Example constraint table for common safe output types with error codes
+- **Updated**: add_comment tool description in safe_outputs_tools.json to include explicit constraint documentation
 
 **Version 1.10.0** (2026-02-14):
 - **Added**: `reply_to_pull_request_review_comment` safe output type definition (Section 7.3)
