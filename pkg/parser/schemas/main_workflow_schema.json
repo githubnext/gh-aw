@@ -1362,7 +1362,7 @@
               ],
               "description": "Skip workflow execution for users with specific repository roles. Useful for workflows that should only run for external contributors or specific permission levels."
             },
-            "skip-users": {
+            "skip-bots": {
               "oneOf": [
                 {
                   "type": "string",

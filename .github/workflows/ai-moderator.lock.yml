@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: c4cac2c490859849f54efaf002fa26ab5dc2170269973f9b684f3fc4c0da4c15
+# frontmatter-hash: 2ebd01943a22487e072101433dd9319edd66b82cddac1934c765b2ad80f94251
 
 name: "AI Moderator"
 "on":
@@ -38,14 +38,14 @@ name: "AI Moderator"
     # lock-for-agent: true # Lock-for-agent processed as issue locking in activation job
     types:
     - opened
+  # skip-bots: # Skip-bots processed as bot check in pre-activation job
+  # - github-actions # Skip-bots processed as bot check in pre-activation job
+  # - copilot # Skip-bots processed as bot check in pre-activation job
   # skip-roles: # Skip-roles processed as role check in pre-activation job
   # - admin # Skip-roles processed as role check in pre-activation job
   # - maintainer # Skip-roles processed as role check in pre-activation job
   # - write # Skip-roles processed as role check in pre-activation job
   # - triage # Skip-roles processed as role check in pre-activation job
-  # skip-users: # Skip-users processed as user check in pre-activation job
-  # - github-actions # Skip-users processed as user check in pre-activation job
-  # - copilot # Skip-users processed as user check in pre-activation job
 
 permissions: {}
 
@@ -918,7 +918,7 @@ jobs:
       actions: read
       contents: read
     outputs:
-      activated: ${{ ((steps.check_skip_roles.outputs.skip_roles_ok == 'true') && (steps.check_skip_users.outputs.skip_users_ok == 'true')) && (steps.check_rate_limit.outputs.rate_limit_ok == 'true') }}
+      activated: ${{ ((steps.check_skip_roles.outputs.skip_roles_ok == 'true') && (steps.check_skip_bots.outputs.skip_bots_ok == 'true')) && (steps.check_rate_limit.outputs.rate_limit_ok == 'true') }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -958,17 +958,17 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/check_skip_roles.cjs');
             await main();
-      - name: Check skip-users
-        id: check_skip_users
+      - name: Check skip-bots
+        id: check_skip_bots
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_SKIP_USERS: github-actions,copilot
+          GH_AW_SKIP_BOTS: github-actions,copilot
           GH_AW_WORKFLOW_NAME: "AI Moderator"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/check_skip_users.cjs');
+            const { main } = require('/opt/gh-aw/actions/check_skip_bots.cjs');
             await main();
 
   safe_outputs:

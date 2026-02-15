@@ -150,9 +150,9 @@ func extractSkipRolesFromContent(content string) (string, error) {
 	return extractOnSectionField(content, "skip-roles")
 }
 
-// extractSkipUsersFromContent extracts skip-users from on: section as JSON string
-func extractSkipUsersFromContent(content string) (string, error) {
-	return extractOnSectionField(content, "skip-users")
+// extractSkipBotsFromContent extracts skip-bots from on: section as JSON string
+func extractSkipBotsFromContent(content string) (string, error) {
+	return extractOnSectionField(content, "skip-bots")
 }
 
 // extractPluginsFromContent extracts plugins section from frontmatter as JSON string

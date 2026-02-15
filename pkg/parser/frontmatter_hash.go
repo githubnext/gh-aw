@@ -136,7 +136,7 @@ func buildCanonicalFrontmatter(frontmatter map[string]any, result *ImportsResult
 	addSlice("merged-bots", result.MergedBots)
 	addString("merged-post-steps", result.MergedPostSteps)
 	addSlice("merged-skip-roles", result.MergedSkipRoles)
-	addSlice("merged-skip-users", result.MergedSkipUsers)
+	addSlice("merged-skip-bots", result.MergedSkipBots)
 	addSlice("merged-labels", result.MergedLabels)
 	addSlice("merged-caches", result.MergedCaches)
 

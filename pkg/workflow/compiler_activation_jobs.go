@@ -171,20 +171,20 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, generateGitHubScriptWithRequire("check_skip_roles.cjs"))
 	}
 
-	// Add skip-users check if configured
-	if len(data.SkipUsers) > 0 {
-		// Extract workflow name for the skip-users check
+	// Add skip-bots check if configured
+	if len(data.SkipBots) > 0 {
+		// Extract workflow name for the skip-bots check
 		workflowName := data.Name
 
-		steps = append(steps, "      - name: Check skip-users\n")
-		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckSkipUsersStepID))
+		steps = append(steps, "      - name: Check skip-bots\n")
+		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckSkipBotsStepID))
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        env:\n")
-		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_USERS: %s\n", strings.Join(data.SkipUsers, ",")))
+		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_BOTS: %s\n", strings.Join(data.SkipBots, ",")))
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-		steps = append(steps, generateGitHubScriptWithRequire("check_skip_users.cjs"))
+		steps = append(steps, generateGitHubScriptWithRequire("check_skip_bots.cjs"))
 	}
 
 	// Add command position check if this is a command workflow
@@ -263,14 +263,14 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		conditions = append(conditions, skipRolesCheckOk)
 	}
 
-	if len(data.SkipUsers) > 0 {
-		// Add skip-users check condition
-		skipUsersCheckOk := BuildComparison(
-			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckSkipUsersStepID, constants.SkipUsersOkOutput)),
+	if len(data.SkipBots) > 0 {
+		// Add skip-bots check condition
+		skipBotsCheckOk := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckSkipBotsStepID, constants.SkipBotsOkOutput)),
 			"==",
 			BuildStringLiteral("true"),
 		)
-		conditions = append(conditions, skipUsersCheckOk)
+		conditions = append(conditions, skipBotsCheckOk)
 	}
 
 	if data.RateLimit != nil {

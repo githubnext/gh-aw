@@ -32,7 +32,7 @@ type ImportsResult struct {
 	MergedBots          []string         // Merged bots list from all imports (union of bot names)
 	MergedPlugins       []string         // Merged plugins list from all imports (union of plugin repos)
 	MergedSkipRoles     []string         // Merged skip-roles list from all imports (union of role names)
-	MergedSkipUsers     []string         // Merged skip-users list from all imports (union of usernames)
+	MergedSkipBots      []string         // Merged skip-bots list from all imports (union of usernames)
 	MergedPostSteps     string           // Merged post-steps configuration from all imports (appended in order)
 	MergedLabels        []string         // Merged labels from all imports (union of label names)
 	MergedCaches        []string         // Merged cache configurations from all imports (appended in order)
@@ -192,8 +192,8 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	labelsSet := make(map[string]bool)    // Set for deduplicating labels
 	var skipRoles []string                // Track unique skip-roles
 	skipRolesSet := make(map[string]bool) // Set for deduplicating skip-roles
-	var skipUsers []string                // Track unique skip-users
-	skipUsersSet := make(map[string]bool) // Set for deduplicating skip-users
+	var skipBots []string                 // Track unique skip-bots
+	skipBotsSet := make(map[string]bool)  // Set for deduplicating skip-bots
 	var caches []string                   // Track cache configurations (appended in order)
 	var jobsBuilder strings.Builder       // Track jobs from imported YAML workflows
 	var features []map[string]any         // Track features configurations from imports (parsed structures)
@@ -606,16 +606,16 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			}
 		}
 
-		// Extract and merge skip-users from imported file (merge into set to avoid duplicates)
-		skipUsersContent, err := extractSkipUsersFromContent(string(content))
-		if err == nil && skipUsersContent != "" && skipUsersContent != "[]" {
-			// Parse skip-users JSON array
-			var importedSkipUsers []string
-			if jsonErr := json.Unmarshal([]byte(skipUsersContent), &importedSkipUsers); jsonErr == nil {
-				for _, user := range importedSkipUsers {
-					if !skipUsersSet[user] {
-						skipUsersSet[user] = true
-						skipUsers = append(skipUsers, user)
+		// Extract and merge skip-bots from imported file (merge into set to avoid duplicates)
+		skipBotsContent, err := extractSkipBotsFromContent(string(content))
+		if err == nil && skipBotsContent != "" && skipBotsContent != "[]" {
+			// Parse skip-bots JSON array
+			var importedSkipBots []string
+			if jsonErr := json.Unmarshal([]byte(skipBotsContent), &importedSkipBots); jsonErr == nil {
+				for _, user := range importedSkipBots {
+					if !skipBotsSet[user] {
+						skipBotsSet[user] = true
+						skipBots = append(skipBots, user)
 					}
 				}
 			}
@@ -713,7 +713,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		MergedBots:          bots,
 		MergedPlugins:       plugins,
 		MergedSkipRoles:     skipRoles,
-		MergedSkipUsers:     skipUsers,
+		MergedSkipBots:      skipBots,
 		MergedPostSteps:     postStepsBuilder.String(),
 		MergedLabels:        labels,
 		MergedCaches:        caches,

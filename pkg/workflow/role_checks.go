@@ -489,9 +489,9 @@ func (c *Compiler) extractSkipRoles(frontmatter map[string]any) []string {
 	return nil
 }
 
-// extractSkipUsers extracts the 'skip-users' field from the 'on:' section of frontmatter
-// Returns nil if skip-users is not configured
-func (c *Compiler) extractSkipUsers(frontmatter map[string]any) []string {
+// extractSkipBots extracts the 'skip-bots' field from the 'on:' section of frontmatter
+// Returns nil if skip-bots is not configured
+func (c *Compiler) extractSkipBots(frontmatter map[string]any) []string {
 	// Check the "on" section in frontmatter
 	onValue, exists := frontmatter["on"]
 	if !exists || onValue == nil {
@@ -501,9 +501,9 @@ func (c *Compiler) extractSkipUsers(frontmatter map[string]any) []string {
 	// Handle different formats of the on: section
 	switch on := onValue.(type) {
 	case map[string]any:
-		// Complex object format - look for skip-users
-		if skipUsersValue, exists := on["skip-users"]; exists && skipUsersValue != nil {
-			return extractStringSliceField(skipUsersValue, "skip-users")
+		// Complex object format - look for skip-bots
+		if skipBotsValue, exists := on["skip-bots"]; exists && skipBotsValue != nil {
+			return extractStringSliceField(skipBotsValue, "skip-bots")
 		}
 	}
 
@@ -576,22 +576,22 @@ func (c *Compiler) mergeSkipRoles(topSkipRoles []string, importedSkipRoles []str
 	return result
 }
 
-// mergeSkipUsers merges top-level skip-users with imported skip-users (union)
-func (c *Compiler) mergeSkipUsers(topSkipUsers []string, importedSkipUsers []string) []string {
+// mergeSkipBots merges top-level skip-bots with imported skip-bots (union)
+func (c *Compiler) mergeSkipBots(topSkipBots []string, importedSkipBots []string) []string {
 	// Create a set for deduplication
 	usersSet := make(map[string]bool)
 	var result []string
 
-	// Add top-level skip-users first
-	for _, user := range topSkipUsers {
+	// Add top-level skip-bots first
+	for _, user := range topSkipBots {
 		if !usersSet[user] {
 			usersSet[user] = true
 			result = append(result, user)
 		}
 	}
 
-	// Merge imported skip-users
-	for _, user := range importedSkipUsers {
+	// Merge imported skip-bots
+	for _, user := range importedSkipBots {
 		if !usersSet[user] {
 			usersSet[user] = true
 			result = append(result, user)
@@ -599,7 +599,7 @@ func (c *Compiler) mergeSkipUsers(topSkipUsers []string, importedSkipUsers []str
 	}
 
 	if len(result) > 0 {
-		roleLog.Printf("Merged skip-users: %v (top=%d, imported=%d, total=%d)", result, len(topSkipUsers), len(importedSkipUsers), len(result))
+		roleLog.Printf("Merged skip-bots: %v (top=%d, imported=%d, total=%d)", result, len(topSkipBots), len(importedSkipBots), len(result))
 	}
 
 	return result
