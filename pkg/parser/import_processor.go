@@ -31,6 +31,8 @@ type ImportsResult struct {
 	MergedSecretMasking string           // Merged secret-masking steps from all imports
 	MergedBots          []string         // Merged bots list from all imports (union of bot names)
 	MergedPlugins       []string         // Merged plugins list from all imports (union of plugin repos)
+	MergedSkipRoles     []string         // Merged skip-roles list from all imports (union of role names)
+	MergedSkipUsers     []string         // Merged skip-users list from all imports (union of usernames)
 	MergedPostSteps     string           // Merged post-steps configuration from all imports (appended in order)
 	MergedLabels        []string         // Merged labels from all imports (union of label names)
 	MergedCaches        []string         // Merged cache configurations from all imports (appended in order)
@@ -182,19 +184,23 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	var engines []string
 	var safeOutputs []string
 	var safeInputs []string
-	var bots []string                    // Track unique bot names
-	botsSet := make(map[string]bool)     // Set for deduplicating bots
-	var plugins []string                 // Track unique plugin repos
-	pluginsSet := make(map[string]bool)  // Set for deduplicating plugins
-	var labels []string                  // Track unique labels
-	labelsSet := make(map[string]bool)   // Set for deduplicating labels
-	var caches []string                  // Track cache configurations (appended in order)
-	var jobsBuilder strings.Builder      // Track jobs from imported YAML workflows
-	var features []map[string]any        // Track features configurations from imports (parsed structures)
-	var agentFile string                 // Track custom agent file
-	var agentImportSpec string           // Track agent import specification for remote imports
-	var repositoryImports []string       // Track repository-only imports for .github folder merging
-	importInputs := make(map[string]any) // Aggregated input values from all imports
+	var bots []string                     // Track unique bot names
+	botsSet := make(map[string]bool)      // Set for deduplicating bots
+	var plugins []string                  // Track unique plugin repos
+	pluginsSet := make(map[string]bool)   // Set for deduplicating plugins
+	var labels []string                   // Track unique labels
+	labelsSet := make(map[string]bool)    // Set for deduplicating labels
+	var skipRoles []string                // Track unique skip-roles
+	skipRolesSet := make(map[string]bool) // Set for deduplicating skip-roles
+	var skipUsers []string                // Track unique skip-users
+	skipUsersSet := make(map[string]bool) // Set for deduplicating skip-users
+	var caches []string                   // Track cache configurations (appended in order)
+	var jobsBuilder strings.Builder       // Track jobs from imported YAML workflows
+	var features []map[string]any         // Track features configurations from imports (parsed structures)
+	var agentFile string                  // Track custom agent file
+	var agentImportSpec string            // Track agent import specification for remote imports
+	var repositoryImports []string        // Track repository-only imports for .github folder merging
+	importInputs := make(map[string]any)  // Aggregated input values from all imports
 
 	// Seed the queue with initial imports
 	for _, importSpec := range importSpecs {
@@ -570,7 +576,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			secretMaskingBuilder.WriteString(secretMaskingContent + "\n")
 		}
 
-		// Extract bots from imported file (merge into set to avoid duplicates)
+		// Extract and merge bots from imported file (merge into set to avoid duplicates)
 		botsContent, err := extractBotsFromContent(string(content))
 		if err == nil && botsContent != "" && botsContent != "[]" {
 			// Parse bots JSON array
@@ -585,7 +591,37 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			}
 		}
 
-		// Extract plugins from imported file (merge into set to avoid duplicates)
+		// Extract and merge skip-roles from imported file (merge into set to avoid duplicates)
+		skipRolesContent, err := extractSkipRolesFromContent(string(content))
+		if err == nil && skipRolesContent != "" && skipRolesContent != "[]" {
+			// Parse skip-roles JSON array
+			var importedSkipRoles []string
+			if jsonErr := json.Unmarshal([]byte(skipRolesContent), &importedSkipRoles); jsonErr == nil {
+				for _, role := range importedSkipRoles {
+					if !skipRolesSet[role] {
+						skipRolesSet[role] = true
+						skipRoles = append(skipRoles, role)
+					}
+				}
+			}
+		}
+
+		// Extract and merge skip-users from imported file (merge into set to avoid duplicates)
+		skipUsersContent, err := extractSkipUsersFromContent(string(content))
+		if err == nil && skipUsersContent != "" && skipUsersContent != "[]" {
+			// Parse skip-users JSON array
+			var importedSkipUsers []string
+			if jsonErr := json.Unmarshal([]byte(skipUsersContent), &importedSkipUsers); jsonErr == nil {
+				for _, user := range importedSkipUsers {
+					if !skipUsersSet[user] {
+						skipUsersSet[user] = true
+						skipUsers = append(skipUsers, user)
+					}
+				}
+			}
+		}
+
+		// Extract and merge plugins from imported file (merge into set to avoid duplicates)
 		// This now handles both simple string format and object format with MCP configs
 		pluginsContent, err := extractPluginsFromContent(string(content))
 		if err == nil && pluginsContent != "" && pluginsContent != "[]" {
@@ -676,6 +712,8 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		MergedSecretMasking: secretMaskingBuilder.String(),
 		MergedBots:          bots,
 		MergedPlugins:       plugins,
+		MergedSkipRoles:     skipRoles,
+		MergedSkipUsers:     skipUsers,
 		MergedPostSteps:     postStepsBuilder.String(),
 		MergedLabels:        labels,
 		MergedCaches:        caches,

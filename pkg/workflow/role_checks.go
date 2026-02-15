@@ -546,3 +546,61 @@ func extractStringSliceField(value any, fieldName string) []string {
 	roleLog.Printf("No valid %s found or unsupported type: %T", fieldName, value)
 	return nil
 }
+
+// mergeSkipRoles merges top-level skip-roles with imported skip-roles (union)
+func (c *Compiler) mergeSkipRoles(topSkipRoles []string, importedSkipRoles []string) []string {
+	// Create a set for deduplication
+	rolesSet := make(map[string]bool)
+	var result []string
+
+	// Add top-level skip-roles first
+	for _, role := range topSkipRoles {
+		if !rolesSet[role] {
+			rolesSet[role] = true
+			result = append(result, role)
+		}
+	}
+
+	// Merge imported skip-roles
+	for _, role := range importedSkipRoles {
+		if !rolesSet[role] {
+			rolesSet[role] = true
+			result = append(result, role)
+		}
+	}
+
+	if len(result) > 0 {
+		roleLog.Printf("Merged skip-roles: %v (top=%d, imported=%d, total=%d)", result, len(topSkipRoles), len(importedSkipRoles), len(result))
+	}
+
+	return result
+}
+
+// mergeSkipUsers merges top-level skip-users with imported skip-users (union)
+func (c *Compiler) mergeSkipUsers(topSkipUsers []string, importedSkipUsers []string) []string {
+	// Create a set for deduplication
+	usersSet := make(map[string]bool)
+	var result []string
+
+	// Add top-level skip-users first
+	for _, user := range topSkipUsers {
+		if !usersSet[user] {
+			usersSet[user] = true
+			result = append(result, user)
+		}
+	}
+
+	// Merge imported skip-users
+	for _, user := range importedSkipUsers {
+		if !usersSet[user] {
+			usersSet[user] = true
+			result = append(result, user)
+		}
+	}
+
+	if len(result) > 0 {
+		roleLog.Printf("Merged skip-users: %v (top=%d, imported=%d, total=%d)", result, len(topSkipUsers), len(importedSkipUsers), len(result))
+	}
+
+	return result
+}
