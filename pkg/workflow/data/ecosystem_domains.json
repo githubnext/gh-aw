@@ -65,7 +65,7 @@
     "codeload.github.com",
     "github.githubassets.com"
   ],
-  "go": ["go.dev", "golang.org", "proxy.golang.org", "sum.golang.org", "pkg.go.dev", "goproxy.io"],
+  "go": ["go.dev", "golang.org", "proxy.golang.org", "sum.golang.org", "pkg.go.dev", "goproxy.io", "storage.googleapis.com"],
   "terraform": ["releases.hashicorp.com", "apt.releases.hashicorp.com", "yum.releases.hashicorp.com", "registry.terraform.io"],
   "haskell": ["haskell.org", "*.hackage.haskell.org", "get-ghcup.haskell.org", "downloads.haskell.org"],
   "java": [

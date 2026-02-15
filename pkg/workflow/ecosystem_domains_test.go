@@ -155,6 +155,7 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 			"proxy.golang.org",
 			"sum.golang.org",
 			"pkg.go.dev",
+			"storage.googleapis.com",
 		}
 
 		for _, expectedDomain := range expectedDomains {
