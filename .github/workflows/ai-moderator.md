@@ -10,6 +10,7 @@ on:
     types: [created]
     lock-for-agent: true
   skip-roles: [admin, maintainer, write, triage]
+  skip-users: [github-actions, copilot]
 rate-limit:
   max: 5
   window: 60

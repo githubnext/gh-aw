@@ -28,7 +28,25 @@ async function main() {
   core.info(`Checking if user '${actor}' is in skip-users: ${skipUsers.join(", ")}`);
 
   // Check if the actor is in the skip-users list
-  if (skipUsers.includes(actor)) {
+  // Match both exact username and username with [bot] suffix
+  // e.g., "github-actions" matches both "github-actions" and "github-actions[bot]"
+  const isSkipped = skipUsers.some(skipUser => {
+    // Exact match
+    if (actor === skipUser) {
+      return true;
+    }
+    // Match with [bot] suffix
+    if (actor === `${skipUser}[bot]`) {
+      return true;
+    }
+    // Match if skip-user has [bot] suffix and actor matches base name
+    if (skipUser.endsWith("[bot]") && actor === skipUser.slice(0, -5)) {
+      return true;
+    }
+    return false;
+  });
+
+  if (isSkipped) {
     // User is in skip-users, skip the workflow
     core.info(`❌ User '${actor}' is in skip-users [${skipUsers.join(", ")}]. Workflow will be skipped.`);
     core.setOutput("skip_users_ok", "false");
