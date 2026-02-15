@@ -301,7 +301,7 @@ GitHub Actions prevents the `GITHUB_TOKEN` from triggering new workflow runs to 
 
 **Workarounds:**
 
-If you need CI checks to run on PRs created by agentic workflows, you have several options:
+If you need CI checks to run on PRs created by agentic workflows, you have two options:
 
 **Option 1: Use a Personal Access Token (PAT)**
 
@@ -330,20 +330,6 @@ on:
 ```
 
 This approach maintains security while allowing CI to run after PR creation. See [GitHub Actions workflow_run documentation](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#workflow_run) for details.
-
-**Option 3: Manual triggering**
-
-Accept that CI checks won't run automatically and either:
-- Manually trigger CI workflows using `workflow_dispatch`
-- Push an empty commit to the PR branch to trigger checks: `git commit --allow-empty -m "trigger CI"`
-- Use `repository_dispatch` to trigger workflows programmatically
-
-**Option 4: Use pull_request_target with caution**
-
-Some CI workflows use `pull_request_target` instead of `pull_request`. While this event does trigger for GitHub Actions bot PRs, it runs in the context of the base branch and has access to repository secrets, which creates significant security risks for public repositories.
-
-> [!WARNING]
-> Only use `pull_request_target` if you understand the security implications and have implemented proper input validation. See [GitHub's security documentation](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request_target) for details.
 
 **Recommendation:**
 
