@@ -291,6 +291,64 @@ This requires only `contents: write` + `pull-requests: write`, but workflows wil
 
 See [Pull Request Creation](/gh-aw/reference/safe-outputs/#pull-request-creation-create-pull-request) for complete configuration details and the fallback mechanism explanation.
 
+### Why don't pull requests created by agentic workflows trigger my CI checks?
+
+This is expected GitHub Actions security behavior. Pull requests created using the default `GITHUB_TOKEN` or by the GitHub Actions bot user **do not trigger workflow runs** on `pull_request`, `pull_request_target`, or `push` events. This is a [GitHub Actions security feature](https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow) designed to prevent accidental recursive workflow execution.
+
+**Why GitHub implements this protection:**
+
+GitHub Actions prevents the `GITHUB_TOKEN` from triggering new workflow runs to avoid infinite loops and uncontrolled automation chains. Without this protection, a workflow could create a PR, which triggers another workflow, which creates another PR, and so on indefinitely.
+
+**Workarounds:**
+
+If you need CI checks to run on PRs created by agentic workflows, you have several options:
+
+**Option 1: Use a Personal Access Token (PAT)**
+
+Configure your workflow to use a PAT instead of `GITHUB_TOKEN`. This allows PR creation to trigger CI workflows:
+
+```yaml wrap
+# In your workflow frontmatter
+env:
+  GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+```
+
+The PAT must have `repo` scope (or `public_repo` for public repositories only) and should belong to a service account or automation user rather than a personal account.
+
+> [!CAUTION]
+> Using a PAT bypasses GitHub's recursive workflow protection. Ensure your CI workflows cannot trigger the PR creation workflow to avoid infinite loops. Consider using conditional expressions with `if: github.actor != 'automation-user'` to prevent recursive execution.
+
+**Option 2: Use workflow_run trigger**
+
+Configure your CI workflows to run on `workflow_run` events, which allows them to react to completed workflows:
+
+```yaml wrap
+on:
+  workflow_run:
+    workflows: ["Create Pull Request Workflow"]
+    types: [completed]
+```
+
+This approach maintains security while allowing CI to run after PR creation. See [GitHub Actions workflow_run documentation](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#workflow_run) for details.
+
+**Option 3: Manual triggering**
+
+Accept that CI checks won't run automatically and either:
+- Manually trigger CI workflows using `workflow_dispatch`
+- Push an empty commit to the PR branch to trigger checks: `git commit --allow-empty -m "trigger CI"`
+- Use `repository_dispatch` to trigger workflows programmatically
+
+**Option 4: Use pull_request_target with caution**
+
+Some CI workflows use `pull_request_target` instead of `pull_request`. While this event does trigger for GitHub Actions bot PRs, it runs in the context of the base branch and has access to repository secrets, which creates significant security risks for public repositories.
+
+> [!WARNING]
+> Only use `pull_request_target` if you understand the security implications and have implemented proper input validation. See [GitHub's security documentation](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request_target) for details.
+
+**Recommendation:**
+
+For most use cases, **Option 1 (PAT with a service account)** provides the best balance of automation and control. Configure the PAT as a repository secret and ensure proper safeguards are in place to prevent recursive workflow execution.
+
 ## Workflow Design
 
 ### Should I focus on one workflow, or write many different ones?
