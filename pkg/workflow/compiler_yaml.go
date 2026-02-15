@@ -320,15 +320,15 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// For a workflow at ".github/workflows/test.md", the runtime-import path should be ".github/workflows/test.md"
 	// This makes the path explicit and matches the actual file location in the repository
 	var workflowFilePath string
-	
+
 	// Normalize path separators first to handle both Unix and Windows paths consistently
 	normalizedPath := filepath.ToSlash(c.markdownPath)
-	
+
 	// Look for "/.github/" as a directory (not just substring in repo name like "username.github.io")
 	// We need to match the directory component, not arbitrary substrings
 	githubDirPattern := "/.github/"
 	githubIndex := strings.Index(normalizedPath, githubDirPattern)
-	
+
 	if githubIndex != -1 {
 		// Extract everything from ".github/" onwards (inclusive)
 		// +1 to skip the leading slash, so we get ".github/workflows/..." not "/.github/workflows/..."

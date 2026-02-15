@@ -1116,34 +1116,34 @@ Test content.`
 // generate correct runtime-import paths without duplicating the .github.io suffix
 func TestRuntimeImportPathGitHubIO(t *testing.T) {
 	tests := []struct {
-		name         string
-		repoName     string  // simulated repo name in path
-		expected     string
-		description  string
+		name        string
+		repoName    string // simulated repo name in path
+		expected    string
+		description string
 	}{
 		{
-			name:         "github_pages_repo",
-			repoName:     "samueltauil.github.io",
-			expected:     "{{#runtime-import .github/workflows/translate-to-ptbr.md}}",
-			description:  "GitHub Pages repo should not duplicate .github.io in runtime-import path",
+			name:        "github_pages_repo",
+			repoName:    "samueltauil.github.io",
+			expected:    "{{#runtime-import .github/workflows/translate-to-ptbr.md}}",
+			description: "GitHub Pages repo should not duplicate .github.io in runtime-import path",
 		},
 		{
-			name:         "another_github_pages_repo",
-			repoName:     "username.github.io",
-			expected:     "{{#runtime-import .github/workflows/test.md}}",
-			description:  "Another GitHub Pages repo should work correctly",
+			name:        "another_github_pages_repo",
+			repoName:    "username.github.io",
+			expected:    "{{#runtime-import .github/workflows/test.md}}",
+			description: "Another GitHub Pages repo should work correctly",
 		},
 		{
-			name:         "normal_repo",
-			repoName:     "myrepo",
-			expected:     "{{#runtime-import .github/workflows/workflow.md}}",
-			description:  "Normal repo without .github.io should work as before",
+			name:        "normal_repo",
+			repoName:    "myrepo",
+			expected:    "{{#runtime-import .github/workflows/workflow.md}}",
+			description: "Normal repo without .github.io should work as before",
 		},
 		{
-			name:         "repo_with_github_in_name",
-			repoName:     "my-github-project",
-			expected:     "{{#runtime-import .github/workflows/test.md}}",
-			description:  "Repo with 'github' in name should only match .github directory",
+			name:        "repo_with_github_in_name",
+			repoName:    "my-github-project",
+			expected:    "{{#runtime-import .github/workflows/test.md}}",
+			description: "Repo with 'github' in name should only match .github directory",
 		},
 	}
 
@@ -1153,7 +1153,7 @@ func TestRuntimeImportPathGitHubIO(t *testing.T) {
 			// with repo name in the path
 			tmpBase := testutil.TempDir(t, "runtime-import-path-test")
 			tmpDir := filepath.Join(tmpBase, tt.repoName)
-			
+
 			// Create .github/workflows directory
 			workflowDir := filepath.Join(tmpDir, ".github", "workflows")
 			if err := os.MkdirAll(workflowDir, 0755); err != nil {
@@ -1167,7 +1167,7 @@ func TestRuntimeImportPathGitHubIO(t *testing.T) {
 			}
 			workflowFilePath := strings.TrimSuffix(expectedParts[1], "}}")
 			workflowBasename := filepath.Base(workflowFilePath)
-			
+
 			// Create a simple workflow file
 			workflowPath := filepath.Join(workflowDir, workflowBasename)
 			workflowContent := `---
@@ -1191,7 +1191,7 @@ This is a test workflow.`
 
 			// Calculate lock file path
 			lockFile := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
-			
+
 			// Read the generated lock file
 			lockContent, err := os.ReadFile(lockFile)
 			if err != nil {
@@ -1199,11 +1199,11 @@ This is a test workflow.`
 			}
 
 			lockContentStr := string(lockContent)
-			
+
 			// Check that the runtime-import path is correct
 			if !strings.Contains(lockContentStr, tt.expected) {
 				t.Errorf("%s: Expected to find '%s' in lock file", tt.description, tt.expected)
-				
+
 				// Find what runtime-import was actually generated
 				lines := strings.Split(lockContentStr, "\n")
 				for _, line := range lines {
