@@ -316,7 +316,7 @@ sandbox:
 			t.Error("Expected custom env 'AWF_CUSTOM_VAR: test_value' in compiled workflow")
 		}
 		if !strings.Contains(lockStr, "AWF_DEBUG: true") {
-			t.Error("Expected custom env 'SRT_DEBUG: true' in compiled workflow")
+			t.Error("Expected custom env 'AWF_DEBUG: true' in compiled workflow")
 		}
 
 		// Verify installation steps were skipped
