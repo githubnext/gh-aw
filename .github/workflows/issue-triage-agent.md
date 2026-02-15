@@ -22,7 +22,7 @@ imports:
 
 # Issue Triage Agent
 
-List open issues in ${{ github.repository }} that have no labels. For each unlabeled issue, analyze the title and body, then add one of the allowed labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`. 
+List open issues in ${{ github.repository }} that have no labels. For each unlabeled issue, analyze the title and body, then add one of the allowed labels: `bug`, `feature`, `enhancement`, `documentation`, `question`, `help-wanted`, or `good-first-issue`, `community`.
 
 Skip issues that:
 - Already have any of these labels
@@ -70,3 +70,14 @@ For efficiency, if multiple issues are triaged in a single run:
 3. Optionally: Create a discussion summarizing all triage actions for that run
 
 This provides both per-issue context and batch visibility.
+
+## Labels
+
+- `bug`: Indicates a problem or error in the code that needs fixing.
+- `feature`: Represents a new feature request or enhancement to existing functionality.
+- `enhancement`: Suggests improvements to existing features or code.
+- `documentation`: Pertains to issues related to documentation, such as missing or unclear docs.
+- `question`: Used for issues that are asking for clarification or have questions about the project.
+- `help-wanted`: Indicates that the issue is a good candidate for external contributions and help
+- `good-first-issue`: Marks issues that are suitable for newcomers to the project, often with simpler scope.
+- `community`: Indicates that the issue is related to community engagement, such as events, discussions, or contributions that don't fit into the other categories. From authors who are not contributors to the codebase but are engaging with the project in other ways.

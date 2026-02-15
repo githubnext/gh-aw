@@ -23,7 +23,7 @@
 #
 # Smoke Project - Test project operations
 #
-# frontmatter-hash: 85056f8937715f476743ff091047c75729b88d9d01484f0ab27975934e7c3c18
+# frontmatter-hash: 2cad4dcef772bd6905657a076d744f34e2b22f6dd3fb7f717e0591ca9fbc8528
 
 name: "Smoke Project"
 "on":
@@ -231,12 +231,12 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"max":2},"add_labels":{"allowed":["smoke-project"],"max":3},"create_issue":{"expires":2,"group":true,"max":1},"create_project_status_update":{"max":1},"create_pull_request":{"expires":24},"missing_data":{},"missing_tool":{},"noop":{"max":1},"remove_labels":{"allowed":["smoke-project"],"max":3},"update_project":{"max":20}}
+          {"add_comment":{"max":2},"add_labels":{"allowed":["smoke-project"],"max":3},"create_issue":{"expires":2,"group":true,"max":1},"create_project_status_update":{"max":1},"create_pull_request":{"expires":2},"missing_data":{},"missing_tool":{},"noop":{"max":1},"remove_labels":{"allowed":["smoke-project"],"max":3},"update_project":{"max":20}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
             {
-              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created.",
+              "description": "Create a new GitHub issue for tracking bugs, feature requests, or tasks. Use this for actionable work items that need assignment, labeling, and status tracking. For reports, announcements, or status updates that don't require task tracking, use create_discussion instead. CONSTRAINTS: Maximum 1 issue(s) can be created. Labels [ai-generated] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -298,7 +298,7 @@ jobs:
               "name": "add_comment"
             },
             {
-              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created. Title will be prefixed with \"[smoke-project] \".",
+              "description": "Create a new GitHub pull request to propose code changes. Use this after making file edits to submit them for review and merging. The PR will be created from the current branch with your committed changes. For code review comments on an existing PR, use create_pull_request_review_comment instead. CONSTRAINTS: Maximum 1 pull request(s) can be created. Title will be prefixed with \"[smoke-project] \". Labels [ai-generated] will be automatically added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -1596,7 +1596,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-project\"]},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"group\":true,\"max\":1},\"create_project_status_update\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":1,\"project\":\"https://github.com/orgs/github/projects/24068\"},\"create_pull_request\":{\"base_branch\":\"${{ github.ref_name }}\",\"expires\":24,\"if_no_changes\":\"warn\",\"max\":1,\"max_patch_size\":1024,\"title_prefix\":\"[smoke-project] \"},\"missing_data\":{},\"missing_tool\":{},\"remove_labels\":{\"allowed\":[\"smoke-project\"]},\"update_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":20,\"project\":\"https://github.com/orgs/github/projects/24068\",\"views\":[{\"name\":\"Smoke Test Board\",\"layout\":\"board\",\"filter\":\"is:open\"}]}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-project\"]},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"group\":true,\"labels\":[\"ai-generated\"],\"max\":1},\"create_project_status_update\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":1,\"project\":\"https://github.com/orgs/github/projects/24068\"},\"create_pull_request\":{\"base_branch\":\"${{ github.ref_name }}\",\"expires\":2,\"if_no_changes\":\"warn\",\"labels\":[\"ai-generated\"],\"max\":1,\"max_patch_size\":1024,\"title_prefix\":\"[smoke-project] \"},\"missing_data\":{},\"missing_tool\":{},\"remove_labels\":{\"allowed\":[\"smoke-project\"]},\"update_project\":{\"github-token\":\"${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}\",\"max\":20,\"project\":\"https://github.com/orgs/github/projects/24068\",\"views\":[{\"name\":\"Smoke Test Board\",\"layout\":\"board\",\"filter\":\"is:open\"}]}}"
           GH_AW_PROJECT_URL: "https://github.com/orgs/github/projects/24068"
           GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}
         with:

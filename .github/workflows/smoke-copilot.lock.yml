@@ -29,7 +29,7 @@
 #     - shared/github-queries-safe-input.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: f966d1ef4ed90fe83afaae12cf6a32f01d4557ef1b1fe09ba603858658cf65bd
+# frontmatter-hash: 964ca265ed2b756b22be1ba2360d29daf0132df7a3617b7bb0868a88009e123a
 
 name: "Smoke Copilot"
 "on":
@@ -310,7 +310,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_comment":{"allowed_repos":["github/gh-aw"],"max":2},"add_labels":{"allowed":["smoke-copilot"],"allowed_repos":["github/gh-aw"],"max":3},"create_discussion":{"expires":24,"max":1},"create_issue":{"expires":2,"group":true,"max":1},"create_pull_request_review_comment":{"max":5},"dispatch_workflow":{"max":1,"workflow_files":{"haiku-printer":".yml"},"workflows":["haiku-printer"]},"missing_data":{},"missing_tool":{},"noop":{"max":1},"remove_labels":{"allowed":["smoke"],"max":3},"send-slack-message":{"description":"Send a message to Slack (stub for testing)","inputs":{"message":{"default":null,"description":"The message to send","required":true,"type":"string"}},"output":"Slack message stub executed!"},"submit_pull_request_review":{"max":1}}
+          {"add_comment":{"allowed_repos":["github/gh-aw"],"max":2},"add_labels":{"allowed":["smoke-copilot"],"allowed_repos":["github/gh-aw"],"max":3},"create_discussion":{"expires":2,"max":1},"create_issue":{"expires":2,"group":true,"max":1},"create_pull_request_review_comment":{"max":5},"dispatch_workflow":{"max":1,"workflow_files":{"haiku-printer":".yml"},"workflows":["haiku-printer"]},"missing_data":{},"missing_tool":{},"noop":{"max":1},"remove_labels":{"allowed":["smoke"],"max":3},"send-slack-message":{"description":"Send a message to Slack (stub for testing)","inputs":{"message":{"default":null,"description":"The message to send","required":true,"type":"string"}},"output":"Slack message stub executed!"},"submit_pull_request_review":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
@@ -2099,7 +2099,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"allowed_repos\":[\"github/gh-aw\"],\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-copilot\"],\"allowed_repos\":[\"github/gh-aw\"]},\"create_discussion\":{\"category\":\"announcements\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"labels\":[\"ai-generated\"],\"max\":1},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"group\":true,\"max\":1},\"create_pull_request_review_comment\":{\"max\":5,\"side\":\"RIGHT\"},\"dispatch_workflow\":{\"max\":1,\"workflow_files\":{\"haiku-printer\":\".yml\"},\"workflows\":[\"haiku-printer\"]},\"missing_data\":{},\"missing_tool\":{},\"remove_labels\":{\"allowed\":[\"smoke\"]},\"submit_pull_request_review\":{\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"allowed_repos\":[\"github/gh-aw\"],\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-copilot\"],\"allowed_repos\":[\"github/gh-aw\"]},\"create_discussion\":{\"category\":\"announcements\",\"close_older_discussions\":true,\"expires\":2,\"fallback_to_issue\":true,\"labels\":[\"ai-generated\"],\"max\":1},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"group\":true,\"max\":1},\"create_pull_request_review_comment\":{\"max\":5,\"side\":\"RIGHT\"},\"dispatch_workflow\":{\"max\":1,\"workflow_files\":{\"haiku-printer\":\".yml\"},\"workflows\":[\"haiku-printer\"]},\"missing_data\":{},\"missing_tool\":{},\"remove_labels\":{\"allowed\":[\"smoke\"]},\"submit_pull_request_review\":{\"max\":1}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

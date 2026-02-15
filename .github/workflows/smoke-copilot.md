@@ -58,7 +58,7 @@ safe-outputs:
     create-discussion:
       category: announcements
       labels: [ai-generated]
-      expires: 1d
+      expires: 2h
       close-older-discussions: true
       max: 1
     create-pull-request-review-comment:

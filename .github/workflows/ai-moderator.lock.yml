@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: ae515f3b3a547d9b86e5347378b5d34ce798ff0eb460bd6c912305e358b305c1
+# frontmatter-hash: c42003f624a512e9c2ab41be36e9ed0f40c2e22644530ab000c14f4cd5b89fe9
 
 name: "AI Moderator"
 "on":
@@ -38,12 +38,6 @@ name: "AI Moderator"
     # lock-for-agent: true # Lock-for-agent processed as issue locking in activation job
     types:
     - opened
-  workflow_dispatch:
-    inputs:
-      issue_url:
-        description: Issue URL to moderate (e.g., https://github.com/owner/repo/issues/123)
-        required: true
-        type: string
 
 permissions: {}
 
@@ -54,11 +48,6 @@ run-name: "AI Moderator"
 
 jobs:
   activation:
-    needs:
-      - check_external_user
-      - pre_activation
-    if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'workflow_dispatch') || (needs.check_external_user.outputs.should_skip != 'true'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -100,7 +89,10 @@ jobs:
             await main();
 
   agent:
-    needs: activation
+    needs:
+      - activation
+      - check_external_user
+    if: needs.check_external_user.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -517,7 +509,6 @@ jobs:
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
-          GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL: ${{ github.event.inputs.issue_url }}
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
@@ -609,7 +600,6 @@ jobs:
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
-          GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL: ${{ github.event.inputs.issue_url }}
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
@@ -627,7 +617,6 @@ jobs:
                 GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
                 GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
                 GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
-                GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL: process.env.GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL,
                 GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
                 GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
@@ -640,11 +629,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
-          GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
-          GH_AW_GITHUB_EVENT_INPUTS_ISSUE_URL: ${{ github.event.inputs.issue_url }}
-          GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -820,7 +804,7 @@ jobs:
           if-no-files-found: ignore
 
   check_external_user:
-    needs: pre_activation
+    needs: activation
     runs-on: ubuntu-slim
     outputs:
       should_skip: ${{ steps.check_actor.outputs.should_skip || github.event_name == 'workflow_dispatch' }}
@@ -980,53 +964,6 @@ jobs:
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/unlock-issue.cjs');
-            await main();
-
-  pre_activation:
-    runs-on: ubuntu-slim
-    permissions:
-      actions: read
-      contents: read
-    outputs:
-      activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_rate_limit.outputs.rate_limit_ok == 'true') }}
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          sparse-checkout: |
-            actions
-          persist-credentials: false
-      - name: Setup Scripts
-        uses: ./actions/setup
-        with:
-          destination: /opt/gh-aw/actions
-      - name: Check team membership for workflow
-        id: check_membership
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_REQUIRED_ROLES: admin,maintainer,write
-          GH_AW_ALLOWED_BOTS: agentic-workflows-dev[bot]
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/check_membership.cjs');
-            await main();
-      - name: Check user rate limit
-        id: check_rate_limit
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_RATE_LIMIT_MAX: "5"
-          GH_AW_RATE_LIMIT_WINDOW: "60"
-          GH_AW_RATE_LIMIT_EVENTS: "issue_comment,issues,workflow_dispatch"
-          GH_AW_RATE_LIMIT_IGNORED_ROLES: "admin,maintain,write"
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/check_rate_limit.cjs');
             await main();
 
   safe_outputs:
