@@ -423,7 +423,7 @@ var SerenaLanguageSupport = map[string][]string{
 }
 
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.64"
+const DefaultPlaywrightMCPVersion Version = "0.0.68"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
 const DefaultPlaywrightBrowserVersion Version = "v1.58.2"
