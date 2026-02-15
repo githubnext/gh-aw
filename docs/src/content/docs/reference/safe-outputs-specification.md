@@ -1817,14 +1817,14 @@ This section provides complete normative definitions for all safe output types. 
 ```json
 {
   "name": "add_comment",
-  "description": "Add a comment to an existing issue, pull request, or discussion. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters, 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance.",
+  "description": "Add a comment to an existing issue, pull request, or discussion. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance.",
   "inputSchema": {
     "type": "object",
     "required": ["body"],
     "properties": {
       "body": {
         "type": "string",
-        "description": "Comment text in Markdown. CONSTRAINTS: Maximum 65536 characters, maximum 10 mentions (@username), maximum 50 links (http/https URLs). If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
+        "description": "Comment text in Markdown. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. Maximum 10 mentions (@username), maximum 50 links (http/https URLs). A footer (~200-500 characters) is automatically appended, so leave adequate space. If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
       },
       "item_number": {
         "type": "number",
@@ -1838,21 +1838,21 @@ This section provides complete normative definitions for all safe output types. 
 
 **Operational Semantics**:
 
-1. **Constraint Enforcement**: The MCP server validates body content before recording operations. Violations trigger immediate error responses with specific guidance (see Section 8.3).
+1. **Constraint Enforcement**: The MCP server validates body content before recording operations. Violations trigger immediate error responses with specific guidance (see Section 8.3). The body length limit applies to user-provided content; a second validation occurs after footer addition to ensure the complete comment doesn't exceed limits.
 2. **Context Resolution**: When `item_number` omitted, resolves from workflow trigger context.
 3. **Related Items**: When multiple outputs created, adds related items section to comments.
-4. **Footer Injection**: Appends footer according to configuration.
+4. **Footer Injection**: Appends footer according to configuration (typically 200-500 characters).
 5. **Cross-Repository**: Supports `target-repo` configuration.
 
 **Enforced Constraints**:
 
 | Constraint | Limit | Error Code | Example Error Message |
 |------------|-------|------------|----------------------|
-| Body length | 65536 characters | E006 | "Comment body exceeds maximum length of 65536 characters (got 70000)" |
+| Body length (complete comment including footer) | 65536 characters | E006 | "Comment body exceeds maximum length of 65536 characters (got 70000)" |
 | Mentions | 10 per comment | E007 | "Comment contains 15 mentions, maximum is 10" |
 | Links | 50 per comment | E008 | "Comment contains 60 links, maximum is 50" |
 
-These constraints are enforced at both MCP server (tool invocation) and safe output processor (execution) layers for defense-in-depth.
+**Note**: The 65536 character limit applies to the final comment text including the automatically appended footer. Users should leave approximately 200-500 characters of headroom to accommodate the footer, which contains workflow attribution and installation instructions.
 
 **Configuration Parameters**:
 - `max`: Operation limit (default: 1)
@@ -2891,13 +2891,13 @@ Tool descriptions (MCP tool schemas) MUST surface enforced constraints to the LL
 ```json
 {
   "name": "add_comment",
-  "description": "Add a comment to an existing GitHub issue, pull request, or discussion. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters, 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance.",
+  "description": "Add a comment to an existing GitHub issue, pull request, or discussion. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance.",
   "inputSchema": {
     "type": "object",
     "properties": {
       "body": {
         "type": "string",
-        "description": "The comment text in Markdown format. CONSTRAINTS: Maximum 65536 characters, maximum 10 mentions (@username), maximum 50 links (http/https URLs). If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
+        "description": "The comment text in Markdown format. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. A footer (~200-500 characters) is automatically appended, so leave adequate space. Maximum 10 mentions (@username), maximum 50 links (http/https URLs). If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
       }
     }
   }
@@ -2970,13 +2970,15 @@ Constraint limits defined in MCP tool descriptions MUST match the enforcement lo
 
 | Type | Constraint | Limit | Error Code |
 |------|-----------|-------|------------|
-| `add_comment` | Body length | 65536 chars | E006 |
+| `add_comment` | Body length (complete comment with footer) | 65536 chars | E006 |
 | `add_comment` | Mentions | 10 | E007 |
 | `add_comment` | Links | 50 | E008 |
 | `create_issue` | Title length | 256 chars | E009 |
-| `create_issue` | Body length | 65536 chars | E006 |
+| `create_issue` | Body length (complete body with footer) | 65536 chars | E006 |
 | `create_pull_request` | Title length | 256 chars | E009 |
-| `create_pull_request` | Body length | 65536 chars | E006 |
+| `create_pull_request` | Body length (complete body with footer) | 65536 chars | E006 |
+
+**Note**: For operations that append footers (comments, issues, pull requests), the character limit applies to the complete text including the automatically added footer. Users should reserve approximately 200-500 characters to accommodate the footer.
 
 **Rationale**: Early constraint enforcement transforms validation failures from post-execution errors (requiring workflow reruns) into correctable feedback during agent reasoning. This improves agent effectiveness by enabling iterative refinement and reduces wasted compute on operations that will ultimately fail validation.
 
