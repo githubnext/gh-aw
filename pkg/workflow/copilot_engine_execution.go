@@ -23,7 +23,6 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -244,100 +243,12 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 			command = srtWrapperScript
 		}
 	} else if isFirewallEnabled(workflowData) {
-		// Build the AWF-wrapped command - no mkdir needed, AWF handles it
-		firewallConfig := getFirewallConfig(workflowData)
-		agentConfig := getAgentConfig(workflowData)
-		var awfLogLevel = "info"
-		if firewallConfig != nil && firewallConfig.LogLevel != "" {
-			awfLogLevel = firewallConfig.LogLevel
-		}
-
+		// Build AWF-wrapped command using helper function - no mkdir needed, AWF handles it
 		// Get allowed domains (copilot defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
 		allowedDomains := GetCopilotAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 
-		// Build AWF arguments: standard flags + custom args from config
+		// Build AWF command with all configuration
 		// AWF v0.15.0+ uses chroot mode by default, providing transparent access to host binaries
-		// and environment while maintaining network isolation
-		var awfArgs []string
-
-		// Pass all environment variables to the container
-		awfArgs = append(awfArgs, "--env-all")
-
-		// Set container working directory to match GITHUB_WORKSPACE
-		// This ensures pwd inside the container matches what the prompt tells the AI
-		awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")
-		copilotExecLog.Print("Set container working directory to GITHUB_WORKSPACE")
-
-		// Add custom mounts from agent config if specified
-		if agentConfig != nil && len(agentConfig.Mounts) > 0 {
-			// Sort mounts for consistent output
-			sortedMounts := make([]string, len(agentConfig.Mounts))
-			copy(sortedMounts, agentConfig.Mounts)
-			sort.Strings(sortedMounts)
-
-			for _, mount := range sortedMounts {
-				awfArgs = append(awfArgs, "--mount", mount)
-			}
-			copilotExecLog.Printf("Added %d custom mounts from agent config", len(sortedMounts))
-		}
-
-		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
-
-		// Add blocked domains if specified
-		blockedDomains := formatBlockedDomains(workflowData.NetworkPermissions)
-		if blockedDomains != "" {
-			awfArgs = append(awfArgs, "--block-domains", blockedDomains)
-			copilotExecLog.Printf("Added blocked domains: %s", blockedDomains)
-		}
-
-		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
-		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
-
-		// Add --enable-host-access when MCP servers are configured (gateway is used)
-		// This allows awf to access host.docker.internal for MCP gateway communication
-		if HasMCPServers(workflowData) {
-			awfArgs = append(awfArgs, "--enable-host-access")
-			copilotExecLog.Print("Added --enable-host-access for MCP gateway communication")
-		}
-
-		// Pin AWF Docker image version to match the installed binary version
-		awfImageTag := getAWFImageTag(firewallConfig)
-		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
-		copilotExecLog.Printf("Pinned AWF image tag to %s", awfImageTag)
-
-		// Skip pulling images since they are pre-downloaded in the Download container images step
-		awfArgs = append(awfArgs, "--skip-pull")
-		copilotExecLog.Print("Using --skip-pull since images are pre-downloaded")
-
-		// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
-		sslBumpArgs := getSSLBumpArgs(firewallConfig)
-		awfArgs = append(awfArgs, sslBumpArgs...)
-
-		// Add custom args if specified in firewall config
-		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
-			awfArgs = append(awfArgs, firewallConfig.Args...)
-		}
-
-		// Add custom args from agent config if specified
-		if agentConfig != nil && len(agentConfig.Args) > 0 {
-			awfArgs = append(awfArgs, agentConfig.Args...)
-			copilotExecLog.Printf("Added %d custom args from agent config", len(agentConfig.Args))
-		}
-
-		// Determine the AWF command to use (custom or standard)
-		var awfCommand string
-		if agentConfig != nil && agentConfig.Command != "" {
-			awfCommand = agentConfig.Command
-			copilotExecLog.Printf("Using custom AWF command: %s", awfCommand)
-		} else {
-			awfCommand = "sudo -E awf"
-			copilotExecLog.Print("Using standard AWF command")
-		}
-
-		// Build the full AWF command with proper argument separation
-		// AWF v0.2.0 uses -- to separate AWF args from the actual command
-		// The command arguments should be passed as individual shell arguments, not as a single string
-		//
 		// AWF v0.15.0+ with --env-all handles PATH natively (chroot mode is default):
 		// 1. Captures host PATH → AWF_HOST_PATH (already has correct ordering from actions/setup-*)
 		// 2. Passes ALL host env vars including JAVA_HOME, DOTNET_ROOT, GOROOT
@@ -346,14 +257,16 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		//
 		// Version precedence works because actions/setup-* PREPEND to PATH, so
 		// /opt/hostedtoolcache/go/1.25.6/x64/bin comes before /usr/bin in AWF_HOST_PATH.
-
-		// Escape the command for shell - copilotCommand may contain shell expansions
-		escapedCommand := shellEscapeArg(copilotCommand)
-
-		command = fmt.Sprintf(`set -o pipefail
-%s %s \
-  -- %s \
-  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), escapedCommand, shellEscapeArg(logFile))
+		command = BuildAWFCommand(AWFCommandConfig{
+			EngineName:     "copilot",
+			EngineCommand:  copilotCommand,
+			LogFile:        logFile,
+			WorkflowData:   workflowData,
+			UsesTTY:        false, // Copilot doesn't require TTY
+			UsesAPIProxy:   false, // Copilot doesn't use LLM gateway
+			AllowedDomains: allowedDomains,
+			PathSetup:      "", // No path setup needed on host side
+		})
 	} else {
 		// Run copilot command without AWF wrapper
 		command = fmt.Sprintf(`set -o pipefail
