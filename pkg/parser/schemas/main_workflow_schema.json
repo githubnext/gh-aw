@@ -2215,8 +2215,8 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["default", "awf"],
-          "description": "Legacy string format for sandbox type: 'default' for no sandbox, 'awf' for Agent Workflow Firewall"
+          "enum": ["default", "awf", "srt", "sandbox-runtime"],
+          "description": "Legacy string format for sandbox type: 'default' for no sandbox, 'awf' for Agent Workflow Firewall, 'srt' and 'sandbox-runtime' are deprecated and will be migrated to 'awf'"
         },
         {
           "type": "object",
@@ -2224,8 +2224,8 @@
           "properties": {
             "type": {
               "type": "string",
-              "enum": ["default", "awf"],
-              "description": "Legacy sandbox type field (use agent instead)"
+              "enum": ["default", "awf", "srt", "sandbox-runtime"],
+              "description": "Legacy sandbox type field (use agent instead). 'srt' and 'sandbox-runtime' are deprecated and will be migrated to 'awf'"
             },
             "agent": {
               "description": "Agent sandbox type: 'awf' uses AWF (Agent Workflow Firewall), or false to disable agent sandbox. Defaults to 'awf' if not specified. Note: Disabling the agent sandbox (false) removes firewall protection but keeps the MCP gateway enabled.",
