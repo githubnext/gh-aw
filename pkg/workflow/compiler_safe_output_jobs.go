@@ -104,6 +104,11 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		return fmt.Errorf("failed to build conclusion job: %w", err)
 	}
 	if conclusionJob != nil {
+		// If unlock job exists, conclusion should depend on it to run after unlock completes
+		if unlockJob != nil {
+			conclusionJob.Needs = append(conclusionJob.Needs, "unlock")
+			compilerSafeOutputJobsLog.Printf("Added unlock job dependency to conclusion job")
+		}
 		// If push_repo_memory job exists, conclusion should depend on it
 		// Check if the job was already created (it's created in buildJobs)
 		if _, exists := c.jobManager.GetJob("push_repo_memory"); exists {
