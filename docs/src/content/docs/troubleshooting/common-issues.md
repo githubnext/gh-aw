@@ -162,6 +162,53 @@ tools:
     allowed_domains: ["github.com", "*.github.io"]
 ```
 
+### Cannot Find Module 'playwright'
+
+**Error Message:**
+
+```text
+Error: Cannot find module 'playwright'
+Require stack:
+- /tmp/gh-aw/agent/script.js
+```
+
+**Cause:** The AI agent tried to use `require('playwright')` or created a standalone Node.js script expecting the playwright npm package to be installed. In gh-aw workflows, Playwright is provided through an MCP server interface, not as an npm package.
+
+**Solution:** Use Playwright through MCP tools instead of trying to require the module:
+
+```javascript
+// ❌ INCORRECT - This won't work
+const playwright = require('playwright');
+const browser = await playwright.chromium.launch();
+
+// ✅ CORRECT - Use MCP Playwright tools
+// Example: Navigate and take screenshot
+await mcp__playwright__browser_navigate({
+  url: "https://example.com"
+});
+
+await mcp__playwright__browser_snapshot();
+
+// Example: Execute custom Playwright code
+await mcp__playwright__browser_run_code({
+  code: `async (page) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const title = await page.title();
+    return { title, url: page.url() };
+  }`
+});
+```
+
+**Available MCP Playwright Tools:**
+- `mcp__playwright__browser_navigate` - Navigate to URL
+- `mcp__playwright__browser_snapshot` - Take screenshot
+- `mcp__playwright__browser_run_code` - Execute custom Playwright code
+- `mcp__playwright__browser_click` - Click elements
+- `mcp__playwright__browser_type` - Type text
+- `mcp__playwright__browser_close` - Close browser
+
+See the [Playwright Tool documentation](/gh-aw/reference/tools/#playwright-tool-playwright) for complete details.
+
 ## Permission Issues
 
 ### Write Operations Fail

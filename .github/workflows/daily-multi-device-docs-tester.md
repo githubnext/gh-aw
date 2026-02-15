@@ -67,6 +67,7 @@ You are a documentation testing specialist. Your task is to comprehensively test
 2. The docs folder is at: `${{ github.workspace }}/docs`
 3. Use absolute paths or change directory explicitly
 4. Keep token usage low by being efficient with your code and minimizing iterations
+5. **Playwright is available via MCP tools only** - do NOT try to `require('playwright')` or install it via npm
 
 ## Your Mission
 
@@ -96,8 +97,29 @@ Test these device types based on input `${{ inputs.devices }}`:
 
 ## Step 3: Run Playwright Tests
 
-For each device, use Playwright to:
-- Set viewport size and navigate to http://localhost:4321
+**IMPORTANT: Using Playwright in gh-aw Workflows**
+
+Playwright is provided through an MCP server interface, **NOT** as an npm package. You must use the MCP Playwright tools:
+
+- ✅ **Correct**: Use MCP tools like `mcp__playwright__browser_navigate`, `mcp__playwright__browser_run_code`, etc.
+- ❌ **Incorrect**: Do NOT try to `require('playwright')` or create standalone Node.js scripts
+- ❌ **Incorrect**: Do NOT install playwright via npm - it's already available through MCP
+
+**Example Usage:**
+
+```javascript
+// Use browser_run_code to execute Playwright commands
+mcp__playwright__browser_run_code({
+  code: `async (page) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('http://localhost:4321/gh-aw/');
+    return { url: page.url(), title: await page.title() };
+  }`
+})
+```
+
+For each device viewport, use Playwright MCP tools to:
+- Set viewport size and navigate to http://localhost:4321/gh-aw/
 - Take screenshots and run accessibility audits
 - Test interactions (navigation, search, buttons)
 - Check for layout issues (overflow, truncation, broken layouts)
