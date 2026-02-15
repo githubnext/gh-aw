@@ -58,6 +58,16 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				workflowData.AIReaction = reactionStr
 			}
 
+			// Extract status-comment from on section
+			if statusCommentValue, hasStatusCommentField := onMap["status-comment"]; hasStatusCommentField {
+				if statusCommentBool, ok := statusCommentValue.(bool); ok {
+					workflowData.StatusComment = &statusCommentBool
+					compilerSafeOutputsLog.Printf("status-comment set to: %v", statusCommentBool)
+				} else {
+					return fmt.Errorf("status-comment must be a boolean value, got %T", statusCommentValue)
+				}
+			}
+
 			// Extract lock-for-agent from on.issues section
 			if issuesValue, hasIssues := onMap["issues"]; hasIssues {
 				if issuesMap, ok := issuesValue.(map[string]any); ok {
@@ -126,8 +136,8 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				// Clear the On field so applyDefaults will handle command trigger generation
 				workflowData.On = ""
 			}
-			// Extract other (non-conflicting) events excluding slash_command, command, reaction, and stop-after
-			otherEvents = filterMapKeys(onMap, "slash_command", "command", "reaction", "stop-after")
+			// Extract other (non-conflicting) events excluding slash_command, command, reaction, status-comment, and stop-after
+			otherEvents = filterMapKeys(onMap, "slash_command", "command", "reaction", "status-comment", "stop-after")
 		}
 	}
 

@@ -421,6 +421,7 @@ type WorkflowData struct {
 	CommandEvents         []string             // events where command should be active (nil = all events)
 	CommandOtherEvents    map[string]any       // for merging command with other events
 	AIReaction            string               // AI reaction type like "eyes", "heart", etc.
+	StatusComment         *bool                // whether to post status comments (default: true when ai-reaction is set, false otherwise)
 	LockForAgent          bool                 // whether to lock the issue during agent workflow execution
 	Jobs                  map[string]any       // custom job configurations with dependencies
 	Cache                 string               // cache configuration

@@ -297,17 +297,32 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		token = data.SafeOutputs.AddComments.GitHubToken
 	}
 
-	// Build the conclusion GitHub Script step (without artifact downloads - already added above)
-	scriptSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
-		StepName:      "Update reaction comment with completion status",
-		StepID:        "conclusion",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        getNotifyCommentErrorScript(),
-		ScriptFile:    "notify_comment_error.cjs",
-		Token:         token,
-	})
-	steps = append(steps, scriptSteps...)
+	// Only add the conclusion update step if status comments are enabled
+	// Status comments are enabled when:
+	// 1. status-comment is explicitly set to true, OR
+	// 2. status-comment is not set AND ai-reaction is configured (backward compatibility)
+	shouldUpdateStatusComment := false
+	if data.StatusComment != nil {
+		// Explicit status-comment setting takes precedence
+		shouldUpdateStatusComment = *data.StatusComment
+	} else if data.AIReaction != "" && data.AIReaction != "none" {
+		// Default to true for backward compatibility when ai-reaction is set
+		shouldUpdateStatusComment = true
+	}
+
+	if shouldUpdateStatusComment {
+		// Build the conclusion GitHub Script step (without artifact downloads - already added above)
+		scriptSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
+			StepName:      "Update reaction comment with completion status",
+			StepID:        "conclusion",
+			MainJobName:   mainJobName,
+			CustomEnvVars: customEnvVars,
+			Script:        getNotifyCommentErrorScript(),
+			ScriptFile:    "notify_comment_error.cjs",
+			Token:         token,
+		})
+		steps = append(steps, scriptSteps...)
+	}
 
 	// Add unlock step if lock-for-agent is enabled
 	if data.LockForAgent {
