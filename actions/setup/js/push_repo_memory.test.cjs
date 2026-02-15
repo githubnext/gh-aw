@@ -1115,4 +1115,124 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
       expect(scriptContent).toContain("execGitSync([");
     });
   });
+
+  describe("Cross-repository allowlist validation", () => {
+    let mockCore, mockContext, mockExecGitSync, mockFs;
+
+    beforeEach(() => {
+      // Reset mocks
+      mockCore = {
+        info: vi.fn(),
+        warning: vi.fn(),
+        error: vi.fn(),
+        setFailed: vi.fn(),
+        setOutput: vi.fn(),
+      };
+
+      mockContext = {
+        repo: {
+          owner: "test-owner",
+          repo: "test-repo",
+        },
+      };
+
+      mockExecGitSync = vi.fn();
+      mockFs = {
+        existsSync: vi.fn(),
+        readFileSync: vi.fn(),
+        writeFileSync: vi.fn(),
+        mkdirSync: vi.fn(),
+        readdirSync: vi.fn(),
+        statSync: vi.fn(),
+        copyFileSync: vi.fn(),
+      };
+
+      // Set up global mocks
+      global.core = mockCore;
+      global.context = mockContext;
+
+      // Set required env vars for main() to run
+      process.env.ARTIFACT_DIR = "/tmp/test-artifact";
+      process.env.MEMORY_ID = "test-memory";
+      process.env.BRANCH_NAME = "memory/test";
+      process.env.GH_TOKEN = "test-token";
+      process.env.GITHUB_RUN_ID = "123456";
+      process.env.GITHUB_WORKSPACE = "/tmp/workspace";
+    });
+
+    afterEach(() => {
+      delete global.core;
+      delete global.context;
+      delete process.env.TARGET_REPO;
+      delete process.env.REPO_MEMORY_ALLOWED_REPOS;
+      delete process.env.ARTIFACT_DIR;
+      delete process.env.MEMORY_ID;
+      delete process.env.BRANCH_NAME;
+      delete process.env.GH_TOKEN;
+      delete process.env.GITHUB_RUN_ID;
+      delete process.env.GITHUB_WORKSPACE;
+      vi.resetModules();
+    });
+
+    it("should reject target repository not in allowlist", async () => {
+      process.env.TARGET_REPO = "other-owner/other-repo";
+      process.env.REPO_MEMORY_ALLOWED_REPOS = "allowed-owner/allowed-repo";
+
+      // Mock fs to make artifact dir exist
+      mockFs.existsSync.mockReturnValue(true);
+
+      // Import and run with mocked dependencies
+      const mockRequire = moduleName => {
+        if (moduleName === "fs") return mockFs;
+        if (moduleName === "./git_helpers.cjs") return { execGitSync: mockExecGitSync };
+        return vi.requireActual(moduleName);
+      };
+
+      // Load module with mocks
+      vi.doMock("fs", () => mockFs);
+      vi.doMock("./git_helpers.cjs", () => ({ execGitSync: mockExecGitSync }));
+
+      const { main } = await import("./push_repo_memory.cjs");
+      await main();
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("E004:"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("not in the allowed-repos list"));
+    });
+
+    it("should allow target repository in allowlist", async () => {
+      process.env.TARGET_REPO = "allowed-owner/allowed-repo";
+      process.env.REPO_MEMORY_ALLOWED_REPOS = "allowed-owner/allowed-repo,other-owner/other-repo";
+
+      // Mock fs to make artifact dir exist with no files (to avoid git operations)
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readdirSync.mockReturnValue([]);
+
+      vi.doMock("fs", () => mockFs);
+      vi.doMock("./git_helpers.cjs", () => ({ execGitSync: mockExecGitSync }));
+
+      const { main } = await import("./push_repo_memory.cjs");
+      await main();
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Memory directory not found"));
+    });
+
+    it("should allow default repository without allowlist", async () => {
+      // Default repo is test-owner/test-repo (from mockContext)
+      process.env.TARGET_REPO = "test-owner/test-repo";
+      // No REPO_MEMORY_ALLOWED_REPOS set
+
+      // Mock fs to make artifact dir not exist (quick exit without error)
+      mockFs.existsSync.mockReturnValue(false);
+
+      vi.doMock("fs", () => mockFs);
+      vi.doMock("./git_helpers.cjs", () => ({ execGitSync: mockExecGitSync }));
+
+      const { main } = await import("./push_repo_memory.cjs");
+      await main();
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Memory directory not found"));
+    });
+  });
 });
