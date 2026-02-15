@@ -673,67 +673,67 @@ func TestBuildSafeOutputJobsEnvVars(t *testing.T) {
 // TestStatusCommentDecoupling tests the decoupling of status-comment from ai-reaction
 func TestStatusCommentDecoupling(t *testing.T) {
 	tests := []struct {
-		name                       string
-		aiReaction                 string
-		statusComment              *bool
-		expectActivationComment    bool
-		expectConclusionUpdate     bool
-		expectActivationReaction   bool
-		safeOutputJobNames         []string
+		name                     string
+		aiReaction               string
+		statusComment            *bool
+		expectActivationComment  bool
+		expectConclusionUpdate   bool
+		expectActivationReaction bool
+		safeOutputJobNames       []string
 	}{
 		{
-			name:                       "backward compatibility: ai-reaction creates status comments",
-			aiReaction:                 "eyes",
-			statusComment:              nil,
-			expectActivationComment:    true,
-			expectConclusionUpdate:     true,
-			expectActivationReaction:   true,
-			safeOutputJobNames:         []string{"missing_tool"},
+			name:                     "backward compatibility: ai-reaction creates status comments",
+			aiReaction:               "eyes",
+			statusComment:            nil,
+			expectActivationComment:  true,
+			expectConclusionUpdate:   true,
+			expectActivationReaction: true,
+			safeOutputJobNames:       []string{"missing_tool"},
 		},
 		{
-			name:                       "explicit status-comment: true with ai-reaction",
-			aiReaction:                 "eyes",
-			statusComment:              boolPtr(true),
-			expectActivationComment:    true,
-			expectConclusionUpdate:     true,
-			expectActivationReaction:   true,
-			safeOutputJobNames:         []string{"missing_tool"},
+			name:                     "explicit status-comment: true with ai-reaction",
+			aiReaction:               "eyes",
+			statusComment:            boolPtr(true),
+			expectActivationComment:  true,
+			expectConclusionUpdate:   true,
+			expectActivationReaction: true,
+			safeOutputJobNames:       []string{"missing_tool"},
 		},
 		{
-			name:                       "decoupled: status-comment: false with ai-reaction",
-			aiReaction:                 "eyes",
-			statusComment:              boolPtr(false),
-			expectActivationComment:    false,
-			expectConclusionUpdate:     false,
-			expectActivationReaction:   true,
-			safeOutputJobNames:         []string{"missing_tool"},
+			name:                     "decoupled: status-comment: false with ai-reaction",
+			aiReaction:               "eyes",
+			statusComment:            boolPtr(false),
+			expectActivationComment:  false,
+			expectConclusionUpdate:   false,
+			expectActivationReaction: true,
+			safeOutputJobNames:       []string{"missing_tool"},
 		},
 		{
-			name:                       "no ai-reaction, no status-comment",
-			aiReaction:                 "",
-			statusComment:              nil,
-			expectActivationComment:    false,
-			expectConclusionUpdate:     false,
-			expectActivationReaction:   false,
-			safeOutputJobNames:         []string{"missing_tool"},
+			name:                     "no ai-reaction, no status-comment",
+			aiReaction:               "",
+			statusComment:            nil,
+			expectActivationComment:  false,
+			expectConclusionUpdate:   false,
+			expectActivationReaction: false,
+			safeOutputJobNames:       []string{"missing_tool"},
 		},
 		{
-			name:                       "no ai-reaction, explicit status-comment: true",
-			aiReaction:                 "",
-			statusComment:              boolPtr(true),
-			expectActivationComment:    true,
-			expectConclusionUpdate:     true,
-			expectActivationReaction:   false,
-			safeOutputJobNames:         []string{"missing_tool"},
+			name:                     "no ai-reaction, explicit status-comment: true",
+			aiReaction:               "",
+			statusComment:            boolPtr(true),
+			expectActivationComment:  true,
+			expectConclusionUpdate:   true,
+			expectActivationReaction: false,
+			safeOutputJobNames:       []string{"missing_tool"},
 		},
 		{
-			name:                       "ai-reaction: none, status-comment: true",
-			aiReaction:                 "none",
-			statusComment:              boolPtr(true),
-			expectActivationComment:    true,
-			expectConclusionUpdate:     true,
-			expectActivationReaction:   false,
-			safeOutputJobNames:         []string{"missing_tool"},
+			name:                     "ai-reaction: none, status-comment: true",
+			aiReaction:               "none",
+			statusComment:            boolPtr(true),
+			expectActivationComment:  true,
+			expectConclusionUpdate:   true,
+			expectActivationReaction: false,
+			safeOutputJobNames:       []string{"missing_tool"},
 		},
 	}
 
@@ -757,7 +757,7 @@ func TestStatusCommentDecoupling(t *testing.T) {
 			}
 
 			activationSteps := strings.Join(activationJob.Steps, "")
-			
+
 			// Check for activation comment step
 			hasActivationComment := strings.Contains(activationSteps, "Add comment with workflow run link")
 			if hasActivationComment != tt.expectActivationComment {

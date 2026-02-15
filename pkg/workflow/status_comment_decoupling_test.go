@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestStatusCommentDecouplingIntegration(t *testing.T) {
+func TestStatusCommentDecouplingCompilation(t *testing.T) {
 	// Create a temporary directory for test outputs
 	tmpDir, err := os.MkdirTemp("", "status-comment-test-*")
 	require.NoError(t, err, "Failed to create temp dir")
