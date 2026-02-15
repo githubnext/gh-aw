@@ -81,6 +81,20 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		compilerSafeOutputJobsLog.Printf("Added separate upload_assets job")
 	}
 
+	// Build dedicated unlock job if lock-for-agent is enabled
+	// This job is separate from conclusion to ensure it always runs, even if other jobs fail
+	// It depends on agent and detection (if enabled) to run after workflow execution completes
+	unlockJob, err := c.buildUnlockJob(data, threatDetectionEnabled)
+	if err != nil {
+		return fmt.Errorf("failed to build unlock job: %w", err)
+	}
+	if unlockJob != nil {
+		if err := c.jobManager.AddJob(unlockJob); err != nil {
+			return fmt.Errorf("failed to add unlock job: %w", err)
+		}
+		compilerSafeOutputJobsLog.Print("Added dedicated unlock job")
+	}
+
 	// Build conclusion job if add-comment is configured OR if command trigger is configured with reactions
 	// This job runs last, after all safe output jobs (and push_repo_memory if configured), to update the activation comment on failure
 	// The buildConclusionJob function itself will decide whether to create the job based on the configuration
@@ -89,6 +103,11 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		return fmt.Errorf("failed to build conclusion job: %w", err)
 	}
 	if conclusionJob != nil {
+		// If unlock job exists, conclusion should depend on it to run after unlock completes
+		if unlockJob != nil {
+			conclusionJob.Needs = append(conclusionJob.Needs, "unlock")
+			compilerSafeOutputJobsLog.Printf("Added unlock job dependency to conclusion job")
+		}
 		// If push_repo_memory job exists, conclusion should depend on it
 		// Check if the job was already created (it's created in buildJobs)
 		if _, exists := c.jobManager.GetJob("push_repo_memory"); exists {
