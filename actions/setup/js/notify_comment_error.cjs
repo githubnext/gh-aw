@@ -8,7 +8,7 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getRunSuccessMessage, getRunFailureMessage, getDetectionFailureMessage } = require("./messages_run_status.cjs");
 const { getMessages } = require("./messages_core.cjs");
-const { getErrorMessage } = require("./error_helpers.cjs");
+const { getErrorMessage, isLockedError } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
@@ -246,7 +246,14 @@ async function main() {
       if (response?.data?.html_url) core.info(`Comment URL: ${response.data.html_url}`);
       return;
     } catch (error) {
-      // Don't fail the workflow if we can't create the comment
+      // Check if the error is due to a locked issue/PR/discussion
+      if (isLockedError(error)) {
+        // Silently ignore locked resource errors - just log for debugging
+        core.info(`Cannot create append-only comment: resource is locked (this is expected and not an error)`);
+        return;
+      }
+
+      // Don't fail the workflow if we can't create the comment (for other errors)
       core.warning(`Failed to create append-only comment: ${getErrorMessage(error)}`);
       return;
     }
@@ -300,7 +307,14 @@ async function main() {
       core.info(`Comment URL: ${response.data.html_url}`);
     }
   } catch (error) {
-    // Don't fail the workflow if we can't update the comment
+    // Check if the error is due to a locked issue/PR/discussion
+    if (isLockedError(error)) {
+      // Silently ignore locked resource errors - just log for debugging
+      core.info(`Cannot update comment: resource is locked (this is expected and not an error)`);
+      return;
+    }
+
+    // Don't fail the workflow if we can't update the comment (for other errors)
     core.warning(`Failed to update comment: ${getErrorMessage(error)}`);
   }
 }
