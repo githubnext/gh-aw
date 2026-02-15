@@ -61,7 +61,7 @@ The checker uses color-coded output:
 |----|------|----------|-------------|
 | REQ-001 | RFC 2119 Keyword Usage | MEDIUM | Verifies normative sections use MUST/SHOULD/MAY |
 | REQ-002 | Safe Output Type Completeness | MEDIUM | Checks each type has all required documentation |
-| REQ-003 | Verification Method Specification | LOW | Ensures requirements include verification methods |
+| REQ-003 | Verification Method Specification | LOW | Ensures requirements include structured verification methods with Method, Tool, Criteria, and Formal Definition |
 
 ### Implementation Checks
 
