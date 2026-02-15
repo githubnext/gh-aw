@@ -134,10 +134,7 @@ describe("check_skip_roles.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("skip_roles_ok", "false");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "skipped");
       expect(mockCore.setOutput).toHaveBeenCalledWith("user_permission", "admin");
-      expect(mockCore.setOutput).toHaveBeenCalledWith(
-        "error_message",
-        "Workflow skipped: User 'testuser' has role 'admin' which is in skip-roles: [admin, maintainer, write]"
-      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("error_message", "Workflow skipped: User 'testuser' has role 'admin' which is in skip-roles: [admin, maintainer, write]");
     });
 
     it("should skip workflow when user has write role", async () => {

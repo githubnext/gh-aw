@@ -24,7 +24,10 @@ async function main() {
     return;
   }
 
-  const skipRoles = skipRolesEnv.split(",").map(r => r.trim()).filter(r => r);
+  const skipRoles = skipRolesEnv
+    .split(",")
+    .map(r => r.trim())
+    .filter(r => r);
   core.info(`Checking if user '${actor}' has any of the skip-roles: ${skipRoles.join(", ")}`);
 
   // Check the user's repository permission
@@ -45,10 +48,7 @@ async function main() {
     core.setOutput("skip_roles_ok", "false");
     core.setOutput("result", "skipped");
     core.setOutput("user_permission", result.permission);
-    core.setOutput(
-      "error_message",
-      `Workflow skipped: User '${actor}' has role '${result.permission}' which is in skip-roles: [${skipRoles.join(", ")}]`
-    );
+    core.setOutput("error_message", `Workflow skipped: User '${actor}' has role '${result.permission}' which is in skip-roles: [${skipRoles.join(", ")}]`);
   } else {
     // User does NOT have any of the skip-roles, allow workflow to proceed
     core.info(`✅ User '${actor}' has role '${result.permission}' which is NOT in skip-roles [${skipRoles.join(", ")}]. Workflow will proceed.`);
