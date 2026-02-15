@@ -408,8 +408,12 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 		return nil
 	}
 
-	// SRT has been removed - all sandboxes use AWF now
-	// This check is no longer needed
+	// Skip firewall validation when agent sandbox is enabled (AWF/SRT)
+	// The agent sandbox provides its own network isolation
+	if isSandboxEnabled(sandboxConfig, networkPermissions) {
+		strictModeValidationLog.Printf("Agent sandbox is enabled, skipping firewall validation")
+		return nil
+	}
 
 	// If network permissions don't exist, that's fine (will default to "defaults")
 	if networkPermissions == nil {

@@ -30,7 +30,9 @@ func isFirewallDisabledBySandboxAgent(workflowData *WorkflowData) bool {
 }
 
 // isFirewallEnabled checks if AWF firewall is enabled for the workflow
-// Firewall is enabled if network.firewall is explicitly set to true or an object
+// Firewall is enabled if:
+// - network.firewall is explicitly set to true or an object
+// - sandbox is enabled (via sandbox.agent or legacy sandbox.type field)
 // Firewall is disabled if sandbox.agent is explicitly set to false
 func isFirewallEnabled(workflowData *WorkflowData) bool {
 	// Check if sandbox.agent: false (new way to disable firewall)
@@ -44,6 +46,13 @@ func isFirewallEnabled(workflowData *WorkflowData) bool {
 		enabled := workflowData.NetworkPermissions.Firewall.Enabled
 		firewallLog.Printf("Firewall enabled check: %v", enabled)
 		return enabled
+	}
+
+	// Check if sandbox is enabled (via sandbox.agent or legacy sandbox.type field)
+	// When sandbox is enabled, the firewall is implicitly enabled
+	if workflowData != nil && isSandboxEnabled(workflowData.SandboxConfig, workflowData.NetworkPermissions) {
+		firewallLog.Print("Firewall implicitly enabled via sandbox configuration")
+		return true
 	}
 
 	firewallLog.Print("Firewall not configured, returning false")

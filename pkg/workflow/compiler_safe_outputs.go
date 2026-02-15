@@ -487,6 +487,11 @@ func isSandboxEnabled(sandboxConfig *SandboxConfig, networkPermissions *NetworkP
 		}
 	}
 
+	// Check legacy top-level Type field (deprecated but still supported)
+	if sandboxConfig != nil && isSupportedSandboxType(sandboxConfig.Type) {
+		return true
+	}
+
 	// Check if firewall is auto-enabled (AWF)
 	if networkPermissions != nil && networkPermissions.Firewall != nil && networkPermissions.Firewall.Enabled {
 		return true

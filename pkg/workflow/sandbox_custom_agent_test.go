@@ -264,7 +264,7 @@ features:
   sandbox-runtime: true
 sandbox:
   agent:
-    id: srt
+    id: awf
     command: "custom-srt-wrapper"
     args:
       - "--custom-srt-arg"
