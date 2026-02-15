@@ -15,7 +15,8 @@ var compilerUnlockJobLog = logger.New("workflow:compiler_unlock_job")
 // 1. always() - runs even if agent or other jobs fail
 // 2. activation.outputs.issue_locked == 'true' - only if issue was actually locked
 // 3. Event type is 'issues' or 'issue_comment' - only for applicable events
-func (c *Compiler) buildUnlockJob(data *WorkflowData) (*Job, error) {
+// The job depends on agent (and detection if enabled) to ensure unlock happens after workflow execution.
+func (c *Compiler) buildUnlockJob(data *WorkflowData, threatDetectionEnabled bool) (*Job, error) {
 	compilerUnlockJobLog.Print("Building dedicated unlock job")
 
 	if !data.LockForAgent {
@@ -67,9 +68,15 @@ func (c *Compiler) buildUnlockJob(data *WorkflowData) (*Job, error) {
 	alwaysFunc := BuildFunctionCall("always")
 
 	// Create the unlock job
-	// This job only depends on activation to read the issue_locked output
-	// It does NOT depend on agent or other jobs, allowing it to run even if they fail
-	needs := []string{string(constants.ActivationJobName)}
+	// This job depends on activation (for issue_locked output), agent (to run after workflow),
+	// and detection (if enabled, to run after threat detection completes)
+	needs := []string{string(constants.ActivationJobName), string(constants.AgentJobName)}
+	
+	// Add detection job dependency if threat detection is enabled
+	if threatDetectionEnabled {
+		needs = append(needs, string(constants.DetectionJobName))
+		compilerUnlockJobLog.Print("Added detection job dependency to unlock job")
+	}
 
 	// Determine permissions - need contents: read for dev mode checkout, issues: write for unlocking
 	var permissions string

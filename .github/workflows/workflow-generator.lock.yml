@@ -1224,7 +1224,10 @@ jobs:
             await main();
 
   unlock:
-    needs: activation
+    needs:
+      - activation
+      - agent
+      - detection
     if: always()
     runs-on: ubuntu-latest
     permissions:
