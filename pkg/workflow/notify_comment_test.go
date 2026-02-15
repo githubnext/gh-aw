@@ -238,19 +238,19 @@ func TestConclusionJob(t *testing.T) {
 				hasUpdateStep := strings.Contains(stepsYAML, "Update reaction comment with completion status")
 				if tt.expectUpdateStep {
 					if !hasUpdateStep {
-						t.Error("Expected 'Update reaction comment with completion status' step in conclusion job")
+						t.Errorf("[%s] Expected 'Update reaction comment with completion status' step in conclusion job", tt.name)
 					}
 					if !strings.Contains(stepsYAML, "GH_AW_COMMENT_ID") {
-						t.Error("Expected GH_AW_COMMENT_ID environment variable in conclusion job")
+						t.Errorf("[%s] Expected GH_AW_COMMENT_ID environment variable in conclusion job", tt.name)
 					}
 				} else {
 					if hasUpdateStep {
-						t.Error("Did not expect 'Update reaction comment with completion status' step in conclusion job")
+						t.Errorf("[%s] Did not expect 'Update reaction comment with completion status' step in conclusion job", tt.name)
 					}
 				}
 				// GH_AW_AGENT_CONCLUSION should always be present for agent failure handling
 				if !strings.Contains(stepsYAML, "GH_AW_AGENT_CONCLUSION") {
-					t.Error("Expected GH_AW_AGENT_CONCLUSION environment variable in conclusion job")
+					t.Errorf("[%s] Expected GH_AW_AGENT_CONCLUSION environment variable in conclusion job", tt.name)
 				}
 			} else {
 				if job != nil {
