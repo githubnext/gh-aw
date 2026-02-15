@@ -120,7 +120,13 @@ func parseMentionsConfig(mentions any) *MentionsConfig {
 				var allowedStrings []string
 				for _, item := range allowedArray {
 					if str, ok := item.(string); ok {
-						allowedStrings = append(allowedStrings, str)
+						// Normalize username by removing '@' prefix if present
+						normalized := str
+						if len(str) > 0 && str[0] == '@' {
+							normalized = str[1:]
+							safeOutputMessagesLog.Printf("Normalized mention '%s' to '%s'", str, normalized)
+						}
+						allowedStrings = append(allowedStrings, normalized)
 					}
 				}
 				config.Allowed = allowedStrings

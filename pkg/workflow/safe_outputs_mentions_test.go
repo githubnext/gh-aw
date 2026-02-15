@@ -81,6 +81,24 @@ func TestParseMentionsConfig_Object(t *testing.T) {
 			},
 		},
 		{
+			name: "allowed list with @ prefix - should normalize",
+			input: map[string]any{
+				"allowed": []any{"@pelikhan", "@bot1"},
+			},
+			expected: &MentionsConfig{
+				Allowed: []string{"pelikhan", "bot1"},
+			},
+		},
+		{
+			name: "allowed list with mixed @ prefix - should normalize all",
+			input: map[string]any{
+				"allowed": []any{"@pelikhan", "bot1", "@user2"},
+			},
+			expected: &MentionsConfig{
+				Allowed: []string{"pelikhan", "bot1", "user2"},
+			},
+		},
+		{
 			name: "max as float",
 			input: map[string]any{
 				"max": 10.5,
@@ -294,6 +312,32 @@ func TestExtractSafeOutputsConfig_WithMentions(t *testing.T) {
 				AllowContext:     boolPtr(true),
 				Allowed:          []string{"bot1"},
 				Max:              intPtr(15),
+			},
+		},
+		{
+			name: "mentions with @ prefix - should normalize",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"mentions": map[string]any{
+						"allowed": []any{"@pelikhan"},
+					},
+				},
+			},
+			expected: &MentionsConfig{
+				Allowed: []string{"pelikhan"},
+			},
+		},
+		{
+			name: "mentions with mixed @ prefix - should normalize all",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"mentions": map[string]any{
+						"allowed": []any{"@user1", "user2", "@user3"},
+					},
+				},
+			},
+			expected: &MentionsConfig{
+				Allowed: []string{"user1", "user2", "user3"},
 			},
 		},
 	}
