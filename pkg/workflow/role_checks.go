@@ -489,6 +489,27 @@ func (c *Compiler) extractSkipRoles(frontmatter map[string]any) []string {
 	return nil
 }
 
+// extractSkipUsers extracts the 'skip-users' field from the 'on:' section of frontmatter
+// Returns nil if skip-users is not configured
+func (c *Compiler) extractSkipUsers(frontmatter map[string]any) []string {
+	// Check the "on" section in frontmatter
+	onValue, exists := frontmatter["on"]
+	if !exists || onValue == nil {
+		return nil
+	}
+
+	// Handle different formats of the on: section
+	switch on := onValue.(type) {
+	case map[string]any:
+		// Complex object format - look for skip-users
+		if skipUsersValue, exists := on["skip-users"]; exists && skipUsersValue != nil {
+			return extractStringSliceField(skipUsersValue, "skip-users")
+		}
+	}
+
+	return nil
+}
+
 // extractStringSliceField extracts a string slice from various input formats
 // Handles: string, []string, []any (with string elements)
 // Returns nil if the input is empty or invalid

@@ -649,6 +649,7 @@ const CheckSkipIfNoMatchStepID StepID = "check_skip_if_no_match"
 const CheckCommandPositionStepID StepID = "check_command_position"
 const CheckRateLimitStepID StepID = "check_rate_limit"
 const CheckSkipRolesStepID StepID = "check_skip_roles"
+const CheckSkipUsersStepID StepID = "check_skip_users"
 
 // Output names for pre-activation job steps
 const IsTeamMemberOutput = "is_team_member"
@@ -659,6 +660,7 @@ const CommandPositionOkOutput = "command_position_ok"
 const MatchedCommandOutput = "matched_command"
 const RateLimitOkOutput = "rate_limit_ok"
 const SkipRolesOkOutput = "skip_roles_ok"
+const SkipUsersOkOutput = "skip_users_ok"
 const ActivatedOutput = "activated"
 
 // Rate limit defaults
