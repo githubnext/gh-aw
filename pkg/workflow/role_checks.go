@@ -182,7 +182,7 @@ func (c *Compiler) extractSkipRoles(frontmatter map[string]any) []string {
 	if onValue, exists := frontmatter["on"]; exists {
 		if onMap, ok := onValue.(map[string]any); ok {
 			if skipRolesValue, exists := onMap["skip-roles"]; exists {
-				roleLog.Print("Found 'skip-roles' inside 'on' section; this location is deprecated, use top-level 'skip-roles' instead")
+				roleLog.Printf("DEPRECATED: Found 'skip-roles' inside 'on' section. Please move to top-level 'skip-roles' field instead.")
 				if skipRoles := extractStringSliceField(skipRolesValue, "skip-roles"); len(skipRoles) > 0 {
 					return skipRoles
 				}
