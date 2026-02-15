@@ -41,9 +41,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Build copilot CLI arguments based on configuration
 	var copilotArgs []string
-	sandboxEnabled := isFirewallEnabled(workflowData) || isSRTEnabled(workflowData)
+	sandboxEnabled := isFirewallEnabled(workflowData)
 	if sandboxEnabled {
-		// Simplified args for sandbox mode (AWF or SRT)
+		// Simplified args for sandbox mode (AWF)
 		copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--log-dir", logsFolder}
 
 		// Always add workspace directory to --add-dir so Copilot CLI can access it
@@ -164,18 +164,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		commandName = workflowData.EngineConfig.Command
 		copilotExecLog.Printf("Using custom command: %s", commandName)
 	} else if sandboxEnabled {
-		// For SRT: use locally installed package without -y flag to avoid internet fetch
-		// For AWF: use the installed binary directly
-		if isSRTEnabled(workflowData) {
-			// Use node explicitly to invoke copilot CLI to ensure env vars propagate correctly through sandbox
-			// The .bin/copilot shell wrapper doesn't properly pass environment variables through bubblewrap
-			// Environment variables are explicitly exported in the SRT wrapper to propagate through sandbox
-			commandName = "node ./node_modules/.bin/copilot"
-		} else {
-			// AWF - use the copilot binary installed by the installer script
-			// The binary is mounted into the AWF container from /usr/local/bin/copilot
-			commandName = "/usr/local/bin/copilot"
-		}
+		// AWF - use the installed binary directly
+		// The binary is mounted into the AWF container from /usr/local/bin/copilot
+		commandName = "/usr/local/bin/copilot"
 	} else {
 		// Non-sandbox mode: use standard copilot command
 		commandName = "copilot"
@@ -202,47 +193,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		}
 	}
 
-	// Conditionally wrap with sandbox (AWF or SRT)
+	// Conditionally wrap with sandbox (AWF only)
 	var command string
-	if isSRTEnabled(workflowData) {
-		// Build the SRT-wrapped command
-		copilotExecLog.Print("Using Sandbox Runtime (SRT) for execution")
-
-		agentConfig := getAgentConfig(workflowData)
-
-		// Generate SRT config JSON
-		srtConfigJSON, err := generateSRTConfigJSON(workflowData)
-		if err != nil {
-			copilotExecLog.Printf("Error generating SRT config: %v", err)
-			// Fallback to empty config
-			srtConfigJSON = "{}"
-		}
-
-		// Check if custom command is specified
-		if agentConfig != nil && agentConfig.Command != "" {
-			// Use custom command for SRT
-			copilotExecLog.Printf("Using custom SRT command: %s", agentConfig.Command)
-
-			// Build args list with custom args appended
-			var srtArgs []string
-			if len(agentConfig.Args) > 0 {
-				srtArgs = append(srtArgs, agentConfig.Args...)
-				copilotExecLog.Printf("Added %d custom args from agent config", len(agentConfig.Args))
-			}
-
-			// Escape the command so shell operators are passed to SRT, not interpreted by the outer shell
-			escapedCommand := shellEscapeArg(copilotCommand)
-
-			// Build the command with custom SRT command
-			// The custom command should handle wrapping copilot with SRT
-			command = fmt.Sprintf(`set -o pipefail
-%s %s -- %s 2>&1 | tee %s`, agentConfig.Command, shellJoinArgs(srtArgs), escapedCommand, shellEscapeArg(logFile))
-		} else {
-			// Create the Node.js wrapper script for SRT (standard installation)
-			srtWrapperScript := generateSRTWrapperScript(copilotCommand, srtConfigJSON, logFile, logsFolder)
-			command = srtWrapperScript
-		}
-	} else if isFirewallEnabled(workflowData) {
+	if isFirewallEnabled(workflowData) {
 		// Build AWF-wrapped command using helper function - no mkdir needed, AWF handles it
 		// Get allowed domains (copilot defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
 		allowedDomains := GetCopilotAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)

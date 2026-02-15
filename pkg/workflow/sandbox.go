@@ -14,11 +14,7 @@
 package workflow
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var sandboxLog = logger.New("workflow:sandbox")
@@ -27,10 +23,8 @@ var sandboxLog = logger.New("workflow:sandbox")
 type SandboxType string
 
 const (
-	SandboxTypeAWF     SandboxType = "awf"             // Uses AWF (Agent Workflow Firewall)
-	SandboxTypeSRT     SandboxType = "srt"             // Uses Anthropic Sandbox Runtime
-	SandboxTypeDefault SandboxType = "default"         // Alias for AWF (backward compat)
-	SandboxTypeRuntime SandboxType = "sandbox-runtime" // Alias for SRT (backward compat)
+	SandboxTypeAWF     SandboxType = "awf"     // Uses AWF (Agent Workflow Firewall)
+	SandboxTypeDefault SandboxType = "default" // Alias for AWF (backward compat)
 )
 
 // SandboxConfig represents the top-level sandbox configuration from front matter
@@ -104,144 +98,45 @@ func getAgentType(agent *AgentSandboxConfig) SandboxType {
 // isSupportedSandboxType checks if a sandbox type is valid/supported
 func isSupportedSandboxType(sandboxType SandboxType) bool {
 	return sandboxType == SandboxTypeAWF ||
-		sandboxType == SandboxTypeSRT ||
-		sandboxType == SandboxTypeDefault ||
-		sandboxType == SandboxTypeRuntime
+		sandboxType == SandboxTypeDefault
 }
 
-// isSRTEnabled checks if Sandbox Runtime is enabled for the workflow
-func isSRTEnabled(workflowData *WorkflowData) bool {
-	if workflowData == nil || workflowData.SandboxConfig == nil {
-		sandboxLog.Print("No sandbox config, SRT disabled")
-		return false
-	}
-
-	config := workflowData.SandboxConfig
-
-	// Check new format: sandbox.agent
-	if config.Agent != nil {
-		// Get effective type from ID or Type field
-		agentType := getAgentType(config.Agent)
-		enabled := agentType == SandboxTypeSRT || agentType == SandboxTypeRuntime
-		sandboxLog.Printf("SRT enabled check (new format): %v (type=%s)", enabled, agentType)
-		return enabled
-	}
-
-	// Check legacy format: sandbox.type
-	enabled := config.Type == SandboxTypeRuntime || config.Type == SandboxTypeSRT
-	sandboxLog.Printf("SRT enabled check (legacy format): %v (type=%s)", enabled, config.Type)
-	return enabled
-}
-
-// generateSRTConfigJSON generates the .srt-settings.json content
-// Network configuration is always derived from the top-level 'network' field.
-// User-provided sandbox config can override filesystem, ignoreViolations, and enableWeakerNestedSandbox.
-func generateSRTConfigJSON(workflowData *WorkflowData) (string, error) {
-	if workflowData == nil {
-		return "", fmt.Errorf("workflowData is nil")
-	}
-
-	sandboxConfig := workflowData.SandboxConfig
+// migrateSRTToAWF converts any SRT sandbox configuration to AWF
+// This is a codemod that automatically migrates workflows from the deprecated SRT to AWF
+func migrateSRTToAWF(sandboxConfig *SandboxConfig) *SandboxConfig {
 	if sandboxConfig == nil {
-		return "", fmt.Errorf("sandbox config is nil")
+		return nil
 	}
 
-	// Start with base SRT config
-	sandboxLog.Print("Generating SRT config from network permissions")
-
-	// Generate network config from top-level network field (always)
-	// Network config is NOT user-configurable from sandbox.agent.config
-	domainMap := make(map[string]bool)
-
-	// Add Copilot default domains
-	for _, domain := range CopilotDefaultDomains {
-		domainMap[domain] = true
+	// Migrate legacy Type field from SRT/sandbox-runtime to AWF/default
+	if sandboxConfig.Type == "srt" || sandboxConfig.Type == "sandbox-runtime" {
+		sandboxLog.Printf("Migrating legacy sandbox type from %s to awf", sandboxConfig.Type)
+		sandboxConfig.Type = SandboxTypeAWF
 	}
 
-	// Add NetworkPermissions domains (if specified)
-	if workflowData.NetworkPermissions != nil && len(workflowData.NetworkPermissions.Allowed) > 0 {
-		// Expand ecosystem identifiers and add individual domains
-		expandedDomains := GetAllowedDomains(workflowData.NetworkPermissions)
-		for _, domain := range expandedDomains {
-			domainMap[domain] = true
+	// Migrate Agent.Type field from SRT to AWF
+	if sandboxConfig.Agent != nil {
+		if sandboxConfig.Agent.Type == "srt" || sandboxConfig.Agent.Type == "sandbox-runtime" {
+			sandboxLog.Printf("Migrating agent type from %s to awf", sandboxConfig.Agent.Type)
+			sandboxConfig.Agent.Type = SandboxTypeAWF
+		}
+		// Migrate Agent.ID field from SRT to AWF
+		if sandboxConfig.Agent.ID == "srt" || sandboxConfig.Agent.ID == "sandbox-runtime" {
+			sandboxLog.Printf("Migrating agent ID from %s to awf", sandboxConfig.Agent.ID)
+			sandboxConfig.Agent.ID = "awf"
 		}
 	}
 
-	// Convert map keys to slice - using functional helper
-	allowedDomains := sliceutil.MapToSlice(domainMap)
-	SortStrings(allowedDomains)
-
-	srtConfig := &SandboxRuntimeConfig{
-		Network: &SRTNetworkConfig{
-			AllowedDomains:      allowedDomains,
-			BlockedDomains:      []string{},
-			AllowUnixSockets:    []string{"/var/run/docker.sock"},
-			AllowLocalBinding:   false,
-			AllowAllUnixSockets: true,
-		},
-		Filesystem: &SRTFilesystemConfig{
-			DenyRead:   []string{},
-			AllowWrite: []string{".", "/home/runner/.copilot", "/home/runner/.cache", "/tmp"},
-			DenyWrite:  []string{},
-		},
-		IgnoreViolations:          map[string][]string{},
-		EnableWeakerNestedSandbox: true,
-	}
-
-	// Apply user-provided non-network config (filesystem, ignoreViolations, enableWeakerNestedSandbox)
-	var userConfig *SandboxRuntimeConfig
-	if sandboxConfig.Agent != nil && sandboxConfig.Agent.Config != nil {
-		userConfig = sandboxConfig.Agent.Config
-	} else if sandboxConfig.Config != nil {
-		userConfig = sandboxConfig.Config
-	}
-
-	if userConfig != nil {
-		sandboxLog.Print("Applying user-provided SRT config (filesystem, ignoreViolations, enableWeakerNestedSandbox)")
-
-		// Apply filesystem config if provided
-		if userConfig.Filesystem != nil {
-			srtConfig.Filesystem = userConfig.Filesystem
-			// Normalize nil slices
-			if srtConfig.Filesystem.DenyRead == nil {
-				srtConfig.Filesystem.DenyRead = []string{}
-			}
-			if srtConfig.Filesystem.AllowWrite == nil {
-				srtConfig.Filesystem.AllowWrite = []string{}
-			}
-			if srtConfig.Filesystem.DenyWrite == nil {
-				srtConfig.Filesystem.DenyWrite = []string{}
-			}
-		}
-
-		// Apply ignoreViolations if provided
-		if userConfig.IgnoreViolations != nil {
-			srtConfig.IgnoreViolations = userConfig.IgnoreViolations
-		}
-
-		// Note: EnableWeakerNestedSandbox defaults to true in srtConfig above.
-		// We only override it with the user's value if they provided a config.
-		// Since Go's bool zero value is false, if user doesn't specify this field,
-		// it will be false in userConfig. This means users must explicitly set it
-		// to true if they want it enabled when providing custom config.
-		// This is intentional: providing custom config opts into full control.
-		srtConfig.EnableWeakerNestedSandbox = userConfig.EnableWeakerNestedSandbox
-	}
-
-	// Marshal to JSON with indentation
-	jsonBytes, err := json.MarshalIndent(srtConfig, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal SRT config to JSON: %w", err)
-	}
-
-	sandboxLog.Printf("Generated SRT config: %s", string(jsonBytes))
-	return string(jsonBytes), nil
+	return sandboxConfig
 }
 
 // applySandboxDefaults applies default values to sandbox configuration
 // If no sandbox config exists, creates one with awf as default agent
 // If sandbox config exists but has no agent, sets agent to awf (unless agent is explicitly disabled)
 func applySandboxDefaults(sandboxConfig *SandboxConfig, engineConfig *EngineConfig) *SandboxConfig {
+	// First, migrate any SRT references to AWF (codemod)
+	sandboxConfig = migrateSRTToAWF(sandboxConfig)
+
 	// If agent sandbox is explicitly disabled (sandbox.agent: false), preserve that setting
 	if sandboxConfig != nil && sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
 		sandboxLog.Print("Agent sandbox explicitly disabled with sandbox.agent: false, preserving disabled state")

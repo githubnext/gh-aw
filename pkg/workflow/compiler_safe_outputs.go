@@ -477,11 +477,6 @@ func isSandboxEnabled(sandboxConfig *SandboxConfig, networkPermissions *NetworkP
 		}
 	}
 
-	// Check if SRT is enabled via legacy Type field
-	if sandboxConfig != nil && (sandboxConfig.Type == SandboxTypeSRT || sandboxConfig.Type == SandboxTypeRuntime) {
-		return true
-	}
-
 	// Check if firewall is auto-enabled (AWF)
 	if networkPermissions != nil && networkPermissions.Firewall != nil && networkPermissions.Firewall.Enabled {
 		return true

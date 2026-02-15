@@ -134,22 +134,8 @@ func enableFirewallByDefaultForEngine(engineID string, networkPermissions *Netwo
 		return
 	}
 
-	// Check if SRT is enabled - skip AWF auto-enablement if SRT is configured (Copilot only)
-	if engineID == "copilot" && sandboxConfig != nil {
-		// Check legacy Type field
-		if sandboxConfig.Type == SandboxTypeRuntime {
-			firewallLog.Print("SRT sandbox is enabled (via Type), skipping AWF auto-enablement")
-			return
-		}
-		// Check new Agent field
-		if sandboxConfig.Agent != nil {
-			agentType := getAgentType(sandboxConfig.Agent)
-			if agentType == SandboxTypeRuntime || agentType == SandboxTypeSRT {
-				firewallLog.Print("SRT sandbox is enabled (via Agent), skipping AWF auto-enablement")
-				return
-			}
-		}
-	}
+	// SRT has been removed, all sandboxes should use AWF now
+	// This section is no longer needed
 
 	// Check if firewall is already configured
 	if networkPermissions.Firewall != nil {

@@ -2166,12 +2166,12 @@
                     },
                     "ssl-bump": {
                       "type": "boolean",
-                      "description": "AWF-only feature: Enable SSL Bump for HTTPS content inspection. When enabled, AWF can filter HTTPS traffic by URL patterns instead of just domain names. This feature is specific to AWF and does not apply to Sandbox Runtime (SRT). Default: false",
+                      "description": "Enable SSL Bump for HTTPS content inspection. When enabled, AWF can filter HTTPS traffic by URL patterns instead of just domain names. This feature is specific to AWF. Default: false",
                       "default": false
                     },
                     "allow-urls": {
                       "type": "array",
-                      "description": "AWF-only feature: URL patterns to allow for HTTPS traffic (requires ssl-bump: true). Supports wildcards for flexible path matching. Must include https:// scheme. This feature is specific to AWF and does not apply to Sandbox Runtime (SRT).",
+                      "description": "URL patterns to allow for HTTPS traffic (requires ssl-bump: true). Supports wildcards for flexible path matching. Must include https:// scheme. This feature is specific to AWF.",
                       "items": {
                         "type": "string",
                         "pattern": "^https://.*",
@@ -2194,8 +2194,8 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": ["default", "sandbox-runtime", "awf", "srt"],
-          "description": "Legacy string format for sandbox type: 'default' for no sandbox, 'sandbox-runtime' or 'srt' for Anthropic Sandbox Runtime, 'awf' for Agent Workflow Firewall"
+          "enum": ["default", "awf"],
+          "description": "Legacy string format for sandbox type: 'default' for no sandbox, 'awf' for Agent Workflow Firewall"
         },
         {
           "type": "object",
@@ -2203,11 +2203,11 @@
           "properties": {
             "type": {
               "type": "string",
-              "enum": ["default", "sandbox-runtime", "awf", "srt"],
+              "enum": ["default", "awf"],
               "description": "Legacy sandbox type field (use agent instead)"
             },
             "agent": {
-              "description": "Agent sandbox type: 'awf' uses AWF (Agent Workflow Firewall), 'srt' uses Anthropic Sandbox Runtime, or false to disable agent sandbox. Defaults to 'awf' if not specified. Note: Disabling the agent sandbox (false) removes firewall protection but keeps the MCP gateway enabled.",
+              "description": "Agent sandbox type: 'awf' uses AWF (Agent Workflow Firewall), or false to disable agent sandbox. Defaults to 'awf' if not specified. Note: Disabling the agent sandbox (false) removes firewall protection but keeps the MCP gateway enabled.",
               "default": "awf",
               "oneOf": [
                 {
@@ -2217,8 +2217,8 @@
                 },
                 {
                   "type": "string",
-                  "enum": ["awf", "srt"],
-                  "description": "Sandbox type: 'awf' for Agent Workflow Firewall, 'srt' for Sandbox Runtime"
+                  "enum": ["awf"],
+                  "description": "Sandbox type: 'awf' for Agent Workflow Firewall"
                 },
                 {
                   "type": "object",
@@ -2226,28 +2226,28 @@
                   "properties": {
                     "id": {
                       "type": "string",
-                      "enum": ["awf", "srt"],
-                      "description": "Agent identifier (replaces 'type' field in new format): 'awf' for Agent Workflow Firewall, 'srt' for Sandbox Runtime"
+                      "enum": ["awf"],
+                      "description": "Agent identifier (replaces 'type' field in new format): 'awf' for Agent Workflow Firewall"
                     },
                     "type": {
                       "type": "string",
-                      "enum": ["awf", "srt"],
+                      "enum": ["awf"],
                       "description": "Legacy: Sandbox type to use (use 'id' instead)"
                     },
                     "command": {
                       "type": "string",
-                      "description": "Custom command to replace the default AWF or SRT installation. For AWF: 'docker run my-custom-awf-image'. For SRT: 'docker run my-custom-srt-wrapper'"
+                      "description": "Custom command to replace the default AWF installation. For AWF: 'docker run my-custom-awf-image'"
                     },
                     "args": {
                       "type": "array",
-                      "description": "Additional arguments to append to the command (applies to both AWF and SRT, for standard and custom commands)",
+                      "description": "Additional arguments to append to the command (applies to AWF, for standard and custom commands)",
                       "items": {
                         "type": "string"
                       }
                     },
                     "env": {
                       "type": "object",
-                      "description": "Environment variables to set on the execution step (applies to both AWF and SRT)",
+                      "description": "Environment variables to set on the execution step (applies to AWF)",
                       "additionalProperties": {
                         "type": "string"
                       }
@@ -2264,7 +2264,7 @@
                     },
                     "config": {
                       "type": "object",
-                      "description": "Custom Sandbox Runtime configuration (only applies when type is 'srt'). Note: Network configuration is controlled by the top-level 'network' field, not here.",
+                      "description": "Custom sandbox runtime configuration. Note: Network configuration is controlled by the top-level 'network' field, not here.",
                       "properties": {
                         "filesystem": {
                           "type": "object",
@@ -2444,22 +2444,8 @@
       ],
       "examples": [
         "default",
-        "sandbox-runtime",
         {
           "agent": "awf"
-        },
-        {
-          "agent": "srt"
-        },
-        {
-          "agent": {
-            "type": "srt",
-            "config": {
-              "filesystem": {
-                "allowWrite": [".", "/tmp"]
-              }
-            }
-          }
         },
         {
           "mcp": {

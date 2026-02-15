@@ -408,22 +408,8 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 		return nil
 	}
 
-	// Check if SRT is enabled (SRT and AWF are mutually exclusive)
-	if sandboxConfig != nil {
-		// Check legacy Type field
-		if sandboxConfig.Type == SandboxTypeRuntime {
-			strictModeValidationLog.Printf("SRT sandbox is enabled (via Type), skipping firewall validation")
-			return nil
-		}
-		// Check new Agent field
-		if sandboxConfig.Agent != nil {
-			agentType := getAgentType(sandboxConfig.Agent)
-			if agentType == SandboxTypeRuntime || agentType == SandboxTypeSRT {
-				strictModeValidationLog.Printf("SRT sandbox is enabled (via Agent), skipping firewall validation")
-				return nil
-			}
-		}
-	}
+	// SRT has been removed - all sandboxes use AWF now
+	// This check is no longer needed
 
 	// If network permissions don't exist, that's fine (will default to "defaults")
 	if networkPermissions == nil {

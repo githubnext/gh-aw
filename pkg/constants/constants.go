@@ -422,9 +422,6 @@ var SerenaLanguageSupport = map[string][]string{
 	},
 }
 
-// DefaultSandboxRuntimeVersion is the default version of the @anthropic-ai/sandbox-runtime package (SRT)
-const DefaultSandboxRuntimeVersion Version = "0.0.37"
-
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
 const DefaultPlaywrightMCPVersion Version = "0.0.64"
 
@@ -638,8 +635,6 @@ const (
 	SafeInputsFeatureFlag FeatureFlag = "safe-inputs"
 	// MCPGatewayFeatureFlag is the feature flag name for enabling MCP gateway
 	MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
-	// SandboxRuntimeFeatureFlag is the feature flag name for sandbox runtime
-	SandboxRuntimeFeatureFlag FeatureFlag = "sandbox-runtime"
 	// DangerousPermissionsWriteFeatureFlag is the feature flag name for allowing write permissions
 	DangerousPermissionsWriteFeatureFlag FeatureFlag = "dangerous-permissions-write"
 	// DisableXPIAPromptFeatureFlag is the feature flag name for disabling XPIA prompt

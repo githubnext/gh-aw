@@ -71,9 +71,9 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		copilotVersion = workflowData.EngineConfig.Version
 	}
 
-	// Determine if Copilot should be installed globally or locally
-	// For SRT, install locally so npx can find it without network access
-	installGlobally := !isSRTEnabled(workflowData)
+	// Determine if Copilot should be installed globally
+	// Always install globally now (SRT removed)
+	installGlobally := true
 
 	// Generate install steps based on installation scope
 	var npmSteps []GitHubActionStep
@@ -81,17 +81,6 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		// Use the new installer script for global installation
 		copilotInstallLog.Print("Using new installer script for Copilot installation")
 		npmSteps = GenerateCopilotInstallerSteps(copilotVersion, config.InstallStepName)
-	} else {
-		// For SRT: install locally with npm without -g flag
-		copilotInstallLog.Print("Using local Copilot installation for SRT compatibility")
-		npmSteps = GenerateNpmInstallStepsWithScope(
-			config.NpmPackage,
-			copilotVersion,
-			config.InstallStepName,
-			config.CliName,
-			true,  // Include Node.js setup
-			false, // Install locally, not globally
-		)
 	}
 
 	// Add Node.js setup step first (before sandbox installation)
@@ -99,29 +88,8 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		steps = append(steps, npmSteps[0]) // Setup Node.js step
 	}
 
-	// Add sandbox installation steps
-	// SRT and AWF are mutually exclusive (validated earlier)
-	if isSRTEnabled(workflowData) {
-		// Install Sandbox Runtime (SRT)
-		agentConfig := getAgentConfig(workflowData)
-
-		// Skip standard installation if custom command is specified
-		if agentConfig == nil || agentConfig.Command == "" {
-			copilotInstallLog.Print("Adding Sandbox Runtime (SRT) system dependencies step")
-			srtSystemDeps := generateSRTSystemDepsStep()
-			steps = append(steps, srtSystemDeps)
-
-			copilotInstallLog.Print("Adding Sandbox Runtime (SRT) system configuration step")
-			srtSystemConfig := generateSRTSystemConfigStep()
-			steps = append(steps, srtSystemConfig)
-
-			copilotInstallLog.Print("Adding Sandbox Runtime (SRT) installation step")
-			srtInstall := generateSRTInstallationStep()
-			steps = append(steps, srtInstall)
-		} else {
-			copilotInstallLog.Print("Skipping SRT installation (custom command specified)")
-		}
-	} else if isFirewallEnabled(workflowData) {
+	// Add sandbox installation steps (AWF only)
+	if isFirewallEnabled(workflowData) {
 		// Install AWF after Node.js setup but before Copilot CLI installation
 		firewallConfig := getFirewallConfig(workflowData)
 		agentConfig := getAgentConfig(workflowData)

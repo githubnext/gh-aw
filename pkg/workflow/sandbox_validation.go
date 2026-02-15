@@ -105,52 +105,15 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		}
 	}
 
-	// Validate that SRT is only used with Copilot engine
-	if isSRTEnabled(workflowData) {
-		// Check if the sandbox-runtime feature flag is enabled
-		if !isFeatureEnabled(constants.SandboxRuntimeFeatureFlag, workflowData) {
-			return NewConfigurationError(
-				"features.sandbox-runtime",
-				"not enabled",
-				"sandbox-runtime feature is experimental and requires the feature flag to be enabled",
-				"Enable the sandbox-runtime feature flag in your workflow:\nfeatures:\n  sandbox-runtime: true\n\nOr set the environment variable: GH_AW_FEATURES=sandbox-runtime",
-			)
-		}
-
-		if workflowData.EngineConfig == nil || workflowData.EngineConfig.ID != "copilot" {
-			engineID := "none"
-			if workflowData.EngineConfig != nil {
-				engineID = workflowData.EngineConfig.ID
-			}
-			return NewConfigurationError(
-				"engine",
-				engineID,
-				"sandbox-runtime is only supported with Copilot engine",
-				"Change your workflow to use the Copilot engine:\nengine: copilot\nsandbox: sandbox-runtime",
-			)
-		}
-
-		// Check for mutual exclusivity with AWF
-		if workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil && workflowData.NetworkPermissions.Firewall.Enabled {
-			return NewConfigurationError(
-				"sandbox",
-				"sandbox-runtime with network.firewall",
-				"sandbox-runtime and AWF firewall cannot be used together",
-				fmt.Sprintf("Choose one sandbox approach:\n\nOption 1 (sandbox-runtime):\nsandbox: sandbox-runtime\n\nOption 2 (AWF firewall):\nnetwork:\n  firewall: true\n\nSee: %s", constants.DocsSandboxURL),
-			)
-		}
-	}
-
-	// Validate config structure if provided
+	// Validate config structure if provided (deprecated - was only for SRT)
 	if sandboxConfig.Config != nil {
-		if sandboxConfig.Type != SandboxTypeRuntime {
-			return NewConfigurationError(
-				"sandbox.config",
-				string(sandboxConfig.Type),
-				"custom sandbox config can only be provided when type is 'sandbox-runtime'",
-				"Set sandbox type to 'sandbox-runtime' to use custom config:\nsandbox:\n  type: sandbox-runtime\n  config:\n    # your custom config here",
-			)
-		}
+		// Config is no longer used - SRT removed
+		return NewConfigurationError(
+			"sandbox.config",
+			"deprecated",
+			"custom sandbox config is deprecated (was only for Sandbox Runtime which has been removed)",
+			"Remove sandbox.config from your workflow. AWF (Agent Workflow Firewall) is the only supported sandbox and does not use this configuration.",
+		)
 	}
 
 	// Validate MCP gateway port if configured
