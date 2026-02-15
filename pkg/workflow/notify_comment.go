@@ -10,34 +10,23 @@ import (
 
 var notifyCommentLog = logger.New("workflow:notify_comment")
 
-// buildConclusionJob creates a job that updates the activation comment with workflow completion status
-// This job is only generated when both add-comment and ai-reaction are configured.
+// buildConclusionJob creates a job that handles workflow completion tasks
+// This job is generated when safe-outputs are configured and handles:
+// - Updating status comments (if status-comment: true)
+// - Processing noop messages
+// - Handling agent failures
+// - Recording missing tools
 // This job runs when:
 // 1. always() - runs even if agent fails
-// 2. A comment was created in activation job (comment_id exists)
-// 3. NO add_comment output was produced by the agent
-// 4. NO create_pull_request output was produced by the agent
+// 2. Agent job was not skipped
+// 3. NO add_comment output was produced by the agent (avoids duplicate updates)
 // This job depends on all safe output jobs to ensure it runs last
 func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, safeOutputJobNames []string) (*Job, error) {
 	notifyCommentLog.Printf("Building conclusion job: main_job=%s, safe_output_jobs_count=%d", mainJobName, len(safeOutputJobNames))
 
-	// Create this job when:
-	// 1. Safe outputs are configured (because noop is always enabled as a fallback)
-	// The job will:
-	// - Update activation comment with noop messages (if comment exists)
-	// - Write noop messages to step summary (if no comment)
-
-	hasAddComment := data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil
-	hasCommand := len(data.Command) > 0
-	hasNoOp := data.SafeOutputs != nil && data.SafeOutputs.NoOp != nil
-	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
-	hasSafeOutputs := data.SafeOutputs != nil
-
-	notifyCommentLog.Printf("Configuration checks: has_add_comment=%t, has_command=%t, has_noop=%t, has_reaction=%t, has_safe_outputs=%t", hasAddComment, hasCommand, hasNoOp, hasReaction, hasSafeOutputs)
-
 	// Always create this job when safe-outputs exist (because noop is always enabled)
 	// This ensures noop messages can be handled even without reactions
-	if !hasSafeOutputs {
+	if data.SafeOutputs == nil {
 		notifyCommentLog.Printf("Skipping job: no safe-outputs configured")
 		return nil, nil // No safe-outputs configured, no need for conclusion job
 	}
@@ -298,13 +287,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 
 	// Only add the conclusion update step if status comments are explicitly enabled
-	// Status comments are only enabled when status-comment is explicitly set to true
-	shouldUpdateStatusComment := false
-	if data.StatusComment != nil {
-		shouldUpdateStatusComment = *data.StatusComment
-	}
-
-	if shouldUpdateStatusComment {
+	if data.StatusComment != nil && *data.StatusComment {
 		// Build the conclusion GitHub Script step (without artifact downloads - already added above)
 		scriptSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
 			StepName:      "Update reaction comment with completion status",
