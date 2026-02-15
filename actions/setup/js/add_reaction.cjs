@@ -101,10 +101,7 @@ async function main() {
     // Check if the error is due to a locked issue/PR/discussion
     // GitHub API returns 403 with specific messages for locked resources
     const is403Error = error && typeof error === "object" && "status" in error && error.status === 403;
-    const hasLockedMessage = errorMessage && (
-      errorMessage.includes("locked") ||
-      errorMessage.includes("Lock conversation")
-    );
+    const hasLockedMessage = errorMessage && (errorMessage.includes("locked") || errorMessage.includes("Lock conversation"));
 
     // Only ignore the error if it's a 403 AND mentions locked, or if the message mentions locked
     if ((is403Error && hasLockedMessage) || (!is403Error && hasLockedMessage)) {
