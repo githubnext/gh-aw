@@ -300,7 +300,17 @@ The Safe Outputs MCP Gateway implements defense-in-depth through strict architec
 
 Agents MUST execute without GitHub write permissions. Only read-level tokens SHALL be accessible to agent processes. Write-capable tokens MUST reside exclusively in safe output job contexts.
 
-*Verification*: Inspect agent job permission declarations. Confirm absence of write permissions (issues:write, pull-requests:write, etc.).
+**Verification**:
+- **Method**: Automated workflow file parsing and static analysis
+- **Tool**: `check_privilege_separation()` in conformance checker (`scripts/check-safe-outputs-conformance.sh`)
+- **Criteria**: No agent job has `issues: write`, `pull-requests: write`, `contents: write`, or other write-level permissions
+- **Manual Check**: Inspect agent job permission declarations in compiled `.lock.yml` files
+
+**Formal Definition**:
+```
+∀ workflow ∈ Workflows:
+  permissions(workflow.jobs.agent) ∩ {issues:write, pull-requests:write, contents:write, ...} = ∅
+```
 
 **Requirement AR2: Communication Channel Integrity**
 
@@ -308,9 +318,30 @@ Agent-to-processor communication MUST occur through GitHub Actions artifact stor
 
 *Rationale*: Artifact storage provides tamper-evidence, audit logging, and access control. Alternative channels lack these properties.
 
+**Verification**:
+- **Method**: Code review and architecture inspection
+- **Tool**: Manual inspection of workflow compilation code in `pkg/workflow/`
+- **Criteria**: Operations are written to NDJSON files, uploaded as artifacts, and downloaded by safe output jobs
+- **Manual Check**: Verify workflow structure includes `actions/upload-artifact@v4` and `actions/download-artifact@v4` steps between agent and safe output jobs
+
+**Formal Definition**:
+```
+∀ operation ∈ Operations:
+  transmission(operation) = artifact_storage
+  ∧ transmission(operation) ≠ env_vars
+  ∧ transmission(operation) ≠ network
+  ∧ transmission(operation) ≠ filesystem_share
+```
+
 **Requirement AR3: Permission Minimization**
 
 Each safe output job MUST request minimal permissions. Jobs SHOULD specialize by operation type, requesting only required permissions. For example, an issue-creation job requests `issues:write` but not `pull-requests:write`.
+
+**Verification**:
+- **Method**: Automated permission computation analysis and code review
+- **Tool**: `computePermissionsForSafeOutputs()` in `pkg/workflow/safe_outputs_permissions.go` and `check_permission_computation()` in conformance checker
+- **Criteria**: Each safe output job requests only the minimum permissions required for its operation types
+- **Manual Check**: Review generated workflow YAML to verify job permissions match operation requirements
 
 *Example*:
 ```yaml
@@ -321,11 +352,28 @@ jobs:
       issues: write  # Minimal for issue creation
 ```
 
+**Formal Definition**:
+```
+∀ job ∈ SafeOutputJobs:
+  permissions(job) = minimal_set(operations(job))
+  ∧ ∀ p ∈ permissions(job): required(p, operations(job))
+```
+
 **Requirement AR4: No Privilege Escalation Path**
 
 Agent execution context MUST NOT gain access to safe output job credentials through any mechanism (environment variables, file leaks, API endpoints, etc.).
 
-*Verification*: Audit all communication channels between contexts. Confirm no token exposure.
+**Verification**:
+- **Method**: Manual security audit and code review
+- **Tool**: Security review of workflow structure and GitHub Actions architecture
+- **Criteria**: No GITHUB_TOKEN or credentials are accessible from agent job context; tokens only exist in safe output job contexts
+- **Manual Check**: Audit all communication channels (artifacts, environment variables, network, filesystem) to confirm no credential leakage
+
+**Formal Definition**:
+```
+∀ t ∈ [agent_start, agent_end]:
+  accessible_credentials(agent_context, t) ∩ safe_output_credentials = ∅
+```
 
 ### 3.2 Threat Model and Mitigations
 
@@ -477,6 +525,13 @@ For all cross-repository operations:
      (type_allowlist = null ∧ op.target_repo ∈ global_allowlist))
 ```
 
+**Verification**:
+- **Method**: Code review and integration testing
+- **Tool**: `check_cross_repo()` in conformance checker (SEC-005) and handler unit tests
+- **Criteria**: All handlers with `target-repo` parameter validate against allowlists; operations to non-allowlisted repos are rejected with E004
+- **Automated Check**: Verify handlers contain allowlist validation logic
+- **Integration Tests**: Submit cross-repository operations; confirm allowlist enforcement
+
 **Property SP7: Deny-by-Default**
 
 Without explicit allowlist configuration:
@@ -484,6 +539,12 @@ Without explicit allowlist configuration:
 allowed_repos = null ∧ allowed_github_references = null ⇒
   ∀ op ∈ operations: op.target_repo = workflow.repository
 ```
+
+**Verification**:
+- **Method**: Integration testing
+- **Tool**: Handler unit tests for cross-repository validation
+- **Criteria**: Without allowlist configuration, only same-repository operations are permitted; cross-repository operations are rejected with E004
+- **Integration Tests**: Submit cross-repository operations without allowlist; confirm rejection
 
 **Example Configurations**
 
@@ -513,25 +574,35 @@ Conforming implementations MUST maintain these security invariants:
 
 *Statement*: At all times during agent execution, the agent process SHALL NOT possess tokens or credentials permitting GitHub write operations.
 
-*Formal Definition*:
+**Formal Definition**:
 ```
 ∀ t ∈ [agent_start, agent_end]:
   permissions(agent_process, t) ∩ {issues:write, pull-requests:write, ...} = ∅
 ```
 
-*Verification*: Static analysis of workflow YAML permission declarations. Runtime inspection of environment variables.
+**Verification**:
+- **Method**: Static analysis and runtime inspection
+- **Tool**: `check_privilege_separation()` in conformance checker (SEC-001)
+- **Criteria**: Agent job declares only read permissions; no write-level permissions in agent context
+- **Automated Check**: Parse workflow YAML for agent job permissions
+- **Runtime Check**: Inspect `$GITHUB_TOKEN` environment variable scope in agent execution context
 
 **Property SP2: Validation Precedence Invariant**
 
 *Statement*: For all safe output operations, validation logic MUST execute before any GitHub API invocation. Invalid operations MUST be rejected without side effects.
 
-*Formal Definition*:
+**Formal Definition**:
 ```
 ∀ op ∈ operations:
   valid(op) = false ⇒ github_api_call(op) never executes
 ```
 
-*Verification*: Code review of safe output processor. Unit tests confirming validation rejects before API calls.
+**Verification**:
+- **Method**: Code review and unit testing
+- **Tool**: `check_validation_ordering()` in conformance checker (SEC-002) and handler unit tests
+- **Criteria**: All validation stages (1-6) complete before Stage 7 (API invocation)
+- **Automated Check**: Static analysis confirms validation functions precede API calls in handler code
+- **Unit Tests**: Test cases verify invalid operations are rejected without GitHub API calls (see Section 3.3 Validation Pipeline Requirements)
 
 #### Validation Pipeline Requirements
 
@@ -598,37 +669,52 @@ Validation errors MUST include:
 
 *Statement*: For all configured max limits, implementations MUST prevent exceeding the limit. Attempts to exceed limits SHALL result in operation rejection.
 
-*Formal Definition*:
+**Formal Definition**:
 ```
 ∀ type ∈ safe_output_types:
   count(operations[type]) > config[type].max ⇒ reject(operations[type])
 ```
 
-*Verification*: Integration tests with operations exceeding limits. Confirm rejection occurs.
+**Verification**:
+- **Method**: Integration testing and limit enforcement validation
+- **Tool**: `check_max_limits()` in conformance checker (SEC-003) and handler unit tests
+- **Criteria**: Operations exceeding configured `max` are rejected with E002 (LIMIT_EXCEEDED) error
+- **Automated Check**: Verify handlers check operation count against `max` configuration
+- **Integration Tests**: Submit operations exceeding limits; confirm batch rejection
 
 **Property SP4: Content Integrity Invariant**
 
 *Statement*: All user-provided content MUST undergo sanitization. Sanitization MUST occur after agent output and before GitHub API invocation.
 
-*Formal Definition*:
+**Formal Definition**:
 ```
 ∀ content ∈ user_provided_fields:
   github_api_call(content) ⇒ ∃ sanitized_content = sanitize(content) ∧ passed(sanitized_content)
 ```
 
-*Verification*: Unit tests for sanitization function. Integration tests confirming unsanitized content never reaches API.
+**Verification**:
+- **Method**: Code review and unit testing
+- **Tool**: `check_sanitization()` in conformance checker (SEC-004) and sanitization unit tests
+- **Criteria**: All handlers with body/content fields invoke sanitization functions before API calls
+- **Automated Check**: Verify presence of `sanitize*` function calls in handlers
+- **Unit Tests**: Confirm malicious content (XSS, script injection) is neutralized before GitHub API invocation
 
 **Property SP5: Provenance Traceability Invariant**
 
 *Statement*: All created GitHub resources MUST include provenance metadata identifying workflow source and run.
 
-*Formal Definition*:
+**Formal Definition**:
 ```
 ∀ resource ∈ created_resources:
   ∃ provenance_data ∈ resource ∧ provenance_data.workflow_run_url ≠ null
 ```
 
-*Verification*: Inspect created resources. Confirm presence of footer or metadata fields.
+**Verification**:
+- **Method**: Manual inspection and automated footer validation
+- **Tool**: `check_footers()` in conformance checker (USE-002) and handler code review
+- **Criteria**: All created resources include footer attribution with workflow run URL when footer is configured
+- **Manual Check**: Inspect created issues, PRs, discussions, comments for footer presence
+- **Automated Check**: Verify handlers call `addFooter()` or include attribution in body content
 
 ---
 

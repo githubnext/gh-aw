@@ -302,8 +302,9 @@ check_verification_methods() {
     local failed=0
     
     # Check key requirements have verification methods
+    # Accept both bold (**Verification:**) and italic (*Verification*:) formats
     for req in "AR1" "AR2" "AR3" "SP1" "SP2" "SP3"; do
-        if ! grep -A 30 "**Requirement $req:\|**Property $req:" "$spec_file" 2>/dev/null | grep -q "Verification:\|Formal Definition:"; then
+        if ! grep -A 30 "\*\*Requirement $req:\|\*\*Property $req:" "$spec_file" 2>/dev/null | grep -qE "\*\*Verification\*\*:|\*Verification\*:|\*\*Formal Definition\*\*:|\*Formal Definition\*:"; then
             log_low "REQ-003: Requirement $req may lack verification method"
             failed=1
         fi
