@@ -28,7 +28,7 @@
 #     - shared/gh.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 86c94f37a2e64a1c007c3d4ada8687dd4300030389cd5cdae301987f16f92355
+# frontmatter-hash: 2fe2e88f7c0c250f4af942d0e27adb3a94debf0c772c24b5c18ec17f16b93602
 
 name: "Smoke Copilot SDK"
 "on":
@@ -60,8 +60,9 @@ jobs:
       issues: write
       pull-requests: write
     outputs:
-      comment_id: ""
-      comment_repo: ""
+      comment_id: ${{ steps.add-comment.outputs.comment-id }}
+      comment_repo: ${{ steps.add-comment.outputs.comment-repo }}
+      comment_url: ${{ steps.add-comment.outputs.comment-url }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -82,6 +83,18 @@ jobs:
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            await main();
+      - name: Add comment with workflow run link
+        id: add-comment
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_WORKFLOW_NAME: "Smoke Copilot SDK"
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/add_workflow_run_comment.cjs');
             await main();
 
   agent:
@@ -1207,6 +1220,24 @@ jobs:
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/handle_noop_message.cjs');
+            await main();
+      - name: Update reaction comment with completion status
+        id: conclusion
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_AW_WORKFLOW_NAME: "Smoke Copilot SDK"
+          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/notify_comment_error.cjs');
             await main();
 
   detection:
