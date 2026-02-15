@@ -71,7 +71,7 @@ func (c *Compiler) buildUnlockJob(data *WorkflowData, threatDetectionEnabled boo
 	// This job depends on activation (for issue_locked output), agent (to run after workflow),
 	// and detection (if enabled, to run after threat detection completes)
 	needs := []string{string(constants.ActivationJobName), string(constants.AgentJobName)}
-	
+
 	// Add detection job dependency if threat detection is enabled
 	if threatDetectionEnabled {
 		needs = append(needs, string(constants.DetectionJobName))
