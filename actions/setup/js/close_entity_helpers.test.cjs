@@ -203,15 +203,7 @@ describe("close_entity_helpers", () => {
         const userContent = "User comment with <script>xss</script> and <!-- evil comment -->";
         const sanitizedBody = sanitizeContent(userContent);
         const trackerID = getTrackerID("markdown");
-        const footer = generateFooterWithMessages(
-          "Test Workflow",
-          "https://github.com/test/repo/actions/runs/123",
-          "test.md",
-          "https://github.com/test/repo",
-          42,
-          undefined,
-          undefined
-        );
+        const footer = generateFooterWithMessages("Test Workflow", "https://github.com/test/repo/actions/runs/123", "test.md", "https://github.com/test/repo", 42, undefined, undefined);
         const result = sanitizedBody.trim() + trackerID + footer;
 
         // User content should be sanitized (tags converted)
@@ -235,13 +227,13 @@ describe("close_entity_helpers", () => {
 
         const userContent = "Text with <!-- malicious --> comment";
         const sanitized = sanitizeContent(userContent);
-        
+
         // User's malicious comment should be removed
         expect(sanitized).not.toContain("<!-- malicious -->");
-        
+
         // Now add system marker after sanitization
         const withMarker = sanitized + "\n\n<!-- gh-aw-workflow-id: test -->";
-        
+
         // System marker should still be present
         expect(withMarker).toContain("<!-- gh-aw-workflow-id: test -->");
       });
