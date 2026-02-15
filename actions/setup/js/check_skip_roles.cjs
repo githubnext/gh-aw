@@ -56,10 +56,7 @@ async function main() {
     core.setOutput("skip_roles_ok", "false");
     core.setOutput("result", "user_should_be_skipped");
     core.setOutput("user_permission", result.permission);
-    core.setOutput(
-      "error_message",
-      `Workflow skipped: User '${actor}' has role '${result.permission}' which is configured to skip this workflow (skip-roles: ${skipRoles.join(", ")})`
-    );
+    core.setOutput("error_message", `Workflow skipped: User '${actor}' has role '${result.permission}' which is configured to skip this workflow (skip-roles: ${skipRoles.join(", ")})`);
   } else {
     // User does NOT have any of the skip-roles, workflow can proceed
     core.info(`✅ User '${actor}' does not have any skip-roles - workflow can proceed`);

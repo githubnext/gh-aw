@@ -141,35 +141,55 @@ func (c *Compiler) extractRoles(frontmatter map[string]any) []string {
 	return defaultRoles
 }
 
-// extractSkipRoles extracts the 'skip-roles' field from frontmatter to determine which roles should be skipped
+// extractStringSliceField normalizes a frontmatter field that may be a string,
+// []any, or []string into a []string and logs what was extracted.
+func extractStringSliceField(value any, fieldName string) []string {
+	switch v := value.(type) {
+	case []any:
+		// Array of string-like values
+		var result []string
+		for _, item := range v {
+			if str, ok := item.(string); ok {
+				result = append(result, str)
+			}
+		}
+		roleLog.Printf("Extracted %d %s from array: %v", len(result), fieldName, result)
+		return result
+	case []string:
+		// Already a string slice
+		roleLog.Printf("Extracted %d %s: %v", len(v), fieldName, v)
+		return v
+	case string:
+		// Single string value
+		roleLog.Printf("Extracted single %s: %s", fieldName, v)
+		return []string{v}
+	default:
+		return nil
+	}
+}
+
+// extractSkipRoles extracts the 'skip-roles' field from frontmatter to determine which roles should be skipped.
+// It prefers a top-level 'skip-roles' key, but also supports the legacy location under the 'on' map.
 func (c *Compiler) extractSkipRoles(frontmatter map[string]any) []string {
-	// Check for skip-roles in the "on" section
+	// Prefer a top-level 'skip-roles' key, consistent with other role configuration.
+	if skipRolesValue, exists := frontmatter["skip-roles"]; exists {
+		if skipRoles := extractStringSliceField(skipRolesValue, "skip-roles"); len(skipRoles) > 0 {
+			return skipRoles
+		}
+	}
+
+	// Legacy support: check for 'skip-roles' in the "on" section.
 	if onValue, exists := frontmatter["on"]; exists {
 		if onMap, ok := onValue.(map[string]any); ok {
 			if skipRolesValue, exists := onMap["skip-roles"]; exists {
-				switch v := skipRolesValue.(type) {
-				case []any:
-					// Array of role identifiers
-					var skipRoles []string
-					for _, item := range v {
-						if str, ok := item.(string); ok {
-							skipRoles = append(skipRoles, str)
-						}
-					}
-					roleLog.Printf("Extracted %d skip-roles from array: %v", len(skipRoles), skipRoles)
+				roleLog.Print("Found 'skip-roles' inside 'on' section; this location is deprecated, use top-level 'skip-roles' instead")
+				if skipRoles := extractStringSliceField(skipRolesValue, "skip-roles"); len(skipRoles) > 0 {
 					return skipRoles
-				case []string:
-					// Already a string slice
-					roleLog.Printf("Extracted %d skip-roles: %v", len(v), v)
-					return v
-				case string:
-					// Single role identifier as string
-					roleLog.Printf("Extracted single skip-role: %s", v)
-					return []string{v}
 				}
 			}
 		}
 	}
+
 	// No skip-roles specified, return empty array
 	roleLog.Print("No skip-roles specified")
 	return []string{}
@@ -376,8 +396,8 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 
 			for eventName := range onMap {
 				// Skip command events as they are handled separately
-				// Skip stop-after and reaction as they are not event types
-				if eventName == "command" || eventName == "stop-after" || eventName == "reaction" {
+				// Skip stop-after, skip-roles, and reaction as they are not event types
+				if eventName == "command" || eventName == "stop-after" || eventName == "skip-roles" || eventName == "reaction" {
 					continue
 				}
 
@@ -410,6 +430,9 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 				eventCount--
 			}
 			if _, hasStopAfter := onMap["stop-after"]; hasStopAfter {
+				eventCount--
+			}
+			if _, hasSkipRoles := onMap["skip-roles"]; hasSkipRoles {
 				eventCount--
 			}
 			if _, hasReaction := onMap["reaction"]; hasReaction {

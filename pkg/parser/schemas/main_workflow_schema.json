@@ -1294,6 +1294,24 @@
               "type": "string",
               "description": "Time when workflow should stop running. Supports multiple formats: absolute dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or relative time deltas (+25h, +3d, +1d12h30m). Maximum values for time deltas: 12mo, 52w, 365d, 8760h (365 days). Note: Minute unit 'm' is not allowed for stop-after; minimum unit is hours 'h'."
             },
+            "skip-roles": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Single repository permission level that should skip the workflow (e.g., 'admin', 'maintain', 'write', 'triage', 'read')"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": ["admin", "maintain", "write", "triage", "read"]
+                  },
+                  "minItems": 1,
+                  "description": "Array of repository permission levels that should skip the workflow. Users with any of these roles will have the workflow skipped for them."
+                }
+              ],
+              "description": "Repository permission levels that should skip the workflow. Useful for AI moderation scenarios where checks should only apply to external users and not team members. Example: ['admin', 'maintain', 'write'] will skip the workflow for users with write access or higher."
+            },
             "skip-if-match": {
               "oneOf": [
                 {
@@ -6334,6 +6352,24 @@
         "minLength": 1,
         "description": "Bot identifier/name (e.g., 'dependabot[bot]', 'renovate[bot]', 'github-actions[bot]')"
       }
+    },
+    "skip-roles": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Single repository permission level that should skip the workflow (e.g., 'admin', 'maintain', 'write', 'triage', 'read')"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["admin", "maintain", "write", "triage", "read"]
+          },
+          "minItems": 1,
+          "description": "Array of repository permission levels that should skip the workflow. Users with any of these roles will have the workflow skipped for them."
+        }
+      ],
+      "description": "Repository permission levels that should skip the workflow. Useful for AI moderation scenarios where checks should only apply to external users and not team members. Example: ['admin', 'maintain', 'write'] will skip the workflow for users with write access or higher. Can be defined at the top level or within the 'on:' section (both are supported for backward compatibility)."
     },
     "rate-limit": {
       "type": "object",
