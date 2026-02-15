@@ -5,25 +5,17 @@ const { getCloseOlderDiscussionMessage } = require("./messages_close_discussion.
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getWorkflowIdMarkerContent } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { closeOlderEntities, MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
 
 /**
  * Maximum number of older discussions to close
  */
-const MAX_CLOSE_COUNT = 10;
+const MAX_CLOSE_COUNT = SHARED_MAX_CLOSE_COUNT;
 
 /**
  * Delay between GraphQL API calls in milliseconds to avoid rate limiting
  */
 const GRAPHQL_DELAY_MS = 500;
-
-/**
- * Delay execution for a specified number of milliseconds
- * @param {number} ms - Milliseconds to delay
- * @returns {Promise<void>}
- */
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 /**
  * Search for open discussions with a matching workflow-id marker
@@ -142,11 +134,13 @@ async function searchOlderDiscussions(github, owner, repo, workflowId, categoryI
 /**
  * Add comment to a GitHub Discussion using GraphQL
  * @param {any} github - GitHub GraphQL instance
+ * @param {string} owner - Repository owner (unused for GraphQL, but kept for consistency)
+ * @param {string} repo - Repository name (unused for GraphQL, but kept for consistency)
  * @param {string} discussionId - Discussion node ID
  * @param {string} message - Comment body
  * @returns {Promise<{id: string, url: string}>} Comment details
  */
-async function addDiscussionComment(github, discussionId, message) {
+async function addDiscussionComment(github, owner, repo, discussionId, message) {
   const result = await github.graphql(
     `
     mutation($dId: ID!, $body: String!) {
@@ -166,10 +160,12 @@ async function addDiscussionComment(github, discussionId, message) {
 /**
  * Close a GitHub Discussion as OUTDATED using GraphQL
  * @param {any} github - GitHub GraphQL instance
+ * @param {string} owner - Repository owner (unused for GraphQL, but kept for consistency)
+ * @param {string} repo - Repository name (unused for GraphQL, but kept for consistency)
  * @param {string} discussionId - Discussion node ID
  * @returns {Promise<{id: string, url: string}>} Discussion details
  */
-async function closeDiscussionAsOutdated(github, discussionId) {
+async function closeDiscussionAsOutdated(github, owner, repo, discussionId) {
   const result = await github.graphql(
     `
     mutation($dId: ID!) {
@@ -199,105 +195,39 @@ async function closeDiscussionAsOutdated(github, discussionId) {
  * @returns {Promise<Array<{number: number, url: string}>>} List of closed discussions
  */
 async function closeOlderDiscussions(github, owner, repo, workflowId, categoryId, newDiscussion, workflowName, runUrl) {
-  core.info("=".repeat(70));
-  core.info("Starting closeOlderDiscussions operation");
-  core.info("=".repeat(70));
+  const result = await closeOlderEntities(
+    github,
+    owner,
+    repo,
+    workflowId,
+    newDiscussion,
+    workflowName,
+    runUrl,
+    {
+      entityType: "discussion",
+      entityTypePlural: "discussions",
+      searchOlderEntities: searchOlderDiscussions,
+      getCloseMessage: params =>
+        getCloseOlderDiscussionMessage({
+          newDiscussionUrl: params.newEntityUrl,
+          newDiscussionNumber: params.newEntityNumber,
+          workflowName: params.workflowName,
+          runUrl: params.runUrl,
+        }),
+      addComment: addDiscussionComment,
+      closeEntity: closeDiscussionAsOutdated,
+      delayMs: GRAPHQL_DELAY_MS,
+      getEntityId: entity => entity.id,
+      getEntityUrl: entity => entity.url,
+    },
+    categoryId // Pass categoryId as extra arg
+  );
 
-  core.info(`Search criteria: workflow ID marker: "${getWorkflowIdMarkerContent(workflowId)}"`);
-  core.info(`New discussion reference: #${newDiscussion.number} (${newDiscussion.url})`);
-  core.info(`Workflow: ${workflowName}`);
-  core.info(`Run URL: ${runUrl}`);
-  core.info("");
-
-  const olderDiscussions = await searchOlderDiscussions(github, owner, repo, workflowId, categoryId, newDiscussion.number);
-
-  if (olderDiscussions.length === 0) {
-    core.info("✓ No older discussions found to close - operation complete");
-    core.info("=".repeat(70));
-    return [];
-  }
-
-  core.info("");
-  core.info(`Found ${olderDiscussions.length} older discussion(s) matching the criteria`);
-  for (const discussion of olderDiscussions) {
-    core.info(`  - Discussion #${discussion.number}: ${discussion.title}`);
-    core.info(`    URL: ${discussion.url}`);
-  }
-
-  // Limit to MAX_CLOSE_COUNT discussions
-  const discussionsToClose = olderDiscussions.slice(0, MAX_CLOSE_COUNT);
-
-  if (olderDiscussions.length > MAX_CLOSE_COUNT) {
-    core.warning("");
-    core.warning(`⚠️  Found ${olderDiscussions.length} older discussions, but only closing the first ${MAX_CLOSE_COUNT}`);
-    core.warning(`    The remaining ${olderDiscussions.length - MAX_CLOSE_COUNT} discussion(s) will be processed in subsequent runs`);
-  }
-
-  core.info("");
-  core.info(`Preparing to close ${discussionsToClose.length} discussion(s)...`);
-  core.info("");
-
-  const closedDiscussions = [];
-
-  for (let i = 0; i < discussionsToClose.length; i++) {
-    const discussion = discussionsToClose[i];
-    core.info("-".repeat(70));
-    core.info(`Processing discussion ${i + 1}/${discussionsToClose.length}: #${discussion.number}`);
-    core.info(`  Title: ${discussion.title}`);
-    core.info(`  URL: ${discussion.url}`);
-
-    try {
-      // Generate closing message using the messages module
-      const closingMessage = getCloseOlderDiscussionMessage({
-        newDiscussionUrl: newDiscussion.url,
-        newDiscussionNumber: newDiscussion.number,
-        workflowName,
-        runUrl,
-      });
-
-      core.info(`  Message length: ${closingMessage.length} characters`);
-      core.info("");
-
-      // Add comment first
-      await addDiscussionComment(github, discussion.id, closingMessage);
-
-      // Then close the discussion as outdated
-      await closeDiscussionAsOutdated(github, discussion.id);
-
-      closedDiscussions.push({
-        number: discussion.number,
-        url: discussion.url,
-      });
-
-      core.info("");
-      core.info(`✓ Successfully closed discussion #${discussion.number}`);
-    } catch (error) {
-      core.info("");
-      core.error(`✗ Failed to close discussion #${discussion.number}`);
-      core.error(`  Error: ${getErrorMessage(error)}`);
-      if (error instanceof Error && error.stack) {
-        core.error(`  Stack trace: ${error.stack}`);
-      }
-      // Continue with other discussions even if one fails
-    }
-
-    // Add delay between GraphQL operations to avoid rate limiting (except for the last item)
-    if (i < discussionsToClose.length - 1) {
-      core.info("");
-      core.info(`Waiting ${GRAPHQL_DELAY_MS}ms before processing next discussion to avoid rate limiting...`);
-      await delay(GRAPHQL_DELAY_MS);
-    }
-  }
-
-  core.info("");
-  core.info("=".repeat(70));
-  core.info(`Closed ${closedDiscussions.length} of ${discussionsToClose.length} discussion(s) successfully`);
-  if (closedDiscussions.length < discussionsToClose.length) {
-    core.warning(`Failed to close ${discussionsToClose.length - closedDiscussions.length} discussion(s) - check logs above for details`);
-  }
-  core.info("=".repeat(70));
-
-  return closedDiscussions;
+  // Map to discussion-specific return type
+  return result.map(item => ({
+    number: item.number,
+    url: item.url || "",
+  }));
 }
 
 module.exports = {

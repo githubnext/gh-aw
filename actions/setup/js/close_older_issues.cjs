@@ -1,28 +1,19 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getErrorMessage } = require("./error_helpers.cjs");
 const { getWorkflowIdMarkerContent } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { closeOlderEntities, MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
 
 /**
  * Maximum number of older issues to close
  */
-const MAX_CLOSE_COUNT = 10;
+const MAX_CLOSE_COUNT = SHARED_MAX_CLOSE_COUNT;
 
 /**
  * Delay between API calls in milliseconds to avoid rate limiting
  */
 const API_DELAY_MS = 500;
-
-/**
- * Delay execution for a specified number of milliseconds
- * @param {number} ms - Milliseconds to delay
- * @returns {Promise<void>}
- */
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 /**
  * Search for open issues with a matching workflow-id marker
@@ -195,106 +186,29 @@ function getCloseOlderIssueMessage({ newIssueUrl, newIssueNumber, workflowName, 
  * @returns {Promise<Array<{number: number, html_url: string}>>} List of closed issues
  */
 async function closeOlderIssues(github, owner, repo, workflowId, newIssue, workflowName, runUrl) {
-  core.info("=".repeat(70));
-  core.info("Starting closeOlderIssues operation");
-  core.info("=".repeat(70));
+  const result = await closeOlderEntities(github, owner, repo, workflowId, newIssue, workflowName, runUrl, {
+    entityType: "issue",
+    entityTypePlural: "issues",
+    searchOlderEntities: searchOlderIssues,
+    getCloseMessage: params =>
+      getCloseOlderIssueMessage({
+        newIssueUrl: params.newEntityUrl,
+        newIssueNumber: params.newEntityNumber,
+        workflowName: params.workflowName,
+        runUrl: params.runUrl,
+      }),
+    addComment: addIssueComment,
+    closeEntity: closeIssueAsNotPlanned,
+    delayMs: API_DELAY_MS,
+    getEntityId: entity => entity.number,
+    getEntityUrl: entity => entity.html_url,
+  });
 
-  core.info(`Search criteria: workflow-id marker: "${getWorkflowIdMarkerContent(workflowId)}"`);
-  core.info(`New issue reference: #${newIssue.number} (${newIssue.html_url})`);
-  core.info(`Workflow: ${workflowName}`);
-  core.info(`Run URL: ${runUrl}`);
-  core.info("");
-
-  const olderIssues = await searchOlderIssues(github, owner, repo, workflowId, newIssue.number);
-
-  if (olderIssues.length === 0) {
-    core.info("✓ No older issues found to close - operation complete");
-    core.info("=".repeat(70));
-    return [];
-  }
-
-  core.info("");
-  core.info(`Found ${olderIssues.length} older issue(s) matching the criteria`);
-  for (const issue of olderIssues) {
-    core.info(`  - Issue #${issue.number}: ${issue.title}`);
-    core.info(`    Labels: ${issue.labels.map(l => l.name).join(", ") || "(none)"}`);
-    core.info(`    URL: ${issue.html_url}`);
-  }
-
-  // Limit to MAX_CLOSE_COUNT issues
-  const issuesToClose = olderIssues.slice(0, MAX_CLOSE_COUNT);
-
-  if (olderIssues.length > MAX_CLOSE_COUNT) {
-    core.warning("");
-    core.warning(`⚠️  Found ${olderIssues.length} older issues, but only closing the first ${MAX_CLOSE_COUNT}`);
-    core.warning(`    The remaining ${olderIssues.length - MAX_CLOSE_COUNT} issue(s) will be processed in subsequent runs`);
-  }
-
-  core.info("");
-  core.info(`Preparing to close ${issuesToClose.length} issue(s)...`);
-  core.info("");
-
-  const closedIssues = [];
-
-  for (let i = 0; i < issuesToClose.length; i++) {
-    const issue = issuesToClose[i];
-    core.info("-".repeat(70));
-    core.info(`Processing issue ${i + 1}/${issuesToClose.length}: #${issue.number}`);
-    core.info(`  Title: ${issue.title}`);
-    core.info(`  URL: ${issue.html_url}`);
-
-    try {
-      // Generate closing message
-      const closingMessage = getCloseOlderIssueMessage({
-        newIssueUrl: newIssue.html_url,
-        newIssueNumber: newIssue.number,
-        workflowName,
-        runUrl,
-      });
-
-      core.info(`  Message length: ${closingMessage.length} characters`);
-      core.info("");
-
-      // Add comment first
-      await addIssueComment(github, owner, repo, issue.number, closingMessage);
-
-      // Then close the issue as "not planned"
-      await closeIssueAsNotPlanned(github, owner, repo, issue.number);
-
-      closedIssues.push({
-        number: issue.number,
-        html_url: issue.html_url,
-      });
-
-      core.info("");
-      core.info(`✓ Successfully closed issue #${issue.number}`);
-    } catch (error) {
-      core.info("");
-      core.error(`✗ Failed to close issue #${issue.number}`);
-      core.error(`  Error: ${getErrorMessage(error)}`);
-      if (error instanceof Error && error.stack) {
-        core.error(`  Stack trace: ${error.stack}`);
-      }
-      // Continue with other issues even if one fails
-    }
-
-    // Add delay between API operations to avoid rate limiting (except for the last item)
-    if (i < issuesToClose.length - 1) {
-      core.info("");
-      core.info(`Waiting ${API_DELAY_MS}ms before processing next issue to avoid rate limiting...`);
-      await delay(API_DELAY_MS);
-    }
-  }
-
-  core.info("");
-  core.info("=".repeat(70));
-  core.info(`Closed ${closedIssues.length} of ${issuesToClose.length} issue(s) successfully`);
-  if (closedIssues.length < issuesToClose.length) {
-    core.warning(`Failed to close ${issuesToClose.length - closedIssues.length} issue(s) - check logs above for details`);
-  }
-  core.info("=".repeat(70));
-
-  return closedIssues;
+  // Map to issue-specific return type
+  return result.map(item => ({
+    number: item.number,
+    html_url: item.html_url || "",
+  }));
 }
 
 module.exports = {
