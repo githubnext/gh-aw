@@ -248,15 +248,17 @@ const mockCore = {
               expect(mockCore.error).not.toHaveBeenCalled(),
               expect(mockCore.setFailed).not.toHaveBeenCalled());
           }),
-          it("should silently ignore locked issue errors (message contains 'locked')", async () => {
+          it("should fail for errors with 'locked' message but non-403 status", async () => {
+            // Errors mentioning "locked" should only be ignored if they have 403 status
+            const lockedError = new Error("Lock conversation is enabled");
+            lockedError.status = 500; // Not 403
             ((process.env.GH_AW_REACTION = "eyes"),
               (global.context.eventName = "issues"),
               (global.context.payload = { issue: { number: 123 }, repository: { html_url: "https://github.com/testowner/testrepo" } }),
-              mockGithub.request.mockRejectedValueOnce(new Error("Lock conversation is enabled")),
+              mockGithub.request.mockRejectedValueOnce(lockedError),
               await eval(`(async () => { ${reactionScript}; await main(); })()`),
-              expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("resource is locked")),
-              expect(mockCore.error).not.toHaveBeenCalled(),
-              expect(mockCore.setFailed).not.toHaveBeenCalled());
+              expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction")),
+              expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to process reaction")));
           }),
           it("should fail for 403 errors that don't mention locked", async () => {
             const forbiddenError = new Error("Forbidden: insufficient permissions");

@@ -161,8 +161,8 @@ async function main() {
     const is403Error = error && typeof error === "object" && "status" in error && error.status === 403;
     const hasLockedMessage = errorMessage && (errorMessage.includes("locked") || errorMessage.includes("Lock conversation"));
 
-    // Only ignore the error if it's a 403 AND mentions locked, or if the message mentions locked
-    if ((is403Error && hasLockedMessage) || (!is403Error && hasLockedMessage)) {
+    // Only ignore the error if it's BOTH a 403 status code AND mentions locked
+    if (is403Error && hasLockedMessage) {
       // Silently ignore locked resource errors - just log for debugging
       core.info(`Cannot add reaction: resource is locked (this is expected and not an error)`);
       return;

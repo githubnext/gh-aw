@@ -402,14 +402,16 @@ describe("add_reaction", () => {
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
-    it("should silently ignore locked issue errors (message contains 'locked')", async () => {
-      mockGithub.request.mockRejectedValueOnce(new Error("Lock conversation is enabled"));
+    it("should fail for errors with 'locked' message but non-403 status", async () => {
+      // Errors mentioning "locked" should only be ignored if they have 403 status
+      const lockedError = new Error("Lock conversation is enabled");
+      lockedError.status = 500; // Not 403
+      mockGithub.request.mockRejectedValueOnce(lockedError);
 
       await runScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("resource is locked"));
-      expect(mockCore.error).not.toHaveBeenCalled();
-      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction"));
     });
 
     it("should fail for 403 errors that don't mention locked", async () => {
