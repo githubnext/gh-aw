@@ -1123,13 +1123,13 @@ func TestRuntimeImportPathGitHubIO(t *testing.T) {
 	}{
 		{
 			name:        "github_pages_repo",
-			repoName:    "samueltauil.github.io",
+			repoName:    "testuser.github.io",
 			expected:    "{{#runtime-import .github/workflows/translate-to-ptbr.md}}",
 			description: "GitHub Pages repo should not duplicate .github.io in runtime-import path",
 		},
 		{
 			name:        "another_github_pages_repo",
-			repoName:    "username.github.io",
+			repoName:    "anotheruser.github.io",
 			expected:    "{{#runtime-import .github/workflows/test.md}}",
 			description: "Another GitHub Pages repo should work correctly",
 		},
