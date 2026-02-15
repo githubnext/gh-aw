@@ -1028,6 +1028,7 @@ jobs:
     needs:
       - activation
       - agent
+      - safe_outputs
     if: always()
     runs-on: ubuntu-latest
     permissions:

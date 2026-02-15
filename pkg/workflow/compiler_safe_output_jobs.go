@@ -83,8 +83,9 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 
 	// Build dedicated unlock job if lock-for-agent is enabled
 	// This job is separate from conclusion to ensure it always runs, even if other jobs fail
-	// It depends on agent (and detection if enabled) to run after workflow execution completes
-	unlockJob, err := c.buildUnlockJob(data, threatDetectionEnabled)
+	// It depends on agent, detection (if enabled), and safe_outputs (if generated) to run after workflow execution completes
+	hasSafeOutputsJob := consolidatedJob != nil
+	unlockJob, err := c.buildUnlockJob(data, threatDetectionEnabled, hasSafeOutputsJob)
 	if err != nil {
 		return fmt.Errorf("failed to build unlock job: %w", err)
 	}
