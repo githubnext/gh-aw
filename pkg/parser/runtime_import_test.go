@@ -132,7 +132,8 @@ console.log(JSON.stringify({ safe: result }));
 
 			// Run the test script
 			cmd := exec.Command(nodePath, tmpFile.Name(), tt.expression)
-			output, err := cmd.CombinedOutput()
+			// Use Output() to only capture stdout, avoiding stderr like [one-shot-token]
+			output, err := cmd.Output()
 			if err != nil {
 				t.Fatalf("Failed to run test script: %v\nOutput: %s", err, output)
 			}
@@ -253,7 +254,8 @@ try {
 			tmpFile.Close()
 
 			cmd := exec.Command(nodePath, tmpFile.Name(), tt.content)
-			output, err := cmd.CombinedOutput()
+			// Use Output() to only capture stdout, avoiding stderr like [one-shot-token]
+			output, err := cmd.Output()
 			if err != nil {
 				t.Fatalf("Failed to run test script: %v\nOutput: %s", err, output)
 			}
@@ -418,7 +420,8 @@ const { processRuntimeImport } = require('` + runtimeImportPath + `');
 			tmpFile.Close()
 
 			cmd := exec.Command(nodePath, tmpFile.Name())
-			output, err := cmd.CombinedOutput()
+			// Use Output() to only capture stdout, avoiding stderr like [one-shot-token]
+			output, err := cmd.Output()
 			if err != nil {
 				t.Fatalf("Failed to run test script: %v\nOutput: %s", err, output)
 			}
