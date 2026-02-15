@@ -168,7 +168,7 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 		return nil
 	}
 
-	// Handle legacy string format: "default" or "sandbox-runtime"
+	// Handle legacy string format: "default" or "awf" (legacy srt/sandbox-runtime are auto-migrated)
 	if sandboxStr, ok := sandbox.(string); ok {
 		frontmatterExtractionSecurityLog.Printf("Sandbox string format: type=%s", sandboxStr)
 		sandboxType := SandboxType(sandboxStr)
@@ -239,7 +239,7 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		return nil
 	}
 
-	// Handle string format: "awf" or "srt"
+	// Handle string format: "awf" or false (legacy srt values are auto-migrated)
 	if agentStr, ok := agentVal.(string); ok {
 		agentType := SandboxType(agentStr)
 		if isSupportedSandboxType(agentType) {

@@ -53,23 +53,21 @@ Test workflow to verify sandbox.agent: awf enables edit and bash tools.
 		assert.Contains(t, lockStr, "bash", "Expected bash tool to be enabled by default with sandbox.agent: awf")
 	})
 
-	t.Run("sandbox.agent: srt enables edit and bash tools by default", func(t *testing.T) {
+	t.Run("sandbox.agent: awf (migrated from srt) enables edit and bash tools by default", func(t *testing.T) {
 		// Create temp directory for test workflows
 		workflowsDir := t.TempDir()
 
 		markdown := `---
 engine: copilot
 sandbox:
-  agent: srt
-features:
-  sandbox-runtime: true
+  agent: awf
 on: workflow_dispatch
 ---
 
-Test workflow to verify sandbox.agent: srt enables edit and bash tools.
+Test workflow to verify sandbox.agent: awf enables edit and bash tools.
 `
 
-		workflowPath := filepath.Join(workflowsDir, "test-agent-srt.md")
+		workflowPath := filepath.Join(workflowsDir, "test-agent-awf.md")
 		err := os.WriteFile(workflowPath, []byte(markdown), 0644)
 		require.NoError(t, err, "Failed to write workflow file")
 
@@ -81,17 +79,17 @@ Test workflow to verify sandbox.agent: srt enables edit and bash tools.
 		require.NoError(t, err, "Compilation failed")
 
 		// Read the compiled workflow
-		lockPath := filepath.Join(workflowsDir, "test-agent-srt.lock.yml")
+		lockPath := filepath.Join(workflowsDir, "test-agent-awf.lock.yml")
 		lockContent, err := os.ReadFile(lockPath)
 		require.NoError(t, err, "Failed to read compiled workflow")
 
 		lockStr := string(lockContent)
 
 		// Verify that edit tool is present
-		assert.Contains(t, lockStr, "edit", "Expected edit tool to be enabled by default with sandbox.agent: srt")
+		assert.Contains(t, lockStr, "edit", "Expected edit tool to be enabled by default with sandbox.agent: awf")
 
 		// Verify that bash tool is present
-		assert.Contains(t, lockStr, "bash", "Expected bash tool to be enabled by default with sandbox.agent: srt")
+		assert.Contains(t, lockStr, "bash", "Expected bash tool to be enabled by default with sandbox.agent: awf")
 	})
 
 	t.Run("default sandbox (awf) does NOT enable edit and bash tools", func(t *testing.T) {
@@ -308,7 +306,7 @@ func TestIsSandboxEnabled(t *testing.T) {
 			expected:           true,
 		},
 		{
-			name: "agent srt explicitly configured",
+			name: "agent awf explicitly configured",
 			sandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type: SandboxTypeAWF,
@@ -338,7 +336,7 @@ func TestIsSandboxEnabled(t *testing.T) {
 			expected:           true,
 		},
 		{
-			name: "agent with ID srt",
+			name: "agent with ID awf (new format)",
 			sandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					ID: "awf",

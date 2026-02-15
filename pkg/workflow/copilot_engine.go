@@ -7,7 +7,6 @@
 //   - copilot_engine_tools.go: Tool permissions, arguments, and error patterns
 //   - copilot_logs.go: Log parsing, metrics extraction, and log management
 //   - copilot_mcp.go: MCP server configuration rendering
-//   - copilot_srt.go: Sandbox Runtime (SRT) integration
 //   - copilot_participant_steps.go: Copilot CLI participant steps
 //
 // This modular organization improves maintainability and makes it easier
