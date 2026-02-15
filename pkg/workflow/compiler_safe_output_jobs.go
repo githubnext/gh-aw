@@ -81,6 +81,19 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		compilerSafeOutputJobsLog.Printf("Added separate upload_assets job")
 	}
 
+	// Build dedicated unlock job if lock-for-agent is enabled
+	// This job is separate from conclusion to ensure it always runs, even if other jobs fail
+	unlockJob, err := c.buildUnlockJob(data)
+	if err != nil {
+		return fmt.Errorf("failed to build unlock job: %w", err)
+	}
+	if unlockJob != nil {
+		if err := c.jobManager.AddJob(unlockJob); err != nil {
+			return fmt.Errorf("failed to add unlock job: %w", err)
+		}
+		compilerSafeOutputJobsLog.Print("Added dedicated unlock job")
+	}
+
 	// Build conclusion job if add-comment is configured OR if command trigger is configured with reactions
 	// This job runs last, after all safe output jobs (and push_repo_memory if configured), to update the activation comment on failure
 	// The buildConclusionJob function itself will decide whether to create the job based on the configuration

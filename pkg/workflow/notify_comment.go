@@ -301,35 +301,9 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		steps = append(steps, scriptSteps...)
 	}
 
-	// Add unlock step if lock-for-agent is enabled
-	if data.LockForAgent {
-		// Build condition: only unlock if issue was locked by activation job
-		// Must match lock condition: event type is 'issues' or 'issue_comment'
-		// Use the issue_locked output from activation job to determine if unlock is needed
-		eventTypeCheck := BuildOr(
-			BuildEventTypeEquals("issues"),
-			BuildEventTypeEquals("issue_comment"),
-		)
-		lockedOutputCheck := BuildEquals(
-			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.issue_locked", constants.ActivationJobName)),
-			BuildStringLiteral("true"),
-		)
-
-		unlockCondition := BuildAnd(
-			BuildFunctionCall("always"), // Always run, even on failure
-			BuildAnd(eventTypeCheck, lockedOutputCheck),
-		)
-
-		steps = append(steps, "      - name: Unlock issue after agent workflow\n")
-		steps = append(steps, "        id: unlock-issue\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", unlockCondition.Render()))
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
-		steps = append(steps, "        with:\n")
-		steps = append(steps, "          script: |\n")
-		steps = append(steps, generateGitHubScriptWithRequire("unlock-issue.cjs"))
-
-		notifyCommentLog.Print("Added unlock issue step to conclusion job")
-	}
+	// Note: Unlock step has been moved to a dedicated unlock job
+	// that always runs, even if this conclusion job doesn't run.
+	// See buildUnlockJob() in compiler_unlock_job.go
 
 	// Add GitHub App token invalidation step if app is configured
 	if data.SafeOutputs.App != nil {
