@@ -42,7 +42,7 @@ func TestValidateSandboxConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateSandboxConfig(tt.data)
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tt.errorMsg != "" {
 					assert.Contains(t, err.Error(), tt.errorMsg)
 				}
