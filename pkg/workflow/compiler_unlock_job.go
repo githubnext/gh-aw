@@ -89,13 +89,13 @@ func (c *Compiler) buildUnlockJob(data *WorkflowData) (*Job, error) {
 	compilerUnlockJobLog.Printf("Job built successfully: dependencies=%v", needs)
 
 	job := &Job{
-		Name:        "unlock",
-		Needs:       needs,
-		Condition:   alwaysFunc.Render(),
-		RunsOn:      data.RunsOn,
-		Permissions: permissions,
-		Steps:       steps,
-		Timeout:     data.Timeout,
+		Name:           "unlock",
+		Needs:          needs,
+		If:             alwaysFunc.Render(),
+		RunsOn:         data.RunsOn,
+		Permissions:    permissions,
+		Steps:          steps,
+		TimeoutMinutes: 5, // Short timeout - unlock is a quick operation
 	}
 
 	return job, nil
