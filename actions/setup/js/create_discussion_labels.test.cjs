@@ -392,4 +392,40 @@ describe("create_discussion with labels", () => {
     expect(labelsApplyCall).toBeDefined();
     expect(labelsApplyCall[1].labelIds).toEqual(["LA_label1", "LA_label2"]);
   });
+
+  it("should enforce max labels limit (SEC-003)", async () => {
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_WORKFLOW_SOURCE = "test.md";
+
+    const handler = await createDiscussionMain({
+      category: "General",
+    });
+
+    // Try to create discussion with more than MAX_LABELS (10)
+    const message = {
+      title: "Test Discussion",
+      body: "This is a test discussion body",
+      labels: [
+        "label1",
+        "label2",
+        "label3",
+        "label4",
+        "label5",
+        "label6",
+        "label7",
+        "label8",
+        "label9",
+        "label10",
+        "label11", // 11th label exceeds limit
+      ],
+    };
+
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("E003");
+    expect(result.error).toContain("Cannot add more than 10 labels");
+    expect(result.error).toContain("received 11");
+  });
 });

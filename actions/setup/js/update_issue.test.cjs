@@ -610,4 +610,50 @@ describe("update_issue.cjs - allow_body configuration", () => {
     expect(result.data._operation).toBeUndefined();
     expect(mockCore.warning).toHaveBeenCalledWith("Body update not allowed by safe-outputs configuration");
   });
+
+  it("should enforce max labels limit (SEC-003)", async () => {
+    const { buildIssueUpdateData } = await import("./update_issue.cjs");
+
+    const item = {
+      labels: [
+        "label1",
+        "label2",
+        "label3",
+        "label4",
+        "label5",
+        "label6",
+        "label7",
+        "label8",
+        "label9",
+        "label10",
+        "label11", // 11th label exceeds limit
+      ],
+    };
+
+    const config = {};
+
+    const result = buildIssueUpdateData(item, config);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("E003");
+    expect(result.error).toContain("Cannot add more than 10 labels");
+    expect(result.error).toContain("received 11");
+  });
+
+  it("should enforce max assignees limit (SEC-003)", async () => {
+    const { buildIssueUpdateData } = await import("./update_issue.cjs");
+
+    const item = {
+      assignees: ["user1", "user2", "user3", "user4", "user5", "user6"], // 6 assignees exceeds limit of 5
+    };
+
+    const config = {};
+
+    const result = buildIssueUpdateData(item, config);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("E003");
+    expect(result.error).toContain("Cannot add more than 5 assignees");
+    expect(result.error).toContain("received 6");
+  });
 });
