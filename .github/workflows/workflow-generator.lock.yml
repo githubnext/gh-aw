@@ -873,6 +873,7 @@ jobs:
       - agent
       - detection
       - safe_outputs
+      - unlock
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -1143,6 +1144,7 @@ jobs:
       - activation
       - agent
       - detection
+      - unlock
     if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (needs.detection.outputs.success == 'true')
     runs-on: ubuntu-slim
     permissions:
@@ -1183,16 +1185,6 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Unlock issue for safe output operations
-        id: unlock-issue-for-safe-outputs
-        if: ((github.event_name == 'issues') || (github.event_name == 'issue_comment')) && (needs.activation.outputs.issue_locked == 'true')
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('/opt/gh-aw/actions/unlock-issue.cjs');
-            await main();
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1228,7 +1220,6 @@ jobs:
       - activation
       - agent
       - detection
-      - safe_outputs
     if: always()
     runs-on: ubuntu-latest
     permissions:

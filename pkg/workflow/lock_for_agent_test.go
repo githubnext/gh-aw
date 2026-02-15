@@ -515,7 +515,7 @@ safe-outputs:
 
 # Lock For Agent with Safe Outputs Test
 
-Test that issue is unlocked in safe_outputs job before processing safe outputs.
+Test that safe_outputs job depends on unlock job.
 `
 
 	testFile := filepath.Join(tmpDir, "test-lock-for-agent-safe-outputs.md")
@@ -546,8 +546,6 @@ Test that issue is unlocked in safe_outputs job before processing safe outputs.
 	expectedStrings := []string{
 		"Lock issue for agent workflow",                  // In activation job
 		"Unlock issue after agent workflow",              // In dedicated unlock job
-		"Unlock issue for safe output operations",        // In safe_outputs job
-		"id: unlock-issue-for-safe-outputs",              // Step ID in safe_outputs
 		"needs.activation.outputs.issue_locked == 'true", // Condition check
 		"unlock-issue.cjs",                               // Script reference
 	}
@@ -564,21 +562,6 @@ Test that issue is unlocked in safe_outputs job before processing safe outputs.
 		t.Error("Activation job should contain the lock step")
 	}
 
-	// Verify unlock step is in safe_outputs job
-	safeOutputsJobSection := extractJobSection(yamlContent, "safe_outputs")
-	if !strings.Contains(safeOutputsJobSection, "Unlock issue for safe output operations") {
-		t.Error("safe_outputs job should contain the unlock step")
-	}
-
-	// Verify the unlock step appears BEFORE the safe output processing steps
-	unlockPos := strings.Index(safeOutputsJobSection, "Unlock issue for safe output operations")
-	processPos := strings.Index(safeOutputsJobSection, "Process Safe Outputs")
-	if unlockPos == -1 || processPos == -1 {
-		t.Error("Both unlock and process steps should exist in safe_outputs job")
-	} else if unlockPos > processPos {
-		t.Error("Unlock step should appear BEFORE Process Safe Outputs step")
-	}
-
 	// Verify dedicated unlock job exists with always() condition
 	unlockJobSection := extractJobSection(yamlContent, "unlock")
 	if !strings.Contains(unlockJobSection, "Unlock issue after agent workflow") {
@@ -588,5 +571,11 @@ Test that issue is unlocked in safe_outputs job before processing safe outputs.
 	// Verify unlock job has always() condition at job level
 	if !strings.Contains(unlockJobSection, "if: always()") {
 		t.Error("Unlock job should have always() condition")
+	}
+
+	// Verify safe_outputs job depends on unlock job
+	safeOutputsJobSection := extractJobSection(yamlContent, "safe_outputs")
+	if !strings.Contains(safeOutputsJobSection, "unlock") {
+		t.Error("safe_outputs job should depend on unlock job")
 	}
 }

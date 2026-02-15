@@ -80,35 +80,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, checkoutSteps...)
 	}
 
-	// Add unlock step if lock-for-agent is enabled
-	// This unlocks the issue before processing safe outputs so that add_comment can succeed
-	if data.LockForAgent {
-		consolidatedSafeOutputsJobLog.Print("Adding unlock step for lock-for-agent at beginning of safe_outputs job")
-
-		// Build condition: only unlock if issue was locked by activation job
-		// Must match lock condition: event type is 'issues' or 'issue_comment'
-		// Use the issue_locked output from activation job to determine if unlock is needed
-		eventTypeCheck := BuildOr(
-			BuildEventTypeEquals("issues"),
-			BuildEventTypeEquals("issue_comment"),
-		)
-		lockedOutputCheck := BuildEquals(
-			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.issue_locked", constants.ActivationJobName)),
-			BuildStringLiteral("true"),
-		)
-
-		unlockCondition := BuildAnd(eventTypeCheck, lockedOutputCheck)
-
-		steps = append(steps, "      - name: Unlock issue for safe output operations\n")
-		steps = append(steps, "        id: unlock-issue-for-safe-outputs\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", unlockCondition.Render()))
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
-		steps = append(steps, "        with:\n")
-		steps = append(steps, "          script: |\n")
-		steps = append(steps, generateGitHubScriptWithRequire("unlock-issue.cjs"))
-
-		// Note: Permissions for unlocking issues are computed centrally by computePermissionsForSafeOutputs()
-	}
+	// Note: Unlock step has been moved to dedicated unlock job
+	// The safe_outputs job now depends on the unlock job, so the issue
+	// will already be unlocked when this job runs
 
 	// === Build safe output steps ===
 	//
@@ -333,6 +307,12 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Add activation job dependency for jobs that need it (create_pull_request, push_to_pull_request_branch, lock-for-agent)
 	if data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil || data.LockForAgent {
 		needs = append(needs, string(constants.ActivationJobName))
+	}
+	// Add unlock job dependency if lock-for-agent is enabled
+	// This ensures the issue is unlocked before safe outputs run
+	if data.LockForAgent {
+		needs = append(needs, "unlock")
+		consolidatedSafeOutputsJobLog.Print("Added unlock job dependency to safe_outputs job")
 	}
 
 	// Extract workflow ID from markdown path for GH_AW_WORKFLOW_ID
