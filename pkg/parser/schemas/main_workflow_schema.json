@@ -1365,6 +1365,12 @@
               "default": "eyes",
               "description": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none). Use 'none' to disable reactions. Defaults to 'eyes' if not specified.",
               "examples": ["eyes", "rocket", "+1", 1, -1, "none"]
+            },
+            "status-comment": {
+              "type": "boolean",
+              "description": "Whether to post status comments (started/completed) on the triggering item. When true, adds a comment with workflow run link. When false, only adds reaction (if configured) without status comments. Defaults to true when reaction is set, false otherwise.",
+              "default": true,
+              "examples": [true, false]
             }
           },
           "additionalProperties": false,
