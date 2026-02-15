@@ -1346,6 +1346,22 @@
               ],
               "description": "Conditionally skip workflow execution when a GitHub search query has no matches (or fewer than minimum). Can be a string (query only, implies min=1) or an object with 'query' and optional 'min' fields."
             },
+            "skip-roles": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Single role to skip workflow for (e.g., 'admin'). If the triggering user has this role, the workflow will be skipped."
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of roles to skip workflow for (e.g., ['admin', 'maintainer', 'write']). If the triggering user has any of these roles, the workflow will be skipped."
+                }
+              ],
+              "description": "Skip workflow execution for users with specific repository roles. Useful for workflows that should only run for external contributors or specific permission levels."
+            },
             "manual-approval": {
               "type": "string",
               "description": "Environment name that requires manual approval before the workflow can run. Must match a valid environment configured in the repository settings."

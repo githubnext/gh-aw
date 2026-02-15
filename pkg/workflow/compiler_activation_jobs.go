@@ -154,6 +154,23 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, generateGitHubScriptWithRequire("check_skip_if_no_match.cjs"))
 	}
 
+	// Add skip-roles check if configured
+	if len(data.SkipRoles) > 0 {
+		// Extract workflow name for the skip-roles check
+		workflowName := data.Name
+
+		steps = append(steps, "      - name: Check skip-roles\n")
+		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckSkipRolesStepID))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_ROLES: %s\n", strings.Join(data.SkipRoles, ",")))
+		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          github-token: ${{ secrets.GITHUB_TOKEN }}\n")
+		steps = append(steps, "          script: |\n")
+		steps = append(steps, generateGitHubScriptWithRequire("check_skip_roles.cjs"))
+	}
+
 	// Add command position check if this is a command workflow
 	if len(data.Command) > 0 {
 		steps = append(steps, "      - name: Check command position\n")
@@ -218,6 +235,16 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			BuildStringLiteral("true"),
 		)
 		conditions = append(conditions, skipNoMatchCheckOk)
+	}
+
+	if len(data.SkipRoles) > 0 {
+		// Add skip-roles check condition
+		skipRolesCheckOk := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckSkipRolesStepID, constants.SkipRolesOkOutput)),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, skipRolesCheckOk)
 	}
 
 	if data.RateLimit != nil {

@@ -467,3 +467,61 @@ func (c *Compiler) combineJobIfConditions(existingCondition, workflowRunRepoSafe
 	combinedExpr := BuildAnd(existingNode, safetyNode)
 	return combinedExpr.Render()
 }
+
+// extractSkipRoles extracts the 'skip-roles' field from the 'on:' section of frontmatter
+// Returns nil if skip-roles is not configured
+func (c *Compiler) extractSkipRoles(frontmatter map[string]any) []string {
+	// Check the "on" section in frontmatter
+	onValue, exists := frontmatter["on"]
+	if !exists || onValue == nil {
+		return nil
+	}
+
+	// Handle different formats of the on: section
+	switch on := onValue.(type) {
+	case map[string]any:
+		// Complex object format - look for skip-roles
+		if skipRolesValue, exists := on["skip-roles"]; exists && skipRolesValue != nil {
+			return extractStringSliceField(skipRolesValue, "skip-roles")
+		}
+	}
+
+	return nil
+}
+
+// extractStringSliceField extracts a string slice from various input formats
+// Handles: string, []string, []any (with string elements)
+// Returns nil if the input is empty or invalid
+func extractStringSliceField(value any, fieldName string) []string {
+	switch v := value.(type) {
+	case string:
+		// Single string
+		if v == "" {
+			return nil
+		}
+		roleLog.Printf("Extracted single %s: %s", fieldName, v)
+		return []string{v}
+	case []string:
+		// Already a string slice
+		if len(v) == 0 {
+			return nil
+		}
+		roleLog.Printf("Extracted %d %s: %v", len(v), fieldName, v)
+		return v
+	case []any:
+		// Array of any - extract strings
+		var result []string
+		for _, item := range v {
+			if str, ok := item.(string); ok && str != "" {
+				result = append(result, str)
+			}
+		}
+		if len(result) == 0 {
+			return nil
+		}
+		roleLog.Printf("Extracted %d %s from array: %v", len(result), fieldName, result)
+		return result
+	}
+	roleLog.Printf("No valid %s found or unsupported type: %T", fieldName, value)
+	return nil
+}

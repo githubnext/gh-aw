@@ -416,6 +416,7 @@ type WorkflowData struct {
 	StopTime              string
 	SkipIfMatch           *SkipIfMatchConfig   // skip-if-match configuration with query and max threshold
 	SkipIfNoMatch         *SkipIfNoMatchConfig // skip-if-no-match configuration with query and min threshold
+	SkipRoles             []string             // roles to skip workflow for (e.g., [admin, maintainer, write])
 	ManualApproval        string               // environment name for manual approval from on: section
 	Command               []string             // for /command trigger support - multiple command names
 	CommandEvents         []string             // events where command should be active (nil = all events)
