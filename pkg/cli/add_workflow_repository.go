@@ -100,10 +100,7 @@ func showInteractiveWorkflowSelection(repoSlug string, workflows []WorkflowInfo,
 	}
 
 	// Build the workflow spec
-	workflowSpec := fmt.Sprintf("%s/%s", repoSlug, selectedID)
-	if version != "" {
-		workflowSpec += "@" + version
-	}
+	workflowSpec := buildWorkflowSpecRef(repoSlug, selectedID, "", version)
 
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To add this workflow, run:"))

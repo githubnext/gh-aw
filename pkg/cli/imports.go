@@ -16,6 +16,20 @@ import (
 
 var importsLog = logger.New("cli:imports")
 
+// buildWorkflowSpecRef builds a workflowspec reference string from components.
+// Format: owner/repo/path@version (e.g., "github/gh-aw/shared/mcp/arxiv.md@abc123")
+// If commitSHA is provided, it takes precedence over version.
+// If neither is provided, returns the path without a version suffix.
+func buildWorkflowSpecRef(repoSlug, path, commitSHA, version string) string {
+	workflowSpec := repoSlug + "/" + path
+	if commitSHA != "" {
+		workflowSpec += "@" + commitSHA
+	} else if version != "" {
+		workflowSpec += "@" + version
+	}
+	return workflowSpec
+}
+
 // resolveImportPath resolves a relative import path to its full repository path
 // based on the workflow file's location
 func resolveImportPath(importPath string, workflowPath string) string {
@@ -96,13 +110,7 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 		importsLog.Printf("Resolved import path: %s -> %s (workflow: %s)", importPath, resolvedPath, workflow.WorkflowPath)
 
 		// Build workflowspec for this import
-		// Format: owner/repo/path@sha
-		workflowSpec := workflow.RepoSlug + "/" + resolvedPath
-		if commitSHA != "" {
-			workflowSpec += "@" + commitSHA
-		} else if workflow.Version != "" {
-			workflowSpec += "@" + workflow.Version
-		}
+		workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, resolvedPath, commitSHA, workflow.Version)
 
 		importsLog.Printf("Converted import: %s -> %s", importPath, workflowSpec)
 		processedImports = append(processedImports, workflowSpec)
@@ -204,13 +212,7 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 			visited[filePath] = true
 
 			// Build workflowspec for this include
-			// Format: owner/repo/path@sha
-			workflowSpec := workflow.RepoSlug + "/" + filePath
-			if commitSHA != "" {
-				workflowSpec += "@" + commitSHA
-			} else if workflow.Version != "" {
-				workflowSpec += "@" + workflow.Version
-			}
+			workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, filePath, commitSHA, workflow.Version)
 
 			// Add section if present
 			if sectionName != "" {
@@ -355,13 +357,7 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 			resolvedPath := resolveImportPath(filePath, workflow.WorkflowPath)
 
 			// Build workflowspec for this include
-			// Format: owner/repo/path@sha
-			workflowSpec := workflow.RepoSlug + "/" + resolvedPath
-			if commitSHA != "" {
-				workflowSpec += "@" + commitSHA
-			} else if workflow.Version != "" {
-				workflowSpec += "@" + workflow.Version
-			}
+			workflowSpec := buildWorkflowSpecRef(workflow.RepoSlug, resolvedPath, commitSHA, workflow.Version)
 
 			// Add section if present
 			if sectionName != "" {
