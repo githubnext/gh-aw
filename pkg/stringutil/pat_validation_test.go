@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClassifyPAT(t *testing.T) {
@@ -136,7 +137,7 @@ func TestValidateCopilotPAT(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateCopilotPAT(tt.token)
 			if tt.expectError {
-				assert.Error(t, err, "should return error for invalid token")
+				require.Error(t, err, "should return error for invalid token")
 				assert.Contains(t, err.Error(), tt.errorMsg, "error message should contain expected text")
 			} else {
 				assert.NoError(t, err, "should not return error for valid token")

@@ -54,7 +54,6 @@ func compileSpecificFiles(
 	var workflowDataList []*workflow.WorkflowData
 	var compiledCount int
 	var errorCount int
-	var errorMessages []string
 	var lockFilesForActionlint []string
 	var lockFilesForZizmor []string
 
@@ -76,7 +75,6 @@ func compileSpecificFiles(
 		if err != nil {
 			// Don't print error here - it will be displayed in the compilation summary
 			// The error is stored in ValidationResult for JSON output and returned for main to display
-			errorMessages = append(errorMessages, err.Error())
 			errorCount++
 			stats.Errors++
 			trackWorkflowFailure(stats, markdownFile, 1, []string{err.Error()})
@@ -109,11 +107,6 @@ func compileSpecificFiles(
 				errMsgs = append(errMsgs, verr.Message)
 			}
 			trackWorkflowFailure(stats, resolvedFile, 1, errMsgs)
-			// Only append first error to errorMessages for the return error value
-			// (all errors are already displayed in the summary via printCompilationSummary)
-			if len(fileResult.validationResult.Errors) > 0 {
-				errorMessages = append(errorMessages, fileResult.validationResult.Errors[0].Message)
-			}
 		} else {
 			compiledCount++
 			workflowDataList = append(workflowDataList, fileResult.workflowData)
