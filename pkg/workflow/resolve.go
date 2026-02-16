@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -100,4 +101,144 @@ func ResolveWorkflowName(workflowInput string) (string, error) {
 
 	resolveLog.Printf("Successfully resolved workflow name: %s", workflow.Name)
 	return workflow.Name, nil
+}
+
+// WorkflowNameMatch represents a matched workflow with its ID and display name
+type WorkflowNameMatch struct {
+	WorkflowID   string // The workflow ID (filename without .md)
+	DisplayName  string // The GitHub Actions workflow name from the lock file
+	MatchedInput string // The input that was used to find this match
+}
+
+// FindWorkflowName attempts to find a workflow using flexible matching strategies.
+// It accepts both workflow IDs (kebab-case filename without .md) and display names
+// (GitHub Actions workflow name from frontmatter).
+//
+// Matching strategies (in order):
+//  1. Try to resolve as workflow ID using ResolveWorkflowName
+//  2. Try exact match with workflow ID (case-sensitive)
+//  3. Try case-insensitive match with workflow ID
+//  4. Try exact match with display name (case-sensitive)
+//  5. Try case-insensitive match with display name
+//
+// Returns the matched workflow's display name (GitHub Actions workflow name) on success.
+// Returns an error with suggestions if no match is found.
+//
+// Examples:
+//   - "ci-failure-doctor" -> "CI Failure Doctor" (workflow ID match)
+//   - "CI-FAILURE-DOCTOR" -> "CI Failure Doctor" (case-insensitive workflow ID match)
+//   - "CI Failure Doctor" -> "CI Failure Doctor" (display name match)
+//   - "ci failure doctor" -> "CI Failure Doctor" (case-insensitive display name match)
+func FindWorkflowName(input string) (string, error) {
+	if input == "" {
+		return "", nil
+	}
+
+	resolveLog.Printf("Finding workflow with flexible matching: %s", input)
+
+	// Strategy 1: Try to resolve as workflow ID
+	// This handles the normal case where user provides a workflow ID
+	displayName, err := ResolveWorkflowName(input)
+	if err == nil && displayName != "" {
+		resolveLog.Printf("Found workflow via ResolveWorkflowName: %s -> %s", input, displayName)
+		return displayName, nil
+	}
+
+	// If ResolveWorkflowName failed, try other matching strategies
+	// First, get all available workflows
+	workflows, err := GetAllWorkflows()
+	if err != nil {
+		return "", fmt.Errorf("failed to get workflows: %w", err)
+	}
+
+	if len(workflows) == 0 {
+		return "", errors.New("no workflows found in .github/workflows directory")
+	}
+
+	// Normalize input for matching
+	normalizedInput := stringutil.NormalizeWorkflowName(input)
+	lowerInput := strings.ToLower(input)
+	lowerNormalizedInput := strings.ToLower(normalizedInput)
+
+	// Strategy 2: Try exact match with workflow ID (case-sensitive)
+	for _, wf := range workflows {
+		if wf.WorkflowID == input || wf.WorkflowID == normalizedInput {
+			resolveLog.Printf("Found exact workflow ID match: %s -> %s", input, wf.DisplayName)
+			return wf.DisplayName, nil
+		}
+	}
+
+	// Strategy 3: Try case-insensitive match with workflow ID
+	for _, wf := range workflows {
+		if strings.ToLower(wf.WorkflowID) == lowerInput || strings.ToLower(wf.WorkflowID) == lowerNormalizedInput {
+			resolveLog.Printf("Found case-insensitive workflow ID match: %s -> %s", input, wf.DisplayName)
+			return wf.DisplayName, nil
+		}
+	}
+
+	// Strategy 4: Try exact match with display name (case-sensitive)
+	for _, wf := range workflows {
+		if wf.DisplayName == input {
+			resolveLog.Printf("Found exact display name match: %s", input)
+			return wf.DisplayName, nil
+		}
+	}
+
+	// Strategy 5: Try case-insensitive match with display name
+	for _, wf := range workflows {
+		if strings.ToLower(wf.DisplayName) == lowerInput {
+			resolveLog.Printf("Found case-insensitive display name match: %s -> %s", input, wf.DisplayName)
+			return wf.DisplayName, nil
+		}
+	}
+
+	// No match found - return error with suggestions
+	resolveLog.Printf("No workflow match found for: %s", input)
+	return "", fmt.Errorf("workflow '%s' not found", input)
+}
+
+// GetAllWorkflows returns all available workflows with their IDs and display names
+func GetAllWorkflows() ([]WorkflowNameMatch, error) {
+	workflowsDir := constants.GetWorkflowDir()
+
+	// Get all .lock.yml files
+	lockFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to glob .lock.yml files: %w", err)
+	}
+
+	var workflows []WorkflowNameMatch
+	for _, lockFile := range lockFiles {
+		// Extract workflow ID from filename
+		base := filepath.Base(lockFile)
+		workflowID := strings.TrimSuffix(base, ".lock.yml")
+
+		// Read and parse the lock file to get display name
+		content, err := os.ReadFile(lockFile)
+		if err != nil {
+			resolveLog.Printf("Failed to read lock file %s: %v", lockFile, err)
+			continue
+		}
+
+		var wf struct {
+			Name string `yaml:"name"`
+		}
+
+		if err := yaml.Unmarshal(content, &wf); err != nil {
+			resolveLog.Printf("Failed to parse YAML from lock file %s: %v", lockFile, err)
+			continue
+		}
+
+		if wf.Name == "" {
+			resolveLog.Printf("Workflow name field missing in lock file: %s", lockFile)
+			continue
+		}
+
+		workflows = append(workflows, WorkflowNameMatch{
+			WorkflowID:  workflowID,
+			DisplayName: wf.Name,
+		})
+	}
+
+	return workflows, nil
 }
