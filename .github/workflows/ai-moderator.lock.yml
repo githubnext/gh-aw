@@ -22,7 +22,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# frontmatter-hash: 7bc9df6320a45738dd5a355466b4cacbb4c5f48008f86dcda591150366a56996
+# frontmatter-hash: 4f006d594431ee1e4a2892d106993250d70919d9085af50a78e1d1c849fb47ea
 
 name: "AI Moderator"
 "on":
@@ -32,6 +32,9 @@ name: "AI Moderator"
     - created
   issues:
     # lock-for-agent: true # Lock-for-agent processed as issue locking in activation job
+    types:
+    - opened
+  pull_request:
     types:
     - opened
   # skip-bots: # Skip-bots processed as bot check in pre-activation job
@@ -46,14 +49,16 @@ name: "AI Moderator"
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
+  cancel-in-progress: true
 
 run-name: "AI Moderator"
 
 jobs:
   activation:
     needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true'
+    if: >
+      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -918,6 +923,7 @@ jobs:
             await main();
 
   pre_activation:
+    if: (github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)
     runs-on: ubuntu-slim
     permissions:
       actions: read
@@ -941,7 +947,7 @@ jobs:
         env:
           GH_AW_RATE_LIMIT_MAX: "5"
           GH_AW_RATE_LIMIT_WINDOW: "60"
-          GH_AW_RATE_LIMIT_EVENTS: "issue_comment,issues"
+          GH_AW_RATE_LIMIT_EVENTS: "issue_comment,issues,pull_request"
           GH_AW_RATE_LIMIT_IGNORED_ROLES: "admin,maintain,write"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
