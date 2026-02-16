@@ -437,6 +437,11 @@ describe("parse_claude_log.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith("No agent log file specified");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
+
+    it("should fail when Claude log has no structured entries", async () => {
+      await runScript("this is not structured Claude JSON output");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.");
+    });
   });
 
   describe("helper function tests", () => {
