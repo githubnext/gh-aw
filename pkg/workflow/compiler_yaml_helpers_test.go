@@ -194,16 +194,17 @@ func TestGenerateWorkflowHeader(t *testing.T) {
 		{
 			name: "header with imports and includes",
 			data: &WorkflowData{
-				ImportedFiles: []string{"import1.md", "import2.md"},
-				IncludedFiles: []string{"include1.md"},
+				ImportedFiles: []string{"import2.md", "import1.md"},
+				IncludedFiles: []string{"include-b.md", "include-a.md"},
 			},
 			expectInStr: []string{
 				"# Resolved workflow manifest:",
 				"#   Imports:",
-				"#     - import1.md",
 				"#     - import2.md",
+				"#     - import1.md",
 				"#   Includes:",
-				"#     - include1.md",
+				"#     - include-a.md",
+				"#     - include-b.md",
 			},
 		},
 		{
@@ -242,6 +243,13 @@ func TestGenerateWorkflowHeader(t *testing.T) {
 			for _, expected := range tt.expectInStr {
 				if !strings.Contains(result, expected) {
 					t.Errorf("generateWorkflowHeader() result missing %q\nGot:\n%s", expected, result)
+				}
+			}
+			if tt.name == "header with imports and includes" {
+				includeAPos := strings.Index(result, "#     - include-a.md")
+				includeBPos := strings.Index(result, "#     - include-b.md")
+				if includeAPos == -1 || includeBPos == -1 || includeAPos > includeBPos {
+					t.Errorf("includes should be sorted deterministically:\n%s", result)
 				}
 			}
 
