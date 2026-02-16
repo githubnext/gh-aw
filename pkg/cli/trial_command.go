@@ -305,7 +305,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 
 	// Step 1.5: Show confirmation unless quiet mode
 	if !opts.Quiet {
-		if err := showTrialConfirmation(parsedSpecs, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, opts.DeleteHostRepo, opts.ForceDelete, opts.AutoMergePRs, opts.RepeatCount, directTrialMode); err != nil {
+		if err := showTrialConfirmation(parsedSpecs, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, opts.DeleteHostRepo, opts.ForceDelete, opts.AutoMergePRs, opts.RepeatCount, directTrialMode, opts.EngineOverride); err != nil {
 			return err
 		}
 	}
@@ -595,7 +595,7 @@ func getCurrentGitHubUsername() (string, error) {
 }
 
 // showTrialConfirmation displays a confirmation prompt to the user using parsed workflow specs
-func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, deleteHostRepo bool, forceDeleteHostRepo bool, autoMergePRs bool, repeatCount int, directTrialMode bool) error {
+func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, deleteHostRepo bool, forceDeleteHostRepo bool, autoMergePRs bool, repeatCount int, directTrialMode bool, engineOverride string) error {
 	hostRepoSlugURL := fmt.Sprintf("https://github.com/%s", hostRepoSlug)
 
 	var sections []string
@@ -658,9 +658,11 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 		configInfo.WriteString("Cleanup:   Host repository will be preserved")
 	}
 
-	// Display secret usage information
-	configInfo.WriteString("\n")
-	configInfo.WriteString("Secrets:   Will prompt for missing API keys if needed (stored as repository secrets)")
+	// Display secret usage information (only when engine override is specified)
+	if engineOverride != "" {
+		configInfo.WriteString("\n")
+		fmt.Fprintf(&configInfo, "Secrets:   Will prompt for %s API key if needed (stored as repository secret)", engineOverride)
+	}
 
 	// Display repeat count if set
 	if repeatCount > 0 {
@@ -735,9 +737,11 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 	}
 	stepNum++
 
-	// Step: Configure secrets (always shown)
-	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Ensure required API key secrets are configured\n"), stepNum)
-	stepNum++
+	// Step: Configure secrets (only when engine override is specified)
+	if engineOverride != "" {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Ensure %s API key secret is configured\n"), stepNum, engineOverride)
+		stepNum++
+	}
 
 	// Step 5/4: Execute workflows and auto-merge (repeated if --repeat is used)
 	if len(parsedSpecs) == 1 {
