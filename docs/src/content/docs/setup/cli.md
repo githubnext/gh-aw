@@ -302,6 +302,15 @@ gh aw logs -c 10 --start-date -1w         # Filter by count and date
 gh aw logs --ref main --parse --json      # With markdown/JSON output for branch
 ```
 
+**Workflow name matching**: The logs command accepts both workflow IDs (kebab-case filename without `.md`, e.g., `ci-failure-doctor`) and display names (from frontmatter, e.g., `CI Failure Doctor`). Matching is case-insensitive for convenience:
+
+```bash wrap
+gh aw logs ci-failure-doctor               # Workflow ID
+gh aw logs CI-FAILURE-DOCTOR               # Case-insensitive ID
+gh aw logs "CI Failure Doctor"             # Display name
+gh aw logs "ci failure doctor"             # Case-insensitive display name
+```
+
 **Options:** `-c`, `--count`, `-e`, `--engine`, `--start-date`, `--end-date`, `--ref`, `--parse`, `--json`, `--repo`
 
 #### `audit`

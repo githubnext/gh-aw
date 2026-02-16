@@ -35,6 +35,8 @@ The `on:` section uses standard GitHub Actions syntax to define workflow trigger
 - `stop-after:` - Automatically disable triggers after a deadline
 - `manual-approval:` - Require manual approval using environment protection rules
 - `forks:` - Configure fork filtering for pull_request triggers
+- `skip-roles:` - Skip workflow execution for specific repository roles
+- `skip-bots:` - Skip workflow execution for specific GitHub actors
 
 See [Trigger Events](/gh-aw/reference/triggers/) for complete documentation.
 
@@ -261,6 +263,60 @@ bots:
 - `renovate[bot]` - Renovate bot for automated dependency management
 - `github-actions[bot]` - GitHub Actions bot
 - `agentic-workflows-dev[bot]` - Development bot for testing workflows
+
+### Skip Roles (`on.skip-roles`)
+
+Skip workflow execution for users with specific repository permission levels. Useful for exempting team members from automated checks that should only apply to external contributors.
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  skip-roles: [admin, maintainer, write]
+```
+
+**Available roles**: `admin`, `maintainer`, `write`, `read`
+
+**Behavior**:
+- Workflow is cancelled during pre-activation when triggered by users with listed roles
+- Check runs before agent execution to avoid unnecessary compute costs
+- Merged as union when importing workflows (all skip-roles from imported workflows are combined)
+- Useful for AI moderation workflows that should only check external user content
+
+**Example use case**: An AI content moderation workflow that checks issues for policy violations but exempts trusted team members with write access or higher.
+
+### Skip Bots (`on.skip-bots`)
+
+Skip workflow execution when triggered by specific GitHub actors (users or bots). Complements `skip-roles` by filtering based on actor identity rather than permission level.
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  skip-bots: [github-actions, copilot, dependabot]
+```
+
+**Bot name matching**: Automatic flexible matching handles bot names with or without the `[bot]` suffix. For example, specifying `github-actions` matches both `github-actions` and `github-actions[bot]` actors automatically.
+
+**Behavior**:
+- Workflow is cancelled during pre-activation when `github.actor` matches any listed actor
+- Check runs before agent execution to avoid unnecessary compute costs
+- Merged as union when importing workflows (all skip-bots from imported workflows are combined)
+- Accepts both user accounts and bot accounts
+
+**String or array format**:
+```yaml wrap
+# Single bot
+skip-bots: github-actions
+
+# Multiple bots
+skip-bots: [github-actions, copilot, renovate]
+```
+
+**Example use cases**:
+- Skip AI workflows when triggered by automation bots to avoid bot-to-bot interactions
+- Prevent workflow loops where one workflow's output triggers another
+- Exempt specific known bots from content checks or policy enforcement
 
 ### Strict Mode (`strict:`)
 
