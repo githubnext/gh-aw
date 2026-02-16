@@ -60,7 +60,6 @@ type TrialOptions struct {
 	AutoMergePRs           bool
 	EngineOverride         string
 	AppendText             string
-	PushSecrets            bool
 	Verbose                bool
 	DisableSecurityScanner bool
 }
@@ -131,7 +130,6 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
 			engineOverride, _ := cmd.Flags().GetString("engine")
 			appendText, _ := cmd.Flags().GetString("append")
-			pushSecrets, _ := cmd.Flags().GetBool("use-local-secrets")
 			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
 			disableSecurityScanner, _ := cmd.Flags().GetBool("disable-security-scanner")
 
@@ -159,7 +157,6 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 				AutoMergePRs:           autoMergePRs,
 				EngineOverride:         engineOverride,
 				AppendText:             appendText,
-				PushSecrets:            pushSecrets,
 				Verbose:                verbose,
 				DisableSecurityScanner: disableSecurityScanner,
 			}
@@ -194,7 +191,6 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during trial execution")
 	addEngineFlag(cmd)
 	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
-	cmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for trial execution (pushes and cleans up secrets in repository)")
 	cmd.Flags().Bool("disable-security-scanner", false, "Disable security scanning of workflow markdown content")
 	cmd.MarkFlagsMutuallyExclusive("host-repo", "repo")
 	cmd.MarkFlagsMutuallyExclusive("logical-repo", "clone-repo")
@@ -309,7 +305,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 
 	// Step 1.5: Show confirmation unless quiet mode
 	if !opts.Quiet {
-		if err := showTrialConfirmation(parsedSpecs, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, opts.DeleteHostRepo, opts.ForceDelete, opts.PushSecrets, opts.AutoMergePRs, opts.RepeatCount, directTrialMode); err != nil {
+		if err := showTrialConfirmation(parsedSpecs, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, opts.DeleteHostRepo, opts.ForceDelete, opts.AutoMergePRs, opts.RepeatCount, directTrialMode, opts.EngineOverride); err != nil {
 			return err
 		}
 	}
@@ -326,20 +322,26 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 		return nil
 	}
 
-	// Step 2.5: Create secret tracker
-	var secretTracker *TrialSecretTracker
-	if opts.PushSecrets {
-		secretTracker = NewTrialSecretTracker(hostRepoSlug)
-		trialLog.Print("Created secret tracker for trial")
+	// Step 2.5: Ensure engine secrets are configured when an explicit engine override is provided
+	// When no override is specified, the workflow will use its frontmatter engine and handle secrets during compilation
+	if opts.EngineOverride != "" {
+		// Check what secrets already exist in the repository
+		existingSecrets, err := CheckExistingSecrets(hostRepoSlug)
+		if err != nil {
+			trialLog.Printf("Warning: could not check existing secrets: %v", err)
+			existingSecrets = make(map[string]bool)
+		}
 
-		// Set up secret cleanup to always run on exit
-		defer func() {
-			if err := cleanupTrialSecrets(hostRepoSlug, secretTracker, opts.Verbose); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup secrets: %v", err)))
-			}
-		}()
-	} else {
-		trialLog.Print("Secret pushing disabled, workflows must have required secrets already configured")
+		// Ensure the required engine secret is available (prompts interactively if needed)
+		secretConfig := SecretCollectionConfig{
+			RepoSlug:        hostRepoSlug,
+			Engine:          opts.EngineOverride,
+			Verbose:         opts.Verbose,
+			ExistingSecrets: existingSecrets,
+		}
+		if err := EnsureEngineSecret(secretConfig); err != nil {
+			return fmt.Errorf("failed to configure engine secret: %w", err)
+		}
 	}
 
 	// Set up cleanup if requested
@@ -440,11 +442,11 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 		// Step 5: Run trials for each workflow
 		var workflowResults []WorkflowTrialResult
 
-		for i, parsedSpec := range parsedSpecs {
+		for _, parsedSpec := range parsedSpecs {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Running trial for workflow: %s ===", parsedSpec.WorkflowName)))
 
 			// Install workflow with trial mode compilation
-			if err := installWorkflowInTrialMode(ctx, tempDir, parsedSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, secretTracker, opts.EngineOverride, opts.AppendText, opts.PushSecrets, directTrialMode, opts.Verbose, &opts); err != nil {
+			if err := installWorkflowInTrialMode(ctx, tempDir, parsedSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, directTrialMode, &opts); err != nil {
 				return fmt.Errorf("failed to install workflow '%s' in trial mode: %w", parsedSpec.WorkflowName, err)
 			}
 
@@ -454,13 +456,6 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 				fmt.Fprintln(os.Stderr, "")
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(description))
 				fmt.Fprintln(os.Stderr, "")
-			}
-
-			// Add user's PAT as repository secret (only once)
-			if i == 0 && opts.PushSecrets {
-				if err := addGitHubTokenSecret(hostRepoSlug, secretTracker, opts.Verbose); err != nil {
-					return fmt.Errorf("failed to add GitHub token secret: %w", err)
-				}
 			}
 
 			// Run the workflow and wait for completion (with trigger context if provided)
@@ -600,7 +595,7 @@ func getCurrentGitHubUsername() (string, error) {
 }
 
 // showTrialConfirmation displays a confirmation prompt to the user using parsed workflow specs
-func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, deleteHostRepo bool, forceDeleteHostRepo bool, pushSecrets bool, autoMergePRs bool, repeatCount int, directTrialMode bool) error {
+func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, deleteHostRepo bool, forceDeleteHostRepo bool, autoMergePRs bool, repeatCount int, directTrialMode bool, engineOverride string) error {
 	hostRepoSlugURL := fmt.Sprintf("https://github.com/%s", hostRepoSlug)
 
 	var sections []string
@@ -663,12 +658,10 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 		configInfo.WriteString("Cleanup:   Host repository will be preserved")
 	}
 
-	// Display secret usage information
-	configInfo.WriteString("\n")
-	if pushSecrets {
-		configInfo.WriteString("Secrets:   Local API keys will be pushed and cleaned up after execution")
-	} else {
-		configInfo.WriteString("Secrets:   Workflows must use pre-configured repository secrets")
+	// Display secret usage information (only when engine override is specified)
+	if engineOverride != "" {
+		configInfo.WriteString("\n")
+		fmt.Fprintf(&configInfo, "Secrets:   Will prompt for %s API key if needed (stored as repository secret)", engineOverride)
 	}
 
 	// Display repeat count if set
@@ -744,9 +737,9 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 	}
 	stepNum++
 
-	// Step 4/3: Push secrets (if enabled)
-	if pushSecrets {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Push required API key secrets (will be cleaned up later)\n"), stepNum)
+	// Step: Configure secrets (only when engine override is specified)
+	if engineOverride != "" {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Ensure %s API key secret is configured\n"), stepNum, engineOverride)
 		stepNum++
 	}
 
@@ -788,12 +781,6 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 		}
 	}
 	stepNum++
-
-	// Step 6/5: Clean up secrets (if pushed)
-	if pushSecrets {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  %d. Clean up API key secrets from the host repository\n"), stepNum)
-		stepNum++
-	}
 
 	// Final step: Delete/preserve repository
 	if deleteHostRepo {

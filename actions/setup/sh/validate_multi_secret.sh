@@ -87,6 +87,74 @@ if [ "$all_empty" = true ]; then
   exit 1
 fi
 
+# Validate COPILOT_GITHUB_TOKEN is a fine-grained PAT if it's one of the secrets being validated
+for secret_name in "${SECRET_NAMES[@]}"; do
+  if [ "$secret_name" = "COPILOT_GITHUB_TOKEN" ]; then
+    secret_value="${!secret_name}"
+    if [ -n "$secret_value" ]; then
+      # Check token type by prefix
+      # github_pat_ = Fine-grained PAT (valid)
+      # ghp_ = Classic PAT (invalid)
+      # gho_ = OAuth token (invalid)
+      if [[ "$secret_value" == ghp_* ]]; then
+        {
+          echo "❌ Error: COPILOT_GITHUB_TOKEN is a classic Personal Access Token (ghp_...)"
+          echo "Classic PATs are not supported for GitHub Copilot."
+          echo "Please create a fine-grained PAT (github_pat_...) at:"
+          echo "https://github.com/settings/personal-access-tokens/new"
+          echo ""
+          echo "Configure the token with:"
+          echo "• Resource owner: Your personal account"
+          echo "• Repository access: \"Public repositories\""
+          echo "• Account permissions → Copilot Requests: Read-only"
+        } >> "$GITHUB_STEP_SUMMARY"
+        
+        echo "Error: COPILOT_GITHUB_TOKEN is a classic Personal Access Token (ghp_...)" >&2
+        echo "Classic PATs are not supported for GitHub Copilot." >&2
+        echo "Please create a fine-grained PAT (github_pat_...) at: https://github.com/settings/personal-access-tokens/new" >&2
+        
+        if [ -n "$GITHUB_OUTPUT" ]; then
+          echo "verification_result=failed" >> "$GITHUB_OUTPUT"
+        fi
+        exit 1
+      elif [[ "$secret_value" == gho_* ]]; then
+        {
+          echo "❌ Error: COPILOT_GITHUB_TOKEN is an OAuth token (gho_...)"
+          echo "OAuth tokens are not supported for GitHub Copilot."
+          echo "Please create a fine-grained PAT (github_pat_...) at:"
+          echo "https://github.com/settings/personal-access-tokens/new"
+        } >> "$GITHUB_STEP_SUMMARY"
+        
+        echo "Error: COPILOT_GITHUB_TOKEN is an OAuth token (gho_...)" >&2
+        echo "OAuth tokens are not supported for GitHub Copilot." >&2
+        echo "Please create a fine-grained PAT (github_pat_...) at: https://github.com/settings/personal-access-tokens/new" >&2
+        
+        if [ -n "$GITHUB_OUTPUT" ]; then
+          echo "verification_result=failed" >> "$GITHUB_OUTPUT"
+        fi
+        exit 1
+      elif [[ "$secret_value" != github_pat_* ]]; then
+        {
+          echo "❌ Error: COPILOT_GITHUB_TOKEN has an unrecognized format"
+          echo "GitHub Copilot requires a fine-grained PAT (starting with 'github_pat_')."
+          echo "Please create a fine-grained PAT at:"
+          echo "https://github.com/settings/personal-access-tokens/new"
+        } >> "$GITHUB_STEP_SUMMARY"
+        
+        echo "Error: COPILOT_GITHUB_TOKEN has an unrecognized format" >&2
+        echo "GitHub Copilot requires a fine-grained PAT (starting with 'github_pat_')." >&2
+        echo "Please create a fine-grained PAT at: https://github.com/settings/personal-access-tokens/new" >&2
+        
+        if [ -n "$GITHUB_OUTPUT" ]; then
+          echo "verification_result=failed" >> "$GITHUB_OUTPUT"
+        fi
+        exit 1
+      fi
+    fi
+    break
+  fi
+done
+
 # Log success in collapsible section
 echo "<details>"
 echo "<summary>Agent Environment Validation</summary>"
@@ -97,7 +165,12 @@ echo ""
 first_secret="${SECRET_NAMES[0]}"
 first_value="${!first_secret}"
 if [ -n "$first_value" ]; then
-  echo "✅ $first_secret: Configured"
+  # Show extra info for COPILOT_GITHUB_TOKEN indicating fine-grained PAT
+  if [ "$first_secret" = "COPILOT_GITHUB_TOKEN" ]; then
+    echo "✅ $first_secret: Configured (fine-grained PAT)"
+  else
+    echo "✅ $first_secret: Configured"
+  fi
 # Middle secrets use elif (if there are more than 2 secrets)
 elif [ "${#SECRET_NAMES[@]}" -gt 2 ]; then
   found=false

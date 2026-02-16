@@ -202,7 +202,6 @@ func TestBuildCommandString(t *testing.T) {
 		repoOverride   string
 		refOverride    string
 		autoMergePRs   bool
-		pushSecrets    bool
 		push           bool
 		engineOverride string
 		expected       string
@@ -238,12 +237,6 @@ func TestBuildCommandString(t *testing.T) {
 			expected:     "gh aw run test-workflow --auto-merge-prs",
 		},
 		{
-			name:         "with push secrets",
-			workflowName: "test-workflow",
-			pushSecrets:  true,
-			expected:     "gh aw run test-workflow --use-local-secrets",
-		},
-		{
 			name:         "with push",
 			workflowName: "test-workflow",
 			push:         true,
@@ -262,16 +255,15 @@ func TestBuildCommandString(t *testing.T) {
 			repoOverride:   "owner/repo",
 			refOverride:    "main",
 			autoMergePRs:   true,
-			pushSecrets:    true,
 			push:           true,
 			engineOverride: "copilot",
-			expected:       "gh aw run test-workflow -F name=value --repo owner/repo --ref main --auto-merge-prs --use-local-secrets --push --engine copilot",
+			expected:       "gh aw run test-workflow -F name=value --repo owner/repo --ref main --auto-merge-prs --push --engine copilot",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildCommandString(tt.workflowName, tt.inputs, tt.repoOverride, tt.refOverride, tt.autoMergePRs, tt.pushSecrets, tt.push, tt.engineOverride)
+			result := buildCommandString(tt.workflowName, tt.inputs, tt.repoOverride, tt.refOverride, tt.autoMergePRs, tt.push, tt.engineOverride)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

@@ -52,7 +52,6 @@ All standard `run` command flags work in interactive mode:
 - `--ref branch` - Run on a specific branch
 - `--engine copilot` - Override AI engine
 - `--auto-merge-prs` - Auto-merge created PRs
-- `--use-local-secrets` - Use local secrets
 - `--push` - Push changes before running
 
 ## Limitations

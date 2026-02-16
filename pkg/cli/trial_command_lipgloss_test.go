@@ -19,7 +19,6 @@ func TestTrialConfirmationLipglossRendering(t *testing.T) {
 		cloneRepoSlug   string
 		hostRepoSlug    string
 		deleteHostRepo  bool
-		pushSecrets     bool
 		autoMergePRs    bool
 		repeatCount     int
 		directTrialMode bool
@@ -38,7 +37,6 @@ func TestTrialConfirmationLipglossRendering(t *testing.T) {
 			logicalRepoSlug: "owner/logical",
 			hostRepoSlug:    "owner/host",
 			deleteHostRepo:  false,
-			pushSecrets:     false,
 			autoMergePRs:    false,
 			repeatCount:     0,
 			directTrialMode: false,
@@ -63,7 +61,6 @@ func TestTrialConfirmationLipglossRendering(t *testing.T) {
 			logicalRepoSlug: "owner/logical",
 			hostRepoSlug:    "owner/host",
 			deleteHostRepo:  false,
-			pushSecrets:     false,
 			autoMergePRs:    false,
 			repeatCount:     0,
 			directTrialMode: false,
@@ -83,7 +80,6 @@ func TestTrialConfirmationLipglossRendering(t *testing.T) {
 			cloneRepoSlug:   "owner/source",
 			hostRepoSlug:    "owner/host",
 			deleteHostRepo:  true,
-			pushSecrets:     true,
 			autoMergePRs:    false,
 			repeatCount:     0,
 			directTrialMode: false,
@@ -103,7 +99,6 @@ func TestTrialConfirmationLipglossRendering(t *testing.T) {
 			cloneRepoSlug:   "",
 			hostRepoSlug:    "owner/host",
 			deleteHostRepo:  false,
-			pushSecrets:     false,
 			autoMergePRs:    true,
 			repeatCount:     0,
 			directTrialMode: true,
@@ -122,7 +117,6 @@ func TestTrialConfirmationLipglossRendering(t *testing.T) {
 			logicalRepoSlug: "owner/logical",
 			hostRepoSlug:    "owner/host",
 			deleteHostRepo:  false,
-			pushSecrets:     false,
 			autoMergePRs:    false,
 			repeatCount:     3,
 			directTrialMode: false,
@@ -147,7 +141,6 @@ func TestTrialConfirmationLipglossRendering(t *testing.T) {
 			logicalRepoSlug: "owner/logical",
 			hostRepoSlug:    "owner/host",
 			deleteHostRepo:  true,
-			pushSecrets:     true,
 			autoMergePRs:    true,
 			repeatCount:     5,
 			directTrialMode: false,
@@ -170,7 +163,6 @@ func TestTrialConfirmationLipglossRendering(t *testing.T) {
 			t.Logf("Clone repo: %s", tt.cloneRepoSlug)
 			t.Logf("Host repo: %s", tt.hostRepoSlug)
 			t.Logf("Delete host repo: %v", tt.deleteHostRepo)
-			t.Logf("Push secrets: %v", tt.pushSecrets)
 			t.Logf("Auto-merge PRs: %v", tt.autoMergePRs)
 			t.Logf("Repeat count: %d", tt.repeatCount)
 			t.Logf("Direct trial mode: %v", tt.directTrialMode)

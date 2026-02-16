@@ -69,17 +69,9 @@ func TestRunWorkflowOnGitHub_InputValidation(t *testing.T) {
 			err := RunWorkflowOnGitHub(
 				ctx,
 				tt.workflowName,
-				false, // enable
-				"",    // engineOverride
-				"",    // repoOverride
-				"",    // refOverride
-				false, // autoMergePRs
-				false, // pushSecrets
-				false, // push
-				false, // waitForCompletion
-				tt.inputs,
-				false, // verbose
-				false, // dryRun
+				RunOptions{
+					Inputs: tt.inputs,
+				},
 			)
 
 			if tt.expectError {
@@ -106,17 +98,7 @@ func TestRunWorkflowOnGitHub_ContextCancellation(t *testing.T) {
 	err := RunWorkflowOnGitHub(
 		ctx,
 		"test-workflow",
-		false, // enable
-		"",    // engineOverride
-		"",    // repoOverride
-		"",    // refOverride
-		false, // autoMergePRs
-		false, // pushSecrets
-		false, // push
-		false, // waitForCompletion
-		[]string{},
-		false, // verbose
-		false, // dryRun
+		RunOptions{},
 	)
 
 	if err == nil {
@@ -164,17 +146,7 @@ func TestRunWorkflowsOnGitHub_InputValidation(t *testing.T) {
 			err := RunWorkflowsOnGitHub(
 				ctx,
 				tt.workflowNames,
-				0,     // repeatCount
-				false, // enable
-				"",    // engineOverride
-				"",    // repoOverride
-				"",    // refOverride
-				false, // autoMergePRs
-				false, // pushSecrets
-				false, // push
-				[]string{},
-				false, // verbose
-				false, // dryRun
+				RunOptions{},
 			)
 
 			if tt.expectError {
@@ -201,17 +173,7 @@ func TestRunWorkflowsOnGitHub_ContextCancellation(t *testing.T) {
 	err := RunWorkflowsOnGitHub(
 		ctx,
 		[]string{"test-workflow"},
-		0,     // repeatCount
-		false, // enable
-		"",    // engineOverride
-		"",    // repoOverride
-		"",    // refOverride
-		false, // autoMergePRs
-		false, // pushSecrets
-		false, // push
-		[]string{},
-		false, // verbose
-		false, // dryRun
+		RunOptions{},
 	)
 
 	if err == nil {
@@ -255,17 +217,10 @@ func TestRunWorkflowOnGitHub_FlagCombinations(t *testing.T) {
 			err := RunWorkflowOnGitHub(
 				ctx,
 				"test-workflow",
-				false, // enable
-				"",    // engineOverride
-				tt.repoOverride,
-				"",    // refOverride
-				false, // autoMergePRs
-				false, // pushSecrets
-				tt.push,
-				false, // waitForCompletion
-				[]string{},
-				false, // verbose
-				false, // dryRun
+				RunOptions{
+					RepoOverride: tt.repoOverride,
+					Push:         tt.push,
+				},
 			)
 
 			if tt.expectError {

@@ -202,7 +202,7 @@ func setupEngineSecrets(engine string, verbose bool) error {
 		secretValue := os.Getenv(spec.Name)
 
 		// Try alternative environment variable names
-		// NOTE: We intentionally do NOT use GetGitHubToken() fallback for COPILOT_GITHUB_TOKEN here.
+		//
 		// The init command should only detect explicitly set environment variables, not scrape
 		// the user's gh auth token. Using gh auth token for secrets would be a security risk
 		// as users may not realize their personal token is being uploaded to the repository.
@@ -335,7 +335,7 @@ func attemptSetSecret(secretName, repoSlug string, verbose bool) error {
 	}
 
 	// Get secret value from environment
-	// NOTE: We intentionally do NOT use GetGitHubToken() fallback for COPILOT_GITHUB_TOKEN here.
+	//
 	// The init command should only use explicitly set environment variables to avoid
 	// accidentally uploading the user's personal gh auth token to the repository.
 	secretValue := os.Getenv(secretName)

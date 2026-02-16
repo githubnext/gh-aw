@@ -368,7 +368,6 @@ Examples:
 		repoOverride, _ := cmd.Flags().GetString("repo")
 		refOverride, _ := cmd.Flags().GetString("ref")
 		autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
-		pushSecrets, _ := cmd.Flags().GetBool("use-local-secrets")
 		inputs, _ := cmd.Flags().GetStringArray("raw-field")
 		push, _ := cmd.Flags().GetBool("push")
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -395,10 +394,21 @@ Examples:
 				return fmt.Errorf("workflow inputs cannot be specified in interactive mode (they will be collected interactively)")
 			}
 
-			return cli.RunWorkflowInteractively(cmd.Context(), verboseFlag, repoOverride, refOverride, autoMergePRs, pushSecrets, push, engineOverride, dryRun)
+			return cli.RunWorkflowInteractively(cmd.Context(), verboseFlag, repoOverride, refOverride, autoMergePRs, push, engineOverride, dryRun)
 		}
 
-		return cli.RunWorkflowsOnGitHub(cmd.Context(), args, repeatCount, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, push, inputs, verboseFlag, dryRun)
+		return cli.RunWorkflowsOnGitHub(cmd.Context(), args, cli.RunOptions{
+			RepeatCount:    repeatCount,
+			Enable:         enable,
+			EngineOverride: engineOverride,
+			RepoOverride:   repoOverride,
+			RefOverride:    refOverride,
+			AutoMergePRs:   autoMergePRs,
+			Push:           push,
+			Inputs:         inputs,
+			Verbose:        verboseFlag,
+			DryRun:         dryRun,
+		})
 	},
 }
 
@@ -577,7 +587,6 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
 	runCmd.Flags().String("ref", "", "Branch or tag name to run the workflow on (default: current branch)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
-	runCmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for workflow execution (pushes and cleans up secrets in repository)")
 	runCmd.Flags().StringArrayP("raw-field", "F", []string{}, "Add a string parameter in key=value format (can be used multiple times)")
 	runCmd.Flags().Bool("push", false, "Commit and push workflow files (including transitive imports) before running")
 	runCmd.Flags().Bool("dry-run", false, "Validate workflow without actually triggering execution on GitHub Actions")

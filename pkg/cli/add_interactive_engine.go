@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 // selectAIEngineAndKey prompts the user to select an AI engine and provide API key
@@ -62,10 +62,6 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 					defaultEngine = opt.Value
 					break
 				}
-			}
-			// Priority 3: Check if user likely has Copilot (default)
-			if token, err := parser.GetGitHubToken(); err == nil && token != "" {
-				defaultEngine = string(constants.CopilotEngine)
 			}
 		}
 	}
@@ -150,12 +146,20 @@ func (c *AddInteractiveConfig) collectCopilotPAT() error {
 	// Check if COPILOT_GITHUB_TOKEN is already in environment
 	existingToken := os.Getenv("COPILOT_GITHUB_TOKEN")
 	if existingToken != "" {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Found COPILOT_GITHUB_TOKEN in environment"))
-		return nil
+		// Validate the existing token is a fine-grained PAT
+		if err := stringutil.ValidateCopilotPAT(existingToken); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("COPILOT_GITHUB_TOKEN in environment is not a fine-grained PAT: %s", stringutil.GetPATTypeDescription(existingToken))))
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+			// Continue to prompt for a new token
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Found valid fine-grained COPILOT_GITHUB_TOKEN in environment"))
+			return nil
+		}
 	}
 
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "GitHub Copilot requires a Personal Access Token (PAT) with Copilot permissions.")
+	fmt.Fprintln(os.Stderr, "GitHub Copilot requires a fine-grained Personal Access Token (PAT) with Copilot permissions.")
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Classic PATs (ghp_...) are not supported. You must use a fine-grained PAT (github_pat_...)."))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Please create a token at:")
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  https://github.com/settings/personal-access-tokens/new"))
@@ -172,15 +176,16 @@ func (c *AddInteractiveConfig) collectCopilotPAT() error {
 	form := huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().
-				Title("After creating, please paste your Copilot PAT:").
-				Description("The token will be stored securely as a repository secret").
+				Title("After creating, please paste your fine-grained Copilot PAT:").
+				Description("Must start with 'github_pat_'. Classic PATs (ghp_...) are not supported.").
 				EchoMode(huh.EchoModePassword).
 				Value(&token).
 				Validate(func(s string) error {
 					if len(s) < 10 {
 						return fmt.Errorf("token appears to be too short")
 					}
-					return nil
+					// Validate it's a fine-grained PAT
+					return stringutil.ValidateCopilotPAT(s)
 				}),
 		),
 	).WithAccessible(console.IsAccessibleMode())
@@ -191,7 +196,7 @@ func (c *AddInteractiveConfig) collectCopilotPAT() error {
 
 	// Store in environment for later use
 	_ = os.Setenv("COPILOT_GITHUB_TOKEN", token)
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Copilot token received"))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Valid fine-grained Copilot token received"))
 
 	return nil
 }

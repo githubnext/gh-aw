@@ -202,7 +202,7 @@ func cloneTrialHostRepository(repoSlug string, verbose bool) (string, error) {
 }
 
 // installWorkflowInTrialMode installs a workflow in trial mode using a parsed spec
-func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec *WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, secretTracker *TrialSecretTracker, engineOverride string, appendText string, pushSecrets bool, directTrialMode bool, verbose bool, opts *TrialOptions) error {
+func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec *WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, directTrialMode bool, opts *TrialOptions) error {
 	trialRepoLog.Printf("Installing workflow in trial mode: workflow=%s, hostRepo=%s, directMode=%v", parsedSpec.WorkflowName, hostRepoSlug, directTrialMode)
 
 	// Change to temp directory
@@ -218,32 +218,32 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 
 	// Check if this is a local workflow
 	if strings.HasPrefix(parsedSpec.WorkflowPath, "./") {
-		if verbose {
+		if opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing local workflow '%s' from '%s' in trial mode", parsedSpec.WorkflowName, parsedSpec.WorkflowPath)))
 		}
 
 		// For local workflows, copy the file directly from the filesystem
-		if err := installLocalWorkflowInTrialMode(originalDir, tempDir, parsedSpec, appendText, verbose, opts); err != nil {
+		if err := installLocalWorkflowInTrialMode(originalDir, tempDir, parsedSpec, opts); err != nil {
 			return fmt.Errorf("failed to install local workflow: %w", err)
 		}
 	} else {
-		if verbose {
+		if opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing workflow '%s' from '%s' in trial mode", parsedSpec.WorkflowName, parsedSpec.RepoSlug)))
 		}
 
 		// Install the source repository as a package
-		if err := InstallPackage(parsedSpec.RepoSlug, verbose); err != nil {
+		if err := InstallPackage(parsedSpec.RepoSlug, opts.Verbose); err != nil {
 			return fmt.Errorf("failed to install source repository: %w", err)
 		}
 
 		// Add the workflow from the installed package
-		opts := AddOptions{
+		addOpts := AddOptions{
 			Number:                 1,
-			Verbose:                verbose,
+			Verbose:                opts.Verbose,
 			EngineOverride:         "",
 			Name:                   "",
 			Force:                  true,
-			AppendText:             appendText,
+			AppendText:             opts.AppendText,
 			CreatePR:               false,
 			Push:                   false,
 			NoGitattributes:        false,
@@ -252,25 +252,25 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 			StopAfter:              "",
 			DisableSecurityScanner: opts.DisableSecurityScanner,
 		}
-		if _, err := AddWorkflows([]string{parsedSpec.String()}, opts); err != nil {
+		if _, err := AddWorkflows([]string{parsedSpec.String()}, addOpts); err != nil {
 			return fmt.Errorf("failed to add workflow: %w", err)
 		}
 	}
 
 	// Modify the workflow for trial mode (skip in direct trial mode)
 	if !directTrialMode {
-		if err := modifyWorkflowForTrialMode(tempDir, parsedSpec.WorkflowName, logicalRepoSlug, verbose); err != nil {
+		if err := modifyWorkflowForTrialMode(tempDir, parsedSpec.WorkflowName, logicalRepoSlug, opts.Verbose); err != nil {
 			return fmt.Errorf("failed to modify workflow for trial mode: %w", err)
 		}
-	} else if verbose {
+	} else if opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Direct trial mode: Skipping trial mode modifications"))
 	}
 
 	// Compile the workflow with trial modifications
 	config := CompileConfig{
 		MarkdownFiles:        []string{".github/workflows/" + parsedSpec.WorkflowName + ".md"},
-		Verbose:              verbose,
-		EngineOverride:       engineOverride,
+		Verbose:              opts.Verbose,
+		EngineOverride:       opts.EngineOverride,
 		Validate:             true,
 		Watch:                false,
 		WorkflowDir:          "",
@@ -287,17 +287,11 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 	if len(workflowDataList) != 1 {
 		return fmt.Errorf("expected one compiled workflow, got %d", len(workflowDataList))
 	}
-	workflowData := workflowDataList[0]
-
-	// Determine required engine secret from workflow data
-	if pushSecrets {
-		if err := determineAndAddEngineSecret(workflowData.EngineConfig, hostRepoSlug, secretTracker, engineOverride, verbose); err != nil {
-			return fmt.Errorf("failed to determine engine secret: %w", err)
-		}
-	}
+	// Note: workflowData is used for validation; secrets are ensured before installWorkflowInTrialMode is called
+	_ = workflowDataList[0]
 
 	// Commit and push the changes
-	if err := commitAndPushWorkflow(tempDir, parsedSpec.WorkflowName, verbose); err != nil {
+	if err := commitAndPushWorkflow(tempDir, parsedSpec.WorkflowName, opts.Verbose); err != nil {
 		return fmt.Errorf("failed to commit and push workflow: %w", err)
 	}
 
@@ -305,7 +299,7 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 }
 
 // installLocalWorkflowInTrialMode installs a local workflow file for trial mode
-func installLocalWorkflowInTrialMode(originalDir, tempDir string, parsedSpec *WorkflowSpec, appendText string, verbose bool, opts *TrialOptions) error {
+func installLocalWorkflowInTrialMode(originalDir, tempDir string, parsedSpec *WorkflowSpec, opts *TrialOptions) error {
 	// Construct the source path (relative to original directory)
 	sourcePath := filepath.Join(originalDir, parsedSpec.WorkflowPath)
 
@@ -355,21 +349,21 @@ func installLocalWorkflowInTrialMode(originalDir, tempDir string, parsedSpec *Wo
 			fmt.Fprintln(os.Stderr, workflow.FormatSecurityFindings(findings))
 			return fmt.Errorf("local workflow '%s' failed security scan: %d issue(s) detected", parsedSpec.WorkflowName, len(findings))
 		}
-		if verbose {
+		if opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Security scan passed"))
 		}
-	} else if verbose {
+	} else if opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Security scanning disabled"))
 	}
 
 	// Append text if provided
-	if appendText != "" {
+	if opts.AppendText != "" {
 		contentStr := string(content)
 		// Ensure we have a newline before appending
 		if !strings.HasSuffix(contentStr, "\n") {
 			contentStr += "\n"
 		}
-		contentStr += "\n" + appendText
+		contentStr += "\n" + opts.AppendText
 		content = []byte(contentStr)
 	}
 
@@ -378,7 +372,7 @@ func installLocalWorkflowInTrialMode(originalDir, tempDir string, parsedSpec *Wo
 		return fmt.Errorf("failed to write workflow to destination: %w", err)
 	}
 
-	if verbose {
+	if opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Copied local workflow from %s to %s", sourcePath, destPath)))
 	}
 
