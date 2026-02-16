@@ -640,6 +640,11 @@ jobs:
           # Find all .lock.yml files in the repository
           LOCK_FILES=$(find . -type f -name "*.lock.yml" | sort)
           
+          if [ -z "$LOCK_FILES" ]; then
+            echo "⚠️  WARNING: No .lock.yml files found"
+            exit 0
+          fi
+          
           # Track if any release-compiled files are found
           FOUND_RELEASE=0
           
@@ -679,6 +684,43 @@ jobs:
           fi
           
           echo "✅ All lock files compiled with development build (no version in header)"
+
+      - name: Check agent file URLs use main branch
+        run: |
+          echo "🔍 Checking .github/agents/agentic-workflows.agent.md for correct branch URLs..."
+          
+          AGENT_FILE=".github/agents/agentic-workflows.agent.md"
+          
+          if [ ! -f "$AGENT_FILE" ]; then
+            echo "⚠️  WARNING: $AGENT_FILE not found, skipping check"
+            exit 0
+          fi
+          
+          # Check for URLs that don't use 'main' branch
+          # Pattern matches: https://github.com/github/gh-aw/blob/{anything-except-main}/
+          # Uses negative lookahead to exclude 'main'
+          INVALID_URLS=$(grep -n 'https://github.com/github/gh-aw/blob/' "$AGENT_FILE" | grep -v '/blob/main/' || true)
+          
+          if [ -n "$INVALID_URLS" ]; then
+            echo "❌ ERROR: Found URLs not using 'main' branch in $AGENT_FILE"
+            echo ""
+            echo "Lines with invalid URLs:"
+            echo "$INVALID_URLS"
+            echo ""
+            echo "💡 All GitHub URLs in agent files must reference the 'main' branch!"
+            echo ""
+            echo "URLs should use the pattern:"
+            echo "  https://github.com/github/gh-aw/blob/main/.github/aw/..."
+            echo ""
+            echo "To fix:"
+            echo "  1. Edit $AGENT_FILE"
+            echo "  2. Replace all 'blob/{commit-hash}/' or 'blob/{tag}/' with 'blob/main/'"
+            echo "  3. Commit the updated file"
+            echo ""
+            exit 1
+          fi
+          
+          echo "✅ All URLs in $AGENT_FILE correctly use 'main' branch"
 
   js:
     runs-on: ubuntu-latest
