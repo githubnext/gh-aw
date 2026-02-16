@@ -687,20 +687,21 @@ var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(
 
 // EngineOption represents a selectable AI engine with its display metadata and secret configuration
 type EngineOption struct {
-	Value       string
-	Label       string
-	Description string
-	SecretName  string // The name of the secret required for this engine (e.g., "COPILOT_GITHUB_TOKEN")
-	EnvVarName  string // Alternative environment variable name if different from SecretName (optional)
-	KeyURL      string // URL where users can obtain their API key (empty for engines with special setup like Copilot)
+	Value              string
+	Label              string
+	Description        string
+	SecretName         string   // The name of the secret required for this engine (e.g., "COPILOT_GITHUB_TOKEN")
+	AlternativeSecrets []string // Alternative secret names that can also be used for this engine
+	EnvVarName         string   // Alternative environment variable name if different from SecretName (optional)
+	KeyURL             string   // URL where users can obtain their API key (empty for engines with special setup like Copilot)
 }
 
 // EngineOptions provides the list of available AI engines for user selection
 var EngineOptions = []EngineOption{
-	{string(CopilotEngine), "GitHub Copilot", "GitHub Copilot CLI with agent support", "COPILOT_GITHUB_TOKEN", "", ""},
-	{string(CopilotSDKEngine), "GitHub Copilot SDK", "GitHub Copilot SDK with headless mode", "COPILOT_GITHUB_TOKEN", "", ""},
-	{string(ClaudeEngine), "Claude", "Anthropic Claude Code coding agent", "ANTHROPIC_API_KEY", "", "https://console.anthropic.com/settings/keys"},
-	{string(CodexEngine), "Codex", "OpenAI Codex/GPT engine", "OPENAI_API_KEY", "", "https://platform.openai.com/api-keys"},
+	{string(CopilotEngine), "GitHub Copilot", "GitHub Copilot CLI with agent support", "COPILOT_GITHUB_TOKEN", nil, "", ""},
+	{string(CopilotSDKEngine), "GitHub Copilot SDK", "GitHub Copilot SDK with headless mode", "COPILOT_GITHUB_TOKEN", nil, "", ""},
+	{string(ClaudeEngine), "Claude", "Anthropic Claude Code coding agent", "ANTHROPIC_API_KEY", []string{"CLAUDE_CODE_OAUTH_TOKEN"}, "", "https://console.anthropic.com/settings/keys"},
+	{string(CodexEngine), "Codex", "OpenAI Codex/GPT engine", "OPENAI_API_KEY", []string{"CODEX_API_KEY"}, "", "https://platform.openai.com/api-keys"},
 }
 
 // GetEngineOption returns the EngineOption for the given engine value, or nil if not found
@@ -711,6 +712,39 @@ func GetEngineOption(engineValue string) *EngineOption {
 		}
 	}
 	return nil
+}
+
+// GetAllEngineSecretNames returns all unique secret names across all configured engines.
+// This includes primary secrets, alternative secrets, and system-level secrets like GH_AW_GITHUB_TOKEN.
+// The returned slice contains no duplicates.
+func GetAllEngineSecretNames() []string {
+	seen := make(map[string]bool)
+	var secrets []string
+
+	// Add primary and alternative secrets from all engines
+	for _, opt := range EngineOptions {
+		if opt.SecretName != "" && !seen[opt.SecretName] {
+			seen[opt.SecretName] = true
+			secrets = append(secrets, opt.SecretName)
+		}
+		for _, alt := range opt.AlternativeSecrets {
+			if alt != "" && !seen[alt] {
+				seen[alt] = true
+				secrets = append(secrets, alt)
+			}
+		}
+	}
+
+	// Add system-level secrets that aren't engine-specific
+	systemSecrets := []string{"GH_AW_GITHUB_TOKEN"}
+	for _, s := range systemSecrets {
+		if !seen[s] {
+			seen[s] = true
+			secrets = append(secrets, s)
+		}
+	}
+
+	return secrets
 }
 
 // DefaultReadOnlyGitHubTools defines the default read-only GitHub MCP tools.

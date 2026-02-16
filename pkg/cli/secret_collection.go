@@ -36,17 +36,18 @@ type SecretCollectionConfig struct {
 func EnsureEngineSecret(config SecretCollectionConfig) error {
 	secretCollectionLog.Printf("Ensuring engine secret for %s engine in repo %s", config.Engine, config.RepoSlug)
 
-	switch config.Engine {
-	case "copilot", "":
-		return ensureCopilotSecret(config)
-	case "claude":
-		return ensureClaudeSecret(config)
-	case "codex", "openai":
-		return ensureCodexSecret(config)
-	default:
-		// Unknown engine, default to copilot
+	// Copilot has special PAT validation requirements
+	if config.Engine == "copilot" || config.Engine == "" || config.Engine == "copilot-sdk" {
 		return ensureCopilotSecret(config)
 	}
+
+	// For any other engine, check if we have an EngineOption for it
+	if opt := constants.GetEngineOption(config.Engine); opt != nil {
+		return ensureEngineSecretGeneric(config, config.Engine)
+	}
+
+	// Unknown engine, default to copilot
+	return ensureCopilotSecret(config)
 }
 
 // CheckExistingSecrets checks which secrets exist in the repository
@@ -62,15 +63,8 @@ func CheckExistingSecrets(repoSlug string) (map[string]bool, error) {
 		return existingSecrets, nil // Return empty map, don't fail
 	}
 
-	// Check for known engine secrets
-	secretNames := []string{
-		"COPILOT_GITHUB_TOKEN",
-		"ANTHROPIC_API_KEY",
-		"CLAUDE_CODE_OAUTH_TOKEN",
-		"OPENAI_API_KEY",
-		"CODEX_API_KEY",
-		"GH_AW_GITHUB_TOKEN",
-	}
+	// Check for all known engine secrets (primary, alternative, and system-level)
+	secretNames := constants.GetAllEngineSecretNames()
 
 	outputStr := string(output)
 	for _, name := range secretNames {
@@ -187,101 +181,48 @@ func promptForCopilotPAT() (string, error) {
 	return token, nil
 }
 
-// ensureClaudeSecret ensures either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY is available
-func ensureClaudeSecret(config SecretCollectionConfig) error {
-	secretCollectionLog.Print("Ensuring Claude secret")
-
-	// Check existing secrets
-	if config.ExistingSecrets["CLAUDE_CODE_OAUTH_TOKEN"] || config.ExistingSecrets["ANTHROPIC_API_KEY"] {
-		if config.ExistingSecrets["CLAUDE_CODE_OAUTH_TOKEN"] {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Using existing CLAUDE_CODE_OAUTH_TOKEN secret in repository"))
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Using existing ANTHROPIC_API_KEY secret in repository"))
-		}
-		return nil
+// ensureEngineSecretGeneric ensures the required secret for a given engine is available.
+// It checks existing repository secrets, environment variables, and prompts the user if needed.
+// Uses the EngineOption data to determine primary and alternative secret names.
+func ensureEngineSecretGeneric(config SecretCollectionConfig, engineName string) error {
+	opt := constants.GetEngineOption(engineName)
+	if opt == nil {
+		return fmt.Errorf("unknown engine: %s", engineName)
 	}
 
-	// Check environment
-	claudeToken := os.Getenv("CLAUDE_CODE_OAUTH_TOKEN")
-	anthropicKey := os.Getenv("ANTHROPIC_API_KEY")
+	secretCollectionLog.Printf("Ensuring %s secret", opt.Label)
 
-	if claudeToken != "" {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Found CLAUDE_CODE_OAUTH_TOKEN in environment"))
-		if config.RepoSlug != "" {
-			return uploadSecretIfNeeded("CLAUDE_CODE_OAUTH_TOKEN", claudeToken, config.RepoSlug, config.Verbose)
+	// Collect all possible secret names (primary + alternatives)
+	allSecretNames := []string{opt.SecretName}
+	allSecretNames = append(allSecretNames, opt.AlternativeSecrets...)
+
+	// Check existing secrets in repository
+	for _, secretName := range allSecretNames {
+		if config.ExistingSecrets[secretName] {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Using existing %s secret in repository", secretName)))
+			return nil
 		}
-		return nil
 	}
 
-	if anthropicKey != "" {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Found ANTHROPIC_API_KEY in environment"))
-		if config.RepoSlug != "" {
-			return uploadSecretIfNeeded("ANTHROPIC_API_KEY", anthropicKey, config.RepoSlug, config.Verbose)
+	// Check environment variables
+	for _, secretName := range allSecretNames {
+		envValue := os.Getenv(secretName)
+		if envValue != "" {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %s in environment", secretName)))
+			if config.RepoSlug != "" {
+				return uploadSecretIfNeeded(secretName, envValue, config.RepoSlug, config.Verbose)
+			}
+			return nil
 		}
-		return nil
 	}
 
 	// Prompt for API key
-	opt := constants.GetEngineOption("claude")
-	if opt == nil {
-		return fmt.Errorf("unknown engine: claude")
-	}
-
 	apiKey, err := promptForGenericAPIKey(opt)
 	if err != nil {
 		return err
 	}
 
-	// Store in environment
-	_ = os.Setenv(opt.SecretName, apiKey)
-
-	// Upload to repository
-	if config.RepoSlug != "" {
-		return uploadSecretIfNeeded(opt.SecretName, apiKey, config.RepoSlug, config.Verbose)
-	}
-
-	return nil
-}
-
-// ensureCodexSecret ensures the OPENAI_API_KEY or CODEX_API_KEY secret is available
-func ensureCodexSecret(config SecretCollectionConfig) error {
-	secretCollectionLog.Print("Ensuring Codex/OpenAI secret")
-
-	// Check existing secrets
-	if config.ExistingSecrets["OPENAI_API_KEY"] || config.ExistingSecrets["CODEX_API_KEY"] {
-		if config.ExistingSecrets["OPENAI_API_KEY"] {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Using existing OPENAI_API_KEY secret in repository"))
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Using existing CODEX_API_KEY secret in repository"))
-		}
-		return nil
-	}
-
-	// Check environment
-	openaiKey := os.Getenv("OPENAI_API_KEY")
-	if openaiKey != "" {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Found OPENAI_API_KEY in environment"))
-		if config.RepoSlug != "" {
-			return uploadSecretIfNeeded("OPENAI_API_KEY", openaiKey, config.RepoSlug, config.Verbose)
-		}
-		return nil
-	}
-
-	// Prompt for API key
-	opt := constants.GetEngineOption("codex")
-	if opt == nil {
-		opt = constants.GetEngineOption("openai")
-	}
-	if opt == nil {
-		return fmt.Errorf("unknown engine: codex")
-	}
-
-	apiKey, err := promptForGenericAPIKey(opt)
-	if err != nil {
-		return err
-	}
-
-	// Store in environment
+	// Store in environment using primary secret name
 	_ = os.Setenv(opt.SecretName, apiKey)
 
 	// Upload to repository

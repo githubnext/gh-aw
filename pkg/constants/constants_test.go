@@ -694,3 +694,57 @@ func TestHelperMethods(t *testing.T) {
 		}
 	})
 }
+
+func TestGetAllEngineSecretNames(t *testing.T) {
+	secrets := GetAllEngineSecretNames()
+
+	// Should not be empty
+	if len(secrets) == 0 {
+		t.Error("GetAllEngineSecretNames() should not return empty slice")
+	}
+
+	// Build a set for easy lookup
+	secretSet := make(map[string]bool)
+	for _, s := range secrets {
+		secretSet[s] = true
+	}
+
+	// Verify primary engine secrets are included
+	expectedSecrets := []string{
+		"COPILOT_GITHUB_TOKEN",
+		"ANTHROPIC_API_KEY",
+		"OPENAI_API_KEY",
+	}
+
+	for _, expected := range expectedSecrets {
+		if !secretSet[expected] {
+			t.Errorf("GetAllEngineSecretNames() missing expected secret: %q", expected)
+		}
+	}
+
+	// Verify alternative secrets are included
+	alternativeSecrets := []string{
+		"CLAUDE_CODE_OAUTH_TOKEN",
+		"CODEX_API_KEY",
+	}
+
+	for _, alt := range alternativeSecrets {
+		if !secretSet[alt] {
+			t.Errorf("GetAllEngineSecretNames() missing expected alternative secret: %q", alt)
+		}
+	}
+
+	// Verify system-level secret is included
+	if !secretSet["GH_AW_GITHUB_TOKEN"] {
+		t.Error("GetAllEngineSecretNames() missing GH_AW_GITHUB_TOKEN")
+	}
+
+	// Verify no duplicates
+	seen := make(map[string]bool)
+	for _, s := range secrets {
+		if seen[s] {
+			t.Errorf("GetAllEngineSecretNames() returned duplicate secret: %q", s)
+		}
+		seen[s] = true
+	}
+}
