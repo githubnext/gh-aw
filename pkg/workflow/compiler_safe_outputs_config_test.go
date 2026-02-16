@@ -870,3 +870,154 @@ func TestCreatePullRequestBaseBranch(t *testing.T) {
 		})
 	}
 }
+
+// TestHandlerConfigAssignToUser tests assign_to_user configuration
+func TestHandlerConfigAssignToUser(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			AssignToUser: &AssignToUserConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: 5,
+				},
+				SafeOutputTargetConfig: SafeOutputTargetConfig{
+					Target:         "issues",
+					TargetRepoSlug: "org/target-repo",
+					AllowedRepos:   []string{"org/repo1", "org/repo2"},
+				},
+				Allowed: []string{"user1", "user2", "copilot"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	// Extract and validate JSON
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			if len(parts) == 2 {
+				jsonStr := strings.TrimSpace(parts[1])
+				jsonStr = strings.Trim(jsonStr, "\"")
+				jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+				var config map[string]map[string]any
+				err := json.Unmarshal([]byte(jsonStr), &config)
+				require.NoError(t, err, "Handler config JSON should be valid")
+
+				assignConfig, ok := config["assign_to_user"]
+				require.True(t, ok, "Should have assign_to_user handler")
+
+				// Check max
+				max, ok := assignConfig["max"]
+				require.True(t, ok, "Should have max field")
+				assert.Equal(t, float64(5), max, "Max should be 5")
+
+				// Check allowed users
+				allowed, ok := assignConfig["allowed"]
+				require.True(t, ok, "Should have allowed field")
+				allowedSlice, ok := allowed.([]any)
+				require.True(t, ok, "Allowed should be an array")
+				assert.Len(t, allowedSlice, 3, "Should have 3 allowed users")
+				assert.Equal(t, "user1", allowedSlice[0])
+				assert.Equal(t, "user2", allowedSlice[1])
+				assert.Equal(t, "copilot", allowedSlice[2])
+
+				// Check target
+				target, ok := assignConfig["target"]
+				require.True(t, ok, "Should have target field")
+				assert.Equal(t, "issues", target)
+
+				// Check target-repo
+				targetRepo, ok := assignConfig["target-repo"]
+				require.True(t, ok, "Should have target-repo field")
+				assert.Equal(t, "org/target-repo", targetRepo)
+
+				// Check allowed_repos
+				allowedRepos, ok := assignConfig["allowed_repos"]
+				require.True(t, ok, "Should have allowed_repos field")
+				allowedReposSlice, ok := allowedRepos.([]any)
+				require.True(t, ok, "Allowed repos should be an array")
+				assert.Len(t, allowedReposSlice, 2, "Should have 2 allowed repos")
+			}
+		}
+	}
+}
+
+// TestHandlerConfigUnassignFromUser tests unassign_from_user configuration
+func TestHandlerConfigUnassignFromUser(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			UnassignFromUser: &UnassignFromUserConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: 10,
+				},
+				SafeOutputTargetConfig: SafeOutputTargetConfig{
+					Target:         "issues",
+					TargetRepoSlug: "org/target-repo",
+					AllowedRepos:   []string{"org/repo1"},
+				},
+				Allowed: []string{"githubactionagent", "bot-user"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	// Extract and validate JSON
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			if len(parts) == 2 {
+				jsonStr := strings.TrimSpace(parts[1])
+				jsonStr = strings.Trim(jsonStr, "\"")
+				jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+				var config map[string]map[string]any
+				err := json.Unmarshal([]byte(jsonStr), &config)
+				require.NoError(t, err, "Handler config JSON should be valid")
+
+				unassignConfig, ok := config["unassign_from_user"]
+				require.True(t, ok, "Should have unassign_from_user handler")
+
+				// Check max
+				max, ok := unassignConfig["max"]
+				require.True(t, ok, "Should have max field")
+				assert.Equal(t, float64(10), max, "Max should be 10")
+
+				// Check allowed users
+				allowed, ok := unassignConfig["allowed"]
+				require.True(t, ok, "Should have allowed field")
+				allowedSlice, ok := allowed.([]any)
+				require.True(t, ok, "Allowed should be an array")
+				assert.Len(t, allowedSlice, 2, "Should have 2 allowed users")
+				assert.Equal(t, "githubactionagent", allowedSlice[0])
+				assert.Equal(t, "bot-user", allowedSlice[1])
+
+				// Check target
+				target, ok := unassignConfig["target"]
+				require.True(t, ok, "Should have target field")
+				assert.Equal(t, "issues", target)
+
+				// Check target-repo
+				targetRepo, ok := unassignConfig["target-repo"]
+				require.True(t, ok, "Should have target-repo field")
+				assert.Equal(t, "org/target-repo", targetRepo)
+
+				// Check allowed_repos
+				allowedRepos, ok := unassignConfig["allowed_repos"]
+				require.True(t, ok, "Should have allowed_repos field")
+				allowedReposSlice, ok := allowedRepos.([]any)
+				require.True(t, ok, "Allowed repos should be an array")
+				assert.Len(t, allowedReposSlice, 1, "Should have 1 allowed repo")
+			}
+		}
+	}
+}

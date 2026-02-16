@@ -533,6 +533,32 @@ var handlerRegistry = map[string]handlerBuilder{
 		}
 		return builder.Build()
 	},
+	"assign_to_user": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.AssignToUser == nil {
+			return nil
+		}
+		c := cfg.AssignToUser
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddStringSlice("allowed", c.Allowed).
+			AddIfNotEmpty("target", c.Target).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
+	"unassign_from_user": func(cfg *SafeOutputsConfig) map[string]any {
+		if cfg.UnassignFromUser == nil {
+			return nil
+		}
+		c := cfg.UnassignFromUser
+		return newHandlerConfigBuilder().
+			AddIfPositive("max", c.Max).
+			AddStringSlice("allowed", c.Allowed).
+			AddIfNotEmpty("target", c.Target).
+			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+			AddStringSlice("allowed_repos", c.AllowedRepos).
+			Build()
+	},
 	"create_project_status_update": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.CreateProjectStatusUpdates == nil {
 			return nil
