@@ -207,6 +207,21 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, customSteps...)
 	}
 
+	// Generate prompt in the activation job (before agent job runs)
+	compilerActivationJobsLog.Print("Generating prompt in activation job")
+	c.generatePromptInActivationJob(&steps, data)
+
+	// Upload prompt.txt as an artifact for the agent job to download
+	compilerActivationJobsLog.Print("Adding prompt artifact upload step")
+	steps = append(steps, "      - name: Upload prompt artifact\n")
+	steps = append(steps, "        if: always()\n")
+	steps = append(steps, "        continue-on-error: true\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          name: prompt\n")
+	steps = append(steps, "          path: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	steps = append(steps, "          retention-days: 1\n")
+
 	// Generate the activated output expression using expression builders
 	var activatedNode ConditionNode
 
@@ -913,4 +928,22 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	}
 
 	return job, nil
+}
+
+// generatePromptInActivationJob generates the prompt creation steps and adds them to the activation job
+// This creates the prompt.txt file that will be uploaded as an artifact and downloaded by the agent job
+func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *WorkflowData) {
+compilerActivationJobsLog.Print("Generating prompt steps in activation job")
+
+// Use a string builder to collect the YAML
+var yaml strings.Builder
+
+// Call the existing generatePrompt method to get all the prompt steps
+c.generatePrompt(&yaml, data)
+
+// Convert the generated YAML into individual lines and append to steps
+yamlContent := yaml.String()
+*steps = append(*steps, yamlContent)
+
+compilerActivationJobsLog.Print("Prompt generation steps added to activation job")
 }
