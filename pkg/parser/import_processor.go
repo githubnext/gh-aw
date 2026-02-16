@@ -868,7 +868,15 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 	}
 
 	// Count dependencies: how many imports does each file depend on (within our import set)
-	for imp, deps := range dependencies {
+	// Iterate over imports in sorted order for stable results
+	sortedImportsForDegree := make([]string, 0, len(dependencies))
+	for imp := range dependencies {
+		sortedImportsForDegree = append(sortedImportsForDegree, imp)
+	}
+	sort.Strings(sortedImportsForDegree)
+
+	for _, imp := range sortedImportsForDegree {
+		deps := dependencies[imp]
 		for _, dep := range deps {
 			// Only count dependencies that are in our import set
 			if allImportsSet[dep] {
