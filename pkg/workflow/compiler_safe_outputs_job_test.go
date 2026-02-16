@@ -469,7 +469,7 @@ func TestJobDependencies(t *testing.T) {
 
 // TestGitHubAppWithPushToPRBranch tests that GitHub App token step is not duplicated
 // when both app and push-to-pull-request-branch are configured
-// Regression test for: https://github.com/github/gh-aw/issues/XXXX
+// Regression test for duplicate step bug reported in issue
 func TestGitHubAppWithPushToPRBranch(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()
