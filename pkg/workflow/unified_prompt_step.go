@@ -384,7 +384,8 @@ Discover available tools from the safeoutputs MCP server.
 // 2. User prompt content from markdown - APPENDED
 //
 // The function handles chunking for large content and ensures proper environment variable handling.
-func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, builtinSections []PromptSection, userPromptChunks []string, expressionMappings []*ExpressionMapping, data *WorkflowData) {
+// Returns the combined expression mappings for use in the placeholder substitution step.
+func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, builtinSections []PromptSection, userPromptChunks []string, expressionMappings []*ExpressionMapping, data *WorkflowData) []*ExpressionMapping {
 	unifiedPromptLog.Print("Generating unified prompt creation step")
 	unifiedPromptLog.Printf("Built-in sections: %d, User prompt chunks: %d", len(builtinSections), len(userPromptChunks))
 
@@ -631,11 +632,9 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 		yaml.WriteString("          " + delimiter + "\n")
 	}
 
-	// Generate JavaScript-based placeholder substitution step (replaces multiple sed calls)
-	// This handles both built-in section expressions and user prompt expressions
-	if len(allExpressionMappings) > 0 {
-		generatePlaceholderSubstitutionStep(yaml, allExpressionMappings, "      ")
-	}
-
 	unifiedPromptLog.Print("Unified prompt creation step generated successfully")
+
+	// Return all expression mappings for use in the placeholder substitution step
+	// This allows the substitution to happen AFTER runtime-import processing
+	return allExpressionMappings
 }

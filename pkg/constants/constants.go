@@ -372,7 +372,7 @@ const DefaultCodexVersion Version = "0.101.0"
 const DefaultGitHubMCPServerVersion Version = "v0.30.3"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.18.0"
+const DefaultFirewallVersion Version = "v0.19.0"
 
 // AWF (Agentic Workflow Firewall) constants
 
