@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.11.0  
+**Version**: 1.12.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-02-15  
+**Publication Date**: 2026-02-16  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/reference/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -3634,6 +3634,13 @@ safe-outputs:
 ---
 
 ## Appendix F: Document History
+
+**Version 1.12.0** (2026-02-16):
+- **Implemented**: MCE1 (Early Validation) for add_comment tool with MCP server constraint enforcement
+- **Added**: Runtime validation in safe_outputs_handlers.cjs that enforces comment limits during tool invocation
+- **Verified**: Dual enforcement pattern now operational - MCP server validates during Phase 4, safe output processor validates during Phase 6
+- **Enhanced**: Error responses now use JSON-RPC error code -32602 with actionable messages containing specific constraint details
+- **Tested**: Comprehensive test suite (16 test cases) validates E006/E007/E008 error handling and MCP error format compliance
 
 **Version 1.11.0** (2026-02-15):
 - **Added**: Section 8.3 "MCP Server Constraint Enforcement" specifying requirements for early validation during tool invocation (MCE1-MCE5)
