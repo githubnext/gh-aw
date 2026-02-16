@@ -370,6 +370,38 @@ jobs:
               "name": "remove_labels"
             },
             {
+              "description": "Remove one or more assignees from an issue. Use this to unassign users when work is being reassigned or removed from their queue.",
+              "inputSchema": {
+                "additionalProperties": false,
+                "properties": {
+                  "assignee": {
+                    "description": "Single GitHub username to unassign. Use 'assignees' array for multiple users.",
+                    "type": "string"
+                  },
+                  "assignees": {
+                    "description": "GitHub usernames to unassign from the issue (e.g., ['octocat', 'mona']).",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "issue_number": {
+                    "description": "Issue number to unassign users from. This is the numeric ID from the GitHub URL (e.g., 543 in github.com/owner/repo/issues/543). If omitted, uses the issue that triggered this workflow.",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  "repo": {
+                    "description": "Target repository in 'owner/repo' format. If omitted, uses the current repository. Must be in allowed-repos list if specified.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "name": "unassign_from_user"
+            },
+            {
               "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
               "inputSchema": {
                 "additionalProperties": false,
@@ -1497,7 +1529,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-codex\"]},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"max\":1},\"hide_comment\":{\"max\":5},\"missing_data\":{},\"missing_tool\":{},\"remove_labels\":{\"allowed\":[\"smoke\"]}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"hide_older_comments\":true,\"max\":2},\"add_labels\":{\"allowed\":[\"smoke-codex\"]},\"create_issue\":{\"close_older_issues\":true,\"expires\":2,\"max\":1},\"hide_comment\":{\"max\":5},\"missing_data\":{},\"missing_tool\":{},\"remove_labels\":{\"allowed\":[\"smoke\"]},\"unassign_from_user\":{\"allowed\":[\"githubactionagent\"],\"max\":1}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
