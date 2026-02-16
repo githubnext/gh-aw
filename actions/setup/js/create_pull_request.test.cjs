@@ -104,3 +104,131 @@ describe("create_pull_request - max limit enforcement", () => {
     expect(() => enforcePullRequestLimits(patchContent)).not.toThrow();
   });
 });
+
+describe("create_pull_request - security: branch name sanitization", () => {
+  it("should sanitize branch names with shell metacharacters", () => {
+    const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+
+    // Test shell injection attempts - forward slashes and dots are valid in git branch names
+    const dangerousNames = [
+      { input: "feature; rm -rf /", expected: "feature-rm-rf-/" },
+      { input: "branch$(malicious)", expected: "branch-malicious" },
+      { input: "branch`backdoor`", expected: "branch-backdoor" },
+      { input: "branch| curl evil.com", expected: "branch-curl-evil.com" },
+      { input: "branch && echo hacked", expected: "branch-echo-hacked" },
+      { input: "branch || evil", expected: "branch-evil" },
+      { input: "branch > /etc/passwd", expected: "branch-/etc/passwd" },
+      { input: "branch < input.txt", expected: "branch-input.txt" },
+      { input: "branch\\x00null", expected: "branch-x00null" },
+    ];
+
+    for (const { input, expected } of dangerousNames) {
+      const result = normalizeBranchName(input);
+      expect(result).toBe(expected);
+      // Verify dangerous shell metacharacters are removed
+      expect(result).not.toContain(";");
+      expect(result).not.toContain("$");
+      expect(result).not.toContain("`");
+      expect(result).not.toContain("|");
+      expect(result).not.toContain("&");
+      expect(result).not.toContain(">");
+      expect(result).not.toContain("<");
+      expect(result).not.toContain("\\x00");
+    }
+  });
+
+  it("should sanitize branch names with newlines and control characters", () => {
+    const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+
+    const controlCharNames = [
+      { input: "branch\nwith\nnewlines", expected: "branch-with-newlines" },
+      { input: "branch\rwith\rcarriage", expected: "branch-with-carriage" },
+      { input: "branch\twith\ttabs", expected: "branch-with-tabs" },
+      { input: "branch\x1b[31mwith\x1b[0mescapes", expected: "branch-31mwith-0mescapes" },
+    ];
+
+    for (const { input, expected } of controlCharNames) {
+      const result = normalizeBranchName(input);
+      expect(result).toBe(expected);
+      expect(result).not.toContain("\n");
+      expect(result).not.toContain("\r");
+      expect(result).not.toContain("\t");
+      expect(result).not.toMatch(/\x1b/);
+    }
+  });
+
+  it("should sanitize branch names with spaces and special characters", () => {
+    const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+
+    const specialCharNames = [
+      { input: "branch with spaces", expected: "branch-with-spaces" },
+      { input: "branch!@#$%^&*()", expected: "branch" },
+      { input: "branch[brackets]", expected: "branch-brackets" },
+      { input: "branch{braces}", expected: "branch-braces" },
+      { input: "branch:colon", expected: "branch-colon" },
+      { input: 'branch"quotes"', expected: "branch-quotes" },
+      { input: "branch'single'quotes", expected: "branch-single-quotes" },
+    ];
+
+    for (const { input, expected } of specialCharNames) {
+      const result = normalizeBranchName(input);
+      expect(result).toBe(expected);
+    }
+  });
+
+  it("should preserve valid branch name characters", () => {
+    const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+
+    const validNames = [
+      { input: "feature/my-branch_v1.0", expected: "feature/my-branch_v1.0" },
+      { input: "hotfix-123", expected: "hotfix-123" },
+      { input: "release_v2.0.0", expected: "release_v2.0.0" },
+    ];
+
+    for (const { input, expected } of validNames) {
+      const result = normalizeBranchName(input);
+      expect(result).toBe(expected);
+    }
+  });
+
+  it("should handle empty strings after sanitization", () => {
+    const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+
+    // Branch names that become empty after sanitization
+    const emptyAfterSanitization = ["!@#$%^&*()", ";;;", "|||", "---"];
+
+    for (const input of emptyAfterSanitization) {
+      const result = normalizeBranchName(input);
+      expect(result).toBe("");
+    }
+  });
+
+  it("should truncate long branch names to 128 characters", () => {
+    const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+
+    const longBranchName = "a".repeat(200);
+    const result = normalizeBranchName(longBranchName);
+    expect(result.length).toBeLessThanOrEqual(128);
+  });
+
+  it("should collapse multiple dashes to single dash", () => {
+    const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+
+    expect(normalizeBranchName("branch---with---dashes")).toBe("branch-with-dashes");
+    expect(normalizeBranchName("branch  with  spaces")).toBe("branch-with-spaces");
+  });
+
+  it("should remove leading and trailing dashes", () => {
+    const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+
+    expect(normalizeBranchName("---branch---")).toBe("branch");
+    expect(normalizeBranchName("---")).toBe("");
+  });
+
+  it("should convert to lowercase", () => {
+    const { normalizeBranchName } = require("./normalize_branch_name.cjs");
+
+    expect(normalizeBranchName("Feature/MyBranch")).toBe("feature/mybranch");
+    expect(normalizeBranchName("UPPERCASE")).toBe("uppercase");
+  });
+});

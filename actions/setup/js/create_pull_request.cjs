@@ -15,6 +15,7 @@ const { replaceTemporaryIdReferences, isTemporaryId } = require("./temporary_id.
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
+const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -410,6 +411,22 @@ async function main(config = {}) {
 
     let bodyLines = processedBody.split("\n");
     let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
+
+    // SECURITY: Sanitize branch name to prevent shell injection (CWE-78)
+    // Branch names from user input must be normalized before use in git commands
+    if (branchName) {
+      const originalBranchName = branchName;
+      branchName = normalizeBranchName(branchName);
+
+      // Validate it's not empty after normalization
+      if (!branchName) {
+        throw new Error(`Invalid branch name: sanitization resulted in empty string (original: "${originalBranchName}")`);
+      }
+
+      if (originalBranchName !== branchName) {
+        core.info(`Branch name sanitized: "${originalBranchName}" -> "${branchName}"`);
+      }
+    }
 
     // If no title was found, use a default
     if (!title) {
