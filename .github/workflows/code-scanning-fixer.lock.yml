@@ -130,6 +130,7 @@ jobs:
       - name: Clone repo-memory branch (campaigns)
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
           BRANCH_NAME: memory/campaigns
           TARGET_REPO: ${{ github.repository }}
           MEMORY_DIR: /tmp/gh-aw/repo-memory/campaigns
@@ -1205,6 +1206,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
           ARTIFACT_DIR: /tmp/gh-aw/repo-memory/campaigns
           MEMORY_ID: campaigns
           TARGET_REPO: ${{ github.repository }}
