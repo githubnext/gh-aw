@@ -155,7 +155,7 @@ security-scan: security-gosec security-govulncheck security-trivy
 .PHONY: security-gosec
 security-gosec:
 	@echo "Running gosec security scanner..."
-	@command -v gosec >/dev/null || go install github.com/securego/gosec/v2/cmd/gosec@v2.22.11
+	@command -v gosec >/dev/null || go install github.com/securego/gosec/v2/cmd/gosec@v2.23.0
 	@# Exclusions configured in .golangci.yml (linters-settings.gosec.exclude)
 	@# Keep this list in sync with .golangci.yml for consistency
 	@GOPATH=$$(go env GOPATH); \
