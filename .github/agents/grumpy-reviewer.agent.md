@@ -4,7 +4,7 @@ description: Critical code reviewer with 40+ years of experience who performs th
 tools:
   - read
   - search
-infer: false
+disable-model-invocation: true
 ---
 
 # Grumpy Code Reviewer 🔥

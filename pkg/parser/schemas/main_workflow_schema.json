@@ -1909,6 +1909,16 @@
         }
       ]
     },
+    "infer": {
+      "type": "boolean",
+      "description": "DEPRECATED: Use 'disable-model-invocation' instead. Controls whether the custom agent should infer additional context from the conversation. This field is maintained for backward compatibility with existing custom agent files.",
+      "examples": [false]
+    },
+    "disable-model-invocation": {
+      "type": "boolean",
+      "description": "Controls whether the custom agent should disable model invocation. When set to true, the agent will not make additional model calls. This is the preferred field name for custom agent files (replaces the deprecated 'infer' field).",
+      "examples": [true]
+    },
     "secrets": {
       "description": "Secret values passed to workflow execution. Secrets can be defined as simple strings (GitHub Actions expressions) or objects with 'value' and 'description' properties. Typically used to provide secrets to MCP servers or custom engines. Note: For passing secrets to reusable workflows, use the jobs.<job_id>.secrets field instead.",
       "type": "object",

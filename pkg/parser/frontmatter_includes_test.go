@@ -657,26 +657,26 @@ This file only has name and description in frontmatter.`
 	}
 }
 
-// TestProcessIncludedFileWithInferField verifies that the "infer" field
+// TestProcessIncludedFileWithDisableModelInvocationField verifies that the "disable-model-invocation" field
 // (used in custom agent format) is accepted without warnings
-func TestProcessIncludedFileWithInferField(t *testing.T) {
+func TestProcessIncludedFileWithDisableModelInvocationField(t *testing.T) {
 	tempDir := t.TempDir()
 	agentsDir := filepath.Join(tempDir, ".github", "agents")
 	if err := os.MkdirAll(agentsDir, 0755); err != nil {
 		t.Fatalf("Failed to create agents directory: %v", err)
 	}
 
-	// Create a test file with the "infer" field (custom agent format)
+	// Create a test file with the "disable-model-invocation" field (custom agent format)
 	testFile := filepath.Join(agentsDir, "test-agent.agent.md")
 	testContent := `---
 name: Test Agent
 description: A test custom agent
-infer: false
+disable-model-invocation: true
 ---
 
 # Test Agent
 
-This is a custom agent file with the infer field.`
+This is a custom agent file with the disable-model-invocation field.`
 
 	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
 		t.Fatalf("Failed to write test file: %v", err)

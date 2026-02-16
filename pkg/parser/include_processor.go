@@ -154,24 +154,25 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 				// Valid fields for non-workflow frontmatter (fields that are allowed in shared workflows)
 				// This list matches the allowed fields in shared workflows (main_workflow_schema minus forbidden fields)
 				validFields := map[string]bool{
-					"tools":          true,
-					"engine":         true,
-					"network":        true,
-					"mcp-servers":    true,
-					"imports":        true,
-					"name":           true,
-					"description":    true,
-					"steps":          true,
-					"safe-outputs":   true,
-					"safe-inputs":    true,
-					"services":       true,
-					"runtimes":       true,
-					"permissions":    true,
-					"secret-masking": true,
-					"applyTo":        true,
-					"inputs":         true,
-					"infer":          true, // Custom agent format field (Copilot)
-					"features":       true,
+					"tools":                    true,
+					"engine":                   true,
+					"network":                  true,
+					"mcp-servers":              true,
+					"imports":                  true,
+					"name":                     true,
+					"description":              true,
+					"steps":                    true,
+					"safe-outputs":             true,
+					"safe-inputs":              true,
+					"services":                 true,
+					"runtimes":                 true,
+					"permissions":              true,
+					"secret-masking":           true,
+					"applyTo":                  true,
+					"inputs":                   true,
+					"infer":                    true, // Custom agent format field (Copilot) - deprecated, use disable-model-invocation
+					"disable-model-invocation": true, // Custom agent format field (Copilot)
+					"features":                 true,
 				}
 
 				// Check for unexpected frontmatter fields
