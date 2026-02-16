@@ -60,6 +60,7 @@ async function main() {
   const ghToken = process.env.GH_TOKEN;
   const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
   const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const serverHost = githubServerUrl.replace(/^https?:\/\//, "");
 
   // Log environment variable configuration for debugging
   core.info("Environment configuration:");
@@ -132,8 +133,6 @@ async function main() {
   // Checkout or create the memory branch
   core.info(`Checking out branch: ${branchName}...`);
   try {
-    // Extract host from server URL (remove https:// prefix)
-    const serverHost = githubServerUrl.replace(/^https?:\/\//, "");
     const repoUrl = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
 
     // Try to fetch the branch
@@ -345,8 +344,6 @@ async function main() {
   // Pull with merge strategy (ours wins on conflicts)
   core.info(`Pulling latest changes from ${branchName}...`);
   try {
-    // Extract host from server URL (remove https:// prefix)
-    const serverHost = githubServerUrl.replace(/^https?:\/\//, "");
     const repoUrl = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
     execGitSync(["pull", "--no-rebase", "-X", "ours", repoUrl, branchName], { stdio: "inherit" });
   } catch (error) {
@@ -357,8 +354,6 @@ async function main() {
   // Push changes
   core.info(`Pushing changes to ${branchName}...`);
   try {
-    // Extract host from server URL (remove https:// prefix)
-    const serverHost = githubServerUrl.replace(/^https?:\/\//, "");
     const repoUrl = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
     execGitSync(["push", repoUrl, `HEAD:${branchName}`], { stdio: "inherit" });
     core.info(`Successfully pushed changes to ${branchName} branch`);
