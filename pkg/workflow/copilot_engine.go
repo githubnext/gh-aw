@@ -39,7 +39,6 @@ func NewCopilotEngine() *CopilotEngine {
 			description:            "Uses GitHub Copilot CLI with MCP server support",
 			experimental:           false,
 			supportsToolsAllowlist: true,
-			supportsHTTPTransport:  true,  // Copilot CLI supports HTTP transport via MCP
 			supportsMaxTurns:       false, // Copilot CLI does not support max-turns feature yet
 			supportsWebFetch:       true,  // Copilot CLI has built-in web-fetch support
 			supportsWebSearch:      false, // Copilot CLI does not have built-in web-search support

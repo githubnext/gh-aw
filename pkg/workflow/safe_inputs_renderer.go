@@ -73,7 +73,7 @@ func collectSafeInputsSecrets(safeInputs *SafeInputsConfig) map[string]string {
 }
 
 // renderSafeInputsMCPConfigWithOptions generates the Safe Inputs MCP server configuration with engine-specific options
-// Only supports HTTP transport mode
+// Always uses HTTP transport mode
 func renderSafeInputsMCPConfigWithOptions(yaml *strings.Builder, safeInputs *SafeInputsConfig, isLast bool, includeCopilotFields bool, workflowData *WorkflowData) {
 	safeInputsRendererLog.Printf("Rendering Safe Inputs MCP config: includeCopilotFields=%t, isLast=%t",
 		includeCopilotFields, isLast)

@@ -88,10 +88,6 @@ func TestCustomEngine(t *testing.T) {
 		t.Error("Expected custom engine to not support tools allowlist")
 	}
 
-	if engine.SupportsHTTPTransport() {
-		t.Error("Expected custom engine to not support HTTP transport")
-	}
-
 	if !engine.SupportsMaxTurns() {
 		t.Error("Expected custom engine to support max turns for consistency with other engines")
 	}

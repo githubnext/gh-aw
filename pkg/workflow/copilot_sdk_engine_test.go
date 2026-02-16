@@ -26,7 +26,6 @@ func TestCopilotSDKEngineCapabilities(t *testing.T) {
 
 	// Test CapabilityProvider interface
 	assert.True(t, engine.SupportsToolsAllowlist())
-	assert.True(t, engine.SupportsHTTPTransport())
 	assert.False(t, engine.SupportsMaxTurns())
 	assert.True(t, engine.SupportsWebFetch())
 	assert.False(t, engine.SupportsWebSearch())

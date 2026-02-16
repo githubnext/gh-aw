@@ -466,7 +466,6 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "              workflow_name: \"%s\",\n", data.Name)
 	fmt.Fprintf(yaml, "              experimental: %t,\n", engine.IsExperimental())
 	fmt.Fprintf(yaml, "              supports_tools_allowlist: %t,\n", engine.SupportsToolsAllowlist())
-	fmt.Fprintf(yaml, "              supports_http_transport: %t,\n", engine.SupportsHTTPTransport())
 
 	// Run metadata
 	yaml.WriteString("              run_id: context.runId,\n")

@@ -22,7 +22,6 @@ func NewCustomEngine() *CustomEngine {
 			description:            "Executes user-defined GitHub Actions steps",
 			experimental:           false,
 			supportsToolsAllowlist: false,
-			supportsHTTPTransport:  false,
 			supportsMaxTurns:       true,  // Custom engine supports max-turns for consistency
 			supportsWebFetch:       false, // Custom engine does not have built-in web-fetch support
 			supportsWebSearch:      false, // Custom engine does not have built-in web-search support

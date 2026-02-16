@@ -37,7 +37,6 @@ type GitHubActionStep []string
 //
 //   CapabilityProvider (feature detection - optional)
 //   ├── SupportsToolsAllowlist()
-//   ├── SupportsHTTPTransport()
 //   ├── SupportsMaxTurns()
 //   ├── SupportsWebFetch()
 //   ├── SupportsWebSearch()
@@ -109,9 +108,6 @@ type Engine interface {
 type CapabilityProvider interface {
 	// SupportsToolsAllowlist returns true if this engine supports MCP tool allow-listing
 	SupportsToolsAllowlist() bool
-
-	// SupportsHTTPTransport returns true if this engine supports HTTP transport for MCP servers
-	SupportsHTTPTransport() bool
 
 	// SupportsMaxTurns returns true if this engine supports the max-turns feature
 	SupportsMaxTurns() bool
@@ -205,7 +201,6 @@ type BaseEngine struct {
 	description            string
 	experimental           bool
 	supportsToolsAllowlist bool
-	supportsHTTPTransport  bool
 	supportsMaxTurns       bool
 	supportsWebFetch       bool
 	supportsWebSearch      bool
@@ -232,10 +227,6 @@ func (e *BaseEngine) IsExperimental() bool {
 
 func (e *BaseEngine) SupportsToolsAllowlist() bool {
 	return e.supportsToolsAllowlist
-}
-
-func (e *BaseEngine) SupportsHTTPTransport() bool {
-	return e.supportsHTTPTransport
 }
 
 func (e *BaseEngine) SupportsMaxTurns() bool {

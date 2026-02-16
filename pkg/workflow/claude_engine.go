@@ -24,7 +24,6 @@ func NewClaudeEngine() *ClaudeEngine {
 			description:            "Uses Claude Code with full MCP tool support and allow-listing",
 			experimental:           false,
 			supportsToolsAllowlist: true,
-			supportsHTTPTransport:  true,  // Claude supports both stdio and HTTP transport
 			supportsMaxTurns:       true,  // Claude supports max-turns feature
 			supportsWebFetch:       true,  // Claude has built-in WebFetch support
 			supportsWebSearch:      true,  // Claude has built-in WebSearch support

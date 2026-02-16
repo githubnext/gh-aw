@@ -214,12 +214,6 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		return nil, err
 	}
 
-	// Validate HTTP transport support for the current engine
-	if err := c.validateHTTPTransportSupport(tools, agenticEngine); err != nil {
-		orchestratorToolsLog.Printf("HTTP transport validation failed: %v", err)
-		return nil, err
-	}
-
 	if !agenticEngine.SupportsToolsAllowlist() {
 		// For engines that don't support tool allowlists (like custom engine), ignore tools section and provide warnings
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), agenticEngine.GetID())))
