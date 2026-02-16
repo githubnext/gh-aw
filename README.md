@@ -28,6 +28,25 @@ Write agentic workflows in natural language markdown, and run them in GitHub Act
 
 Ready to get your first agentic workflow running? Follow our step-by-step [Quick Start Guide](https://github.github.com/gh-aw/setup/quick-start/) to install the extension, add a sample workflow, and see it in action.
 
+## Local Repository Runbook
+
+For contributors working in this repository:
+
+```bash
+make deps-dev
+make build
+make test
+make lint
+```
+
+For docs development:
+
+```bash
+make dev-docs
+```
+
+This starts the docs site at `http://localhost:4321`. For a production docs build, run `make build-docs`.
+
 ## Overview
 
 Learn about the concepts behind agentic workflows, explore available workflow types, and understand how AI can automate your repository tasks. See [How It Works](https://github.github.com/gh-aw/introduction/how-they-work/).

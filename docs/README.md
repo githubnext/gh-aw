@@ -1,41 +1,48 @@
-# Startlight Docs
+# gh-aw Documentation Workspace
 
-## Project Structure
+This directory contains the Astro/Starlight site for GitHub Agentic Workflows docs.
 
-Inside of your Astro + Starlight project, you'll see the following folders and files:
+## Operator Quick Start
 
-```text
-.
-├── public/
-├── src/
-│   ├── assets/
-│   ├── content/
-│   │   └── docs/
-│   └── content.config.ts
-├── astro.config.mjs
-├── package.json
-└── tsconfig.json
+Run all commands from the repository root:
+
+```bash
+make deps-docs
+make dev-docs
 ```
 
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
+Then open `http://localhost:4321`.
 
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
+## Build and Preview
 
-Static assets, like favicons, can be placed in the `public/` directory.
+```bash
+make build-docs
+make preview-docs
+```
 
-## 🧞 Commands
+`build-docs` writes the static site to `docs/dist`.
 
-All commands are run from the root of the project, from a terminal:
+## Where To Edit Content
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+- Main docs pages: `docs/src/content/docs/`
+- Blog pages: `docs/src/content/docs/blog/`
+- Public static assets: `docs/public/`
+- Starlight config: `docs/astro.config.mjs`
 
-## Want to learn more?
+## Suggested Validation Before PR
 
-Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).
+From repository root:
+
+```bash
+make lint
+make test
+make build-docs
+```
+
+For a docs-only change, this keeps checks aligned with repo standards while confirming docs compile.
+
+## Troubleshooting
+
+- Reinstall docs dependencies: `make deps-docs`
+- Remove docs build artifacts: `make clean-docs`
+- If Astro dev fails after dependency updates, rerun `make deps-docs` and then `make dev-docs`

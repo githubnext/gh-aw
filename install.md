@@ -30,7 +30,7 @@ You should see version information displayed. If you encounter an error, check t
 
 - GitHub CLI (`gh`) is installed and authenticated
 - The installation script completed without errors
-- `~/.local/share/gh/extensions` is in your PATH
+- The extension appears in `gh extension list`
 
 ## Step 2: Initialize Repository for Agentic Workflows
 
@@ -58,6 +58,7 @@ Check what files were created:
 
 ```bash
 git status
+git diff --stat
 ```
 
 You should see new/modified files including:
@@ -69,24 +70,28 @@ You should see new/modified files including:
 - `.vscode/mcp.json`
 - And several other configuration files
 
-## Step 4: Commit and Push Changes
+## Step 4: Commit on a Branch and Open a PR
 
-Commit the initialization changes:
+Use a dedicated branch and avoid blanket staging:
 
 ```bash
-git add .
+git switch -c chore/init-gh-aw
+git add .gitattributes
+git add .github/aw .github/agents .github/workflows/copilot-setup-steps.yml
+git add .vscode/settings.json .vscode/mcp.json
 git commit -m "Initialize repository for GitHub Agentic Workflows"
-git push
+git push -u origin chore/init-gh-aw
+gh pr create --fill
 ```
 
-If there is branch protection on the default branch, create a pull request instead and report the link to the pull request.
+If your org requires a custom PR template or labels, add those during `gh pr create`.
 
 ## Troubleshooting
 
 ### Installation fails
 
 - **Issue**: `gh aw version` shows "unknown command"
-- **Solution**: Verify GitHub CLI is installed with `gh --version`, then re-run the installation script
+- **Solution**: Verify GitHub CLI is installed with `gh --version`, run `gh extension list`, and then re-run the installation script if `aw` is missing
 
 ### Missing authentication
 
@@ -103,7 +108,7 @@ If there is branch protection on the default branch, create a pull request inste
 After successful initialization, the user can:
 
 - **Add workflows from repos**: `gh aw add githubnext/agentics`
-- **Create new workflows**: `gh aw new <workflow-name>` os using the agent
+- **Create new workflows**: `gh aw new <workflow-name>` or using the agent
 - **Use the AI agent**: Type `/agent` in GitHub Copilot Chat and select `agentic-workflows`
 - **Read documentation**: View `.github/aw/github-agentic-workflows.md`
 
