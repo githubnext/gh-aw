@@ -643,6 +643,9 @@ jobs:
           GH_AW_IS_PR_COMMENT: ${{ github.event.issue.pull_request && 'true' || '' }}
         with:
           script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            
             const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
             
             // Call the substitution function

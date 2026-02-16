@@ -630,6 +630,9 @@ jobs:
           GH_AW_NEEDS_CHECK_CI_STATUS_OUTPUTS_CI_STATUS: ${{ needs.check_ci_status.outputs.ci_status }}
         with:
           script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            
             const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
             
             // Call the substitution function

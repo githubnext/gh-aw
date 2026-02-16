@@ -618,6 +618,9 @@ jobs:
           GH_AW_NEEDS_SEARCH_ISSUES_OUTPUTS_ISSUE_NUMBERS: ${{ needs.search_issues.outputs.issue_numbers }}
         with:
           script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            
             const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
             
             // Call the substitution function

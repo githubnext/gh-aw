@@ -690,6 +690,9 @@ jobs:
           GH_AW_NEEDS_PRECOMPUTE_OUTPUTS_ISSUE_TITLE: ${{ needs.precompute.outputs.issue_title }}
         with:
           script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            
             const substitutePlaceholders = require('/opt/gh-aw/actions/substitute_placeholders.cjs');
             
             // Call the substitution function
