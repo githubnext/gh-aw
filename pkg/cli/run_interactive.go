@@ -78,7 +78,17 @@ func RunWorkflowInteractively(ctx context.Context, verbose bool, repoOverride st
 	fmt.Fprintln(os.Stderr, "")
 
 	// Step 7: Execute the workflow
-	err = RunWorkflowOnGitHub(ctx, selectedWorkflow.Name, false, engineOverride, repoOverride, refOverride, autoMergePRs, push, false, inputValues, verbose, dryRun)
+	err = RunWorkflowOnGitHub(ctx, selectedWorkflow.Name, RunOptions{
+		Enable:         false,
+		EngineOverride: engineOverride,
+		RepoOverride:   repoOverride,
+		RefOverride:    refOverride,
+		AutoMergePRs:   autoMergePRs,
+		Push:           push,
+		Inputs:         inputValues,
+		Verbose:        verbose,
+		DryRun:         dryRun,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to run workflow: %w", err)
 	}
@@ -407,7 +417,18 @@ func RunSpecificWorkflowInteractively(ctx context.Context, workflowName string, 
 	fmt.Fprintln(os.Stderr, "")
 
 	// Execute the workflow
-	err = RunWorkflowOnGitHub(ctx, workflowName, false, engineOverride, repoOverride, refOverride, autoMergePRs, push, true, inputValues, verbose, dryRun)
+	err = RunWorkflowOnGitHub(ctx, workflowName, RunOptions{
+		Enable:            false,
+		EngineOverride:    engineOverride,
+		RepoOverride:      repoOverride,
+		RefOverride:       refOverride,
+		AutoMergePRs:      autoMergePRs,
+		Push:              push,
+		WaitForCompletion: true,
+		Inputs:            inputValues,
+		Verbose:           verbose,
+		DryRun:            dryRun,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to run workflow: %w", err)
 	}

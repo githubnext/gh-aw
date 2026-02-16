@@ -397,7 +397,18 @@ Examples:
 			return cli.RunWorkflowInteractively(cmd.Context(), verboseFlag, repoOverride, refOverride, autoMergePRs, push, engineOverride, dryRun)
 		}
 
-		return cli.RunWorkflowsOnGitHub(cmd.Context(), args, repeatCount, enable, engineOverride, repoOverride, refOverride, autoMergePRs, push, inputs, verboseFlag, dryRun)
+		return cli.RunWorkflowsOnGitHub(cmd.Context(), args, cli.RunOptions{
+			RepeatCount:    repeatCount,
+			Enable:         enable,
+			EngineOverride: engineOverride,
+			RepoOverride:   repoOverride,
+			RefOverride:    refOverride,
+			AutoMergePRs:   autoMergePRs,
+			Push:           push,
+			Inputs:         inputs,
+			Verbose:        verboseFlag,
+			DryRun:         dryRun,
+		})
 	},
 }
 

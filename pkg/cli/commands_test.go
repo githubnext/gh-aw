@@ -339,13 +339,13 @@ func TestDisableWorkflowsFailureScenarios(t *testing.T) {
 
 func TestRunWorkflowOnGitHub(t *testing.T) {
 	// Test with empty workflow name
-	err := RunWorkflowOnGitHub(context.Background(), "", false, "", "", "", false, false, false, false, []string{}, false, false)
+	err := RunWorkflowOnGitHub(context.Background(), "", RunOptions{})
 	if err == nil {
 		t.Error("RunWorkflowOnGitHub should return error for empty workflow name")
 	}
 
 	// Test with nonexistent workflow (this will fail but gracefully)
-	err = RunWorkflowOnGitHub(context.Background(), "nonexistent-workflow", false, "", "", "", false, false, false, false, []string{}, false, false)
+	err = RunWorkflowOnGitHub(context.Background(), "nonexistent-workflow", RunOptions{})
 	if err == nil {
 		t.Error("RunWorkflowOnGitHub should return error for non-existent workflow")
 	}
@@ -353,25 +353,25 @@ func TestRunWorkflowOnGitHub(t *testing.T) {
 
 func TestRunWorkflowsOnGitHub(t *testing.T) {
 	// Test with empty workflow list
-	err := RunWorkflowsOnGitHub(context.Background(), []string{}, 0, false, "", "", "", false, false, false, []string{}, false, false)
+	err := RunWorkflowsOnGitHub(context.Background(), []string{}, RunOptions{})
 	if err == nil {
 		t.Error("RunWorkflowsOnGitHub should return error for empty workflow list")
 	}
 
 	// Test with workflow list containing empty name
-	err = RunWorkflowsOnGitHub(context.Background(), []string{"valid-workflow", ""}, 0, false, "", "", "", false, false, false, []string{}, false, false)
+	err = RunWorkflowsOnGitHub(context.Background(), []string{"valid-workflow", ""}, RunOptions{})
 	if err == nil {
 		t.Error("RunWorkflowsOnGitHub should return error for workflow list containing empty name")
 	}
 
 	// Test with nonexistent workflows (this will fail but gracefully)
-	err = RunWorkflowsOnGitHub(context.Background(), []string{"nonexistent-workflow1", "nonexistent-workflow2"}, 0, false, "", "", "", false, false, false, []string{}, false, false)
+	err = RunWorkflowsOnGitHub(context.Background(), []string{"nonexistent-workflow1", "nonexistent-workflow2"}, RunOptions{})
 	if err == nil {
 		t.Error("RunWorkflowsOnGitHub should return error for non-existent workflows")
 	}
 
 	// Test with negative repeat seconds (should work as 0)
-	err = RunWorkflowsOnGitHub(context.Background(), []string{"nonexistent-workflow"}, -1, false, "", "", "", false, false, false, []string{}, false, false)
+	err = RunWorkflowsOnGitHub(context.Background(), []string{"nonexistent-workflow"}, RunOptions{RepeatCount: -1})
 	if err == nil {
 		t.Error("RunWorkflowsOnGitHub should return error for non-existent workflow regardless of repeat value")
 	}
@@ -482,10 +482,10 @@ Test workflow for command existence.`
 		{func() error { return EnableWorkflows("nonexistent") }, true, "EnableWorkflows"},                            // Should now error when no workflows found to enable
 		{func() error { return DisableWorkflows("nonexistent") }, true, "DisableWorkflows"},                          // Should now also error when no workflows found to disable
 		{func() error {
-			return RunWorkflowOnGitHub(context.Background(), "", false, "", "", "", false, false, false, false, []string{}, false, false)
+			return RunWorkflowOnGitHub(context.Background(), "", RunOptions{})
 		}, true, "RunWorkflowOnGitHub"}, // Should error with empty workflow name
 		{func() error {
-			return RunWorkflowsOnGitHub(context.Background(), []string{}, 0, false, "", "", "", false, false, false, []string{}, false, false)
+			return RunWorkflowsOnGitHub(context.Background(), []string{}, RunOptions{})
 		}, true, "RunWorkflowsOnGitHub"}, // Should error with empty workflow list
 	}
 
@@ -1134,13 +1134,13 @@ func TestCalculateTimeRemaining(t *testing.T) {
 
 func TestRunWorkflowOnGitHubWithEnable(t *testing.T) {
 	// Test with enable flag enabled (should not error for basic validation)
-	err := RunWorkflowOnGitHub(context.Background(), "nonexistent-workflow", true, "", "", "", false, false, false, false, []string{}, false, false)
+	err := RunWorkflowOnGitHub(context.Background(), "nonexistent-workflow", RunOptions{Enable: true})
 	if err == nil {
 		t.Error("RunWorkflowOnGitHub should return error for non-existent workflow even with enable flag")
 	}
 
 	// Test with empty workflow name and enable flag
-	err = RunWorkflowOnGitHub(context.Background(), "", true, "", "", "", false, false, false, false, []string{}, false, false)
+	err = RunWorkflowOnGitHub(context.Background(), "", RunOptions{Enable: true})
 	if err == nil {
 		t.Error("RunWorkflowOnGitHub should return error for empty workflow name regardless of enable flag")
 	}
