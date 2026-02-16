@@ -1061,6 +1061,47 @@ on:
   workflow_dispatch:    # Manual trigger
 ```
 
+#### Fuzzy Scheduling
+
+Instead of specifying exact cron expressions, use **fuzzy scheduling** to automatically distribute workflow execution times. This reduces load spikes and avoids the "Monday wall of work" problem where weekend tasks pile up.
+
+**Basic Fuzzy Schedules:**
+```yaml
+on:
+  schedule: daily on weekdays    # Monday-Friday only (recommended for daily workflows)
+  schedule: daily                # All 7 days
+  schedule: weekly               # Once per week
+  schedule: hourly               # Every hour
+```
+
+**Examples with Intervals:**
+```yaml
+on:
+  schedule: every 2 hours on weekdays    # Every 2 hours, Monday-Friday
+  schedule: every 6 hours                # Every 6 hours, all days
+```
+
+**Why Prefer Weekday Schedules:**
+- **Avoids Monday backlog**: Daily workflows that run on weekends accumulate work that hits on Monday morning
+- **Better resource usage**: Team-facing workflows align with business hours
+- **Reduced noise**: Notifications and issues are created when team members are active
+
+The compiler automatically:
+- Converts fuzzy schedules to deterministic cron expressions
+- Scatters execution times to avoid load spikes (e.g., `daily on weekdays` → `43 5 * * 1-5`)
+- Adds `workflow_dispatch:` trigger for manual runs
+
+**Recommended Pattern:**
+```yaml
+# ✅ GOOD - Weekday schedule avoids Monday wall of work
+on:
+  schedule: daily on weekdays
+
+# ⚠️ ACCEPTABLE - But may create Monday backlog
+on:
+  schedule: daily
+```
+
 #### Fork Security for Pull Requests
 
 By default, `pull_request` triggers **block all forks** and only allow PRs from the same repository. Use the `forks:` field to explicitly allow forks:
@@ -1575,8 +1616,7 @@ Analyze issue #${{ github.event.issue.number }} and:
 ```markdown
 ---
 on:
-  schedule:
-    - cron: "0 9 * * 1"  # Monday 9AM
+  schedule: weekly
 permissions:
   contents: read
   actions: read
@@ -1622,9 +1662,7 @@ Respond to /helper-bot mentions with helpful information related to ${{ github.r
 ```markdown
 ---
 on:
-  schedule:
-    - cron: "0 9 * * 1"  # Monday 9AM
-  workflow_dispatch:
+  schedule: weekly
 permissions:
   contents: read
   actions: read

@@ -45,9 +45,9 @@
       "version": "v2.2.1",
       "sha": "29824e69f54612133e76f7eaac726eef6c875baf"
     },
-    "actions/download-artifact@v6.0.0": {
+    "actions/download-artifact@v6": {
       "repo": "actions/download-artifact",
-      "version": "v6.0.0",
+      "version": "v6",
       "sha": "018cc2cf5baa6db3ef3c5f8a56943fffe632ef53"
     },
     "actions/github-script@v7.1.0": {
@@ -100,14 +100,14 @@
       "version": "v4.6.2",
       "sha": "ea165f8d65b6e75b540449e92b4886f43607fa02"
     },
-    "actions/upload-artifact@v5.0.0": {
+    "actions/upload-artifact@v5": {
       "repo": "actions/upload-artifact",
-      "version": "v5.0.0",
+      "version": "v5",
       "sha": "330a01c490aca151604b8cf639adc76d48f6c5d4"
     },
-    "actions/upload-artifact@v6.0.0": {
+    "actions/upload-artifact@v6": {
       "repo": "actions/upload-artifact",
-      "version": "v6.0.0",
+      "version": "v6",
       "sha": "b7c566a772e6b6bfb58ed0dc250532a479d7789f"
     },
     "anchore/sbom-action@v0.22.2": {
