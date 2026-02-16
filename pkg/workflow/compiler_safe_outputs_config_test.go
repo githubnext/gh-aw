@@ -145,6 +145,24 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			expectedKeys: []string{"create_pull_request"},
 		},
 		{
+			name: "create pull request with reviewers",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						Max: 1,
+					},
+					Reviewers: []string{"user1", "user2"},
+					Labels:    []string{"automated"},
+					Draft:     testBoolPtr(false),
+				},
+			},
+			checkContains: []string{
+				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+			},
+			checkJSON:    true,
+			expectedKeys: []string{"create_pull_request"},
+		},
+		{
 			name: "push to PR branch config",
 			safeOutputs: &SafeOutputsConfig{
 				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
@@ -342,6 +360,52 @@ func TestHandlerConfigAllowedLabels(t *testing.T) {
 				labelSlice, ok := labels.([]any)
 				require.True(t, ok)
 				assert.Len(t, labelSlice, 3)
+			}
+		}
+	}
+}
+
+// TestHandlerConfigReviewers tests reviewers configuration in create_pull_request
+func TestHandlerConfigReviewers(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				Reviewers: []string{"user1", "user2", "copilot"},
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	// Extract and validate JSON
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			if len(parts) == 2 {
+				jsonStr := strings.TrimSpace(parts[1])
+				jsonStr = strings.Trim(jsonStr, "\"")
+				jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+				var config map[string]map[string]any
+				err := json.Unmarshal([]byte(jsonStr), &config)
+				require.NoError(t, err, "Handler config JSON should be valid")
+
+				prConfig, ok := config["create_pull_request"]
+				require.True(t, ok, "Should have create_pull_request handler")
+
+				reviewers, ok := prConfig["reviewers"]
+				require.True(t, ok, "Should have reviewers field")
+
+				reviewerSlice, ok := reviewers.([]any)
+				require.True(t, ok, "Reviewers should be an array")
+				assert.Len(t, reviewerSlice, 3, "Should have 3 reviewers")
+				assert.Equal(t, "user1", reviewerSlice[0])
+				assert.Equal(t, "user2", reviewerSlice[1])
+				assert.Equal(t, "copilot", reviewerSlice[2])
 			}
 		}
 	}

@@ -369,6 +369,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfPositive("max", c.Max).
 			AddIfNotEmpty("title_prefix", c.TitlePrefix).
 			AddStringSlice("labels", c.Labels).
+			AddStringSlice("reviewers", c.Reviewers).
 			AddBoolPtr("draft", c.Draft).
 			AddIfNotEmpty("if_no_changes", c.IfNoChanges).
 			AddIfTrue("allow_empty", c.AllowEmpty).
