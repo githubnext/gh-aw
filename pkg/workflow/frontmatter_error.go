@@ -19,7 +19,7 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 	errorStr := err.Error()
 
 	// Check if error already contains formatted yaml.FormatError() output with source context
-	// yaml.FormatError() produces output like "[line:col] message\n>  line | content..."
+	// yaml.FormatError() produces output like "failed to parse frontmatter:\n[line:col] message\n>  line | content..."
 	if strings.Contains(errorStr, "failed to parse frontmatter:\n[") && (strings.Contains(errorStr, "\n>") || strings.Contains(errorStr, "|")) {
 		// Extract line and column from the formatted error for VSCode compatibility
 		// Pattern: [line:col] message
@@ -37,8 +37,16 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 			// This is compatible with VSCode's problem matcher
 			vscodeFormat := fmt.Sprintf("%s:%s:%s: error: %s", filePath, line, col, message)
 
-			// Return VSCode-compatible format on first line, followed by full context
-			frontmatterErrorLog.Print("Formatting error for VSCode compatibility")
+			// Extract just the context part (after "failed to parse frontmatter:\n")
+			contextStart := strings.Index(errorStr, "failed to parse frontmatter:\n")
+			if contextStart >= 0 {
+				context := errorStr[contextStart+len("failed to parse frontmatter:\n"):]
+				// Return VSCode-compatible format on first line, followed by context
+				frontmatterErrorLog.Print("Formatting error for VSCode compatibility")
+				return fmt.Errorf("%s\n%s", vscodeFormat, context)
+			}
+
+			// If we can't extract context, return the VSCode format with original error
 			return fmt.Errorf("%s\n%s", vscodeFormat, errorStr)
 		}
 

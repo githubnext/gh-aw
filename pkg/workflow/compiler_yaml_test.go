@@ -460,9 +460,10 @@ Test content.`,
 				t.Errorf("%s: error should contain visual pointer '>' from yaml.FormatError(), got: %s", tt.description, errorStr)
 			}
 
-			// Check that it's a YAML parsing error (not schema validation)
-			if !strings.Contains(errorStr, "failed to parse frontmatter:") {
-				t.Errorf("%s: error should be a frontmatter parsing error, got: %s", tt.description, errorStr)
+			// Check that it's a YAML parsing error with VSCode-compatible format
+			// Format: filename:line:column: error: message
+			if !strings.Contains(errorStr, ": error: ") {
+				t.Errorf("%s: error should have VSCode-compatible format (filename:line:column: error: message), got: %s", tt.description, errorStr)
 			}
 		})
 	}

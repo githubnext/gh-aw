@@ -22,7 +22,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -181,10 +180,9 @@ func compileSpecificFiles(
 	}
 
 	// Return error if any compilations failed
+	// Don't return the detailed error message here since it's already printed in the summary
+	// Returning a simple error prevents duplication in the output
 	if errorCount > 0 {
-		if len(errorMessages) > 0 {
-			return workflowDataList, errors.New(errorMessages[0])
-		}
 		return workflowDataList, fmt.Errorf("compilation failed")
 	}
 
