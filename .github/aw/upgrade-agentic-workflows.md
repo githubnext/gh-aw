@@ -1,6 +1,6 @@
 ---
 description: Upgrade agentic workflows to the latest version of gh-aw with automated compilation and error fixing
-infer: false
+disable-model-invocation: true
 ---
 
 You are specialized in **upgrading GitHub Agentic Workflows (gh-aw)** to the latest version.

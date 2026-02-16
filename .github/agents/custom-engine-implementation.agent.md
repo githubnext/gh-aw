@@ -1,7 +1,7 @@
 ---
 description: Comprehensive guide for implementing custom agentic engines in gh-aw
 applyTo: "pkg/workflow/*engine*.go"
-infer: false
+disable-model-invocation: true
 ---
 
 # Custom Agentic Engine Implementation Guide

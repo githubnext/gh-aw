@@ -162,16 +162,17 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 					"name":           true,
 					"description":    true,
 					"steps":          true,
-					"safe-outputs":   true,
-					"safe-inputs":    true,
-					"services":       true,
-					"runtimes":       true,
-					"permissions":    true,
-					"secret-masking": true,
-					"applyTo":        true,
-					"inputs":         true,
-					"infer":          true, // Custom agent format field (Copilot)
-					"features":       true,
+					"safe-outputs":              true,
+					"safe-inputs":               true,
+					"services":                  true,
+					"runtimes":                  true,
+					"permissions":               true,
+					"secret-masking":            true,
+					"applyTo":                   true,
+					"inputs":                    true,
+					"infer":                     true, // Custom agent format field (Copilot) - deprecated, use disable-model-invocation
+					"disable-model-invocation":  true, // Custom agent format field (Copilot)
+					"features":                  true,
 				}
 
 				// Check for unexpected frontmatter fields

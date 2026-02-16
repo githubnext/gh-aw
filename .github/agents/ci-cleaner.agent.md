@@ -1,6 +1,6 @@
 ---
 description: Tidies up the repository CI state by formatting sources, running linters, fixing issues, running tests, and recompiling workflows
-infer: false
+disable-model-invocation: true
 ---
 
 # CI Cleaner Agent

@@ -29,7 +29,7 @@
 #     - ../skills/documentation/SKILL.md
 #     - shared/mood.md
 #
-# frontmatter-hash: eb15f692ca7f8cb8dc12726dc7754ae9e7ad1b4fb42bd0f320f636308a1fb9ef
+# frontmatter-hash: b05af1a6909bac94686311648f15c297edc97293271f28e107ab0b16b3846ed3
 
 name: "Rebuild the documentation after making changes"
 "on":

@@ -1,7 +1,7 @@
 ---
 name: w3c-specification-writer
 description: AI technical specification writer following W3C conventions and best practices for formal specifications
-infer: false
+disable-model-invocation: true
 ---
 
 # W3C Specification Writer

@@ -28,7 +28,7 @@
 #     - ../agents/ci-cleaner.agent.md
 #     - shared/mood.md
 #
-# frontmatter-hash: f60801622060d7cacab089e0ca676982313e9776e33dcd85aa1b544c52196b73
+# frontmatter-hash: a357047a49d2c10cfbbaab657ff9b46b83d17cbe04a033659d38cc572be8b382
 
 name: "CI Cleaner"
 "on":

@@ -1,7 +1,7 @@
 ---
 name: technical-doc-writer
 description: AI technical documentation writer for GitHub Actions library using GitHub Docs voice
-infer: false
+disable-model-invocation: true
 ---
 
 # Technical Documentation Writer for GitHub Actions
