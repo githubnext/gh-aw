@@ -115,25 +115,17 @@ A safe output capability for hiding or minimizing GitHub comments without requir
 
 ## Workflow Components
 
+### Cron Schedule
+
+A time-based trigger format. Use short syntax like `daily` or `weekly on monday` (recommended with automatic time scattering) or standard cron expressions for fixed times. See also Fuzzy Scheduling and Time Scattering.
+
 ### Engine
 
 The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports multiple engines, with GitHub Copilot as the default.
 
-### Triggers
+### Fuzzy Scheduling
 
-Events that cause a workflow to run, defined in the `on:` section of frontmatter. Includes issue events, pull requests, schedules, manual runs, and slash commands.
-
-### Cron Schedule
-
-A time-based trigger format. Use short syntax like `daily` or `weekly on monday` (recommended with automatic time scattering) or standard cron expressions for fixed times.
-
-### workflow_dispatch
-
-A manual trigger that runs a workflow on demand from the GitHub Actions UI or via the GitHub API. Requires explicit user initiation.
-
-### Network Permissions
-
-Controls over external domains and services a workflow can access. Configured via `network:` section with options: `defaults` (common infrastructure), custom allow-lists, or `{}` (no access).
+Natural language schedule syntax that automatically distributes workflow execution times to avoid load spikes. Instead of specifying exact times with cron expressions, fuzzy schedules like `daily`, `weekly`, or `daily on weekdays` are converted by the compiler into deterministic but scattered cron expressions. The compiler automatically adds `workflow_dispatch:` trigger for manual runs. Example: `schedule: daily on weekdays` compiles to something like `43 5 * * 1-5` with varied execution times across different workflows.
 
 ### Imports
 
@@ -142,6 +134,22 @@ Reusable workflow components shared across multiple workflows. Specified in the 
 ### Labels
 
 Optional workflow metadata for categorization and organization. Enables filtering workflows in the CLI using the `--label` flag.
+
+### Network Permissions
+
+Controls over external domains and services a workflow can access. Configured via `network:` section with options: `defaults` (common infrastructure), custom allow-lists, or `{}` (no access).
+
+### Triggers
+
+Events that cause a workflow to run, defined in the `on:` section of frontmatter. Includes issue events, pull requests, schedules, manual runs, and slash commands.
+
+### Weekday Schedules
+
+Scheduled workflows configured to run only Monday through Friday using `daily on weekdays` syntax. Recommended for daily workflows to avoid the "Monday wall of work" where tasks accumulate over weekends and create a backlog on Monday morning. The compiler converts this to cron expressions with `1-5` in the day-of-week field. Example: `schedule: daily on weekdays` generates a cron like `43 5 * * 1-5`.
+
+### workflow_dispatch
+
+A manual trigger that runs a workflow on demand from the GitHub Actions UI or via the GitHub API. Requires explicit user initiation.
 
 ## GitHub and Infrastructure Terms
 
@@ -189,10 +197,6 @@ Checking workflow files for errors, security issues, and best practices. Occurs 
 
 Persistent storage for workflows preserving data between runs. Configured via `cache-memory:` in tools section with 7-day retention in GitHub Actions cache. See [Memory Reference](/gh-aw/reference/memory/).
 
-### Repo Memory
-
-Persistent file storage via Git branches with unlimited retention. Unlike cache-memory (7-day retention), repo-memory stores files permanently in dedicated Git branches with automatic branch cloning, file access, commits, pushes, and merge conflict resolution. See [Memory Reference](/gh-aw/reference/memory/).
-
 ### Command Triggers
 
 Special triggers responding to slash commands in issue and PR comments. Configured using the `slash_command:` section with a command name.
@@ -201,29 +205,37 @@ Special triggers responding to slash commands in issue and PR comments. Configur
 
 Settings limiting how many workflow instances can run simultaneously. Configured via `concurrency:` field to prevent resource conflicts or rate limiting.
 
+### Custom Agents
+
+Specialized instructions customizing AI agent behavior for specific tasks or repositories. Stored as agent files (`.github/agents/*.agent.md`) for Copilot Chat or instruction files (`.github/copilot/instructions/`) for path-specific Copilot instructions.
+
 ### Environment Variables (env)
 
 Configuration section in frontmatter defining environment variables for the workflow. Variables can reference GitHub context values, workflow inputs, or static values. Accessible via `${{ env.VARIABLE_NAME }}` syntax.
 
-### Custom Agents
+### Repo Memory
 
-Specialized instructions customizing AI agent behavior for specific tasks or repositories. Stored as agent files (`.github/agents/*.agent.md`) for Copilot Chat or instruction files (`.github/copilot/instructions/`) for path-specific Copilot instructions.
+Persistent file storage via Git branches with unlimited retention. Unlike cache-memory (7-day retention), repo-memory stores files permanently in dedicated Git branches with automatic branch cloning, file access, commits, pushes, and merge conflict resolution. See [Memory Reference](/gh-aw/reference/memory/).
 
 ### Strict Mode
 
 Enhanced validation mode enforcing additional security checks and best practices. Enabled via `strict: true` in frontmatter or `--strict` flag when compiling.
 
+### Time Scattering
+
+Automatic distribution of workflow execution times across the day to reduce load spikes on GitHub Actions infrastructure. When using fuzzy scheduling, the compiler deterministically assigns different start times to each workflow based on repository and workflow name. Prevents all scheduled workflows from running simultaneously at common times like midnight or the top of the hour.
+
 ### Timeout
 
 Maximum duration a workflow can run before automatic cancellation. Configured via `timeout-minutes:` in frontmatter. Default is 360 minutes (6 hours); workflows can specify shorter timeouts to fail faster.
 
-### Tracker ID
-
-A unique identifier enabling external monitoring and coordination without bidirectional coupling. Orchestrator workflows use tracker IDs to correlate worker runs and discover outputs while workers operate independently.
-
 ### Toolsets
 
 Predefined collections of related MCP tools enabled together. Used with the GitHub MCP server to group capabilities like `repos`, `issues`, and `pull_requests`. Configured in the `toolsets:` field.
+
+### Tracker ID
+
+A unique identifier enabling external monitoring and coordination without bidirectional coupling. Orchestrator workflows use tracker IDs to correlate worker runs and discover outputs while workers operate independently.
 
 ### Workflow Inputs
 
