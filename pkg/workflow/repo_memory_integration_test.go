@@ -306,3 +306,61 @@ This workflow has repo-memory disabled.
 		t.Error("Should not have repo memory prompt when disabled")
 	}
 }
+
+// TestRepoMemoryGitHubEnterpriseSupport tests that GITHUB_SERVER_URL is used for GHE compatibility
+func TestRepoMemoryGitHubEnterpriseSupport(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-*")
+	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+
+	content := `---
+name: Test Repo Memory GHE
+on: workflow_dispatch
+engine: copilot
+tools:
+  repo-memory: true
+---
+
+# Test Workflow
+
+This workflow tests GitHub Enterprise support.
+`
+
+	if err := os.WriteFile(workflowPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+	lockFile := string(lockContent)
+
+	// Check that GITHUB_SERVER_URL is passed to clone step
+	if !strings.Contains(lockFile, "GITHUB_SERVER_URL: ${{ github.server_url }}") {
+		t.Error("Expected GITHUB_SERVER_URL environment variable in clone step")
+	}
+
+	// Check that GITHUB_SERVER_URL is passed to push step (in push_repo_memory job)
+	// The push step should include GITHUB_SERVER_URL in the env section
+	if !strings.Contains(lockFile, "GITHUB_SERVER_URL: ${{ github.server_url }}") {
+		t.Error("Expected GITHUB_SERVER_URL environment variable in push step")
+	}
+
+	// Verify that hardcoded github.com is NOT in git URLs
+	// The workflow should NOT contain hardcoded github.com URLs in git commands
+	if strings.Contains(lockFile, "@github.com/") {
+		t.Error("Found hardcoded @github.com in workflow - should use dynamic server URL")
+	}
+
+	// Check for the shell script that uses GITHUB_SERVER_URL
+	if !strings.Contains(lockFile, "bash /opt/gh-aw/actions/clone_repo_memory_branch.sh") {
+		t.Error("Expected clone_repo_memory_branch.sh script invocation")
+	}
+}
