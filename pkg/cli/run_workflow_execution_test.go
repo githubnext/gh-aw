@@ -74,7 +74,6 @@ func TestRunWorkflowOnGitHub_InputValidation(t *testing.T) {
 				"",    // repoOverride
 				"",    // refOverride
 				false, // autoMergePRs
-				false, // pushSecrets
 				false, // push
 				false, // waitForCompletion
 				tt.inputs,
@@ -111,7 +110,6 @@ func TestRunWorkflowOnGitHub_ContextCancellation(t *testing.T) {
 		"",    // repoOverride
 		"",    // refOverride
 		false, // autoMergePRs
-		false, // pushSecrets
 		false, // push
 		false, // waitForCompletion
 		[]string{},
@@ -170,7 +168,6 @@ func TestRunWorkflowsOnGitHub_InputValidation(t *testing.T) {
 				"",    // repoOverride
 				"",    // refOverride
 				false, // autoMergePRs
-				false, // pushSecrets
 				false, // push
 				[]string{},
 				false, // verbose
@@ -207,7 +204,6 @@ func TestRunWorkflowsOnGitHub_ContextCancellation(t *testing.T) {
 		"",    // repoOverride
 		"",    // refOverride
 		false, // autoMergePRs
-		false, // pushSecrets
 		false, // push
 		[]string{},
 		false, // verbose
@@ -260,7 +256,6 @@ func TestRunWorkflowOnGitHub_FlagCombinations(t *testing.T) {
 				tt.repoOverride,
 				"",    // refOverride
 				false, // autoMergePRs
-				false, // pushSecrets
 				tt.push,
 				false, // waitForCompletion
 				[]string{},

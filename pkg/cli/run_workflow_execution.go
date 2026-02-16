@@ -20,7 +20,7 @@ import (
 var executionLog = logger.New("cli:run_workflow_execution")
 
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
-func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, push bool, waitForCompletion bool, inputs []string, verbose bool, dryRun bool) error {
+func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, push bool, waitForCompletion bool, inputs []string, verbose bool, dryRun bool) error {
 	executionLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s, ref=%s, push=%v, wait=%v, inputs=%v", workflowIdOrName, enable, engineOverride, repoOverride, refOverride, push, waitForCompletion, inputs)
 
 	// Check context cancellation at the start
@@ -261,94 +261,6 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully pushed %d file(s) for workflow %s", len(files), workflowIdOrName)))
 	}
 
-	// Handle secret pushing if requested
-	var secretTracker *TrialSecretTracker
-	if pushSecrets {
-		// Determine target repository
-		var targetRepo string
-		if repoOverride != "" {
-			targetRepo = repoOverride
-		} else {
-			// Get current repository slug
-			currentRepo, err := GetCurrentRepoSlug()
-			if err != nil {
-				return fmt.Errorf("failed to determine current repository for secret handling: %w", err)
-			}
-			targetRepo = currentRepo
-		}
-
-		secretTracker = NewTrialSecretTracker(targetRepo)
-		executionLog.Printf("Created secret tracker for repository: %s", targetRepo)
-
-		// Set up secret cleanup to always run on exit
-		defer func() {
-			if err := cleanupTrialSecrets(targetRepo, secretTracker, verbose); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup secrets: %v", err)))
-			}
-		}()
-
-		// Add GitHub token secret
-		if err := addGitHubTokenSecret(targetRepo, secretTracker, verbose); err != nil {
-			return fmt.Errorf("failed to add GitHub token secret: %w", err)
-		}
-
-		// Determine and add engine secrets
-		if repoOverride == "" && lockFilePath != "" {
-			// For local workflows, read and parse the workflow to determine engine requirements
-			workflowMarkdownPath := stringutil.LockFileToMarkdown(lockFilePath)
-			config := CompileConfig{
-				MarkdownFiles:        []string{workflowMarkdownPath},
-				Verbose:              false, // Don't be verbose during secret determination
-				EngineOverride:       engineOverride,
-				Validate:             false,
-				Watch:                false,
-				WorkflowDir:          "",
-				SkipInstructions:     true,
-				NoEmit:               true, // Don't emit files, just compile for analysis
-				Purge:                false,
-				TrialMode:            false,
-				TrialLogicalRepoSlug: "",
-				Strict:               false,
-			}
-			workflowDataList, err := CompileWorkflows(ctx, config)
-			if err == nil && len(workflowDataList) == 1 {
-				workflowData := workflowDataList[0]
-				if err := determineAndAddEngineSecret(workflowData.EngineConfig, targetRepo, secretTracker, engineOverride, verbose); err != nil {
-					// Log warning but don't fail - the workflow might still run without secrets
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to determine engine secret: %v", err)))
-					}
-				}
-			} else if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to compile workflow for secret determination - continuing without engine secrets"))
-			}
-		} else if repoOverride != "" {
-			// For remote workflows, we can't analyze the workflow file, so create a minimal EngineConfig
-			// with engine information and reuse the existing determineAndAddEngineSecret function
-			var engineType string
-			if engineOverride != "" {
-				engineType = engineOverride
-			} else {
-				engineType = "copilot" // Default engine
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Using default Copilot engine for remote workflow secret handling"))
-				}
-			}
-
-			// Create minimal EngineConfig with engine information
-			engineConfig := &workflow.EngineConfig{
-				ID: engineType,
-			}
-
-			if err := determineAndAddEngineSecret(engineConfig, targetRepo, secretTracker, engineOverride, verbose); err != nil {
-				// Log warning but don't fail - the workflow might still run without secrets
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to determine engine secret for remote workflow: %v", err)))
-				}
-			}
-		}
-	}
-
 	// Build the gh workflow run command with optional repo and ref overrides
 	args := []string{"workflow", "run", lockFileName}
 	if repoOverride != "" {
@@ -537,7 +449,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 }
 
 // RunWorkflowsOnGitHub runs multiple agentic workflows on GitHub Actions, optionally repeating a specified number of times
-func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCount int, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, push bool, inputs []string, verbose bool, dryRun bool) error {
+func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCount int, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, push bool, inputs []string, verbose bool, dryRun bool) error {
 	if len(workflowNames) == 0 {
 		return fmt.Errorf("at least one workflow name or ID is required")
 	}
@@ -601,7 +513,7 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCou
 				fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)))
 			}
 
-			if err := RunWorkflowOnGitHub(ctx, workflowName, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, push, waitForCompletion, inputs, verbose, dryRun); err != nil {
+			if err := RunWorkflowOnGitHub(ctx, workflowName, enable, engineOverride, repoOverride, refOverride, autoMergePRs, push, waitForCompletion, inputs, verbose, dryRun); err != nil {
 				return fmt.Errorf("failed to run workflow '%s': %w", workflowName, err)
 			}
 
