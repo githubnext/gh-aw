@@ -42,6 +42,25 @@ func TestGetDomainEcosystem(t *testing.T) {
 			expected: "containers",
 		},
 
+		// Fonts ecosystem
+		{
+			name:     "fonts ecosystem - fonts.googleapis.com",
+			domain:   "fonts.googleapis.com",
+			expected: "fonts",
+		},
+		{
+			name:     "fonts ecosystem - fonts.gstatic.com",
+			domain:   "fonts.gstatic.com",
+			expected: "fonts",
+		},
+
+		// Node CDNs ecosystem
+		{
+			name:     "node-cdns ecosystem - cdn.jsdelivr.net",
+			domain:   "cdn.jsdelivr.net",
+			expected: "node-cdns",
+		},
+
 		// Container ecosystem wildcard matches
 		{
 			name:     "containers ecosystem - docker.io subdomain",
@@ -466,6 +485,21 @@ func TestGetAllowedDomains_VariousCombinations(t *testing.T) {
 			name:           "defaults + node + containers",
 			allowed:        []string{"defaults", "node", "containers"},
 			expectContains: []string{"json-schema.org", "registry.npmjs.org", "ghcr.io", "registry.hub.docker.com"},
+		},
+		{
+			name:           "fonts ecosystem",
+			allowed:        []string{"fonts"},
+			expectContains: []string{"fonts.googleapis.com", "fonts.gstatic.com"},
+		},
+		{
+			name:           "node-cdns ecosystem",
+			allowed:        []string{"node-cdns"},
+			expectContains: []string{"cdn.jsdelivr.net"},
+		},
+		{
+			name:           "node + node-cdns ecosystems",
+			allowed:        []string{"node", "node-cdns"},
+			expectContains: []string{"registry.npmjs.org", "cdn.jsdelivr.net"},
 		},
 		{
 			name:              "single literal domain",

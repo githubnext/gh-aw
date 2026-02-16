@@ -55,6 +55,7 @@
     "oneocsp.microsoft.com"
   ],
   "dart": ["pub.dev", "pub.dartlang.org"],
+  "fonts": ["fonts.googleapis.com", "fonts.gstatic.com"],
   "github": [
     "*.githubusercontent.com",
     "raw.githubusercontent.com",
@@ -134,6 +135,7 @@
     "*.jsr.io",
     "registry.bower.io"
   ],
+  "node-cdns": ["cdn.jsdelivr.net"],
   "perl": ["cpan.org", "www.cpan.org", "metacpan.org", "cpan.metacpan.org"],
   "php": ["repo.packagist.org", "packagist.org", "getcomposer.org"],
   "playwright": ["playwright.download.prss.microsoft.com", "cdn.playwright.dev"],
