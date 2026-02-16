@@ -318,7 +318,7 @@ describe("create_issue", () => {
       const handler = await main({});
       const result = await handler({ title: "Test" });
 
-      expect(result.temporaryId).toMatch(/^aw_[A-Za-z0-9]{4,8}$/);
+      expect(result.temporaryId).toMatch(/^aw_[A-Za-z0-9]{3,8}$/);
     });
 
     it("should use provided temporary ID", async () => {

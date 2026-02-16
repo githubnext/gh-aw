@@ -123,7 +123,7 @@ describe("create_issue.cjs (New Handler Factory Architecture)", () => {
     const result = await handler(message, {});
 
     expect(result.temporaryId).toBeTruthy();
-    expect(result.temporaryId).toMatch(/^aw_[A-Za-z0-9]{4,8}$/i);
+    expect(result.temporaryId).toMatch(/^aw_[A-Za-z0-9]{3,8}$/i);
   });
 
   it("should use provided temporary ID if available", async () => {

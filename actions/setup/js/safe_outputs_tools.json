@@ -702,7 +702,7 @@
       "properties": {
         "project": {
           "type": "string",
-          "pattern": "^(https://github\\.com/(orgs|users)/[^/]+/projects/\\d+|#?aw_[A-Za-z0-9]{4,8})$",
+          "pattern": "^(https://github\\.com/(orgs|users)/[^/]+/projects/\\d+|#?aw_[A-Za-z0-9]{3,8})$",
           "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'), or a temporary project ID from a recent create_project call (e.g., '#aw_abc1', 'aw_Test123'). Project names or numbers alone are NOT accepted."
         },
         "operation": {
@@ -729,12 +729,12 @@
         },
         "draft_issue_id": {
           "type": "string",
-          "pattern": "^#?aw_[A-Za-z0-9]{4,8}$",
+          "pattern": "^#?aw_[A-Za-z0-9]{3,8}$",
           "description": "Temporary ID of an existing draft issue to update (e.g., 'aw_abc1', '#aw_Test123'). Use this to reference a draft created earlier with a matching temporary_id. When provided, draft_title is not required for updates."
         },
         "temporary_id": {
           "type": "string",
-          "pattern": "^#?aw_[A-Za-z0-9]{4,8}$",
+          "pattern": "^#?aw_[A-Za-z0-9]{3,8}$",
           "description": "Unique temporary identifier for this draft issue (e.g., 'aw_abc1', '#aw_Test123'). Provide this when creating a new draft to enable future updates via draft_issue_id. Format: optional leading '#', then 'aw_' followed by 3 to 8 alphanumeric characters."
         },
         "fields": {
@@ -850,7 +850,7 @@
         },
         "item_url": {
           "type": "string",
-          "pattern": "^(https://github\\\\.com/[^/]+/[^/]+/issues/(\\\\d+|#?aw_[A-Za-z0-9]{4,8})|#?aw_[A-Za-z0-9]{4,8})$",
+          "pattern": "^(https://github\\\\.com/[^/]+/[^/]+/issues/(\\\\d+|#?aw_[A-Za-z0-9]{3,8})|#?aw_[A-Za-z0-9]{3,8})$",
           "description": "Optional GitHub issue URL or temporary ID to add as the first item to the project. Accepts either a full URL (e.g., 'https://github.com/owner/repo/issues/123'), a URL with temporary ID (e.g., 'https://github.com/owner/repo/issues/aw_abc1'), or a plain temporary ID (e.g., 'aw_abc1', '#aw_Test123') from a previously created issue in the same workflow run."
         },
         "temporary_id": {

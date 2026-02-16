@@ -119,6 +119,30 @@ describe("update_project handler config: field_definitions", () => {
   });
 });
 
+describe("update_project handler deferral", () => {
+  it("defers when content_number is an unresolved temporary ID", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+
+    const handler = await updateProjectHandlerFactory({ max: 10 });
+
+    const result = await handler(
+      {
+        type: "update_project",
+        project: projectUrl,
+        content_type: "issue",
+        content_number: "aw_missing1",
+      },
+      {},
+      new Map()
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.deferred).toBe(true);
+    expect(result.error).toMatch(/Temporary ID 'aw_missing1' not found in map/i);
+    expect(mockGithub.graphql).not.toHaveBeenCalled();
+  });
+});
+
 describe("update_project token guardrails", () => {
   it("fails fast with a clear error when authenticated as github-actions[bot]", async () => {
     delete process.env.GH_AW_PROJECT_GITHUB_TOKEN;
@@ -1769,5 +1793,147 @@ describe("updateProject", () => {
     expect(result.error).toContain("Unable to resolve project #146");
     expect(result.error).toContain("Both direct projectV2 query and fallback projectsV2 list query failed");
     expect(result.error).toContain("transient GitHub API error");
+  });
+});
+
+describe("update_project temporary project ID resolution", () => {
+  let mockSetup;
+  let messageHandler;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Reset mock implementation
+    mockGithub.graphql.mockReset();
+
+    // Create a minimal mock setup for the handler
+    mockSetup = {
+      core: mockCore,
+      github: mockGithub,
+      context: mockContext,
+      updateProjectHandlerFactory,
+    };
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("resolves temporary project ID with 8 alphanumeric characters (generated format)", async () => {
+    const temporaryId = "aw_AbC12345"; // 8 chars, mixed case
+    const projectUrl = "https://github.com/orgs/testowner/projects/99";
+    const tempIdMap = new Map();
+    tempIdMap.set("aw_abc12345", { projectUrl }); // Stored in lowercase
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 99, "project-resolved"), issueResponse("issue-id-1"), existingItemResponse("issue-id-1", "item-resolved"), fieldsResponse([])]);
+
+    // Create handler with config
+    const config = { max: 100 };
+    messageHandler = await updateProjectHandlerFactory(config);
+
+    const message = {
+      type: "update_project",
+      project: temporaryId, // Using temporary ID
+      content_type: "issue",
+      content_number: 42,
+    };
+
+    const result = await messageHandler(message, {}, tempIdMap);
+
+    expect(result.success).toBe(true);
+    expect(mockCore.info).toHaveBeenCalledWith(`Resolved temporary project ID ${temporaryId} to ${projectUrl}`);
+  });
+
+  it("resolves temporary project ID with # prefix", async () => {
+    const temporaryId = "#aw_Test99"; // With hash prefix
+    const projectUrl = "https://github.com/orgs/testowner/projects/88";
+    const tempIdMap = new Map();
+    tempIdMap.set("aw_test99", { projectUrl }); // Stored without hash, lowercase
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 88, "project-hash"), issueResponse("issue-id-2"), existingItemResponse("issue-id-2", "item-hash"), fieldsResponse([])]);
+
+    const config = { max: 100 };
+    messageHandler = await updateProjectHandlerFactory(config);
+
+    const message = {
+      type: "update_project",
+      project: temporaryId,
+      content_type: "issue",
+      content_number: 43,
+    };
+
+    const result = await messageHandler(message, {}, tempIdMap);
+
+    expect(result.success).toBe(true);
+    expect(mockCore.info).toHaveBeenCalledWith(`Resolved temporary project ID ${temporaryId} to ${projectUrl}`);
+  });
+
+  it("resolves temporary project ID with 3 characters (minimum)", async () => {
+    const temporaryId = "aw_abc"; // 3 chars minimum
+    const projectUrl = "https://github.com/orgs/testowner/projects/77";
+    const tempIdMap = new Map();
+    tempIdMap.set("aw_abc", { projectUrl });
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 77, "project-min"), issueResponse("issue-id-3"), existingItemResponse("issue-id-3", "item-min"), fieldsResponse([])]);
+
+    const config = { max: 100 };
+    messageHandler = await updateProjectHandlerFactory(config);
+
+    const message = {
+      type: "update_project",
+      project: temporaryId,
+      content_type: "issue",
+      content_number: 44,
+    };
+
+    const result = await messageHandler(message, {}, tempIdMap);
+
+    expect(result.success).toBe(true);
+    expect(mockCore.info).toHaveBeenCalledWith(`Resolved temporary project ID ${temporaryId} to ${projectUrl}`);
+  });
+
+  it("throws error when temporary project ID is not found in map", async () => {
+    const temporaryId = "aw_NotFound";
+    const tempIdMap = new Map(); // Empty map
+
+    const config = { max: 100 };
+    messageHandler = await updateProjectHandlerFactory(config);
+
+    const message = {
+      type: "update_project",
+      project: temporaryId,
+      content_type: "issue",
+      content_number: 45,
+    };
+
+    const result = await messageHandler(message, {}, tempIdMap);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/Temporary project ID 'aw_NotFound' not found.*Ensure create_project was called before update_project/);
+  });
+
+  it("handles full project URL normally (not treated as temporary ID)", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/66";
+    const tempIdMap = new Map();
+    // Map has an entry, but it shouldn't be used since we're passing full URL
+    tempIdMap.set("aw_other", { projectUrl: "https://github.com/orgs/other/projects/1" });
+
+    queueResponses([repoResponse(), viewerResponse(), orgProjectV2Response(projectUrl, 66, "project-full"), issueResponse("issue-id-4"), existingItemResponse("issue-id-4", "item-full"), fieldsResponse([])]);
+
+    const config = { max: 100 };
+    messageHandler = await updateProjectHandlerFactory(config);
+
+    const message = {
+      type: "update_project",
+      project: projectUrl, // Full URL, not temporary ID
+      content_type: "issue",
+      content_number: 46,
+    };
+
+    const result = await messageHandler(message, {}, tempIdMap);
+
+    expect(result.success).toBe(true);
+    // Should NOT log temporary ID resolution
+    expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Resolved temporary project ID"));
   });
 });
