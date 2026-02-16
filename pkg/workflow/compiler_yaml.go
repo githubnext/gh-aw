@@ -348,10 +348,19 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	userPromptChunks = append(userPromptChunks, runtimeImportMacro)
 
 	// Generate a single unified prompt creation step
-	c.generateUnifiedPromptCreationStep(yaml, builtinSections, userPromptChunks, expressionMappings, data)
+	// This returns the combined expression mappings for use in the substitution step
+	allExpressionMappings := c.generateUnifiedPromptCreationStep(yaml, builtinSections, userPromptChunks, expressionMappings, data)
 
 	// Add combined interpolation and template rendering step
+	// This step processes runtime-import macros, so it must run BEFORE placeholder substitution
 	c.generateInterpolationAndTemplateStep(yaml, expressionMappings, data)
+
+	// Generate JavaScript-based placeholder substitution step
+	// This MUST run AFTER interpolation because placeholders in runtime-imported files
+	// (like changeset.md) need to be substituted after the file is imported
+	if len(allExpressionMappings) > 0 {
+		generatePlaceholderSubstitutionStep(yaml, allExpressionMappings, "      ")
+	}
 
 	// Validate that all placeholders have been substituted
 	yaml.WriteString("      - name: Validate prompt placeholders\n")
