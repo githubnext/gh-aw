@@ -459,6 +459,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Activation job doesn't need project support (no safe outputs processed here)
 	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
 
+	// Checkout .github and .agents folders for accessing workflow configurations and runtime imports
+	// This is needed for prompt generation which may reference runtime imports from .github folder
+	// Always add this checkout in activation job since it needs access to workflow files for runtime imports
+	checkoutSteps := c.generateCheckoutGitHubFolderForActivation(data)
+	steps = append(steps, checkoutSteps...)
+
 	// Add timestamp check for lock file vs source file using GitHub API
 	// No checkout step needed - uses GitHub API to check commit times
 	steps = append(steps, "      - name: Check workflow file timestamps\n")
@@ -713,9 +719,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
 	}
 
-	// Checkout .github folder for agent job to access workflow configurations and runtime imports
-	// This works in all modes including release mode where actions aren't checked out
-	steps = append(steps, c.generateCheckoutGitHubFolder(data)...)
+	// Checkout .github folder is now done in activation job (before prompt generation)
+	// This ensures the activation job has access to .github and .agents folders for runtime imports
 
 	// Find custom jobs that depend on pre_activation - these are handled by the activation job
 	customJobsBeforeActivation := c.getCustomJobsDependingOnPreActivation(data.Jobs)
@@ -945,4 +950,43 @@ func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *Workflow
 	*steps = append(*steps, yamlContent)
 
 	compilerActivationJobsLog.Print("Prompt generation steps added to activation job")
+}
+
+// generateCheckoutGitHubFolderForActivation generates the checkout step for .github and .agents folders
+// specifically for the activation job. Unlike generateCheckoutGitHubFolder, this method doesn't skip
+// the checkout when the agent job will have a full repository checkout, because the activation job
+// runs before the agent job and needs independent access to workflow files for runtime imports during
+// prompt generation.
+func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData) []string {
+// Check if action-tag is specified - if so, skip checkout
+if data != nil && data.Features != nil {
+if actionTagVal, exists := data.Features["action-tag"]; exists {
+if actionTagStr, ok := actionTagVal.(string); ok && actionTagStr != "" {
+// action-tag is set, no checkout needed
+compilerActivationJobsLog.Print("Skipping .github checkout in activation: action-tag specified")
+return nil
+}
+}
+}
+
+// Check if we have contents permission - without it, checkout is not possible
+permParser := NewPermissionsParser(data.Permissions)
+if !permParser.HasContentsReadAccess() {
+compilerActivationJobsLog.Print("Skipping .github checkout in activation: no contents read access")
+return nil
+}
+
+// For activation job, always add sparse checkout of .github and .agents folders
+// This is needed for runtime imports during prompt generation
+compilerActivationJobsLog.Print("Adding .github and .agents sparse checkout in activation job")
+return []string{
+"      - name: Checkout .github and .agents folders\n",
+fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")),
+"        with:\n",
+"          sparse-checkout: |\n",
+"            .github\n",
+"            .agents\n",
+"          fetch-depth: 1\n",
+"          persist-credentials: false\n",
+}
 }
