@@ -844,7 +844,6 @@ func NewMdflowCompatEngine() *MdflowCompatEngine {
             description:            "Run mdflow-style workflows with gh-aw safety",
             experimental:           true,
             supportsToolsAllowlist: true,
-            supportsHTTPTransport:  false,
             supportsMaxTurns:       true,
             supportsWebFetch:       false,
             supportsWebSearch:      false,
