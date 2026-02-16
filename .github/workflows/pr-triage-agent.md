@@ -95,9 +95,9 @@ Determine category based on file patterns and PR description:
 
 **File Pattern Rules:**
 - **docs**: Changes only to `.md`, `.txt`, `.rst` files in `docs/`, `README.md`, `CHANGELOG.md`
-- **test**: Changes only to `*_test.go`, `*_test.js`, `*.test.js` files
+- **test**: Changes only to `*_test.go`, `*_test.js`, `*.test.js`, `*Tests.cs` files
 - **formatting**: Changes matching `.prettierrc`, `.editorconfig`, or whitespace-only diffs
-- **chore**: Changes to `Makefile`, `.github/workflows/*.yml`, `go.mod`, `package.json`, CI configs
+- **chore**: Changes to `Makefile`, `.github/workflows/*.yml`, `go.mod`, `package.json`, `*.csproj`, CI configs
 - **refactor**: Code changes with no new features or bug fixes (look for keywords: "refactor", "restructure", "reorganize")
 - **bug**: Keywords in title/description: "fix", "bug", "issue", "error", "crash"
 - **feature**: Keywords in title/description: "add", "implement", "new", "feature", "support"

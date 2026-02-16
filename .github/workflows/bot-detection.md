@@ -903,7 +903,7 @@ This workflow enforces determinism via a **precompute job**.
 - PR touches sensitive paths (any changed file matches):
   - `.github/workflows/` or `.github/actions/`: `+15`
   - `Dockerfile`, `Makefile`, `scripts/`, `actions/`: `+10`
-  - dependency manifests/lockfiles (`package.json`, `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `go.mod`, `go.sum`, `requirements*.txt`): `+6`
+  - dependency manifests/lockfiles (`package.json`, `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `go.mod`, `go.sum`, `requirements*.txt`, `*.csproj`, `Directory.Packages.props`): `+6`
 - Burst behavior: `+6` if the account authored `>= 5` issues/PRs in the window.
 - Near-duplicate content: `+8` if the account posted the same (or obviously templated) text `>= 3` times in the window.
 - New account age: `+8` if the account is `< 14 days` old.
