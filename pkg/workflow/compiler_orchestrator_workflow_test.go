@@ -919,7 +919,7 @@ on: [invalid: yaml
 
 # Workflow
 `,
-			expectError: "parse frontmatter",
+			expectError: "sequence end token", // Check for actual YAML error message instead of "parse frontmatter"
 		},
 		{
 			name: "no markdown content for main workflow",
