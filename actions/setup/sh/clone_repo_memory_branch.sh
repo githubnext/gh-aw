@@ -8,6 +8,7 @@
 #   TARGET_REPO: Repository to clone from (e.g., owner/repo)
 #   MEMORY_DIR: Directory to clone into
 #   CREATE_ORPHAN: Whether to create orphan branch if it doesn't exist (true/false)
+#   GITHUB_SERVER_URL: GitHub server URL (e.g., https://github.com or https://ghe.company.com)
 
 set -e
 
@@ -37,9 +38,18 @@ if [ -z "$CREATE_ORPHAN" ]; then
   exit 1
 fi
 
+# Default to github.com if not set
+if [ -z "$GITHUB_SERVER_URL" ]; then
+  GITHUB_SERVER_URL="https://github.com"
+fi
+
+# Extract host from server URL (remove https:// or http:// prefix)
+SERVER_HOST="${GITHUB_SERVER_URL#https://}"
+SERVER_HOST="${SERVER_HOST#http://}"
+
 # Try to clone the branch (don't fail if it doesn't exist)
 set +e
-git clone --depth 1 --single-branch --branch "$BRANCH_NAME" "https://x-access-token:${GH_TOKEN}@github.com/${TARGET_REPO}.git" "$MEMORY_DIR" 2>/dev/null
+git clone --depth 1 --single-branch --branch "$BRANCH_NAME" "https://x-access-token:${GH_TOKEN}@${SERVER_HOST}/${TARGET_REPO}.git" "$MEMORY_DIR" 2>/dev/null
 CLONE_EXIT_CODE=$?
 set -e
 
@@ -53,7 +63,7 @@ if [ $CLONE_EXIT_CODE -ne 0 ]; then
     git checkout --orphan "$BRANCH_NAME"
     git config user.name "github-actions[bot]"
     git config user.email "github-actions[bot]@users.noreply.github.com"
-    git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${TARGET_REPO}.git"
+    git remote add origin "https://x-access-token:${GH_TOKEN}@${SERVER_HOST}/${TARGET_REPO}.git"
   else
     echo "Branch $BRANCH_NAME does not exist and create-orphan is false, skipping"
     mkdir -p "$MEMORY_DIR"
