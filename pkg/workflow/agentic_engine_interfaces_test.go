@@ -221,7 +221,7 @@ func TestSpecificInterfaceUsage(t *testing.T) {
 		for _, engine := range registry.GetAllEngines() {
 			caps := checkCapabilities(engine)
 			assert.NotNil(t, caps, "Engine %s should have capabilities", engine.GetID())
-			assert.Len(t, caps, 6, "Should have 6 capability flags")
+			assert.Len(t, caps, 5, "Should have 5 capability flags")
 		}
 	})
 
