@@ -914,7 +914,7 @@ func TestHandlerConfigAssignToUser(t *testing.T) {
 				// Check max
 				max, ok := assignConfig["max"]
 				require.True(t, ok, "Should have max field")
-				assert.Equal(t, float64(5), max, "Max should be 5")
+				assert.InDelta(t, 5.0, max, 0.001, "Max should be 5")
 
 				// Check allowed users
 				allowed, ok := assignConfig["allowed"]
@@ -990,7 +990,7 @@ func TestHandlerConfigUnassignFromUser(t *testing.T) {
 				// Check max
 				max, ok := unassignConfig["max"]
 				require.True(t, ok, "Should have max field")
-				assert.Equal(t, float64(10), max, "Max should be 10")
+				assert.InDelta(t, 10.0, max, 0.001, "Max should be 10")
 
 				// Check allowed users
 				allowed, ok := unassignConfig["allowed"]
