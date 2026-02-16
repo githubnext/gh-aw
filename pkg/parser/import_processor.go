@@ -902,7 +902,15 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 		importLog.Printf("Processing import %s (in-degree was 0)", current)
 
 		// For each import that depends on the current import, reduce its in-degree
-		for imp, deps := range dependencies {
+		// Iterate over dependencies in sorted order for stable results
+		sortedImports := make([]string, 0, len(dependencies))
+		for imp := range dependencies {
+			sortedImports = append(sortedImports, imp)
+		}
+		sort.Strings(sortedImports)
+
+		for _, imp := range sortedImports {
+			deps := dependencies[imp]
 			for _, dep := range deps {
 				if dep == current && allImportsSet[imp] {
 					inDegree[imp]--

@@ -128,6 +128,173 @@ tools:
 			// Key constraints: f before c, c and d before a, e before b
 			expectedOrder: []string{"d.md", "e.md", "b.md", "f.md", "c.md", "a.md"},
 		},
+		{
+			name: "wide tree with many independent branches",
+			files: map[string]string{
+				"a.md": `---
+imports:
+  - d.md
+tools:
+  tool-a: {}
+---`,
+				"b.md": `---
+imports:
+  - e.md
+tools:
+  tool-b: {}
+---`,
+				"c.md": `---
+imports:
+  - f.md
+tools:
+  tool-c: {}
+---`,
+				"d.md": `---
+tools:
+  tool-d: {}
+---`,
+				"e.md": `---
+tools:
+  tool-e: {}
+---`,
+				"f.md": `---
+tools:
+  tool-f: {}
+---`,
+			},
+			mainImports: []string{"a.md", "b.md", "c.md"},
+			// Each dependency is processed as soon as it's ready:
+			// d (root) -> a (d's dependent), e (root) -> b (e's dependent), f (root) -> c (f's dependent)
+			// Alphabetical order within same level
+			expectedOrder: []string{"d.md", "a.md", "e.md", "b.md", "f.md", "c.md"},
+		},
+		{
+			name: "reverse alphabetical with dependencies",
+			files: map[string]string{
+				"z-parent.md": `---
+imports:
+  - a-child.md
+tools:
+  tool-z: {}
+---`,
+				"y-parent.md": `---
+imports:
+  - b-child.md
+tools:
+  tool-y: {}
+---`,
+				"a-child.md": `---
+tools:
+  tool-a: {}
+---`,
+				"b-child.md": `---
+tools:
+  tool-b: {}
+---`,
+			},
+			mainImports: []string{"z-parent.md", "y-parent.md"},
+			// Children come first in alphabetical order (a, b),
+			// then parents in alphabetical order (y, z)
+			expectedOrder: []string{"a-child.md", "b-child.md", "y-parent.md", "z-parent.md"},
+		},
+		{
+			name: "multi-level dependency chain",
+			files: map[string]string{
+				"level-0.md": `---
+imports:
+  - level-1.md
+tools:
+  tool-0: {}
+---`,
+				"level-1.md": `---
+imports:
+  - level-2.md
+tools:
+  tool-1: {}
+---`,
+				"level-2.md": `---
+imports:
+  - level-3.md
+tools:
+  tool-2: {}
+---`,
+				"level-3.md": `---
+imports:
+  - level-4.md
+tools:
+  tool-3: {}
+---`,
+				"level-4.md": `---
+tools:
+  tool-4: {}
+---`,
+			},
+			mainImports:   []string{"level-0.md"},
+			expectedOrder: []string{"level-4.md", "level-3.md", "level-2.md", "level-1.md", "level-0.md"},
+		},
+		{
+			name: "parallel branches with shared dependency",
+			files: map[string]string{
+				"branch-a-top.md": `---
+imports:
+  - branch-a-mid.md
+tools:
+  tool-a-top: {}
+---`,
+				"branch-a-mid.md": `---
+imports:
+  - shared-base.md
+tools:
+  tool-a-mid: {}
+---`,
+				"branch-b-top.md": `---
+imports:
+  - branch-b-mid.md
+tools:
+  tool-b-top: {}
+---`,
+				"branch-b-mid.md": `---
+imports:
+  - shared-base.md
+tools:
+  tool-b-mid: {}
+---`,
+				"shared-base.md": `---
+tools:
+  tool-shared: {}
+---`,
+			},
+			mainImports: []string{"branch-a-top.md", "branch-b-top.md"},
+			// shared-base (root) -> branch-a-mid (becomes ready) -> branch-a-top (becomes ready)
+			// -> branch-b-mid (becomes ready) -> branch-b-top (becomes ready)
+			// Alphabetical order when multiple items are at the same level
+			expectedOrder: []string{"shared-base.md", "branch-a-mid.md", "branch-a-top.md", "branch-b-mid.md", "branch-b-top.md"},
+		},
+		{
+			name: "mixed naming with special characters",
+			files: map[string]string{
+				"01-first.md": `---
+imports:
+  - 99-last.md
+tools:
+  tool-first: {}
+---`,
+				"02-second.md": `---
+imports:
+  - 99-last.md
+tools:
+  tool-second: {}
+---`,
+				"99-last.md": `---
+tools:
+  tool-last: {}
+---`,
+			},
+			mainImports: []string{"01-first.md", "02-second.md"},
+			// 99-last is shared dependency, comes first
+			// Then dependents in alphabetical order
+			expectedOrder: []string{"99-last.md", "01-first.md", "02-second.md"},
+		},
 	}
 
 	for _, tt := range tests {
