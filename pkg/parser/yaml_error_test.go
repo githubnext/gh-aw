@@ -372,28 +372,28 @@ func TestFormatYAMLErrorAdjustment(t *testing.T) {
 	yamlContent := "name: test\nname: duplicate"
 
 	tests := []struct {
-		offset              int
-		expectedFirstLine   string
-		expectedSecondLine  string
-		expectedDefinedAt   string
+		offset             int
+		expectedFirstLine  string
+		expectedSecondLine string
+		expectedDefinedAt  string
 	}{
 		{
-			offset:              1,
-			expectedFirstLine:   "   1 |",
-			expectedSecondLine:  ">  2 |",
-			expectedDefinedAt:   "already defined at [1:1]",
+			offset:             1,
+			expectedFirstLine:  "   1 |",
+			expectedSecondLine: ">  2 |",
+			expectedDefinedAt:  "already defined at [1:1]",
 		},
 		{
-			offset:              5,
-			expectedFirstLine:   "   5 |",
-			expectedSecondLine:  ">  6 |",
-			expectedDefinedAt:   "already defined at [5:1]",
+			offset:             5,
+			expectedFirstLine:  "   5 |",
+			expectedSecondLine: ">  6 |",
+			expectedDefinedAt:  "already defined at [5:1]",
 		},
 		{
-			offset:              10,
-			expectedFirstLine:   "  10 |",
-			expectedSecondLine:  "> 11 |",
-			expectedDefinedAt:   "already defined at [10:1]",
+			offset:             10,
+			expectedFirstLine:  "  10 |",
+			expectedSecondLine: "> 11 |",
+			expectedDefinedAt:  "already defined at [10:1]",
 		},
 	}
 

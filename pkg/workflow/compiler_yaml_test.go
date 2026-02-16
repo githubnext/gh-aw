@@ -44,7 +44,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with unclosed bracket.`,
-			expectedErrorLine:   9, // Error detected at 'engine: claude' line in YAML (line 9 after opening ---)
+			expectedErrorLine:   10, // Error detected at 'engine: claude' line (line 10 in file, line 9 in YAML content after opening ---)
 			expectedErrorColumn: 1,
 			expectedMessagePart: "',' or ']' must be specified",
 			description:         "unclosed bracket in array should be detected",
@@ -68,7 +68,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with bad mapping.`,
-			expectedErrorLine:   6, // Line 6 in YAML content (after opening ---)
+			expectedErrorLine:   7, // Line 7 in file (line 6 in YAML content after opening ---)
 			expectedErrorColumn: 10,
 			expectedMessagePart: "mapping value is not allowed in this context",
 			description:         "invalid mapping context should be detected",
@@ -89,7 +89,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with bad indentation.`,
-			expectedErrorLine:   3, // Line 3 in YAML content
+			expectedErrorLine:   4, // Line 4 in file (line 3 in YAML content after opening ---)
 			expectedErrorColumn: 11,
 			expectedMessagePart: "mapping value is not allowed in this context",
 			description:         "bad indentation should be detected",
@@ -114,7 +114,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with unclosed quote.`,
-			expectedErrorLine:   8, // Line 8 in YAML content
+			expectedErrorLine:   9, // Line 9 in file (line 8 in YAML content after opening ---)
 			expectedErrorColumn: 15,
 			expectedMessagePart: "could not find end character of double-quoted text",
 			description:         "unclosed quote should be detected",
@@ -138,7 +138,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with duplicate keys.`,
-			expectedErrorLine:   6, // Line 6 in YAML content (second permissions:)
+			expectedErrorLine:   7, // Line 7 in file (line 6 in YAML content - second permissions:)
 			expectedErrorColumn: 1,
 			expectedMessagePart: "mapping key \"permissions\" already defined",
 			description:         "duplicate keys should be detected",
@@ -179,7 +179,7 @@ features:
 # Test Workflow
 
 Invalid YAML with missing colon.`,
-			expectedErrorLine:   2, // Line 2 in YAML content (permissions without colon)
+			expectedErrorLine:   3, // Line 3 in file (line 2 in YAML content - permissions without colon)
 			expectedErrorColumn: 1,
 			expectedMessagePart: "unexpected key name",
 			description:         "missing colon in mapping should be detected",
@@ -198,7 +198,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with missing comma in array.`,
-			expectedErrorLine:   4, // Line 4 in YAML content (the allowed line)
+			expectedErrorLine:   5, // Line 5 in file (line 4 in YAML content - the allowed line)
 			expectedErrorColumn: 29,
 			expectedMessagePart: "',' or ']' must be specified",
 			description:         "missing comma in array should be detected",
@@ -206,7 +206,7 @@ Invalid YAML with missing comma in array.`,
 		{
 			name:                "mixed_tabs_and_spaces",
 			content:             "---\non: push\npermissions:\n  contents: read\n\tissues: write\nengine: claude\n---\n\n# Test Workflow\n\nInvalid YAML with mixed tabs and spaces.",
-			expectedErrorLine:   4, // Line 4 in YAML content (the line with tab)
+			expectedErrorLine:   5, // Line 5 in file (line 4 in YAML content - the line with tab)
 			expectedErrorColumn: 1,
 			expectedMessagePart: "found character '\t' that cannot start any token",
 			description:         "mixed tabs and spaces should be detected",
@@ -252,7 +252,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with malformed nested structure.`,
-			expectedErrorLine:   6, // Line 6 in YAML content (claude: [)
+			expectedErrorLine:   7, // Line 7 in file (line 6 in YAML content - claude: [)
 			expectedErrorColumn: 11,
 			expectedMessagePart: "sequence end token ']' not found",
 			description:         "invalid nested structure should be detected",
@@ -271,7 +271,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with unclosed flow mapping.`,
-			expectedErrorLine:   3, // Line 3 in YAML content (engine: claude - where error is detected)
+			expectedErrorLine:   4, // Line 4 in file (line 3 in YAML content - engine: claude where error is detected)
 			expectedErrorColumn: 1,
 			expectedMessagePart: "',' or '}' must be specified",
 			description:         "unclosed flow mapping should be detected",
@@ -378,7 +378,7 @@ engine: copilot
 # Test
 
 Test content.`,
-			expectedLineCol: "[2:10]",
+			expectedLineCol: "[3:10]", // Line 3 in file (line 2 in YAML content)
 			expectedInError: []string{"mapping value is not allowed"},
 			expectPointer:   true,
 			description:     "simple syntax error shows formatted output",
@@ -398,7 +398,7 @@ engine: copilot
 # Test
 
 Test content.`,
-			expectedLineCol: "[5:1]",
+			expectedLineCol: "[6:1]", // Line 6 in file (second tools: key)
 			expectedInError: []string{"mapping key \"tools\" already defined"},
 			expectPointer:   true,
 			description:     "duplicate key error shows formatted output with both locations",
@@ -415,7 +415,7 @@ engine: copilot
 # Test
 
 Test content.`,
-			expectedLineCol: "[2:1]",
+			expectedLineCol: "[3:1]", // Line 3 in file (permissions without colon)
 			expectedInError: []string{"unexpected key name", "permissions"},
 			expectPointer:   true,
 			description:     "missing colon shows formatted output",

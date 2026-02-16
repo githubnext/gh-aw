@@ -16,16 +16,16 @@ var yamlErrorLog = logger.New("parser:yaml_error")
 // Returns the formatted error string with line numbers adjusted for frontmatter position
 func FormatYAMLError(err error, frontmatterLineOffset int, sourceYAML string) string {
 	yamlErrorLog.Printf("Formatting YAML error with yaml.FormatError(): offset=%d", frontmatterLineOffset)
-	
+
 	// Use goccy/go-yaml's native FormatError for consistent formatting with source context
 	// colored=false to avoid ANSI escape codes, inclSource=true to include source lines
 	formatted := yaml.FormatError(err, false, true)
-	
+
 	// Adjust line numbers in the formatted output to account for frontmatter position
 	if frontmatterLineOffset > 1 {
 		formatted = adjustLineNumbersInFormattedError(formatted, frontmatterLineOffset-1)
 	}
-	
+
 	return formatted
 }
 
@@ -35,12 +35,12 @@ func adjustLineNumbersInFormattedError(formatted string, offset int) string {
 	if offset == 0 {
 		return formatted
 	}
-	
+
 	// Pattern to match line numbers in the format:
 	// [line:col] at the start
 	// "   1 | content" in the source context
 	// ">  2 | content" with the error marker
-	
+
 	// Adjust [line:col] format at the start
 	lineColPattern := regexp.MustCompile(`^\[(\d+):(\d+)\]`)
 	formatted = lineColPattern.ReplaceAllStringFunc(formatted, func(match string) string {
@@ -50,7 +50,7 @@ func adjustLineNumbersInFormattedError(formatted string, offset int) string {
 		}
 		return match
 	})
-	
+
 	// Adjust line numbers in "already defined at [line:col]" references
 	definedAtPattern := regexp.MustCompile(`already defined at \[(\d+):(\d+)\]`)
 	formatted = definedAtPattern.ReplaceAllStringFunc(formatted, func(match string) string {
@@ -60,7 +60,7 @@ func adjustLineNumbersInFormattedError(formatted string, offset int) string {
 		}
 		return match
 	})
-	
+
 	// Adjust line numbers in source context lines (both "   1 |" and ">  1 |" formats)
 	sourceLinePattern := regexp.MustCompile(`(?m)^(>?\s*)(\d+)(\s*\|)`)
 	formatted = sourceLinePattern.ReplaceAllStringFunc(formatted, func(match string) string {
@@ -90,7 +90,7 @@ func adjustLineNumbersInFormattedError(formatted string, offset int) string {
 		}
 		return match
 	})
-	
+
 	return formatted
 }
 
