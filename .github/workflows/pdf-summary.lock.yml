@@ -206,7 +206,6 @@ jobs:
               workflow_name: "Resource Summarizer Agent",
               experimental: false,
               supports_tools_allowlist: true,
-              supports_http_transport: true,
               run_id: context.runId,
               run_number: context.runNumber,
               run_attempt: process.env.GITHUB_RUN_ATTEMPT,
