@@ -91,8 +91,11 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 		return "", fmt.Errorf("invalid interval format, expected 'every N unit' or 'every Nunit'")
 	}
 
+	// Check if "on weekdays" suffix is present at the end
+	hasWeekdaysSuffix := p.hasWeekdaysSuffix()
+
 	// Check if the second token is a duration format like "2h", "30m", "1d"
-	if len(p.tokens) == 2 || (len(p.tokens) > 2 && p.tokens[2] != "minutes" && p.tokens[2] != "hours" && p.tokens[2] != "minute" && p.tokens[2] != "hour") {
+	if len(p.tokens) == 2 || (len(p.tokens) == 4 && hasWeekdaysSuffix) || (len(p.tokens) > 2 && !hasWeekdaysSuffix && p.tokens[2] != "minutes" && p.tokens[2] != "hours" && p.tokens[2] != "minute" && p.tokens[2] != "hour") {
 		// Try to parse as short duration format: "every 2h", "every 30m", "every 1d"
 		durationStr := p.tokens[1]
 
@@ -104,9 +107,13 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 			interval, _ := strconv.Atoi(matches[1])
 			unit := matches[2]
 
-			// Check for conflicting "at time" clause
+			// Check for conflicting "at time" clause (but allow "on weekdays")
+			endPos := len(p.tokens)
+			if hasWeekdaysSuffix {
+				endPos -= 2
+			}
 			if len(p.tokens) > 2 {
-				for i := 2; i < len(p.tokens); i++ {
+				for i := 2; i < endPos; i++ {
 					if p.tokens[i] == "at" {
 						return "", fmt.Errorf("interval schedules cannot have 'at time' clause")
 					}
@@ -135,9 +142,16 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 			switch unit {
 			case "m":
 				// every Nm -> */N * * * * (minute intervals don't need scattering)
+				// Minute intervals with weekdays not supported (would run every N minutes only on weekdays)
+				if hasWeekdaysSuffix {
+					return "", fmt.Errorf("minute intervals with 'on weekdays' are not supported")
+				}
 				return fmt.Sprintf("*/%d * * * *", interval), nil
 			case "h":
-				// every Nh -> FUZZY:HOURLY/N (fuzzy hourly interval with scattering)
+				// every Nh -> FUZZY:HOURLY/N or FUZZY:HOURLY_WEEKDAYS/N (fuzzy hourly interval with scattering)
+				if hasWeekdaysSuffix {
+					return fmt.Sprintf("FUZZY:HOURLY_WEEKDAYS/%d * * *", interval), nil
+				}
 				return fmt.Sprintf("FUZZY:HOURLY/%d * * *", interval), nil
 			case "d":
 				// every Nd -> daily at midnight, repeated N times
@@ -171,7 +185,11 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 	}
 
 	// Fall back to original parsing for "every N minutes" format
-	if len(p.tokens) < 3 {
+	minTokens := 3
+	if hasWeekdaysSuffix {
+		minTokens = 5
+	}
+	if len(p.tokens) < minTokens {
 		return "", fmt.Errorf("invalid interval format, expected 'every N unit' or 'every Nunit' (e.g., 'every 2h')")
 	}
 
@@ -188,10 +206,14 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 		unit += "s" // Normalize to plural (minute -> minutes)
 	}
 
-	// Check for conflicting "at time" clause
+	// Check for conflicting "at time" clause (but allow "on weekdays")
+	endPos := len(p.tokens)
+	if hasWeekdaysSuffix {
+		endPos -= 2
+	}
 	if len(p.tokens) > 3 {
 		// Look for "at" keyword
-		for i := 3; i < len(p.tokens); i++ {
+		for i := 3; i < endPos; i++ {
 			if p.tokens[i] == "at" {
 				return "", fmt.Errorf("interval schedules cannot have 'at time' clause")
 			}
@@ -221,9 +243,16 @@ func (p *ScheduleParser) parseInterval() (string, error) {
 	switch unit {
 	case "minutes":
 		// every N minutes -> */N * * * * (minute intervals don't need scattering)
+		// Minute intervals with weekdays not supported
+		if hasWeekdaysSuffix {
+			return "", fmt.Errorf("minute intervals with 'on weekdays' are not supported")
+		}
 		return fmt.Sprintf("*/%d * * * *", interval), nil
 	case "hours":
-		// every N hours -> FUZZY:HOURLY/N (fuzzy hourly interval with scattering)
+		// every N hours -> FUZZY:HOURLY/N or FUZZY:HOURLY_WEEKDAYS/N (fuzzy hourly interval with scattering)
+		if hasWeekdaysSuffix {
+			return fmt.Sprintf("FUZZY:HOURLY_WEEKDAYS/%d * * *", interval), nil
+		}
 		return fmt.Sprintf("FUZZY:HOURLY/%d * * *", interval), nil
 	case "days":
 		// every N days -> daily at midnight, repeated N times
@@ -254,14 +283,23 @@ func (p *ScheduleParser) parseBase() (string, error) {
 	month = "*"
 	weekday = "*"
 
+	// Check if "on weekdays" suffix is present at the end
+	hasWeekdaysSuffix := p.hasWeekdaysSuffix()
+
 	switch baseType {
 	case "daily":
 		// daily -> FUZZY:DAILY (fuzzy schedule, time will be scattered)
+		// daily on weekdays -> FUZZY:DAILY_WEEKDAYS (fuzzy schedule, Mon-Fri only)
 		// daily at HH:MM -> MM HH * * *
 		// daily around HH:MM -> FUZZY:DAILY_AROUND:HH:MM (fuzzy schedule with target time)
+		// daily around HH:MM on weekdays -> FUZZY:DAILY_AROUND_WEEKDAYS:HH:MM
 		// daily between HH:MM and HH:MM -> FUZZY:DAILY_BETWEEN:START_H:START_M:END_H:END_M (fuzzy schedule within time range)
-		if len(p.tokens) == 1 {
-			// Just "daily" with no time - this is a fuzzy schedule
+		// daily between HH:MM and HH:MM on weekdays -> FUZZY:DAILY_BETWEEN_WEEKDAYS:START_H:START_M:END_H:END_M
+		if len(p.tokens) == 1 || (len(p.tokens) == 3 && hasWeekdaysSuffix) {
+			// Just "daily" or "daily on weekdays" with no time - this is a fuzzy schedule
+			if hasWeekdaysSuffix {
+				return "FUZZY:DAILY_WEEKDAYS * * *", nil
+			}
 			return "FUZZY:DAILY * * *", nil
 		}
 		if len(p.tokens) > 1 {
@@ -275,7 +313,12 @@ func (p *ScheduleParser) parseBase() (string, error) {
 
 				// Find the "and" keyword to split start and end times
 				andIndex := -1
-				for i := 2; i < len(p.tokens); i++ {
+				endPos := len(p.tokens)
+				// If "on weekdays" suffix, exclude the last 2 tokens from search
+				if hasWeekdaysSuffix {
+					endPos -= 2
+				}
+				for i := 2; i < endPos; i++ {
 					if p.tokens[i] == "and" {
 						andIndex = i
 						break
@@ -292,8 +335,8 @@ func (p *ScheduleParser) parseBase() (string, error) {
 				}
 				startMinute, startHour := parseTime(startTimeStr)
 
-				// Extract end time (tokens after "and")
-				endTimeStr, err := p.extractTimeAfter(andIndex + 1)
+				// Extract end time (tokens after "and", possibly excluding "on weekdays")
+				endTimeStr, err := p.extractTimeAfter(andIndex+1, hasWeekdaysSuffix)
 				if err != nil {
 					return "", fmt.Errorf("invalid end time in 'between' clause: %w", err)
 				}
@@ -309,19 +352,25 @@ func (p *ScheduleParser) parseBase() (string, error) {
 					return "", fmt.Errorf("start and end times cannot be the same in 'between' clause")
 				}
 
-				// Return fuzzy between format: FUZZY:DAILY_BETWEEN:START_H:START_M:END_H:END_M
+				// Return fuzzy between format with optional weekdays suffix
+				if hasWeekdaysSuffix {
+					return fmt.Sprintf("FUZZY:DAILY_BETWEEN_WEEKDAYS:%s:%s:%s:%s * * *", startHour, startMinute, endHour, endMinute), nil
+				}
 				return fmt.Sprintf("FUZZY:DAILY_BETWEEN:%s:%s:%s:%s * * *", startHour, startMinute, endHour, endMinute), nil
 			}
 			// Check if "around" keyword is used
 			if p.tokens[1] == "around" {
-				// Extract time after "around"
-				timeStr, err := p.extractTime(2)
+				// Extract time after "around", possibly excluding "on weekdays"
+				timeStr, err := p.extractTimeWithWeekdays(2, hasWeekdaysSuffix)
 				if err != nil {
 					return "", err
 				}
 				// Parse the time to validate it
 				minute, hour = parseTime(timeStr)
-				// Return fuzzy around format: FUZZY:DAILY_AROUND:HH:MM
+				// Return fuzzy around format with optional weekdays suffix
+				if hasWeekdaysSuffix {
+					return fmt.Sprintf("FUZZY:DAILY_AROUND_WEEKDAYS:%s:%s * * *", hour, minute), nil
+				}
 				return fmt.Sprintf("FUZZY:DAILY_AROUND:%s:%s * * *", hour, minute), nil
 			}
 			// Reject "daily at TIME" pattern - use cron directly for fixed times
@@ -330,7 +379,11 @@ func (p *ScheduleParser) parseBase() (string, error) {
 
 	case "hourly":
 		// hourly -> FUZZY:HOURLY/1 (fuzzy hourly schedule, equivalent to "every 1h")
-		if len(p.tokens) == 1 {
+		// hourly on weekdays -> FUZZY:HOURLY_WEEKDAYS/1 (fuzzy hourly schedule, Mon-Fri only)
+		if len(p.tokens) == 1 || (len(p.tokens) == 3 && hasWeekdaysSuffix) {
+			if hasWeekdaysSuffix {
+				return "FUZZY:HOURLY_WEEKDAYS/1 * * *", nil
+			}
 			return "FUZZY:HOURLY/1 * * *", nil
 		}
 		// hourly doesn't support time specifications
@@ -477,21 +530,77 @@ func (p *ScheduleParser) extractTimeBetween(startPos, endPos int) (string, error
 
 // extractTimeAfter extracts a time specification from tokens starting at startPos until the end
 // Used for parsing the end time in "between START and END" clauses
-func (p *ScheduleParser) extractTimeAfter(startPos int) (string, error) {
+// If hasWeekdaysSuffix is true, excludes the last 2 tokens ("on weekdays")
+func (p *ScheduleParser) extractTimeAfter(startPos int, hasWeekdaysSuffix bool) (string, error) {
 	if startPos >= len(p.tokens) {
 		return "", fmt.Errorf("expected time specification")
 	}
 
-	// Collect remaining tokens (time and optional UTC offset)
+	endPos := len(p.tokens)
+	if hasWeekdaysSuffix {
+		endPos -= 2
+	}
+
+	if startPos >= endPos {
+		return "", fmt.Errorf("expected time specification")
+	}
+
+	// Collect tokens until endPos (time and optional UTC offset)
 	timeStr := p.tokens[startPos]
 
 	timeTokens := []string{timeStr}
 	nextIndex := startPos + 1
-	if nextIndex < len(p.tokens) && isAMPMToken(p.tokens[nextIndex]) {
+	if nextIndex < endPos && isAMPMToken(p.tokens[nextIndex]) {
 		timeTokens = append(timeTokens, p.tokens[nextIndex])
 		nextIndex++
 	}
-	if nextIndex < len(p.tokens) {
+	if nextIndex < endPos {
+		timezoneToken := strings.ToLower(p.tokens[nextIndex])
+		if strings.HasPrefix(timezoneToken, "utc") {
+			timeTokens = append(timeTokens, timezoneToken)
+		} else if normalized, ok := normalizeTimezoneAbbreviation(timezoneToken); ok {
+			timeTokens = append(timeTokens, normalized)
+		}
+	}
+
+	return normalizeTimeTokens(timeTokens), nil
+}
+
+// hasWeekdaysSuffix checks if "on weekdays" is present at the end of tokens
+func (p *ScheduleParser) hasWeekdaysSuffix() bool {
+	if len(p.tokens) < 2 {
+		return false
+	}
+	// Check if the last two tokens are "on" and "weekdays"
+	return p.tokens[len(p.tokens)-2] == "on" && p.tokens[len(p.tokens)-1] == "weekdays"
+}
+
+// extractTimeWithWeekdays extracts time specification, handling optional "on weekdays" suffix
+func (p *ScheduleParser) extractTimeWithWeekdays(startPos int, hasWeekdaysSuffix bool) (string, error) {
+	if startPos >= len(p.tokens) {
+		return "", fmt.Errorf("expected time specification")
+	}
+
+	// Check for "at" keyword
+	if p.tokens[startPos] == "at" {
+		startPos++
+		if startPos >= len(p.tokens) {
+			return "", fmt.Errorf("expected time after 'at'")
+		}
+	}
+
+	endPos := len(p.tokens)
+	if hasWeekdaysSuffix {
+		endPos -= 2
+	}
+
+	timeTokens := []string{p.tokens[startPos]}
+	nextIndex := startPos + 1
+	if nextIndex < endPos && isAMPMToken(p.tokens[nextIndex]) {
+		timeTokens = append(timeTokens, p.tokens[nextIndex])
+		nextIndex++
+	}
+	if nextIndex < endPos {
 		timezoneToken := strings.ToLower(p.tokens[nextIndex])
 		if strings.HasPrefix(timezoneToken, "utc") {
 			timeTokens = append(timeTokens, timezoneToken)

@@ -557,3 +557,64 @@ func TestStableHash(t *testing.T) {
 		t.Logf("Warning: different strings produced same hash (rare but possible)")
 	}
 }
+
+func TestScatterScheduleWeekdays(t *testing.T) {
+	workflowID := "test/repo/workflow.md"
+
+	tests := []struct {
+		name           string
+		fuzzyCron      string
+		expectedSuffix string // Expected day-of-week suffix
+	}{
+		{
+			name:           "FUZZY:DAILY_WEEKDAYS",
+			fuzzyCron:      "FUZZY:DAILY_WEEKDAYS * * *",
+			expectedSuffix: " 1-5",
+		},
+		{
+			name:           "FUZZY:HOURLY_WEEKDAYS/1",
+			fuzzyCron:      "FUZZY:HOURLY_WEEKDAYS/1 * * *",
+			expectedSuffix: " 1-5",
+		},
+		{
+			name:           "FUZZY:HOURLY_WEEKDAYS/2",
+			fuzzyCron:      "FUZZY:HOURLY_WEEKDAYS/2 * * *",
+			expectedSuffix: " 1-5",
+		},
+		{
+			name:           "FUZZY:DAILY_AROUND_WEEKDAYS",
+			fuzzyCron:      "FUZZY:DAILY_AROUND_WEEKDAYS:9:0 * * *",
+			expectedSuffix: " 1-5",
+		},
+		{
+			name:           "FUZZY:DAILY_BETWEEN_WEEKDAYS",
+			fuzzyCron:      "FUZZY:DAILY_BETWEEN_WEEKDAYS:9:0:17:0 * * *",
+			expectedSuffix: " 1-5",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ScatterSchedule(tt.fuzzyCron, workflowID)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// Check that the result ends with the expected suffix (day-of-week)
+			if !strings.HasSuffix(result, tt.expectedSuffix) {
+				t.Errorf("expected result to end with '%s', got '%s'", tt.expectedSuffix, result)
+			}
+
+			// Validate it's a valid cron expression with 5 fields
+			fields := strings.Fields(result)
+			if len(fields) != 5 {
+				t.Errorf("expected 5 cron fields, got %d: %s", len(fields), result)
+			}
+
+			// Verify the last field is the weekday range 1-5
+			if fields[4] != "1-5" {
+				t.Errorf("expected day-of-week field to be '1-5', got '%s'", fields[4])
+			}
+		})
+	}
+}
