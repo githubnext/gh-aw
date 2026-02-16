@@ -60,7 +60,7 @@ func CheckExistingSecrets(repoSlug string) (map[string]bool, error) {
 	output, err := workflow.RunGHCombined("Checking secrets...", "secret", "list", "--repo", repoSlug)
 	if err != nil {
 		secretCollectionLog.Printf("Could not list secrets for %s: %v", repoSlug, err)
-		return existingSecrets, nil // Return empty map, don't fail
+		return existingSecrets, err
 	}
 
 	// Check for all known engine secrets (primary, alternative, and system-level)

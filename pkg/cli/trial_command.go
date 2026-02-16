@@ -322,29 +322,26 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 		return nil
 	}
 
-	// Step 2.5: Ensure engine secrets are configured
-	// Check what secrets already exist in the repository
-	existingSecrets, err := CheckExistingSecrets(hostRepoSlug)
-	if err != nil {
-		trialLog.Printf("Warning: could not check existing secrets: %v", err)
-		existingSecrets = make(map[string]bool)
-	}
+	// Step 2.5: Ensure engine secrets are configured when an explicit engine override is provided
+	// When no override is specified, the workflow will use its frontmatter engine and handle secrets during compilation
+	if opts.EngineOverride != "" {
+		// Check what secrets already exist in the repository
+		existingSecrets, err := CheckExistingSecrets(hostRepoSlug)
+		if err != nil {
+			trialLog.Printf("Warning: could not check existing secrets: %v", err)
+			existingSecrets = make(map[string]bool)
+		}
 
-	// Determine the engine type
-	engine := opts.EngineOverride
-	if engine == "" {
-		engine = "copilot" // Default engine
-	}
-
-	// Ensure the required engine secret is available (prompts interactively if needed)
-	secretConfig := SecretCollectionConfig{
-		RepoSlug:        hostRepoSlug,
-		Engine:          engine,
-		Verbose:         opts.Verbose,
-		ExistingSecrets: existingSecrets,
-	}
-	if err := EnsureEngineSecret(secretConfig); err != nil {
-		return fmt.Errorf("failed to configure engine secret: %w", err)
+		// Ensure the required engine secret is available (prompts interactively if needed)
+		secretConfig := SecretCollectionConfig{
+			RepoSlug:        hostRepoSlug,
+			Engine:          opts.EngineOverride,
+			Verbose:         opts.Verbose,
+			ExistingSecrets: existingSecrets,
+		}
+		if err := EnsureEngineSecret(secretConfig); err != nil {
+			return fmt.Errorf("failed to configure engine secret: %w", err)
+		}
 	}
 
 	// Set up cleanup if requested
@@ -445,7 +442,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 		// Step 5: Run trials for each workflow
 		var workflowResults []WorkflowTrialResult
 
-		for i, parsedSpec := range parsedSpecs {
+		for _, parsedSpec := range parsedSpecs {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Running trial for workflow: %s ===", parsedSpec.WorkflowName)))
 
 			// Install workflow with trial mode compilation
