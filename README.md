@@ -5,7 +5,7 @@ Here are some pointers to get you started in using this tool.
 
 - Create a new workflow: https://raw.githubusercontent.com/github/gh-aw/main/create.md
 - Install: https://raw.githubusercontent.com/github/gh-aw/main/install.md
-- Reference: https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/github-agentic-workflows.md
+- Reference: https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/github-agentic_workflows.md
 
 -->
 
@@ -41,6 +41,36 @@ Using agentic workflows in your repository requires careful attention to securit
 ## Documentation
 
 For complete documentation, examples, and guides, see the [Documentation](https://github.github.com/gh-aw/).
+
+## YAML Library Choice
+
+This project uses [goccy/go-yaml](https://github.com/goccy/go-yaml) for YAML processing instead of the more commonly used `go-yaml/yaml`.
+
+### Why goccy/go-yaml?
+
+- **More test passes**: goccy/go-yaml passes 60+ more YAML Test Suite tests than go-yaml/yaml
+- **Better error messages**: Provides source code context in error messages, making debugging easier
+- **Active maintenance**: Regular commits and improvements (latest from 2026-02-16!)
+- **Native Go implementation**: Pure Go implementation, not a C port
+- **Advanced features**: Supports YAML Path, AST manipulation, and other advanced capabilities
+
+### Usage Example
+
+```go
+import "github.com/goccy/go-yaml"
+
+// Decode YAML
+var data struct {
+    Name string `yaml:"name"`
+    Age  int    `yaml:"age"`
+}
+if err := yaml.Unmarshal([]byte(yamlString), &data); err != nil {
+    // Error message includes file and line number
+    fmt.Printf("Error at line %d: %v\n", err.Line(), err)
+}
+```
+
+For more best practices, see the [goccy/go-yaml documentation](https://github.com/goccy/go-yaml).
 
 ## Contributing
 
