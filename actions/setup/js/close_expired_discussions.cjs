@@ -4,6 +4,7 @@
 const { executeExpiredEntityCleanup } = require("./expired_entity_main_flow.cjs");
 const { generateExpiredEntityFooter } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { getWorkflowMetadata } = require("./workflow_metadata_helpers.cjs");
 
 /**
  * Add comment to a GitHub Discussion using GraphQL
@@ -93,11 +94,7 @@ async function main() {
   const repo = context.repo.repo;
 
   // Get workflow metadata for footer
-  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-  const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
-  const runId = context.runId || 0;
-  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const runUrl = context.payload?.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${owner}/${repo}/actions/runs/${runId}`;
+  const { workflowName, workflowId, runUrl } = getWorkflowMetadata(owner, repo);
 
   await executeExpiredEntityCleanup(github, owner, repo, {
     entityType: "discussions",
