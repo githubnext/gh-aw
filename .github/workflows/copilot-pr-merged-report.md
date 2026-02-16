@@ -227,7 +227,7 @@ Create a concise report with the following structure:
 - **Test File Types**:
   - Go tests (`*_test.go`): [count]
   - JavaScript tests (`*.test.js`): [count]
-  - .NET tests (`*Tests.cs`): [count]
+  - .NET tests (`*Tests.cs`, `*Test.cs`): [count]
 
 ## Workflow Execution
 

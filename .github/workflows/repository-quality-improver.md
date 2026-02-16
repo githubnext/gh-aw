@@ -172,7 +172,7 @@ SRC_LOC=$(find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" | x
 echo "Test ratio: $(echo "scale=2; $TEST_LOC / $SRC_LOC" | bc)"
 
 # Test file count
-find . -name "*_test.go" -o -name "*.test.js" -o -name "*Tests.cs" | wc -l
+find . -type f \( -name "*_test.go" -o -name "*.test.js" -o -name "*Tests.cs" -o -name "*Test.cs" \) | wc -l
 ```
 
 ### Security Analysis
