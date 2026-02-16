@@ -54,6 +54,9 @@ gh aw compile my-workflow
 # Compile with strict security checks
 gh aw compile --strict
 
+# Stop at first error (default: aggregate all errors)
+gh aw compile --fail-fast
+
 # Remove orphaned .lock.yml files (no corresponding .md)
 gh aw compile --purge
 
