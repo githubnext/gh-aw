@@ -119,6 +119,30 @@ describe("update_project handler config: field_definitions", () => {
   });
 });
 
+describe("update_project handler deferral", () => {
+  it("defers when content_number is an unresolved temporary ID", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+
+    const handler = await updateProjectHandlerFactory({ max: 10 });
+
+    const result = await handler(
+      {
+        type: "update_project",
+        project: projectUrl,
+        content_type: "issue",
+        content_number: "aw_missing1",
+      },
+      {},
+      new Map()
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.deferred).toBe(true);
+    expect(result.error).toMatch(/Temporary ID 'aw_missing1' not found in map/i);
+    expect(mockGithub.graphql).not.toHaveBeenCalled();
+  });
+});
+
 describe("update_project token guardrails", () => {
   it("fails fast with a clear error when authenticated as github-actions[bot]", async () => {
     delete process.env.GH_AW_PROJECT_GITHUB_TOKEN;

@@ -1243,6 +1243,23 @@ async function main(config = {}, githubClient = null) {
       // Create effective message with resolved project URL
       const resolvedMessage = { ...message, project: effectiveProjectUrl };
 
+      const hasContentNumber = resolvedMessage.content_number !== undefined && resolvedMessage.content_number !== null && String(resolvedMessage.content_number).trim() !== "";
+      const hasIssue = resolvedMessage.issue !== undefined && resolvedMessage.issue !== null && String(resolvedMessage.issue).trim() !== "";
+      const hasPullRequest = resolvedMessage.pull_request !== undefined && resolvedMessage.pull_request !== null && String(resolvedMessage.pull_request).trim() !== "";
+      if (resolvedMessage.content_type !== "draft_issue" && (hasContentNumber || hasIssue || hasPullRequest)) {
+        const rawContentNumber = hasContentNumber ? resolvedMessage.content_number : hasIssue ? resolvedMessage.issue : resolvedMessage.pull_request;
+        const sanitizedContentNumber = typeof rawContentNumber === "number" ? rawContentNumber.toString() : String(rawContentNumber).trim();
+        const resolved = resolveIssueNumber(sanitizedContentNumber, tempIdMap);
+        if (resolved.wasTemporaryId && !resolved.resolved) {
+          core.info(`Deferring update_project: unresolved temporary ID (${sanitizedContentNumber})`);
+          return {
+            success: false,
+            deferred: true,
+            error: resolved.errorMessage || `Unresolved temporary ID: ${sanitizedContentNumber}`,
+          };
+        }
+      }
+
       // Store the first project URL for view creation
       if (!firstProjectUrl && effectiveProjectUrl) {
         firstProjectUrl = effectiveProjectUrl;
