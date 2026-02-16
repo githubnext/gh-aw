@@ -10,6 +10,12 @@ import (
 
 var frontmatterErrorLog = logger.New("workflow:frontmatter_error")
 
+// Package-level compiled regex patterns for better performance
+var (
+	lineColPattern       = regexp.MustCompile(`\[(\d+):(\d+)\]\s*(.+)`)
+	sourceContextPattern = regexp.MustCompile(`\n(\s+\d+\s*\|)`)
+)
+
 // createFrontmatterError creates a detailed error for frontmatter parsing issues
 // frontmatterLineOffset is the line number where the frontmatter content begins (1-based)
 // Returns error in VSCode-compatible format: filename:line:column: error message
@@ -23,7 +29,6 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 	if strings.Contains(errorStr, "failed to parse frontmatter:\n[") && (strings.Contains(errorStr, "\n>") || strings.Contains(errorStr, "|")) {
 		// Extract line and column from the formatted error for VSCode compatibility
 		// Pattern: [line:col] message
-		lineColPattern := regexp.MustCompile(`\[(\d+):(\d+)\]\s*(.+)`)
 		if matches := lineColPattern.FindStringSubmatch(errorStr); len(matches) >= 4 {
 			line := matches[1]
 			col := matches[2]
@@ -37,17 +42,18 @@ func (c *Compiler) createFrontmatterError(filePath, content string, err error, f
 			// This is compatible with VSCode's problem matcher
 			vscodeFormat := fmt.Sprintf("%s:%s:%s: error: %s", filePath, line, col, message)
 
-			// Extract just the context part (after "failed to parse frontmatter:\n")
-			contextStart := strings.Index(errorStr, "failed to parse frontmatter:\n")
-			if contextStart >= 0 {
-				context := errorStr[contextStart+len("failed to parse frontmatter:\n"):]
-				// Return VSCode-compatible format on first line, followed by context
+			// Extract just the source context lines (skip the [line:col] message line to avoid duplication)
+			// Find the first line that starts with whitespace + digit + | (source context line)
+			if loc := sourceContextPattern.FindStringIndex(errorStr); loc != nil {
+				// Extract from the first source context line to the end
+				context := errorStr[loc[0]+1:] // +1 to skip the leading newline
+				// Return VSCode-compatible format on first line, followed by source context only
 				frontmatterErrorLog.Print("Formatting error for VSCode compatibility")
 				return fmt.Errorf("%s\n%s", vscodeFormat, context)
 			}
 
-			// If we can't extract context, return the VSCode format with original error
-			return fmt.Errorf("%s\n%s", vscodeFormat, errorStr)
+			// If we can't extract source context, return just the VSCode format
+			return fmt.Errorf("%s", vscodeFormat)
 		}
 
 		// Fallback if we can't parse the line/col

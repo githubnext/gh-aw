@@ -11,6 +11,13 @@ import (
 
 var yamlErrorLog = logger.New("parser:yaml_error")
 
+// Package-level compiled regex patterns for better performance
+var (
+	lineColPatternParser = regexp.MustCompile(`^\[(\d+):(\d+)\]`)
+	definedAtPattern     = regexp.MustCompile(`already defined at \[(\d+):(\d+)\]`)
+	sourceLinePattern    = regexp.MustCompile(`(?m)^(>?\s*)(\d+)(\s*\|)`)
+)
+
 // FormatYAMLError formats a YAML error with source code context using yaml.FormatError()
 // frontmatterLineOffset is the line number where the frontmatter content begins in the document (1-based)
 // Returns the formatted error string with line numbers adjusted for frontmatter position
@@ -42,8 +49,7 @@ func adjustLineNumbersInFormattedError(formatted string, offset int) string {
 	// ">  2 | content" with the error marker
 
 	// Adjust [line:col] format at the start
-	lineColPattern := regexp.MustCompile(`^\[(\d+):(\d+)\]`)
-	formatted = lineColPattern.ReplaceAllStringFunc(formatted, func(match string) string {
+	formatted = lineColPatternParser.ReplaceAllStringFunc(formatted, func(match string) string {
 		var line, col int
 		if _, err := fmt.Sscanf(match, "[%d:%d]", &line, &col); err == nil {
 			return fmt.Sprintf("[%d:%d]", line+offset, col)
@@ -52,7 +58,6 @@ func adjustLineNumbersInFormattedError(formatted string, offset int) string {
 	})
 
 	// Adjust line numbers in "already defined at [line:col]" references
-	definedAtPattern := regexp.MustCompile(`already defined at \[(\d+):(\d+)\]`)
 	formatted = definedAtPattern.ReplaceAllStringFunc(formatted, func(match string) string {
 		var line, col int
 		if _, err := fmt.Sscanf(match, "already defined at [%d:%d]", &line, &col); err == nil {
@@ -62,9 +67,7 @@ func adjustLineNumbersInFormattedError(formatted string, offset int) string {
 	})
 
 	// Adjust line numbers in source context lines (both "   1 |" and ">  1 |" formats)
-	sourceLinePattern := regexp.MustCompile(`(?m)^(>?\s*)(\d+)(\s*\|)`)
 	formatted = sourceLinePattern.ReplaceAllStringFunc(formatted, func(match string) string {
-		var prefix, lineStr, suffix string
 		var line int
 		if strings.Contains(match, ">") {
 			if _, err := fmt.Sscanf(match, "> %d |", &line); err == nil {
@@ -78,14 +81,13 @@ func adjustLineNumbersInFormattedError(formatted string, offset int) string {
 		// If we can't parse it, extract parts manually
 		parts := strings.Split(match, "|")
 		if len(parts) == 2 {
-			prefix = strings.TrimRight(parts[0], "0123456789")
-			lineStr = strings.Trim(parts[0][len(prefix):], " ")
-			suffix = " |"
+			prefix := strings.TrimRight(parts[0], "0123456789")
+			lineStr := strings.Trim(parts[0][len(prefix):], " ")
 			if n, err := fmt.Sscanf(lineStr, "%d", &line); err == nil && n == 1 {
 				if strings.Contains(prefix, ">") {
-					return fmt.Sprintf(">%3d%s", line+offset, suffix)
+					return fmt.Sprintf(">%3d |", line+offset)
 				}
-				return fmt.Sprintf("%4d%s", line+offset, suffix)
+				return fmt.Sprintf("%4d |", line+offset)
 			}
 		}
 		return match

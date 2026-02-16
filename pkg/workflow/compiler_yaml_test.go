@@ -438,9 +438,25 @@ Test content.`,
 
 			errorStr := err.Error()
 
-			// Check for [line:col] format from yaml.FormatError()
-			if !strings.Contains(errorStr, tt.expectedLineCol) {
-				t.Errorf("%s: error should contain line:col format '%s', got: %s", tt.description, tt.expectedLineCol, errorStr)
+			// Check for VSCode-compatible format on the first line: filename:line:column: error: message
+			// This should NOT include a duplicate [line:col] line
+			vscodeFormatPattern := fmt.Sprintf("%s: error:", tt.expectedLineCol[1:len(tt.expectedLineCol)-1])
+			if !strings.Contains(errorStr, vscodeFormatPattern) {
+				t.Errorf("%s: error should contain VSCode format '%s', got: %s", tt.description, vscodeFormatPattern, errorStr)
+			}
+
+			// The error should NOT contain the duplicate [line:col] line (we only want source context)
+			// Check that we don't have the standalone [line:col] message line
+			lines := strings.Split(errorStr, "\n")
+			for i, line := range lines {
+				// Skip the first line (VSCode format)
+				if i == 0 {
+					continue
+				}
+				// Check if any subsequent line is just [line:col] message without source context markers
+				if strings.HasPrefix(strings.TrimSpace(line), "[") && !strings.Contains(line, "|") && !strings.Contains(line, "already defined at") {
+					t.Errorf("%s: error should not contain duplicate [line:col] message line (line %d: %q), got: %s", tt.description, i+1, line, errorStr)
+				}
 			}
 
 			// Check that expected strings are in the error
