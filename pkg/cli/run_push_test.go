@@ -179,7 +179,7 @@ func TestIsWorkflowSpecFormatLocal(t *testing.T) {
 		{
 			name:     "workflowspec without SHA",
 			path:     "owner/repo/path/file.md",
-			expected: true,
+			expected: false,
 		},
 		{
 			name:     "relative path with ./",
@@ -199,12 +199,17 @@ func TestIsWorkflowSpecFormatLocal(t *testing.T) {
 		{
 			name:     "workflowspec with section",
 			path:     "owner/repo/path/file.md#section",
-			expected: true,
+			expected: false,
 		},
 		{
 			name:     "simple filename",
 			path:     "file.md",
 			expected: false,
+		},
+		{
+			name:     "workflowspec with @ version",
+			path:     "owner/repo/path/file.md@v1.0.0",
+			expected: true,
 		},
 	}
 
