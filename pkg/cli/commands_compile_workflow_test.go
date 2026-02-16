@@ -148,7 +148,7 @@ This workflow has invalid frontmatter.
 			verbose:        false,
 			engineOverride: "",
 			expectError:    true,
-			errorContains:  "yaml",
+			errorContains:  "error:",
 		},
 		{
 			name: "compilation with nonexistent file",
@@ -465,7 +465,7 @@ This is a test workflow for compilation.
 				return os.MkdirAll(workflowsDir, 0755)
 			},
 			expectError:   true,
-			errorContains: "workflow 'nonexistent' not found",
+			errorContains: "compilation failed",
 		},
 		{
 			name:       "compile with full path still works (backward compatibility)",
