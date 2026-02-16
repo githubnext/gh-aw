@@ -97,7 +97,7 @@ async function main(config = {}) {
   const autoMerge = config.auto_merge || false;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
-  const baseBranch = config.base_branch || "";
+  let baseBranch = config.base_branch || "";
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const includeFooter = config.footer !== false; // Default to true (include footer)
@@ -111,6 +111,17 @@ async function main(config = {}) {
 
   if (!baseBranch) {
     throw new Error("base_branch configuration is required");
+  }
+
+  // SECURITY: Sanitize base branch name to prevent shell injection (defense in depth)
+  // Even though base_branch comes from workflow config, normalize it for safety
+  const originalBaseBranch = baseBranch;
+  baseBranch = normalizeBranchName(baseBranch);
+  if (!baseBranch) {
+    throw new Error(`Invalid base_branch: sanitization resulted in empty string (original: "${originalBaseBranch}")`);
+  }
+  if (originalBaseBranch !== baseBranch) {
+    core.warning(`Base branch name sanitized: "${originalBaseBranch}" -> "${baseBranch}"`);
   }
 
   // Extract triggering issue number from context (for auto-linking PRs to issues)
