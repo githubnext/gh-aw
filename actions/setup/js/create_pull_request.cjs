@@ -120,8 +120,9 @@ async function main(config = {}) {
   if (!baseBranch) {
     throw new Error(`Invalid base_branch: sanitization resulted in empty string (original: "${originalBaseBranch}")`);
   }
+  // Fail if base branch name changes during normalization (indicates invalid config)
   if (originalBaseBranch !== baseBranch) {
-    core.warning(`Base branch name sanitized: "${originalBaseBranch}" -> "${baseBranch}"`);
+    throw new Error(`Invalid base_branch: contains invalid characters (original: "${originalBaseBranch}", normalized: "${baseBranch}")`);
   }
 
   // Extract triggering issue number from context (for auto-linking PRs to issues)

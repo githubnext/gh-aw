@@ -119,7 +119,8 @@ describe("create_pull_request - security: branch name sanitization", () => {
       { input: "branch || evil", expected: "branch-evil" },
       { input: "branch > /etc/passwd", expected: "branch-/etc/passwd" },
       { input: "branch < input.txt", expected: "branch-input.txt" },
-      { input: "branch\\x00null", expected: "branch-x00null" },
+      { input: "branch\x00null", expected: "branch-null" }, // Actual null byte, not escaped string
+      { input: "branch\\x00null", expected: "branch-x00null" }, // Escaped string representation
     ];
 
     for (const { input, expected } of dangerousNames) {
@@ -133,7 +134,8 @@ describe("create_pull_request - security: branch name sanitization", () => {
       expect(result).not.toContain("&");
       expect(result).not.toContain(">");
       expect(result).not.toContain("<");
-      expect(result).not.toContain("\\x00");
+      expect(result).not.toContain("\x00"); // Actual null byte
+      expect(result).not.toContain("\\x00"); // Escaped string
     }
   });
 
