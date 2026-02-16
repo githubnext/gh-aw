@@ -35,13 +35,8 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Track whether threat detection job is enabled for step conditions
 	threatDetectionEnabled := data.SafeOutputs.ThreatDetection != nil
 
-	// Add GitHub App token minting step if app is configured
-	if data.SafeOutputs.App != nil {
-		consolidatedSafeOutputsJobLog.Print("Adding GitHub App token minting step")
-		// Prepend GitHub App token step before other steps
-		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)
-		steps = append(steps, appTokenSteps...)
-	}
+	// Note: GitHub App token minting step is added later (after setup/downloads)
+	// to ensure proper step ordering. See insertion logic below.
 
 	// Add setup action to copy JavaScript files
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
@@ -244,7 +239,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 	// Add GitHub App token minting step at the beginning if app is configured
 	if data.SafeOutputs.App != nil {
 		appTokenSteps := c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)
-		// Calculate insertion index: after setup action (if present) and artifact downloads, but before safe output steps
+		// Calculate insertion index: after setup action (if present) and artifact downloads, but before checkout and safe output steps
 		insertIndex := 0
 
 		// Count setup action steps (checkout + setup if in dev mode without action-tag, or just setup)
@@ -270,6 +265,9 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 			})
 			insertIndex += len(patchDownloadSteps)
 		}
+
+		// Note: App token step must be inserted BEFORE shared checkout steps
+		// because those steps reference steps.safe-outputs-app-token.outputs.token
 
 		// Insert app token steps
 		var newSteps []string
