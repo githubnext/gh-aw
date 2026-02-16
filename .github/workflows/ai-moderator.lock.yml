@@ -22,11 +22,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mood.md
-#
-# frontmatter-hash: a4357843cb152436e166ed4527028dd64830417602609a1dd0387da337bc683b
+# frontmatter-hash: 7bc9df6320a45738dd5a355466b4cacbb4c5f48008f86dcda591150366a56996
 
 name: "AI Moderator"
 "on":
@@ -621,9 +617,6 @@ jobs:
           fi
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
-          GH_AW_PROMPT_EOF
-          cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/mood.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/ai-moderator.md}}

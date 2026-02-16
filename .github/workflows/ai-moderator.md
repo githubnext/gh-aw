@@ -1,5 +1,4 @@
 ---
-bots: ["agentic-workflows-dev[bot]"]
 timeout-minutes: 5
 roles: all
 on:
@@ -32,8 +31,6 @@ safe-outputs:
     max: 5
     allowed-reasons: [spam]
   threat-detection: false
-imports:
-  - shared/mood.md
 ---
 # AI Moderator
 
