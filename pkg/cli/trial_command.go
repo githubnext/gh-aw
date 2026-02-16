@@ -461,13 +461,6 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 				fmt.Fprintln(os.Stderr, "")
 			}
 
-			// Add user's PAT as repository secret (for GitHub API operations by safe outputs)
-			if i == 0 {
-				if err := addGitHubTokenSecret(hostRepoSlug, nil, opts.Verbose); err != nil {
-					return fmt.Errorf("failed to add GitHub token secret: %w", err)
-				}
-			}
-
 			// Run the workflow and wait for completion (with trigger context if provided)
 			runID, err := triggerWorkflowRun(hostRepoSlug, parsedSpec.WorkflowName, opts.TriggerContext, opts.Verbose)
 			if err != nil {

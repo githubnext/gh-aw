@@ -7,7 +7,6 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -63,10 +62,6 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 					defaultEngine = opt.Value
 					break
 				}
-			}
-			// Priority 3: Check if user likely has Copilot (default)
-			if token, err := parser.GetGitHubToken(); err == nil && token != "" {
-				defaultEngine = string(constants.CopilotEngine)
 			}
 		}
 	}
