@@ -20,12 +20,17 @@
 // Tag Detection:
 //   - GetCurrentGitTag() - Detect current Git tag from environment or repository
 //
+// Command Execution with Spinner:
+//   - RunGit() - Execute git command with spinner, returning stdout
+//   - RunGitCombined() - Execute git command with spinner, returning combined stdout+stderr
+//
 // # Usage Patterns
 //
 // These functions are primarily used during workflow compilation to:
 //   - Detect release contexts (tags vs. regular commits)
 //   - Extract version information for releases
 //   - Support conditional workflow behavior based on Git state
+//   - Execute git commands with spinner feedback in interactive terminals
 
 package workflow
 
@@ -34,7 +39,9 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/tty"
 )
 
 var gitHelpersLog = logger.New("workflow:git_helpers")
@@ -77,4 +84,42 @@ func GetCurrentGitTag() string {
 	tag := strings.TrimSpace(string(output))
 	gitHelpersLog.Printf("Using tag from git describe: %s", tag)
 	return tag
+}
+
+// runGitWithSpinner executes a git command with an optional spinner.
+// If stderr is a terminal, a spinner is shown while the command runs.
+func runGitWithSpinner(spinnerMessage string, combined bool, args ...string) ([]byte, error) {
+	cmd := exec.Command("git", args...)
+	gitHelpersLog.Printf("Running git command: git %s", strings.Join(args, " "))
+
+	if tty.IsStderrTerminal() {
+		spinner := console.NewSpinner(spinnerMessage)
+		spinner.Start()
+		var output []byte
+		var err error
+		if combined {
+			output, err = cmd.CombinedOutput()
+		} else {
+			output, err = cmd.Output()
+		}
+		spinner.Stop()
+		return output, err
+	}
+
+	if combined {
+		return cmd.CombinedOutput()
+	}
+	return cmd.Output()
+}
+
+// RunGit executes a git command with an optional spinner, returning stdout.
+// If stderr is a terminal, a spinner with the given message is shown.
+func RunGit(spinnerMessage string, args ...string) ([]byte, error) {
+	return runGitWithSpinner(spinnerMessage, false, args...)
+}
+
+// RunGitCombined executes a git command with an optional spinner, returning combined stdout+stderr.
+// If stderr is a terminal, a spinner with the given message is shown.
+func RunGitCombined(spinnerMessage string, args ...string) ([]byte, error) {
+	return runGitWithSpinner(spinnerMessage, true, args...)
 }

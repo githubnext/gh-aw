@@ -139,12 +139,24 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Cloning repository..."))
 	}
 
+	// Start spinner for clone operation (only if not in verbose mode)
+	spinner := console.NewSpinner(fmt.Sprintf("Cloning %s...", repo))
+	if !verbose {
+		spinner.Start()
+	}
+
 	// Use helper to execute gh CLI with git fallback
 	_, stderr, err := ghExecOrFallback(
 		"git",
 		gitArgs,
 		[]string{"GIT_TERMINAL_PROMPT=0"}, // Prevent credential prompts
 	)
+
+	// Stop spinner
+	if !verbose {
+		spinner.Stop()
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to clone repository: %w (output: %s)", err, stderr)
 	}

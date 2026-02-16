@@ -42,7 +42,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: a6921a13bb643abf9ba88fb54707b78ce0984ca06e486e3ddc30fc3a824293b2
+# frontmatter-hash: 0b3a36033c9a5a9f012dcaaadda443842af75df8d790b2999c8be7eb89bdfae6
 
 name: "MCP Inspector Agent"
 "on":
@@ -233,7 +233,7 @@ jobs:
               actor: context.actor,
               event_name: context.eventName,
               staged: false,
-              allowed_domains: ["defaults","containers","node","cdn.jsdelivr.net","fonts.googleapis.com","fonts.gstatic.com"],
+              allowed_domains: ["defaults","containers","node","node-cdns","fonts"],
               firewall_enabled: true,
               awf_version: "v0.19.0",
               awmg_version: "v0.1.4",

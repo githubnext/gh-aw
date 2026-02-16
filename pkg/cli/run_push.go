@@ -362,7 +362,7 @@ func resolveImportPathLocal(importPath, baseDir string) string {
 	}
 
 	// Skip workflowspec format imports (owner/repo/path@sha)
-	if strings.Contains(importPath, "@") || isWorkflowSpecFormatLocal(importPath) {
+	if isWorkflowSpecFormatLocal(importPath) {
 		runPushLog.Printf("Skipping workflowspec format import: %s", importPath)
 		return ""
 	}
@@ -390,30 +390,9 @@ func resolveImportPathLocal(importPath, baseDir string) string {
 // isWorkflowSpecFormatLocal is a local version of isWorkflowSpecFormat for push functionality
 // This is duplicated from imports.go to avoid circular dependencies
 func isWorkflowSpecFormatLocal(path string) bool {
-	runPushLog.Printf("Checking if workflowspec format: %s", path)
-
-	// Check if it contains @ (ref separator) or looks like owner/repo/path
-	if strings.Contains(path, "@") {
-		runPushLog.Printf("Path contains @ - workflowspec format: %s", path)
-		return true
-	}
-
-	// Remove section reference if present
-	cleanPath := path
-	if idx := strings.Index(path, "#"); idx != -1 {
-		cleanPath = path[:idx]
-		runPushLog.Printf("Removed section reference: %s -> %s", path, cleanPath)
-	}
-
-	// Check if it has at least 3 parts and doesn't start with . or /
-	parts := strings.Split(cleanPath, "/")
-	if len(parts) >= 3 && !strings.HasPrefix(cleanPath, ".") && !strings.HasPrefix(cleanPath, "/") {
-		runPushLog.Printf("Path has %d parts and matches owner/repo/path format - workflowspec format: %s", len(parts), path)
-		return true
-	}
-
-	runPushLog.Printf("Path is not workflowspec format: %s", path)
-	return false
+	// The only reliable indicator of a workflowspec is the @ version separator
+	// Paths like "shared/mcp/arxiv.md" should be treated as local paths, not workflowspecs
+	return strings.Contains(path, "@")
 }
 
 // pushWorkflowFiles commits and pushes the workflow files to the repository
