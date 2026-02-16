@@ -201,10 +201,12 @@ These resources contain workflow patterns, best practices, safe outputs, and per
    **Scheduling Best Practices:**
 
    - 📅 When creating a **daily or weekly scheduled workflow**, use **fuzzy scheduling** by simply specifying `daily` or `weekly` without a time. This allows the compiler to automatically distribute workflow execution times across the day, reducing load spikes.
-   - ✨ **Recommended**: `schedule: daily` or `schedule: weekly` (fuzzy schedule - time will be scattered deterministically)
+   - ✨ **Recommended**: `schedule: daily on weekdays` or `schedule: weekly` (fuzzy schedule - time will be scattered deterministically)
+   - 🏢 **Prefer weekday schedules for daily workflows**: For daily scheduled workflows, strongly prefer **`daily on weekdays`** to run only Monday-Friday. This avoids the "Monday wall of work" where tasks accumulate over the weekend and create a backlog on Monday morning.
    - 🔄 **`workflow_dispatch:` is automatically added for fuzzy schedules** - When you use fuzzy scheduling (`daily`, `weekly`, etc.), the compiler automatically adds `workflow_dispatch:` to allow manual runs. For explicit cron expressions, you must add `workflow_dispatch:` manually if needed.
    - ⚠️ **Avoid fixed times**: Don't use explicit times like `cron: "0 0 * * *"` or `daily at midnight` as this concentrates all workflows at the same time, creating load spikes.
-   - Example fuzzy daily schedule: `schedule: daily` (compiler will scatter to something like `43 5 * * *` and add workflow_dispatch)
+   - Example fuzzy daily weekday schedule: `schedule: daily on weekdays` (compiler will scatter to something like `43 5 * * 1-5` and add workflow_dispatch)
+   - Example fuzzy daily schedule (all days): `schedule: daily` (compiler will scatter to something like `43 5 * * *` and add workflow_dispatch)
    - Example fuzzy weekly schedule: `schedule: weekly` (compiler will scatter appropriately and add workflow_dispatch)
    - Example explicit cron: `schedule: - cron: "0 0 * * *"` (workflow_dispatch NOT auto-added - add manually if needed)
 
@@ -565,7 +567,7 @@ Based on the parsed requirements, determine:
 2. **Triggers**: Infer appropriate triggers from the description:
    - Issue automation → `on: issues: types: [opened, edited]` (add `workflow_dispatch:` manually if manual runs needed)
    - PR automation → `on: pull_request: types: [opened, synchronize]` (add `workflow_dispatch:` manually if manual runs needed)
-   - Scheduled tasks → `on: schedule: daily` (use fuzzy scheduling - workflow_dispatch auto-added for fuzzy schedules only)
+   - Scheduled tasks → `on: schedule: daily on weekdays` (prefer weekdays to avoid Monday backlog - workflow_dispatch auto-added for fuzzy schedules only)
    - **Note**: `workflow_dispatch:` is automatically added ONLY for fuzzy schedules (`daily`, `weekly`, etc.). For other triggers, add it explicitly if manual execution is desired.
 3. **Tools**: Determine required tools:
    - **`bash` and `edit` are enabled by default** - No need to add (sandboxed by AWF)
