@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -51,6 +52,7 @@ type repositoryCache struct {
 }
 
 var (
+	cacheMu            sync.RWMutex
 	permissionCache    = make(map[string]*actorPermissionCache)
 	permissionCacheTTL = 1 * time.Hour
 	repoCache          *repositoryCache
@@ -62,20 +64,26 @@ var (
 // Checks GITHUB_REPOSITORY environment variable first, then falls back to gh repo view.
 func getRepository() (string, error) {
 	// Check cache first
+	cacheMu.RLock()
 	if repoCache != nil && time.Since(repoCache.timestamp) < repoCacheTTL {
-		mcpLog.Printf("Using cached repository: %s (age: %v)", repoCache.repository, time.Since(repoCache.timestamp))
-		return repoCache.repository, nil
+		repo := repoCache.repository
+		cacheMu.RUnlock()
+		mcpLog.Printf("Using cached repository: %s (age: %v)", repo, time.Since(repoCache.timestamp))
+		return repo, nil
 	}
+	cacheMu.RUnlock()
 
 	// Try GITHUB_REPOSITORY environment variable first
 	repo := os.Getenv("GITHUB_REPOSITORY")
 	if repo != "" {
 		mcpLog.Printf("Got repository from GITHUB_REPOSITORY: %s", repo)
 		// Cache the result
+		cacheMu.Lock()
 		repoCache = &repositoryCache{
 			repository: repo,
 			timestamp:  time.Now(),
 		}
+		cacheMu.Unlock()
 		return repo, nil
 	}
 
@@ -95,10 +103,12 @@ func getRepository() (string, error) {
 
 	mcpLog.Printf("Got repository from gh repo view: %s", repo)
 	// Cache the result
+	cacheMu.Lock()
 	repoCache = &repositoryCache{
 		repository: repo,
 		timestamp:  time.Now(),
 	}
+	cacheMu.Unlock()
 	return repo, nil
 }
 
@@ -115,14 +125,21 @@ func queryActorRole(ctx context.Context, actor string, repo string) (string, err
 
 	// Check cache first
 	cacheKey := fmt.Sprintf("%s:%s", actor, repo)
+	cacheMu.RLock()
 	if cached, ok := permissionCache[cacheKey]; ok {
 		if time.Since(cached.timestamp) < permissionCacheTTL {
+			cacheMu.RUnlock()
 			mcpLog.Printf("Using cached permission for %s in %s: %s (age: %v)", actor, repo, cached.permission, time.Since(cached.timestamp))
 			return cached.permission, nil
 		}
+		cacheMu.RUnlock()
 		// Cache expired, remove it
+		cacheMu.Lock()
 		delete(permissionCache, cacheKey)
+		cacheMu.Unlock()
 		mcpLog.Printf("Permission cache expired for %s in %s", actor, repo)
+	} else {
+		cacheMu.RUnlock()
 	}
 
 	// Query GitHub API for user's permission level
@@ -143,10 +160,12 @@ func queryActorRole(ctx context.Context, actor string, repo string) (string, err
 	}
 
 	// Cache the result
+	cacheMu.Lock()
 	permissionCache[cacheKey] = &actorPermissionCache{
 		permission: permission,
 		timestamp:  time.Now(),
 	}
+	cacheMu.Unlock()
 	mcpLog.Printf("Cached permission for %s in %s: %s", actor, repo, permission)
 
 	return permission, nil
