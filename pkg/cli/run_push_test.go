@@ -253,10 +253,10 @@ func TestResolveImportPathLocal(t *testing.T) {
 			expected:   "",
 		},
 		{
-			name:       "workflowspec format without @",
+			name:       "path without @ is treated as local",
 			importPath: "owner/repo/path/file.md",
 			baseDir:    baseDir,
-			expected:   "",
+			expected:   filepath.Join(baseDir, "owner/repo/path/file.md"),
 		},
 	}
 
