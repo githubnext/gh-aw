@@ -14,9 +14,8 @@ network:
     - defaults
     - containers
     - node
-    - "cdn.jsdelivr.net"        # npm package CDN
-    - "fonts.googleapis.com"    # Google Fonts API
-    - "fonts.gstatic.com"       # Google Fonts static content
+    - node-cdns
+    - fonts
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 safe-outputs:
