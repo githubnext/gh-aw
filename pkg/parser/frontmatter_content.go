@@ -58,8 +58,9 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	// Parse YAML
 	var frontmatter map[string]any
 	if err := yaml.Unmarshal([]byte(frontmatterYAML), &frontmatter); err != nil {
-		// Use yaml.FormatError to provide colorized, source-positioned error output
-		formattedErr := yaml.FormatError(err, true, true)
+		// Use FormatYAMLError to provide source-positioned error output with adjusted line numbers
+		// FrontmatterStart is 2 (line 2 is where frontmatter content starts after opening ---)
+		formattedErr := FormatYAMLError(err, 2, frontmatterYAML)
 		return nil, fmt.Errorf("failed to parse frontmatter:\n%s", formattedErr)
 	}
 
