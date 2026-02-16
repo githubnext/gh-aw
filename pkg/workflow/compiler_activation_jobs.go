@@ -214,8 +214,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	// Upload prompt.txt as an artifact for the agent job to download
 	compilerActivationJobsLog.Print("Adding prompt artifact upload step")
 	steps = append(steps, "      - name: Upload prompt artifact\n")
-	steps = append(steps, "        if: always()\n")
-	steps = append(steps, "        continue-on-error: true\n")
+	steps = append(steps, "        if: success()\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          name: prompt\n")
@@ -941,7 +940,7 @@ func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *Workflow
 	// Call the existing generatePrompt method to get all the prompt steps
 	c.generatePrompt(&yaml, data)
 
-	// Convert the generated YAML into individual lines and append to steps
+	// Append the generated YAML content as a single string to steps
 	yamlContent := yaml.String()
 	*steps = append(*steps, yamlContent)
 

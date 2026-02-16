@@ -236,7 +236,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Download prompt artifact from activation job
 	compilerYamlLog.Print("Adding prompt artifact download step")
 	yaml.WriteString("      - name: Download prompt artifact\n")
-	yaml.WriteString("        continue-on-error: true\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/download-artifact"))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: prompt\n")
