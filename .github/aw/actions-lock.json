@@ -150,6 +150,11 @@
       "version": "v3.12.0",
       "sha": "8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"
     },
+    "docker/setup-qemu-action@v3": {
+      "repo": "docker/setup-qemu-action",
+      "version": "v3",
+      "sha": "c7c53464625b32c7a7e944ae62b3e17d2b600130"
+    },
     "erlef/setup-beam@v1": {
       "repo": "erlef/setup-beam",
       "version": "v1.20.4",
