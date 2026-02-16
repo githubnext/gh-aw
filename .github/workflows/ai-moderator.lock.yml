@@ -22,7 +22,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# frontmatter-hash: 4f006d594431ee1e4a2892d106993250d70919d9085af50a78e1d1c849fb47ea
+# frontmatter-hash: 98708910f46b1fc0c61c08ba4016a840151db6225019505d4f87c5fefe6dda54
 
 name: "AI Moderator"
 "on":
@@ -49,8 +49,8 @@ name: "AI Moderator"
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
-  cancel-in-progress: true
+  cancel-in-progress: false
+  group: gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}
 
 run-name: "AI Moderator"
 
