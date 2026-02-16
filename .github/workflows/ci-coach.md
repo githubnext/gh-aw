@@ -152,6 +152,69 @@ If no improvements are found or changes are too risky:
 2. Exit gracefully - no pull request needed
 3. Log findings for future reference
 
+## Report Formatting Guidelines
+
+When creating CI optimization reports and pull request descriptions, follow these formatting standards to ensure readability and professionalism:
+
+### 1. Header Levels
+**Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy.**
+
+The PR or discussion title serves as h1, so all content headers should start at h3:
+- Use `###` for main sections (e.g., "### CI Optimization Opportunities", "### Expected Impact")
+- Use `####` for subsections (e.g., "#### Performance Analysis", "#### Cache Optimization")
+- Never use `##` (h2) or `#` (h1) in the report body
+
+Example:
+```markdown
+### CI Optimization Opportunities
+#### Performance Analysis
+```
+
+### 2. Progressive Disclosure
+**Wrap detailed sections like full job logs, timing breakdowns, and verbose analysis in `<details><summary><b>Section Name</b></summary>` tags to improve readability and reduce scrolling.**
+
+Use collapsible sections for:
+- Detailed timing analysis and per-job breakdowns
+- Full workflow configuration comparisons
+- Verbose metrics and historical data
+- Extended technical analysis
+
+Always keep critical information visible:
+- Executive summary with key optimizations
+- Top optimization opportunities
+- Expected impact and savings
+- Validation results
+- Actionable recommendations
+
+Example:
+```markdown
+<details>
+<summary><b>Detailed Timing Analysis</b></summary>
+
+[Per-job timing breakdown, critical path analysis, detailed metrics...]
+
+</details>
+```
+
+### 3. Recommended Report Structure
+
+Your CI optimization reports should follow this structure for optimal readability:
+
+1. **Executive Summary** (always visible): Brief overview of total optimizations found, expected time/cost savings
+2. **Top Optimization Opportunities** (always visible): Top 3-5 highest-impact changes with brief descriptions
+3. **Detailed Analysis per Workflow** (in `<details>` tags): Complete breakdown of each optimization with before/after comparisons
+4. **Expected Impact** (always visible): Total time savings, cost reduction, risk assessment
+5. **Validation Results** (always visible): Confirmation that all validations passed
+6. **Recommendations** (always visible): Actionable next steps and testing plan
+
+### Design Principles (Airbnb-Inspired)
+
+Your optimization reports should:
+1. **Build trust through clarity**: Most important optimization opportunities and expected benefits immediately visible
+2. **Exceed expectations**: Add helpful context like estimated time savings, cost impact, historical trends
+3. **Create delight**: Use progressive disclosure to present deep analysis without overwhelming reviewers
+4. **Maintain consistency**: Follow the same patterns as other reporting workflows like `daily-copilot-token-report`, `daily-code-metrics`, and `auto-triage-issues`
+
 ## Pull Request Structure (if created)
 
 ```markdown
@@ -180,6 +243,11 @@ If no improvements are found or changes are too risky:
 - Lines 15-57: Split unit test job into 3 parallel jobs by package
 - Lines 58-117: Rebalance integration test matrix groups
 - Line 83: Split "Workflow" tests into separate groups with specific patterns
+
+**Rationale**: Current integration tests wait unnecessarily for unit tests to complete. Integration tests don't use unit test outputs, so they can run in parallel. Splitting unit tests by package and rebalancing integration matrix reduces the critical path by 52%.
+
+<details>
+<summary><b>View Detailed Test Structure Comparison</b></summary>
 
 **Current Test Structure:**
 ```yaml
@@ -223,7 +291,7 @@ integration:
 - Critical path: lint (2 min) → integration (4 min) = 6 min total
 - Previous path: lint (2 min) → test (2.5 min) → integration (8 min) = 12.5 min
 
-**Rationale**: Current integration tests wait unnecessarily for unit tests to complete. Integration tests don't use unit test outputs, so they can run in parallel. Splitting unit tests by package and rebalancing integration matrix reduces the critical path by 52%.
+</details>
 
 #### 2. [Next optimization...]
 
