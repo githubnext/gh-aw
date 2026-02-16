@@ -1,399 +1,365 @@
 # GitHub Actions Workflow Layout Specification
 
 > Auto-generated specification documenting patterns used in compiled `.lock.yml` files.
-> Last updated: 2026-02-11
+> Last updated: 2026-02-16
 
 ## Overview
 
-This document catalogs all file paths, folder names, artifact names, and other patterns used across our compiled GitHub Actions workflows (`.lock.yml` files).
+This document catalogs all file paths, folder names, artifact names, and other patterns used across our compiled GitHub Actions workflows (`.lock.yml` files). It serves as a comprehensive reference for developers working with the gh-aw codebase.
 
-**Extraction Summary:**
-- **Lock files analyzed**: 147
-- **Actions cataloged**: 27
-- **Artifacts documented**: 17
-- **Job patterns found**: 21
-- **File paths listed**: 32
-- **Working directories**: 3
+**Statistics:**
+- **Lock files analyzed**: 154
+- **Unique GitHub Actions**: 28
+- **Artifact patterns**: 17
+- **Job name patterns**: 22
+- **File path references**: 35
 
 ## GitHub Actions
 
-Common GitHub Actions used across workflows:
+Common GitHub Actions used across compiled workflows:
 
-| Action | Version/SHA | Description | Context |
-|--------|-------------|-------------|---------|
-| `./actions/setup` | Local action | Initializes gh-aw runtime environment | Used in virtually all workflows for setting up JavaScript runtime, MCP servers, and safe outputs |
-| `actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683` | SHA pinned | Checks out repository code at specific commit | Primary version - used in most workflows |
-| `actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8` | SHA pinned | Checks out repository code at specific commit | Alternative version for specific workflows |
-| `actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd` | SHA pinned | Checks out repository code at specific commit | Another pinned version |
-| `actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f` | SHA pinned | Uploads build artifacts | Primary version for artifact uploads |
-| `actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02` | SHA pinned | Uploads build artifacts | Alternative artifact upload version |
-| `actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53` | SHA pinned | Downloads artifacts from previous jobs | Used in safe-output jobs and conclusion jobs |
-| `actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd` | SHA pinned | Runs GitHub API scripts using JavaScript | Primary version for GitHub API interactions |
-| `actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b` | SHA pinned | Runs GitHub API scripts | Alternative version |
-| `actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f` | SHA pinned | Sets up Node.js environment | Primary version for workflows requiring npm/node |
-| `actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238` | SHA pinned | Sets up Node.js environment | Alternative Node.js setup version |
-| `actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065` | SHA pinned | Sets up Python environment | Used in Python-based workflows |
-| `actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a` | SHA pinned | Sets up Go environment | Primary Go setup version |
-| `actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c` | SHA pinned | Sets up Go environment | Alternative Go version |
-| `actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5` | SHA pinned | Sets up Go environment | Another Go setup version |
-| `actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9` | SHA pinned | Sets up Java environment | Used in Java-based workflows |
-| `actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9` | SHA pinned | Sets up .NET environment | Used in .NET-based workflows |
-| `actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830` | SHA pinned | Caches dependencies and build outputs | Full cache action |
-| `actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830` | SHA pinned | Restores cache only | Used for cache restoration step |
-| `actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830` | SHA pinned | Saves cache only | Used for cache saving step |
-| `actions/ai-inference@a6101c89c6feaecc585efdd8d461f18bb7896f20` | SHA pinned | AI inference action | Used for AI model integrations |
-| `github/gh-aw/actions/setup@623e612ff6a684e9a8634449508bdda21e2c178c` | SHA pinned | Remote reference to setup action | Used in some external workflow references |
-| `docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f` | SHA pinned | Sets up Docker Buildx | Used for Docker-based workflows |
-| `docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef` | SHA pinned | Logs into Docker registry | Docker authentication |
-| `docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051` | SHA pinned | Extracts Docker metadata | Docker image metadata generation |
-| `docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83` | SHA pinned | Builds and pushes Docker images | Docker build and publish |
-| `astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86` | SHA pinned | Sets up uv (Python package installer) | Modern Python package management |
-| `anchore/sbom-action@62ad5284b8ced813296287a0b63906cb364b73ee` | SHA pinned | Generates Software Bill of Materials | Security and compliance |
-| `super-linter/super-linter@2bdd90ed3262e023ac84bf8fe35dc480721fc1f2` | SHA pinned | Runs multi-language linting | Code quality checks |
-| `github/stale-repos@3477b6488008d9411aaf22a0924ec7c1f6a69980` | SHA pinned | Identifies stale repositories | Repository maintenance |
+| Action | Version (SHA) | Description | Context |
+|--------|---------------|-------------|---------|
+| `actions/checkout` | `11bd719...`, `93cb6ef...`, `de0fac2...` | Checks out repository code | Used in almost all workflows for accessing repo content |
+| `actions/upload-artifact` | `b7c566a...` | Uploads build artifacts | Used for agent outputs, patches, prompts, logs, and safe-output data |
+| `actions/download-artifact` | `018cc2c...` | Downloads artifacts from previous jobs | Used in safe-output jobs and conclusion jobs |
+| `actions/setup-node` | `6044e13...` | Sets up Node.js environment | Used in workflows requiring npm/node |
+| `actions/setup-python` | `a26af69...` | Sets up Python environment | Used for Python-based workflows and scripts |
+| `actions/setup-go` | `40f1582...`, `4dc6199...`, `7a3fe6c...` | Sets up Go environment | Used for Go-based builds and tests |
+| `actions/setup-java` | `c1e3236...` | Sets up Java environment | Used for Java-based workflows |
+| `actions/setup-dotnet` | `67a3573...` | Sets up .NET environment | Used for .NET-based workflows |
+| `actions/github-script` | `ed59741...`, `f28e40c...` | Runs GitHub API scripts | Used for GitHub API interactions and workflow logic |
+| `actions/cache` | `0057852...` | Caches dependencies | Used for caching npm, pip, go modules |
+| `actions/cache/restore` | `0057852...` | Restores cached dependencies | Explicit cache restore action |
+| `actions/cache/save` | `0057852...` | Saves dependencies to cache | Explicit cache save action |
+| `actions/ai-inference` | `a380166...` | AI inference action | Used for AI model invocation |
+| `docker/setup-buildx-action` | `8d2750c...` | Sets up Docker Buildx | Used for multi-platform Docker builds |
+| `docker/build-push-action` | `10e90e3...` | Builds and pushes Docker images | Used in release workflows |
+| `docker/login-action` | `c94ce9f...` | Logs in to Docker registry | Used before pushing Docker images |
+| `docker/metadata-action` | `c299e40...` | Extracts Docker metadata | Used for tagging Docker images |
+| `astral-sh/setup-uv` | `d4b2f3b...` | Sets up uv package manager | Used for Python package management |
+| `anchore/sbom-action` | `28d7154...` | Generates SBOM | Used for security and compliance |
+| `super-linter/super-linter` | `2bdd90e...` | Runs super-linter | Used for code quality checks |
+| `github/stale-repos` | `3477b64...` | Manages stale repositories | Used for repository maintenance |
+| `./actions/setup` | N/A (local) | Custom setup action | Copies JavaScript and shell scripts to `/tmp/gh-aw/actions` |
+| `github/gh-aw/actions/setup` | `c4e0918...` | Remote setup action | Same as local `./actions/setup` but referenced remotely |
 
 ## Artifact Names
 
 Artifacts uploaded/downloaded between workflow jobs:
 
-| Name | Type | Description | Context |
-|------|------|-------------|---------|
-| `agent-output` | Upload/Download | AI agent execution output | Contains the agent's response, analysis, and generated content |
-| `agent-artifacts` | Upload | Complete agent execution artifacts | Includes all outputs from agent job |
-| `agent_outputs` | Upload | Agent outputs (underscore variant) | Alternative naming for agent outputs |
-| `safe-output` | Upload/Download | Safe outputs configuration | Configuration data passed from agent to safe-output jobs |
-| `safe-outputs-assets` | Upload/Download | Safe output assets | Files and content generated by safe-output handlers |
-| `cache-memory` | Upload/Download | Agent cache memory | Persistent memory for agent across runs |
-| `cache-memory-focus-areas` | Upload/Download | Focused cache memory | Domain-specific cache for focus areas |
-| `cache-memory-repo-audits` | Upload/Download | Repository audit cache | Cache for repository audit workflows |
-| `repo-memory-default` | Upload/Download | Default repository memory | Standard repo memory storage |
-| `repo-memory-campaigns` | Upload/Download | Campaign repository memory | Memory for campaign-based workflows |
-| `python-source-and-data` | Upload | Python source files and data | Used in Python analysis workflows |
-| `data-charts` | Upload | Generated data charts | Visualization outputs from data analysis |
-| `trending-charts` | Upload | Trending data visualizations | Chart outputs for trending analysis |
-| `trending-source-and-data` | Upload | Trending analysis data | Source data for trending workflows |
-| `license-report` | Upload | License compliance report | Generated license analysis results |
-| `sbom-artifacts` | Upload | Software Bill of Materials | SBOM generation outputs |
-| `super-linter-log` | Upload/Download | Linter execution logs | Logs from super-linter runs |
-| `threat-detection.log` | Upload | Security threat detection logs | Security analysis outputs |
+| Name | Upload Context | Download Context | Description |
+|------|----------------|------------------|-------------|
+| `agent-output` | Agent job | Safe-output jobs, detection job, conclusion job | AI agent execution output (JSON format) |
+| `agent-artifacts` | Agent job | Detection job, conclusion job | Additional artifacts from agent execution |
+| `agent_outputs` | Agent job | Safe-output jobs | Alternative name for agent outputs |
+| `safe-output` | Safe-output jobs | Conclusion job | Safe output results (PR creation, commenting, etc.) |
+| `safe-outputs-assets` | Safe-output jobs | Conclusion job | Assets generated by safe-output tools |
+| `cache-memory` | Agent job, update_cache_memory job | Next workflow run | Persistent data across workflow runs |
+| `cache-memory-focus-areas` | Agent job | Next workflow run | Focused cache data for specific areas |
+| `cache-memory-repo-audits` | Agent job | Next workflow run | Repository audit cache data |
+| `repo-memory-default` | Agent job | Next workflow run | Default repository memory data |
+| `repo-memory-campaigns` | Agent job | Next workflow run | Campaign-specific repository memory |
+| `python-source-and-data` | Agent job | Upload assets job | Python scripts and data files |
+| `trending-source-and-data` | Agent job | Upload assets job | Trending analysis source and data |
+| `trending-charts` | Agent job | Upload assets job | Charts generated from trending data |
+| `data-charts` | Agent job | Upload assets job | General data visualization charts |
+| `sbom-artifacts` | SBOM job | Download step | Software Bill of Materials artifacts |
+| `super-linter-log` | Super-linter job | Debug step | Linter execution logs |
+| `threat-detection.log` | Detection job | Conclusion job | Threat detection analysis logs |
 
 ## Common Job Names
 
-Standard job names across workflows:
+Standard job names across compiled workflows:
 
-| Job Name | Description | Context |
-|----------|-------------|---------|
-| `activation` | Determines if workflow should run | Uses skip-if-match, skip-if-no-match, and other filters to conditionally activate workflow |
-| `pre_activation` | Pre-flight checks before activation | Early validation and environment checks |
-| `agent` | Main AI agent execution job | Runs the copilot/claude/codex engine with configured tools and permissions |
-| `detection` | Post-agent analysis job | Analyzes agent output for patterns, safe-outputs, and required follow-up actions |
-| `conclusion` | Final status reporting job | Runs after all other jobs complete, reports success/failure, creates summaries |
-| `safe_outputs` | Executes safe output operations | Dispatcher job that triggers safe-output handler jobs |
-| `add_comment` | Adds comment to issue/PR | Safe-output job for commenting via GitHub API |
-| `post-issue` | Posts new GitHub issue | Safe-output job for issue creation |
-| `post_to_slack_channel` | Posts message to Slack | Integration with Slack notifications |
-| `send_slack_message` | Sends Slack message | Alternative Slack integration pattern |
-| `search_issues` | Searches GitHub issues | Query and filter issues based on criteria |
-| `notion_add_comment` | Adds comment to Notion | Notion integration for commenting |
-| `update_cache_memory` | Updates agent cache memory | Persists agent memory to artifacts |
-| `push_repo_memory` | Pushes repository memory | Commits repo memory to git repository |
-| `upload_assets` | Uploads generated assets | Handles file uploads to various destinations |
-| `check_ci_status` | Checks CI build status | Validates CI pipeline completion |
-| `check_external_user` | Validates external user access | Security check for external contributors |
-| `config` | Configuration and setup job | Prepares workflow configuration |
-| `test_environment` | Tests workflow environment | Validates runtime environment setup |
-| `release` | Release management job | Handles version releases and publishing |
-| `super_linter` | Runs code linting | Multi-language linting across codebase |
-| `license-check` | Validates license compliance | Checks dependency licenses |
-| `ast_grep` | AST-based code search | Structural code pattern matching |
-
-## Step IDs
-
-Common step IDs used across workflows:
-
-| Step ID | Description | Context |
-|---------|-------------|---------|
-| `check_membership` | Checks if user is org member | Security validation in activation job |
-| `check_stop_time` | Validates workflow stop time | Prevents workflows from running past configured time |
-| `check_skip_if_match` | Conditional skip based on pattern match | Activation filter for pattern-based execution |
-| `check_skip_if_no_match` | Conditional skip when pattern doesn't match | Activation filter for required patterns |
-| `check_command_position` | Validates command position in text | Checks if agent command is in valid position (start/end/anywhere) |
-| `check_actor` | Validates workflow actor | Security check for authorized users |
-| `checkout-pr` | Checks out pull request code | PR-specific checkout step |
-| `ci_check` | CI status validation | Checks CI pipeline status |
-| `agentic_execution` | Main agent execution step | Runs the AI agent with configured engine |
-| `generate_aw_info` | Generates workflow info JSON | Creates metadata about workflow execution |
-| `create_agent_session` | Creates agent session | Initializes agent execution environment |
-| `collect_output` | Collects agent output | Gathers outputs from agent execution |
-| `detect` | Detection analysis step | Analyzes outputs for patterns |
-| `compute_config` | Computes configuration | Calculates runtime configuration |
-| `compute-text` | Computes text output | Processes text-based outputs |
-| `conclusion` | Conclusion summary step | Generates final workflow summary |
-| `handle_agent_failure` | Handles agent failure | Error handling for agent failures |
-| `handle_create_pr_error` | Handles PR creation errors | Error handling for PR creation |
-| `missing_tool` | Reports missing tool | Safe-output for missing tool reporting |
-| `noop` | No-operation step | Placeholder or completion marker |
-| `add-comment` | Adds comment step | Comment addition step |
-| `assign_to_agent` | Assigns issue to agent | GitHub issue assignment |
-| `lock-issue` | Locks GitHub issue | Issue locking step |
-| `build` | Build step | Compilation and build operations |
-| `check-cache` | Checks cache availability | Cache validation step |
-| `check-results` | Checks operation results | Result validation step |
-| `get_release` | Fetches release information | GitHub release data retrieval |
-| `determine-automatic-lockdown` | Determines if issue should be locked | Issue lockdown decision logic |
-| `opencode` | OpenCode integration step | External tool integration |
-| `meta` | Metadata processing step | Workflow metadata handling |
+| Job Name | Purpose | Runs After | Description |
+|----------|---------|------------|-------------|
+| `activation` | Workflow activation logic | N/A (first job) | Determines if workflow should run based on filters (membership, stop-time, skip-if-match, rate-limit, etc.) |
+| `pre_activation` | Pre-activation checks | N/A (first job) | Runs before main activation logic for initial filtering |
+| `agent` | AI agent execution | `activation` | Main AI agent execution job running copilot/claude/codex/custom engine |
+| `detection` | Post-agent analysis | `agent` | Analyzes agent output for security threats, pattern matching, and anomalies |
+| `safe_outputs` | Safe outputs execution | `agent`, `detection` | Processes safe-output tool calls from agent (PR creation, commenting, etc.) |
+| `conclusion` | Final status reporting | All jobs | Runs after all other jobs complete, reports final status and cleanup |
+| `config` | Configuration job | N/A (first job) | Sets up workflow configuration and environment |
+| `test_environment` | Environment testing | `config` | Tests the workflow environment setup |
+| `precompute` | Pre-computation | `activation` | Performs pre-computation before agent execution |
+| `update_cache_memory` | Cache update | `agent` | Updates cache-memory artifacts with new data |
+| `push_repo_memory` | Repository memory push | `agent` | Pushes repository memory data to storage |
+| `unlock` | Workflow unlock | `agent` | Unlocks resources after agent execution |
+| `upload_assets` | Asset upload | Safe-output jobs | Uploads generated assets to GitHub releases or storage |
+| `post_to_slack_channel` | Slack notification | Safe-output jobs | Posts workflow results to Slack channel |
+| `send_slack_message` | Slack message | Safe-output jobs | Sends individual Slack messages |
+| `add_comment` | Comment addition | Safe-output jobs | Adds comments to issues/PRs |
+| `create_pull_request` | PR creation | Safe-output jobs | Creates pull requests from agent changes |
+| `notion_add_comment` | Notion comment | Safe-output jobs | Adds comments to Notion pages |
+| `search_issues` | Issue search | Various | Searches GitHub issues based on criteria |
+| `post-issue` | Issue posting | Various | Posts new GitHub issues |
+| `release` | Release job | Build/test jobs | Creates GitHub releases |
+| `super_linter` | Code linting | Various | Runs super-linter on codebase |
+| `ast_grep` | AST analysis | Various | Runs AST-based code analysis |
+| `check_ci_status` | CI status check | Various | Checks CI pipeline status |
 
 ## File Paths
 
-Common file paths referenced in workflows:
+Common file paths referenced in workflow files:
 
-| Path | Type | Description | Context |
-|------|------|-------------|---------|
-| `.github/workflows/` | Directory | Workflow definition directory | Contains all `.md` (source) and `.lock.yml` (compiled) workflow files |
-| `.github/aw/` | Directory | Agentic workflow configuration | Contains `actions-lock.json` and workflow-specific configs |
-| `.github/aw/actions-lock.json` | File | Action version lock file | Pins GitHub Actions to specific SHAs for security |
-| `.github/agents/` | Directory | Custom agent definitions | Stores agent markdown files referenced in workflows |
-| `/tmp/gh-aw/` | Directory | Runtime temporary directory | Primary workspace for agent execution and artifacts |
-| `/tmp/gh-aw/agent-stdio.log` | File | Agent standard I/O log | Captures agent execution logs |
-| `/tmp/gh-aw/aw-prompts/prompt.txt` | File | Agent prompt file | Stores the prompt sent to the AI engine |
-| `/tmp/gh-aw/aw.patch` | File | Git patch file | Contains code changes generated by agent |
-| `/tmp/gh-aw/aw_info.json` | File | Workflow metadata JSON | Runtime workflow information |
-| `/tmp/gh-aw/cache-memory` | Directory | Cache memory storage | Persistent agent memory |
-| `/tmp/gh-aw/cache-memory-chroma` | Directory | Chroma vector database cache | Vector DB for semantic memory |
-| `/tmp/gh-aw/cache-memory-focus-areas` | Directory | Focus area cache | Domain-specific memory storage |
-| `/tmp/gh-aw/cache-memory-repo-audits` | Directory | Repository audit cache | Audit-specific memory storage |
-| `/tmp/gh-aw/layout-cache` | Directory | Layout specification cache | Cache for layout spec generation |
-| `/tmp/gh-aw/prompt-cache` | Directory | Prompt cache storage | Caches prompts for reuse |
-| `/tmp/gh-aw/mcp-config/logs/` | Directory | MCP server configuration logs | Logs from MCP server setup |
-| `/tmp/gh-aw/mcp-logs/` | Directory | MCP server runtime logs | Runtime logs from MCP servers |
-| `/tmp/gh-aw/redacted-urls.log` | File | Redacted URL log | URLs that were redacted for security |
-| `/tmp/gh-aw/repo-memory/default` | Directory | Default repo memory | Standard repository memory location |
-| `/tmp/gh-aw/repo-memory/campaigns` | Directory | Campaign repo memory | Campaign-specific memory storage |
-| `/tmp/gh-aw/safe-inputs/logs/` | Directory | Safe inputs logs | Logs from safe-inputs validation |
-| `/tmp/gh-aw/safeoutputs/` | Directory | Safe outputs staging | Staging area for safe-output processing |
-| `/tmp/gh-aw/safeoutputs/assets/` | Directory | Safe output assets | Assets generated by safe outputs |
-| `/tmp/gh-aw/sandbox/agent/logs/` | Directory | Sandboxed agent logs | Logs from sandboxed agent execution |
-| `/tmp/gh-aw/sandbox/firewall/logs/` | Directory | Firewall logs | Security firewall execution logs |
-| `/tmp/gh-aw/threat-detection/` | Directory | Threat detection workspace | Security analysis workspace |
-| `/tmp/gh-aw/threat-detection/detection.log` | File | Threat detection log | Security threat analysis log |
-| `/tmp/gh-aw/python/*.py` | File pattern | Python source files | Python scripts for analysis |
-| `/tmp/gh-aw/python/charts/*.png` | File pattern | Generated chart images | PNG chart outputs |
-| `/tmp/gh-aw/python/data/*` | File pattern | Python data files | Data files for Python processing |
-| `/opt/gh-aw/safe-jobs/` | Directory | Safe output job scripts | Pre-installed safe-output handlers |
-| `/opt/gh-aw/actions/` | Directory | Action scripts | Pre-installed action JavaScript files |
-| `actions/setup/js/` | Directory | Setup action JavaScript | Source JavaScript for setup action |
-| `pkg/workflow/` | Directory | Workflow compilation code | Go package for compiling workflows |
-| `pkg/workflow/js/` | Directory | JavaScript runtime code | CommonJS modules for GitHub Actions |
-| `pkg/constants/` | Directory | Go constants package | Constant definitions for workflows |
-| `scratchpad/` | Directory | Specification documents | Documentation and specification directory |
-| `licenses.csv` | File | License report CSV | License compliance report output |
+| Path | Type | Description | Usage Context |
+|------|------|-------------|---------------|
+| `.github/workflows/` | Directory | Workflow definition directory | Contains all `.md` and `.lock.yml` workflow files |
+| `.github/aw/` | Directory | Agentic workflow configuration | Contains `actions-lock.json` and other configs |
+| `.github/agents/` | Directory | Custom agent definitions | Contains agent markdown files (e.g., `test-agent.md`) |
+| `/tmp/gh-aw/` | Directory | Temporary workflow data | Root temporary directory for all workflow artifacts |
+| `/tmp/gh-aw/agent/` | Directory | Agent execution workspace | Agent's working directory during execution |
+| `/tmp/gh-aw/agent-stdio.log` | File | Agent stdio logs | Standard input/output logs from agent |
+| `/tmp/gh-aw/aw-prompts/prompt.txt` | File | Agent prompt file | Prompt text sent to AI agent |
+| `/tmp/gh-aw/aw.patch` | File | Git patch file | Changes made by agent in patch format |
+| `/tmp/gh-aw/aw_info.json` | File | Workflow info JSON | Workflow metadata and configuration |
+| `/tmp/gh-aw/cache-memory` | Directory | Cache memory storage | Persistent cache data across runs |
+| `/tmp/gh-aw/cache-memory-chroma` | Directory | Chroma cache storage | Chroma vector database cache |
+| `/tmp/gh-aw/cache-memory-focus-areas` | Directory | Focus areas cache | Cached focus area data |
+| `/tmp/gh-aw/cache-memory-repo-audits` | Directory | Repo audits cache | Cached repository audit data |
+| `/tmp/gh-aw/layout-cache` | Directory | Layout cache | Cached layout specification data |
+| `/tmp/gh-aw/prompt-cache` | Directory | Prompt cache | Cached prompt templates |
+| `/tmp/gh-aw/repo-memory/default` | Directory | Default repo memory | Default repository memory storage |
+| `/tmp/gh-aw/repo-memory/campaigns` | Directory | Campaigns repo memory | Campaign-specific repository memory |
+| `/tmp/gh-aw/mcp-config/logs/` | Directory | MCP config logs | MCP configuration logs |
+| `/tmp/gh-aw/mcp-logs/` | Directory | MCP server logs | Model Context Protocol server logs |
+| `/tmp/gh-aw/redacted-urls.log` | File | Redacted URLs log | Log of URLs that were redacted for security |
+| `/tmp/gh-aw/safeoutputs/` | Directory | Safe outputs data | Safe output tool results and metadata |
+| `/tmp/gh-aw/safeoutputs/assets/` | Directory | Safe outputs assets | Assets generated by safe-output tools |
+| `/tmp/gh-aw/safe-inputs/logs/` | Directory | Safe inputs logs | Safe input validation logs |
+| `/tmp/gh-aw/sandbox/agent/logs/` | Directory | Sandbox agent logs | Agent logs from sandboxed execution |
+| `/tmp/gh-aw/sandbox/firewall/logs/` | Directory | Sandbox firewall logs | Firewall logs from sandboxed execution |
+| `/tmp/gh-aw/python/*.py` | Files | Python scripts | Python scripts generated or used by agent |
+| `/tmp/gh-aw/python/charts/*.png` | Files | Python chart images | Chart images generated by Python scripts |
+| `/tmp/gh-aw/python/data/*` | Files | Python data files | Data files used by Python scripts |
+| `/tmp/gh-aw/copilot-sdk/event-log.jsonl` | File | Copilot SDK logs | Event logs from Copilot SDK |
+| `/opt/gh-aw/actions` | Directory | Setup action scripts | Destination for copied JavaScript and shell scripts |
+| `/opt/gh-aw/safe-jobs/` | Directory | Safe job definitions | Safe output job definitions and handlers |
+| `${{ env.GH_AW_AGENT_OUTPUT }}` | Environment var | Agent output path | Dynamic path to agent output file |
+| `${{ env.GH_AW_SAFE_OUTPUTS }}` | Environment var | Safe outputs path | Dynamic path to safe outputs directory |
 
 ## Working Directories
 
-Common working directories set in workflow steps:
+Working directories used in workflow steps:
 
-| Directory | Description | Context |
-|-----------|-------------|---------|
-| `actions/setup/js` | Setup action JavaScript source | Used when running setup action scripts |
-| `./docs` | Documentation directory | Documentation build and generation steps |
+| Directory | Context | Description |
+|-----------|---------|-------------|
+| `./actions/setup/js` | Setup action development | JavaScript module development directory |
+| `./docs` | Documentation | Documentation source directory |
+| `actions/setup/js` | Setup action execution | JavaScript runtime directory during action execution |
 
-## Environment Variables
+## Go Constants (pkg/constants)
 
-Common environment variables used across workflows:
+Key constants defined in Go code that relate to workflow layout:
 
-### Standard Variables
+### Artifact Names
+````go
+const SafeOutputArtifactName = "safe-output"
+const AgentOutputArtifactName = "agent-output"
+const AgentOutputFilename = "agent_output.json"
+````
 
-| Variable | Type | Description | Example Value |
-|----------|------|-------------|---------------|
-| `GH_AW_AGENT_OUTPUT` | Path | Agent output directory | Set by workflow, referenced in artifacts |
-| `GH_AW_SAFE_OUTPUTS` | Path | Safe outputs directory | Set by workflow, used by detection job |
-| `AGENT_OUTPUT_TYPES` | Output | Types of agent outputs detected | `${{ needs.agent.outputs.output_types }}` |
-| `AGENT_CONCLUSION` | Output | Agent job result status | `${{ needs.agent.result }}` |
-| `BASH_DEFAULT_TIMEOUT_MS` | Config | Default bash command timeout | `60000`, `300000`, `600000` |
-| `BASH_MAX_TIMEOUT_MS` | Config | Maximum bash command timeout | `60000`, `300000`, `600000` |
-| `AWF_LOGS_DIR` | Path | Firewall logs directory | `/tmp/gh-aw/sandbox/firewall/logs` |
-
-### Branch Names
-
-| Variable | Type | Description | Example Value |
-|----------|------|-------------|---------------|
-| `BRANCH_NAME` | Config | Target branch for memory/updates | `memory/campaigns`, `memory/cli-performance`, `daily/default` |
-
-### Artifact Directories
-
-| Variable | Type | Description | Example Value |
-|----------|------|-------------|---------------|
-| `ARTIFACT_DIR` | Path | Directory for artifact storage | `/tmp/gh-aw/repo-memory/campaigns`, `/tmp/gh-aw/repo-memory/default` |
-
-### Secret References
-
-| Variable | Type | Description | Context |
-|----------|------|-------------|---------|
-| `ANTHROPIC_API_KEY` | Secret | Anthropic Claude API key | `${{ secrets.ANTHROPIC_API_KEY }}` |
-| `AZURE_CLIENT_ID` | Secret | Azure AD client ID | `${{ secrets.AZURE_CLIENT_ID }}` |
-| `AZURE_CLIENT_SECRET` | Secret | Azure AD client secret | `${{ secrets.AZURE_CLIENT_SECRET }}` |
-| `AZURE_TENANT_ID` | Secret | Azure AD tenant ID | `${{ secrets.AZURE_TENANT_ID }}` |
-
-### Workflow Inputs
-
-| Variable | Type | Description | Example Value |
-|----------|------|-------------|---------------|
-| `ORGANIZATION` | Input | GitHub organization name | `${{ github.event.inputs.organization || 'github' }}` |
-| `ADDITIONAL_METRICS` | Input | Additional metrics to collect | `release,pr` |
-
-## Go Code Constants
-
-Key constants defined in `pkg/constants/`:
-
-```go
-// Job Names
+### Job Names
+````go
 const AgentJobName JobName = "agent"
 const ActivationJobName JobName = "activation"
 const PreActivationJobName JobName = "pre_activation"
 const DetectionJobName JobName = "detection"
+````
 
-// Artifact Names
-const SafeOutputArtifactName = "safe-output"
-const AgentOutputArtifactName = "agent-output"
-
-// Step IDs
+### Step IDs
+````go
 const CheckMembershipStepID StepID = "check_membership"
 const CheckStopTimeStepID StepID = "check_stop_time"
 const CheckSkipIfMatchStepID StepID = "check_skip_if_match"
 const CheckSkipIfNoMatchStepID StepID = "check_skip_if_no_match"
 const CheckCommandPositionStepID StepID = "check_command_position"
-```
+const CheckRateLimitStepID StepID = "check_rate_limit"
+const CheckSkipRolesStepID StepID = "check_skip_roles"
+const CheckSkipBotsStepID StepID = "check_skip_bots"
+````
 
-## JavaScript Path Patterns
+### Directory Paths
+````go
+const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
+const DefaultMCPGatewayPayloadDir = "/tmp/gh-aw/mcp-payloads"
+````
 
-Common path patterns in JavaScript files (`actions/setup/js/*.cjs`):
+### MCP Server IDs
+````go
+const SafeOutputsMCPServerID = "safeoutputs"
+const SafeInputsMCPServerID = "safeinputs"
+const AgenticWorkflowsMCPServerID = "agenticworkflows"
+````
 
-```javascript
-// Setup action destination
-const SetupActionDestination = "/tmp/gh-aw/actions"
+### Default Versions
+````go
+const DefaultCopilotVersion Version = "0.0.410"
+const DefaultClaudeCodeVersion Version = "2.1.42"
+const DefaultCodexVersion Version = "0.101.0"
+const DefaultGitHubMCPServerVersion Version = "v0.30.3"
+const DefaultFirewallVersion Version = "v0.18.0"
+const DefaultMCPGatewayVersion Version = "v0.1.4"
+const DefaultPlaywrightMCPVersion Version = "0.0.68"
+const DefaultMCPSDKVersion Version = "1.24.0"
+const DefaultBunVersion Version = "1.1"
+const DefaultNodeVersion Version = "24"
+const DefaultPythonVersion Version = "3.12"
+const DefaultGoVersion Version = "1.25"
+````
 
-// Common imports
-const { setupGlobals } = require('/tmp/gh-aw/actions/setup_globals.cjs');
-const { main } = require('/opt/gh-aw/actions/assign_issue.cjs');
-const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+### Container Images
+````go
+const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
+const DefaultFirewallRegistry = "ghcr.io/github/gh-aw-firewall"
+const DefaultSerenaMCPServerContainer = "ghcr.io/github/serena-mcp-server"
+const OraiosSerenaContainer = "ghcr.io/oraios/serena"
+const DefaultNodeAlpineLTSImage = "node:lts-alpine"
+const DefaultPythonAlpineLTSImage = "python:alpine"
+const DefaultAlpineImage = "alpine:latest"
+const DevModeGhAwImage = "localhost/gh-aw:dev"
+````
 
-// Artifact references
-const artifactDir = '/tmp/gh-aw/threat-detection/';
-const patchPath = 'agent-artifacts/tmp/gh-aw/aw.patch';
-```
+### Docker Mounts
+````go
+const DefaultGhAwMount = "/opt/gh-aw:/opt/gh-aw:ro"
+const DefaultGhBinaryMount = "/usr/bin/gh:/usr/bin/gh:ro"
+const DefaultTmpGhAwMount = "/tmp/gh-aw:/tmp/gh-aw:rw"
+const DefaultWorkspaceMount = "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw"
+````
 
-## Docker Integration
+### Network Ports
+````go
+const DefaultMCPGatewayPort = 80
+const DefaultMCPServerPort = 3000
+const DefaultMCPInspectorPort = 3001
+const ClaudeLLMGatewayPort = 10000
+const CodexLLMGatewayPort = 10001
+const CopilotSDKLLMGatewayPort = 10002
+````
 
-Docker-related actions and patterns:
+### URLs
+````go
+const DefaultMCPRegistryURL URL = "https://api.mcp.github.com/v0.1"
+const GitHubCopilotMCPDomain = "api.githubcopilot.com"
+````
 
-| Component | Description | Context |
-|-----------|-------------|---------|
-| `docker/setup-buildx-action` | Docker Buildx setup | Enables multi-platform builds |
-| `docker/login-action` | Docker registry authentication | Logs into container registries |
-| `docker/metadata-action` | Docker metadata extraction | Generates tags and labels |
-| `docker/build-push-action` | Docker build and push | Builds and publishes container images |
+### Timeouts
+````go
+const DefaultAgenticWorkflowTimeout = 20 * time.Minute
+const DefaultToolTimeout = 60 * time.Second
+const DefaultMCPStartupTimeout = 120 * time.Second
+````
 
 ## Usage Guidelines
 
 ### Artifact Naming
 - Use descriptive hyphenated names (e.g., `agent-output`, `mcp-logs`)
-- Separate words with hyphens, not underscores (except legacy patterns)
-- Use singular nouns (e.g., `safe-output` not `safe-outputs`)
-- Prefix with domain when needed (e.g., `cache-memory-focus-areas`)
+- Prefer consistency: `agent-output` over `agent_output`
+- Use suffixes for categorization: `-logs`, `-assets`, `-data`
 
 ### Job Naming
-- Use snake_case for job names (e.g., `create_pull_request`, `check_membership`)
-- Use descriptive verbs (e.g., `update_`, `check_`, `create_`, `send_`)
-- Keep names under 30 characters when possible
-- Standard suffixes: `_check`, `_status`, `_memory`
+- Use snake_case for job names (e.g., `create_pull_request`, `safe_outputs`)
+- Standard job names: `activation`, `agent`, `detection`, `conclusion`
+- Safe-output job names should match tool names (e.g., `add_comment`, `create_pull_request`)
 
-### Step ID Naming
-- Use snake_case for step IDs (e.g., `check_actor`, `generate_aw_info`)
-- Use descriptive action verbs (e.g., `check_`, `generate_`, `handle_`, `compute_`)
-- Keep IDs concise but meaningful
-- Standard prefixes: `check_` (validation), `handle_` (error handling), `compute_` (calculation)
-
-### Path References
-- Use relative paths from repository root for repo files
-- Use absolute paths for `/tmp/gh-aw/` runtime files
-- Use `/opt/gh-aw/` for pre-installed scripts
-- Always use forward slashes, even on Windows
+### Path Conventions
+- Use relative paths from repository root (e.g., `.github/workflows/`)
+- Use `/tmp/gh-aw/` prefix for all temporary workflow data
+- Use `/opt/gh-aw/` prefix for read-only action scripts and binaries
+- Use environment variables for dynamic paths (e.g., `${{ env.GH_AW_AGENT_OUTPUT }}`)
 
 ### Action Pinning
-- **Always pin actions to full commit SHA for security** (40-character hex)
-- Never use tag references (e.g., `@v3`) in production workflows
-- Document the version/tag that corresponds to each SHA in comments
-- Update SHAs via `.github/aw/actions-lock.json` configuration
+- Always pin actions to full commit SHA for security (e.g., `actions/checkout@11bd719...`)
+- Multiple SHAs indicate version evolution across different workflows
+- Update SHAs when security patches are released
 
-### Environment Variables
-- Use `GH_AW_` prefix for gh-aw specific variables
-- Use uppercase with underscores (e.g., `AGENT_OUTPUT_TYPES`)
-- Reference other job outputs using `${{ needs.job_name.outputs.output_name }}`
-- Reference secrets using `${{ secrets.SECRET_NAME }}`
+### Container Image Tagging
+- Use version tags for stable releases (e.g., `v0.1.4`, `v0.18.0`)
+- Use `:dev` tag for local development builds
+- Use `latest` tag only for base images (e.g., `alpine:latest`)
 
-### File Organization
-- Source workflows: `.github/workflows/*.md`
-- Compiled workflows: `.github/workflows/*.lock.yml`
-- Configuration: `.github/aw/`
-- Runtime: `/tmp/gh-aw/`
-- Pre-installed: `/opt/gh-aw/`
-- Documentation: `scratchpad/`
+## Patterns and Conventions
 
-## Pattern Analysis
+### Temporary File Structure
+````
+/tmp/gh-aw/
+├── agent/                      # Agent workspace
+├── agent-stdio.log             # Agent logs
+├── aw-prompts/                 # Prompt storage
+│   └── prompt.txt
+├── aw.patch                    # Git patch
+├── aw_info.json                # Workflow metadata
+├── cache-memory/               # Persistent cache
+├── cache-memory-chroma/        # Vector DB cache
+├── cache-memory-focus-areas/   # Focus areas cache
+├── cache-memory-repo-audits/   # Audit cache
+├── mcp-config/logs/            # MCP config logs
+├── mcp-logs/                   # MCP server logs
+├── mcp-payloads/               # MCP gateway payloads
+├── python/                     # Python scripts/data
+│   ├── *.py
+│   ├── charts/*.png
+│   └── data/*
+├── repo-memory/                # Repository memory
+│   ├── campaigns/
+│   └── default/
+├── safe-inputs/logs/           # Safe input logs
+├── safeoutputs/                # Safe output data
+│   └── assets/
+└── sandbox/                    # Sandbox execution
+    ├── agent/logs/
+    └── firewall/logs/
+````
 
-### Most Common Patterns
+### GitHub Workflow Directory Structure
+````
+.github/
+├── agents/                     # Custom agent definitions
+│   └── test-agent.md
+├── aw/                         # Workflow configuration
+│   └── actions-lock.json
+└── workflows/                  # Workflow files
+    ├── *.md                    # Source workflows
+    ├── *.lock.yml              # Compiled workflows
+    └── shared/                 # Shared workflow components
+````
 
-1. **Setup Action**: Nearly every workflow uses `./actions/setup` as first step
-2. **Checkout**: `actions/checkout` is used in 95%+ of workflows
-3. **Artifact Upload/Download**: Extensive use of artifact passing between jobs
-4. **Environment References**: Heavy use of job outputs via `needs.job.outputs.`
-5. **Security**: All external actions pinned to full SHAs
+### Safe Output Job Naming
+Safe output jobs follow the pattern: `{tool_name}` where tool name is the MCP tool identifier:
+- `add_comment` → adds comments to issues/PRs
+- `create_pull_request` → creates pull requests
+- `post_to_slack_channel` → posts to Slack
+- `send_slack_message` → sends Slack messages
+- `notion_add_comment` → adds Notion comments
 
-### Workflow Structure Pattern
+### Activation Check Pattern
+Activation jobs use multiple step IDs for filtering:
+1. `check_membership` → Verify user is team member
+2. `check_stop_time` → Check if workflow should stop based on time
+3. `check_skip_if_match` → Skip if pattern matches
+4. `check_skip_if_no_match` → Skip if pattern doesn't match
+5. `check_command_position` → Verify command position in text
+6. `check_rate_limit` → Enforce rate limiting
+7. `check_skip_roles` → Skip based on user roles
+8. `check_skip_bots` → Skip bot-triggered runs
 
-Typical workflow job sequence:
+## Document Maintenance
 
-```
-activation → agent → detection → safe_outputs → conclusion
-     ↓                    ↓            ↓              ↓
-     ↓                    ↓            ↓         (always runs)
-(conditional)    (uploads artifacts) (dispatches)
-```
+This specification is automatically maintained by the **Layout Specification Maintainer** workflow. When workflow patterns change:
 
-### Artifact Flow Pattern
+1. The workflow scans all `.lock.yml` files
+2. Extracts patterns using `yq` and grep
+3. Reviews Go and JavaScript source code
+4. Updates this document with findings
+5. Creates a PR with the changes
 
-```
-agent job → uploads agent-output artifact
-         → uploads safe-output artifact
-
-detection job → downloads agent-output
-              → analyzes outputs
-              → triggers safe_outputs job
-
-safe_outputs → downloads safe-output
-             → dispatches handler jobs
-
-conclusion → downloads all artifacts (optional)
-           → generates summary
-```
-
-## Version History
-
-- **February 04, 2026**: Updated specification from 145 lock files (previously 137)
-  - Documented 30 unique GitHub Actions (up from 25)
-  - Cataloged 18 artifact names (up from 17)
-  - Listed 24 common job names (up from 20)
-  - Documented 30+ step IDs
-  - Extracted 50+ file path patterns
-  - Analyzed Go constants and JavaScript patterns
-  - Added comprehensive usage guidelines
-  - Expanded environment variables section
-  - Added Docker integration section
-
-- **January 23, 2026**: Initial specification generated from 137 lock files
+**Last extraction run**: 2026-02-16
+**Lock files analyzed**: 154
+**Patterns documented**: 200+
 
 ---
 
 *This document is automatically maintained by the Layout Specification Maintainer workflow.*
-*To update this specification, trigger the `layout-spec-maintainer` workflow or run: `gh aw run layout-spec-maintainer.md`*
+*For questions or corrections, please open an issue in the github/gh-aw repository.*
