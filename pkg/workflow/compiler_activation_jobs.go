@@ -933,17 +933,17 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 // generatePromptInActivationJob generates the prompt creation steps and adds them to the activation job
 // This creates the prompt.txt file that will be uploaded as an artifact and downloaded by the agent job
 func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *WorkflowData) {
-compilerActivationJobsLog.Print("Generating prompt steps in activation job")
+	compilerActivationJobsLog.Print("Generating prompt steps in activation job")
 
-// Use a string builder to collect the YAML
-var yaml strings.Builder
+	// Use a string builder to collect the YAML
+	var yaml strings.Builder
 
-// Call the existing generatePrompt method to get all the prompt steps
-c.generatePrompt(&yaml, data)
+	// Call the existing generatePrompt method to get all the prompt steps
+	c.generatePrompt(&yaml, data)
 
-// Convert the generated YAML into individual lines and append to steps
-yamlContent := yaml.String()
-*steps = append(*steps, yamlContent)
+	// Convert the generated YAML into individual lines and append to steps
+	yamlContent := yaml.String()
+	*steps = append(*steps, yamlContent)
 
-compilerActivationJobsLog.Print("Prompt generation steps added to activation job")
+	compilerActivationJobsLog.Print("Prompt generation steps added to activation job")
 }
