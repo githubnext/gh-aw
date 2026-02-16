@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -113,6 +114,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 	// Debouncing setup
 	const debounceDelay = 300 * time.Millisecond
 	var debounceTimer *time.Timer
+	var debounceMu sync.Mutex
 	modifiedFiles := make(map[string]struct{})
 
 	// Compile initially if no specific file provided
@@ -187,6 +189,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 				depGraph.RemoveWorkflow(event.Name)
 			case event.Has(fsnotify.Write) || event.Has(fsnotify.Create):
 				// Handle file modification or creation - add to debounced compilation
+				debounceMu.Lock()
 				modifiedFiles[event.Name] = struct{}{}
 
 				// Reset debounce timer
@@ -194,16 +197,19 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 					debounceTimer.Stop()
 				}
 				debounceTimer = time.AfterFunc(debounceDelay, func() {
+					debounceMu.Lock()
 					filesToCompile := make([]string, 0, len(modifiedFiles))
 					for file := range modifiedFiles {
 						filesToCompile = append(filesToCompile, file)
 					}
 					// Clear the modifiedFiles map
 					modifiedFiles = make(map[string]struct{})
+					debounceMu.Unlock()
 
 					// Compile the modified files using dependency graph
 					compileModifiedFilesWithDependencies(compiler, depGraph, filesToCompile, verbose)
 				})
+				debounceMu.Unlock()
 			}
 
 		case err, ok := <-watcher.Errors:

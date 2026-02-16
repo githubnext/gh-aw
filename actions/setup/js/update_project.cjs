@@ -1227,10 +1227,11 @@ async function main(config = {}, githubClient = null) {
         const projectStr = effectiveProjectUrl.trim();
         const projectWithoutHash = projectStr.startsWith("#") ? projectStr.substring(1) : projectStr;
 
-        // Check if it's a temporary ID (aw_XXXXXXXXXXXX)
-        if (/^aw_[0-9a-f]{12}$/i.test(projectWithoutHash)) {
-          // Look up in the unified temporaryIdMap
-          const resolved = tempIdMap.get(projectWithoutHash.toLowerCase());
+        // Check if it's a temporary ID using the canonical pattern (aw_XXX to aw_XXXXXXXX)
+        if (isTemporaryId(projectWithoutHash)) {
+          // Look up in the unified temporaryIdMap using normalized (lowercase) ID
+          const normalizedId = normalizeTemporaryId(projectWithoutHash);
+          const resolved = tempIdMap.get(normalizedId);
           if (resolved && typeof resolved === "object" && "projectUrl" in resolved && resolved.projectUrl) {
             core.info(`Resolved temporary project ID ${projectStr} to ${resolved.projectUrl}`);
             effectiveProjectUrl = resolved.projectUrl;
@@ -1242,6 +1243,23 @@ async function main(config = {}, githubClient = null) {
 
       // Create effective message with resolved project URL
       const resolvedMessage = { ...message, project: effectiveProjectUrl };
+
+      const hasContentNumber = resolvedMessage.content_number !== undefined && resolvedMessage.content_number !== null && String(resolvedMessage.content_number).trim() !== "";
+      const hasIssue = resolvedMessage.issue !== undefined && resolvedMessage.issue !== null && String(resolvedMessage.issue).trim() !== "";
+      const hasPullRequest = resolvedMessage.pull_request !== undefined && resolvedMessage.pull_request !== null && String(resolvedMessage.pull_request).trim() !== "";
+      if (resolvedMessage.content_type !== "draft_issue" && (hasContentNumber || hasIssue || hasPullRequest)) {
+        const rawContentNumber = hasContentNumber ? resolvedMessage.content_number : hasIssue ? resolvedMessage.issue : resolvedMessage.pull_request;
+        const sanitizedContentNumber = typeof rawContentNumber === "number" ? rawContentNumber.toString() : String(rawContentNumber).trim();
+        const resolved = resolveIssueNumber(sanitizedContentNumber, tempIdMap);
+        if (resolved.wasTemporaryId && !resolved.resolved) {
+          core.info(`Deferring update_project: unresolved temporary ID (${sanitizedContentNumber})`);
+          return {
+            success: false,
+            deferred: true,
+            error: resolved.errorMessage || `Unresolved temporary ID: ${sanitizedContentNumber}`,
+          };
+        }
+      }
 
       // Store the first project URL for view creation
       if (!firstProjectUrl && effectiveProjectUrl) {
