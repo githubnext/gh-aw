@@ -1,17 +1,17 @@
 # Dockerfile for GitHub Agentic Workflows compiler
 # Provides a minimal container with gh-aw, gh CLI, git, and jq
 
-# Use Alpine for minimal size (official distribution)
-FROM alpine:3.21
+# Use Alpine 3.19 for minimal size (3.20+ removed gh CLI due to Python 3.12 compatibility)
+FROM alpine:3.19
 
 # Install required dependencies
-RUN apk add --no-cache \
+RUN apk update && apk add --no-cache \
     git \
     jq \
     bash \
     curl \
     ca-certificates \
-    github-cli
+    gh
 
 # Docker Buildx automatically provides these ARGs for multi-platform builds
 # Expected values: TARGETOS=linux, TARGETARCH=amd64|arm64
