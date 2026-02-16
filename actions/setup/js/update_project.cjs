@@ -1227,10 +1227,11 @@ async function main(config = {}, githubClient = null) {
         const projectStr = effectiveProjectUrl.trim();
         const projectWithoutHash = projectStr.startsWith("#") ? projectStr.substring(1) : projectStr;
 
-        // Check if it's a temporary ID (aw_XXXXXXXXXXXX)
-        if (/^aw_[0-9a-f]{12}$/i.test(projectWithoutHash)) {
-          // Look up in the unified temporaryIdMap
-          const resolved = tempIdMap.get(projectWithoutHash.toLowerCase());
+        // Check if it's a temporary ID using the canonical pattern (aw_XXX to aw_XXXXXXXX)
+        if (isTemporaryId(projectWithoutHash)) {
+          // Look up in the unified temporaryIdMap using normalized (lowercase) ID
+          const normalizedId = normalizeTemporaryId(projectWithoutHash);
+          const resolved = tempIdMap.get(normalizedId);
           if (resolved && typeof resolved === "object" && "projectUrl" in resolved && resolved.projectUrl) {
             core.info(`Resolved temporary project ID ${projectStr} to ${resolved.projectUrl}`);
             effectiveProjectUrl = resolved.projectUrl;
