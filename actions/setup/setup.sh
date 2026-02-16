@@ -214,6 +214,7 @@ SAFE_OUTPUTS_FILES=(
   "error_helpers.cjs"
   "git_helpers.cjs"
   "mcp_enhanced_errors.cjs"
+  "comment_limit_helpers.cjs"
 )
 
 SAFE_OUTPUTS_COUNT=0

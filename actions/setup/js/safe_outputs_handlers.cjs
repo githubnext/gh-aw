@@ -10,7 +10,7 @@ const { writeLargeContentToFile } = require("./write_large_content_to_file.cjs")
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { generateGitPatch } = require("./generate_git_patch.cjs");
-const { enforceCommentLimits } = require("./add_comment.cjs");
+const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
