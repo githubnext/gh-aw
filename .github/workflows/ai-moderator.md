@@ -14,9 +14,7 @@ on:
 rate-limit:
   max: 5
   window: 60
-engine:
-  id: copilot
-  model: gpt-5.1-codex-mini
+engine: codex
 tools:
   github:
     mode: local
