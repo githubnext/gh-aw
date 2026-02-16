@@ -181,21 +181,12 @@ func cloneTrialHostRepository(repoSlug string, verbose bool) (string, error) {
 		return "", fmt.Errorf("invalid temporary directory path: %w", err)
 	}
 
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Cloning host repository to: %s", tempDir)))
-	}
-
 	// Clone the repository using the full slug
 	repoURL := fmt.Sprintf("https://github.com/%s.git", repoSlug)
-	cmd := exec.Command("git", "clone", repoURL, tempDir)
-	output, err := cmd.CombinedOutput()
 
+	output, err := workflow.RunGitCombined(fmt.Sprintf("Cloning %s...", repoSlug), "clone", repoURL, tempDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to clone host repository %s: %w (output: %s)", repoURL, err, string(output))
-	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Cloned host repository to: %s", tempDir)))
 	}
 
 	return tempDir, nil
@@ -521,8 +512,9 @@ func cloneRepoContentsIntoHost(cloneRepoSlug string, cloneRepoVersion string, ho
 
 	// Clone the source repository
 	cloneURL := fmt.Sprintf("https://github.com/%s.git", cloneRepoSlug)
-	cmd := exec.Command("git", "clone", cloneURL, tempCloneDir)
-	if output, err := cmd.CombinedOutput(); err != nil {
+
+	output, err := workflow.RunGitCombined(fmt.Sprintf("Cloning %s...", cloneRepoSlug), "clone", cloneURL, tempCloneDir)
+	if err != nil {
 		return fmt.Errorf("failed to clone source repository %s: %w (output: %s)", cloneURL, err, string(output))
 	}
 
@@ -533,22 +525,22 @@ func cloneRepoContentsIntoHost(cloneRepoSlug string, cloneRepoVersion string, ho
 
 	// If a version/tag/SHA is specified, checkout that ref
 	if cloneRepoVersion != "" {
-		cmd = exec.Command("git", "checkout", cloneRepoVersion)
-		if output, err := cmd.CombinedOutput(); err != nil {
+		checkoutCmd := exec.Command("git", "checkout", cloneRepoVersion)
+		if output, err := checkoutCmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("failed to checkout ref '%s': %w (output: %s)", cloneRepoVersion, err, string(output))
 		}
 	}
 
 	// Add the host repository as a new remote
 	hostURL := fmt.Sprintf("https://github.com/%s.git", hostRepoSlug)
-	cmd = exec.Command("git", "remote", "add", "host", hostURL)
-	if output, err := cmd.CombinedOutput(); err != nil {
+	remoteCmd := exec.Command("git", "remote", "add", "host", hostURL)
+	if output, err := remoteCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to add host remote: %w (output: %s)", err, string(output))
 	}
 
 	// Force push the current branch to the host repository's main branch
-	cmd = exec.Command("git", "push", "--force", "host", "HEAD:main")
-	if output, err := cmd.CombinedOutput(); err != nil {
+	pushCmd := exec.Command("git", "push", "--force", "host", "HEAD:main")
+	if output, err := pushCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to force push to host repository: %w (output: %s)", err, string(output))
 	}
 

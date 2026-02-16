@@ -384,23 +384,10 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 }
 
 // isWorkflowSpecFormat checks if a path already looks like a workflowspec
+// A workflowspec is identified by having an @ version indicator (e.g., owner/repo/path@sha)
+// Simple paths like "shared/mcp/file.md" are NOT workflowspecs and should be processed
 func isWorkflowSpecFormat(path string) bool {
-	// Check if it contains @ (ref separator) or looks like owner/repo/path
-	if strings.Contains(path, "@") {
-		return true
-	}
-
-	// Remove section reference if present
-	cleanPath := path
-	if idx := strings.Index(path, "#"); idx != -1 {
-		cleanPath = path[:idx]
-	}
-
-	// Check if it has at least 3 parts and doesn't start with . or /
-	parts := strings.Split(cleanPath, "/")
-	if len(parts) >= 3 && !strings.HasPrefix(cleanPath, ".") && !strings.HasPrefix(cleanPath, "/") {
-		return true
-	}
-
-	return false
+	// The only reliable indicator of a workflowspec is the @ version separator
+	// Paths like "shared/mcp/arxiv.md" should be treated as local paths, not workflowspecs
+	return strings.Contains(path, "@")
 }
