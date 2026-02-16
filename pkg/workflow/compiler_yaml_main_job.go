@@ -233,8 +233,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// This reads from aw_info.json for consistent data
 	c.generateWorkflowOverviewStep(yaml, data, engine)
 
-	// Add prompt creation step
-	c.generatePrompt(yaml, data)
+	// Download prompt artifact from activation job
+	compilerYamlLog.Print("Adding prompt artifact download step")
+	yaml.WriteString("      - name: Download prompt artifact\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/download-artifact"))
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: prompt\n")
+	yaml.WriteString("          path: /tmp/gh-aw/aw-prompts\n")
 
 	// Collect artifact paths for unified upload at the end
 	var artifactPaths []string
