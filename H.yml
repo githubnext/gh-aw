@@ -1,0 +1,101 @@
+# How to Create a GitHub Agentic Workflow
+
+## 1. Install GitHub Agentic Workflows CLI Extension
+
+First, make sure you have `gh aw` (the CLI extension) installed:
+
+```bash
+gh aw version
+```
+
+- If installed, upgrade to the latest version:
+  ```bash
+  gh extension upgrade aw
+  ```
+- If NOT installed, install it with:
+  ```bash
+  curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash
+  ```
+
+Verify installation:
+```bash
+gh aw version
+```
+- You should see the version information.
+
+Troubleshoot if you encounter errors:
+- Ensure GitHub CLI (`gh`) is installed and authenticated
+- The install script completes with no errors
+- `~/.local/share/gh/extensions` is in your PATH
+
+---
+
+## 2. Create the Workflow
+
+- Fetch and read the full instructions at `.github/aw/create-agentic-workflow.md` in the **gh-aw** repo to proceed with authoring the workflow.
+- Typical use cases:
+  - Creating a workflow from scratch
+  - Adding new automations
+  - Designing new agentic flows
+
+Execute:
+```bash
+gh aw new <workflow-name>
+```
+Replace `<workflow-name>` with an appropriate name for your workflow.
+
+---
+
+## 3. Review Changes
+
+List the new files:
+```bash
+git status
+```
+
+When you create a workflow, you should see:
+- `.github/workflows/<workflow-name>.md`
+- `.github/workflows/<workflow-name>.lock.yml`
+
+Check/append to `.gitattributes` (if not already present):
+```text
+.github/workflows/*.lock.yml linguist-generated=true merge=ours
+```
+
+---
+
+## 4. Commit & Push
+
+Add and commit the changes:
+```bash
+git add .gitattributes .github/workflows/<workflow-name>.md .github/workflows/<workflow-name>.lock.yml
+git commit -m "Initialize repository for GitHub Agentic Workflows"
+git push
+```
+- If you have branch protections, open a pull request instead.
+
+---
+
+## 5. Additional References
+
+Quick CLI commands:
+```bash
+# Create new workflow
+gh aw new <workflow-name>
+
+# Compile
+gh aw compile [workflow-name]
+
+# Debug workflow runs
+gh aw logs [workflow-name]
+gh aw audit <run-id>
+
+# Upgrade workflows
+gh aw fix --write
+gh aw compile --validate
+```
+
+---
+
+**For more, check the detailed instructions at:**
+- https://github.com/github/gh-aw/blob/main/create.md
