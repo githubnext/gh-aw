@@ -22,7 +22,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# frontmatter-hash: 98708910f46b1fc0c61c08ba4016a840151db6225019505d4f87c5fefe6dda54
+# frontmatter-hash: c914e6148e6bd4fd2f3bf55bbf79dcfe6291fbc8c32ea6f9953192c581ac5d3a
 
 name: "AI Moderator"
 "on":
@@ -35,6 +35,7 @@ name: "AI Moderator"
     types:
     - opened
   pull_request:
+    # forks: "*" # Fork filtering applied via job conditions
     types:
     - opened
   # skip-bots: # Skip-bots processed as bot check in pre-activation job
@@ -57,8 +58,7 @@ run-name: "AI Moderator"
 jobs:
   activation:
     needs: pre_activation
-    if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id))
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -923,7 +923,6 @@ jobs:
             await main();
 
   pre_activation:
-    if: (github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)
     runs-on: ubuntu-slim
     permissions:
       actions: read

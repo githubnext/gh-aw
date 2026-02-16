@@ -10,6 +10,7 @@ on:
     lock-for-agent: true
   pull_request:
     types: [opened]
+    forks: "*"
   skip-roles: [admin, maintainer, write, triage]
   skip-bots: [github-actions, copilot]
 rate-limit:
