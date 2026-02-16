@@ -177,9 +177,9 @@ File paths are **restricted to the `.github` folder** to prevent access to arbit
 {{#runtime-import shared-instructions.md}}           # Loads .github/shared-instructions.md
 {{#runtime-import .github/shared-instructions.md}}  # Same - .github/ prefix is trimmed
 
-# ❌ Invalid - Attempts to escape .github folder
-{{#runtime-import ../src/config.go}}                # Error: Must be within .github folder
-{{#runtime-import ../../etc/passwd}}                # Error: Must be within .github folder
+# ❌ Invalid - Security violations
+{{#runtime-import ../src/config.go}}                # Error: Relative traversal outside .github
+{{#runtime-import /etc/passwd}}                     # Error: Absolute path not allowed
 ```
 
 ### Caching
@@ -272,10 +272,14 @@ Runtime import file not found: missing.txt
 Invalid start line 100 for file docs/main.go (total lines: 50)
 ```
 
-**Path security violation:**
+**Path security violations:**
 
 ```
-Security: Path ../../../etc/passwd must be within .github folder
+# Relative traversal
+Security: Path ../src/main.go must be within .github folder (resolves to: ../src/main.go)
+
+# Absolute path
+Security: Path /etc/passwd must be within .github folder (resolves to: /etc/passwd)
 ```
 
 **GitHub Actions macros detected:**
