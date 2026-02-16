@@ -207,20 +207,6 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, customSteps...)
 	}
 
-	// Generate prompt in the activation job (before agent job runs)
-	compilerActivationJobsLog.Print("Generating prompt in activation job")
-	c.generatePromptInActivationJob(&steps, data)
-
-	// Upload prompt.txt as an artifact for the agent job to download
-	compilerActivationJobsLog.Print("Adding prompt artifact upload step")
-	steps = append(steps, "      - name: Upload prompt artifact\n")
-	steps = append(steps, "        if: success()\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          name: prompt\n")
-	steps = append(steps, "          path: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	steps = append(steps, "          retention-days: 1\n")
-
 	// Generate the activated output expression using expression builders
 	var activatedNode ConditionNode
 
@@ -652,6 +638,20 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if workflowRunRepoSafety != "" {
 		activationCondition = c.combineJobIfConditions(activationCondition, workflowRunRepoSafety)
 	}
+
+	// Generate prompt in the activation job (before agent job runs)
+	compilerActivationJobsLog.Print("Generating prompt in activation job")
+	c.generatePromptInActivationJob(&steps, data)
+
+	// Upload prompt.txt as an artifact for the agent job to download
+	compilerActivationJobsLog.Print("Adding prompt artifact upload step")
+	steps = append(steps, "      - name: Upload prompt artifact\n")
+	steps = append(steps, "        if: success()\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          name: prompt\n")
+	steps = append(steps, "          path: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	steps = append(steps, "          retention-days: 1\n")
 
 	// Set permissions - activation job always needs contents:read for GitHub API access
 	// Also add reaction permissions if reaction is configured and not "none"
