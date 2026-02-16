@@ -9,67 +9,51 @@ import (
 	"time"
 )
 
-func TestQueryActorRole_ConcurrentCacheAccess(t *testing.T) {
-	// Save and restore global state
-	origCache := permissionCache
-	origTTL := permissionCacheTTL
-	t.Cleanup(func() {
-		cacheMu.Lock()
-		permissionCache = origCache
-		permissionCacheTTL = origTTL
-		cacheMu.Unlock()
-	})
+func TestMCPCacheStore_ConcurrentPermissionAccess(t *testing.T) {
+	cache := newMCPCacheStore()
+	cache.permissionTTL = 50 * time.Millisecond
 
-	// Use a fresh cache with a short TTL to exercise both read and write paths
-	cacheMu.Lock()
-	permissionCache = make(map[string]*actorPermissionCache)
-	permissionCacheTTL = 50 * time.Millisecond
-	cacheMu.Unlock()
-
-	// Pre-populate cache entries
-	cacheMu.Lock()
+	// Pre-populate
 	for i := 0; i < 5; i++ {
-		key := fmt.Sprintf("actor%d:owner/repo", i)
-		permissionCache[key] = &actorPermissionCache{
-			permission: "write",
-			timestamp:  time.Now(),
-		}
+		cache.SetPermission(fmt.Sprintf("actor%d", i), "owner/repo", "write")
 	}
-	cacheMu.Unlock()
 
 	const numGoroutines = 20
 	const numIterations = 100
 
 	var wg sync.WaitGroup
 
-	// Concurrent goroutines reading and writing the cache
 	for g := 0; g < numGoroutines; g++ {
 		wg.Add(1)
-		go func(goroutineID int) {
+		go func() {
 			defer wg.Done()
 			for i := 0; i < numIterations; i++ {
-				cacheKey := fmt.Sprintf("actor%d:owner/repo", i%10)
+				actor := fmt.Sprintf("actor%d", i%10)
+				cache.GetPermission(actor, "owner/repo")
+				cache.SetPermission(actor, "owner/repo", "write")
+			}
+		}()
+	}
 
-				cacheMu.RLock()
-				if cached, ok := permissionCache[cacheKey]; ok {
-					if time.Since(cached.timestamp) >= permissionCacheTTL {
-						cacheMu.RUnlock()
-						cacheMu.Lock()
-						delete(permissionCache, cacheKey)
-						cacheMu.Unlock()
-					} else {
-						cacheMu.RUnlock()
-					}
-				} else {
-					cacheMu.RUnlock()
-				}
+	wg.Wait()
+}
 
-				cacheMu.Lock()
-				permissionCache[cacheKey] = &actorPermissionCache{
-					permission: "write",
-					timestamp:  time.Now(),
-				}
-				cacheMu.Unlock()
+func TestMCPCacheStore_ConcurrentRepoAccess(t *testing.T) {
+	cache := newMCPCacheStore()
+	cache.repoTTL = 50 * time.Millisecond
+
+	const numGoroutines = 20
+	const numIterations = 100
+
+	var wg sync.WaitGroup
+
+	for g := 0; g < numGoroutines; g++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for i := 0; i < numIterations; i++ {
+				cache.GetRepo()
+				cache.SetRepo(fmt.Sprintf("owner/repo-%d", id))
 			}
 		}(g)
 	}
@@ -77,48 +61,46 @@ func TestQueryActorRole_ConcurrentCacheAccess(t *testing.T) {
 	wg.Wait()
 }
 
-func TestGetRepository_ConcurrentCacheAccess(t *testing.T) {
-	// Save and restore global state
-	origRepoCache := repoCache
-	origRepoCacheTTL := repoCacheTTL
-	t.Cleanup(func() {
-		cacheMu.Lock()
-		repoCache = origRepoCache
-		repoCacheTTL = origRepoCacheTTL
-		cacheMu.Unlock()
-	})
+func TestMCPCacheStore_PermissionExpiry(t *testing.T) {
+	cache := newMCPCacheStore()
+	cache.permissionTTL = 10 * time.Millisecond
 
-	cacheMu.Lock()
-	repoCache = nil
-	repoCacheTTL = 50 * time.Millisecond
-	cacheMu.Unlock()
+	cache.SetPermission("actor", "owner/repo", "admin")
 
-	const numGoroutines = 20
-	const numIterations = 100
-
-	var wg sync.WaitGroup
-
-	for g := 0; g < numGoroutines; g++ {
-		wg.Add(1)
-		go func(goroutineID int) {
-			defer wg.Done()
-			for i := 0; i < numIterations; i++ {
-				cacheMu.RLock()
-				cached := repoCache
-				if cached != nil {
-					_ = cached.repository
-				}
-				cacheMu.RUnlock()
-
-				cacheMu.Lock()
-				repoCache = &repositoryCache{
-					repository: fmt.Sprintf("owner/repo-%d", goroutineID),
-					timestamp:  time.Now(),
-				}
-				cacheMu.Unlock()
-			}
-		}(g)
+	// Should hit cache
+	perm, ok := cache.GetPermission("actor", "owner/repo")
+	if !ok || perm != "admin" {
+		t.Errorf("GetPermission() = (%q, %v), want (\"admin\", true)", perm, ok)
 	}
 
-	wg.Wait()
+	// Wait for expiry
+	time.Sleep(20 * time.Millisecond)
+
+	// Should miss cache
+	_, ok = cache.GetPermission("actor", "owner/repo")
+	if ok {
+		t.Error("GetPermission() should return false after TTL expiry")
+	}
+}
+
+func TestMCPCacheStore_RepoExpiry(t *testing.T) {
+	cache := newMCPCacheStore()
+	cache.repoTTL = 10 * time.Millisecond
+
+	cache.SetRepo("owner/repo")
+
+	// Should hit cache
+	repo, ok := cache.GetRepo()
+	if !ok || repo != "owner/repo" {
+		t.Errorf("GetRepo() = (%q, %v), want (\"owner/repo\", true)", repo, ok)
+	}
+
+	// Wait for expiry
+	time.Sleep(20 * time.Millisecond)
+
+	// Should miss cache
+	_, ok = cache.GetRepo()
+	if ok {
+		t.Error("GetRepo() should return false after TTL expiry")
+	}
 }

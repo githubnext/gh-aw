@@ -39,51 +39,102 @@ func mcpErrorData(v any) json.RawMessage {
 	return data
 }
 
-// actorPermissionCache stores cached actor permission lookups with TTL
-type actorPermissionCache struct {
+// mcpCacheStore provides thread-safe caching for actor permissions and repository lookups.
+// All exported methods are safe for concurrent use.
+type mcpCacheStore struct {
+	mu                 sync.RWMutex
+	permissions        map[string]*permissionEntry
+	permissionTTL      time.Duration
+	repo               *repoEntry
+	repoTTL            time.Duration
+}
+
+type permissionEntry struct {
 	permission string
 	timestamp  time.Time
 }
 
-// repositoryCache stores cached repository information with TTL
-type repositoryCache struct {
+type repoEntry struct {
 	repository string
 	timestamp  time.Time
 }
 
-var (
-	cacheMu            sync.RWMutex
-	permissionCache    = make(map[string]*actorPermissionCache)
-	permissionCacheTTL = 1 * time.Hour
-	repoCache          *repositoryCache
-	repoCacheTTL       = 1 * time.Hour
-)
+func newMCPCacheStore() *mcpCacheStore {
+	return &mcpCacheStore{
+		permissions:   make(map[string]*permissionEntry),
+		permissionTTL: 1 * time.Hour,
+		repoTTL:       1 * time.Hour,
+	}
+}
+
+// GetPermission returns the cached permission for the given actor and repo, or ("", false) on cache miss.
+func (c *mcpCacheStore) GetPermission(actor, repo string) (string, bool) {
+	cacheKey := actor + ":" + repo
+	c.mu.RLock()
+	entry, ok := c.permissions[cacheKey]
+	if ok && time.Since(entry.timestamp) < c.permissionTTL {
+		perm := entry.permission
+		c.mu.RUnlock()
+		return perm, true
+	}
+	c.mu.RUnlock()
+	if ok {
+		// Expired — remove it
+		c.mu.Lock()
+		delete(c.permissions, cacheKey)
+		c.mu.Unlock()
+	}
+	return "", false
+}
+
+// SetPermission stores a permission in the cache.
+func (c *mcpCacheStore) SetPermission(actor, repo, permission string) {
+	cacheKey := actor + ":" + repo
+	c.mu.Lock()
+	c.permissions[cacheKey] = &permissionEntry{
+		permission: permission,
+		timestamp:  time.Now(),
+	}
+	c.mu.Unlock()
+}
+
+// GetRepo returns the cached repository name, or ("", false) on cache miss.
+func (c *mcpCacheStore) GetRepo() (string, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.repo != nil && time.Since(c.repo.timestamp) < c.repoTTL {
+		return c.repo.repository, true
+	}
+	return "", false
+}
+
+// SetRepo stores a repository name in the cache.
+func (c *mcpCacheStore) SetRepo(repository string) {
+	c.mu.Lock()
+	c.repo = &repoEntry{
+		repository: repository,
+		timestamp:  time.Now(),
+	}
+	c.mu.Unlock()
+}
+
+var mcpCache = newMCPCacheStore()
 
 // getRepository retrieves the current repository name (owner/repo format).
 // Results are cached for 1 hour to avoid repeated queries.
 // Checks GITHUB_REPOSITORY environment variable first, then falls back to gh repo view.
 func getRepository() (string, error) {
 	// Check cache first
-	cacheMu.RLock()
-	if repoCache != nil && time.Since(repoCache.timestamp) < repoCacheTTL {
-		repo := repoCache.repository
-		cacheMu.RUnlock()
-		mcpLog.Printf("Using cached repository: %s (age: %v)", repo, time.Since(repoCache.timestamp))
+	if repo, ok := mcpCache.GetRepo(); ok {
+		mcpLog.Printf("Using cached repository: %s", repo)
 		return repo, nil
 	}
-	cacheMu.RUnlock()
 
 	// Try GITHUB_REPOSITORY environment variable first
 	repo := os.Getenv("GITHUB_REPOSITORY")
 	if repo != "" {
 		mcpLog.Printf("Got repository from GITHUB_REPOSITORY: %s", repo)
-		// Cache the result
-		cacheMu.Lock()
-		repoCache = &repositoryCache{
-			repository: repo,
-			timestamp:  time.Now(),
-		}
-		cacheMu.Unlock()
+		mcpCache.SetRepo(repo)
 		return repo, nil
 	}
 
@@ -102,13 +153,7 @@ func getRepository() (string, error) {
 	}
 
 	mcpLog.Printf("Got repository from gh repo view: %s", repo)
-	// Cache the result
-	cacheMu.Lock()
-	repoCache = &repositoryCache{
-		repository: repo,
-		timestamp:  time.Now(),
-	}
-	cacheMu.Unlock()
+	mcpCache.SetRepo(repo)
 	return repo, nil
 }
 
@@ -124,22 +169,9 @@ func queryActorRole(ctx context.Context, actor string, repo string) (string, err
 	}
 
 	// Check cache first
-	cacheKey := fmt.Sprintf("%s:%s", actor, repo)
-	cacheMu.RLock()
-	if cached, ok := permissionCache[cacheKey]; ok {
-		if time.Since(cached.timestamp) < permissionCacheTTL {
-			cacheMu.RUnlock()
-			mcpLog.Printf("Using cached permission for %s in %s: %s (age: %v)", actor, repo, cached.permission, time.Since(cached.timestamp))
-			return cached.permission, nil
-		}
-		cacheMu.RUnlock()
-		// Cache expired, remove it
-		cacheMu.Lock()
-		delete(permissionCache, cacheKey)
-		cacheMu.Unlock()
-		mcpLog.Printf("Permission cache expired for %s in %s", actor, repo)
-	} else {
-		cacheMu.RUnlock()
+	if perm, ok := mcpCache.GetPermission(actor, repo); ok {
+		mcpLog.Printf("Using cached permission for %s in %s: %s", actor, repo, perm)
+		return perm, nil
 	}
 
 	// Query GitHub API for user's permission level
@@ -159,13 +191,7 @@ func queryActorRole(ctx context.Context, actor string, repo string) (string, err
 		return "", fmt.Errorf("no permission found for actor %s in repository %s", actor, repo)
 	}
 
-	// Cache the result
-	cacheMu.Lock()
-	permissionCache[cacheKey] = &actorPermissionCache{
-		permission: permission,
-		timestamp:  time.Now(),
-	}
-	cacheMu.Unlock()
+	mcpCache.SetPermission(actor, repo, permission)
 	mcpLog.Printf("Cached permission for %s in %s: %s", actor, repo, permission)
 
 	return permission, nil
