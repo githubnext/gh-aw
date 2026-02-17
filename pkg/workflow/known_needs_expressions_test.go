@@ -11,51 +11,73 @@ import (
 
 func TestGenerateKnownNeedsExpressions(t *testing.T) {
 	tests := []struct {
-		name               string
-		data               *WorkflowData
-		expectedMinCount   int
-		expectedExprPrefix string
-		checkExpressions   []string
+		name             string
+		data             *WorkflowData
+		expectedMinCount int
+		checkExpressions []string
+		notExpectedExprs []string
 	}{
 		{
-			name:             "basic activation and agent jobs",
+			name:             "basic pre_activation job only",
 			data:             &WorkflowData{},
-			expectedMinCount: 10, // At least activation, pre_activation, detection, and agent outputs
+			expectedMinCount: 2, // Only pre_activation outputs (activated, matched_command)
 			checkExpressions: []string{
-				"needs.activation.outputs.text",
-				"needs.activation.outputs.title",
-				"needs.activation.outputs.body",
 				"needs.pre_activation.outputs.activated",
-				"needs.detection.outputs.success",
-				"needs.agent.outputs.output",
-				"needs.agent.outputs.output_types",
+				"needs.pre_activation.outputs.matched_command",
+			},
+			notExpectedExprs: []string{
+				"needs.activation.outputs.text",   // Activation is the current job
+				"needs.agent.outputs.output",      // Agent runs AFTER activation
+				"needs.detection.outputs.success", // Detection runs AFTER activation
 			},
 		},
 		{
-			name: "with safe outputs",
+			name: "with custom job before activation",
+			data: &WorkflowData{
+				Jobs: map[string]any{
+					"custom_job": map[string]any{
+						"runs-on": "ubuntu-latest",
+						// No needs field - runs before activation
+					},
+				},
+			},
+			checkExpressions: []string{
+				"needs.pre_activation.outputs.activated",
+				"needs.custom_job.outputs.output",
+			},
+			notExpectedExprs: []string{
+				"needs.agent.outputs.output", // Agent runs AFTER activation
+			},
+		},
+		{
+			name: "with custom job after activation",
+			data: &WorkflowData{
+				Jobs: map[string]any{
+					"custom_job": map[string]any{
+						"runs-on": "ubuntu-latest",
+						"needs":    "activation", // Depends on activation - runs AFTER
+					},
+				},
+			},
+			checkExpressions: []string{
+				"needs.pre_activation.outputs.activated",
+			},
+			notExpectedExprs: []string{
+				"needs.custom_job.outputs.output", // Runs AFTER activation
+			},
+		},
+		{
+			name: "safe outputs should not be included",
 			data: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
 					CreateIssues: &CreateIssuesConfig{},
 				},
 			},
 			checkExpressions: []string{
-				"needs.activation.outputs.text",
-				"needs.create_issue.outputs.issue_url",
-				"needs.create_issue.outputs.issue_number",
+				"needs.pre_activation.outputs.activated",
 			},
-		},
-		{
-			name: "with custom jobs",
-			data: &WorkflowData{
-				Jobs: map[string]any{
-					"custom_job": map[string]any{
-						"runs-on": "ubuntu-latest",
-					},
-				},
-			},
-			checkExpressions: []string{
-				"needs.activation.outputs.text",
-				"needs.custom_job.outputs.output",
+			notExpectedExprs: []string{
+				"needs.create_issue.outputs.issue_url", // Safe outputs run AFTER activation
 			},
 		},
 	}
@@ -64,9 +86,11 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mappings := generateKnownNeedsExpressions(tt.data)
 
-			// Check minimum count
-			assert.GreaterOrEqual(t, len(mappings), tt.expectedMinCount,
-				"Should generate at least %d expressions", tt.expectedMinCount)
+			// Check minimum count if specified
+			if tt.expectedMinCount > 0 {
+				assert.GreaterOrEqual(t, len(mappings), tt.expectedMinCount,
+					"Should generate at least %d expressions", tt.expectedMinCount)
+			}
 
 			// Build a map for easy lookup
 			exprMap := make(map[string]*ExpressionMapping)
@@ -74,7 +98,7 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 				exprMap[mapping.Content] = mapping
 			}
 
-			// Check specific expressions
+			// Check specific expressions that should be present
 			for _, expr := range tt.checkExpressions {
 				mapping, found := exprMap[expr]
 				assert.True(t, found, "Expected expression %s to be generated", expr)
@@ -83,6 +107,12 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 					assert.Contains(t, mapping.EnvVar, "GH_AW_NEEDS_", "EnvVar should have GH_AW_NEEDS_ prefix")
 					assert.Equal(t, expr, mapping.Content, "Content should match expression")
 				}
+			}
+
+			// Check expressions that should NOT be present
+			for _, expr := range tt.notExpectedExprs {
+				_, found := exprMap[expr]
+				assert.False(t, found, "Did not expect expression %s to be generated (runs after activation)", expr)
 			}
 		})
 	}
@@ -176,6 +206,82 @@ func TestGetSafeOutputJobNames(t *testing.T) {
 			jobNames := getSafeOutputJobNames(tt.data)
 			assert.ElementsMatch(t, tt.expectedJobs, jobNames,
 				"Safe output job names mismatch")
+		})
+	}
+}
+
+func TestGetCustomJobsBeforeActivation(t *testing.T) {
+	tests := []struct {
+		name         string
+		data         *WorkflowData
+		expectedJobs []string
+	}{
+		{
+			name:         "no custom jobs",
+			data:         &WorkflowData{},
+			expectedJobs: []string{},
+		},
+		{
+			name: "job with no dependencies runs before activation",
+			data: &WorkflowData{
+				Jobs: map[string]any{
+					"custom_job": map[string]any{
+						"runs-on": "ubuntu-latest",
+					},
+				},
+			},
+			expectedJobs: []string{"custom_job"},
+		},
+		{
+			name: "job depending on activation runs after",
+			data: &WorkflowData{
+				Jobs: map[string]any{
+					"custom_job": map[string]any{
+						"runs-on": "ubuntu-latest",
+						"needs":    "activation",
+					},
+				},
+			},
+			expectedJobs: []string{}, // Filtered out
+		},
+		{
+			name: "job depending on agent runs after",
+			data: &WorkflowData{
+				Jobs: map[string]any{
+					"custom_job": map[string]any{
+						"runs-on": "ubuntu-latest",
+						"needs":    "agent",
+					},
+				},
+			},
+			expectedJobs: []string{}, // Filtered out
+		},
+		{
+			name: "mixed jobs - some before, some after",
+			data: &WorkflowData{
+				Jobs: map[string]any{
+					"job_before": map[string]any{
+						"runs-on": "ubuntu-latest",
+					},
+					"job_after": map[string]any{
+						"runs-on": "ubuntu-latest",
+						"needs":    "activation",
+					},
+					"another_before": map[string]any{
+						"runs-on": "ubuntu-latest",
+						"needs":    "some_other_job", // Not activation-related
+					},
+				},
+			},
+			expectedJobs: []string{"another_before", "job_before"}, // Sorted
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jobNames := getCustomJobsBeforeActivation(tt.data)
+			assert.ElementsMatch(t, tt.expectedJobs, jobNames,
+				"Custom jobs before activation mismatch")
 		})
 	}
 }

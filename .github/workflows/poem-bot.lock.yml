@@ -123,65 +123,9 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_IS_PR_COMMENT: ${{ github.event.issue.pull_request && 'true' || '' }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_BODY: ${{ needs.activation.outputs.body }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_ISSUE_LOCKED: ${{ needs.activation.outputs.issue_locked }}
           GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_TITLE: ${{ needs.activation.outputs.title }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_COMMENT_ID: ${{ needs.add_comment.outputs.comment_id }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_COMMENT_URL: ${{ needs.add_comment.outputs.comment_url }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_DISCUSSION_NUMBER: ${{ needs.add_comment.outputs.discussion_number }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_DISCUSSION_URL: ${{ needs.add_comment.outputs.discussion_url }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_ISSUE_NUMBER: ${{ needs.add_comment.outputs.issue_number }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_ISSUE_URL: ${{ needs.add_comment.outputs.issue_url }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_PULL_REQUEST_NUMBER: ${{ needs.add_comment.outputs.pull_request_number }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_PULL_REQUEST_URL: ${{ needs.add_comment.outputs.pull_request_url }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_TEMPORARY_ID_MAP: ${{ needs.add_comment.outputs.temporary_id_map }}
-          GH_AW_NEEDS_AGENT_OUTPUTS_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
-          GH_AW_NEEDS_AGENT_OUTPUTS_HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
-          GH_AW_NEEDS_AGENT_OUTPUTS_OUTPUT: ${{ needs.agent.outputs.output }}
-          GH_AW_NEEDS_AGENT_OUTPUTS_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
-          GH_AW_NEEDS_AGENT_OUTPUTS_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_COMMENT_ID: ${{ needs.create_discussion.outputs.comment_id }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_COMMENT_URL: ${{ needs.create_discussion.outputs.comment_url }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_DISCUSSION_NUMBER: ${{ needs.create_discussion.outputs.discussion_number }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_DISCUSSION_URL: ${{ needs.create_discussion.outputs.discussion_url }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_ISSUE_NUMBER: ${{ needs.create_discussion.outputs.issue_number }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_ISSUE_URL: ${{ needs.create_discussion.outputs.issue_url }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_PULL_REQUEST_NUMBER: ${{ needs.create_discussion.outputs.pull_request_number }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_PULL_REQUEST_URL: ${{ needs.create_discussion.outputs.pull_request_url }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_TEMPORARY_ID_MAP: ${{ needs.create_discussion.outputs.temporary_id_map }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_COMMENT_ID: ${{ needs.create_issue.outputs.comment_id }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_COMMENT_URL: ${{ needs.create_issue.outputs.comment_url }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_DISCUSSION_NUMBER: ${{ needs.create_issue.outputs.discussion_number }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_DISCUSSION_URL: ${{ needs.create_issue.outputs.discussion_url }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_PULL_REQUEST_NUMBER: ${{ needs.create_issue.outputs.pull_request_number }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_PULL_REQUEST_URL: ${{ needs.create_issue.outputs.pull_request_url }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_COMMENT_ID: ${{ needs.create_pull_request.outputs.comment_id }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_COMMENT_URL: ${{ needs.create_pull_request.outputs.comment_url }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_DISCUSSION_NUMBER: ${{ needs.create_pull_request.outputs.discussion_number }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_DISCUSSION_URL: ${{ needs.create_pull_request.outputs.discussion_url }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_ISSUE_NUMBER: ${{ needs.create_pull_request.outputs.issue_number }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_ISSUE_URL: ${{ needs.create_pull_request.outputs.issue_url }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_TEMPORARY_ID_MAP: ${{ needs.create_pull_request.outputs.temporary_id_map }}
-          GH_AW_NEEDS_DETECTION_OUTPUTS_SUCCESS: ${{ needs.detection.outputs.success }}
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: ${{ needs.pre_activation.outputs.matched_command }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_COMMENT_ID: ${{ needs.safe_outputs.outputs.comment_id }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_COMMENT_URL: ${{ needs.safe_outputs.outputs.comment_url }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_DISCUSSION_NUMBER: ${{ needs.safe_outputs.outputs.discussion_number }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_DISCUSSION_URL: ${{ needs.safe_outputs.outputs.discussion_url }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_ISSUE_NUMBER: ${{ needs.safe_outputs.outputs.issue_number }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_ISSUE_URL: ${{ needs.safe_outputs.outputs.issue_url }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_PULL_REQUEST_NUMBER: ${{ needs.safe_outputs.outputs.pull_request_number }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_PULL_REQUEST_URL: ${{ needs.safe_outputs.outputs.pull_request_url }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_TEMPORARY_ID_MAP: ${{ needs.safe_outputs.outputs.temporary_id_map }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'GH_AW_PROMPT_EOF' > "$GH_AW_PROMPT"
@@ -271,65 +215,9 @@ jobs:
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_INPUTS_POEM_THEME: ${{ github.event.inputs.poem_theme }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_BODY: ${{ needs.activation.outputs.body }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_ISSUE_LOCKED: ${{ needs.activation.outputs.issue_locked }}
           GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_TITLE: ${{ needs.activation.outputs.title }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_COMMENT_ID: ${{ needs.add_comment.outputs.comment_id }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_COMMENT_URL: ${{ needs.add_comment.outputs.comment_url }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_DISCUSSION_NUMBER: ${{ needs.add_comment.outputs.discussion_number }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_DISCUSSION_URL: ${{ needs.add_comment.outputs.discussion_url }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_ISSUE_NUMBER: ${{ needs.add_comment.outputs.issue_number }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_ISSUE_URL: ${{ needs.add_comment.outputs.issue_url }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_PULL_REQUEST_NUMBER: ${{ needs.add_comment.outputs.pull_request_number }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_PULL_REQUEST_URL: ${{ needs.add_comment.outputs.pull_request_url }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_TEMPORARY_ID_MAP: ${{ needs.add_comment.outputs.temporary_id_map }}
-          GH_AW_NEEDS_AGENT_OUTPUTS_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
-          GH_AW_NEEDS_AGENT_OUTPUTS_HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
-          GH_AW_NEEDS_AGENT_OUTPUTS_OUTPUT: ${{ needs.agent.outputs.output }}
-          GH_AW_NEEDS_AGENT_OUTPUTS_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
-          GH_AW_NEEDS_AGENT_OUTPUTS_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_COMMENT_ID: ${{ needs.create_discussion.outputs.comment_id }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_COMMENT_URL: ${{ needs.create_discussion.outputs.comment_url }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_DISCUSSION_NUMBER: ${{ needs.create_discussion.outputs.discussion_number }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_DISCUSSION_URL: ${{ needs.create_discussion.outputs.discussion_url }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_ISSUE_NUMBER: ${{ needs.create_discussion.outputs.issue_number }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_ISSUE_URL: ${{ needs.create_discussion.outputs.issue_url }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_PULL_REQUEST_NUMBER: ${{ needs.create_discussion.outputs.pull_request_number }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_PULL_REQUEST_URL: ${{ needs.create_discussion.outputs.pull_request_url }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_TEMPORARY_ID_MAP: ${{ needs.create_discussion.outputs.temporary_id_map }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_COMMENT_ID: ${{ needs.create_issue.outputs.comment_id }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_COMMENT_URL: ${{ needs.create_issue.outputs.comment_url }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_DISCUSSION_NUMBER: ${{ needs.create_issue.outputs.discussion_number }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_DISCUSSION_URL: ${{ needs.create_issue.outputs.discussion_url }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_PULL_REQUEST_NUMBER: ${{ needs.create_issue.outputs.pull_request_number }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_PULL_REQUEST_URL: ${{ needs.create_issue.outputs.pull_request_url }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_COMMENT_ID: ${{ needs.create_pull_request.outputs.comment_id }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_COMMENT_URL: ${{ needs.create_pull_request.outputs.comment_url }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_DISCUSSION_NUMBER: ${{ needs.create_pull_request.outputs.discussion_number }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_DISCUSSION_URL: ${{ needs.create_pull_request.outputs.discussion_url }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_ISSUE_NUMBER: ${{ needs.create_pull_request.outputs.issue_number }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_ISSUE_URL: ${{ needs.create_pull_request.outputs.issue_url }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_TEMPORARY_ID_MAP: ${{ needs.create_pull_request.outputs.temporary_id_map }}
-          GH_AW_NEEDS_DETECTION_OUTPUTS_SUCCESS: ${{ needs.detection.outputs.success }}
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: ${{ needs.pre_activation.outputs.matched_command }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_COMMENT_ID: ${{ needs.safe_outputs.outputs.comment_id }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_COMMENT_URL: ${{ needs.safe_outputs.outputs.comment_url }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_DISCUSSION_NUMBER: ${{ needs.safe_outputs.outputs.discussion_number }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_DISCUSSION_URL: ${{ needs.safe_outputs.outputs.discussion_url }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_ISSUE_NUMBER: ${{ needs.safe_outputs.outputs.issue_number }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_ISSUE_URL: ${{ needs.safe_outputs.outputs.issue_url }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_PULL_REQUEST_NUMBER: ${{ needs.safe_outputs.outputs.pull_request_number }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_PULL_REQUEST_URL: ${{ needs.safe_outputs.outputs.pull_request_url }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_TEMPORARY_ID_MAP: ${{ needs.safe_outputs.outputs.temporary_id_map }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -353,65 +241,9 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_IS_PR_COMMENT: ${{ github.event.issue.pull_request && 'true' || '' }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_BODY: ${{ needs.activation.outputs.body }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_ISSUE_LOCKED: ${{ needs.activation.outputs.issue_locked }}
           GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: ${{ needs.activation.outputs.text }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_TITLE: ${{ needs.activation.outputs.title }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_COMMENT_ID: ${{ needs.add_comment.outputs.comment_id }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_COMMENT_URL: ${{ needs.add_comment.outputs.comment_url }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_DISCUSSION_NUMBER: ${{ needs.add_comment.outputs.discussion_number }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_DISCUSSION_URL: ${{ needs.add_comment.outputs.discussion_url }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_ISSUE_NUMBER: ${{ needs.add_comment.outputs.issue_number }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_ISSUE_URL: ${{ needs.add_comment.outputs.issue_url }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_PULL_REQUEST_NUMBER: ${{ needs.add_comment.outputs.pull_request_number }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_PULL_REQUEST_URL: ${{ needs.add_comment.outputs.pull_request_url }}
-          GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_TEMPORARY_ID_MAP: ${{ needs.add_comment.outputs.temporary_id_map }}
-          GH_AW_NEEDS_AGENT_OUTPUTS_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
-          GH_AW_NEEDS_AGENT_OUTPUTS_HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
-          GH_AW_NEEDS_AGENT_OUTPUTS_OUTPUT: ${{ needs.agent.outputs.output }}
-          GH_AW_NEEDS_AGENT_OUTPUTS_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
-          GH_AW_NEEDS_AGENT_OUTPUTS_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_COMMENT_ID: ${{ needs.create_discussion.outputs.comment_id }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_COMMENT_URL: ${{ needs.create_discussion.outputs.comment_url }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_DISCUSSION_NUMBER: ${{ needs.create_discussion.outputs.discussion_number }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_DISCUSSION_URL: ${{ needs.create_discussion.outputs.discussion_url }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_ISSUE_NUMBER: ${{ needs.create_discussion.outputs.issue_number }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_ISSUE_URL: ${{ needs.create_discussion.outputs.issue_url }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_PULL_REQUEST_NUMBER: ${{ needs.create_discussion.outputs.pull_request_number }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_PULL_REQUEST_URL: ${{ needs.create_discussion.outputs.pull_request_url }}
-          GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_TEMPORARY_ID_MAP: ${{ needs.create_discussion.outputs.temporary_id_map }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_COMMENT_ID: ${{ needs.create_issue.outputs.comment_id }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_COMMENT_URL: ${{ needs.create_issue.outputs.comment_url }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_DISCUSSION_NUMBER: ${{ needs.create_issue.outputs.discussion_number }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_DISCUSSION_URL: ${{ needs.create_issue.outputs.discussion_url }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_PULL_REQUEST_NUMBER: ${{ needs.create_issue.outputs.pull_request_number }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_PULL_REQUEST_URL: ${{ needs.create_issue.outputs.pull_request_url }}
-          GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_TEMPORARY_ID_MAP: ${{ needs.create_issue.outputs.temporary_id_map }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_COMMENT_ID: ${{ needs.create_pull_request.outputs.comment_id }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_COMMENT_URL: ${{ needs.create_pull_request.outputs.comment_url }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_DISCUSSION_NUMBER: ${{ needs.create_pull_request.outputs.discussion_number }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_DISCUSSION_URL: ${{ needs.create_pull_request.outputs.discussion_url }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_ISSUE_NUMBER: ${{ needs.create_pull_request.outputs.issue_number }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_ISSUE_URL: ${{ needs.create_pull_request.outputs.issue_url }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
-          GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_TEMPORARY_ID_MAP: ${{ needs.create_pull_request.outputs.temporary_id_map }}
-          GH_AW_NEEDS_DETECTION_OUTPUTS_SUCCESS: ${{ needs.detection.outputs.success }}
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: ${{ needs.pre_activation.outputs.matched_command }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_COMMENT_ID: ${{ needs.safe_outputs.outputs.comment_id }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_COMMENT_URL: ${{ needs.safe_outputs.outputs.comment_url }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_DISCUSSION_NUMBER: ${{ needs.safe_outputs.outputs.discussion_number }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_DISCUSSION_URL: ${{ needs.safe_outputs.outputs.discussion_url }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_ISSUE_NUMBER: ${{ needs.safe_outputs.outputs.issue_number }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_ISSUE_URL: ${{ needs.safe_outputs.outputs.issue_url }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_PULL_REQUEST_NUMBER: ${{ needs.safe_outputs.outputs.pull_request_number }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_PULL_REQUEST_URL: ${{ needs.safe_outputs.outputs.pull_request_url }}
-          GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_TEMPORARY_ID_MAP: ${{ needs.safe_outputs.outputs.temporary_id_map }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -436,65 +268,9 @@ jobs:
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
                 GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
                 GH_AW_IS_PR_COMMENT: process.env.GH_AW_IS_PR_COMMENT,
-                GH_AW_NEEDS_ACTIVATION_OUTPUTS_BODY: process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_BODY,
-                GH_AW_NEEDS_ACTIVATION_OUTPUTS_COMMENT_ID: process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_COMMENT_ID,
-                GH_AW_NEEDS_ACTIVATION_OUTPUTS_COMMENT_REPO: process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_COMMENT_REPO,
-                GH_AW_NEEDS_ACTIVATION_OUTPUTS_ISSUE_LOCKED: process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_ISSUE_LOCKED,
                 GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT: process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT,
-                GH_AW_NEEDS_ACTIVATION_OUTPUTS_TITLE: process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_TITLE,
-                GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_COMMENT_ID: process.env.GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_COMMENT_ID,
-                GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_COMMENT_URL: process.env.GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_COMMENT_URL,
-                GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_DISCUSSION_NUMBER: process.env.GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_DISCUSSION_NUMBER,
-                GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_DISCUSSION_URL: process.env.GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_DISCUSSION_URL,
-                GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_ISSUE_NUMBER: process.env.GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_ISSUE_NUMBER,
-                GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_ISSUE_URL: process.env.GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_ISSUE_URL,
-                GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_PULL_REQUEST_NUMBER: process.env.GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_PULL_REQUEST_NUMBER,
-                GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_PULL_REQUEST_URL: process.env.GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_PULL_REQUEST_URL,
-                GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_TEMPORARY_ID_MAP: process.env.GH_AW_NEEDS_ADD_COMMENT_OUTPUTS_TEMPORARY_ID_MAP,
-                GH_AW_NEEDS_AGENT_OUTPUTS_CHECKOUT_PR_SUCCESS: process.env.GH_AW_NEEDS_AGENT_OUTPUTS_CHECKOUT_PR_SUCCESS,
-                GH_AW_NEEDS_AGENT_OUTPUTS_HAS_PATCH: process.env.GH_AW_NEEDS_AGENT_OUTPUTS_HAS_PATCH,
-                GH_AW_NEEDS_AGENT_OUTPUTS_OUTPUT: process.env.GH_AW_NEEDS_AGENT_OUTPUTS_OUTPUT,
-                GH_AW_NEEDS_AGENT_OUTPUTS_OUTPUT_TYPES: process.env.GH_AW_NEEDS_AGENT_OUTPUTS_OUTPUT_TYPES,
-                GH_AW_NEEDS_AGENT_OUTPUTS_SECRET_VERIFICATION_RESULT: process.env.GH_AW_NEEDS_AGENT_OUTPUTS_SECRET_VERIFICATION_RESULT,
-                GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_COMMENT_ID: process.env.GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_COMMENT_ID,
-                GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_COMMENT_URL: process.env.GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_COMMENT_URL,
-                GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_DISCUSSION_NUMBER: process.env.GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_DISCUSSION_NUMBER,
-                GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_DISCUSSION_URL: process.env.GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_DISCUSSION_URL,
-                GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_ISSUE_NUMBER: process.env.GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_ISSUE_NUMBER,
-                GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_ISSUE_URL: process.env.GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_ISSUE_URL,
-                GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_PULL_REQUEST_NUMBER: process.env.GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_PULL_REQUEST_NUMBER,
-                GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_PULL_REQUEST_URL: process.env.GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_PULL_REQUEST_URL,
-                GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_TEMPORARY_ID_MAP: process.env.GH_AW_NEEDS_CREATE_DISCUSSION_OUTPUTS_TEMPORARY_ID_MAP,
-                GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_COMMENT_ID: process.env.GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_COMMENT_ID,
-                GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_COMMENT_URL: process.env.GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_COMMENT_URL,
-                GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_DISCUSSION_NUMBER: process.env.GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_DISCUSSION_NUMBER,
-                GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_DISCUSSION_URL: process.env.GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_DISCUSSION_URL,
-                GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_ISSUE_NUMBER: process.env.GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_ISSUE_NUMBER,
-                GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_ISSUE_URL: process.env.GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_ISSUE_URL,
-                GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_PULL_REQUEST_NUMBER: process.env.GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_PULL_REQUEST_NUMBER,
-                GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_PULL_REQUEST_URL: process.env.GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_PULL_REQUEST_URL,
-                GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_TEMPORARY_ID_MAP: process.env.GH_AW_NEEDS_CREATE_ISSUE_OUTPUTS_TEMPORARY_ID_MAP,
-                GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_COMMENT_ID: process.env.GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_COMMENT_ID,
-                GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_COMMENT_URL: process.env.GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_COMMENT_URL,
-                GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_DISCUSSION_NUMBER: process.env.GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_DISCUSSION_NUMBER,
-                GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_DISCUSSION_URL: process.env.GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_DISCUSSION_URL,
-                GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_ISSUE_NUMBER: process.env.GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_ISSUE_NUMBER,
-                GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_ISSUE_URL: process.env.GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_ISSUE_URL,
-                GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_PULL_REQUEST_NUMBER: process.env.GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_PULL_REQUEST_NUMBER,
-                GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_PULL_REQUEST_URL: process.env.GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_PULL_REQUEST_URL,
-                GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_TEMPORARY_ID_MAP: process.env.GH_AW_NEEDS_CREATE_PULL_REQUEST_OUTPUTS_TEMPORARY_ID_MAP,
-                GH_AW_NEEDS_DETECTION_OUTPUTS_SUCCESS: process.env.GH_AW_NEEDS_DETECTION_OUTPUTS_SUCCESS,
                 GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
-                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND,
-                GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_COMMENT_ID: process.env.GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_COMMENT_ID,
-                GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_COMMENT_URL: process.env.GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_COMMENT_URL,
-                GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_DISCUSSION_NUMBER: process.env.GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_DISCUSSION_NUMBER,
-                GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_DISCUSSION_URL: process.env.GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_DISCUSSION_URL,
-                GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_ISSUE_NUMBER: process.env.GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_ISSUE_NUMBER,
-                GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_ISSUE_URL: process.env.GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_ISSUE_URL,
-                GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_PULL_REQUEST_NUMBER: process.env.GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_PULL_REQUEST_NUMBER,
-                GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_PULL_REQUEST_URL: process.env.GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_PULL_REQUEST_URL,
-                GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_TEMPORARY_ID_MAP: process.env.GH_AW_NEEDS_SAFE_OUTPUTS_OUTPUTS_TEMPORARY_ID_MAP
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND
               }
             });
       - name: Validate prompt placeholders
