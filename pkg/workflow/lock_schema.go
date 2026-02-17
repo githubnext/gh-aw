@@ -23,6 +23,7 @@ const (
 type LockMetadata struct {
 	SchemaVersion   LockSchemaVersion `json:"schema_version"`
 	FrontmatterHash string            `json:"frontmatter_hash,omitempty"`
+	StopTime        string            `json:"stop_time,omitempty"`
 }
 
 // SupportedSchemaVersions lists all schema versions this build can consume
@@ -113,10 +114,11 @@ func formatSupportedVersions() string {
 }
 
 // GenerateLockMetadata creates a LockMetadata struct for embedding in lock files
-func GenerateLockMetadata(frontmatterHash string) *LockMetadata {
+func GenerateLockMetadata(frontmatterHash string, stopTime string) *LockMetadata {
 	return &LockMetadata{
 		SchemaVersion:   LockSchemaV1,
 		FrontmatterHash: frontmatterHash,
+		StopTime:        stopTime,
 	}
 }
 

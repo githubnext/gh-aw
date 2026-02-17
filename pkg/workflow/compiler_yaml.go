@@ -102,11 +102,11 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		}
 	}
 
-	// Add lock metadata (schema version + frontmatter hash) as JSON
+	// Add lock metadata (schema version + frontmatter hash + stop time) as JSON
 	// Single-line format to minimize merge conflicts and be unaffected by LOC changes
 	if frontmatterHash != "" {
 		yaml.WriteString("#\n")
-		metadata := GenerateLockMetadata(frontmatterHash)
+		metadata := GenerateLockMetadata(frontmatterHash, data.StopTime)
 		metadataJSON, err := metadata.ToJSON()
 		if err != nil {
 			// Fallback to legacy format if JSON serialization fails

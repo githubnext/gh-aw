@@ -212,11 +212,23 @@ func TestIsSchemaVersionSupported(t *testing.T) {
 
 func TestGenerateLockMetadata(t *testing.T) {
 	hash := "abcd1234"
-	metadata := GenerateLockMetadata(hash)
+	stopTime := "2026-02-17 20:00:00"
+	metadata := GenerateLockMetadata(hash, stopTime)
 
 	assert.NotNil(t, metadata, "Metadata should be created")
 	assert.Equal(t, LockSchemaV1, metadata.SchemaVersion, "Should use current schema version")
 	assert.Equal(t, hash, metadata.FrontmatterHash, "Should preserve frontmatter hash")
+	assert.Equal(t, stopTime, metadata.StopTime, "Should preserve stop time")
+}
+
+func TestGenerateLockMetadataWithoutStopTime(t *testing.T) {
+	hash := "abcd1234"
+	metadata := GenerateLockMetadata(hash, "")
+
+	assert.NotNil(t, metadata, "Metadata should be created")
+	assert.Equal(t, LockSchemaV1, metadata.SchemaVersion, "Should use current schema version")
+	assert.Equal(t, hash, metadata.FrontmatterHash, "Should preserve frontmatter hash")
+	assert.Equal(t, "", metadata.StopTime, "Stop time should be empty")
 }
 
 func TestLockMetadataToJSON(t *testing.T) {
@@ -395,4 +407,51 @@ func TestSchemaVersionAsString(t *testing.T) {
 	// Verify LockSchemaVersion can be used as string
 	version := LockSchemaV1
 	assert.Equal(t, "v1", string(version))
+}
+
+func TestExtractMetadataWithStopTime(t *testing.T) {
+	// Test extracting metadata that includes stop time
+	stopTime := "2026-02-17 20:00:00"
+	content := `# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"abc123","stop_time":"` + stopTime + `"}
+name: test
+`
+
+	metadata, isLegacy, err := ExtractMetadataFromLockFile(content)
+	assert.NoError(t, err)
+	assert.False(t, isLegacy)
+	require.NotNil(t, metadata)
+	assert.Equal(t, LockSchemaV1, metadata.SchemaVersion)
+	assert.Equal(t, "abc123", metadata.FrontmatterHash)
+	assert.Equal(t, stopTime, metadata.StopTime, "Should extract stop time from metadata")
+}
+
+func TestLockMetadataToJSONWithStopTime(t *testing.T) {
+	// Test JSON serialization includes stop time when present
+	metadata := &LockMetadata{
+		SchemaVersion:   LockSchemaV1,
+		FrontmatterHash: "test123",
+		StopTime:        "2026-02-17 20:00:00",
+	}
+
+	json, err := metadata.ToJSON()
+	assert.NoError(t, err)
+	assert.Contains(t, json, `"schema_version":"v1"`)
+	assert.Contains(t, json, `"frontmatter_hash":"test123"`)
+	assert.Contains(t, json, `"stop_time":"2026-02-17 20:00:00"`)
+}
+
+func TestLockMetadataToJSONWithoutStopTime(t *testing.T) {
+	// Test JSON serialization omits stop time when empty (omitempty)
+	metadata := &LockMetadata{
+		SchemaVersion:   LockSchemaV1,
+		FrontmatterHash: "test123",
+		StopTime:        "",
+	}
+
+	json, err := metadata.ToJSON()
+	assert.NoError(t, err)
+	assert.Contains(t, json, `"schema_version":"v1"`)
+	assert.Contains(t, json, `"frontmatter_hash":"test123"`)
+	// Should not contain stop_time field when empty due to omitempty
+	assert.NotContains(t, json, `"stop_time"`)
 }
