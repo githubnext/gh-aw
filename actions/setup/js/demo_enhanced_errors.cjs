@@ -6,10 +6,14 @@
  *
  * This script demonstrates how the enhanced error messages provide
  * actionable guidance when tools are called with missing parameters.
+ *
+ * NOTE: This is a demonstration script that only uses "body" as a string literal
+ * in examples. No sanitization is needed as no user-provided content is processed.
  */
 
 const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 const tools = require("./safe_outputs_tools.json");
+// SEC-004: No sanitize needed - demo script with string literals only
 
 console.log("=".repeat(80));
 console.log("Enhanced MCP Error Messages - Demonstration");

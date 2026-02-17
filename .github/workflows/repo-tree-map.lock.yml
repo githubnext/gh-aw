@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 535bced70452811a20772466537cce848374d7c8ea20be88e7e042c00d521a61
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"535bced70452811a20772466537cce848374d7c8ea20be88e7e042c00d521a61"}
 
 name: "Repository Tree Map Generator"
 "on":

@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 9c6fbb9920281fff3373c0db01b6a5e5fe93b637d2902977763c0634733725be
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"9c6fbb9920281fff3373c0db01b6a5e5fe93b637d2902977763c0634733725be"}
 
 name: "Auto-Triage Issues"
 "on":

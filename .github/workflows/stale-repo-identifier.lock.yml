@@ -30,7 +30,7 @@
 #     - shared/python-dataviz.md
 #     - shared/trending-charts-simple.md
 #
-# frontmatter-hash: 0de1f0aac847f2beec40813bebbfb9838730eb23e30f47920ab7ed3b489cfe3e
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0de1f0aac847f2beec40813bebbfb9838730eb23e30f47920ab7ed3b489cfe3e"}
 
 name: "Stale Repository Identifier"
 "on":

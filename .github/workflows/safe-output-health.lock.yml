@@ -29,7 +29,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: ad8dbc71ec8a8756cc9161024dcf04c143f81797b44acfff063bdfd95d63fb8b
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ad8dbc71ec8a8756cc9161024dcf04c143f81797b44acfff063bdfd95d63fb8b"}
 
 name: "Safe Output Health Monitor"
 "on":

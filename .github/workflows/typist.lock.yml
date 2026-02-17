@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 8bb55e253e13e36b811ff2cfde52d97a0e6c058e4b2ec25fbfba2539f19a17d4
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"8bb55e253e13e36b811ff2cfde52d97a0e6c058e4b2ec25fbfba2539f19a17d4"}
 
 name: "Typist - Go Type Analysis"
 "on":

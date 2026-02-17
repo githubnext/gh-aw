@@ -23,7 +23,7 @@
 #
 # Smoke test to validate common development tools are available in the agent container
 #
-# frontmatter-hash: 798e01a94a89407a4b4102b0551de2d8376a5c3b5ef4a3622ab601229694cf78
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"798e01a94a89407a4b4102b0551de2d8376a5c3b5ef4a3622ab601229694cf78"}
 
 name: "Agent Container Smoke Test"
 "on":

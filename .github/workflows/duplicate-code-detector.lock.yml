@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: c5be1cf2be142247a13c39ee11de63cdc913ae5a3d2d9ab9fb9394c2ae9cb7b4
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c5be1cf2be142247a13c39ee11de63cdc913ae5a3d2d9ab9fb9394c2ae9cb7b4"}
 
 name: "Duplicate Code Detector"
 "on":

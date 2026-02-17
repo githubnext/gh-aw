@@ -29,7 +29,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 3bc5d7adac1eba642348e556da6fdda43302f69b1feb09a404149133388f1b30
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3bc5d7adac1eba642348e556da6fdda43302f69b1feb09a404149133388f1b30"}
 
 name: "Basic Research Agent"
 "on":

@@ -27,7 +27,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 9dbd3ff61f5a92eac5a99a5c46b452bfe4d91bbca94dc325cc4a4bfc969e005e
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"9dbd3ff61f5a92eac5a99a5c46b452bfe4d91bbca94dc325cc4a4bfc969e005e"}
 
 name: "Issue Triage Agent"
 "on":

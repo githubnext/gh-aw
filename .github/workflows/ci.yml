@@ -2142,6 +2142,57 @@ jobs:
           echo "$WORKFLOWS" > /tmp/workflow-list.txt
           echo "workflow_count=$WORKFLOW_COUNT" >> $GITHUB_OUTPUT
 
+      - name: Compare gh aw list with git clone
+        run: |
+          set -e
+          echo "## Comparing 'gh aw list' output with git clone results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # List workflows using gh aw list command with custom path
+          echo "Running: ./gh-aw list --repo githubnext/agentics --path workflows --json"
+          ./gh-aw list --repo githubnext/agentics --path workflows --json > /tmp/gh-aw-list.json
+          
+          # Extract workflow names from JSON output
+          echo "Extracting workflow names from gh aw list output..."
+          jq -r '.[].workflow' /tmp/gh-aw-list.json | sort > /tmp/gh-aw-workflows.txt
+          
+          # Get workflow names from git clone (already in /tmp/workflow-list.txt)
+          echo "Sorting git clone workflow list..."
+          sort /tmp/workflow-list.txt > /tmp/git-workflows-sorted.txt
+          
+          # Display both lists
+          echo "### Workflows from 'gh aw list --repo githubnext/agentics --path workflows'" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/gh-aw-workflows.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Workflows from git clone" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/git-workflows-sorted.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Compare the two lists
+          if diff -u /tmp/git-workflows-sorted.txt /tmp/gh-aw-workflows.txt > /tmp/diff-output.txt; then
+            echo "✅ **SUCCESS**: Workflow lists match!" >> $GITHUB_STEP_SUMMARY
+            echo "The 'gh aw list' command returned the same workflows as the git clone." >> $GITHUB_STEP_SUMMARY
+            echo ""
+            echo "✅ Workflow lists match!"
+          else
+            echo "❌ **FAILURE**: Workflow lists do not match!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Differences" >> $GITHUB_STEP_SUMMARY
+            echo '```diff' >> $GITHUB_STEP_SUMMARY
+            cat /tmp/diff-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo ""
+            echo "❌ Workflow lists do not match!"
+            echo "Differences:"
+            cat /tmp/diff-output.txt
+            exit 1
+          fi
+
       - name: Add workflows one by one
         id: add-workflows
         env:

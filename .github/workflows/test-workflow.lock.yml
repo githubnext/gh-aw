@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 7e28df1a5884fe8ab7987791066296378c3d879a1c3674706d645017734ec3de
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7e28df1a5884fe8ab7987791066296378c3d879a1c3674706d645017734ec3de"}
 
 name: "Test Workflow"
 "on":

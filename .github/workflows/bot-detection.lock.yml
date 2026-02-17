@@ -23,7 +23,7 @@
 #
 # Investigates suspicious repository activity and maintains a single triage issue
 #
-# frontmatter-hash: e4945922152cf00d6e0bfcc4b0b869b00af9e4067e3978ad70218706f4945164
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e4945922152cf00d6e0bfcc4b0b869b00af9e4067e3978ad70218706f4945164"}
 
 name: "Bot Detection"
 "on":

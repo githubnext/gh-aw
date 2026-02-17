@@ -102,11 +102,18 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		}
 	}
 
-	// Add frontmatter hash if computed
-	// Format on a single line to minimize merge conflicts
+	// Add lock metadata (schema version + frontmatter hash + stop time) as JSON
+	// Single-line format to minimize merge conflicts and be unaffected by LOC changes
 	if frontmatterHash != "" {
 		yaml.WriteString("#\n")
-		fmt.Fprintf(yaml, "# frontmatter-hash: %s\n", frontmatterHash)
+		metadata := GenerateLockMetadata(frontmatterHash, data.StopTime)
+		metadataJSON, err := metadata.ToJSON()
+		if err != nil {
+			// Fallback to legacy format if JSON serialization fails
+			fmt.Fprintf(yaml, "# frontmatter-hash: %s\n", frontmatterHash)
+		} else {
+			fmt.Fprintf(yaml, "# gh-aw-metadata: %s\n", metadataJSON)
+		}
 	}
 
 	// Add stop-time comment if configured
@@ -300,7 +307,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// The main workflow markdown uses runtime-import, but expressions like needs.* must be
 	// available at compile time for the substitute placeholders step
 	// Use MainWorkflowMarkdown (not MarkdownContent) to avoid extracting from imported content
-	if data.MainWorkflowMarkdown != "" {
+	// Skip this step when inlinePrompt is true because expression extraction happens in Step 2
+	if !c.inlinePrompt && data.MainWorkflowMarkdown != "" {
 		compilerYamlLog.Printf("Extracting expressions from main workflow markdown (%d bytes)", len(data.MainWorkflowMarkdown))
 
 		// Create a new extractor for main workflow markdown
@@ -313,40 +321,63 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		}
 	}
 
-	// Step 2: Add runtime-import for main workflow markdown
-	// This allows users to edit the main workflow file without recompilation
-	workflowBasename := filepath.Base(c.markdownPath)
+	// Step 2: Add main workflow markdown content to the prompt
+	if c.inlinePrompt {
+		// Inline mode (Wasm/browser): embed the markdown content directly in the YAML
+		// since runtime-import macros cannot resolve without filesystem access
+		if data.MainWorkflowMarkdown != "" {
+			compilerYamlLog.Printf("Inlining main workflow markdown (%d bytes)", len(data.MainWorkflowMarkdown))
 
-	// Determine the directory path relative to workspace root
-	// For a workflow at ".github/workflows/test.md", the runtime-import path should be ".github/workflows/test.md"
-	// This makes the path explicit and matches the actual file location in the repository
-	var workflowFilePath string
+			inlinedMarkdown := removeXMLComments(data.MainWorkflowMarkdown)
+			inlinedMarkdown = wrapExpressionsInTemplateConditionals(inlinedMarkdown)
 
-	// Normalize path separators first to handle both Unix and Windows paths consistently
-	normalizedPath := filepath.ToSlash(c.markdownPath)
+			// Extract expressions and replace with env var references
+			inlineExtractor := NewExpressionExtractor()
+			inlineExprMappings, err := inlineExtractor.ExtractExpressions(inlinedMarkdown)
+			if err == nil && len(inlineExprMappings) > 0 {
+				inlinedMarkdown = inlineExtractor.ReplaceExpressionsWithEnvVars(inlinedMarkdown)
+				expressionMappings = append(expressionMappings, inlineExprMappings...)
+			}
 
-	// Look for "/.github/" as a directory (not just substring in repo name like "username.github.io")
-	// We need to match the directory component, not arbitrary substrings
-	githubDirPattern := "/.github/"
-	githubIndex := strings.Index(normalizedPath, githubDirPattern)
-
-	if githubIndex != -1 {
-		// Extract everything from ".github/" onwards (inclusive)
-		// +1 to skip the leading slash, so we get ".github/workflows/..." not "/.github/workflows/..."
-		workflowFilePath = normalizedPath[githubIndex+1:]
+			inlinedChunks := splitContentIntoChunks(inlinedMarkdown)
+			userPromptChunks = append(userPromptChunks, inlinedChunks...)
+			compilerYamlLog.Printf("Inlined main workflow markdown in %d chunks", len(inlinedChunks))
+		}
 	} else {
-		// For non-standard paths (like /tmp/test.md), just use the basename
-		workflowFilePath = workflowBasename
+		// Normal mode: use runtime-import macro so users can edit without recompilation
+		workflowBasename := filepath.Base(c.markdownPath)
+
+		// Determine the directory path relative to workspace root
+		// For a workflow at ".github/workflows/test.md", the runtime-import path should be ".github/workflows/test.md"
+		// This makes the path explicit and matches the actual file location in the repository
+		var workflowFilePath string
+
+		// Normalize path separators first to handle both Unix and Windows paths consistently
+		normalizedPath := filepath.ToSlash(c.markdownPath)
+
+		// Look for "/.github/" as a directory (not just substring in repo name like "username.github.io")
+		// We need to match the directory component, not arbitrary substrings
+		githubDirPattern := "/.github/"
+		githubIndex := strings.Index(normalizedPath, githubDirPattern)
+
+		if githubIndex != -1 {
+			// Extract everything from ".github/" onwards (inclusive)
+			// +1 to skip the leading slash, so we get ".github/workflows/..." not "/.github/workflows/..."
+			workflowFilePath = normalizedPath[githubIndex+1:]
+		} else {
+			// For non-standard paths (like /tmp/test.md), just use the basename
+			workflowFilePath = workflowBasename
+		}
+
+		// Create a runtime-import macro for the main workflow markdown
+		// The runtime_import.cjs helper will extract and process the markdown body at runtime
+		// The path uses .github/ prefix for clarity (e.g., .github/workflows/test.md)
+		runtimeImportMacro := fmt.Sprintf("{{#runtime-import %s}}", workflowFilePath)
+		compilerYamlLog.Printf("Using runtime-import for main workflow markdown: %s", workflowFilePath)
+
+		// Append runtime-import macro after imported chunks
+		userPromptChunks = append(userPromptChunks, runtimeImportMacro)
 	}
-
-	// Create a runtime-import macro for the main workflow markdown
-	// The runtime_import.cjs helper will extract and process the markdown body at runtime
-	// The path uses .github/ prefix for clarity (e.g., .github/workflows/test.md)
-	runtimeImportMacro := fmt.Sprintf("{{#runtime-import %s}}", workflowFilePath)
-	compilerYamlLog.Printf("Using runtime-import for main workflow markdown: %s", workflowFilePath)
-
-	// Append runtime-import macro after imported chunks
-	userPromptChunks = append(userPromptChunks, runtimeImportMacro)
 
 	// Generate a single unified prompt creation step WITHOUT known needs expressions
 	// Known needs expressions are added later for the substitution step only

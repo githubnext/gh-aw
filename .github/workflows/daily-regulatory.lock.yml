@@ -29,7 +29,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 6bc7064192101134f213231bc2126aa30b3211cd5bbdc6bef2cafe81b22aa250
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"6bc7064192101134f213231bc2126aa30b3211cd5bbdc6bef2cafe81b22aa250"}
 
 name: "Daily Regulatory Report Generator"
 "on":
