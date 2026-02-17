@@ -29,7 +29,7 @@ imports:
 safe-outputs:
   create-discussion:
     title-prefix: "[go-fan] "
-    category: "general"
+    category: "audits"
     max: 1
     close-older-discussions: true
 

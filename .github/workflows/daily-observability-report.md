@@ -19,7 +19,7 @@ tools:
 safe-outputs:
   create-discussion:
     expires: 1d
-    category: "general"
+    category: "audits"
     title-prefix: "[observability] "
     max: 1
     close-older-discussions: true
