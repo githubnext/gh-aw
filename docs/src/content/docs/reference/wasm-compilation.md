@@ -17,7 +17,7 @@ This is useful for:
 
 ## Prerequisites
 
-- Go 1.23 or later
+- Go 1.25 or later
 - `make` (GNU Make)
 
 ## Building
@@ -60,7 +60,7 @@ WebAssembly.instantiateStreaming(
 </script>
 ```
 
-### `compileWorkflow(markdown, importResolver?)`
+### `compileWorkflow(markdown)`
 
 Compiles a markdown workflow string into GitHub Actions YAML.
 
@@ -69,7 +69,6 @@ Compiles a markdown workflow string into GitHub Actions YAML.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `markdown` | `string` | Yes | The full markdown workflow content, including frontmatter |
-| `importResolver` | `(path: string) => Promise<string>` | No | Async callback that returns markdown content for imported files |
 
 **Returns:** `Promise<{ yaml: string, warnings: string[], error: null }>`
 
@@ -91,30 +90,6 @@ Say "Hello, world!" as an issue comment.
 
 console.log(result.yaml);
 ```
-
-### Using an import resolver
-
-When your workflow uses the `imports:` field to pull in shared components, you need to provide a resolver callback. The compiler calls it with each import path and expects the resolved markdown content in return.
-
-```javascript
-const imports = {
-  "shared/review-tools.md": `---
-tools:
-  - name: eslint
-    run: npx eslint .
----`,
-};
-
-const resolver = async (path) => {
-  if (imports[path]) return imports[path];
-  throw new Error(`Import not found: ${path}`);
-};
-
-const result = await compileWorkflow(workflowMarkdown, resolver);
-```
-
-> [!NOTE]
-> Only local-style import paths work in the Wasm build. Remote imports (for example, `owner/repo/path@ref`) are not supported and return an error. See [Limitations](#limitations) for details.
 
 ## How it works
 
@@ -195,5 +170,5 @@ The Wasm build is focused on compilation only. The following features are not av
 | Filesystem writes | Compiler runs in no-emit mode |
 | CLI commands (`gh aw init`, `gh aw watch`, etc.) | Only the `compileWorkflow` API is exposed |
 
-> [!TIP]
-> For workflows that use `imports:`, you can work around the remote import limitation by pre-fetching the imported files and providing them through the `importResolver` callback.
+> [!NOTE]
+> Import resolution (`importResolver` callback) is not currently supported in the Wasm build. Workflows that use `imports:` will produce an error. This feature is planned for a future release.

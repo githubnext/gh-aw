@@ -15,18 +15,28 @@ func main() {
 
 // compileWorkflow is the JS-callable function.
 // Usage: compileWorkflow(markdownString) → Promise<{yaml, warnings, error}>
+//
+// Only a single argument (the markdown string) is accepted.
+// Import resolution is not currently supported in the Wasm build.
 func compileWorkflow(this js.Value, args []js.Value) any {
 	if len(args) < 1 {
-		return newRejectedPromise("compileWorkflow requires at least 1 argument: markdown string")
+		return newRejectedPromise("compileWorkflow requires exactly 1 argument: markdown string")
+	}
+
+	if len(args) > 1 {
+		return newRejectedPromise("compileWorkflow accepts only 1 argument; importResolver is not supported in the Wasm build")
 	}
 
 	markdown := args[0].String()
 
-	handler := js.FuncOf(func(this js.Value, promiseArgs []js.Value) any {
+	var handler js.Func
+	handler = js.FuncOf(func(this js.Value, promiseArgs []js.Value) any {
 		resolve := promiseArgs[0]
 		reject := promiseArgs[1]
 
 		go func() {
+			defer handler.Release()
+
 			result, err := doCompile(markdown)
 			if err != nil {
 				reject.Invoke(js.Global().Get("Error").New(err.Error()))
@@ -70,7 +80,9 @@ func doCompile(markdown string) (js.Value, error) {
 }
 
 func newRejectedPromise(msg string) js.Value {
-	handler := js.FuncOf(func(this js.Value, args []js.Value) any {
+	var handler js.Func
+	handler = js.FuncOf(func(this js.Value, args []js.Value) any {
+		defer handler.Release()
 		reject := args[1]
 		reject.Invoke(js.Global().Get("Error").New(msg))
 		return nil

@@ -449,8 +449,12 @@
   </footer>
 
   <!-- CDN deps for YAML schema validation -->
-  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/ajv@8/dist/ajv7.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"
+          integrity="sha384-ZeqCzuWczURac3RacSufGD7oSbzeaX7xxnnOr3PTcYTLx4Av0qBj0kBq7AeCtHLA"
+          crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ajv@8/dist/ajv7.min.js"
+          integrity="sha384-E87sGJXUVvZkZvPHlXhCfrCGFF0i2FNivvL2kYVxt4cdu9U5rW3q1JnZF9G8Qmg+"
+          crossorigin="anonymous"></script>
 
   <script type="module">
     import { createCompiler, CompilerState } from './lib/gh-aw-compiler.js';
@@ -614,10 +618,24 @@ Say hello to the world! Check the current date and time, and greet the user warm
         const icons = { error: '\u2716', warning: '\u26A0', success: '\u2714' };
         const div = document.createElement('div');
         div.className = `validation-item ${item.type}`;
-        div.innerHTML =
-          `<span class="icon">${icons[item.type] || ''}</span>` +
-          (item.path ? `<span class="path">${item.path}</span>` : '') +
-          `<span class="msg">${escapeHtml(item.msg)}</span>`;
+
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'icon';
+        iconSpan.textContent = icons[item.type] || '';
+        div.appendChild(iconSpan);
+
+        if (item.path) {
+          const pathSpan = document.createElement('span');
+          pathSpan.className = 'path';
+          pathSpan.textContent = item.path;
+          div.appendChild(pathSpan);
+        }
+
+        const msgSpan = document.createElement('span');
+        msgSpan.className = 'msg';
+        msgSpan.textContent = item.msg;
+        div.appendChild(msgSpan);
+
         validationBody.appendChild(div);
       }
       validationBar.classList.add('visible');

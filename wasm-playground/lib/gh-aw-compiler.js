@@ -97,10 +97,27 @@ export class Compiler {
       // 2. Instantiate the Go runtime and wasm module
       const go = new globalThis.Go();
 
-      const result = await WebAssembly.instantiateStreaming(
-        fetch(this.#wasmUrl),
-        go.importObject,
-      );
+      let result;
+      if (typeof WebAssembly.instantiateStreaming === 'function') {
+        try {
+          result = await WebAssembly.instantiateStreaming(
+            fetch(this.#wasmUrl),
+            go.importObject,
+          );
+        } catch (streamErr) {
+          // Fallback: instantiateStreaming may fail if the server does not
+          // serve .wasm with the correct application/wasm MIME type.
+          // Re-fetch because the previous response body may have been consumed.
+          const fallbackResp = await fetch(this.#wasmUrl);
+          const buf = await fallbackResp.arrayBuffer();
+          result = await WebAssembly.instantiate(buf, go.importObject);
+        }
+      } else {
+        // Environment does not support streaming compilation at all.
+        const resp = await fetch(this.#wasmUrl);
+        const buf = await resp.arrayBuffer();
+        result = await WebAssembly.instantiate(buf, go.importObject);
+      }
 
       // 3. Start the Go program (registers compileWorkflow globally).
       //    go.run() never resolves because main() does `select{}`,
@@ -122,11 +139,10 @@ export class Compiler {
    * Compile a markdown workflow to GitHub Actions YAML.
    *
    * @param {string} markdown - The workflow markdown source
-   * @param {Function} [importResolver] - Optional async callback: (path) => "markdown content"
    * @returns {Promise<{yaml: string, warnings: string[], error: null}>}
    * @throws {Error} If the compiler is not ready or compilation fails
    */
-  async compile(markdown, importResolver) {
+  async compile(markdown) {
     if (this.#state !== CompilerState.READY) {
       throw new Error(`Compiler is not ready (state: ${this.#state})`);
     }
@@ -135,12 +151,7 @@ export class Compiler {
       throw new TypeError('markdown must be a string');
     }
 
-    const args = [markdown];
-    if (typeof importResolver === 'function') {
-      args.push(importResolver);
-    }
-
-    return globalThis.compileWorkflow(...args);
+    return globalThis.compileWorkflow(markdown);
   }
 
   /**
