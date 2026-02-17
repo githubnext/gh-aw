@@ -528,7 +528,7 @@
         },
         "pull_request_repo": {
           "type": "string",
-          "description": "Target repository where the pull request should be created, in 'owner/repo' format. If omitted, the PR will be created in the same repository as the issue. This allows issues and code to live in different repositories. Must be in allowed-pull-request-repos list if specified."
+          "description": "Target repository where the pull request should be created, in 'owner/repo' format. If omitted, the PR will be created in the same repository as the issue. This allows issues and code to live in different repositories. The global pull-request-repo configuration (if set) is automatically allowed; additional repositories must be listed in allowed-pull-request-repos."
         }
       },
       "additionalProperties": false

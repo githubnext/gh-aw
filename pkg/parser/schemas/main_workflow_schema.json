@@ -5389,7 +5389,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "List of additional repositories that pull requests can be created in (in addition to pull-request-repo). Each entry should be in 'owner/repo' format."
+                  "description": "List of additional repositories that pull requests can be created in beyond pull-request-repo. Each entry should be in 'owner/repo' format. The repository specified by pull-request-repo is automatically allowed without needing to be listed here."
                 },
                 "ignore-if-error": {
                   "type": "boolean",

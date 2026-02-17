@@ -134,7 +134,9 @@ async function main() {
     const parts = pullRequestRepoEnv.split("/");
     if (parts.length === 2) {
       // Validate PR repository against allowlist
-      const repoValidation = validateRepo(pullRequestRepoEnv, defaultRepo, allowedPullRequestRepos);
+      // The configured pull-request-repo is treated as the default (always allowed)
+      // allowed-pull-request-repos contains additional repositories beyond pull-request-repo
+      const repoValidation = validateRepo(pullRequestRepoEnv, pullRequestRepoEnv, allowedPullRequestRepos);
       if (!repoValidation.valid) {
         core.setFailed(`E004: ${repoValidation.error}`);
         return;
@@ -234,7 +236,10 @@ async function main() {
       const pullRequestRepoParts = itemPullRequestRepo.split("/");
       if (pullRequestRepoParts.length === 2) {
         // Validate PR repository against allowlist
-        const pullRequestRepoValidation = validateRepo(itemPullRequestRepo, defaultRepo, allowedPullRequestRepos);
+        // The global pull-request-repo (if set) is treated as the default (always allowed)
+        // allowed-pull-request-repos contains additional allowed repositories
+        const defaultPullRequestRepo = pullRequestRepoEnv || defaultRepo;
+        const pullRequestRepoValidation = validateRepo(itemPullRequestRepo, defaultPullRequestRepo, allowedPullRequestRepos);
         if (!pullRequestRepoValidation.valid) {
           core.error(`E004: ${pullRequestRepoValidation.error}`);
           results.push({

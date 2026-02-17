@@ -1321,6 +1321,8 @@ The `pull-request-repo` parameter allows you to create pull requests in a differ
 
 When `pull-request-repo` is configured, Copilot will create the pull request in the specified repository instead of the issue's repository. The issue repository is determined by `target-repo` or defaults to the workflow's repository.
 
+The repository specified by `pull-request-repo` is automatically allowed - you don't need to list it in `allowed-pull-request-repos`. Use `allowed-pull-request-repos` to specify additional repositories where PRs can be created.
+
 You can also specify `pull_request_repo` on a per-assignment basis in the agent output using the `assign_to_agent` tool:
 ```python
 assign_to_agent(issue_number=123, agent="copilot", pull_request_repo="owner/codebase-repo")

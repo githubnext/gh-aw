@@ -311,7 +311,8 @@ For cross-repository operations, implementations MUST:
 
 For operations that support separate PR repository selection (e.g., `assign-to-agent`), implementations MUST:
 - Validate `pull-request-repo` format: `owner/repo`
-- Validate against `allowed-pull-request-repos` allowlist when configured
+- Automatically allow the repository specified by `pull-request-repo` (no need to list in `allowed-pull-request-repos`)
+- Validate per-item `pull_request_repo` values against the global `pull-request-repo` (default) and `allowed-pull-request-repos` (additional allowed repositories)
 - Use `target-repo` for the resource location (issue/PR)
 - Use `pull-request-repo` for PR creation location
 - Return E004 error code for unauthorized repositories
@@ -713,7 +714,8 @@ Operations supporting cross-repository actions MUST:
 
 For operations that assign agents to issues/PRs, implementations MAY support:
 - Accept `pull-request-repo: "owner/repo"` configuration to specify where PRs should be created
-- Accept `allowed-pull-request-repos: ["owner/repo1", "owner/repo2"]` for validation
+- Accept `allowed-pull-request-repos: ["owner/repo1", "owner/repo2"]` for validation of additional repositories
+- Automatically allow the repository specified by `pull-request-repo` (it does not need to be listed in `allowed-pull-request-repos`)
 - Use `agentAssignment.targetRepositoryId` in GraphQL mutations when available
 
 This pattern enables issue tracking in one repository while code changes are created in a different repository.
