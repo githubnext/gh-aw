@@ -3,7 +3,6 @@
 package workflow
 
 import (
-	"errors"
 	"strings"
 	"testing"
 
@@ -91,7 +90,7 @@ tools:
 	require.Error(t, err)
 
 	var sharedErr *SharedWorkflowError
-	assert.True(t, errors.As(err, &sharedErr), "expected SharedWorkflowError, got %T: %v", err, err)
+	assert.ErrorAs(t, err, &sharedErr, "expected SharedWorkflowError")
 }
 
 func TestParseWorkflowString_VirtualPathBehavior(t *testing.T) {
