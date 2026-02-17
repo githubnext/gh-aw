@@ -1,7 +1,6 @@
 package gitutil
 
 import (
-	"os"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -39,39 +38,4 @@ func IsHexString(s string) bool {
 		}
 	}
 	return true
-}
-
-// GetGitHubHost resolves GitHub server URL from environment in priority order.
-// Checks environment variables in this order:
-//  1. GITHUB_SERVER_URL (e.g., https://MYORG.ghe.com)
-//  2. GITHUB_ENTERPRISE_HOST (e.g., MYORG.ghe.com)
-//  3. GITHUB_HOST (e.g., MYORG.ghe.com)
-//  4. GH_HOST (e.g., MYORG.ghe.com)
-//
-// Returns normalized URL with https:// scheme and no trailing slash.
-// Defaults to https://github.com if no environment variables are set.
-func GetGitHubHost() string {
-	envVars := []string{"GITHUB_SERVER_URL", "GITHUB_ENTERPRISE_HOST", "GITHUB_HOST", "GH_HOST"}
-
-	for _, envVar := range envVars {
-		if value := os.Getenv(envVar); value != "" {
-			log.Printf("GitHub host from %s: %s", envVar, value)
-			return sanitizeHostURL(value)
-		}
-	}
-
-	defaultHost := "https://github.com"
-	log.Printf("Using fallback GitHub host: %s", defaultHost)
-	return defaultHost
-}
-
-// sanitizeHostURL ensures proper URL format with https:// and no trailing slash
-func sanitizeHostURL(rawHost string) string {
-	normalized := strings.TrimRight(rawHost, "/")
-
-	if !strings.HasPrefix(normalized, "https://") && !strings.HasPrefix(normalized, "http://") {
-		normalized = "https://" + normalized
-	}
-
-	return normalized
 }
