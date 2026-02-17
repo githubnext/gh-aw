@@ -1,3 +1,5 @@
+//go:build !js && !wasm
+
 package console
 
 import (
@@ -6,12 +8,6 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/github/gh-aw/pkg/tty"
 )
-
-// SelectOption represents a selectable option with a label and value
-type SelectOption struct {
-	Label string
-	Value string
-}
 
 // PromptSelect shows an interactive single-select menu
 // Returns the selected value or an error

@@ -131,6 +131,7 @@ type Compiler struct {
 	artifactManager         *ArtifactManager    // Tracks artifact uploads/downloads for validation
 	scheduleFriendlyFormats map[int]string      // Maps schedule item index to friendly format string for current workflow
 	gitRoot                 string              // Git repository root directory (if set, used for action cache path)
+	contentOverride         string              // If set, use this content instead of reading from disk (for Wasm/in-memory compilation)
 }
 
 // NewCompiler creates a new workflow compiler with functional options.

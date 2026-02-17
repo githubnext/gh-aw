@@ -1,3 +1,5 @@
+//go:build !js && !wasm
+
 // This file provides Git repository utilities for workflow compilation.
 //
 // This file contains helper functions for interacting with Git repositories

@@ -1,0 +1,518 @@
+---
+title: Live Workflow Editor
+description: Write agentic workflow markdown and see compiled GitHub Actions YAML in real time, powered by the gh-aw WebAssembly compiler.
+sidebar:
+  order: 900
+---
+
+Try the gh-aw compiler directly in your browser. Write workflow markdown on the left and see the compiled GitHub Actions YAML on the right — no installation required.
+
+The compiler runs entirely client-side via WebAssembly (~17 MB download on first load).
+
+<div id="live-editor-root">
+  <div id="le-loading" class="le-loading">
+    <div class="le-spinner"></div>
+    <p>Loading WebAssembly compiler...</p>
+    <p class="le-loading-hint">First load downloads ~17 MB</p>
+  </div>
+  <div id="le-container" class="le-container" style="display:none;">
+    <div class="le-toolbar">
+      <button id="le-compile-btn" class="le-btn le-btn-primary" title="Compile (Ctrl+Enter)">
+        Compile
+      </button>
+      <label class="le-auto-label">
+        <input type="checkbox" id="le-auto-toggle" checked />
+        Auto-compile
+      </label>
+      <span id="le-status" class="le-status"></span>
+    </div>
+    <div class="le-panels">
+      <div class="le-panel le-panel-input">
+        <div class="le-panel-header">
+          <span class="le-panel-title">Workflow Markdown</span>
+        </div>
+        <div class="le-editor-wrap">
+          <div class="le-line-numbers" id="le-line-numbers"></div>
+          <textarea
+            id="le-input"
+            class="le-textarea"
+            spellcheck="false"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+          ></textarea>
+        </div>
+      </div>
+      <div class="le-divider"></div>
+      <div class="le-panel le-panel-output">
+        <div class="le-panel-header">
+          <span class="le-panel-title">Compiled YAML</span>
+          <button id="le-copy-btn" class="le-btn le-btn-small" title="Copy YAML to clipboard">
+            Copy
+          </button>
+        </div>
+        <div id="le-error" class="le-error" style="display:none;"></div>
+        <div id="le-warnings" class="le-warnings" style="display:none;"></div>
+        <pre id="le-output" class="le-output"><code id="le-output-code"></code></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>{`
+  /* ---- Layout ---- */
+  #live-editor-root {
+    margin-top: 1rem;
+  }
+
+  .le-container {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--sl-color-bg);
+  }
+
+  .le-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--sl-color-gray-6);
+    border-bottom: 1px solid var(--sl-color-gray-5);
+    flex-wrap: wrap;
+  }
+
+  .le-panels {
+    display: flex;
+    min-height: 500px;
+  }
+
+  @media (max-width: 768px) {
+    .le-panels {
+      flex-direction: column;
+    }
+    .le-divider {
+      height: 1px !important;
+      width: 100% !important;
+    }
+  }
+
+  .le-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .le-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem 0.75rem;
+    background: var(--sl-color-gray-6);
+    border-bottom: 1px solid var(--sl-color-gray-5);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--sl-color-gray-2);
+  }
+
+  .le-panel-title {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .le-divider {
+    width: 1px;
+    background: var(--sl-color-gray-5);
+    flex-shrink: 0;
+  }
+
+  /* ---- Editor (left panel) ---- */
+  .le-editor-wrap {
+    display: flex;
+    flex: 1;
+    overflow: auto;
+    background: var(--sl-color-black);
+    position: relative;
+  }
+
+  .le-line-numbers {
+    padding: 0.75rem 0.5rem;
+    text-align: right;
+    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--sl-color-gray-4);
+    user-select: none;
+    min-width: 2.5rem;
+    flex-shrink: 0;
+    border-right: 1px solid var(--sl-color-gray-5);
+  }
+
+  .le-textarea {
+    flex: 1;
+    padding: 0.75rem;
+    margin: 0;
+    border: none;
+    outline: none;
+    resize: none;
+    background: transparent;
+    color: var(--sl-color-white);
+    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    tab-size: 2;
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+  }
+
+  .le-textarea::placeholder {
+    color: var(--sl-color-gray-4);
+  }
+
+  /* ---- Output (right panel) ---- */
+  .le-output {
+    flex: 1;
+    margin: 0;
+    padding: 0.75rem;
+    overflow: auto;
+    background: var(--sl-color-black);
+    color: var(--sl-color-gray-1);
+    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    white-space: pre;
+    border-radius: 0;
+  }
+
+  .le-output code {
+    background: none;
+    padding: 0;
+    font-size: inherit;
+    color: inherit;
+  }
+
+  /* ---- Error and warnings ---- */
+  .le-error {
+    padding: 0.6rem 0.75rem;
+    background: #3b1219;
+    color: #f87171;
+    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+    font-size: 0.8rem;
+    border-bottom: 1px solid #7f1d1d;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .le-warnings {
+    padding: 0.6rem 0.75rem;
+    background: #3b2e10;
+    color: #fbbf24;
+    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+    font-size: 0.8rem;
+    border-bottom: 1px solid #78530a;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* ---- Buttons ---- */
+  .le-btn {
+    padding: 0.35rem 0.75rem;
+    border: 1px solid var(--sl-color-gray-4);
+    border-radius: 4px;
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-white);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .le-btn:hover {
+    background: var(--sl-color-gray-5);
+  }
+
+  .le-btn-primary {
+    background: var(--sl-color-accent);
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-accent-contrast, #fff);
+  }
+
+  .le-btn-primary:hover {
+    opacity: 0.9;
+  }
+
+  .le-btn-small {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  /* ---- Auto-compile toggle ---- */
+  .le-auto-label {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--sl-color-gray-2);
+    cursor: pointer;
+  }
+
+  /* ---- Status ---- */
+  .le-status {
+    font-size: 0.8rem;
+    color: var(--sl-color-gray-3);
+    margin-left: auto;
+  }
+
+  .le-status.le-status-compiling {
+    color: var(--sl-color-accent);
+  }
+
+  .le-status.le-status-error {
+    color: #f87171;
+  }
+
+  .le-status.le-status-success {
+    color: #4ade80;
+  }
+
+  /* ---- Loading state ---- */
+  .le-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    gap: 1rem;
+    color: var(--sl-color-gray-2);
+  }
+
+  .le-loading p {
+    margin: 0;
+  }
+
+  .le-loading-hint {
+    font-size: 0.85rem;
+    color: var(--sl-color-gray-4);
+  }
+
+  .le-spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--sl-color-gray-5);
+    border-top-color: var(--sl-color-accent);
+    border-radius: 50%;
+    animation: le-spin 0.8s linear infinite;
+  }
+
+  @keyframes le-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .le-loading-error {
+    color: #f87171;
+    text-align: center;
+  }
+`}</style>
+
+<script type="module">{`
+  const SAMPLE_WORKFLOW = \`---
+name: hello-world
+description: A simple hello world workflow
+on:
+  workflow_dispatch:
+engine: copilot
+---
+
+# Mission
+
+Say hello to the world! Check the current date and time, and greet the user warmly.
+\`;
+
+  // ---- DOM references ----
+  const root = document.getElementById('live-editor-root');
+  const loadingEl = document.getElementById('le-loading');
+  const containerEl = document.getElementById('le-container');
+  const inputEl = document.getElementById('le-input');
+  const outputCodeEl = document.getElementById('le-output-code');
+  const errorEl = document.getElementById('le-error');
+  const warningsEl = document.getElementById('le-warnings');
+  const compileBtn = document.getElementById('le-compile-btn');
+  const copyBtn = document.getElementById('le-copy-btn');
+  const autoToggle = document.getElementById('le-auto-toggle');
+  const statusEl = document.getElementById('le-status');
+  const lineNumbersEl = document.getElementById('le-line-numbers');
+
+  let compiler = null;
+  let debounceTimer = null;
+  let lastYaml = '';
+
+  // ---- Line numbers ----
+  function updateLineNumbers() {
+    const lines = inputEl.value.split('\\n');
+    const count = lines.length;
+    let html = '';
+    for (let i = 1; i <= count; i++) {
+      html += i + '\\n';
+    }
+    lineNumbersEl.textContent = html;
+  }
+
+  // Sync scroll between textarea and line numbers
+  function syncScroll() {
+    lineNumbersEl.scrollTop = inputEl.scrollTop;
+  }
+
+  // ---- Tab support ----
+  function handleTab(e) {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = inputEl.selectionStart;
+      const end = inputEl.selectionEnd;
+      const value = inputEl.value;
+      inputEl.value = value.substring(0, start) + '  ' + value.substring(end);
+      inputEl.selectionStart = inputEl.selectionEnd = start + 2;
+      inputEl.dispatchEvent(new Event('input'));
+    }
+  }
+
+  // ---- Compile ----
+  async function compile() {
+    if (!compiler) return;
+
+    const md = inputEl.value;
+    if (!md.trim()) {
+      outputCodeEl.textContent = '';
+      errorEl.style.display = 'none';
+      warningsEl.style.display = 'none';
+      setStatus('', '');
+      lastYaml = '';
+      return;
+    }
+
+    setStatus('Compiling...', 'le-status-compiling');
+    compileBtn.disabled = true;
+
+    try {
+      const result = await compiler.compile(md);
+
+      if (result.error) {
+        errorEl.textContent = result.error;
+        errorEl.style.display = 'block';
+        outputCodeEl.textContent = '';
+        lastYaml = '';
+        setStatus('Error', 'le-status-error');
+      } else {
+        errorEl.style.display = 'none';
+        outputCodeEl.textContent = result.yaml || '';
+        lastYaml = result.yaml || '';
+        setStatus('Compiled', 'le-status-success');
+
+        // Clear "Compiled" status after a moment
+        setTimeout(() => {
+          if (statusEl.textContent === 'Compiled') {
+            setStatus('', '');
+          }
+        }, 2000);
+      }
+
+      if (result.warnings && result.warnings.length > 0) {
+        warningsEl.textContent = result.warnings.join('\\n');
+        warningsEl.style.display = 'block';
+      } else {
+        warningsEl.style.display = 'none';
+      }
+    } catch (err) {
+      errorEl.textContent = 'Compilation error: ' + (err.message || String(err));
+      errorEl.style.display = 'block';
+      lastYaml = '';
+      setStatus('Error', 'le-status-error');
+    } finally {
+      compileBtn.disabled = false;
+    }
+  }
+
+  function setStatus(text, className) {
+    statusEl.textContent = text;
+    statusEl.className = 'le-status' + (className ? ' ' + className : '');
+  }
+
+  // ---- Debounced auto-compile ----
+  function scheduleCompile() {
+    if (!autoToggle.checked) return;
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(compile, 500);
+  }
+
+  // ---- Copy button ----
+  async function copyYaml() {
+    if (!lastYaml) return;
+    try {
+      await navigator.clipboard.writeText(lastYaml);
+      const orig = copyBtn.textContent;
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = orig; }, 1500);
+    } catch (e) {
+      // Fallback for older browsers
+      const ta = document.createElement('textarea');
+      ta.value = lastYaml;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      const orig = copyBtn.textContent;
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = orig; }, 1500);
+    }
+  }
+
+  // ---- Keyboard shortcuts ----
+  function handleKeyboard(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      compile();
+    }
+  }
+
+  // ---- Wire up events ----
+  inputEl.addEventListener('input', () => {
+    updateLineNumbers();
+    scheduleCompile();
+  });
+  inputEl.addEventListener('scroll', syncScroll);
+  inputEl.addEventListener('keydown', handleTab);
+  inputEl.addEventListener('keydown', handleKeyboard);
+  compileBtn.addEventListener('click', compile);
+  copyBtn.addEventListener('click', copyYaml);
+
+  // ---- Initialize ----
+  async function init() {
+    try {
+      const { createWorkerCompiler } = await import('/gh-aw/wasm/compiler-loader.js');
+      compiler = createWorkerCompiler();
+      await compiler.ready;
+
+      // Show the editor
+      loadingEl.style.display = 'none';
+      containerEl.style.display = 'block';
+
+      // Load sample workflow
+      inputEl.value = SAMPLE_WORKFLOW;
+      updateLineNumbers();
+
+      // Run initial compile
+      await compile();
+    } catch (err) {
+      loadingEl.innerHTML =
+        '<div class="le-loading-error">' +
+        '<p><strong>Failed to load the WebAssembly compiler</strong></p>' +
+        '<p>' + (err.message || String(err)) + '</p>' +
+        '<p style="margin-top:0.5rem;font-size:0.85rem;color:var(--sl-color-gray-4);">Try refreshing the page. The compiler requires a modern browser with WebAssembly support.</p>' +
+        '</div>';
+    }
+  }
+
+  init();
+`}</script>

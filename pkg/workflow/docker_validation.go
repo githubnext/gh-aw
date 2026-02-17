@@ -1,3 +1,5 @@
+//go:build !js && !wasm
+
 // This file provides Docker image validation for agentic workflows.
 //
 // # Docker Image Validation

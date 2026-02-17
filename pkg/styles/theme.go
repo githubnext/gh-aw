@@ -1,3 +1,5 @@
+//go:build !js && !wasm
+
 // Package styles provides centralized style and color definitions for terminal output.
 //
 // # Adaptive Color System

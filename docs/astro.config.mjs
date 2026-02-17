@@ -229,6 +229,7 @@ export default defineConfig({
 						{ label: 'Tools', link: '/reference/tools/' },
 						{ label: 'Triggers', link: '/reference/triggers/' },
 						{ label: 'Workflow Structure', link: '/reference/workflow-structure/' },
+						{ label: 'Live Editor', link: '/reference/live-editor/' },
 					],
 				},
 				{

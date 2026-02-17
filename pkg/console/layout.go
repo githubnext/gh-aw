@@ -1,3 +1,5 @@
+//go:build !js && !wasm
+
 // Package console provides layout composition helpers for creating styled CLI output with Lipgloss.
 //
 // # Layout Composition Helpers

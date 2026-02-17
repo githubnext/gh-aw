@@ -1,3 +1,5 @@
+//go:build !js && !wasm
+
 // Package tty provides utilities for TTY (terminal) detection.
 // This package uses golang.org/x/term for TTY detection, which aligns with
 // modern Go best practices and the spinner library v1.23.1+ implementation.

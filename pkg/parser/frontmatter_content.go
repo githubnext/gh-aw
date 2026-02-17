@@ -271,6 +271,32 @@ func ExtractWorkflowNameFromMarkdown(filePath string) (string, error) {
 	return defaultName, nil
 }
 
+// ExtractWorkflowNameFromContent extracts the workflow name from markdown content string.
+// This is the in-memory equivalent of ExtractWorkflowNameFromMarkdown, used by Wasm builds
+// where filesystem access is unavailable.
+func ExtractWorkflowNameFromContent(content string, virtualPath string) (string, error) {
+	log.Printf("Extracting workflow name from content: virtualPath=%s, size=%d bytes", virtualPath, len(content))
+
+	markdownContent, err := ExtractMarkdownContent(content)
+	if err != nil {
+		return "", err
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(markdownContent))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "# ") {
+			workflowName := strings.TrimSpace(line[2:])
+			log.Printf("Found workflow name from H1 header: %s", workflowName)
+			return workflowName, nil
+		}
+	}
+
+	defaultName := generateDefaultWorkflowName(virtualPath)
+	log.Printf("No H1 header found, using default name: %s", defaultName)
+	return defaultName, nil
+}
+
 // generateDefaultWorkflowName creates a default workflow name from filename
 // This matches the bash implementation's fallback behavior
 func generateDefaultWorkflowName(filePath string) string {

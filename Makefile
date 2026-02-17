@@ -40,6 +40,13 @@ build-darwin:
 build-windows:
 	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-windows-amd64.exe ./cmd/gh-aw
 
+# Build WebAssembly module for browser usage
+.PHONY: build-wasm
+build-wasm:
+	GOOS=js GOARCH=wasm go build -ldflags="-w -s" -o gh-aw.wasm ./cmd/gh-aw-wasm
+	@echo "✓ Built gh-aw.wasm"
+	@echo "  Copy wasm_exec.js from: $$(go env GOROOT)/misc/wasm/wasm_exec.js"
+
 # Test the code (runs both unlabelled unit tests and integration tests and long tests)
 .PHONY: test
 test: test-unit test-integration

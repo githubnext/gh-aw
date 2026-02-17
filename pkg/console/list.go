@@ -1,3 +1,5 @@
+//go:build !js && !wasm
+
 package console
 
 import (
@@ -15,31 +17,6 @@ import (
 )
 
 var listLog = logger.New("console:list")
-
-// ListItem represents an item in an interactive list
-type ListItem struct {
-	title       string
-	description string
-	value       string
-}
-
-// NewListItem creates a new list item with title, description, and value
-func NewListItem(title, description, value string) ListItem {
-	return ListItem{
-		title:       title,
-		description: description,
-		value:       value,
-	}
-}
-
-// Title returns the item's title
-func (i ListItem) Title() string { return i.title }
-
-// Description returns the item's description
-func (i ListItem) Description() string { return i.description }
-
-// FilterValue returns the value used for filtering
-func (i ListItem) FilterValue() string { return i.title }
 
 // listModel is the Bubble Tea model for the interactive list
 type listModel struct {

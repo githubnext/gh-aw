@@ -282,8 +282,13 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	// Sort files alphabetically to ensure consistent ordering in lock files
 	sort.Strings(allIncludedFiles)
 
-	// Extract workflow name
-	workflowName, err := parser.ExtractWorkflowNameFromMarkdown(cleanPath)
+	// Extract workflow name — use content-based extraction when content is pre-loaded (Wasm)
+	var workflowName string
+	if c.contentOverride != "" {
+		workflowName, err = parser.ExtractWorkflowNameFromContent(c.contentOverride, cleanPath)
+	} else {
+		workflowName, err = parser.ExtractWorkflowNameFromMarkdown(cleanPath)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract workflow name: %w", err)
 	}

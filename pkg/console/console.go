@@ -1,10 +1,10 @@
+//go:build !js && !wasm
+
 package console
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -17,22 +17,6 @@ import (
 
 var consoleLog = logger.New("console:console")
 
-// ErrorPosition represents a position in a source file
-type ErrorPosition struct {
-	File   string
-	Line   int
-	Column int
-}
-
-// CompilerError represents a structured compiler error with position information
-type CompilerError struct {
-	Position ErrorPosition
-	Type     string // "error", "warning", "info"
-	Message  string
-	Context  []string // Source code lines for context
-	Hint     string   // Optional hint for fixing the error
-}
-
 // isTTY checks if stdout is a terminal
 func isTTY() bool {
 	return tty.IsStdoutTerminal()
@@ -44,33 +28,6 @@ func applyStyle(style lipgloss.Style, text string) string {
 		return style.Render(text)
 	}
 	return text
-}
-
-// ToRelativePath converts an absolute path to a relative path from the current working directory
-// If the relative path contains "..", returns the absolute path instead for clarity
-func ToRelativePath(path string) string {
-	if !filepath.IsAbs(path) {
-		return path
-	}
-
-	wd, err := os.Getwd()
-	if err != nil {
-		// If we can't get the working directory, return the original path
-		return path
-	}
-
-	relPath, err := filepath.Rel(wd, path)
-	if err != nil {
-		// If we can't get a relative path, return the original path
-		return path
-	}
-
-	// If the relative path contains "..", use absolute path instead for clarity
-	if strings.Contains(relPath, "..") {
-		return path
-	}
-
-	return relPath
 }
 
 // FormatError formats a CompilerError with Rust-like rendering
@@ -115,70 +72,39 @@ func FormatError(err CompilerError) string {
 		output.WriteString(renderContext(err))
 	}
 
-	// Remove hints as per requirements - hints are no longer displayed
-
 	return output.String()
-}
-
-// findWordEnd finds the end of a word starting at the given position
-// A word ends at whitespace, punctuation, or end of line
-func findWordEnd(line string, start int) int {
-	if start >= len(line) {
-		return len(line)
-	}
-
-	end := start
-	for end < len(line) {
-		char := line[end]
-		// Stop at whitespace or common punctuation that would end a YAML key/value
-		if char == ' ' || char == '\t' || char == ':' || char == '\n' || char == '\r' {
-			break
-		}
-		end++
-	}
-
-	return end
 }
 
 // renderContext renders source code context with line numbers and highlighting
 func renderContext(err CompilerError) string {
 	var output strings.Builder
 
-	// Calculate line number width for padding
 	maxLineNum := err.Position.Line + len(err.Context)/2
 	lineNumWidth := len(fmt.Sprintf("%d", maxLineNum))
 
 	for i, line := range err.Context {
-		// Calculate actual line number (context usually centers around error line)
 		lineNum := err.Position.Line - len(err.Context)/2 + i
 		if lineNum < 1 {
 			continue
 		}
 
-		// Format line number with proper padding
 		lineNumStr := fmt.Sprintf("%*d", lineNumWidth, lineNum)
 		output.WriteString(applyStyle(styles.LineNumber, lineNumStr))
 		output.WriteString(" | ")
 
-		// Highlight the error line
 		if lineNum == err.Position.Line {
-			// For JSON validation errors, highlight from column to end of word
 			if err.Position.Column > 0 && err.Position.Column <= len(line) {
 				before := line[:err.Position.Column-1]
-
-				// Find the end of the word starting at the column position
 				wordEnd := findWordEnd(line, err.Position.Column-1)
 				highlightedPart := line[err.Position.Column-1 : wordEnd]
 				after := ""
 				if wordEnd < len(line) {
 					after = line[wordEnd:]
 				}
-
 				output.WriteString(applyStyle(styles.ContextLine, before))
 				output.WriteString(applyStyle(styles.Highlight, highlightedPart))
 				output.WriteString(applyStyle(styles.ContextLine, after))
 			} else {
-				// Highlight entire line if no specific column or invalid column
 				output.WriteString(applyStyle(styles.Highlight, line))
 			}
 		} else {
@@ -186,12 +112,9 @@ func renderContext(err CompilerError) string {
 		}
 		output.WriteString("\n")
 
-		// Add pointer to error position (only when highlighting specific column)
 		if lineNum == err.Position.Line && err.Position.Column > 0 && err.Position.Column <= len(line) {
-			// Create pointer line that spans the highlighted word
 			wordEnd := findWordEnd(line, err.Position.Column-1)
 			wordLength := wordEnd - (err.Position.Column - 1)
-
 			padding := strings.Repeat(" ", lineNumWidth+3+err.Position.Column-1)
 			pointer := applyStyle(styles.Error, strings.Repeat("^", wordLength))
 			output.WriteString(padding)
@@ -218,15 +141,6 @@ func FormatWarningMessage(message string) string {
 	return applyStyle(styles.Warning, "⚠ ") + message
 }
 
-// TableConfig represents configuration for table rendering
-type TableConfig struct {
-	Headers   []string
-	Rows      [][]string
-	Title     string
-	ShowTotal bool
-	TotalRow  []string
-}
-
 // RenderTable renders a formatted table using lipgloss/table package
 func RenderTable(config TableConfig) string {
 	if len(config.Headers) == 0 {
@@ -237,44 +151,34 @@ func RenderTable(config TableConfig) string {
 	consoleLog.Printf("Rendering table: title=%s, columns=%d, rows=%d", config.Title, len(config.Headers), len(config.Rows))
 	var output strings.Builder
 
-	// Title
 	if config.Title != "" {
 		output.WriteString(applyStyle(styles.TableTitle, config.Title))
 		output.WriteString("\n")
 	}
 
-	// Build rows including total row if specified
 	allRows := config.Rows
 	if config.ShowTotal && len(config.TotalRow) > 0 {
 		allRows = append(allRows, config.TotalRow)
 	}
 
-	// Determine row count for styling purposes
 	dataRowCount := len(config.Rows)
 
-	// Create style function that applies different styles based on row type
 	styleFunc := func(row, col int) lipgloss.Style {
 		if !isTTY() {
 			return lipgloss.NewStyle()
 		}
 		if row == table.HeaderRow {
-			// Add horizontal padding to header cells for better spacing
 			headerStyle := styles.TableHeader
 			return headerStyle.PaddingLeft(1).PaddingRight(1)
 		}
-		// If we have a total row and this is the last row
 		if config.ShowTotal && len(config.TotalRow) > 0 && row == dataRowCount {
-			// Add horizontal padding to total row cells
 			totalStyle := styles.TableTotal
 			return totalStyle.PaddingLeft(1).PaddingRight(1)
 		}
-		// Zebra striping: alternate row colors
 		if row%2 == 0 {
-			// Add horizontal padding to even row cells
 			cellStyle := styles.TableCell
 			return cellStyle.PaddingLeft(1).PaddingRight(1)
 		}
-		// Odd rows with subtle background and horizontal padding
 		return lipgloss.NewStyle().
 			Foreground(styles.ColorForeground).
 			Background(styles.ColorTableAltRow).
@@ -282,7 +186,6 @@ func RenderTable(config TableConfig) string {
 			PaddingRight(1)
 	}
 
-	// Create table with lipgloss/table package
 	t := table.New().
 		Headers(config.Headers...).
 		Rows(allRows...).
@@ -342,38 +245,16 @@ func FormatErrorMessage(message string) string {
 }
 
 // FormatSectionHeader formats a section header with proper styling
-// This is used for major sections in CLI output (e.g., "Overview", "Metrics")
 func FormatSectionHeader(header string) string {
 	if isTTY() {
-		// TTY mode: Use styled header with underline
 		return applyStyle(styles.Header, header)
 	}
-	// Non-TTY mode: Simple header text
 	return header
 }
 
-// FormatErrorWithSuggestions formats an error message with actionable suggestions
-func FormatErrorWithSuggestions(message string, suggestions []string) string {
-	var output strings.Builder
-	output.WriteString(FormatErrorMessage(message))
-
-	if len(suggestions) > 0 {
-		output.WriteString("\n\nSuggestions:\n")
-		for _, suggestion := range suggestions {
-			output.WriteString("  • " + suggestion + "\n")
-		}
-	}
-
-	return output.String()
-}
-
-// RenderTitleBox renders a title with a double border box in TTY mode,
-// or plain text with separator lines in non-TTY mode.
-// The box will be centered and styled with the Info color scheme.
-// Returns a slice of strings ready to be added to sections.
+// RenderTitleBox renders a title with a double border box in TTY mode
 func RenderTitleBox(title string, width int) []string {
 	if tty.IsStderrTerminal() {
-		// TTY mode: Use Lipgloss styled box - returns as single string
 		box := lipgloss.NewStyle().
 			Bold(true).
 			Foreground(styles.ColorInfo).
@@ -385,18 +266,13 @@ func RenderTitleBox(title string, width int) []string {
 		return []string{box}
 	}
 
-	// Non-TTY mode: Plain text with separators - returns as separate lines
 	separator := strings.Repeat("━", width)
 	return []string{separator, "  " + title, separator}
 }
 
-// RenderErrorBox renders an error/warning message with a rounded border box in TTY mode,
-// or plain text in non-TTY mode.
-// The box will be styled with the Error color scheme for critical messages.
-// Returns a slice of strings ready to be added to sections or printed directly.
+// RenderErrorBox renders an error/warning message with a rounded border box
 func RenderErrorBox(title string) []string {
 	if tty.IsStderrTerminal() {
-		// TTY mode: Use Lipgloss styled box with rounded border
 		box := lipgloss.NewStyle().
 			Border(styles.RoundedBorder).
 			BorderForeground(styles.ColorError).
@@ -406,18 +282,14 @@ func RenderErrorBox(title string) []string {
 		return []string{box}
 	}
 
-	// Non-TTY mode: Plain text with error formatting
 	return []string{
 		FormatErrorMessage(title),
 	}
 }
 
-// RenderInfoSection renders an info section with left border emphasis in TTY mode,
-// or plain text with manual indentation in non-TTY mode.
-// Returns a slice of strings ready to be added to sections.
+// RenderInfoSection renders an info section with left border emphasis
 func RenderInfoSection(content string) []string {
 	if tty.IsStderrTerminal() {
-		// TTY mode: Use Lipgloss styled section with left border
 		section := lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder(), false, false, false, true).
 			BorderForeground(styles.ColorInfo).
@@ -426,7 +298,6 @@ func RenderInfoSection(content string) []string {
 		return []string{section}
 	}
 
-	// Non-TTY mode: Add manual indentation
 	lines := strings.Split(content, "\n")
 	result := make([]string, len(lines))
 	for i, line := range lines {
@@ -435,19 +306,14 @@ func RenderInfoSection(content string) []string {
 	return result
 }
 
-// RenderComposedSections composes and outputs a slice of sections to stderr.
-// In TTY mode, uses lipgloss.JoinVertical for proper composition.
-// In non-TTY mode, outputs each section as a separate line.
-// Adds blank lines before and after the output.
+// RenderComposedSections composes and outputs a slice of sections to stderr
 func RenderComposedSections(sections []string) {
 	if tty.IsStderrTerminal() {
-		// TTY mode: Use Lipgloss to compose sections vertically
 		plan := lipgloss.JoinVertical(lipgloss.Left, sections...)
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintln(os.Stderr, plan)
 		fmt.Fprintln(os.Stderr, "")
 	} else {
-		// Non-TTY mode: Output sections directly
 		fmt.Fprintln(os.Stderr, "")
 		for _, section := range sections {
 			fmt.Fprintln(os.Stderr, section)
@@ -456,106 +322,28 @@ func RenderComposedSections(sections []string) {
 	}
 }
 
-// RenderTableAsJSON renders a table configuration as JSON
-// This converts the table structure to a JSON array of objects
-func RenderTableAsJSON(config TableConfig) (string, error) {
-	if len(config.Headers) == 0 {
-		return "[]", nil
-	}
-
-	// Create array of objects, where each object has header names as keys
-	var result []map[string]string
-	for _, row := range config.Rows {
-		obj := make(map[string]string)
-		for i, cell := range row {
-			if i < len(config.Headers) {
-				// Convert header to lowercase with underscores for JSON keys
-				key := strings.ToLower(strings.ReplaceAll(config.Headers[i], " ", "_"))
-				obj[key] = cell
-			}
-		}
-		result = append(result, obj)
-	}
-
-	// Marshal to JSON with indentation
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal table to JSON: %w", err)
-	}
-
-	return string(jsonBytes), nil
-}
-
-// TreeNode represents a node in a hierarchical tree structure
-type TreeNode struct {
-	Value    string
-	Children []TreeNode
-}
-
 // RenderTree renders a hierarchical tree structure using lipgloss/tree package
-// Returns styled tree output for TTY, or simple indented text for non-TTY
 func RenderTree(root TreeNode) string {
 	if !isTTY() {
-		// For non-TTY, render simple indented text
 		return renderTreeSimple(root, "", true)
 	}
 
-	// For TTY, use lipgloss/tree for styled output
 	lipglossTree := buildLipglossTree(root)
 	return lipglossTree.String()
 }
 
-// renderTreeSimple renders a simple text-based tree without styling
-func renderTreeSimple(node TreeNode, prefix string, isLast bool) string {
-	var output strings.Builder
-
-	// Current node
-	connector := "├── "
-	if isLast {
-		connector = "└── "
-	}
-	if prefix == "" {
-		// Root node has no connector
-		output.WriteString(node.Value + "\n")
-	} else {
-		output.WriteString(prefix + connector + node.Value + "\n")
-	}
-
-	// Children
-	for i, child := range node.Children {
-		childIsLast := i == len(node.Children)-1
-		var childPrefix string
-		if prefix == "" {
-			childPrefix = ""
-		} else {
-			if isLast {
-				childPrefix = prefix + "    "
-			} else {
-				childPrefix = prefix + "│   "
-			}
-		}
-		output.WriteString(renderTreeSimple(child, childPrefix, childIsLast))
-	}
-
-	return output.String()
-}
-
 // buildLipglossTree converts our TreeNode structure to lipgloss/tree format
 func buildLipglossTree(node TreeNode) *tree.Tree {
-	// Create root tree
 	t := tree.Root(node.Value).
 		EnumeratorStyle(styles.TreeEnumerator).
 		ItemStyle(styles.TreeNode)
 
-	// Add children recursively
 	if len(node.Children) > 0 {
 		children := make([]any, len(node.Children))
 		for i, child := range node.Children {
 			if len(child.Children) > 0 {
-				// If child has children, create a subtree
 				children[i] = buildLipglossTree(child)
 			} else {
-				// If child is a leaf, add as string
 				children[i] = child.Value
 			}
 		}
