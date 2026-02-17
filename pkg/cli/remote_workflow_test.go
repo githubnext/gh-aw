@@ -78,7 +78,7 @@ func TestFetchLocalWorkflow_NonExistentFile(t *testing.T) {
 
 	result, err := fetchLocalWorkflow(spec, false)
 
-	assert.Error(t, err, "should error for non-existent file")
+	require.Error(t, err, "should error for non-existent file")
 	assert.Nil(t, result, "result should be nil on error")
 	assert.Contains(t, err.Error(), "not found", "error should mention file not found")
 }
@@ -93,7 +93,7 @@ func TestFetchLocalWorkflow_DirectoryInsteadOfFile(t *testing.T) {
 
 	result, err := fetchLocalWorkflow(spec, false)
 
-	assert.Error(t, err, "should error when path is a directory")
+	require.Error(t, err, "should error when path is a directory")
 	assert.Nil(t, result, "result should be nil on error")
 }
 
@@ -130,7 +130,7 @@ func TestFetchWorkflowFromSource_RemoteRoutingWithInvalidSlug(t *testing.T) {
 
 	result, err := FetchWorkflowFromSource(spec, false)
 
-	assert.Error(t, err, "should error for invalid repo slug")
+	require.Error(t, err, "should error for invalid repo slug")
 	assert.Nil(t, result, "result should be nil on error")
 	assert.Contains(t, err.Error(), "invalid repository slug", "error should mention invalid slug")
 }
