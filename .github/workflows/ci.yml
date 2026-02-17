@@ -2074,13 +2074,13 @@ jobs:
           path: conformance-output.txt
           retention-days: 7
 
-  agentics-workflows-integration:
-    name: Test Adding Agentics Workflows
+  integration-add:
+    name: Integration Add Workflows
     runs-on: ubuntu-latest
     permissions:
       contents: read
     concurrency:
-      group: ci-${{ github.ref }}-agentics-workflows
+      group: ci-${{ github.ref }}-integration-add
       cancel-in-progress: true
     steps:
       - name: Checkout code
