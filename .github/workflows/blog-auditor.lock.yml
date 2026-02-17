@@ -624,7 +624,10 @@ jobs:
                 "args": [
                   "--init",
                   "--network",
-                  "host"
+                  "host",
+                  "--security-opt",
+                  "seccomp=unconfined",
+                  "--ipc=host"
                 ],
                 "entrypointArgs": [
                   "--output-dir",
