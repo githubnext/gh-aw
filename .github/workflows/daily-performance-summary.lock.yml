@@ -30,7 +30,7 @@
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# frontmatter-hash: 1c376005f6b463470be7e5ed4579c6a8974d5eaf114564c88bd35f498f20e883
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"1c376005f6b463470be7e5ed4579c6a8974d5eaf114564c88bd35f498f20e883"}
 
 name: "Daily Project Performance Summary Generator (Using Safe Inputs)"
 "on":

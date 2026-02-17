@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 26fbe593cfc5a0684979a0dc435a2235bcf8162ae42bd42b0cc9abd00308c37c
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"26fbe593cfc5a0684979a0dc435a2235bcf8162ae42bd42b0cc9abd00308c37c"}
 
 name: "Dev Hawk"
 "on":

@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: e0c0d60ffc976afffa787b28c44b95390d0d72d04a3845f11b62d8431ed03bf7
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e0c0d60ffc976afffa787b28c44b95390d0d72d04a3845f11b62d8431ed03bf7"}
 
 name: "Schema Consistency Checker"
 "on":

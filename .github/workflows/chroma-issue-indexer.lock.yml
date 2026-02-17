@@ -27,7 +27,7 @@
 #     - shared/mcp/chroma.md
 #     - shared/mood.md
 #
-# frontmatter-hash: 220671e8cf1bf8b27b0d78691d637c2c7f012db6effdd8def4d7940072a79ad2
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"220671e8cf1bf8b27b0d78691d637c2c7f012db6effdd8def4d7940072a79ad2"}
 
 name: "Chroma Issue Indexer"
 "on":

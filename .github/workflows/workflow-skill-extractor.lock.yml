@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 78cb8ee1a41e1061163bed55c1d04a284852cecfca965bbd6eae93b28ed15f4e
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"78cb8ee1a41e1061163bed55c1d04a284852cecfca965bbd6eae93b28ed15f4e"}
 
 name: "Workflow Skill Extractor"
 "on":

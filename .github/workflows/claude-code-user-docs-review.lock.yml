@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: f42b78e415f58f3f758a94ec1548efee0840966cf12abd6ca76690bf46d0bd28
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f42b78e415f58f3f758a94ec1548efee0840966cf12abd6ca76690bf46d0bd28"}
 
 name: "Claude Code User Documentation Review"
 "on":

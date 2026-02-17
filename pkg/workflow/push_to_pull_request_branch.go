@@ -19,14 +19,16 @@ type PushToPullRequestBranchConfig struct {
 	CommitTitleSuffix    string   `yaml:"commit-title-suffix,omitempty"` // Optional suffix to append to generated commit titles
 }
 
-// buildCheckoutRepository generates a checkout step with optional target repository
+// buildCheckoutRepository generates a checkout step with optional target repository and custom token
 // Parameters:
 //   - steps: existing steps to append to
 //   - c: compiler instance for trialMode checks
 //   - targetRepoSlug: optional target repository (e.g., "org/repo") for cross-repo operations
 //     If empty, checks out the source repository (github.repository)
 //     If set, checks out the specified target repository
-func buildCheckoutRepository(steps []string, c *Compiler, targetRepoSlug string) []string {
+//   - customToken: optional custom GitHub token for authentication
+//     If empty, uses default GH_AW_GITHUB_TOKEN || GITHUB_TOKEN fallback
+func buildCheckoutRepository(steps []string, c *Compiler, targetRepoSlug string, customToken string) []string {
 	steps = append(steps, "      - name: Checkout repository\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 	steps = append(steps, "        with:\n")
@@ -48,7 +50,12 @@ func buildCheckoutRepository(steps []string, c *Compiler, targetRepoSlug string)
 
 	// Add token for trial mode or when checking out a different repository
 	if c.trialMode || targetRepoSlug != "" {
-		steps = append(steps, "          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
+		// Use custom token if provided, otherwise use default fallback
+		token := customToken
+		if token == "" {
+			token = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+		}
+		steps = append(steps, fmt.Sprintf("          token: %s\n", token))
 	}
 
 	return steps

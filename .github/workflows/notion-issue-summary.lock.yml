@@ -28,7 +28,7 @@
 #     - shared/mcp/notion.md
 #     - shared/mood.md
 #
-# frontmatter-hash: 88169c6119cdb607ce1030d8324a45bde076facaa8a5ca819e90fcb9e2c5e18e
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"88169c6119cdb607ce1030d8324a45bde076facaa8a5ca819e90fcb9e2c5e18e"}
 
 name: "Issue Summary to Notion"
 "on":

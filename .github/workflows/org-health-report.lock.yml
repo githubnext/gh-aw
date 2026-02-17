@@ -30,7 +30,7 @@
 #     - shared/python-dataviz.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: deaabcb488823e11d1ab906ba9ac51c2aaab720c7e08fab115b541b522451fa5
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"deaabcb488823e11d1ab906ba9ac51c2aaab720c7e08fab115b541b522451fa5"}
 
 name: "Organization Health Report"
 "on":

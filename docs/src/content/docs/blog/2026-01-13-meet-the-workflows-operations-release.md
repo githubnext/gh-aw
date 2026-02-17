@@ -26,8 +26,8 @@ In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-metrics-analyti
 
 The agents that help us actually ship software:
 
-- **[Changeset](https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/changeset.md?plain=1)** - Manages version bumps and changelog entries for releases - **22 merged PRs out of 28 proposed (78% merge rate)**
-- **[Daily Workflow Updater](https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/daily-workflow-updater.md?plain=1)** - Keeps GitHub Actions and dependencies current
+- **[Changeset](https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/changeset.md?plain=1)** - Manages version bumps and changelog entries for releases - **22 merged PRs out of 28 proposed (78% merge rate)**
+- **[Daily Workflow Updater](https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/daily-workflow-updater.md?plain=1)** - Keeps GitHub Actions and dependencies current
 
 Shipping software is stressful enough without worrying about whether you formatted your release notes correctly.
 
@@ -42,7 +42,7 @@ You can add these workflows to your own repository and remix them. Get going wit
 **Changeset:**
 
 ```bash
-gh aw add-wizard https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/changeset.md
+gh aw add-wizard https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/changeset.md
 ```
 
 Then edit and remix the workflow specifications to meet your needs, regenerate the lock file using `gh aw compile`, and push to your repository. See our [Quick Start](https://github.github.com/gh-aw/setup/quick-start/) for further installation and setup instructions.

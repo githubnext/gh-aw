@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 63f49f3b848018a7d00297f11333e23ceb641474c6285b58c2b5bb3e36fc1746
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"63f49f3b848018a7d00297f11333e23ceb641474c6285b58c2b5bb3e36fc1746"}
 
 name: "Static Analysis Report"
 "on":

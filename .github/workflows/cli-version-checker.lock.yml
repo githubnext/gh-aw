@@ -29,7 +29,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 1b10358b8d2f4999ed67f66a35cc17a28187f23df86e9ee09c277566cf9802fb
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"1b10358b8d2f4999ed67f66a35cc17a28187f23df86e9ee09c277566cf9802fb"}
 
 name: "CLI Version Checker"
 "on":

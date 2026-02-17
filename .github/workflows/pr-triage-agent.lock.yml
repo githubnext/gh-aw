@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 6bffeabbdd66874bb410dc01865464d03144d69bdcb1b9eac3e87ded92ae0cb0
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"6bffeabbdd66874bb410dc01865464d03144d69bdcb1b9eac3e87ded92ae0cb0"}
 
 name: "PR Triage Agent"
 "on":

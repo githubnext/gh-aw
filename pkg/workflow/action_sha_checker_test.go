@@ -15,7 +15,7 @@ func TestExtractActionsFromLockFile(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
 
-	lockContent := `
+	lockContent := `# gh-aw-metadata: {"schema_version":"v1"}
 name: Test Workflow
 on: push
 jobs:
@@ -76,7 +76,7 @@ func TestExtractActionsFromLockFileNoDuplicates(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
 
-	lockContent := `
+	lockContent := `# gh-aw-metadata: {"schema_version":"v1"}
 name: Test Workflow
 on: push
 jobs:
@@ -160,7 +160,7 @@ func TestExtractActionsFromLockFileNoActions(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
 
-	lockContent := `
+	lockContent := `# gh-aw-metadata: {"schema_version":"v1"}
 name: Test Workflow
 on: push
 jobs:
@@ -200,7 +200,7 @@ func TestExtractActionsFromLockFileWithVersionComments(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "test-*")
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
 
-	lockContent := `
+	lockContent := `# gh-aw-metadata: {"schema_version":"v1"}
 name: Test Workflow
 on: push
 jobs:

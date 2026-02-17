@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 82ae4b3cf4a5010cb86430929678ad39a60cea0067dfe56ff65e4a45a0e6cdf2
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"82ae4b3cf4a5010cb86430929678ad39a60cea0067dfe56ff65e4a45a0e6cdf2"}
 
 name: "Security Compliance Campaign"
 "on":

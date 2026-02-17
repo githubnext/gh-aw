@@ -29,7 +29,7 @@
 #     - ../skills/documentation/SKILL.md
 #     - shared/mood.md
 #
-# frontmatter-hash: b05af1a6909bac94686311648f15c297edc97293271f28e107ab0b16b3846ed3
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"b05af1a6909bac94686311648f15c297edc97293271f28e107ab0b16b3846ed3"}
 
 name: "Rebuild the documentation after making changes"
 "on":
@@ -1230,7 +1230,7 @@ jobs:
         if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          token: ${{ github.token }}
+          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           persist-credentials: false
           fetch-depth: 1
       - name: Configure Git credentials
@@ -1238,7 +1238,7 @@ jobs:
         env:
           REPO_NAME: ${{ github.repository }}
           SERVER_URL: ${{ github.server_url }}
-          GIT_TOKEN: ${{ github.token }}
+          GIT_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"

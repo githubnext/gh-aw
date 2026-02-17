@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: c9406b0651f40a2050732c9e0410d97db0ab7d7aa8be8419f1378124ea468162
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c9406b0651f40a2050732c9e0410d97db0ab7d7aa8be8419f1378124ea468162"}
 
 name: "Agent Persona Explorer"
 "on":
