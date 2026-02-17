@@ -68,7 +68,15 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 
 	// Step 3: Configure Git credentials
 	// Pass the target repo to configure git remote correctly for cross-repo operations
-	gitToken := "${{ github.token }}"
+	// Use token precedence chain instead of hardcoded github.token
+	// Precedence: create-pull-request config token > safe-outputs token > top-level token > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+	var safeOutputsToken string
+	if data.SafeOutputs != nil {
+		safeOutputsToken = data.SafeOutputs.GitHubToken
+	}
+	gitToken := getEffectiveSafeOutputGitHubToken(
+		data.SafeOutputs.CreatePullRequests.GitHubToken,
+		getEffectiveSafeOutputGitHubToken(safeOutputsToken, data.GitHubToken))
 	preSteps = append(preSteps, c.generateGitConfigurationStepsWithToken(gitToken, data.SafeOutputs.CreatePullRequests.TargetRepoSlug)...)
 
 	// Build custom environment variables specific to create-pull-request

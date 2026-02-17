@@ -84,10 +84,22 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		gitRemoteToken = "${{ steps.safe-outputs-app-token.outputs.token }}"
 	} else {
+		// Use token precedence chain instead of hardcoded github.token
+		// Precedence: create-pull-request config token > safe-outputs token > top-level token > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+		var configToken string
+		if data.SafeOutputs.CreatePullRequests != nil {
+			configToken = data.SafeOutputs.CreatePullRequests.GitHubToken
+		}
+		var safeOutputsToken string
+		if data.SafeOutputs != nil {
+			safeOutputsToken = data.SafeOutputs.GitHubToken
+		}
+		effectiveToken := getEffectiveSafeOutputGitHubToken(configToken,
+			getEffectiveSafeOutputGitHubToken(safeOutputsToken, data.GitHubToken))
 		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-		checkoutToken = "${{ github.token }}"
+		checkoutToken = effectiveToken
 		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
-		gitRemoteToken = "${{ github.token }}"
+		gitRemoteToken = effectiveToken
 	}
 
 	// Build combined condition: execute if either create_pull_request or push_to_pull_request_branch will run
