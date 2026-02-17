@@ -394,6 +394,11 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 					}
 				}
 				tools["bash"] = newCommands
+			} else if existingBash == false {
+				// bash: false was set, but git commands are required for PR operations
+				// Override with git commands only (minimum needed for PR functionality)
+				compilerSafeOutputsLog.Print("Overriding bash: false with git commands (required for PR operations)")
+				tools["bash"] = gitCommands
 			} else if existingBash == nil {
 				_ = existingBash // Keep the nil value as-is
 			}
@@ -405,7 +410,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	// This runs after git commands logic, so it only applies when git commands weren't added
 	// Behavior:
 	//   - bash: true → All commands allowed (converted to ["*"])
-	//   - bash: false → Tool disabled (removed from tools)
+	//   - bash: false → Tool disabled (removed from tools), unless git commands were needed for PR operations
 	//   - bash: nil → Add default commands
 	//   - bash: [] → No commands (empty array means no tools allowed)
 	//   - bash: ["cmd1", "cmd2"] → Add default commands + specific commands
