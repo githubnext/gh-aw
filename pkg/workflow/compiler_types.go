@@ -441,7 +441,6 @@ type WorkflowData struct {
 	Runtimes              map[string]any       // runtime version overrides from frontmatter
 	PluginInfo            *PluginInfo          // Consolidated plugin information (plugins, custom token, MCP configs)
 	ToolsTimeout          int                  // timeout in seconds for tool/MCP operations (0 = use engine default)
-	GitHubToken           string               // top-level github-token expression from frontmatter
 	ToolsStartupTimeout   int                  // timeout in seconds for MCP server startup (0 = use engine default)
 	Features              map[string]any       // feature flags and configuration options from frontmatter (supports bool and string values)
 	ActionCache           *ActionCache         // cache for action pin resolutions
@@ -490,7 +489,7 @@ type SafeOutputsConfig struct {
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-asset,omitempty"`
 	UpdateRelease                   *UpdateReleaseConfig                   `yaml:"update-release,omitempty"`               // Update GitHub release descriptions
-	CreateAgentSessions             *CreateAgentSessionConfig              `yaml:"create-agent-session,omitempty"`         // Create GitHub Copilot agent sessions
+	CreateAgentSessions             *CreateAgentSessionConfig              `yaml:"create-agent-session,omitempty"`         // Create GitHub Copilot coding agent sessions
 	UpdateProjects                  *UpdateProjectConfig                   `yaml:"update-project,omitempty"`               // Smart project board management (create/add/update)
 	CreateProjects                  *CreateProjectsConfig                  `yaml:"create-project,omitempty"`               // Create GitHub Projects V2
 	CreateProjectStatusUpdates      *CreateProjectStatusUpdateConfig       `yaml:"create-project-status-update,omitempty"` // Create GitHub project status updates

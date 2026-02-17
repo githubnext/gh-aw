@@ -38,9 +38,9 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 
 	// With section for github-token
 	steps = append(steps, "        with:\n")
-	if config.UseAgentToken {
+	if config.UseCopilotCodingAgentToken {
 		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.Token)
-	} else if config.UseCopilotToken {
+	} else if config.UseCopilotRequestsToken {
 		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.Token)
 	} else {
 		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)
@@ -210,12 +210,22 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// Check update-project first (highest priority)
 	if data.SafeOutputs.UpdateProjects != nil && data.SafeOutputs.UpdateProjects.Project != "" {
 		projectURL = data.SafeOutputs.UpdateProjects.Project
-		projectToken = getEffectiveProjectGitHubToken(data.SafeOutputs.UpdateProjects.GitHubToken, data.GitHubToken)
+		// Use per-config token, fallback to safe-outputs level token, then default
+		configToken := data.SafeOutputs.UpdateProjects.GitHubToken
+		if configToken == "" && data.SafeOutputs.GitHubToken != "" {
+			configToken = data.SafeOutputs.GitHubToken
+		}
+		projectToken = getEffectiveProjectGitHubToken(configToken)
 		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_URL from update-project config: %s", projectURL)
 		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from update-project config")
 	} else if data.SafeOutputs.CreateProjectStatusUpdates != nil && data.SafeOutputs.CreateProjectStatusUpdates.Project != "" {
 		projectURL = data.SafeOutputs.CreateProjectStatusUpdates.Project
-		projectToken = getEffectiveProjectGitHubToken(data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken, data.GitHubToken)
+		// Use per-config token, fallback to safe-outputs level token, then default
+		configToken := data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken
+		if configToken == "" && data.SafeOutputs.GitHubToken != "" {
+			configToken = data.SafeOutputs.GitHubToken
+		}
+		projectToken = getEffectiveProjectGitHubToken(configToken)
 		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_URL from create-project-status-update config: %s", projectURL)
 		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from create-project-status-update config")
 	}
@@ -223,7 +233,12 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// Check create-project for token even if no URL is set (create-project doesn't have a project URL field)
 	// This ensures GH_AW_PROJECT_GITHUB_TOKEN is set when create-project is configured
 	if projectToken == "" && data.SafeOutputs.CreateProjects != nil {
-		projectToken = getEffectiveProjectGitHubToken(data.SafeOutputs.CreateProjects.GitHubToken, data.GitHubToken)
+		// Use per-config token, fallback to safe-outputs level token, then default
+		configToken := data.SafeOutputs.CreateProjects.GitHubToken
+		if configToken == "" && data.SafeOutputs.GitHubToken != "" {
+			configToken = data.SafeOutputs.GitHubToken
+		}
+		projectToken = getEffectiveProjectGitHubToken(configToken)
 		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from create-project config")
 	}
 

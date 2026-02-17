@@ -31,7 +31,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 				// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
 				// }
 			}
-			effectiveToken := getEffectiveGitHubToken("", data.GitHubToken)
+			effectiveToken := getEffectiveGitHubToken("")
 			fmt.Fprintf(yaml, "          token: %s\n", effectiveToken)
 		}
 

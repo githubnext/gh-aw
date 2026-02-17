@@ -473,7 +473,7 @@ async function runRelease(versionTag, skipConfirmation = false) {
   const codemodPrompt = extractCodemods(changesets);
   if (codemodPrompt) {
     console.log("");
-    console.log(formatInfoMessage("Consolidated Codemod Instructions (copy for Copilot agent task):"));
+    console.log(formatInfoMessage("Consolidated Codemod Instructions (copy for Copilot coding agent task):"));
     console.log("---");
     console.log(codemodPrompt);
     console.log("---");

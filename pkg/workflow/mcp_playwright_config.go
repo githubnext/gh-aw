@@ -33,7 +33,7 @@ func getPlaywrightMCPPackageVersion(playwrightConfig *PlaywrightToolConfig) stri
 // generatePlaywrightAllowedDomains extracts domain list from Playwright tool configuration with bundle resolution
 // Uses the same domain bundle resolution as top-level network configuration, defaulting to localhost only
 func generatePlaywrightAllowedDomains(playwrightConfig *PlaywrightToolConfig) []string {
-	// Default to localhost with all port variations (same as Copilot agent default)
+	// Default to localhost with all port variations (same as Copilot coding agent default)
 	allowedDomains := constants.DefaultAllowedDomains
 
 	// Extract allowed_domains from Playwright tool configuration

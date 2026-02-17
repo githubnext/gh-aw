@@ -261,9 +261,9 @@ safe-outputs:
 
 This requires both `contents: write` + `pull-requests: write` (for PR attempt) and `issues: write` (for fallback).
 
-**Option 2: Use create-issue directly with Copilot assignment**
+**Option 2: Use create-issue directly with Copilot coding agent assignment**
 
-Create an issue describing the desired changes and assign it to Copilot for automated implementation:
+Create an issue describing the desired changes and assign it to Copilot coding agent for automated implementation:
 
 ```yaml wrap
 safe-outputs:
@@ -272,7 +272,7 @@ safe-outputs:
     labels: [automation, enhancement] # Add tracking labels
 ```
 
-When assigned to Copilot, the issue can be automatically picked up for processing in a separate workflow or manually reviewed by the Copilot agent to create the PR.
+When assigned to Copilot, the issue can be automatically picked up for processing in a separate workflow or manually reviewed by the Copilot coding agent to create the PR.
 
 **Option 3: Disable issue fallback to save permissions**
 

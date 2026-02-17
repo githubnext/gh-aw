@@ -29,14 +29,14 @@ Now let's talk about the daily rituals of software development: managing issues 
 These agents enhance issue and pull request workflows:
 
 - **[Issue Arborist](https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/issue-arborist.md?plain=1)** - Links related issues as sub-issues - **77 discussion reports** and **18 parent issues** created  
-- **[Issue Monster](https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/issue-monster.md?plain=1)** - Assigns issues to Copilot agents one at a time - **task dispatcher** for the whole system
+- **[Issue Monster](https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/issue-monster.md?plain=1)** - Assigns issues to the asynchronous [GitHub Copilot coding agent](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) one at a time - **task dispatcher** for the whole system
 - **[Mergefest](https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/mergefest.md?plain=1)** - Automatically merges main branch into PR branches - **orchestrator workflow**
 - **[Sub Issue Closer](https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/sub-issue-closer.md?plain=1)** - Closes completed sub-issues automatically - **orchestrator workflow**
 - **[Issue Template Optimizer](https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/issue-template-optimizer.md?plain=1)** - Improves issue templates based on usage - **2 merged PRs out of 2 proposed (100% merge rate)**
 
 The Issue Arborist is an **organizational workflow** that has created **77 discussion reports** (titled "[Issue Arborist] Issue Arborist Report") and **18 parent issues** to group related sub-issues. It keeps the issue tracker organized by automatically linking related issues, building a dependency tree we'd never maintain manually. For example, [#12037](https://github.com/github/gh-aw/issues/12037) grouped engine documentation updates.
 
-The Issue Monster is the **task dispatcher** - it assigns issues to Copilot agents one at a time. It doesn't create PRs itself, but enables every other agent's work by feeding them tasks. This prevents the chaos of parallel work on the same codebase.
+The Issue Monster is the **task dispatcher** - it assigns issues to the GitHub platform's asynchronous [Copilot coding agent](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) one at a time. It doesn't create PRs itself, but enables every other agent's work by feeding them tasks. This prevents the chaos of parallel work on the same codebase.
 
 Mergefest is an **orchestrator workflow** that automatically merges main into PR branches, keeping long-lived PRs up to date without manual intervention. It eliminates the "please merge main" dance.
 

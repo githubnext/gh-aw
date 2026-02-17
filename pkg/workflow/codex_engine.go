@@ -244,8 +244,8 @@ mkdir -p "$CODEX_HOME/logs"
 		}
 	}
 
-	// Get effective GitHub token based on precedence: top-level github-token > default
-	effectiveGitHubToken := getEffectiveGitHubToken("", workflowData.GitHubToken)
+	// Get effective GitHub token based on precedence: custom token > default
+	effectiveGitHubToken := getEffectiveGitHubToken("")
 
 	env := map[string]string{
 		"CODEX_API_KEY":                "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",

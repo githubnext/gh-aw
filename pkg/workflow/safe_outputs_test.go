@@ -800,7 +800,7 @@ func TestBuildGitHubScriptStepWithoutDownload(t *testing.T) {
 				StepID:      "test_step",
 				MainJobName: "main_job",
 				Script:      "console.log('test');",
-				Token:       "",
+				CustomToken: "",
 			},
 			expectedInSteps: []string{
 				"- name: Test Step",
@@ -828,8 +828,8 @@ func TestBuildGitHubScriptStepWithoutDownload(t *testing.T) {
 				CustomEnvVars: []string{
 					"          CUSTOM_VAR: value\n",
 				},
-				Script: "const x = 1;",
-				Token:  "",
+				Script:      "const x = 1;",
+				CustomToken: "",
 			},
 			expectedInSteps: []string{
 				"- name: Custom Step",

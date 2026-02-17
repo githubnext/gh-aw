@@ -152,7 +152,6 @@ func (c *Compiler) buildInitialWorkflowData(
 		ToolsStartupTimeout:   toolsResult.toolsStartupTimeout,
 		TrialMode:             c.trialMode,
 		TrialLogicalRepo:      c.trialLogicalRepoSlug,
-		GitHubToken:           extractStringFromMap(result.Frontmatter, "github-token", nil),
 		StrictMode:            c.strictMode,
 		SecretMasking:         toolsResult.secretMasking,
 		ParsedFrontmatter:     toolsResult.parsedFrontmatter,

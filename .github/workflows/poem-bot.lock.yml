@@ -477,12 +477,12 @@ jobs:
               "name": "create_issue"
             },
             {
-              "description": "Create a GitHub Copilot agent session to delegate coding work. Use this when you need another Copilot agent to implement code changes, fix bugs, or complete development tasks. The task becomes a new issue that triggers the Copilot coding agent. For non-coding tasks or manual work items, use create_issue instead. CONSTRAINTS: Maximum 1 agent task(s) can be created. Base branch for tasks: \"main\".",
+              "description": "Create a GitHub Copilot coding agent session to delegate coding work. Use this when you need another Copilot coding agent to implement code changes, fix bugs, or complete development tasks. The task becomes a new issue that triggers the Copilot coding agent. For non-coding tasks or manual work items, use create_issue instead. CONSTRAINTS: Maximum 1 agent task(s) can be created. Base branch for tasks: \"main\".",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
                   "body": {
-                    "description": "Clear, detailed task description for the Copilot agent. Include specific files to modify, expected behavior, acceptance criteria, and any constraints. The description should be actionable and self-contained.",
+                    "description": "Clear, detailed task description for the Copilot coding agent. Include specific files to modify, expected behavior, acceptance criteria, and any constraints. The description should be actionable and self-contained.",
                     "type": "string"
                   }
                 },
@@ -1833,7 +1833,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
-          github-token: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
+          github-token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);

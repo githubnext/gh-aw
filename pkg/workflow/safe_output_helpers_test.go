@@ -27,7 +27,7 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				StepID:      "test_step",
 				MainJobName: "main_job",
 				Script:      "console.log('test');",
-				Token:       "",
+				CustomToken: "",
 			},
 			expectedInSteps: []string{
 				"- name: Download agent output artifact",
@@ -55,8 +55,8 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 					"          GH_AW_ISSUE_TITLE_PREFIX: \"[bot] \"\n",
 					"          GH_AW_ISSUE_LABELS: \"automation,ai\"\n",
 				},
-				Script: "const issue = true;",
-				Token:  "",
+				Script:      "const issue = true;",
+				CustomToken: "",
 			},
 			expectedInSteps: []string{
 				"- name: Download agent output artifact",
@@ -86,7 +86,7 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				StepID:      "process",
 				MainJobName: "main",
 				Script:      "const x = 1;",
-				Token:       "",
+				CustomToken: "",
 			},
 			expectedInSteps: []string{
 				"- name: Download agent output artifact",
@@ -108,7 +108,7 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				StepID:      "secure",
 				MainJobName: "main",
 				Script:      "const secure = true;",
-				Token:       "${{ secrets.CUSTOM_TOKEN }}",
+				CustomToken: "${{ secrets.CUSTOM_TOKEN }}",
 			},
 			expectedInSteps: []string{
 				"- name: Secure Action",
@@ -175,8 +175,8 @@ func TestBuildGitHubScriptStepMaintainsOrder(t *testing.T) {
 		CustomEnvVars: []string{
 			"          CUSTOM_VAR: custom_value\n",
 		},
-		Script: "const test = 1;",
-		Token:  "",
+		Script:      "const test = 1;",
+		CustomToken: "",
 	}
 
 	steps := compiler.buildGitHubScriptStep(workflowData, config)
@@ -746,7 +746,7 @@ func TestBuildGitHubScriptStepNoWorkingDirectory(t *testing.T) {
 		StepID:      "test_script",
 		MainJobName: "main",
 		Script:      "console.log('test');",
-		Token:       "",
+		CustomToken: "",
 	}
 
 	steps := compiler.buildGitHubScriptStep(workflowData, config)

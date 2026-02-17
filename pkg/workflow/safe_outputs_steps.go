@@ -56,42 +56,40 @@ func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScript
 	steps = append(steps, "        with:\n")
 
 	// Map github-token to token input for custom actions
-	c.addCustomActionGitHubToken(&steps, data, config.Token, config.UseAgentToken, config.UseCopilotToken)
+	c.addCustomActionGitHubToken(&steps, data, config)
 
 	return steps
 }
 
 // addCustomActionGitHubToken adds a GitHub token as action input.
 // The token precedence depends on the tokenType flags:
-// - UseAgentToken: customToken > SafeOutputs.GitHubToken > data.GitHubToken > GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
-// - UseCopilotToken: customToken > SafeOutputs.GitHubToken > data.GitHubToken > COPILOT_GITHUB_TOKEN || GH_AW_GITHUB_TOKEN
-// - Default: customToken > SafeOutputs.GitHubToken > data.GitHubToken > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
-func (c *Compiler) addCustomActionGitHubToken(steps *[]string, data *WorkflowData, customToken string, useAgentToken, useCopilotToken bool) {
+// - UseCopilotCodingAgentToken: customToken > SafeOutputs.GitHubToken > GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+// - UseCopilotRequestsToken: customToken > SafeOutputs.GitHubToken > COPILOT_GITHUB_TOKEN
+// - Default: customToken > SafeOutputs.GitHubToken > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+func (c *Compiler) addCustomActionGitHubToken(steps *[]string, data *WorkflowData, config GitHubScriptStepConfig) {
 	var token string
 
+	// Get safe-outputs level token
+	var safeOutputsToken string
+	if data.SafeOutputs != nil {
+		safeOutputsToken = data.SafeOutputs.GitHubToken
+	}
+
+	// Choose the first non-empty custom token for precedence
+	effectiveCustomToken := config.CustomToken
+	if effectiveCustomToken == "" {
+		effectiveCustomToken = safeOutputsToken
+	}
+
 	// Agent token mode: use full precedence chain for agent assignment
-	if useAgentToken {
-		var safeOutputsToken string
-		if data.SafeOutputs != nil {
-			safeOutputsToken = data.SafeOutputs.GitHubToken
-		}
-		// Precedence: customToken > safeOutputsToken > data.GitHubToken > default Agent fallback chain
-		token = getEffectiveAgentGitHubToken(customToken, getEffectiveAgentGitHubToken(safeOutputsToken, data.GitHubToken))
-	} else if useCopilotToken {
-		// Copilot mode: use getEffectiveCopilotGitHubToken with safe-outputs token precedence
-		var safeOutputsToken string
-		if data.SafeOutputs != nil {
-			safeOutputsToken = data.SafeOutputs.GitHubToken
-		}
-		// Precedence: customToken > safeOutputsToken > data.GitHubToken > default Copilot fallback
-		token = getEffectiveCopilotGitHubToken(customToken, getEffectiveCopilotGitHubToken(safeOutputsToken, data.GitHubToken))
+	if config.UseCopilotCodingAgentToken {
+		token = getEffectiveCopilotCodingAgentGitHubToken(effectiveCustomToken)
+	} else if config.UseCopilotRequestsToken {
+		// Copilot mode: use getEffectiveCopilotRequestsToken with safe-outputs token precedence
+		token = getEffectiveCopilotRequestsToken(effectiveCustomToken)
 	} else {
-		// Standard mode: use safe output token chain (data.GitHubToken, then GITHUB_TOKEN)
-		var safeOutputsToken string
-		if data.SafeOutputs != nil {
-			safeOutputsToken = data.SafeOutputs.GitHubToken
-		}
-		token = getEffectiveSafeOutputGitHubToken(customToken, getEffectiveSafeOutputGitHubToken(safeOutputsToken, data.GitHubToken))
+		// Standard mode: use safe output token chain
+		token = getEffectiveSafeOutputGitHubToken(effectiveCustomToken)
 	}
 
 	*steps = append(*steps, fmt.Sprintf("          token: %s\n", token))
@@ -117,25 +115,25 @@ type GitHubScriptStepConfig struct {
 	// If empty, Script will be inlined instead
 	ScriptFile string
 
-	// Token configuration (passed to addSafeOutputGitHubTokenForConfig or addSafeOutputCopilotGitHubTokenForConfig)
-	Token string
+	// CustomToken configuration (passed to addSafeOutputGitHubTokenForConfig or addSafeOutputCopilotGitHubTokenForConfig)
+	CustomToken string
 
-	// UseCopilotToken indicates whether to use the Copilot token preference chain
-	// (COPILOT_GITHUB_TOKEN > GH_AW_GITHUB_TOKEN (legacy))
+	// UseCopilotRequestsToken indicates whether to use the Copilot token preference chain
+	// custom token > COPILOT_GITHUB_TOKEN
 	// This should be true for Copilot-related operations like creating agent tasks,
 	// assigning copilot to issues, or adding copilot as PR reviewer
-	UseCopilotToken bool
+	UseCopilotRequestsToken bool
 
-	// UseAgentToken indicates whether to use the agent token preference chain
+	// UseCopilotCodingAgentToken indicates whether to use the agent token preference chain
 	// (config token > GH_AW_AGENT_TOKEN)
 	// This should be true for agent assignment operations (assign-to-agent)
-	UseAgentToken bool
+	UseCopilotCodingAgentToken bool
 }
 
 // buildGitHubScriptStep creates a GitHub Script step with common scaffolding
 // This extracts the repeated pattern found across safe output job builders
 func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScriptStepConfig) []string {
-	safeOutputsStepsLog.Printf("Building GitHub Script step: %s (useCopilotToken=%v, useAgentToken=%v)", config.StepName, config.UseCopilotToken, config.UseAgentToken)
+	safeOutputsStepsLog.Printf("Building GitHub Script step: %s (useCopilotRequestsToken=%v, useCopilotCodingAgentToken=%v)", config.StepName, config.UseCopilotRequestsToken, config.UseCopilotCodingAgentToken)
 
 	var steps []string
 
@@ -162,12 +160,12 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 
 	// With section for github-token
 	steps = append(steps, "        with:\n")
-	if config.UseAgentToken {
-		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.Token)
-	} else if config.UseCopilotToken {
-		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.Token)
+	if config.UseCopilotCodingAgentToken {
+		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.CustomToken)
+	} else if config.UseCopilotRequestsToken {
+		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.CustomToken)
 	} else {
-		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)
+		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.CustomToken)
 	}
 
 	steps = append(steps, "          script: |\n")
@@ -215,12 +213,12 @@ func (c *Compiler) buildGitHubScriptStepWithoutDownload(data *WorkflowData, conf
 
 	// With section for github-token
 	steps = append(steps, "        with:\n")
-	if config.UseAgentToken {
-		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.Token)
-	} else if config.UseCopilotToken {
-		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.Token)
+	if config.UseCopilotCodingAgentToken {
+		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.CustomToken)
+	} else if config.UseCopilotRequestsToken {
+		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.CustomToken)
 	} else {
-		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)
+		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.CustomToken)
 	}
 
 	steps = append(steps, "          script: |\n")

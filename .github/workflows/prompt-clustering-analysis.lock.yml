@@ -21,7 +21,7 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Analyzes and clusters GitHub Copilot agent prompts to identify patterns and usage trends
+# Analyzes and clusters GitHub Copilot coding agent prompts to identify patterns and usage trends
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -31,7 +31,7 @@
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# frontmatter-hash: 55aaa5cabc63a05ec6ecd37b694afaec14d2ff60837e05c4fbc60f57adeb888d
+# frontmatter-hash: 5916161eaa3bed8bf2747c838309559e94337286bb6b11175d447c18e0f869a6
 
 name: "Copilot Agent Prompt Clustering Analysis"
 "on":
@@ -1156,7 +1156,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Copilot Agent Prompt Clustering Analysis"
-          WORKFLOW_DESCRIPTION: "Analyzes and clusters GitHub Copilot agent prompts to identify patterns and usage trends"
+          WORKFLOW_DESCRIPTION: "Analyzes and clusters GitHub Copilot coding agent prompts to identify patterns and usage trends"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |

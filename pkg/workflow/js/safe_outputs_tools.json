@@ -42,7 +42,7 @@
   },
   {
     "name": "create_agent_session",
-    "description": "Create a GitHub Copilot agent session to delegate coding work. Use this when you need another Copilot agent to implement code changes, fix bugs, or complete development tasks. The task becomes a new issue that triggers the Copilot coding agent. For non-coding tasks or manual work items, use create_issue instead.",
+    "description": "Create a GitHub Copilot coding agent session to delegate coding work. Use this when you need another Copilot coding agent to implement code changes, fix bugs, or complete development tasks. The task becomes a new issue that triggers the Copilot coding agent. For non-coding tasks or manual work items, use create_issue instead.",
     "inputSchema": {
       "type": "object",
       "required": [
@@ -51,7 +51,7 @@
       "properties": {
         "body": {
           "type": "string",
-          "description": "Clear, detailed task description for the Copilot agent. Include specific files to modify, expected behavior, acceptance criteria, and any constraints. The description should be actionable and self-contained."
+          "description": "Clear, detailed task description for the Copilot coding agent. Include specific files to modify, expected behavior, acceptance criteria, and any constraints. The description should be actionable and self-contained."
         }
       },
       "additionalProperties": false
@@ -513,14 +513,14 @@
             "number",
             "string"
           ],
-          "description": "Issue number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). Can also be a temporary_id (e.g., 'aw_abc123', 'aw_Test123') from an issue created earlier in the same workflow run. The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both."
+          "description": "Issue number to assign the Copilot coding agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). Can also be a temporary_id (e.g., 'aw_abc123', 'aw_Test123') from an issue created earlier in the same workflow run. The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both."
         },
         "pull_number": {
           "type": [
             "number",
             "string"
           ],
-          "description": "Pull request number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/pull/456). Either issue_number or pull_number must be provided, but not both."
+          "description": "Pull request number to assign the Copilot coding agent to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/pull/456). Either issue_number or pull_number must be provided, but not both."
         },
         "agent": {
           "type": "string",

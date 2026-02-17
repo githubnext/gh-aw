@@ -68,7 +68,7 @@ graph TB
 
 **Fix Applied:**
 ```diff
-  - name: List and download Copilot agent sessions
+  - name: List and download Copilot coding agent sessions
     id: download-sessions
     continue-on-error: true
     env:

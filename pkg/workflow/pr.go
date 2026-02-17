@@ -42,12 +42,12 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 
 	// Add env section with GH_TOKEN for gh CLI
-	// Use safe-outputs github-token if available, otherwise top-level token
+	// Use safe-outputs github-token if available, otherwise default token
 	safeOutputsToken := ""
 	if data.SafeOutputs != nil && data.SafeOutputs.GitHubToken != "" {
 		safeOutputsToken = data.SafeOutputs.GitHubToken
 	}
-	effectiveToken := getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken)
+	effectiveToken := getEffectiveGitHubToken(safeOutputsToken)
 	prLog.Print("PR checkout step configured with GitHub token")
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GH_TOKEN: %s\n", effectiveToken)

@@ -73,7 +73,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			CustomEnvVars: noopEnvVars,
 			Script:        getNoOpScript(),
 			ScriptFile:    "noop.cjs",
-			Token:         data.SafeOutputs.NoOp.GitHubToken,
+			CustomToken:   data.SafeOutputs.NoOp.GitHubToken,
 		})
 		steps = append(steps, noopSteps...)
 	}
@@ -115,7 +115,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			CustomEnvVars: missingToolEnvVars,
 			Script:        "const { main } = require('/opt/gh-aw/actions/missing_tool.cjs'); await main();",
 			ScriptFile:    "missing_tool.cjs",
-			Token:         data.SafeOutputs.MissingTool.GitHubToken,
+			CustomToken:   data.SafeOutputs.MissingTool.GitHubToken,
 		})
 		steps = append(steps, missingToolSteps...)
 	}
@@ -185,7 +185,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		CustomEnvVars: agentFailureEnvVars,
 		Script:        "const { main } = require('/opt/gh-aw/actions/handle_agent_failure.cjs'); await main();",
 		ScriptFile:    "handle_agent_failure.cjs",
-		Token:         "", // Will use default GITHUB_TOKEN
+		CustomToken:   "", // Will use default GITHUB_TOKEN
 	})
 	steps = append(steps, agentFailureSteps...)
 
@@ -216,7 +216,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		CustomEnvVars: noopMessageEnvVars,
 		Script:        "const { main } = require('/opt/gh-aw/actions/handle_noop_message.cjs'); await main();",
 		ScriptFile:    "handle_noop_message.cjs",
-		Token:         "", // Will use default GITHUB_TOKEN
+		CustomToken:   "", // Will use default GITHUB_TOKEN
 	})
 	steps = append(steps, noopMessageSteps...)
 
@@ -237,7 +237,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			CustomEnvVars: createPRErrorEnvVars,
 			Script:        "const { main } = require('/opt/gh-aw/actions/handle_create_pr_error.cjs'); await main();",
 			ScriptFile:    "handle_create_pr_error.cjs",
-			Token:         "", // Will use default GITHUB_TOKEN
+			CustomToken:   "", // Will use default GITHUB_TOKEN
 		})
 		steps = append(steps, createPRErrorSteps...)
 	}
@@ -296,7 +296,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			CustomEnvVars: customEnvVars,
 			Script:        getNotifyCommentErrorScript(),
 			ScriptFile:    "notify_comment_error.cjs",
-			Token:         token,
+			CustomToken:   token,
 		})
 		steps = append(steps, scriptSteps...)
 	}

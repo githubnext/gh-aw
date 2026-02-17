@@ -21,13 +21,13 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Workflow generator that updates issue status and assigns to Copilot agent for workflow design
+# Workflow generator that updates issue status and assigns to Copilot coding agent for workflow design
 #
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 1bf8a53ac78955ad6bc31224322cd512e946710820a359cc08613e147865408c
+# frontmatter-hash: a050c2eeebe0b225b5e51f8bb7e533314d35f338d1db67669665b1be4b8adfb9
 
 name: "Workflow Generator"
 "on":
@@ -417,7 +417,7 @@ jobs:
                     "type": "string"
                   },
                   "issue_number": {
-                    "description": "Issue number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). Can also be a temporary_id (e.g., 'aw_abc123', 'aw_Test123') from an issue created earlier in the same workflow run. The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both.",
+                    "description": "Issue number to assign the Copilot coding agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). Can also be a temporary_id (e.g., 'aw_abc123', 'aw_Test123') from an issue created earlier in the same workflow run. The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both.",
                     "type": [
                       "number",
                       "string"
@@ -428,7 +428,7 @@ jobs:
                     "type": "string"
                   },
                   "pull_number": {
-                    "description": "Pull request number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/pull/456). Either issue_number or pull_number must be provided, but not both.",
+                    "description": "Pull request number to assign the Copilot coding agent to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/pull/456). Either issue_number or pull_number must be provided, but not both.",
                     "type": [
                       "number",
                       "string"
@@ -1065,7 +1065,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Workflow Generator"
-          WORKFLOW_DESCRIPTION: "Workflow generator that updates issue status and assigns to Copilot agent for workflow design"
+          WORKFLOW_DESCRIPTION: "Workflow generator that updates issue status and assigns to Copilot coding agent for workflow design"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |

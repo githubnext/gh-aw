@@ -14,14 +14,14 @@ import (
 
 var copilotAgentLog = logger.New("cli:copilot_agent")
 
-// CopilotAgentDetector contains heuristics to detect if a workflow run was executed by GitHub Copilot agent
+// CopilotAgentDetector contains heuristics to detect if a workflow run was executed by GitHub Copilot coding agent
 type CopilotAgentDetector struct {
 	runDir       string
 	verbose      bool
 	workflowPath string // Optional: workflow file path from GitHub API (e.g., .github/workflows/copilot-swe-agent.yml)
 }
 
-// NewCopilotAgentDetector creates a new detector for GitHub Copilot agent runs
+// NewCopilotAgentDetector creates a new detector for GitHub Copilot coding agent runs
 func NewCopilotAgentDetector(runDir string, verbose bool) *CopilotAgentDetector {
 	return &CopilotAgentDetector{
 		runDir:  runDir,
@@ -38,15 +38,15 @@ func NewCopilotAgentDetectorWithPath(runDir string, verbose bool, workflowPath s
 	}
 }
 
-// IsGitHubCopilotAgent uses heuristics to determine if this run was executed by GitHub Copilot agent
+// IsGitHubCopilotAgent uses heuristics to determine if this run was executed by GitHub Copilot coding agent
 // (not the Copilot CLI engine or agentic workflows)
 func (d *CopilotAgentDetector) IsGitHubCopilotAgent() bool {
-	copilotAgentLog.Printf("Detecting if run is GitHub Copilot agent: %s", d.runDir)
+	copilotAgentLog.Printf("Detecting if run is GitHub Copilot coding agent: %s", d.runDir)
 
-	// If aw_info.json exists, this is an agentic workflow, NOT a GitHub Copilot agent run
+	// If aw_info.json exists, this is an agentic workflow, NOT a GitHub Copilot coding agent run
 	awInfoPath := filepath.Join(d.runDir, "aw_info.json")
 	if _, err := os.Stat(awInfoPath); err == nil {
-		copilotAgentLog.Print("Found aw_info.json - this is an agentic workflow, not a GitHub Copilot agent")
+		copilotAgentLog.Print("Found aw_info.json - this is an agentic workflow, not a GitHub Copilot coding agent")
 		return false
 	}
 
@@ -68,12 +68,12 @@ func (d *CopilotAgentDetector) IsGitHubCopilotAgent() bool {
 		return true
 	}
 
-	copilotAgentLog.Print("No GitHub Copilot agent indicators found")
+	copilotAgentLog.Print("No GitHub Copilot coding agent indicators found")
 	return false
 }
 
-// hasAgentWorkflowPath checks if the workflow path indicates a Copilot agent run
-// The workflow ID is always "copilot-swe-agent" for GitHub Copilot agent runs
+// hasAgentWorkflowPath checks if the workflow path indicates a Copilot coding agent run
+// The workflow ID is always "copilot-swe-agent" for GitHub Copilot coding agent runs
 func (d *CopilotAgentDetector) hasAgentWorkflowPath() bool {
 	if d.workflowPath == "" {
 		return false
@@ -84,11 +84,11 @@ func (d *CopilotAgentDetector) hasAgentWorkflowPath() bool {
 	filename := filepath.Base(d.workflowPath)
 	workflowID := strings.TrimSuffix(filename, filepath.Ext(filename))
 
-	// GitHub Copilot agent runs always use "copilot-swe-agent" as the workflow ID
+	// GitHub Copilot coding agent runs always use "copilot-swe-agent" as the workflow ID
 	if workflowID == "copilot-swe-agent" {
 		if d.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-				fmt.Sprintf("Detected GitHub Copilot agent from workflow path: %s (ID: %s)", d.workflowPath, workflowID)))
+				fmt.Sprintf("Detected GitHub Copilot coding agent from workflow path: %s (ID: %s)", d.workflowPath, workflowID)))
 		}
 		return true
 	}
@@ -96,9 +96,9 @@ func (d *CopilotAgentDetector) hasAgentWorkflowPath() bool {
 	return false
 }
 
-// hasAgentLogPatterns checks log files for patterns specific to GitHub Copilot agent
+// hasAgentLogPatterns checks log files for patterns specific to GitHub Copilot coding agent
 func (d *CopilotAgentDetector) hasAgentLogPatterns() bool {
-	// Patterns that indicate GitHub Copilot agent (not Copilot CLI)
+	// Patterns that indicate GitHub Copilot coding agent (not Copilot CLI)
 	agentPatterns := []*regexp.Regexp{
 		regexp.MustCompile(`(?i)github.*copilot.*agent`),
 		regexp.MustCompile(`(?i)copilot-swe-agent`),
@@ -140,7 +140,7 @@ func (d *CopilotAgentDetector) hasAgentLogPatterns() bool {
 	return found
 }
 
-// hasAgentArtifacts checks for artifacts specific to GitHub Copilot agent runs
+// hasAgentArtifacts checks for artifacts specific to GitHub Copilot coding agent runs
 func (d *CopilotAgentDetector) hasAgentArtifacts() bool {
 	// Check for agent-specific artifact patterns
 	agentArtifacts := []string{
@@ -180,10 +180,10 @@ func readLogHeader(path string, maxBytes int) (string, error) {
 	return string(buffer[:n]), nil
 }
 
-// ParseCopilotAgentLogMetrics extracts metrics from GitHub Copilot agent logs
+// ParseCopilotAgentLogMetrics extracts metrics from GitHub Copilot coding agent logs
 // This is different from Copilot CLI logs and requires specialized parsing
 func ParseCopilotAgentLogMetrics(logContent string, verbose bool) workflow.LogMetrics {
-	copilotAgentLog.Printf("Parsing GitHub Copilot agent log metrics: %d bytes", len(logContent))
+	copilotAgentLog.Printf("Parsing GitHub Copilot coding agent log metrics: %d bytes", len(logContent))
 
 	var metrics workflow.LogMetrics
 	var maxTokenUsage int
@@ -193,7 +193,7 @@ func ParseCopilotAgentLogMetrics(logContent string, verbose bool) workflow.LogMe
 	var currentSequence []string
 	turns := 0
 
-	// GitHub Copilot agent log patterns
+	// GitHub Copilot coding agent log patterns
 	// These patterns are designed to match the specific log format of the agent
 	turnPattern := regexp.MustCompile(`(?i)task.*iteration|agent.*turn|step.*\d+`)
 	toolCallPattern := regexp.MustCompile(`(?i)tool.*call|executing.*tool|calling.*(\w+)`)

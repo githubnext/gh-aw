@@ -393,7 +393,7 @@ describe('${TOOL_NAME} concurrency safety', () => {
 
 #### Optionally Create Agent Session
 
-For CRITICAL or HIGH severity issues, consider creating a Copilot agent session:
+For CRITICAL or HIGH severity issues, consider creating a Copilot coding agent session:
 
 ```markdown
 Fix the concurrency safety issue in \`${TOOL_NAME}\` tool.
