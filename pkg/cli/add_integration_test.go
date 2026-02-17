@@ -189,7 +189,6 @@ func TestAddAllBlogSeriesWorkflows(t *testing.T) {
 		"grumpy-reviewer.md",
 		"issue-arborist.md",
 		"issue-monster.md",
-		//"issue-template-optimizer.md",
 		"issue-triage-agent.md",
 		"mcp-inspector.md",
 		"mergefest.md",
