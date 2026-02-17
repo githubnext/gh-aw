@@ -62,6 +62,22 @@ describe("log_parser_bootstrap.cjs", () => {
             fs.unlinkSync(logFile),
             fs.rmdirSync(tmpDir));
         }),
+        it("should fail Claude runs when no structured log entries are parsed", () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const logFile = path.join(tmpDir, "test.log");
+          try {
+            fs.writeFileSync(logFile, "unstructured log output");
+            process.env.GH_AW_AGENT_OUTPUT = logFile;
+            const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
+            runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            expect(mockCore.setFailed).toHaveBeenCalledWith(
+              "Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution."
+            );
+          } finally {
+            fs.unlinkSync(logFile);
+            fs.rmdirSync(tmpDir);
+          }
+        }),
         it("should generate plain text summary when logEntries are available", () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-")),
             logFile = path.join(tmpDir, "test.log");
