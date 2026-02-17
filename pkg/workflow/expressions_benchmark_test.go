@@ -44,7 +44,7 @@ func BenchmarkValidateExpression_Complex(b *testing.B) {
 
 // BenchmarkValidateExpression_NeedsOutputs benchmarks needs.*.outputs.* validation
 func BenchmarkValidateExpression_NeedsOutputs(b *testing.B) {
-	expression := "needs.activation.outputs.text"
+	expression := "steps.sanitized.outputs.text"
 	unauthorizedExprs := []string{}
 
 	b.ResetTimer()
@@ -84,7 +84,7 @@ func BenchmarkValidateExpressionSafety(b *testing.B) {
 
 Analyze issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
 
-The issue content is: "${{ needs.activation.outputs.text }}"
+The issue content is: "${{ steps.sanitized.outputs.text }}"
 
 The issue was created by ${{ github.actor }} with title: "${{ github.event.issue.title }}"
 
@@ -120,7 +120,7 @@ func BenchmarkValidateExpressionSafety_Complex(b *testing.B) {
 - Job: ${{ github.job }}
 
 ## Previous Step Outputs
-- Activation: ${{ needs.activation.outputs.text }}
+- Activation: ${{ steps.sanitized.outputs.text }}
 - Analysis: ${{ steps.analyze.outputs.result }}
 - Summary: ${{ steps.summarize.outputs.content }}
 

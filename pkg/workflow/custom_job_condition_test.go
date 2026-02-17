@@ -45,7 +45,7 @@ func TestReferencesCustomJobOutputs(t *testing.T) {
 		},
 		{
 			name:       "references standard job not custom",
-			condition:  "needs.activation.outputs.text != ''",
+			condition:  "steps.sanitized.outputs.text != ''",
 			customJobs: map[string]any{"ast_grep": nil},
 			expected:   false,
 		},

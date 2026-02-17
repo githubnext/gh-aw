@@ -62,11 +62,10 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 		// Extract the content (without ${{ }})
 		content := strings.TrimSpace(match[1])
 
-		// Apply activation output transformation (codemod)
-		// Replace needs.activation.outputs.{text|title|body} with steps.sanitized.outputs.{text|title|body}
-		// This is needed because the prompt is generated IN the activation job, so it can't reference
-		// needs.activation.outputs.* (a job can't reference its own needs outputs).
-		// Instead, it should reference the sanitized step outputs directly.
+		// Apply activation output transformation for backward compatibility
+		// This transforms needs.activation.outputs.{text|title|body} to steps.sanitized.outputs.{text|title|body}
+		// Users should now use steps.sanitized.outputs.* directly, but we keep this transformation
+		// for backward compatibility with existing workflows.
 		transformedContent := transformActivationOutputs(content)
 		if transformedContent != content {
 			expressionExtractionLog.Printf("Transformed expression: %s -> %s", content, transformedContent)
@@ -108,8 +107,9 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 }
 
 // transformActivationOutputs transforms needs.activation.outputs.* expressions to steps.sanitized.outputs.*
-// This is a codemod that automatically fixes expressions that reference activation job outputs,
-// which are not accessible within the activation job itself (a job can't reference its own needs outputs).
+// for backward compatibility with existing workflows.
+//
+// NEW WORKFLOWS should use steps.sanitized.outputs.* directly in their markdown.
 //
 // The function transforms these specific outputs:
 //

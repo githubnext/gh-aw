@@ -42,7 +42,7 @@ tools:
 
 # Test Workflow With Text Output
 
-This workflow uses the text output: "${{ needs.activation.outputs.text }}"
+This workflow uses the text output: "${{ steps.sanitized.outputs.text }}"
 
 Please analyze this issue and provide a helpful response.`
 
@@ -162,7 +162,7 @@ func TestDetectTextOutputUsage(t *testing.T) {
 	}{
 		{
 			name:          "with_text_usage",
-			content:       "Analyze this: \"${{ needs.activation.outputs.text }}\"",
+			content:       "Analyze this: \"${{ steps.sanitized.outputs.text }}\"",
 			expectedUsage: true,
 		},
 		{
@@ -182,7 +182,17 @@ func TestDetectTextOutputUsage(t *testing.T) {
 		},
 		{
 			name:          "with_multiple_usages",
-			content:       "First: \"${{ needs.activation.outputs.text }}\" and second: \"${{ needs.activation.outputs.text }}\"",
+			content:       "First: \"${{ steps.sanitized.outputs.text }}\" and second: \"${{ steps.sanitized.outputs.text }}\"",
+			expectedUsage: true,
+		},
+		{
+			name:          "with_title_usage",
+			content:       "Title: \"${{ steps.sanitized.outputs.title }}\"",
+			expectedUsage: true,
+		},
+		{
+			name:          "with_body_usage",
+			content:       "Body: \"${{ steps.sanitized.outputs.body }}\"",
 			expectedUsage: true,
 		},
 	}
@@ -566,7 +576,7 @@ tools:
 
 # Test Issue Workflow With Explicit Usage
 
-Analyze this: "${{ needs.activation.outputs.text }}"
+Analyze this: "${{ steps.sanitized.outputs.text }}"
 
 This workflow explicitly uses text output AND has content context.`,
 			expectedSanitized:  true,

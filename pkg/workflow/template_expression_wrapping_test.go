@@ -29,8 +29,8 @@ func TestWrapExpressionsInTemplateConditionals(t *testing.T) {
 		},
 		{
 			name:     "needs. expression",
-			input:    "{{#if needs.activation.outputs.text}}content{{/if}}",
-			expected: "{{#if ${{ needs.activation.outputs.text }} }}content{{/if}}",
+			input:    "{{#if steps.sanitized.outputs.text}}content{{/if}}",
+			expected: "{{#if ${{ steps.sanitized.outputs.text }} }}content{{/if}}",
 		},
 		{
 			name:     "steps. expression",
