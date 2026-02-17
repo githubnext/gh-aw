@@ -138,8 +138,14 @@ func (c *Compiler) buildGitHubAppTokenMintStep(app *GitHubAppConfig, permissions
 	}
 	steps = append(steps, fmt.Sprintf("          owner: %s\n", owner))
 
-	// Add repositories - default to current repository name if not specified
-	if len(app.Repositories) > 0 {
+	// Add repositories - behavior depends on configuration:
+	// - If repositories is ["*"], omit the field to allow org-wide access
+	// - If repositories is specified with values, use those specific repos
+	// - If repositories is empty/not specified, default to current repository
+	if len(app.Repositories) == 1 && app.Repositories[0] == "*" {
+		// Org-wide access: omit repositories field entirely
+		safeOutputsAppLog.Print("Using org-wide GitHub App token (repositories: *)")
+	} else if len(app.Repositories) > 0 {
 		reposStr := strings.Join(app.Repositories, ",")
 		steps = append(steps, fmt.Sprintf("          repositories: %s\n", reposStr))
 	} else {
