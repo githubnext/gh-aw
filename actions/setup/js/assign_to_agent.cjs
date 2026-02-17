@@ -157,7 +157,7 @@ async function main() {
         prRepoId = prRepoResponse.repository.id;
         core.info(`PR repository ID: ${prRepoId}`);
       } catch (error) {
-        core.setFailed(`Failed to fetch PR repository ID for ${prOwner}/${prRepo}: ${error.message}`);
+        core.setFailed(`Failed to fetch PR repository ID for ${prOwner}/${prRepo}: ${getErrorMessage(error)}`);
         return;
       }
     } else {
@@ -260,7 +260,7 @@ async function main() {
           effectivePRRepoId = itemPRRepoResponse.repository.id;
           core.info(`Using per-item PR repository: ${itemPRRepo} (ID: ${effectivePRRepoId})`);
         } catch (error) {
-          core.error(`Failed to fetch PR repository ID for ${itemPRRepo}: ${error.message}`);
+          core.error(`Failed to fetch PR repository ID for ${itemPRRepo}: ${getErrorMessage(error)}`);
           results.push({
             issue_number: item.issue_number || null,
             pull_number: item.pull_number || null,

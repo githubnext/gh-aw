@@ -56,6 +56,8 @@ describe("assign_to_agent", () => {
     delete process.env.GH_AW_TARGET_REPO;
     delete process.env.GH_AW_AGENT_IGNORE_IF_ERROR;
     delete process.env.GH_AW_TEMPORARY_ID_MAP;
+    delete process.env.GH_AW_AGENT_PR_REPO;
+    delete process.env.GH_AW_AGENT_ALLOWED_PR_REPOS;
 
     // Reset context to default
     mockContext.eventName = "issues";
@@ -1143,5 +1145,118 @@ describe("assign_to_agent", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using target repository: test-owner/test-repo"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Looking for copilot coding agent"));
     }, 20000);
+  });
+
+  it("should handle pr-repo configuration correctly", async () => {
+    process.env.GH_AW_AGENT_PR_REPO = "test-owner/pr-repo";
+    process.env.GH_AW_AGENT_ALLOWED_PR_REPOS = "test-owner/pr-repo";
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    // Mock GraphQL responses
+    mockGithub.graphql
+      // Get PR repository ID
+      .mockResolvedValueOnce({
+        repository: {
+          id: "pr-repo-id",
+        },
+      })
+      // Find agent
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ login: "copilot-swe-agent", id: "agent-id" }],
+          },
+        },
+      })
+      // Get issue details
+      .mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "issue-id",
+            assignees: { nodes: [] },
+          },
+        },
+      })
+      // Assign agent with agentAssignment
+      .mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using PR repository: test-owner/pr-repo"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("PR repository ID: pr-repo-id"));
+
+    // Verify the mutation was called with agentAssignment
+    const lastGraphQLCall = mockGithub.graphql.mock.calls[mockGithub.graphql.mock.calls.length - 1];
+    expect(lastGraphQLCall[0]).toContain("agentAssignment");
+    expect(lastGraphQLCall[0]).toContain("targetRepositoryId");
+    expect(lastGraphQLCall[1].targetRepoId).toBe("pr-repo-id");
+  });
+
+  it("should handle per-item pr_repo parameter", async () => {
+    process.env.GH_AW_AGENT_ALLOWED_PR_REPOS = "test-owner/item-pr-repo";
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+          pr_repo: "test-owner/item-pr-repo",
+        },
+      ],
+      errors: [],
+    });
+
+    // Mock GraphQL responses
+    mockGithub.graphql
+      // Get item PR repository ID
+      .mockResolvedValueOnce({
+        repository: {
+          id: "item-pr-repo-id",
+        },
+      })
+      // Find agent
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ login: "copilot-swe-agent", id: "agent-id" }],
+          },
+        },
+      })
+      // Get issue details
+      .mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "issue-id",
+            assignees: { nodes: [] },
+          },
+        },
+      })
+      // Assign agent with agentAssignment
+      .mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using per-item PR repository: test-owner/item-pr-repo"));
+
+    // Verify the mutation was called with per-item PR repo ID
+    const lastGraphQLCall = mockGithub.graphql.mock.calls[mockGithub.graphql.mock.calls.length - 1];
+    expect(lastGraphQLCall[1].targetRepoId).toBe("item-pr-repo-id");
   });
 });
