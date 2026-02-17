@@ -113,7 +113,7 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
     border-bottom: 1px solid var(--sl-color-gray-5);
     font-size: 0.8rem;
     font-weight: 600;
-    color: var(--sl-color-gray-2);
+    color: var(--sl-color-text);
   }
 
   .le-panel-title {
@@ -127,12 +127,14 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
     flex-shrink: 0;
   }
 
-  /* ---- Editor (left panel) ---- */
+  /* ---- Editor (left panel) ----
+     Code editor areas use fixed dark backgrounds for readability
+     in both light and dark themes (like VS Code). */
   .le-editor-wrap {
     display: flex;
     flex: 1;
     overflow: auto;
-    background: var(--sl-color-black);
+    background: #0d1117;
     position: relative;
   }
 
@@ -142,11 +144,11 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
     font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
     font-size: 0.85rem;
     line-height: 1.5;
-    color: var(--sl-color-gray-4);
+    color: #6e7681;
     user-select: none;
     min-width: 2.5rem;
     flex-shrink: 0;
-    border-right: 1px solid var(--sl-color-gray-5);
+    border-right: 1px solid #30363d;
   }
 
   .le-textarea {
@@ -157,7 +159,7 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
     outline: none;
     resize: none;
     background: transparent;
-    color: var(--sl-color-white);
+    color: #e6edf3;
     font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
     font-size: 0.85rem;
     line-height: 1.5;
@@ -168,25 +170,27 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
   }
 
   .le-textarea::placeholder {
-    color: var(--sl-color-gray-4);
+    color: #6e7681;
   }
 
-  /* ---- Output (right panel) ---- */
-  .le-output {
+  /* ---- Output (right panel) ----
+     Use #id prefix to override .sl-markdown-content pre from custom.css */
+  #live-editor-root .le-output {
     flex: 1;
     margin: 0;
     padding: 0.75rem;
     overflow: auto;
-    background: var(--sl-color-black);
-    color: var(--sl-color-gray-1);
+    background: #0d1117;
+    color: #e6edf3;
     font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
     font-size: 0.85rem;
     line-height: 1.5;
     white-space: pre;
     border-radius: 0;
+    border: none;
   }
 
-  .le-output code {
+  #live-editor-root .le-output code {
     background: none;
     padding: 0;
     font-size: inherit;
@@ -216,29 +220,30 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
     word-break: break-word;
   }
 
-  /* ---- Buttons ---- */
-  .le-btn {
+  /* ---- Buttons ----
+     Use #id prefix to override .sl-markdown-content button from custom.css */
+  #live-editor-root .le-btn {
     padding: 0.35rem 0.75rem;
     border: 1px solid var(--sl-color-gray-4);
     border-radius: 4px;
     background: var(--sl-color-gray-6);
-    color: var(--sl-color-white);
+    color: var(--sl-color-text);
     font-size: 0.8rem;
     cursor: pointer;
     transition: background 0.15s;
   }
 
-  .le-btn:hover {
+  #live-editor-root .le-btn:hover {
     background: var(--sl-color-gray-5);
   }
 
-  .le-btn-primary {
+  #live-editor-root .le-btn-primary {
     background: var(--sl-color-accent);
     border-color: var(--sl-color-accent);
     color: var(--sl-color-accent-contrast, #fff);
   }
 
-  .le-btn-primary:hover {
+  #live-editor-root .le-btn-primary:hover {
     opacity: 0.9;
   }
 
@@ -253,7 +258,7 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
     align-items: center;
     gap: 0.35rem;
     font-size: 0.8rem;
-    color: var(--sl-color-gray-2);
+    color: var(--sl-color-text);
     cursor: pointer;
   }
 
@@ -284,7 +289,7 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
     justify-content: center;
     min-height: 300px;
     gap: 1rem;
-    color: var(--sl-color-gray-2);
+    color: var(--sl-color-text);
   }
 
   .le-loading p {
@@ -293,7 +298,7 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
 
   .le-loading-hint {
     font-size: 0.85rem;
-    color: var(--sl-color-gray-4);
+    color: var(--sl-color-gray-3);
   }
 
   .le-spinner {
@@ -316,18 +321,20 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
 `}</style>
 
 <script type="module">{`
-  const SAMPLE_WORKFLOW = \`---
-name: hello-world
-description: A simple hello world workflow
-on:
-  workflow_dispatch:
-engine: copilot
----
-
-# Mission
-
-Say hello to the world! Check the current date and time, and greet the user warmly.
-\`;
+  const SAMPLE_WORKFLOW = [
+    '---',
+    'name: hello-world',
+    'description: A simple hello world workflow',
+    'on:',
+    '  workflow_dispatch:',
+    'engine: copilot',
+    '---',
+    '',
+    '# Mission',
+    '',
+    'Say hello to the world! Check the current date and time, and greet the user warmly.',
+    '',
+  ].join('\\n');
 
   // ---- DOM references ----
   const root = document.getElementById('live-editor-root');
