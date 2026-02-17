@@ -7,6 +7,7 @@
 
 const { processItems } = require("./safe_output_processor.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { getPullRequestNumber } = require("./pr_helpers.cjs");
 
 // GitHub Copilot reviewer bot username
 const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
@@ -55,15 +56,14 @@ async function main(config = {}) {
 
     const reviewerItem = message;
 
-    // Determine PR number
-    const prNumber = reviewerItem.pull_request_number !== undefined ? parseInt(String(reviewerItem.pull_request_number), 10) : context.payload?.pull_request?.number;
+    // Determine PR number using helper
+    const { prNumber, error } = getPullRequestNumber(reviewerItem, context);
 
-    if (!prNumber || isNaN(prNumber)) {
-      const errorMsg = reviewerItem.pull_request_number !== undefined ? `Invalid pull_request_number: ${reviewerItem.pull_request_number}` : "No pull_request_number provided and not in PR context";
-      core.warning(errorMsg);
+    if (error) {
+      core.warning(error);
       return {
         success: false,
-        error: reviewerItem.pull_request_number !== undefined ? `Invalid pull_request_number: ${reviewerItem.pull_request_number}` : "No PR number available",
+        error: error,
       };
     }
 

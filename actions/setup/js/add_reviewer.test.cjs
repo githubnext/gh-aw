@@ -194,7 +194,7 @@ describe("add_reviewer (Handler Factory Architecture)", () => {
     const result = await handler(message, {});
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("No PR number available");
+    expect(result.error).toContain("No pull_request_number provided and not in pull request context");
     expect(mockGithub.rest.pulls.requestReviewers).not.toHaveBeenCalled();
   });
 
