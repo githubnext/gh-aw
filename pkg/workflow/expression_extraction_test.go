@@ -363,6 +363,21 @@ func TestTransformActivationOutputs(t *testing.T) {
 			input:    "github.repository",
 			expected: "github.repository",
 		},
+		{
+			name:     "no transformation for partial match",
+			input:    "needs.activation.outputs.text_custom",
+			expected: "needs.activation.outputs.text_custom",
+		},
+		{
+			name:     "transform with trailing operator",
+			input:    "needs.activation.outputs.text && true",
+			expected: "steps.compute-text.outputs.text && true",
+		},
+		{
+			name:     "transform with trailing parenthesis",
+			input:    "func(needs.activation.outputs.text)",
+			expected: "func(steps.compute-text.outputs.text)",
+		},
 	}
 
 	for _, tt := range tests {
