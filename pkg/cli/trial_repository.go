@@ -207,24 +207,73 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 		return fmt.Errorf("failed to change to temp directory: %w", err)
 	}
 
-	// Check if this is a local workflow
+	// For local workflows, we need to resolve from the original directory
+	// Temporarily change back to original dir for fetch, then back to tempDir
+	specToFetch := parsedSpec
 	if isLocalWorkflowPath(parsedSpec.WorkflowPath) {
-		if opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing local workflow '%s' from '%s' in trial mode", parsedSpec.WorkflowName, parsedSpec.WorkflowPath)))
+		if err := os.Chdir(originalDir); err != nil {
+			return fmt.Errorf("failed to change to original directory for local fetch: %w", err)
 		}
+	}
 
-		// For local workflows, copy the file directly from the filesystem
-		if err := installLocalWorkflowInTrialMode(originalDir, tempDir, parsedSpec, opts); err != nil {
-			return fmt.Errorf("failed to install local workflow: %w", err)
-		}
-	} else {
-		if opts.Verbose {
+	// Fetch workflow content - FetchWorkflowFromSource handles both local and remote
+	if opts.Verbose {
+		if isLocalWorkflowPath(parsedSpec.WorkflowPath) {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing local workflow '%s' from '%s' in trial mode", parsedSpec.WorkflowName, parsedSpec.WorkflowPath)))
+		} else {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing workflow '%s' from '%s' in trial mode", parsedSpec.WorkflowName, parsedSpec.RepoSlug)))
 		}
+	}
 
-		// Fetch the workflow content directly from GitHub (no cloning)
-		if err := installRemoteWorkflowInTrialMode(tempDir, parsedSpec, opts); err != nil {
-			return fmt.Errorf("failed to install remote workflow: %w", err)
+	fetched, err := FetchWorkflowFromSource(specToFetch, opts.Verbose)
+	if err != nil {
+		return fmt.Errorf("failed to fetch workflow: %w", err)
+	}
+
+	// Change back to tempDir for the rest of the operations
+	if isLocalWorkflowPath(parsedSpec.WorkflowPath) {
+		if err := os.Chdir(tempDir); err != nil {
+			return fmt.Errorf("failed to change back to temp directory: %w", err)
+		}
+	}
+
+	content := fetched.Content
+
+	// Add source field to frontmatter for remote workflows
+	if !fetched.IsLocal && fetched.CommitSHA != "" {
+		sourceString := buildSourceStringWithCommitSHA(parsedSpec, fetched.CommitSHA)
+		if sourceString != "" {
+			updatedContent, err := addSourceToWorkflow(string(content), sourceString)
+			if err != nil {
+				if opts.Verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to add source field: %v", err)))
+				}
+			} else {
+				content = []byte(updatedContent)
+			}
+		}
+	}
+
+	// Use common helper for security scan, directory creation, and writing
+	result, err := writeWorkflowToTrialDir(tempDir, parsedSpec.WorkflowName, content, opts)
+	if err != nil {
+		return err
+	}
+
+	if opts.Verbose {
+		if fetched.IsLocal {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Copied local workflow to %s", result.DestPath)))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Fetched remote workflow to %s", result.DestPath)))
+		}
+	}
+
+	// Fetch and save include dependencies for remote workflows
+	if !fetched.IsLocal {
+		if err := fetchAndSaveRemoteIncludes(string(content), parsedSpec, result.WorkflowsDir, opts.Verbose, true, nil); err != nil {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch include dependencies: %v", err)))
+			}
 		}
 	}
 
@@ -332,86 +381,6 @@ func writeWorkflowToTrialDir(tempDir string, workflowName string, content []byte
 		DestPath:     destPath,
 		WorkflowsDir: workflowsDir,
 	}, nil
-}
-
-// installLocalWorkflowInTrialMode installs a local workflow file for trial mode
-func installLocalWorkflowInTrialMode(originalDir, tempDir string, parsedSpec *WorkflowSpec, opts *TrialOptions) error {
-	// Construct the source path (relative to original directory)
-	sourcePath := filepath.Join(originalDir, parsedSpec.WorkflowPath)
-
-	// Validate source path
-	sourcePath, err := fileutil.ValidateAbsolutePath(sourcePath)
-	if err != nil {
-		return fmt.Errorf("invalid source path: %w", err)
-	}
-
-	// Check if the source file exists
-	if _, err := os.Stat(sourcePath); os.IsNotExist(err) {
-		return fmt.Errorf("local workflow file does not exist: %s", sourcePath)
-	}
-
-	// Read the source file
-	content, err := os.ReadFile(sourcePath)
-	if err != nil {
-		return fmt.Errorf("failed to read local workflow file: %w", err)
-	}
-
-	// Use common helper for security scan, directory creation, and writing
-	result, err := writeWorkflowToTrialDir(tempDir, parsedSpec.WorkflowName, content, opts)
-	if err != nil {
-		return err
-	}
-
-	if opts.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Copied local workflow from %s to %s", sourcePath, result.DestPath)))
-	}
-
-	return nil
-}
-
-// installRemoteWorkflowInTrialMode installs a remote workflow by fetching it directly from GitHub
-func installRemoteWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, opts *TrialOptions) error {
-	trialRepoLog.Printf("Installing remote workflow in trial mode: %s", parsedSpec.String())
-
-	// Fetch the workflow content directly from GitHub
-	fetched, err := FetchWorkflowFromSource(parsedSpec, opts.Verbose)
-	if err != nil {
-		return fmt.Errorf("failed to fetch workflow from GitHub: %w", err)
-	}
-
-	content := fetched.Content
-
-	// Add source field to frontmatter (before common processing)
-	sourceString := buildSourceStringWithCommitSHA(parsedSpec, fetched.CommitSHA)
-	if sourceString != "" {
-		updatedContent, err := addSourceToWorkflow(string(content), sourceString)
-		if err != nil {
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to add source field: %v", err)))
-			}
-		} else {
-			content = []byte(updatedContent)
-		}
-	}
-
-	// Use common helper for security scan, directory creation, and writing
-	result, err := writeWorkflowToTrialDir(tempDir, parsedSpec.WorkflowName, content, opts)
-	if err != nil {
-		return err
-	}
-
-	if opts.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Fetched remote workflow to %s", result.DestPath)))
-	}
-
-	// Fetch and save include dependencies from the remote source
-	if err := fetchAndSaveRemoteIncludes(string(content), parsedSpec, result.WorkflowsDir, opts.Verbose, true, nil); err != nil {
-		if opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch include dependencies: %v", err)))
-		}
-	}
-
-	return nil
 }
 
 // modifyWorkflowForTrialMode modifies the workflow to work in trial mode
