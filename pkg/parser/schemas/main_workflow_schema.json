@@ -4046,7 +4046,7 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "DEPRECATED: Use 'create-agent-session' instead. Configuration for creating GitHub Copilot agent sessions from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
+              "description": "DEPRECATED: Use 'create-agent-session' instead. Configuration for creating GitHub Copilot coding agent sessions from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
               "deprecated": true,
               "properties": {
                 "base": {
@@ -4082,13 +4082,13 @@
               "description": "Enable agent session creation with default configuration"
             }
           ],
-          "description": "Enable creation of GitHub Copilot agent tasks from workflow output. Allows workflows to spawn new agent sessions for follow-up work."
+          "description": "Enable creation of GitHub Copilot coding agent tasks from workflow output. Allows workflows to spawn new agent sessions for follow-up work."
         },
         "create-agent-session": {
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for creating GitHub Copilot agent sessions from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
+              "description": "Configuration for creating GitHub Copilot coding agent sessions from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
               "properties": {
                 "base": {
                   "type": "string",
@@ -4123,7 +4123,7 @@
               "description": "Enable agent session creation with default configuration"
             }
           ],
-          "description": "Enable creation of GitHub Copilot agent sessions from workflow output. Allows workflows to start interactive agent conversations."
+          "description": "Enable creation of GitHub Copilot coding agent sessions from workflow output. Allows workflows to start interactive agent conversations."
         },
         "update-project": {
           "oneOf": [
@@ -5354,11 +5354,23 @@
             },
             {
               "type": "object",
-              "description": "Configuration for assigning GitHub Copilot agents to issues from agentic workflow output",
+              "description": "Configuration for assigning GitHub Copilot coding agent to issues from agentic workflow output",
               "properties": {
                 "name": {
                   "type": "string",
                   "description": "Default agent name to assign (default: 'copilot')"
+                },
+                "model": {
+                  "type": "string",
+                  "description": "Default AI model to use for the agent (e.g., 'auto', 'claude-sonnet-4.5', 'claude-opus-4.5', 'claude-opus-4.6', 'gpt-5.1-codex-max', 'gpt-5.2-codex'). Defaults to 'auto' if not specified."
+                },
+                "custom-agent": {
+                  "type": "string",
+                  "description": "Default custom agent ID to use when assigning custom agents. This is used for specialized agent configurations beyond the standard Copilot agent."
+                },
+                "custom-instructions": {
+                  "type": "string",
+                  "description": "Default custom instructions to provide to the agent. These instructions will guide the agent's behavior when working on the task."
                 },
                 "allowed": {
                   "type": "array",
@@ -5379,6 +5391,17 @@
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository agent assignment. Takes precedence over trial target repo settings."
+                },
+                "pull-request-repo": {
+                  "type": "string",
+                  "description": "Target repository where the pull request should be created, in format 'owner/repo'. If omitted, the PR will be created in the same repository as the issue (specified by target-repo or the workflow's repository). This allows issues and code to live in different repositories."
+                },
+                "allowed-pull-request-repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of additional repositories that pull requests can be created in beyond pull-request-repo. Each entry should be in 'owner/repo' format. The repository specified by pull-request-repo is automatically allowed without needing to be listed here."
                 },
                 "ignore-if-error": {
                   "type": "boolean",
@@ -6655,10 +6678,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "github-token": {
-      "$ref": "#/$defs/github_token",
-      "description": "GitHub token expression to use for all steps that require GitHub authentication. Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }}. If not specified, defaults to ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}. This value can be overridden by safe-outputs github-token or individual safe-output github-token fields."
     }
   },
   "additionalProperties": false,

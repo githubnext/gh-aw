@@ -42,7 +42,7 @@ tools:
 
 # Test Workflow With Text Output
 
-This workflow uses the text output: "${{ needs.activation.outputs.text }}"
+This workflow uses the text output: "${{ steps.sanitized.outputs.text }}"
 
 Please analyze this issue and provide a helpful response.`
 
@@ -162,7 +162,7 @@ func TestDetectTextOutputUsage(t *testing.T) {
 	}{
 		{
 			name:          "with_text_usage",
-			content:       "Analyze this: \"${{ needs.activation.outputs.text }}\"",
+			content:       "Analyze this: \"${{ steps.sanitized.outputs.text }}\"",
 			expectedUsage: true,
 		},
 		{
@@ -182,7 +182,17 @@ func TestDetectTextOutputUsage(t *testing.T) {
 		},
 		{
 			name:          "with_multiple_usages",
-			content:       "First: \"${{ needs.activation.outputs.text }}\" and second: \"${{ needs.activation.outputs.text }}\"",
+			content:       "First: \"${{ steps.sanitized.outputs.text }}\" and second: \"${{ steps.sanitized.outputs.text }}\"",
+			expectedUsage: true,
+		},
+		{
+			name:          "with_title_usage",
+			content:       "Title: \"${{ steps.sanitized.outputs.title }}\"",
+			expectedUsage: true,
+		},
+		{
+			name:          "with_body_usage",
+			content:       "Body: \"${{ steps.sanitized.outputs.body }}\"",
 			expectedUsage: true,
 		},
 	}
@@ -193,6 +203,425 @@ func TestDetectTextOutputUsage(t *testing.T) {
 			if result != tt.expectedUsage {
 				t.Errorf("detectTextOutputUsage() = %v, expected %v", result, tt.expectedUsage)
 			}
+		})
+	}
+}
+
+func TestHasContentContext(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name            string
+		frontmatter     map[string]any
+		expectedContext bool
+	}{
+		{
+			name: "issues_event",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"issues": map[string]any{
+						"types": []string{"opened"},
+					},
+				},
+			},
+			expectedContext: true,
+		},
+		{
+			name: "pull_request_event",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request": map[string]any{
+						"types": []string{"opened"},
+					},
+				},
+			},
+			expectedContext: true,
+		},
+		{
+			name: "pull_request_target_event",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request_target": map[string]any{
+						"types": []string{"opened"},
+					},
+				},
+			},
+			expectedContext: true,
+		},
+		{
+			name: "issue_comment_event",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"issue_comment": map[string]any{
+						"types": []string{"created"},
+					},
+				},
+			},
+			expectedContext: true,
+		},
+		{
+			name: "pull_request_review_comment_event",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request_review_comment": map[string]any{
+						"types": []string{"created"},
+					},
+				},
+			},
+			expectedContext: true,
+		},
+		{
+			name: "pull_request_review_event",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request_review": map[string]any{
+						"types": []string{"submitted"},
+					},
+				},
+			},
+			expectedContext: true,
+		},
+		{
+			name: "discussion_event",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"discussion": map[string]any{
+						"types": []string{"created"},
+					},
+				},
+			},
+			expectedContext: true,
+		},
+		{
+			name: "discussion_comment_event",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"discussion_comment": map[string]any{
+						"types": []string{"created"},
+					},
+				},
+			},
+			expectedContext: true,
+		},
+		{
+			name: "schedule_event_no_context",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"schedule": []map[string]string{
+						{"cron": "0 0 * * *"},
+					},
+				},
+			},
+			expectedContext: false,
+		},
+		{
+			name: "push_event_no_context",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"branches": []string{"main"},
+					},
+				},
+			},
+			expectedContext: false,
+		},
+		{
+			name: "workflow_dispatch_no_context",
+			frontmatter: map[string]any{
+				"on": "workflow_dispatch",
+			},
+			expectedContext: false,
+		},
+		{
+			name: "multiple_events_with_context",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"issues": map[string]any{
+						"types": []string{"opened"},
+					},
+					"workflow_dispatch": map[string]any{},
+				},
+			},
+			expectedContext: true,
+		},
+		{
+			name: "multiple_events_no_context",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"push": map[string]any{
+						"branches": []string{"main"},
+					},
+					"workflow_dispatch": map[string]any{},
+				},
+			},
+			expectedContext: false,
+		},
+		{
+			name:            "no_on_field",
+			frontmatter:     map[string]any{},
+			expectedContext: false,
+		},
+		{
+			name: "slash_command_trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"slash_command": map[string]any{
+						"name":   "test",
+						"events": []string{"issues", "issue_comment"},
+					},
+				},
+			},
+			expectedContext: true,
+		},
+		{
+			name: "labeled_on_issues",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"issues": map[string]any{
+						"types": []string{"labeled", "unlabeled"},
+					},
+				},
+			},
+			expectedContext: true,
+		},
+		{
+			name: "labeled_on_pull_request",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request": map[string]any{
+						"types": []string{"opened", "labeled"},
+					},
+				},
+			},
+			expectedContext: true,
+		},
+		{
+			name: "labeled_on_discussion",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"discussion": map[string]any{
+						"types": []string{"labeled"},
+					},
+				},
+			},
+			expectedContext: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiler.hasContentContext(tt.frontmatter)
+			if result != tt.expectedContext {
+				t.Errorf("hasContentContext() = %v, expected %v", result, tt.expectedContext)
+			}
+		})
+	}
+}
+
+func TestComputeTextContextBasedInsertion(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir, err := os.MkdirTemp("", "compute-text-context-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a .git directory to simulate a git repository
+	gitDir := filepath.Join(tempDir, ".git")
+	if err := os.MkdirAll(gitDir, 0755); err != nil {
+		t.Fatalf("Failed to create .git dir: %v", err)
+	}
+
+	tests := []struct {
+		name               string
+		workflow           string
+		expectedSanitized  bool
+		expectedTextOutput bool
+	}{
+		{
+			name: "issue_trigger_without_explicit_usage",
+			workflow: `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  issues: write
+strict: false
+features:
+  dangerous-permissions-write: true
+tools:
+  github:
+    toolsets: [issues]
+---
+
+# Test Issue Workflow
+
+Analyze the issue and provide a response.
+
+This workflow does NOT explicitly use text output but should get sanitized step.`,
+			expectedSanitized:  true,
+			expectedTextOutput: true,
+		},
+		{
+			name: "pr_trigger_without_explicit_usage",
+			workflow: `---
+on:
+  pull_request:
+    types: [opened]
+permissions:
+  pull-requests: write
+strict: false
+features:
+  dangerous-permissions-write: true
+tools:
+  github:
+    toolsets: [pull_requests]
+---
+
+# Test PR Workflow
+
+Review the pull request.
+
+This workflow does NOT explicitly use text output but should get sanitized step.`,
+			expectedSanitized:  true,
+			expectedTextOutput: true,
+		},
+		{
+			name: "discussion_trigger_without_explicit_usage",
+			workflow: `---
+on:
+  discussion:
+    types: [created]
+permissions:
+  discussions: write
+strict: false
+features:
+  dangerous-permissions-write: true
+tools:
+  github:
+    toolsets: [discussions]
+---
+
+# Test Discussion Workflow
+
+Respond to the discussion.
+
+This workflow does NOT explicitly use text output but should get sanitized step.`,
+			expectedSanitized:  true,
+			expectedTextOutput: true,
+		},
+		{
+			name: "issue_comment_trigger_without_explicit_usage",
+			workflow: `---
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  issues: write
+strict: false
+features:
+  dangerous-permissions-write: true
+tools:
+  github:
+    toolsets: [issues]
+---
+
+# Test Comment Workflow
+
+Respond to the comment.
+
+This workflow does NOT explicitly use text output but should get sanitized step.`,
+			expectedSanitized:  true,
+			expectedTextOutput: true,
+		},
+		{
+			name: "schedule_trigger_without_explicit_usage",
+			workflow: `---
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+permissions:
+  issues: write
+strict: false
+features:
+  dangerous-permissions-write: true
+tools:
+  github:
+    toolsets: [issues]
+---
+
+# Test Schedule Workflow
+
+Create a report.
+
+This workflow does NOT use text output and has no content context, so NO sanitized step.`,
+			expectedSanitized:  false,
+			expectedTextOutput: false,
+		},
+		{
+			name: "issue_trigger_with_explicit_usage",
+			workflow: `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  issues: write
+strict: false
+features:
+  dangerous-permissions-write: true
+tools:
+  github:
+    toolsets: [issues]
+---
+
+# Test Issue Workflow With Explicit Usage
+
+Analyze this: "${{ steps.sanitized.outputs.text }}"
+
+This workflow explicitly uses text output AND has content context.`,
+			expectedSanitized:  true,
+			expectedTextOutput: true,
+		},
+	}
+
+	compiler := NewCompiler()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowPath := filepath.Join(tempDir, tt.name+".md")
+			if err := os.WriteFile(workflowPath, []byte(tt.workflow), 0644); err != nil {
+				t.Fatalf("Failed to write workflow: %v", err)
+			}
+
+			err := compiler.CompileWorkflow(workflowPath)
+			if err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			// Check the compiled YAML
+			lockPath := stringutil.MarkdownToLockFile(workflowPath)
+			lockContent, err := os.ReadFile(lockPath)
+			if err != nil {
+				t.Fatalf("Failed to read compiled workflow: %v", err)
+			}
+
+			lockStr := string(lockContent)
+
+			// Check for sanitized step
+			hasSanitizedStep := strings.Contains(lockStr, "id: sanitized")
+			if hasSanitizedStep != tt.expectedSanitized {
+				t.Errorf("Expected sanitized step: %v, got: %v\nWorkflow:\n%s",
+					tt.expectedSanitized, hasSanitizedStep, lockStr)
+			}
+
+			// Check for text output
+			hasTextOutput := strings.Contains(lockStr, "text: ${{ steps.sanitized.outputs.text }}")
+			if hasTextOutput != tt.expectedTextOutput {
+				t.Errorf("Expected text output: %v, got: %v", tt.expectedTextOutput, hasTextOutput)
+			}
+
+			// Cleanup for next test
+			os.RemoveAll(filepath.Join(tempDir, ".github"))
 		})
 	}
 }

@@ -633,7 +633,7 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 512,
-                  "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+",
+                  "pattern": "^https://[^/]+/(orgs|users)/[^/]+/projects/\\d+",
                   "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"
                 },
                 "start_date": {
@@ -725,7 +725,7 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 512,
-                  "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+",
+                  "pattern": "^https://[^/]+/(orgs|users)/[^/]+/projects/\\d+",
                   "patternError": "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"
                 },
                 "pull_request": {

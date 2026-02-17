@@ -212,3 +212,55 @@ Test app token with remote GitHub MCP Server.
 		assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "Should use app token for GitHub MCP Server in remote mode")
 	}
 }
+
+// TestGitHubMCPAppTokenOrgWide tests org-wide GitHub MCP token with wildcard
+func TestGitHubMCPAppTokenOrgWide(t *testing.T) {
+	compiler := NewCompilerWithVersion("1.0.0")
+
+	markdown := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+strict: false
+tools:
+  github:
+    mode: local
+    app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      repositories:
+        - "*"
+---
+
+# Test Workflow
+
+Test org-wide GitHub MCP app token.
+`
+
+	// Create a temporary test file
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.md")
+	err := os.WriteFile(testFile, []byte(markdown), 0644)
+	require.NoError(t, err, "Failed to write test file")
+
+	// Compile the workflow
+	err = compiler.CompileWorkflow(testFile)
+	require.NoError(t, err, "Failed to compile workflow")
+
+	// Read the generated lock file (same name with .lock.yml extension)
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	content, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "Failed to read lock file")
+	lockContent := string(content)
+
+	// Verify token minting step is present
+	assert.Contains(t, lockContent, "Generate GitHub App token", "Token minting step should be present")
+
+	// Verify repositories field is NOT present (org-wide access)
+	assert.NotContains(t, lockContent, "repositories:", "Should not include repositories field for org-wide access")
+
+	// Verify other fields are still present
+	assert.Contains(t, lockContent, "owner:", "Should include owner field")
+	assert.Contains(t, lockContent, "app-id:", "Should include app-id field")
+}

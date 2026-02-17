@@ -1,6 +1,6 @@
 ---
 name: Copilot Agent PR Analysis
-description: Analyzes GitHub Copilot agent usage patterns in pull requests to provide insights on agent effectiveness and behavior
+description: Analyzes GitHub Copilot coding agent usage patterns in pull requests to provide insights on agent effectiveness and behavior
 on:
   schedule:
     # Every day at 6pm UTC
@@ -466,7 +466,7 @@ The "Agent Task Texts" section should include a table showing all PRs created in
 
 ### No PRs in Last 24 Hours
 If no PRs were created by Copilot in the last 24 hours:
-- Create a minimal discussion: "No Copilot agent activity in the last 24 hours."
+- Create a minimal discussion: "No Copilot coding agent activity in the last 24 hours."
 - Update repo memory with zero counts
 - Keep it to 2-3 sentences max
 

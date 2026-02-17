@@ -30,7 +30,7 @@
 #     - shared/python-dataviz.md
 #     - shared/trending-charts-simple.md
 #
-# frontmatter-hash: 12f4125ecf10924e373893abbeacab09140ad4dd035eafa75dd9f435eb626b1e
+# frontmatter-hash: 0de1f0aac847f2beec40813bebbfb9838730eb23e30f47920ab7ed3b489cfe3e
 
 name: "Stale Repository Identifier"
 "on":
@@ -360,7 +360,7 @@ jobs:
           ORGANIZATION: ${{ env.ORGANIZATION }}
         id: stale-repos
         name: Run stale_repos tool
-        uses: github/stale-repos@3477b6488008d9411aaf22a0924ec7c1f6a69980 # v3
+        uses: github/stale-repos@a21e55567b83cf3c3f3f9085d3038dc6cee02598 # v3.0.2
       - env:
           INACTIVE_REPOS: ${{ steps.stale-repos.outputs.inactiveRepos }}
         name: Save stale repos output

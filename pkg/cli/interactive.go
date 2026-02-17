@@ -136,7 +136,7 @@ func (b *InteractiveWorkflowBuilder) promptForConfiguration() error {
 	// Prepare safe output options
 	outputOptions := []huh.Option[string]{
 		huh.NewOption("create-issue - Create GitHub issues", "create-issue"),
-		huh.NewOption("create-agent-task - Create GitHub Copilot agent tasks", "create-agent-task"),
+		huh.NewOption("create-agent-task - Create GitHub Copilot coding agent tasks", "create-agent-task"),
 		huh.NewOption("add-comment - Add comments to issues/PRs", "add-comment"),
 		huh.NewOption("create-pull-request - Create pull requests", "create-pull-request"),
 		huh.NewOption("create-pull-request-review-comment - Add code review comments to PRs", "create-pull-request-review-comment"),

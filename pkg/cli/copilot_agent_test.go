@@ -289,8 +289,8 @@ func TestExtractErrorMessage(t *testing.T) {
 }
 
 func TestIntegration_CopilotAgentWithAudit(t *testing.T) {
-	// Create a temporary directory that simulates a GitHub Copilot agent run
-	// NOTE: GitHub Copilot agent runs do NOT have aw_info.json (that's for agentic workflows)
+	// Create a temporary directory that simulates a GitHub Copilot coding agent run
+	// NOTE: GitHub Copilot coding agent runs do NOT have aw_info.json (that's for agentic workflows)
 	tmpDir, err := os.MkdirTemp("", "copilot-agent-integration-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
@@ -313,10 +313,10 @@ Tool call: github_create_pr
 		t.Fatalf("Failed to write log file: %v", err)
 	}
 
-	// Verify detector recognizes this as a GitHub Copilot agent run (no aw_info.json)
+	// Verify detector recognizes this as a GitHub Copilot coding agent run (no aw_info.json)
 	detector := NewCopilotAgentDetector(tmpDir, false)
 	if !detector.IsGitHubCopilotAgent() {
-		t.Error("Expected GitHub Copilot agent to be detected from log patterns")
+		t.Error("Expected GitHub Copilot coding agent to be detected from log patterns")
 	}
 
 	// Test: Extract metrics using the system that would be used by audit
@@ -325,7 +325,7 @@ Tool call: github_create_pr
 		t.Fatalf("extractLogMetrics failed: %v", err)
 	}
 
-	// Verify that GitHub Copilot agent parser was used (indicated by extracted metrics)
+	// Verify that GitHub Copilot coding agent parser was used (indicated by extracted metrics)
 	if metrics.Turns < 1 {
 		t.Errorf("Expected turns to be parsed from agent log, got %d", metrics.Turns)
 	}

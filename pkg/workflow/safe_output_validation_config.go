@@ -255,7 +255,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"update_project": {
 		DefaultMax: 10,
 		Fields: map[string]FieldValidation{
-			"project":        {Required: true, Type: "string", Sanitize: true, MaxLength: 512, Pattern: "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+", PatternError: "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"},
+			"project":        {Required: true, Type: "string", Sanitize: true, MaxLength: 512, Pattern: "^https://[^/]+/(orgs|users)/[^/]+/projects/\\d+", PatternError: "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"},
 			"content_type":   {Type: "string", Enum: []string{"issue", "pull_request", "draft_issue"}},
 			"content_number": {IssueNumberOrTemporaryID: true},
 			"issue":          {OptionalPositiveInteger: true}, // Legacy
@@ -277,7 +277,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"create_project_status_update": {
 		DefaultMax: 10,
 		Fields: map[string]FieldValidation{
-			"project":     {Required: true, Type: "string", Sanitize: true, MaxLength: 512, Pattern: "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+", PatternError: "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"},
+			"project":     {Required: true, Type: "string", Sanitize: true, MaxLength: 512, Pattern: "^https://[^/]+/(orgs|users)/[^/]+/projects/\\d+", PatternError: "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"},
 			"body":        {Required: true, Type: "string", Sanitize: true, MaxLength: 65536},
 			"status":      {Type: "string", Enum: []string{"INACTIVE", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETE"}},
 			"start_date":  {Type: "string", Pattern: "^\\d{4}-\\d{2}-\\d{2}$", PatternError: "must be in YYYY-MM-DD format"},

@@ -306,7 +306,8 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 func resolveRefToSHAViaGit(owner, repo, ref string) (string, error) {
 	remoteLog.Printf("Attempting git ls-remote fallback for ref resolution: %s/%s@%s", owner, repo, ref)
 
-	repoURL := fmt.Sprintf("https://github.com/%s/%s.git", owner, repo)
+	githubHost := GetGitHubHostForRepo(owner, repo)
+	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
 	// Try to resolve the ref using git ls-remote
 	// Format: git ls-remote <repo> <ref>
@@ -397,7 +398,8 @@ func downloadFileViaGit(owner, repo, path, ref string) ([]byte, error) {
 
 	// Use git archive to get the file content without cloning
 	// This works for public repositories without authentication
-	repoURL := fmt.Sprintf("https://github.com/%s/%s.git", owner, repo)
+	githubHost := GetGitHubHostForRepo(owner, repo)
+	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
 	// git archive command: git archive --remote=<repo> <ref> <path>
 	cmd := exec.Command("git", "archive", "--remote="+repoURL, ref, path)
@@ -432,7 +434,8 @@ func downloadFileViaGitClone(owner, repo, path, ref string) ([]byte, error) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	repoURL := fmt.Sprintf("https://github.com/%s/%s.git", owner, repo)
+	githubHost := GetGitHubHostForRepo(owner, repo)
+	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
 	// Check if ref is a SHA (40 hex characters)
 	isSHA := len(ref) == 40 && gitutil.IsHexString(ref)

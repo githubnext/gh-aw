@@ -8,11 +8,16 @@ var assignToAgentLog = logger.New("workflow:assign_to_agent")
 
 // AssignToAgentConfig holds configuration for assigning agents to issues from agent output
 type AssignToAgentConfig struct {
-	BaseSafeOutputConfig   `yaml:",inline"`
-	SafeOutputTargetConfig `yaml:",inline"`
-	DefaultAgent           string   `yaml:"name,omitempty"`            // Default agent to assign (e.g., "copilot")
-	Allowed                []string `yaml:"allowed,omitempty"`         // Optional list of allowed agent names. If omitted, any agents are allowed.
-	IgnoreIfError          bool     `yaml:"ignore-if-error,omitempty"` // If true, workflow continues when agent assignment fails
+	BaseSafeOutputConfig      `yaml:",inline"`
+	SafeOutputTargetConfig    `yaml:",inline"`
+	DefaultAgent              string   `yaml:"name,omitempty"`                       // Default agent to assign (e.g., "copilot")
+	DefaultModel              string   `yaml:"model,omitempty"`                      // Default AI model to use (e.g., "claude-opus-4.6", "auto")
+	DefaultCustomAgent        string   `yaml:"custom-agent,omitempty"`               // Default custom agent ID for custom agents
+	DefaultCustomInstructions string   `yaml:"custom-instructions,omitempty"`        // Default custom instructions for the agent
+	Allowed                   []string `yaml:"allowed,omitempty"`                    // Optional list of allowed agent names. If omitted, any agents are allowed.
+	IgnoreIfError             bool     `yaml:"ignore-if-error,omitempty"`            // If true, workflow continues when agent assignment fails
+	PullRequestRepoSlug       string   `yaml:"pull-request-repo,omitempty"`          // Target repository for PR creation in format "owner/repo" (where the issue lives may differ)
+	AllowedPullRequestRepos   []string `yaml:"allowed-pull-request-repos,omitempty"` // List of additional repositories that PRs can be created in (beyond pull-request-repo which is automatically allowed)
 }
 
 // parseAssignToAgentConfig handles assign-to-agent configuration
@@ -37,7 +42,8 @@ func (c *Compiler) parseAssignToAgentConfig(outputMap map[string]any) *AssignToA
 		config.Max = 1
 	}
 
-	assignToAgentLog.Printf("Parsed assign-to-agent config: default_agent=%s, allowed_count=%d, target=%s, max=%d", config.DefaultAgent, len(config.Allowed), config.Target, config.Max)
+	assignToAgentLog.Printf("Parsed assign-to-agent config: default_agent=%s, default_model=%s, default_custom_agent=%s, allowed_count=%d, target=%s, max=%d, pull_request_repo=%s",
+		config.DefaultAgent, config.DefaultModel, config.DefaultCustomAgent, len(config.Allowed), config.Target, config.Max, config.PullRequestRepoSlug)
 
 	return &config
 }

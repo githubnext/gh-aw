@@ -8,7 +8,7 @@ import (
 
 var createAgentSessionLog = logger.New("workflow:create_agent_session")
 
-// CreateAgentSessionConfig holds configuration for creating GitHub Copilot agent sessions from agent output
+// CreateAgentSessionConfig holds configuration for creating GitHub Copilot coding agent sessions from agent output
 type CreateAgentSessionConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	Base                 string   `yaml:"base,omitempty"`          // Base branch for the pull request
@@ -126,18 +126,18 @@ func (c *Compiler) buildCreateOutputAgentSessionJob(data *WorkflowData, mainJobN
 
 	// Use the shared builder function to create the job
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:         "create_agent_session",
-		StepName:        "Create Agent Session",
-		StepID:          "create_agent_session",
-		MainJobName:     mainJobName,
-		CustomEnvVars:   customEnvVars,
-		Script:          "const { main } = require('/opt/gh-aw/actions/create_agent_session.cjs'); await main();",
-		Permissions:     NewPermissionsContentsWriteIssuesWritePRWrite(),
-		Outputs:         outputs,
-		Condition:       jobCondition,
-		PreSteps:        preSteps,
-		Token:           data.SafeOutputs.CreateAgentSessions.GitHubToken,
-		UseCopilotToken: true, // Use Copilot token preference for agent session creation
-		TargetRepoSlug:  data.SafeOutputs.CreateAgentSessions.TargetRepoSlug,
+		JobName:                 "create_agent_session",
+		StepName:                "Create Agent Session",
+		StepID:                  "create_agent_session",
+		MainJobName:             mainJobName,
+		CustomEnvVars:           customEnvVars,
+		Script:                  "const { main } = require('/opt/gh-aw/actions/create_agent_session.cjs'); await main();",
+		Permissions:             NewPermissionsContentsWriteIssuesWritePRWrite(),
+		Outputs:                 outputs,
+		Condition:               jobCondition,
+		PreSteps:                preSteps,
+		Token:                   data.SafeOutputs.CreateAgentSessions.GitHubToken,
+		UseCopilotRequestsToken: true, // Use Copilot token preference for agent session creation
+		TargetRepoSlug:          data.SafeOutputs.CreateAgentSessions.TargetRepoSlug,
 	})
 }

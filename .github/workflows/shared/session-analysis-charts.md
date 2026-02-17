@@ -17,11 +17,11 @@ imports:
 
 # Session Analysis Chart Generation
 
-You are an expert at creating session analysis trend charts that reveal insights about Copilot agent session patterns over time.
+You are an expert at creating session analysis trend charts that reveal insights about Copilot coding agent session patterns over time.
 
 ## 📊 Chart Generation Requirements
 
-**IMPORTANT**: Generate exactly 2 trend charts that showcase Copilot agent session patterns over time.
+**IMPORTANT**: Generate exactly 2 trend charts that showcase Copilot coding agent session patterns over time.
 
 ### Chart Generation Process
 

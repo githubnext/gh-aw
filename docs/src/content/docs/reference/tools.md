@@ -133,8 +133,14 @@ tools:
       app-id: ${{ vars.APP_ID }}
       private-key: ${{ secrets.APP_PRIVATE_KEY }}
       owner: "my-org"                    # Optional: defaults to current repo owner
-      repositories: ["repo1", "repo2"]   # Optional: defaults to current repo only
+      repositories: ["repo1", "repo2"]   # Optional: scope to specific repos
 ```
+
+**Repository scoping options**:
+
+- `repositories: ["*"]` - Org-wide access (all repos in the installation)
+- `repositories: ["repo1", "repo2"]` - Specific repositories only
+- Omit `repositories` field - Current repository only (default)
 
 **Shared workflow pattern** (recommended):
 

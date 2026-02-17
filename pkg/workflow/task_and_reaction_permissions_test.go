@@ -36,7 +36,7 @@ strict: false
 
 This workflow should generate activation job with reaction permissions.
 
-The activation job references text output: "${{ needs.activation.outputs.text }}"
+The activation job references text output: "${{ steps.sanitized.outputs.text }}"
 `
 
 	testFile := filepath.Join(tmpDir, "test-permissions.md")

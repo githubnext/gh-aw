@@ -2445,7 +2445,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 #### Type: assign_to_agent
 
-**Purpose**: Assign GitHub Copilot agents to issues or pull requests.
+**Purpose**: Assign GitHub Copilot coding agent to issues or pull requests.
 
 **Default Max**: 1  
 **Cross-Repository Support**: Yes  
@@ -2462,7 +2462,7 @@ This section provides complete definitions for all remaining safe output types. 
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
-- Uses special assignee syntax for Copilot agent assignment
+- Uses special assignee syntax for Copilot coding agent assignment
 - Agent must be enabled in repository settings
 
 ---
@@ -2739,7 +2739,7 @@ This section provides complete definitions for all remaining safe output types. 
 
 #### Type: create_agent_session
 
-**Purpose**: Create GitHub Copilot agent sessions for code change delegation.
+**Purpose**: Create GitHub Copilot coding agent sessions for code change delegation.
 
 **Default Max**: 1  
 **Cross-Repository Support**: No (same repository only)  

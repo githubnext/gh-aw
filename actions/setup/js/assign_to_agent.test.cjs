@@ -56,6 +56,8 @@ describe("assign_to_agent", () => {
     delete process.env.GH_AW_TARGET_REPO;
     delete process.env.GH_AW_AGENT_IGNORE_IF_ERROR;
     delete process.env.GH_AW_TEMPORARY_ID_MAP;
+    delete process.env.GH_AW_AGENT_PULL_REQUEST_REPO;
+    delete process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS;
 
     // Reset context to default
     mockContext.eventName = "issues";
@@ -1143,5 +1145,181 @@ describe("assign_to_agent", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using target repository: test-owner/test-repo"));
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Looking for copilot coding agent"));
     }, 20000);
+  });
+
+  it("should handle pull-request-repo configuration correctly", async () => {
+    process.env.GH_AW_AGENT_PULL_REQUEST_REPO = "test-owner/pull-request-repo";
+    // Note: pull-request-repo is automatically allowed, no need to set allowed list
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    // Mock GraphQL responses
+    mockGithub.graphql
+      // Get PR repository ID
+      .mockResolvedValueOnce({
+        repository: {
+          id: "pull-request-repo-id",
+        },
+      })
+      // Find agent
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ login: "copilot-swe-agent", id: "agent-id" }],
+          },
+        },
+      })
+      // Get issue details
+      .mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "issue-id",
+            assignees: { nodes: [] },
+          },
+        },
+      })
+      // Assign agent with agentAssignment
+      .mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using pull request repository: test-owner/pull-request-repo"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Pull request repository ID: pull-request-repo-id"));
+
+    // Verify the mutation was called with agentAssignment
+    const lastGraphQLCall = mockGithub.graphql.mock.calls[mockGithub.graphql.mock.calls.length - 1];
+    expect(lastGraphQLCall[0]).toContain("agentAssignment");
+    expect(lastGraphQLCall[0]).toContain("targetRepositoryId");
+    expect(lastGraphQLCall[1].targetRepoId).toBe("pull-request-repo-id");
+  });
+
+  it("should handle per-item pull_request_repo parameter", async () => {
+    // Set global pull-request-repo which will be automatically allowed
+    process.env.GH_AW_AGENT_PULL_REQUEST_REPO = "test-owner/default-pr-repo";
+    // Set allowed list for additional repos
+    process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS = "test-owner/item-pull-request-repo";
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+          pull_request_repo: "test-owner/item-pull-request-repo",
+        },
+      ],
+      errors: [],
+    });
+
+    // Mock GraphQL responses
+    mockGithub.graphql
+      // Get global PR repository ID (for default-pr-repo)
+      .mockResolvedValueOnce({
+        repository: {
+          id: "default-pr-repo-id",
+        },
+      })
+      // Get item PR repository ID
+      .mockResolvedValueOnce({
+        repository: {
+          id: "item-pull-request-repo-id",
+        },
+      })
+      // Find agent
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ login: "copilot-swe-agent", id: "agent-id" }],
+          },
+        },
+      })
+      // Get issue details
+      .mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "issue-id",
+            assignees: { nodes: [] },
+          },
+        },
+      })
+      // Assign agent with agentAssignment
+      .mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using per-item pull request repository: test-owner/item-pull-request-repo"));
+
+    // Verify the mutation was called with per-item PR repo ID
+    const lastGraphQLCall = mockGithub.graphql.mock.calls[mockGithub.graphql.mock.calls.length - 1];
+    expect(lastGraphQLCall[1].targetRepoId).toBe("item-pull-request-repo-id");
+  });
+
+  it("should allow pull-request-repo without it being in allowed-pull-request-repos", async () => {
+    // Set pull-request-repo but DO NOT set allowed-pull-request-repos
+    // This tests that pull-request-repo is automatically allowed (like target-repo behavior)
+    process.env.GH_AW_AGENT_PULL_REQUEST_REPO = "test-owner/auto-allowed-repo";
+    setAgentOutput({
+      items: [
+        {
+          type: "assign_to_agent",
+          issue_number: 42,
+          agent: "copilot",
+        },
+      ],
+      errors: [],
+    });
+
+    // Mock GraphQL responses
+    mockGithub.graphql
+      // Get PR repository ID
+      .mockResolvedValueOnce({
+        repository: {
+          id: "auto-allowed-repo-id",
+        },
+      })
+      // Find agent
+      .mockResolvedValueOnce({
+        repository: {
+          suggestedActors: {
+            nodes: [{ login: "copilot-swe-agent", id: "agent-id" }],
+          },
+        },
+      })
+      // Get issue details
+      .mockResolvedValueOnce({
+        repository: {
+          issue: {
+            id: "issue-id",
+            assignees: { nodes: [] },
+          },
+        },
+      })
+      // Assign agent with agentAssignment
+      .mockResolvedValueOnce({
+        replaceActorsForAssignable: {
+          __typename: "ReplaceActorsForAssignablePayload",
+        },
+      });
+
+    await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
+
+    // Should succeed - pull-request-repo is automatically allowed
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using pull request repository: test-owner/auto-allowed-repo"));
   });
 });

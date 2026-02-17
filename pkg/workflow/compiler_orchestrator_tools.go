@@ -9,6 +9,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/goccy/go-yaml"
 )
 
 var orchestratorToolsLog = logger.New("workflow:compiler_orchestrator_tools")
@@ -301,8 +302,15 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 
 	log.Printf("Extracted workflow name: '%s'", workflowName)
 
-	// Check if the markdown content uses the text output
-	needsTextOutput := c.detectTextOutputUsage(markdownContent)
+	// Check if the markdown content uses the text output OR if the workflow is triggered by
+	// events that have content (issues, discussions, PRs, comments). The sanitized step should
+	// be added in either case to make text/title/body outputs available.
+	explicitUsage := c.detectTextOutputUsage(markdownContent)
+	hasContext := c.hasContentContext(result.Frontmatter)
+	needsTextOutput := explicitUsage || hasContext
+
+	orchestratorToolsLog.Printf("Text output needed: explicit=%v, context=%v, final=%v",
+		explicitUsage, hasContext, needsTextOutput)
 
 	// Extract and validate tracker-id
 	trackerID, err := c.extractTrackerID(result.Frontmatter)
@@ -340,16 +348,75 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	}, nil
 }
 
-// detectTextOutputUsage checks if the markdown content uses ${{ needs.activation.outputs.text }},
-// ${{ needs.activation.outputs.title }}, or ${{ needs.activation.outputs.body }}
+// detectTextOutputUsage checks if the markdown content uses ${{ steps.sanitized.outputs.text }},
+// ${{ steps.sanitized.outputs.title }}, or ${{ steps.sanitized.outputs.body }}
 func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
 	// Check for any of the text-related output expressions
-	hasTextUsage := strings.Contains(markdownContent, "${{ needs.activation.outputs.text }}")
-	hasTitleUsage := strings.Contains(markdownContent, "${{ needs.activation.outputs.title }}")
-	hasBodyUsage := strings.Contains(markdownContent, "${{ needs.activation.outputs.body }}")
+	hasTextUsage := strings.Contains(markdownContent, "${{ steps.sanitized.outputs.text }}")
+	hasTitleUsage := strings.Contains(markdownContent, "${{ steps.sanitized.outputs.title }}")
+	hasBodyUsage := strings.Contains(markdownContent, "${{ steps.sanitized.outputs.body }}")
 
 	hasUsage := hasTextUsage || hasTitleUsage || hasBodyUsage
-	detectionLog.Printf("Detected usage of activation outputs - text: %v, title: %v, body: %v, any: %v",
+	detectionLog.Printf("Detected usage of sanitized outputs - text: %v, title: %v, body: %v, any: %v",
 		hasTextUsage, hasTitleUsage, hasBodyUsage, hasUsage)
 	return hasUsage
+}
+
+// hasContentContext checks if the workflow is triggered by events that have text content
+// (issues, discussions, pull requests, or comments). These events can provide sanitized
+// text/title/body outputs via the sanitized step, even if not explicitly referenced.
+func (c *Compiler) hasContentContext(frontmatter map[string]any) bool {
+	// Check if "on" field exists
+	onField, exists := frontmatter["on"]
+	if !exists || onField == nil {
+		return false
+	}
+
+	// Convert the "on" field to YAML string for parsing
+	onYAML, err := yaml.Marshal(onField)
+	if err != nil {
+		orchestratorToolsLog.Printf("Failed to marshal 'on' field: %v", err)
+		return false
+	}
+
+	onStr := string(onYAML)
+
+	// Check for content-related event types that provide text/title/body
+	// These are the same events supported by compute_text.cjs
+	contentEvents := []string{
+		"issues:",
+		"pull_request:",
+		"pull_request_target:",
+		"issue_comment:",
+		"pull_request_review_comment:",
+		"pull_request_review:",
+		"discussion:",
+		"discussion_comment:",
+	}
+
+	for _, event := range contentEvents {
+		if strings.Contains(onStr, event) {
+			orchestratorToolsLog.Printf("Detected content context: workflow triggered by %s", strings.TrimSuffix(event, ":"))
+			return true
+		}
+	}
+
+	// Check for slash_command trigger (works with comment events that have content)
+	if strings.Contains(onStr, "slash_command:") {
+		orchestratorToolsLog.Printf("Detected content context: workflow triggered by slash_command")
+		return true
+	}
+
+	// Check for labeled activity type on issues, pull_request, or discussion
+	// These events provide text content when labeled/unlabeled
+	if strings.Contains(onStr, "labeled") {
+		// Ensure it's in the context of an issue, PR, or discussion event
+		if strings.Contains(onStr, "issues:") || strings.Contains(onStr, "pull_request:") || strings.Contains(onStr, "discussion:") {
+			orchestratorToolsLog.Printf("Detected content context: workflow triggered by labeled activity type")
+			return true
+		}
+	}
+
+	orchestratorToolsLog.Printf("No content context detected in trigger events")
+	return false
 }

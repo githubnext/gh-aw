@@ -38,7 +38,7 @@ jobs:
           persist-credentials: false
       
       - name: Super-linter
-        uses: super-linter/super-linter@v8.2.1 # x-release-please-version
+        uses: super-linter/super-linter@v8.5.0 # x-release-please-version
         id: super-linter
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -184,7 +184,7 @@ docker run --rm \
   -e RUN_LOCAL=true \
   -e VALIDATE_MARKDOWN=true \
   -v $(pwd):/tmp/lint \
-  ghcr.io/super-linter/super-linter:slim-v8
+  ghcr.io/super-linter/super-linter:slim-v8.5.0
 
 # Run super-linter on specific file types only
 # For example, to validate only Markdown files:
@@ -192,7 +192,7 @@ docker run --rm \
   -e RUN_LOCAL=true \
   -e VALIDATE_MARKDOWN=true \
   -v $(pwd):/tmp/lint \
-  ghcr.io/super-linter/super-linter:slim-v8
+  ghcr.io/super-linter/super-linter:slim-v8.5.0
 ```
 
 **Note**: The Docker command uses the same super-linter configuration as this workflow. Files are mounted from your current directory to `/tmp/lint` in the container.

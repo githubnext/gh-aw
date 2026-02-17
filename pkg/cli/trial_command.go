@@ -113,7 +113,12 @@ Repository modes:
 All workflows must support workflow_dispatch trigger to be used in trial mode.
 The host repository will be created as private and kept by default unless --delete-host-repo-after is specified.
 Trial results are saved both locally (in trials/ directory) and in the host repository for future reference.`,
-		Args: cobra.MinimumNArgs(1),
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return fmt.Errorf("missing workflow specification\n\nUsage:\n  %s <workflow-spec>...\n\nExamples:\n  %[1]s githubnext/agentics/daily-plan             Trial a workflow from a repository\n  %[1]s ./local-workflow.md                         Trial a local workflow\n\nRun '%[1]s --help' for more information", cmd.CommandPath())
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			workflowSpecs := args
 			logicalRepoSpec, _ := cmd.Flags().GetString("logical-repo")
@@ -201,6 +206,9 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 // RunWorkflowTrials executes the main logic for trialing one or more workflows
 func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOptions) error {
 	trialLog.Printf("Starting trial execution: specs=%v, logicalRepo=%s, cloneRepo=%s, hostRepo=%s, repeat=%d", workflowSpecs, opts.Repos.LogicalRepo, opts.Repos.CloneRepo, opts.Repos.HostRepo, opts.RepeatCount)
+
+	// Show welcome banner for interactive mode
+	console.ShowWelcomeBanner("This tool will run a trial of your workflow in a test repository.")
 
 	// Parse all workflow specifications
 	var parsedSpecs []*WorkflowSpec
@@ -326,20 +334,22 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 	// When no override is specified, the workflow will use its frontmatter engine and handle secrets during compilation
 	if opts.EngineOverride != "" {
 		// Check what secrets already exist in the repository
-		existingSecrets, err := CheckExistingSecrets(hostRepoSlug)
+		existingSecrets, err := CheckExistingSecretsInRepo(hostRepoSlug)
 		if err != nil {
 			trialLog.Printf("Warning: could not check existing secrets: %v", err)
 			existingSecrets = make(map[string]bool)
 		}
 
 		// Ensure the required engine secret is available (prompts interactively if needed)
-		secretConfig := SecretCollectionConfig{
-			RepoSlug:        hostRepoSlug,
-			Engine:          opts.EngineOverride,
-			Verbose:         opts.Verbose,
-			ExistingSecrets: existingSecrets,
+		secretConfig := EngineSecretConfig{
+			RepoSlug:             hostRepoSlug,
+			Engine:               opts.EngineOverride,
+			Verbose:              opts.Verbose,
+			ExistingSecrets:      existingSecrets,
+			IncludeSystemSecrets: false,
+			IncludeOptional:      false,
 		}
-		if err := EnsureEngineSecret(secretConfig); err != nil {
+		if err := CheckAndCollectEngineSecrets(secretConfig); err != nil {
 			return fmt.Errorf("failed to configure engine secret: %w", err)
 		}
 	}
@@ -465,7 +475,8 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 			}
 
 			// Generate workflow run URL
-			workflowRunURL := fmt.Sprintf("https://github.com/%s/actions/runs/%s", hostRepoSlug, runID)
+			githubHost := getGitHubHost()
+			workflowRunURL := fmt.Sprintf("%s/%s/actions/runs/%s", githubHost, hostRepoSlug, runID)
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow run started with ID: %s (%s)", runID, workflowRunURL)))
 
 			// Wait for workflow completion
@@ -571,7 +582,8 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 			if opts.DeleteHostRepo {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Host repository will be cleaned up"))
 			} else {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Host repository preserved: https://github.com/%s", hostRepoSlug)))
+				githubHost := getGitHubHost()
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Host repository preserved: %s/%s", githubHost, hostRepoSlug)))
 			}
 		},
 		UseStderr: true,
@@ -596,7 +608,8 @@ func getCurrentGitHubUsername() (string, error) {
 
 // showTrialConfirmation displays a confirmation prompt to the user using parsed workflow specs
 func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, deleteHostRepo bool, forceDeleteHostRepo bool, autoMergePRs bool, repeatCount int, directTrialMode bool, engineOverride string) error {
-	hostRepoSlugURL := fmt.Sprintf("https://github.com/%s", hostRepoSlug)
+	githubHost := getGitHubHost()
+	hostRepoSlugURL := fmt.Sprintf("%s/%s", githubHost, hostRepoSlug)
 
 	var sections []string
 

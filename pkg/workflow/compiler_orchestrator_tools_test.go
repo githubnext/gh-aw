@@ -508,7 +508,7 @@ func TestProcessToolsAndMarkdown_TextOutputDetection(t *testing.T) {
 		},
 		{
 			name:        "with text output",
-			markdown:    "# Workflow\n\nUse ${{ needs.activation.outputs.text }} here",
+			markdown:    "# Workflow\n\nUse ${{ steps.sanitized.outputs.text }} here",
 			expectUsage: true,
 		},
 	}

@@ -65,18 +65,33 @@ if [ "$all_empty" = true ]; then
   secret_or_list=$(IFS=" or "; echo "${SECRET_NAMES[*]}")
   requirement_msg="The $ENGINE_NAME engine requires either $secret_or_list secret to be configured."
   
-  # Print to GitHub step summary
+  # Print to GitHub step summary with troubleshooting tips
   {
     echo "❌ Error: $error_msg"
+    echo ""
     echo "$requirement_msg"
-    echo "Please configure one of these secrets in your repository settings."
+    echo ""
+    echo "**How to fix:**"
+    echo "1. Go to your repository Settings → Secrets and variables → Actions"
+    echo "2. Add a new repository secret with one of the required names"
+    echo ""
+    echo "**Common causes if you believe the secret is already configured:**"
+    echo "- **Organization secrets** must have repository access granted (Settings → Secrets → Repository access)"
+    echo "- **Environment secrets** are only available if the job specifies that environment"
+    echo "- **Secret name mismatch** - verify the exact spelling (case-sensitive)"
+    echo ""
     echo "Documentation: ${DOCS_URL@Q}"
   } >> "$GITHUB_STEP_SUMMARY"
   
   # Print to stderr
   echo "Error: $error_msg" >&2
   echo "$requirement_msg" >&2
-  echo "Please configure one of these secrets in your repository settings." >&2
+  echo "" >&2
+  echo "Common causes if the secret appears to be configured:" >&2
+  echo "  - Organization secrets must have repository access granted" >&2
+  echo "  - Environment secrets require the job to specify that environment" >&2
+  echo "  - Secret names are case-sensitive - verify exact spelling" >&2
+  echo "" >&2
   echo "Documentation: ${DOCS_URL@Q}" >&2
   
   # Set step output to indicate verification failed

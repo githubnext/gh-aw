@@ -246,9 +246,13 @@ async function getPullRequestDetails(owner, repo, pullNumber) {
  * @param {Array<{id: string, login: string}>} currentAssignees - List of current assignees with id and login
  * @param {string} agentName - Agent name for error messages
  * @param {string[]|null} allowedAgents - Optional list of allowed agent names. If provided, filters out non-allowed agents from current assignees.
+ * @param {string|null} pullRequestRepoId - Optional pull request repository ID for specifying where the PR should be created (GitHub agentAssignment.targetRepositoryId)
+ * @param {string|null} model - Optional AI model to use (e.g., "claude-opus-4.6", "auto")
+ * @param {string|null} customAgent - Optional custom agent ID for custom agents
+ * @param {string|null} customInstructions - Optional custom instructions for the agent
  * @returns {Promise<boolean>} True if successful
  */
-async function assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents = null) {
+async function assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents = null, pullRequestRepoId = null, model = null, customAgent = null, customInstructions = null) {
   // Filter current assignees based on allowed list (if configured)
   let filteredAssignees = currentAssignees;
   if (allowedAgents && allowedAgents.length > 0) {
@@ -271,24 +275,92 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
   // Build actor IDs array - include new agent and preserve filtered assignees
   const actorIds = [agentId, ...filteredAssignees.map(a => a.id).filter(id => id !== agentId)];
 
-  const mutation = `
-    mutation($assignableId: ID!, $actorIds: [ID!]!) {
-      replaceActorsForAssignable(input: {
-        assignableId: $assignableId,
-        actorIds: $actorIds
-      }) {
-        __typename
-      }
+  // Build the agentAssignment object if any agent-specific parameters are provided
+  const hasAgentAssignment = pullRequestRepoId || model || customAgent || customInstructions;
+
+  // Build the mutation - conditionally include agentAssignment if any parameters are provided
+  let mutation;
+  let variables;
+
+  if (hasAgentAssignment) {
+    // Build agentAssignment object with only the fields that are provided
+    const agentAssignmentFields = [];
+    const agentAssignmentParams = [];
+
+    if (pullRequestRepoId) {
+      agentAssignmentFields.push("targetRepositoryId: $targetRepoId");
+      agentAssignmentParams.push("$targetRepoId: ID!");
     }
-  `;
+    if (model) {
+      agentAssignmentFields.push("model: $model");
+      agentAssignmentParams.push("$model: String!");
+    }
+    if (customAgent) {
+      agentAssignmentFields.push("customAgent: $customAgent");
+      agentAssignmentParams.push("$customAgent: String!");
+    }
+    if (customInstructions) {
+      agentAssignmentFields.push("customInstructions: $customInstructions");
+      agentAssignmentParams.push("$customInstructions: String!");
+    }
+
+    // Build the mutation with agentAssignment
+    const allParams = ["$assignableId: ID!", "$actorIds: [ID!]!", ...agentAssignmentParams].join(", ");
+    const assignmentFields = agentAssignmentFields.join("\n            ");
+
+    mutation = `
+      mutation(${allParams}) {
+        replaceActorsForAssignable(input: {
+          assignableId: $assignableId,
+          actorIds: $actorIds,
+          agentAssignment: {
+            ${assignmentFields}
+          }
+        }) {
+          __typename
+        }
+      }
+    `;
+
+    variables = {
+      assignableId,
+      actorIds,
+      ...(pullRequestRepoId && { targetRepoId: pullRequestRepoId }),
+      ...(model && { model }),
+      ...(customAgent && { customAgent }),
+      ...(customInstructions && { customInstructions }),
+    };
+  } else {
+    // Standard mutation without agentAssignment
+    mutation = `
+      mutation($assignableId: ID!, $actorIds: [ID!]!) {
+        replaceActorsForAssignable(input: {
+          assignableId: $assignableId,
+          actorIds: $actorIds
+        }) {
+          __typename
+        }
+      }
+    `;
+    variables = {
+      assignableId,
+      actorIds,
+    };
+  }
 
   try {
     core.info("Using built-in github object for mutation");
 
-    core.debug(`GraphQL mutation with variables: assignableId=${assignableId}, actorIds=${JSON.stringify(actorIds)}`);
+    // Build debug log message with all parameters
+    let debugMsg = `GraphQL mutation with variables: assignableId=${assignableId}, actorIds=${JSON.stringify(actorIds)}`;
+    if (pullRequestRepoId) debugMsg += `, targetRepoId=${pullRequestRepoId}`;
+    if (model) debugMsg += `, model=${model}`;
+    if (customAgent) debugMsg += `, customAgent=${customAgent}`;
+    if (customInstructions) debugMsg += `, customInstructions=${customInstructions.substring(0, 50)}...`;
+    core.debug(debugMsg);
+
     const response = await github.graphql(mutation, {
-      assignableId: assignableId,
-      actorIds,
+      ...variables,
       headers: {
         "GraphQL-Features": "issues_copilot_assignment_api_support",
       },
@@ -417,7 +489,7 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
 function logPermissionError(agentName) {
   core.error(`Failed to assign ${agentName}: Insufficient permissions`);
   core.error("");
-  core.error("Assigning Copilot agents requires:");
+  core.error("Assigning Copilot coding agent requires:");
   core.error("  1. All four workflow permissions:");
   core.error("     - actions: write");
   core.error("     - contents: write");
@@ -447,7 +519,7 @@ function generatePermissionErrorSummary() {
   return `
 ### ⚠️ Permission Requirements
 
-Assigning Copilot agents requires **ALL** of these permissions:
+Assigning Copilot coding agent requires **ALL** of these permissions:
 
 \`\`\`yaml
 permissions:

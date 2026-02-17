@@ -222,15 +222,16 @@ on: workflow_dispatch
 permissions:
   issues: read
   pull-requests: read
-github-token: ${{ secrets.MY_GITHUB_TOKEN }}
 plugins:
-  - github/test-plugin
+  repos:
+    - github/test-plugin
+  github-token: ${{ secrets.MY_GITHUB_TOKEN }}
 ---
 
-Test with top-level github-token
+Test with plugins github-token
 `
 
-	testFile := filepath.Join(tmpDir, "test-toplevel-token.md")
+	testFile := filepath.Join(tmpDir, "test-plugins-token.md")
 	err := os.WriteFile(testFile, []byte(workflow), 0644)
 	require.NoError(t, err, "Failed to write test file")
 
@@ -250,13 +251,13 @@ Test with top-level github-token
 	assert.Contains(t, lockContent, "copilot plugin install github/test-plugin",
 		"Lock file should contain plugin install command")
 
-	// Verify top-level github-token is used (not cascading)
+	// Verify plugins github-token is used (not cascading)
 	assert.Contains(t, lockContent, "GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}",
-		"Lock file should use top-level github-token")
+		"Lock file should use plugins github-token")
 
 	// Verify cascading token is NOT used
 	assert.NotContains(t, lockContent, "GH_AW_PLUGINS_TOKEN",
-		"Lock file should not use cascading token when top-level token is provided")
+		"Lock file should not use cascading token when plugins token is provided")
 }
 
 func TestPluginCompilationTokenPrecedence(t *testing.T) {
@@ -269,14 +270,13 @@ func TestPluginCompilationTokenPrecedence(t *testing.T) {
 		description   string
 	}{
 		{
-			name: "Object github-token overrides top-level",
+			name: "Plugin-specific github-token used",
 			workflow: `---
 engine: copilot
 on: workflow_dispatch
 permissions:
   issues: read
   pull-requests: read
-github-token: ${{ secrets.TOPLEVEL_TOKEN }}
 plugins:
   repos:
     - github/plugin1
@@ -286,25 +286,7 @@ plugins:
 Test token precedence
 `,
 			expectedToken: "GITHUB_TOKEN: ${{ secrets.PLUGINS_SPECIFIC_TOKEN }}",
-			description:   "plugins.github-token should override top-level github-token",
-		},
-		{
-			name: "Top-level token used when no plugin token",
-			workflow: `---
-engine: copilot
-on: workflow_dispatch
-permissions:
-  issues: read
-  pull-requests: read
-github-token: ${{ secrets.TOPLEVEL_TOKEN }}
-plugins:
-  - github/plugin1
----
-
-Test top-level token
-`,
-			expectedToken: "GITHUB_TOKEN: ${{ secrets.TOPLEVEL_TOKEN }}",
-			description:   "top-level github-token should be used when no plugins.github-token",
+			description:   "plugins.github-token should be used when specified",
 		},
 		{
 			name: "Cascading fallback when no tokens specified",

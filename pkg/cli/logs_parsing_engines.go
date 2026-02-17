@@ -4,7 +4,7 @@
 //
 // Key responsibilities:
 //   - Parsing log files using engine-specific parsers
-//   - Detecting and parsing GitHub Copilot agent logs
+//   - Detecting and parsing GitHub Copilot coding agent logs
 //   - Falling back to generic parser when engine is unknown
 
 package cli
@@ -33,9 +33,9 @@ func parseLogFileWithEngine(filePath string, detectedEngine workflow.CodingAgent
 	logContent := string(content)
 	logsParsingEnginesLog.Printf("Read %d bytes from log file", len(logContent))
 
-	// If this is a GitHub Copilot agent run, use the specialized parser
+	// If this is a GitHub Copilot coding agent run, use the specialized parser
 	if isGitHubCopilotAgent {
-		logsParsingEnginesLog.Print("Using GitHub Copilot agent parser")
+		logsParsingEnginesLog.Print("Using GitHub Copilot coding agent parser")
 		return ParseCopilotAgentLogMetrics(logContent, verbose), nil
 	}
 

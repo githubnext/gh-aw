@@ -88,7 +88,12 @@ The --force flag overwrites existing workflow files.
 The --non-interactive flag skips the guided setup and uses traditional behavior.
 
 Note: To create a new workflow from scratch, use the 'new' command instead.`,
-		Args: cobra.MinimumNArgs(1),
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return fmt.Errorf("missing workflow specification\n\nUsage:\n  %s <workflow>...\n\nExamples:\n  %[1]s githubnext/agentics/daily-repo-status      Add from repository\n  %[1]s ./my-workflow.md                           Add local workflow\n\nRun '%[1]s --help' for more information", cmd.CommandPath())
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			workflows := args
 			engineOverride, _ := cmd.Flags().GetString("engine")

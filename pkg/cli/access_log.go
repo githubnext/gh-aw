@@ -57,12 +57,7 @@ func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) 
 	}
 	defer file.Close()
 
-	analysis := &DomainAnalysis{
-		DomainBuckets: DomainBuckets{
-			AllowedDomains: []string{},
-			BlockedDomains: []string{},
-		},
-	}
+	analysis := &DomainAnalysis{}
 
 	allowedDomainsSet := make(map[string]bool)
 	blockedDomainsSet := make(map[string]bool)
@@ -189,12 +184,7 @@ func analyzeMultipleAccessLogs(accessLogsDir string, verbose bool) (*DomainAnaly
 		verbose,
 		parseSquidAccessLog,
 		func() *DomainAnalysis {
-			return &DomainAnalysis{
-				DomainBuckets: DomainBuckets{
-					AllowedDomains: []string{},
-					BlockedDomains: []string{},
-				},
-			}
+			return &DomainAnalysis{}
 		},
 	)
 }

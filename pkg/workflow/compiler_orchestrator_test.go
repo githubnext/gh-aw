@@ -463,32 +463,32 @@ func TestDetectTextOutputUsageInOrchestrator(t *testing.T) {
 		},
 		{
 			name:           "with text output usage",
-			markdown:       "# Workflow\n\nUse ${{ needs.activation.outputs.text }} here.",
+			markdown:       "# Workflow\n\nUse ${{ steps.sanitized.outputs.text }} here.",
 			expectedOutput: true,
 		},
 		{
 			name:           "text output in middle",
-			markdown:       "# Start\n\nContent\n${{ needs.activation.outputs.text }}\n\nMore content",
+			markdown:       "# Start\n\nContent\n${{ steps.sanitized.outputs.text }}\n\nMore content",
 			expectedOutput: true,
 		},
 		{
 			name:           "multiple text output references",
-			markdown:       "${{ needs.activation.outputs.text }}\nFirst\n${{ needs.activation.outputs.text }}\nSecond",
+			markdown:       "${{ steps.sanitized.outputs.text }}\nFirst\n${{ steps.sanitized.outputs.text }}\nSecond",
 			expectedOutput: true,
 		},
 		{
 			name:           "with title output usage",
-			markdown:       "# Workflow\n\nUse ${{ needs.activation.outputs.title }} here.",
+			markdown:       "# Workflow\n\nUse ${{ steps.sanitized.outputs.title }} here.",
 			expectedOutput: true,
 		},
 		{
 			name:           "with body output usage",
-			markdown:       "# Workflow\n\nUse ${{ needs.activation.outputs.body }} here.",
+			markdown:       "# Workflow\n\nUse ${{ steps.sanitized.outputs.body }} here.",
 			expectedOutput: true,
 		},
 		{
 			name:           "with mixed text, title, body usage",
-			markdown:       "# Workflow\n\nTitle: ${{ needs.activation.outputs.title }}\nBody: ${{ needs.activation.outputs.body }}\nFull: ${{ needs.activation.outputs.text }}",
+			markdown:       "# Workflow\n\nTitle: ${{ steps.sanitized.outputs.title }}\nBody: ${{ steps.sanitized.outputs.body }}\nFull: ${{ steps.sanitized.outputs.text }}",
 			expectedOutput: true,
 		},
 	}
@@ -670,7 +670,6 @@ engine: copilot
 name: Test Workflow
 description: Test description
 source: test-source
-github-token: ${{ secrets.GITHUB_TOKEN }}
 ---
 
 # Test Workflow
@@ -690,7 +689,6 @@ Test content
 	assert.Equal(t, "Test Workflow", workflowData.FrontmatterName, "Name should be set")
 	assert.Equal(t, "Test description", workflowData.Description, "Description should be set")
 	assert.Equal(t, "test-source", workflowData.Source, "Source should be set")
-	assert.Equal(t, "${{ secrets.GITHUB_TOKEN }}", workflowData.GitHubToken, "GitHub token should be set")
 	assert.Equal(t, "copilot", workflowData.AI, "AI engine should be set")
 	assert.NotNil(t, workflowData.EngineConfig, "EngineConfig should be set")
 	assert.NotNil(t, workflowData.ParsedTools, "ParsedTools should be initialized")

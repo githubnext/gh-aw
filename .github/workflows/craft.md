@@ -44,7 +44,7 @@ You are an expert workflow designer for GitHub Agentic Workflows. Your task is t
 - **Issue/Comment**: ${{ github.event.issue.number }}
 - **Request**: 
 
-<!-- ${{ needs.activation.outputs.text }} -->
+<!-- ${{ steps.sanitized.outputs.text }} -->
 
 ## Your Mission
 
@@ -91,7 +91,7 @@ Create a workflow that includes:
 **Markdown Content:**
 - Clear title describing the workflow's purpose
 - Mission statement explaining what the AI should do
-- Context section with allowed GitHub expressions (see documentation for allowed expressions like `${{ github.repository }}`, `${{ github.event.issue.number }}`, and `${{ needs.activation.outputs.text }}`)
+- Context section with allowed GitHub expressions (see documentation for allowed expressions like `${{ github.repository }}`, `${{ github.event.issue.number }}`, and `${{ steps.sanitized.outputs.text }}`)
 - Step-by-step instructions for the AI agent
 - Guidelines and constraints
 - Output format specifications
@@ -149,7 +149,7 @@ Add a comment to the issue with:
 - **Repository-agnostic**: Don't hardcode repository-specific details
 
 ### Security
-- **Use sanitized context**: Prefer `${{ needs.activation.outputs.text }}` over raw event fields
+- **Use sanitized context**: Prefer `${{ steps.sanitized.outputs.text }}` over raw event fields
 - **Validate inputs**: Check that user requests are reasonable and safe
 - **Minimal tools**: Only enable tools that are actually used
 
@@ -249,7 +249,7 @@ Clear statement of the workflow's purpose.
 
 - **Repository**: ${{ github.repository }}
 - **Issue**: ${{ github.event.issue.number }}
-- **Content**: "${{ needs.activation.outputs.text }}"
+- **Content**: "${{ steps.sanitized.outputs.text }}"
 
 ## Instructions
 
@@ -274,7 +274,7 @@ Clear statement of the workflow's purpose.
 
 ## Begin Workflow Creation
 
-Now analyze the user's request: "${{ needs.activation.outputs.text }}"
+Now analyze the user's request: "${{ steps.sanitized.outputs.text }}"
 
 1. Load the documentation
 2. Analyze the request

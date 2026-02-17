@@ -25,7 +25,7 @@ func FuzzExpressionParser(f *testing.F) {
 	f.Add("Actor: ${{ github.actor }}")
 	f.Add("Issue number: ${{ github.event.issue.number }}")
 	f.Add("PR number: ${{ github.event.pull_request.number }}")
-	f.Add("Task output: ${{ needs.activation.outputs.text }}")
+	f.Add("Task output: ${{ steps.sanitized.outputs.text }}")
 	f.Add("Step output: ${{ steps.my-step.outputs.result }}")
 	f.Add("User input: ${{ github.event.inputs.name }}")
 	f.Add("Env variable: ${{ env.MY_VAR }}")

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/timeutil"
 )
 
@@ -90,10 +91,9 @@ func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []E
 
 	// MCP failure findings
 	if len(processedRun.MCPFailures) > 0 {
-		serverNames := make([]string, len(processedRun.MCPFailures))
-		for i, failure := range processedRun.MCPFailures {
-			serverNames[i] = failure.ServerName
-		}
+		serverNames := sliceutil.Map(processedRun.MCPFailures, func(failure MCPFailureReport) string {
+			return failure.ServerName
+		})
 		findings = append(findings, Finding{
 			Category:    "tooling",
 			Severity:    "high",

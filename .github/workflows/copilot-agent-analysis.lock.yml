@@ -21,7 +21,7 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Analyzes GitHub Copilot agent usage patterns in pull requests to provide insights on agent effectiveness and behavior
+# Analyzes GitHub Copilot coding agent usage patterns in pull requests to provide insights on agent effectiveness and behavior
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -30,7 +30,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 7ab09aa2c72d1dc010110d7ac8ad24c689601553f85c0c0554d6b7b897e9a090
+# frontmatter-hash: 49e233a6fddc68b01bfb552844d10705384860956cebc90df11ae53e16d11dc9
 
 name: "Copilot Agent PR Analysis"
 "on":
@@ -388,7 +388,7 @@ jobs:
               engine_name: "Claude Code",
               model: process.env.GH_AW_MODEL_AGENT_CLAUDE || "",
               version: "",
-              agent_version: "2.1.42",
+              agent_version: "2.1.44",
               workflow_name: "Copilot Agent PR Analysis",
               experimental: false,
               supports_tools_allowlist: true,
@@ -433,7 +433,7 @@ jobs:
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.19.1
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.42
+        run: npm install -g --silent @anthropic-ai/claude-code@2.1.44
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -1119,7 +1119,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Copilot Agent PR Analysis"
-          WORKFLOW_DESCRIPTION: "Analyzes GitHub Copilot agent usage patterns in pull requests to provide insights on agent effectiveness and behavior"
+          WORKFLOW_DESCRIPTION: "Analyzes GitHub Copilot coding agent usage patterns in pull requests to provide insights on agent effectiveness and behavior"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1143,7 +1143,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install Claude Code CLI
-        run: npm install -g --silent @anthropic-ai/claude-code@2.1.42
+        run: npm install -g --silent @anthropic-ai/claude-code@2.1.44
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

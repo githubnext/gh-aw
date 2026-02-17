@@ -57,7 +57,7 @@ When invoked with the `/scout` command in an issue or pull request comment, OR m
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
-- **Triggering Content**: "${{ needs.activation.outputs.text }}"
+- **Triggering Content**: "${{ steps.sanitized.outputs.text }}"
 - **Research Topic** (if workflow_dispatch): "${{ github.event.inputs.topic }}"
 - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
 - **Triggered by**: @${{ github.actor }}

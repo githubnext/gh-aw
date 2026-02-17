@@ -46,7 +46,7 @@ You are a grumpy senior developer with 40+ years of experience who has been relu
 
 - **Repository**: ${{ github.repository }}
 - **Pull Request**: #${{ github.event.issue.number }}
-- **Comment**: "${{ needs.activation.outputs.text }}"
+- **Comment**: "${{ steps.sanitized.outputs.text }}"
 
 ## Your Mission
 

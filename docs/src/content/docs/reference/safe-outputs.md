@@ -52,7 +52,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**Remove Labels**](#remove-labels-remove-labels) (`remove-labels`) - Remove labels from issues or PRs (max: 3)
 - [**Add Reviewer**](#add-reviewer-add-reviewer) (`add-reviewer`) - Add reviewers to pull requests (max: 3)
 - [**Assign Milestone**](#assign-milestone-assign-milestone) (`assign-milestone`) - Assign issues to milestones (max: 1)
-- [**Assign to Agent**](#assign-to-agent-assign-to-agent) (`assign-to-agent`) - Assign Copilot agents to issues or PRs (max: 1)
+- [**Assign to Agent**](#assign-to-agent-assign-to-agent) (`assign-to-agent`) - Assign Copilot coding agent to issues or PRs (max: 1)
 - [**Assign to User**](#assign-to-user-assign-to-user) (`assign-to-user`) - Assign users to issues (max: 1)
 - [**Unassign from User**](#unassign-from-user-unassign-from-user) (`unassign-from-user`) - Remove user assignments from issues or PRs (max: 1)
 
@@ -69,7 +69,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 - [**Dispatch Workflow**](#workflow-dispatch-dispatch-workflow) (`dispatch-workflow`) - Trigger other workflows with inputs (max: 3, same-repo only)
 - [**Code Scanning Alerts**](#code-scanning-alerts-create-code-scanning-alert) (`create-code-scanning-alert`) - Generate SARIF security advisories (max: unlimited, same-repo only)
 - [**Autofix Code Scanning Alerts**](#autofix-code-scanning-alerts-autofix-code-scanning-alert) (`autofix-code-scanning-alert`) - Create automated fixes for code scanning alerts (max: 10, same-repo only)
-- [**Create Agent Session**](#agent-session-creation-create-agent-session) (`create-agent-session`) - Create Copilot agent sessions (max: 1)
+- [**Create Agent Session**](#agent-session-creation-create-agent-session) (`create-agent-session`) - Create Copilot coding agent sessions (max: 1)
 
 ### System Types (Auto-Enabled)
 
@@ -1289,11 +1289,11 @@ A workflow can trigger deployment and testing workflows as separate, trackable r
 
 ### Agent Session Creation (`create-agent-session:`)
 
-Creates Copilot agent sessions. Requires `COPILOT_GITHUB_TOKEN` or `GH_AW_GITHUB_TOKEN` PAT-default `GITHUB_TOKEN` lacks permissions.
+Creates Copilot coding agent sessions. Requires `COPILOT_GITHUB_TOKEN` or `GH_AW_GITHUB_TOKEN` PAT-default `GITHUB_TOKEN` lacks permissions.
 
 ### Assign to Agent (`assign-to-agent:`)
 
-Programmatically assigns GitHub Copilot agents to **existing** issues or pull requests through workflow automation. This safe output automates the [standard GitHub workflow for assigning issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot). Requires fine-grained PAT with actions, contents, issues, pull requests write access stored as `GH_AW_AGENT_TOKEN`, or GitHub App token. Supported agents: `copilot` (`copilot-swe-agent`).
+Programmatically assigns GitHub Copilot coding agent to **existing** issues or pull requests through workflow automation. This safe output automates the [standard GitHub workflow for assigning issues to Copilot](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot). Requires fine-grained PAT with actions, contents, issues, pull requests write access stored as `GH_AW_AGENT_TOKEN`, or GitHub App token. Supported agents: `copilot` (`copilot-swe-agent`).
 
 Auto-resolves target from workflow context (issue/PR events) when `issue_number` or `pull_number` not explicitly provided. Restrict with `allowed` list. Target: `"triggering"` (default), `"*"` (any), or number.
 
@@ -1301,16 +1301,49 @@ Auto-resolves target from workflow context (issue/PR events) when `issue_number`
 safe-outputs:
   assign-to-agent:
     name: "copilot"            # default agent (default: "copilot")
+    model: "claude-opus-4.6"   # default AI model (default: "auto")
+    custom-agent: "agent-id"   # default custom agent ID (optional)
+    custom-instructions: "..."  # default custom instructions (optional)
     allowed: [copilot]         # restrict to specific agents (optional)
     max: 1                     # max assignments (default: 1)
     target: "triggering"       # "triggering" (default), "*", or number
-    target-repo: "owner/repo"  # cross-repository
+    target-repo: "owner/repo"  # where the issue lives (cross-repository)
+    pull-request-repo: "owner/repo"      # where the PR should be created (may differ from issue repo)
+    allowed-pull-request-repos: [owner/repo1, owner/repo2]  # additional allowed PR repositories
 ```
+
+**Model Selection:**
+The `model` parameter allows you to specify which AI model the Copilot agent should use. This is configured at the workflow level in the frontmatter and applies to all agent assignments in the workflow. Available options include:
+- `auto` - Auto-select model (default, currently Claude Sonnet 4.5)
+- `claude-sonnet-4.5` - Claude Sonnet 4.5
+- `claude-opus-4.5` - Claude Opus 4.5
+- `claude-opus-4.6` - Claude Opus 4.6
+- `gpt-5.1-codex-max` - GPT-5.1 Codex Max
+- `gpt-5.2-codex` - GPT-5.2 Codex
+
+**Custom Agent Configuration:**
+For advanced use cases, you can specify custom agent IDs and instructions in the frontmatter. These apply to all agent assignments in the workflow:
+- `custom-agent` - Custom agent identifier for specialized agent configurations
+- `custom-instructions` - Instructions to guide the agent's behavior when working on the task
 
 **Behavior:**
 - `target: "triggering"` - Auto-resolves from `github.event.issue.number` or `github.event.pull_request.number`
 - `target: "*"` - Requires explicit `issue_number` or `pull_number` in agent output
 - `target: "123"` - Always uses issue/PR #123
+
+**Cross-Repository PR Creation:**
+The `pull-request-repo` parameter allows you to create pull requests in a different repository than where the issue lives. This is useful when:
+- Issues are tracked in a central repository but code lives in separate repositories
+- You want to separate issue tracking from code repositories
+
+When `pull-request-repo` is configured, Copilot will create the pull request in the specified repository instead of the issue's repository. The issue repository is determined by `target-repo` or defaults to the workflow's repository.
+
+The repository specified by `pull-request-repo` is automatically allowed - you don't need to list it in `allowed-pull-request-repos`. Use `allowed-pull-request-repos` to specify additional repositories where PRs can be created.
+
+You can also specify `pull_request_repo` on a per-assignment basis in the agent output using the `assign_to_agent` tool:
+```python
+assign_to_agent(issue_number=123, agent="copilot", pull_request_repo="owner/codebase-repo")
+```
 
 **Assignee Filtering:**
 When `allowed` list is configured, existing agent assignees not in the list are removed while regular user assignees are preserved.
@@ -1328,7 +1361,7 @@ When `allowed` list is configured, existing agent assignees not in the list are 
 > 
 > **Important**: Both methods use the **same token** (`GH_AW_AGENT_TOKEN`) and **same GraphQL API** (`replaceActorsForAssignable` mutation) to assign copilot. When you use `assignees: copilot` in create-issue, the copilot assignee is automatically filtered out and assigned in a separate post-step using the agent token and GraphQL, identical to the `assign-to-agent` safe output.
 > 
-> Both methods result in the same outcome as [manually assigning issues to Copilot through the GitHub UI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot). See [Authentication](/gh-aw/reference/auth/#gh_aw_agent_token) for token configuration details and [GitHub's official Copilot coding agent documentation](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) for more about the Copilot agent.
+> Both methods result in the same outcome as [manually assigning issues to Copilot through the GitHub UI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot). See [Authentication](/gh-aw/reference/auth/#gh_aw_agent_token) for token configuration details and [GitHub's official Copilot coding agent documentation](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) for more about the Copilot coding agent.
 
 ### Assign to User (`assign-to-user:`)
 
@@ -1425,10 +1458,16 @@ safe-outputs:
   app:
     app-id: ${{ vars.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
-    owner: "my-org"                # optional: installation owner
-    repositories: ["repo1", "repo2"] # optional: scope to repos
+    owner: "my-org"                    # optional: installation owner
+    repositories: ["repo1", "repo2"]   # optional: scope to specific repos
   create-issue:
 ```
+
+**Repository scoping options**:
+
+- `repositories: ["*"]` - Org-wide access (all repos in the installation)
+- `repositories: ["repo1", "repo2"]` - Specific repositories only
+- Omit `repositories` field - Current repository only (default)
 
 #### How GitHub App Tokens Work
 

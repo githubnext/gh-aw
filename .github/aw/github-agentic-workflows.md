@@ -736,7 +736,7 @@ The YAML frontmatter supports these fields:
         max: 10                         # Optional: max autofixes (default: 10)
     ```
     Provides automated fixes for code scanning alerts.
-  - `create-agent-session:` - Create GitHub Copilot agent sessions
+  - `create-agent-session:` - Create GitHub Copilot coding agent sessions
     ```yaml
     safe-outputs:
       create-agent-session:
@@ -744,7 +744,7 @@ The YAML frontmatter supports these fields:
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
     Requires PAT as `COPILOT_GITHUB_TOKEN`. Note: `create-agent-task` is deprecated (use `create-agent-session`).
-  - `assign-to-agent:` - Assign Copilot agents to issues
+  - `assign-to-agent:` - Assign Copilot coding agent to issues
     ```yaml
     safe-outputs:
       assign-to-agent:

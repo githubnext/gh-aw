@@ -212,6 +212,15 @@ func (p *Permissions) RenderToYAML() string {
 			if scope == PermissionIdToken && p.allLevel == PermissionRead {
 				continue
 			}
+			// Skip discussions when expanding all: read unless explicitly set
+			// This prevents issues in GitHub Enterprise where discussions might not be available
+			// Discussions permission should be added explicitly or via safe-outputs that need it
+			if scope == PermissionDiscussions && p.allLevel == PermissionRead {
+				// Only include if explicitly set in permissions map
+				if _, explicitlySet := p.permissions[PermissionDiscussions]; !explicitlySet {
+					continue
+				}
+			}
 			allPerms[scope] = p.allLevel
 		}
 	}

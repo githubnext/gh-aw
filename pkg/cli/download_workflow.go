@@ -23,7 +23,8 @@ func resolveLatestReleaseViaGit(repo, currentRef string, allowMajor, verbose boo
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching latest release for %s via git ls-remote (current: %s, allow major: %v)", repo, currentRef, allowMajor)))
 	}
 
-	repoURL := fmt.Sprintf("https://github.com/%s.git", repo)
+	githubHost := getGitHubHostForRepo(repo)
+	repoURL := fmt.Sprintf("%s/%s.git", githubHost, repo)
 
 	// List all tags
 	cmd := exec.Command("git", "ls-remote", "--tags", repoURL)
@@ -102,7 +103,8 @@ func resolveLatestReleaseViaGit(repo, currentRef string, allowMajor, verbose boo
 func isBranchRefViaGit(repo, ref string) (bool, error) {
 	downloadLog.Printf("Attempting git ls-remote to check if ref is branch: %s@%s", repo, ref)
 
-	repoURL := fmt.Sprintf("https://github.com/%s.git", repo)
+	githubHost := getGitHubHostForRepo(repo)
+	repoURL := fmt.Sprintf("%s/%s.git", githubHost, repo)
 
 	// List all branches and check if ref matches
 	cmd := exec.Command("git", "ls-remote", "--heads", repoURL)
@@ -167,7 +169,8 @@ func resolveBranchHeadViaGit(repo, branch string, verbose bool) (string, error) 
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching latest commit for branch %s in %s via git ls-remote", branch, repo)))
 	}
 
-	repoURL := fmt.Sprintf("https://github.com/%s.git", repo)
+	githubHost := getGitHubHostForRepo(repo)
+	repoURL := fmt.Sprintf("%s/%s.git", githubHost, repo)
 
 	// Get the SHA for the specific branch
 	cmd := exec.Command("git", "ls-remote", repoURL, fmt.Sprintf("refs/heads/%s", branch))
@@ -236,7 +239,8 @@ func resolveDefaultBranchHeadViaGit(repo string, verbose bool) (string, error) {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching default branch for %s via git ls-remote", repo)))
 	}
 
-	repoURL := fmt.Sprintf("https://github.com/%s.git", repo)
+	githubHost := getGitHubHostForRepo(repo)
+	repoURL := fmt.Sprintf("%s/%s.git", githubHost, repo)
 
 	// Get HEAD to find default branch
 	cmd := exec.Command("git", "ls-remote", "--symref", repoURL, "HEAD")
@@ -326,7 +330,8 @@ func downloadWorkflowContentViaGit(repo, path, ref string, verbose bool) ([]byte
 	downloadLog.Printf("Attempting git fallback for downloading workflow content: %s/%s@%s", repo, path, ref)
 
 	// Use git archive to get the file content without cloning
-	repoURL := fmt.Sprintf("https://github.com/%s.git", repo)
+	githubHost := getGitHubHostForRepo(repo)
+	repoURL := fmt.Sprintf("%s/%s.git", githubHost, repo)
 
 	// git archive command: git archive --remote=<repo> <ref> <path>
 	cmd := exec.Command("git", "archive", "--remote="+repoURL, ref, path)
@@ -366,7 +371,8 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 	}
 	defer os.RemoveAll(tmpDir)
 
-	repoURL := fmt.Sprintf("https://github.com/%s.git", repo)
+	githubHost := getGitHubHostForRepo(repo)
+	repoURL := fmt.Sprintf("%s/%s.git", githubHost, repo)
 
 	// Initialize git repository
 	initCmd := exec.Command("git", "-C", tmpDir, "init")

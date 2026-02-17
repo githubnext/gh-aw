@@ -50,3 +50,14 @@ func MoveCursorDown(n int) {
 		fmt.Fprintf(os.Stderr, "\033[%dB", n)
 	}
 }
+
+// ShowWelcomeBanner clears the screen and displays the welcome banner for interactive commands.
+// Use this at the start of interactive commands (add, trial, init) for a consistent experience.
+func ShowWelcomeBanner(description string) {
+	ClearScreen()
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "🚀 Welcome to GitHub Agentic Workflows!")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, description)
+	fmt.Fprintln(os.Stderr, "")
+}

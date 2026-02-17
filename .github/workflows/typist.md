@@ -19,7 +19,7 @@ imports:
 
 safe-outputs:
   create-discussion:
-    category: "general"
+    category: "audits"
     max: 1
     close-older-discussions: true
 
