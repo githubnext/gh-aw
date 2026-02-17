@@ -236,11 +236,6 @@ func expandLocalWildcard(spec *WorkflowSpec) ([]*WorkflowSpec, error) {
 			continue
 		}
 
-		// Skip lock files
-		if strings.HasSuffix(match, ".lock.yml") {
-			continue
-		}
-
 		// Create a new spec for each matched file
 		workflowName := normalizeWorkflowID(match)
 		result = append(result, &WorkflowSpec{
