@@ -1,8 +1,27 @@
 // @ts-check
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 const path = require("path");
 const fs = require("fs");
 const { computeFrontmatterHash, createGitHubFileReader } = require("./frontmatter_hash_pure.cjs");
+const { withRetry, isTransientError } = require("./error_recovery.cjs");
+
+// Retry configuration for live API tests
+const LIVE_API_RETRY_CONFIG = {
+  maxRetries: 3,
+  initialDelayMs: 1000,
+  shouldRetry: isTransientError,
+};
+
+/**
+ * Wraps a file reader function with retry logic for transient GitHub API errors
+ * @param {Function} fileReader - The original file reader function
+ * @returns {Function} File reader with retry logic
+ */
+function createRetryableFileReader(fileReader) {
+  return async function (filePath) {
+    return withRetry(async () => fileReader(filePath), LIVE_API_RETRY_CONFIG, `fetch file ${filePath}`);
+  };
+}
 
 /**
  * Tests for frontmatter hash computation using GitHub's API to fetch real workflows.
@@ -13,6 +32,14 @@ describe("frontmatter_hash with GitHub API", () => {
   let mockGitHub;
 
   beforeAll(() => {
+    // Mock @actions/core for retry logging in test environment
+    global.core = {
+      info: vi.fn((...args) => console.log(...args)),
+      warning: vi.fn((...args) => console.warn(...args)),
+      error: vi.fn((...args) => console.error(...args)),
+      debug: vi.fn((...args) => console.log(...args)),
+    };
+
     // Create a mock GitHub API client for testing
     // In real scenarios, this would be replaced with @actions/github
     mockGitHub = {
@@ -163,19 +190,30 @@ describe("frontmatter_hash with GitHub API", () => {
       // Compute hash using JavaScript implementation with default file reader
       const jsHash = await computeFrontmatterHash(workflowPath);
 
-      // This hash was computed by the Go implementation:
-      // go test -run TestHashWithRealWorkflow ./pkg/parser/
-      // Output: "Hash for audit-workflows.md: bb5cbd9552401591e9476ae803f1736a88dca3f654f725dadffa5a7dbc31d639"
-      // Note: Hash changed when imports were migrated to use runtime-import macros
-      const goHash = "bb5cbd9552401591e9476ae803f1736a88dca3f654f725dadffa5a7dbc31d639";
+      // Dynamically compute the hash using Go implementation to avoid hardcoded values
+      // that become invalid when workflow files change
+      const { execSync } = await import("child_process");
+      const goTestOutput = execSync("go test -v -run TestHashWithRealWorkflow ./pkg/parser/", {
+        cwd: repoRoot,
+        encoding: "utf8",
+      });
+
+      // Extract hash from Go test output
+      // Expected format: "frontmatter_hash_cross_language_test.go:126: Hash for audit-workflows.md: <hash>"
+      const hashMatch = goTestOutput.match(/Hash for audit-workflows\.md:\s+([a-f0-9]{64})/);
+      if (!hashMatch) {
+        throw new Error(`Failed to extract hash from Go test output. Output:\n${goTestOutput}`);
+      }
+      const goHash = hashMatch[1];
 
       // Verify JavaScript hash matches Go hash
       expect(jsHash).toBe(goHash);
 
       // Log the hash for reference
       console.log(`JavaScript hash for audit-workflows.md: ${jsHash}`);
-      console.log(`Go hash matches: ${jsHash === goHash}`);
-    });
+      console.log(`Go hash for audit-workflows.md: ${goHash}`);
+      console.log(`Hashes match: ${jsHash === goHash}`);
+    }, 60000); // 60 second timeout to allow for Go dependency downloads
 
     it("should produce deterministic hashes across multiple calls", async () => {
       const owner = "github";
@@ -354,7 +392,10 @@ describe("frontmatter_hash with GitHub API", () => {
       const ref = "main";
 
       // Create file reader with real GitHub API
-      const fileReader = createGitHubFileReader(octokit, owner, repo, ref);
+      const baseFileReader = createGitHubFileReader(octokit, owner, repo, ref);
+
+      // Wrap with retry logic to handle transient GitHub API errors
+      const fileReader = createRetryableFileReader(baseFileReader);
 
       // Test with a real public agentic workflow
       const workflowPath = ".github/workflows/audit-workflows.md";

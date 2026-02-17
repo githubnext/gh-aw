@@ -35,15 +35,18 @@ func (c *Compiler) isActivationJobNeeded() bool {
 // Returns true if the condition contains "needs.<customJobName>." patterns, which includes
 // both outputs (needs.job.outputs.*) and results (needs.job.result).
 func (c *Compiler) referencesCustomJobOutputs(condition string, customJobs map[string]any) bool {
+	compilerJobsLog.Printf("Checking if condition references custom job outputs: custom_job_count=%d", len(customJobs))
 	if condition == "" || customJobs == nil {
 		return false
 	}
 	for jobName := range customJobs {
 		// Check for patterns like "needs.ast_grep.outputs" or "needs.ast_grep.result"
 		if strings.Contains(condition, fmt.Sprintf("needs.%s.", jobName)) {
+			compilerJobsLog.Printf("Found reference to custom job %s in condition", jobName)
 			return true
 		}
 	}
+	compilerJobsLog.Print("No custom job references found in condition")
 	return false
 }
 
@@ -86,12 +89,15 @@ func jobDependsOnAgent(jobConfig map[string]any) bool {
 // getCustomJobsDependingOnPreActivation returns custom job names that explicitly depend on pre_activation.
 // These jobs run after pre_activation but before activation, and activation should depend on them.
 func (c *Compiler) getCustomJobsDependingOnPreActivation(customJobs map[string]any) []string {
-	return sliceutil.FilterMapKeys(customJobs, func(jobName string, jobConfig any) bool {
+	compilerJobsLog.Printf("Finding custom jobs depending on pre_activation: total_custom_jobs=%d", len(customJobs))
+	deps := sliceutil.FilterMapKeys(customJobs, func(jobName string, jobConfig any) bool {
 		if configMap, ok := jobConfig.(map[string]any); ok {
 			return jobDependsOnPreActivation(configMap)
 		}
 		return false
 	})
+	compilerJobsLog.Printf("Found %d custom jobs depending on pre_activation: %v", len(deps), deps)
+	return deps
 }
 
 // getReferencedCustomJobs returns custom job names that are referenced in the given content.
@@ -100,13 +106,18 @@ func (c *Compiler) getReferencedCustomJobs(content string, customJobs map[string
 	if content == "" || customJobs == nil {
 		return nil
 	}
+	compilerJobsLog.Printf("Searching for custom job references in content: content_length=%d, custom_job_count=%d", len(content), len(customJobs))
 	// Check for patterns like "needs.job_name." which covers:
 	// - needs.job_name.outputs.X
 	// - ${{ needs.job_name.outputs.X }}
 	// - needs.job_name.result
-	return sliceutil.FilterMapKeys(customJobs, func(jobName string, _ any) bool {
+	refs := sliceutil.FilterMapKeys(customJobs, func(jobName string, _ any) bool {
 		return strings.Contains(content, fmt.Sprintf("needs.%s.", jobName))
 	})
+	if len(refs) > 0 {
+		compilerJobsLog.Printf("Found %d custom job references: %v", len(refs), refs)
+	}
+	return refs
 }
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager.
@@ -166,11 +177,14 @@ func (c *Compiler) buildPreActivationAndActivationJobs(data *WorkflowData, front
 	hasStopTime := data.StopTime != ""
 	hasSkipIfMatch := data.SkipIfMatch != nil
 	hasSkipIfNoMatch := data.SkipIfNoMatch != nil
+	hasSkipRoles := len(data.SkipRoles) > 0
+	hasSkipBots := len(data.SkipBots) > 0
 	hasCommandTrigger := len(data.Command) > 0
-	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasSkipIfMatch=%v, hasSkipIfNoMatch=%v, hasCommand=%v", needsPermissionCheck, hasStopTime, hasSkipIfMatch, hasSkipIfNoMatch, hasCommandTrigger)
+	hasRateLimit := data.RateLimit != nil
+	compilerJobsLog.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasSkipIfMatch=%v, hasSkipIfNoMatch=%v, hasSkipRoles=%v, hasSkipBots=%v, hasCommand=%v, hasRateLimit=%v", needsPermissionCheck, hasStopTime, hasSkipIfMatch, hasSkipIfNoMatch, hasSkipRoles, hasSkipBots, hasCommandTrigger, hasRateLimit)
 
-	// Build pre-activation job if needed (combines membership checks, stop-time validation, skip-if-match check, skip-if-no-match check, and command position check)
-	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasSkipIfNoMatch || hasCommandTrigger {
+	// Build pre-activation job if needed (combines membership checks, stop-time validation, skip-if-match check, skip-if-no-match check, skip-roles check, skip-bots check, rate limit check, and command position check)
+	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasSkipIfNoMatch || hasSkipRoles || hasSkipBots || hasCommandTrigger || hasRateLimit {
 		compilerJobsLog.Print("Building pre-activation job")
 		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
 		if err != nil {
@@ -490,39 +504,21 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 }
 
 // shouldAddCheckoutStep returns true if the workflow requires a checkout step.
-// A checkout is needed when the workflow uses custom agent files, accesses local
-// actions in dev/script mode, or needs to reference .github directory content.
+// The repository checkout is needed in the agent job to access workflow files,
+// custom agent files, and other repository content.
 //
-// The checkout step is skipped in the following cases:
+// The checkout step is only skipped when:
 //   - Custom steps already contain a checkout action
-//   - Workflow is in release mode without a custom agent file
 //
-// The checkout step is always added when:
-//   - A custom agent file is specified (via imports)
-//   - Running in dev or script mode (requires .github and .actions access)
-//   - Action mode is uninitialized (defaults to requiring checkout)
+// Otherwise, checkout is always added to ensure the agent has access to the repository.
 func (c *Compiler) shouldAddCheckoutStep(data *WorkflowData) bool {
-	// Check condition 1: If custom steps already contain checkout, don't add another one
+	// If custom steps already contain checkout, don't add another one
 	if data.CustomSteps != "" && ContainsCheckout(data.CustomSteps) {
 		log.Print("Skipping checkout step: custom steps already contain checkout")
-		return false // Custom steps already have checkout
-	}
-
-	// Check condition 2: If custom agent file is specified (via imports), checkout is required
-	if data.AgentFile != "" {
-		log.Printf("Adding checkout step: custom agent file specified: %s", data.AgentFile)
-		return true // Custom agent file requires checkout to access the file
-	}
-
-	// Check condition 3: Only skip checkout in explicit release mode without agent file
-	// Dev mode, script mode, and uninitialized mode all need checkout for .github and .actions access
-	if c.actionMode.IsRelease() {
-		// In release mode without agent file, checkout is not needed
-		log.Print("Skipping checkout step: release mode without agent file")
 		return false
 	}
 
-	// Default: add checkout for dev/script mode and uninitialized mode
-	log.Printf("Adding checkout step: %s mode requires .github and .actions access", c.actionMode)
+	// Always add checkout to ensure agent has repository access
+	log.Print("Adding checkout step: agent job requires repository access")
 	return true
 }

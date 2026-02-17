@@ -23,10 +23,15 @@ GitHub Agentic Workflows supports human-friendly schedule expressions that are a
 | Pattern | Example | Result | Type |
 |---------|---------|--------|------|
 | **Daily** | `daily` | Scattered time | Fuzzy |
+| | `daily on weekdays` | Mon-Fri, scattered time | Fuzzy |
 | | `daily around 14:00` | 13:00-15:00 window | Fuzzy |
+| | `daily around 9am on weekdays` | Mon-Fri 8am-10am | Fuzzy |
 | | `daily between 9:00 and 17:00` | 9am-5pm window | Fuzzy |
+| | `daily between 9:00 and 17:00 on weekdays` | Mon-Fri 9am-5pm | Fuzzy |
 | **Hourly** | `hourly` | Scattered minute | Fuzzy |
+| | `hourly on weekdays` | Mon-Fri, scattered minute | Fuzzy |
 | | `every 2h` | Every 2 hours | Fuzzy |
+| | `every 2h on weekdays` | Mon-Fri every 2 hours | Fuzzy |
 | **Weekly** | `weekly` | Scattered day/time | Fuzzy |
 | | `weekly on monday` | Monday, scattered time | Fuzzy |
 | | `weekly on friday around 5pm` | Friday 4pm-6pm | Fuzzy |
@@ -47,20 +52,24 @@ Run once per day at a scattered time:
 ```yaml
 on:
   schedule: daily
+  schedule: daily on weekdays  # Monday-Friday only
 ```
 
-Each workflow gets a unique time like `43 5 * * *` (5:43 AM).
+Each workflow gets a unique time like `43 5 * * *` (5:43 AM) or `43 5 * * 1-5` (5:43 AM, Mon-Fri).
 
 ### Daily with Time Constraints
 
-Use `around` for a ±1 hour window or `between` for custom ranges:
+Use `around` for a ±1 hour window or `between` for custom ranges. Add `on weekdays` to restrict to Monday-Friday:
 
 ```yaml
 on:
   schedule: daily around 14:00     # 13:00-15:00
   schedule: daily around 3pm       # 2pm-4pm
   schedule: daily around noon      # 11am-1pm
+  schedule: daily around 9am on weekdays       # Mon-Fri 8am-10am
+  schedule: daily around 14:00 on weekdays     # Mon-Fri 13:00-15:00
   schedule: daily between 9:00 and 17:00    # Business hours (9am-5pm)
+  schedule: daily between 9:00 and 17:00 on weekdays   # Mon-Fri 9am-5pm
   schedule: daily between 22:00 and 02:00   # Crossing midnight (10pm-2am)
 ```
 
@@ -71,19 +80,27 @@ Special time keywords: `midnight` (00:00), `noon` (12:00)
 ```yaml
 on:
   schedule: hourly    # Runs every hour with scattered minute (e.g., 58 */1 * * *)
+  schedule: hourly on weekdays  # Mon-Fri only (e.g., 58 */1 * * 1-5)
 ```
 
 Each workflow gets a consistent minute offset (0-59) to prevent simultaneous execution.
 
 ### Interval Schedules
 
+Add `on weekdays` to restrict interval schedules to Monday-Friday:
+
 ```yaml
 on:
   schedule: every 2h    # Every 2 hours at scattered minute (e.g., 53 */2 * * *)
+  schedule: every 2h on weekdays  # Mon-Fri every 2 hours (e.g., 53 */2 * * 1-5)
   schedule: every 6h    # Every 6 hours at scattered minute (e.g., 12 */6 * * *)
+  schedule: every 6h on weekdays  # Mon-Fri every 6 hours
 ```
 
 Supported intervals: `1h`, `2h`, `3h`, `4h`, `6h`, `8h`, `12h`
+
+> [!NOTE]
+> Minute intervals (e.g., `every 10 minutes`) do not support `on weekdays` suffix as they would run continuously during the specified days.
 
 ### Weekly Schedules
 
@@ -236,10 +253,13 @@ on:
 **Recommended:** Use fuzzy schedules to prevent load spikes
 ```yaml
 on: daily                                   # ✅ Scattered time
+on: daily on weekdays                       # ✅ Mon-Fri scattered time
 on: daily between 9:00 and 17:00            # ✅ Business hours
-on: daily between 9am utc-5 and 5pm utc-5   # ✅ Regional times
+on: daily between 9am and 5pm on weekdays   # ✅ Mon-Fri business hours
+on: daily between 9am utc-5 and 5pm utc-5 on weekdays   # ✅ Regional weekday times
 on: weekly on monday                        # ✅ Scattered time
 on: every 2h                                # ✅ Scattered minute
+on: every 2h on weekdays                    # ✅ Mon-Fri scattered minute
 ```
 
 **Avoid:** Fixed times that create load spikes

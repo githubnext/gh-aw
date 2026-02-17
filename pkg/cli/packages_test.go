@@ -118,7 +118,7 @@ on: push
 			// Collect includes
 			var dependencies []IncludeDependency
 			seen := make(map[string]bool)
-			err := collectPackageIncludesRecursive(tt.content, tmpDir, &dependencies, seen, false)
+			err := collectLocalIncludeDependenciesRecursive(tt.content, tmpDir, &dependencies, seen, false)
 
 			// Check error expectation
 			if tt.expectedError && err == nil {
@@ -167,7 +167,7 @@ func TestCollectPackageIncludesRecursive_CircularReference(t *testing.T) {
 	// Collect includes starting from a.md
 	var dependencies []IncludeDependency
 	seen := make(map[string]bool)
-	err := collectPackageIncludesRecursive(aContent, tmpDir, &dependencies, seen, false)
+	err := collectLocalIncludeDependenciesRecursive(aContent, tmpDir, &dependencies, seen, false)
 
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)

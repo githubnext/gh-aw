@@ -7,7 +7,6 @@
 //   - copilot_engine_tools.go: Tool permissions, arguments, and error patterns
 //   - copilot_logs.go: Log parsing, metrics extraction, and log management
 //   - copilot_mcp.go: MCP server configuration rendering
-//   - copilot_srt.go: Sandbox Runtime (SRT) integration
 //   - copilot_participant_steps.go: Copilot CLI participant steps
 //
 // This modular organization improves maintainability and makes it easier
@@ -40,12 +39,12 @@ func NewCopilotEngine() *CopilotEngine {
 			description:            "Uses GitHub Copilot CLI with MCP server support",
 			experimental:           false,
 			supportsToolsAllowlist: true,
-			supportsHTTPTransport:  true,  // Copilot CLI supports HTTP transport via MCP
 			supportsMaxTurns:       false, // Copilot CLI does not support max-turns feature yet
 			supportsWebFetch:       true,  // Copilot CLI has built-in web-fetch support
 			supportsWebSearch:      false, // Copilot CLI does not have built-in web-search support
 			supportsFirewall:       true,  // Copilot supports network firewalling via AWF
 			supportsPlugins:        true,  // Copilot supports plugin installation
+			supportsLLMGateway:     false, // Copilot does not support LLM gateway
 		},
 	}
 }

@@ -9,12 +9,22 @@
 const HANDLER_TYPE = "create_discussion";
 
 const { getTrackerID } = require("./get_tracker_id.cjs");
-const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
+const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
+const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, getOrGenerateTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
+const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
+const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
+
+/**
+ * Maximum limits for discussion parameters to prevent resource exhaustion.
+ * These limits align with GitHub's API constraints and security best practices.
+ */
+/** @type {number} Maximum number of labels allowed per discussion */
+const MAX_LABELS = 10;
 
 /**
  * Fetch repository ID and discussion categories for a repository
@@ -63,25 +73,42 @@ function resolveCategoryId(categoryConfig, itemCategory, categories) {
   const categoryToMatch = itemCategory || categoryConfig;
 
   if (categoryToMatch) {
-    // Try to match against category IDs first
+    // Try to match against category IDs first (exact match, case-sensitive)
     const categoryById = categories.find(cat => cat.id === categoryToMatch);
     if (categoryById) {
       return { id: categoryById.id, matchType: "id", name: categoryById.name };
     }
-    // Try to match against category names
-    const categoryByName = categories.find(cat => cat.name === categoryToMatch);
+
+    // Normalize the category to match for case-insensitive comparison
+    const normalizedCategoryToMatch = categoryToMatch.toLowerCase();
+
+    // Try to match against category names (case-insensitive)
+    const categoryByName = categories.find(cat => cat.name.toLowerCase() === normalizedCategoryToMatch);
     if (categoryByName) {
       return { id: categoryByName.id, matchType: "name", name: categoryByName.name };
     }
-    // Try to match against category slugs (routes)
-    const categoryBySlug = categories.find(cat => cat.slug === categoryToMatch);
+    // Try to match against category slugs (routes, case-insensitive)
+    const categoryBySlug = categories.find(cat => cat.slug.toLowerCase() === normalizedCategoryToMatch);
     if (categoryBySlug) {
       return { id: categoryBySlug.id, matchType: "slug", name: categoryBySlug.name };
     }
   }
 
-  // Fall back to first category if available
+  // Fall back to announcement-capable category if available, otherwise first category
   if (categories.length > 0) {
+    // Try to find an "Announcements" category (case-insensitive)
+    const announcementCategory = categories.find(cat => cat.name.toLowerCase() === "announcements" || cat.slug.toLowerCase() === "announcements");
+
+    if (announcementCategory) {
+      return {
+        id: announcementCategory.id,
+        matchType: "fallback-announcement",
+        name: announcementCategory.name,
+        requestedCategory: categoryToMatch,
+      };
+    }
+
+    // Otherwise use first category
     return {
       id: categories[0].id,
       matchType: "fallback",
@@ -91,6 +118,113 @@ function resolveCategoryId(categoryConfig, itemCategory, categories) {
   }
 
   return undefined;
+}
+
+/**
+ * Fetches label node IDs for the given label names
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {string[]} labelNames - Array of label names to fetch IDs for
+ * @returns {Promise<Array<{name: string, id: string}>>} Array of label objects with name and ID
+ */
+async function fetchLabelIds(owner, repo, labelNames) {
+  if (!labelNames || labelNames.length === 0) {
+    return [];
+  }
+
+  try {
+    // Fetch first 100 labels from the repository
+    const labelsQuery = `
+      query($owner: String!, $repo: String!) {
+        repository(owner: $owner, name: $repo) {
+          labels(first: 100) {
+            nodes {
+              id
+              name
+            }
+          }
+        }
+      }
+    `;
+
+    const queryResult = await github.graphql(labelsQuery, {
+      owner: owner,
+      repo: repo,
+    });
+
+    const repoLabels = queryResult?.repository?.labels?.nodes || [];
+    const labelMap = new Map(repoLabels.map(label => [label.name.toLowerCase(), label]));
+
+    // Match requested labels (case-insensitive)
+    const matchedLabels = [];
+    const unmatchedLabels = [];
+
+    for (const requestedLabel of labelNames) {
+      const normalizedName = requestedLabel.toLowerCase();
+      const matchedLabel = labelMap.get(normalizedName);
+      if (matchedLabel) {
+        matchedLabels.push({ name: matchedLabel.name, id: matchedLabel.id });
+      } else {
+        unmatchedLabels.push(requestedLabel);
+      }
+    }
+
+    if (unmatchedLabels.length > 0) {
+      core.warning(`Could not find label IDs for: ${unmatchedLabels.join(", ")}`);
+      core.info(`These labels may not exist in the repository. Available labels: ${repoLabels.map(l => l.name).join(", ")}`);
+    }
+
+    return matchedLabels;
+  } catch (error) {
+    core.warning(`Failed to fetch label IDs: ${getErrorMessage(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Applies labels to a discussion using GraphQL
+ * @param {string} discussionId - Discussion node ID
+ * @param {string[]} labelIds - Array of label node IDs to add
+ * @returns {Promise<boolean>} True if labels were applied successfully
+ */
+async function applyLabelsToDiscussion(discussionId, labelIds) {
+  if (!labelIds || labelIds.length === 0) {
+    return true; // Nothing to do
+  }
+
+  try {
+    const addLabelsMutation = `
+      mutation($labelableId: ID!, $labelIds: [ID!]!) {
+        addLabelsToLabelable(input: {
+          labelableId: $labelableId,
+          labelIds: $labelIds
+        }) {
+          labelable {
+            ... on Discussion {
+              id
+              labels(first: 10) {
+                nodes {
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const mutationResult = await github.graphql(addLabelsMutation, {
+      labelableId: discussionId,
+      labelIds: labelIds,
+    });
+
+    const appliedLabels = mutationResult?.addLabelsToLabelable?.labelable?.labels?.nodes || [];
+    core.info(`Successfully applied ${appliedLabels.length} labels to discussion`);
+    return true;
+  } catch (error) {
+    core.warning(`Failed to apply labels to discussion: ${getErrorMessage(error)}`);
+    return false;
+  }
 }
 
 /**
@@ -122,7 +256,7 @@ function isPermissionsError(errorMessage) {
 async function handleFallbackToIssue(createIssueHandler, item, qualifiedItemRepo, resolvedTemporaryIds, contextMessage) {
   try {
     // Prepare issue message with a note about the fallback
-    const fallbackNote = `\n\n---\n\n> **Note:** This was intended to be a discussion, but discussions could not be created due to permissions issues. This issue was created as a fallback.\n`;
+    const fallbackNote = `\n\n---\n\n> **Note:** This was intended to be a discussion, but discussions could not be created due to permissions issues. This issue was created as a fallback.\n>\n> **Tip:** Discussion creation may fail if the specified category is not announcement-capable. Consider using the "Announcements" category or another announcement-capable category in your workflow configuration.\n`;
     const issueMessage = {
       ...item,
       body: (item.body || "") + fallbackNote,
@@ -173,6 +307,10 @@ async function main(config = {}) {
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const fallbackToIssue = config.fallback_to_issue !== false; // Default to true
   const closeOlderDiscussions = config.close_older_discussions === true || config.close_older_discussions === "true";
+  const includeFooter = config.footer !== false; // Default to true (include footer)
+
+  // Check if we're in staged mode
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   // Parse labels from config
   const labelsConfig = config.labels || [];
@@ -330,6 +468,36 @@ async function main(config = {}) {
     const categoryId = resolvedCategory.id;
     core.info(`Using category: ${resolvedCategory.name} (${resolvedCategory.matchType})`);
 
+    // Get or generate the temporary ID for this discussion
+    const tempIdResult = getOrGenerateTemporaryId(message, "discussion");
+    if (tempIdResult.error) {
+      core.warning(`Skipping discussion: ${tempIdResult.error}`);
+      return {
+        success: false,
+        error: tempIdResult.error,
+      };
+    }
+    // At this point, temporaryId is guaranteed to be a string (not null)
+    const temporaryId = /** @type {string} */ tempIdResult.temporaryId;
+    core.info(`Processing create_discussion: title=${message.title}, bodyLength=${message.body?.length ?? 0}, temporaryId=${temporaryId}, repo=${qualifiedItemRepo}`);
+
+    // Build labels array (merge config labels with item-specific labels)
+    const discussionLabels = [...labels, ...(Array.isArray(item.labels) ? item.labels : [])]
+      .filter(Boolean)
+      .map(label => String(label).trim())
+      .filter(Boolean)
+      .map(label => sanitizeLabelContent(label))
+      .filter(Boolean)
+      .map(label => (label.length > 64 ? label.substring(0, 64) : label))
+      .filter((label, index, arr) => arr.indexOf(label) === index);
+
+    // Enforce max limits on labels before API calls
+    const limitResult = tryEnforceArrayLimit(discussionLabels, MAX_LABELS, "labels");
+    if (!limitResult.success) {
+      core.warning(`Discussion limit exceeded: ${limitResult.error}`);
+      return { success: false, error: limitResult.error };
+    }
+
     // Build title
     let title = item.title ? item.title.trim() : "";
     let processedBody = replaceTemporaryIdReferences(item.body || "", temporaryIdMap, qualifiedItemRepo);
@@ -339,9 +507,11 @@ async function main(config = {}) {
       title = item.body || "Discussion";
     }
 
-    if (titlePrefix && !title.startsWith(titlePrefix)) {
-      title = titlePrefix + title;
-    }
+    // Sanitize title for Unicode security and remove any duplicate prefixes
+    title = sanitizeTitle(title, titlePrefix);
+
+    // Apply title prefix (only if it doesn't already exist)
+    title = applyTitlePrefix(title, titlePrefix);
 
     // Build body
     let bodyLines = processedBody.split("\n");
@@ -359,15 +529,18 @@ async function main(config = {}) {
     const runUrl = context.payload.repository ? `${context.payload.repository.html_url}/actions/runs/${runId}` : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
     // Generate footer with expiration using helper
-    const footer = generateFooterWithExpiration({
-      footerText: `> AI generated by [${workflowName}](${runUrl})`,
-      expiresHours,
-      entityType: "Discussion",
-    });
-
-    bodyLines.push(``, ``, footer);
+    // When footer is disabled, only add XML markers (no visible footer content)
+    if (includeFooter) {
+      const footer = generateFooterWithExpiration({
+        footerText: `> AI generated by [${workflowName}](${runUrl})`,
+        expiresHours,
+        entityType: "Discussion",
+      });
+      bodyLines.push(``, ``, footer);
+    }
 
     // Add standalone workflow-id marker for searchability (consistent with comments)
+    // Always add XML markers even when footer is disabled
     if (workflowId) {
       bodyLines.push(``, generateWorkflowIdMarker(workflowId));
     }
@@ -376,6 +549,21 @@ async function main(config = {}) {
     const body = bodyLines.join("\n").trim();
 
     core.info(`Creating discussion in ${qualifiedItemRepo} with title: ${title}`);
+
+    // If in staged mode, preview the discussion without creating it
+    if (isStaged) {
+      core.info(`Staged mode: Would create discussion in ${qualifiedItemRepo}`);
+      return {
+        success: true,
+        staged: true,
+        previewInfo: {
+          repo: qualifiedItemRepo,
+          title,
+          bodyLength: body.length,
+          temporaryId,
+        },
+      };
+    }
 
     try {
       const createDiscussionMutation = `
@@ -414,6 +602,21 @@ async function main(config = {}) {
       }
 
       core.info(`Created discussion ${qualifiedItemRepo}#${discussion.number}: ${discussion.url}`);
+
+      // Apply labels if configured
+      if (discussionLabels.length > 0) {
+        core.info(`Applying ${discussionLabels.length} labels to discussion: ${discussionLabels.join(", ")}`);
+        const labelIdsData = await fetchLabelIds(repoParts.owner, repoParts.repo, discussionLabels);
+        if (labelIdsData.length > 0) {
+          const labelIds = labelIdsData.map(l => l.id);
+          const labelsApplied = await applyLabelsToDiscussion(discussion.id, labelIds);
+          if (labelsApplied) {
+            core.info(`✓ Applied labels: ${labelIdsData.map(l => l.name).join(", ")}`);
+          }
+        } else if (discussionLabels.length > 0) {
+          core.warning(`⚠ No matching labels found in repository for: ${discussionLabels.join(", ")}`);
+        }
+      }
 
       return {
         success: true,

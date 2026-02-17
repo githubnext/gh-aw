@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"sort"
 	"strings"
 
@@ -15,30 +16,33 @@ var importLog = logger.New("parser:import_processor")
 
 // ImportsResult holds the result of processing imports from frontmatter
 type ImportsResult struct {
-	MergedTools         string   // Merged tools configuration from all imports
-	MergedMCPServers    string   // Merged mcp-servers configuration from all imports
-	MergedEngines       []string // Merged engine configurations from all imports
-	MergedSafeOutputs   []string // Merged safe-outputs configurations from all imports
-	MergedSafeInputs    []string // Merged safe-inputs configurations from all imports
-	MergedMarkdown      string   // Only contains imports WITH inputs (for compile-time substitution)
-	ImportPaths         []string // List of import file paths for runtime-import macro generation (replaces MergedMarkdown)
-	MergedSteps         string   // Merged steps configuration from all imports (excluding copilot-setup-steps)
-	CopilotSetupSteps   string   // Steps from copilot-setup-steps.yml (inserted at start)
-	MergedRuntimes      string   // Merged runtimes configuration from all imports
-	MergedServices      string   // Merged services configuration from all imports
-	MergedNetwork       string   // Merged network configuration from all imports
-	MergedPermissions   string   // Merged permissions configuration from all imports
-	MergedSecretMasking string   // Merged secret-masking steps from all imports
-	MergedBots          []string // Merged bots list from all imports (union of bot names)
-	MergedPlugins       []string // Merged plugins list from all imports (union of plugin repos)
-	MergedPostSteps     string   // Merged post-steps configuration from all imports (appended in order)
-	MergedLabels        []string // Merged labels from all imports (union of label names)
-	MergedCaches        []string // Merged cache configurations from all imports (appended in order)
-	MergedJobs          string   // Merged jobs from imported YAML workflows (JSON format)
-	ImportedFiles       []string // List of imported file paths (for manifest)
-	AgentFile           string   // Path to custom agent file (if imported)
-	AgentImportSpec     string   // Original import specification for agent file (e.g., "owner/repo/path@ref")
-	RepositoryImports   []string // List of repository imports (format: "owner/repo@ref") for .github folder merging
+	MergedTools         string           // Merged tools configuration from all imports
+	MergedMCPServers    string           // Merged mcp-servers configuration from all imports
+	MergedEngines       []string         // Merged engine configurations from all imports
+	MergedSafeOutputs   []string         // Merged safe-outputs configurations from all imports
+	MergedSafeInputs    []string         // Merged safe-inputs configurations from all imports
+	MergedMarkdown      string           // Only contains imports WITH inputs (for compile-time substitution)
+	ImportPaths         []string         // List of import file paths for runtime-import macro generation (replaces MergedMarkdown)
+	MergedSteps         string           // Merged steps configuration from all imports (excluding copilot-setup-steps)
+	CopilotSetupSteps   string           // Steps from copilot-setup-steps.yml (inserted at start)
+	MergedRuntimes      string           // Merged runtimes configuration from all imports
+	MergedServices      string           // Merged services configuration from all imports
+	MergedNetwork       string           // Merged network configuration from all imports
+	MergedPermissions   string           // Merged permissions configuration from all imports
+	MergedSecretMasking string           // Merged secret-masking steps from all imports
+	MergedBots          []string         // Merged bots list from all imports (union of bot names)
+	MergedPlugins       []string         // Merged plugins list from all imports (union of plugin repos)
+	MergedSkipRoles     []string         // Merged skip-roles list from all imports (union of role names)
+	MergedSkipBots      []string         // Merged skip-bots list from all imports (union of usernames)
+	MergedPostSteps     string           // Merged post-steps configuration from all imports (appended in order)
+	MergedLabels        []string         // Merged labels from all imports (union of label names)
+	MergedCaches        []string         // Merged cache configurations from all imports (appended in order)
+	MergedJobs          string           // Merged jobs from imported YAML workflows (JSON format)
+	MergedFeatures      []map[string]any // Merged features configuration from all imports (parsed YAML structures)
+	ImportedFiles       []string         // List of imported file paths (for manifest)
+	AgentFile           string           // Path to custom agent file (if imported)
+	AgentImportSpec     string           // Original import specification for agent file (e.g., "owner/repo/path@ref")
+	RepositoryImports   []string         // List of repository imports (format: "owner/repo@ref") for .github folder merging
 	// ImportInputs uses map[string]any because input values can be different types (string, number, boolean).
 	// This is parsed from YAML frontmatter where the structure is dynamic and not known at compile time.
 	// This is an appropriate use of 'any' for dynamic YAML/JSON data.
@@ -82,13 +86,54 @@ func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (
 	return result.MergedTools, result.MergedEngines, nil
 }
 
+// remoteImportOrigin tracks the remote repository context for an imported file.
+// When a file is fetched from a remote GitHub repository via workflowspec,
+// its nested relative imports must be resolved against the same remote repo.
+type remoteImportOrigin struct {
+	Owner string // Repository owner (e.g., "elastic")
+	Repo  string // Repository name (e.g., "ai-github-actions")
+	Ref   string // Git ref - branch, tag, or SHA (e.g., "main", "v1.0.0", "abc123...")
+}
+
 // importQueueItem represents a file to be imported with its context
 type importQueueItem struct {
-	importPath  string         // Original import path (e.g., "file.md" or "file.md#Section")
-	fullPath    string         // Resolved absolute file path
-	sectionName string         // Optional section name (from file.md#Section syntax)
-	baseDir     string         // Base directory for resolving nested imports
-	inputs      map[string]any // Optional input values from parent import
+	importPath   string              // Original import path (e.g., "file.md" or "file.md#Section")
+	fullPath     string              // Resolved absolute file path
+	sectionName  string              // Optional section name (from file.md#Section syntax)
+	baseDir      string              // Base directory for resolving nested imports
+	inputs       map[string]any      // Optional input values from parent import
+	remoteOrigin *remoteImportOrigin // Remote origin context (non-nil when imported from a remote repo)
+}
+
+// parseRemoteOrigin extracts the remote origin (owner, repo, ref) from a workflowspec path.
+// Returns nil if the path is not a valid workflowspec.
+// Format: owner/repo/path[@ref] where ref defaults to "main" if not specified.
+func parseRemoteOrigin(spec string) *remoteImportOrigin {
+	// Remove section reference if present
+	cleanSpec := spec
+	if idx := strings.Index(spec, "#"); idx != -1 {
+		cleanSpec = spec[:idx]
+	}
+
+	// Split on @ to get path and ref
+	parts := strings.SplitN(cleanSpec, "@", 2)
+	pathPart := parts[0]
+	ref := "main"
+	if len(parts) == 2 {
+		ref = parts[1]
+	}
+
+	// Parse path: owner/repo/path/to/file.md
+	slashParts := strings.Split(pathPart, "/")
+	if len(slashParts) < 3 {
+		return nil
+	}
+
+	return &remoteImportOrigin{
+		Owner: slashParts[0],
+		Repo:  slashParts[1],
+		Ref:   ref,
+	}
 }
 
 // ProcessImportsFromFrontmatterWithManifest processes imports field from frontmatter
@@ -181,18 +226,23 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	var engines []string
 	var safeOutputs []string
 	var safeInputs []string
-	var bots []string                    // Track unique bot names
-	botsSet := make(map[string]bool)     // Set for deduplicating bots
-	var plugins []string                 // Track unique plugin repos
-	pluginsSet := make(map[string]bool)  // Set for deduplicating plugins
-	var labels []string                  // Track unique labels
-	labelsSet := make(map[string]bool)   // Set for deduplicating labels
-	var caches []string                  // Track cache configurations (appended in order)
-	var jobsBuilder strings.Builder      // Track jobs from imported YAML workflows
-	var agentFile string                 // Track custom agent file
-	var agentImportSpec string           // Track agent import specification for remote imports
-	var repositoryImports []string       // Track repository-only imports for .github folder merging
-	importInputs := make(map[string]any) // Aggregated input values from all imports
+	var bots []string                     // Track unique bot names
+	botsSet := make(map[string]bool)      // Set for deduplicating bots
+	var plugins []string                  // Track unique plugin repos
+	pluginsSet := make(map[string]bool)   // Set for deduplicating plugins
+	var labels []string                   // Track unique labels
+	labelsSet := make(map[string]bool)    // Set for deduplicating labels
+	var skipRoles []string                // Track unique skip-roles
+	skipRolesSet := make(map[string]bool) // Set for deduplicating skip-roles
+	var skipBots []string                 // Track unique skip-bots
+	skipBotsSet := make(map[string]bool)  // Set for deduplicating skip-bots
+	var caches []string                   // Track cache configurations (appended in order)
+	var jobsBuilder strings.Builder       // Track jobs from imported YAML workflows
+	var features []map[string]any         // Track features configurations from imports (parsed structures)
+	var agentFile string                  // Track custom agent file
+	var agentImportSpec string            // Track agent import specification for remote imports
+	var repositoryImports []string        // Track repository-only imports for .github folder merging
+	importInputs := make(map[string]any)  // Aggregated input values from all imports
 
 	// Seed the queue with initial imports
 	for _, importSpec := range importSpecs {
@@ -251,15 +301,26 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			return nil, fmt.Errorf("cannot import .lock.yml files: '%s'. Lock files are compiled outputs from gh-aw. Import the source .md file instead", importPath)
 		}
 
+		// Track remote origin for workflowspec imports so nested relative imports
+		// can be resolved against the same remote repository
+		var origin *remoteImportOrigin
+		if isWorkflowSpec(filePath) {
+			origin = parseRemoteOrigin(filePath)
+			if origin != nil {
+				importLog.Printf("Tracking remote origin for workflowspec: %s/%s@%s", origin.Owner, origin.Repo, origin.Ref)
+			}
+		}
+
 		// Check for duplicates before adding to queue
 		if !visited[fullPath] {
 			visited[fullPath] = true
 			queue = append(queue, importQueueItem{
-				importPath:  importPath,
-				fullPath:    fullPath,
-				sectionName: sectionName,
-				baseDir:     baseDir,
-				inputs:      importSpec.Inputs,
+				importPath:   importPath,
+				fullPath:     fullPath,
+				sectionName:  sectionName,
+				baseDir:      baseDir,
+				inputs:       importSpec.Inputs,
+				remoteOrigin: origin,
 			})
 			log.Printf("Queued import: %s (resolved to %s)", importPath, fullPath)
 		} else {
@@ -413,8 +474,8 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 				}
 
 				// Add nested imports to queue (BFS: append to end)
-				// Use the original baseDir for resolving nested imports, not the nested file's directory
-				// This ensures that all imports are resolved relative to the workflows directory
+				// For local imports: resolve relative to the workflows directory (baseDir)
+				// For remote imports: resolve relative to .github/workflows/ in the remote repo
 				for _, nestedImportPath := range nestedImports {
 					// Handle section references
 					var nestedFilePath, nestedSectionName string
@@ -426,8 +487,34 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 						nestedFilePath = nestedImportPath
 					}
 
-					// Resolve nested import path relative to the workflows directory, not the nested file's directory
-					nestedFullPath, err := ResolveIncludePath(nestedFilePath, baseDir, cache)
+					// Determine the resolution path and propagate remote origin context
+					resolvedPath := nestedFilePath
+					var nestedRemoteOrigin *remoteImportOrigin
+
+					if item.remoteOrigin != nil && !isWorkflowSpec(nestedFilePath) {
+						// Parent was fetched from a remote repo and nested path is relative.
+						// Convert to a workflowspec that resolves against the remote repo's
+						// .github/workflows/ directory (mirrors local compilation behavior).
+						cleanPath := path.Clean(strings.TrimPrefix(nestedFilePath, "./"))
+
+						// Reject paths that escape .github/workflows/ (e.g., ../../../etc/passwd)
+						if cleanPath == ".." || strings.HasPrefix(cleanPath, "../") || path.IsAbs(cleanPath) {
+							return nil, fmt.Errorf("nested import '%s' from remote file '%s' escapes .github/workflows/ base directory", nestedFilePath, item.importPath)
+						}
+
+						resolvedPath = fmt.Sprintf("%s/%s/.github/workflows/%s@%s",
+							item.remoteOrigin.Owner, item.remoteOrigin.Repo, cleanPath, item.remoteOrigin.Ref)
+						nestedRemoteOrigin = item.remoteOrigin
+						importLog.Printf("Resolving nested import as remote workflowspec: %s -> %s", nestedFilePath, resolvedPath)
+					} else if isWorkflowSpec(nestedFilePath) {
+						// Nested import is itself a workflowspec - parse its remote origin
+						nestedRemoteOrigin = parseRemoteOrigin(nestedFilePath)
+						if nestedRemoteOrigin != nil {
+							importLog.Printf("Nested workflowspec import detected: %s (origin: %s/%s@%s)", nestedFilePath, nestedRemoteOrigin.Owner, nestedRemoteOrigin.Repo, nestedRemoteOrigin.Ref)
+						}
+					}
+
+					nestedFullPath, err := ResolveIncludePath(resolvedPath, baseDir, cache)
 					if err != nil {
 						// If we have source information for the parent workflow, create a structured error
 						if workflowFilePath != "" && yamlContent != "" {
@@ -451,10 +538,11 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 					if !visited[nestedFullPath] {
 						visited[nestedFullPath] = true
 						queue = append(queue, importQueueItem{
-							importPath:  nestedImportPath,
-							fullPath:    nestedFullPath,
-							sectionName: nestedSectionName,
-							baseDir:     baseDir, // Use original baseDir, not nestedBaseDir
+							importPath:   nestedImportPath,
+							fullPath:     nestedFullPath,
+							sectionName:  nestedSectionName,
+							baseDir:      baseDir, // Use original baseDir, not nestedBaseDir
+							remoteOrigin: nestedRemoteOrigin,
 						})
 						log.Printf("Discovered nested import: %s -> %s (queued)", item.fullPath, nestedFullPath)
 					} else {
@@ -568,7 +656,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			secretMaskingBuilder.WriteString(secretMaskingContent + "\n")
 		}
 
-		// Extract bots from imported file (merge into set to avoid duplicates)
+		// Extract and merge bots from imported file (merge into set to avoid duplicates)
 		botsContent, err := extractBotsFromContent(string(content))
 		if err == nil && botsContent != "" && botsContent != "[]" {
 			// Parse bots JSON array
@@ -583,7 +671,37 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 			}
 		}
 
-		// Extract plugins from imported file (merge into set to avoid duplicates)
+		// Extract and merge skip-roles from imported file (merge into set to avoid duplicates)
+		skipRolesContent, err := extractSkipRolesFromContent(string(content))
+		if err == nil && skipRolesContent != "" && skipRolesContent != "[]" {
+			// Parse skip-roles JSON array
+			var importedSkipRoles []string
+			if jsonErr := json.Unmarshal([]byte(skipRolesContent), &importedSkipRoles); jsonErr == nil {
+				for _, role := range importedSkipRoles {
+					if !skipRolesSet[role] {
+						skipRolesSet[role] = true
+						skipRoles = append(skipRoles, role)
+					}
+				}
+			}
+		}
+
+		// Extract and merge skip-bots from imported file (merge into set to avoid duplicates)
+		skipBotsContent, err := extractSkipBotsFromContent(string(content))
+		if err == nil && skipBotsContent != "" && skipBotsContent != "[]" {
+			// Parse skip-bots JSON array
+			var importedSkipBots []string
+			if jsonErr := json.Unmarshal([]byte(skipBotsContent), &importedSkipBots); jsonErr == nil {
+				for _, user := range importedSkipBots {
+					if !skipBotsSet[user] {
+						skipBotsSet[user] = true
+						skipBots = append(skipBots, user)
+					}
+				}
+			}
+		}
+
+		// Extract and merge plugins from imported file (merge into set to avoid duplicates)
 		// This now handles both simple string format and object format with MCP configs
 		pluginsContent, err := extractPluginsFromContent(string(content))
 		if err == nil && pluginsContent != "" && pluginsContent != "[]" {
@@ -638,6 +756,17 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		if err == nil && cacheContent != "" && cacheContent != "{}" {
 			caches = append(caches, cacheContent)
 		}
+
+		// Extract features from imported file (parse as map structure)
+		featuresContent, err := extractFeaturesFromContent(string(content))
+		if err == nil && featuresContent != "" && featuresContent != "{}" {
+			// Parse JSON to map structure
+			var featuresMap map[string]any
+			if jsonErr := json.Unmarshal([]byte(featuresContent), &featuresMap); jsonErr == nil {
+				features = append(features, featuresMap)
+				log.Printf("Extracted features from import: %d entries", len(featuresMap))
+			}
+		}
 	}
 
 	log.Printf("Completed BFS traversal. Processed %d imports in total", len(processedOrder))
@@ -663,10 +792,13 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		MergedSecretMasking: secretMaskingBuilder.String(),
 		MergedBots:          bots,
 		MergedPlugins:       plugins,
+		MergedSkipRoles:     skipRoles,
+		MergedSkipBots:      skipBots,
 		MergedPostSteps:     postStepsBuilder.String(),
 		MergedLabels:        labels,
 		MergedCaches:        caches,
 		MergedJobs:          jobsBuilder.String(),
+		MergedFeatures:      features,
 		ImportedFiles:       topologicalOrder,
 		AgentFile:           agentFile,
 		AgentImportSpec:     agentImportSpec,
@@ -736,7 +868,15 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 	}
 
 	// Count dependencies: how many imports does each file depend on (within our import set)
-	for imp, deps := range dependencies {
+	// Iterate over imports in sorted order for stable results
+	sortedImportsForDegree := make([]string, 0, len(dependencies))
+	for imp := range dependencies {
+		sortedImportsForDegree = append(sortedImportsForDegree, imp)
+	}
+	sort.Strings(sortedImportsForDegree)
+
+	for _, imp := range sortedImportsForDegree {
+		deps := dependencies[imp]
 		for _, dep := range deps {
 			// Only count dependencies that are in our import set
 			if allImportsSet[dep] {
@@ -770,7 +910,15 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 		importLog.Printf("Processing import %s (in-degree was 0)", current)
 
 		// For each import that depends on the current import, reduce its in-degree
-		for imp, deps := range dependencies {
+		// Iterate over dependencies in sorted order for stable results
+		sortedImports := make([]string, 0, len(dependencies))
+		for imp := range dependencies {
+			sortedImports = append(sortedImports, imp)
+		}
+		sort.Strings(sortedImports)
+
+		for _, imp := range sortedImports {
+			deps := dependencies[imp]
 			for _, dep := range deps {
 				if dep == current && allImportsSet[imp] {
 					inDegree[imp]--

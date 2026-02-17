@@ -1,12 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 
 describe("pr_helpers.cjs", () => {
   let detectForkPR;
+  let getPullRequestNumber;
 
   // Import the helper before each test
   beforeEach(async () => {
     const helpers = await import("./pr_helpers.cjs");
     detectForkPR = helpers.detectForkPR;
+    getPullRequestNumber = helpers.getPullRequestNumber;
   });
 
   describe("detectForkPR", () => {
@@ -170,6 +172,125 @@ describe("pr_helpers.cjs", () => {
       // Deleted fork takes precedence
       expect(result.isFork).toBe(true);
       expect(result.reason).toBe("head repository deleted (was likely a fork)");
+    });
+  });
+
+  describe("getPullRequestNumber", () => {
+    it("should extract PR number from message", () => {
+      const message = { pull_request_number: 123 };
+      const context = { payload: {} };
+
+      const result = getPullRequestNumber(message, context);
+
+      expect(result.prNumber).toBe(123);
+      expect(result.error).toBeNull();
+    });
+
+    it("should handle PR number as string", () => {
+      const message = { pull_request_number: "456" };
+      const context = { payload: {} };
+
+      const result = getPullRequestNumber(message, context);
+
+      expect(result.prNumber).toBe(456);
+      expect(result.error).toBeNull();
+    });
+
+    it("should return error for invalid PR number", () => {
+      const message = { pull_request_number: "invalid" };
+      const context = { payload: {} };
+
+      const result = getPullRequestNumber(message, context);
+
+      expect(result.prNumber).toBeNull();
+      expect(result.error).toBe("Invalid pull_request_number: invalid");
+    });
+
+    it("should return error for NaN PR number", () => {
+      const message = { pull_request_number: NaN };
+      const context = { payload: {} };
+
+      const result = getPullRequestNumber(message, context);
+
+      expect(result.prNumber).toBeNull();
+      expect(result.error).toBe("Invalid pull_request_number: NaN");
+    });
+
+    it("should fall back to context when message has no PR number", () => {
+      const message = {};
+      const context = {
+        payload: {
+          pull_request: {
+            number: 789,
+          },
+        },
+      };
+
+      const result = getPullRequestNumber(message, context);
+
+      expect(result.prNumber).toBe(789);
+      expect(result.error).toBeNull();
+    });
+
+    it("should fall back to context when message is undefined", () => {
+      const context = {
+        payload: {
+          pull_request: {
+            number: 101,
+          },
+        },
+      };
+
+      const result = getPullRequestNumber(undefined, context);
+
+      expect(result.prNumber).toBe(101);
+      expect(result.error).toBeNull();
+    });
+
+    it("should return error when no PR number is available", () => {
+      const message = {};
+      const context = { payload: {} };
+
+      const result = getPullRequestNumber(message, context);
+
+      expect(result.prNumber).toBeNull();
+      expect(result.error).toBe("No pull_request_number provided and not in pull request context");
+    });
+
+    it("should prefer message PR number over context", () => {
+      const message = { pull_request_number: 999 };
+      const context = {
+        payload: {
+          pull_request: {
+            number: 888,
+          },
+        },
+      };
+
+      const result = getPullRequestNumber(message, context);
+
+      expect(result.prNumber).toBe(999);
+      expect(result.error).toBeNull();
+    });
+
+    it("should handle context without payload", () => {
+      const message = {};
+      const context = {};
+
+      const result = getPullRequestNumber(message, context);
+
+      expect(result.prNumber).toBeNull();
+      expect(result.error).toBe("No pull_request_number provided and not in pull request context");
+    });
+
+    it("should handle zero as a valid PR number from message", () => {
+      const message = { pull_request_number: 0 };
+      const context = { payload: {} };
+
+      const result = getPullRequestNumber(message, context);
+
+      expect(result.prNumber).toBe(0);
+      expect(result.error).toBeNull();
     });
   });
 });

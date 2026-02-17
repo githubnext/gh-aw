@@ -79,6 +79,33 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 			expectedTools: []string{"create_pull_request_review_comment"},
 		},
 		{
+			name: "submit pull request review enabled",
+			safeOutputs: &SafeOutputsConfig{
+				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+				},
+			},
+			expectedTools: []string{"submit_pull_request_review"},
+		},
+		{
+			name: "reply to pull request review comment enabled",
+			safeOutputs: &SafeOutputsConfig{
+				ReplyToPullRequestReviewComment: &ReplyToPullRequestReviewCommentConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10},
+				},
+			},
+			expectedTools: []string{"reply_to_pull_request_review_comment"},
+		},
+		{
+			name: "resolve pull request review thread enabled",
+			safeOutputs: &SafeOutputsConfig{
+				ResolvePullRequestReviewThread: &ResolvePullRequestReviewThreadConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10},
+				},
+			},
+			expectedTools: []string{"resolve_pull_request_review_thread"},
+		},
+		{
 			name: "create code scanning alerts enabled",
 			safeOutputs: &SafeOutputsConfig{
 				CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{
@@ -152,6 +179,9 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 				AddComments:                     &AddCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},
 				CreatePullRequests:              &CreatePullRequestsConfig{},
 				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5}},
+				SubmitPullRequestReview:         &SubmitPullRequestReviewConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
+				ReplyToPullRequestReviewComment: &ReplyToPullRequestReviewCommentConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},
+				ResolvePullRequestReviewThread:  &ResolvePullRequestReviewThreadConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},
 				CreateCodeScanningAlerts:        &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 100}},
 				AddLabels:                       &AddLabelsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
 				AddReviewer:                     &AddReviewerConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3}},
@@ -167,6 +197,9 @@ func TestGenerateFilteredToolsJSON(t *testing.T) {
 				"add_comment",
 				"create_pull_request",
 				"create_pull_request_review_comment",
+				"submit_pull_request_review",
+				"reply_to_pull_request_review_comment",
+				"resolve_pull_request_review_thread",
 				"create_code_scanning_alert",
 				"add_labels",
 				"add_reviewer",
@@ -283,6 +316,9 @@ func TestGetSafeOutputsToolsJSON(t *testing.T) {
 		"add_comment",
 		"create_pull_request",
 		"create_pull_request_review_comment",
+		"submit_pull_request_review",
+		"reply_to_pull_request_review_comment",
+		"resolve_pull_request_review_thread",
 		"create_code_scanning_alert",
 		"add_labels",
 		"remove_labels",
@@ -290,6 +326,7 @@ func TestGetSafeOutputsToolsJSON(t *testing.T) {
 		"assign_milestone",
 		"assign_to_agent",
 		"assign_to_user",
+		"unassign_from_user",
 		"update_issue",
 		"update_pull_request",
 		"push_to_pull_request_branch",
@@ -431,6 +468,94 @@ func TestEnhanceToolDescription(t *testing.T) {
 			wantContains: []string{
 				"CONSTRAINTS:",
 				`Discussions will be created in category "general"`,
+			},
+		},
+		{
+			name:            "update_project with max",
+			toolName:        "update_project",
+			baseDescription: "Manage GitHub Projects.",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateProjects: &UpdateProjectConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10},
+				},
+			},
+			wantContains: []string{
+				"CONSTRAINTS:",
+				"Maximum 10 project operation(s)",
+			},
+		},
+		{
+			name:            "update_project with project URL",
+			toolName:        "update_project",
+			baseDescription: "Manage GitHub Projects.",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateProjects: &UpdateProjectConfig{
+					Project: "https://github.com/orgs/myorg/projects/42",
+				},
+			},
+			wantContains: []string{
+				"CONSTRAINTS:",
+				`Default project URL: "https://github.com/orgs/myorg/projects/42"`,
+			},
+		},
+		{
+			name:            "update_project with max and project URL",
+			toolName:        "update_project",
+			baseDescription: "Manage GitHub Projects.",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateProjects: &UpdateProjectConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
+					Project:              "https://github.com/users/username/projects/1",
+				},
+			},
+			wantContains: []string{
+				"CONSTRAINTS:",
+				"Maximum 5 project operation(s)",
+				`Default project URL: "https://github.com/users/username/projects/1"`,
+			},
+		},
+		{
+			name:            "create_project_status_update with max",
+			toolName:        "create_project_status_update",
+			baseDescription: "Post a status update to a GitHub Project.",
+			safeOutputs: &SafeOutputsConfig{
+				CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 3},
+				},
+			},
+			wantContains: []string{
+				"CONSTRAINTS:",
+				"Maximum 3 status update(s)",
+			},
+		},
+		{
+			name:            "create_project_status_update with project URL",
+			toolName:        "create_project_status_update",
+			baseDescription: "Post a status update to a GitHub Project.",
+			safeOutputs: &SafeOutputsConfig{
+				CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{
+					Project: "https://github.com/orgs/myorg/projects/99",
+				},
+			},
+			wantContains: []string{
+				"CONSTRAINTS:",
+				`Default project URL: "https://github.com/orgs/myorg/projects/99"`,
+			},
+		},
+		{
+			name:            "create_project_status_update with max and project URL",
+			toolName:        "create_project_status_update",
+			baseDescription: "Post a status update to a GitHub Project.",
+			safeOutputs: &SafeOutputsConfig{
+				CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 8},
+					Project:              "https://github.com/orgs/example/projects/50",
+				},
+			},
+			wantContains: []string{
+				"CONSTRAINTS:",
+				"Maximum 8 status update(s)",
+				`Default project URL: "https://github.com/orgs/example/projects/50"`,
 			},
 		},
 		{

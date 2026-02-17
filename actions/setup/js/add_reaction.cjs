@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getErrorMessage } = require("./error_helpers.cjs");
+const { getErrorMessage, isLockedError } = require("./error_helpers.cjs");
 
 /**
  * Add a reaction to the triggering item (issue, PR, comment, or discussion).
@@ -97,6 +97,15 @@ async function main() {
     await addReaction(reactionEndpoint, reaction);
   } catch (error) {
     const errorMessage = getErrorMessage(error);
+
+    // Check if the error is due to a locked issue/PR/discussion
+    if (isLockedError(error)) {
+      // Silently ignore locked resource errors - just log for debugging
+      core.info(`Cannot add reaction: resource is locked (this is expected and not an error)`);
+      return;
+    }
+
+    // For other errors, fail as before
     core.error(`Failed to add reaction: ${errorMessage}`);
     core.setFailed(`Failed to add reaction: ${errorMessage}`);
   }

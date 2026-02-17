@@ -92,7 +92,7 @@ Create a report based on repository analysis.`
 			t.Error("Expected compute-text action NOT to be created (JavaScript should be inlined)")
 		}
 
-		// Check that the compiled YAML contains inlined compute-text step
+		// Check that the compiled YAML contains inlined sanitized step
 		lockPath := stringutil.MarkdownToLockFile(workflowWithTextPath)
 		lockContent, err := os.ReadFile(lockPath)
 		if err != nil {
@@ -100,22 +100,26 @@ Create a report based on repository analysis.`
 		}
 
 		lockStr := string(lockContent)
-		if !strings.Contains(lockStr, "compute-text") {
-			t.Error("Expected compiled workflow to contain compute-text step")
+		if !strings.Contains(lockStr, "id: sanitized") {
+			t.Error("Expected compiled workflow to contain sanitized step")
 		}
-		if !strings.Contains(lockStr, "text: ${{ steps.compute-text.outputs.text }}") {
-			t.Error("Expected compiled workflow to contain text output")
+		if !strings.Contains(lockStr, "text: ${{ steps.sanitized.outputs.text }}") {
+			t.Error("Expected compiled workflow to contain text output referencing sanitized step")
 		}
 		// Check that JavaScript is inlined instead of using shared action
 		if !strings.Contains(lockStr, "uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd") {
-			t.Error("Expected compute-text step to use inlined JavaScript")
+			t.Error("Expected sanitized step to use inlined JavaScript")
 		}
+		// Check that it does NOT use the old shared action path
 		if strings.Contains(lockStr, "uses: ./.github/actions/compute-text") {
-			t.Error("Expected compute-text step NOT to use shared action")
+			t.Error("Expected sanitized step NOT to use shared compute-text action")
+		}
+		if strings.Contains(lockStr, "uses: ./.github/actions/sanitized") {
+			t.Error("Expected sanitized step NOT to use shared sanitized action")
 		}
 	})
 
-	// Remove compute-text action for next test
+	// Clean up for next test
 	os.RemoveAll(filepath.Join(tempDir, ".github"))
 
 	// Test workflow WITHOUT text usage
@@ -125,13 +129,13 @@ Create a report based on repository analysis.`
 			t.Fatalf("Failed to compile workflow without text: %v", err)
 		}
 
-		// Check that compute-text action was NOT created
+		// Check that the action was NOT created
 		actionPath := filepath.Join(tempDir, ".github", "actions", "compute-text", "action.yml")
 		if _, err := os.Stat(actionPath); !os.IsNotExist(err) {
 			t.Error("Expected compute-text action NOT to be created for workflow that doesn't use text output")
 		}
 
-		// Check that the compiled YAML does NOT contain compute-text step
+		// Check that the compiled YAML does NOT contain sanitized step
 		lockPath := stringutil.MarkdownToLockFile(workflowWithoutTextPath)
 		lockContent, err := os.ReadFile(lockPath)
 		if err != nil {
@@ -139,10 +143,10 @@ Create a report based on repository analysis.`
 		}
 
 		lockStr := string(lockContent)
-		if strings.Contains(lockStr, "compute-text") {
-			t.Error("Expected compiled workflow NOT to contain compute-text step")
+		if strings.Contains(lockStr, "id: sanitized") {
+			t.Error("Expected compiled workflow NOT to contain sanitized step")
 		}
-		if strings.Contains(lockStr, "text: ${{ steps.compute-text.outputs.text }}") {
+		if strings.Contains(lockStr, "text: ${{ steps.sanitized.outputs.text }}") {
 			t.Error("Expected compiled workflow NOT to contain text output")
 		}
 	})

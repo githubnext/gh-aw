@@ -105,11 +105,11 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 			expectedContent: []string{
 				`"agenticworkflows": {`,
 				`"type": "stdio"`,
-				`"container": "localhost/gh-aw:dev"`,                             // Dev mode uses locally built image
-				`"${{ github.workspace }}:${{ github.workspace }}:rw"`,           // workspace mount (read-write)
-				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                                     // temp directory mount (read-write)
-				`"args": ["--network", "host", "-w", "${{ github.workspace }}"]`, // Network access + working directory
-				`"DEBUG": "*"`,                                                   // Literal value for debug logging
+				`"container": "localhost/gh-aw:dev"`,                          // Dev mode uses locally built image
+				`"\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"`,              // workspace mount (read-write)
+				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                                  // temp directory mount (read-write)
+				`"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"]`, // Network access + working directory
+				`"DEBUG": "*"`,                                                // Literal value for debug logging
 				`"GITHUB_TOKEN": "\${GITHUB_TOKEN}"`,
 				`              },`,
 			},
@@ -133,14 +133,16 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 				`"type": "stdio"`,
 				`"container": "alpine:latest"`,
 				`"entrypoint": "/opt/gh-aw/gh-aw"`,
-				`"entrypointArgs": ["mcp-server"]`,
-				`"/opt/gh-aw:/opt/gh-aw:ro"`,                                     // gh-aw binary mount (read-only)
-				`"/usr/bin/gh:/usr/bin/gh:ro"`,                                   // gh CLI binary mount (read-only)
-				`"${{ github.workspace }}:${{ github.workspace }}:rw"`,           // workspace mount (read-write)
-				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                                     // temp directory mount (read-write)
-				`"args": ["--network", "host", "-w", "${{ github.workspace }}"]`, // Network access + working directory
+				`"entrypointArgs": ["mcp-server", "--validate-actor"]`,
+				`"/opt/gh-aw:/opt/gh-aw:ro"`,                                  // gh-aw binary mount (read-only)
+				`"/usr/bin/gh:/usr/bin/gh:ro"`,                                // gh CLI binary mount (read-only)
+				`"\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"`,              // workspace mount (read-write)
+				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                                  // temp directory mount (read-write)
+				`"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"]`, // Network access + working directory
 				`"DEBUG": "*"`,
 				`"GITHUB_TOKEN": "\${GITHUB_TOKEN}"`,
+				`"GITHUB_ACTOR": "\${GITHUB_ACTOR}"`,           // Actor for role-based access control
+				`"GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}"`, // Repository context
 				`              },`,
 			},
 			unexpectedContent: []string{
@@ -156,10 +158,10 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 			actionMode:           ActionModeDev,
 			expectedContent: []string{
 				`"agenticworkflows": {`,
-				`"container": "localhost/gh-aw:dev"`,                             // Dev mode uses locally built image
-				`"${{ github.workspace }}:${{ github.workspace }}:rw"`,           // workspace mount (read-write)
-				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                                     // temp directory mount (read-write)
-				`"args": ["--network", "host", "-w", "${{ github.workspace }}"]`, // Network access + working directory
+				`"container": "localhost/gh-aw:dev"`,                          // Dev mode uses locally built image
+				`"\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"`,              // workspace mount (read-write)
+				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                                  // temp directory mount (read-write)
+				`"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"]`, // Network access + working directory
 				// Environment variables
 				`"DEBUG": "*"`, // Literal value for debug logging
 				`"GITHUB_TOKEN": "$GITHUB_TOKEN"`,
@@ -261,8 +263,8 @@ func TestRenderAgenticWorkflowsMCPConfigTOML(t *testing.T) {
 			expectedContainer:    `container = "localhost/gh-aw:dev"`,
 			shouldHaveEntrypoint: false, // Dev mode uses container's default ENTRYPOINT
 			expectedMounts: []string{
-				`"${{ github.workspace }}:${{ github.workspace }}:rw"`, // workspace mount
-				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                           // temp directory mount
+				`"\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"`, // workspace mount
+				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                     // temp directory mount
 			},
 			unexpectedContent: []string{
 				`--cmd`,
@@ -278,12 +280,12 @@ func TestRenderAgenticWorkflowsMCPConfigTOML(t *testing.T) {
 			expectedContainer:    `container = "alpine:latest"`,
 			shouldHaveEntrypoint: true,
 			expectedMounts: []string{
-				`entrypoint = "/opt/gh-aw/gh-aw"`,                      // Entrypoint needed in release mode
-				`entrypointArgs = ["mcp-server"]`,                      // EntrypointArgs needed in release mode
-				`"/opt/gh-aw:/opt/gh-aw:ro"`,                           // gh-aw binary mount
-				`"/usr/bin/gh:/usr/bin/gh:ro"`,                         // gh CLI binary mount
-				`"${{ github.workspace }}:${{ github.workspace }}:rw"`, // workspace mount
-				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                           // temp directory mount
+				`entrypoint = "/opt/gh-aw/gh-aw"`,                     // Entrypoint needed in release mode
+				`entrypointArgs = ["mcp-server", "--validate-actor"]`, // EntrypointArgs needed in release mode with validate-actor flag
+				`"/opt/gh-aw:/opt/gh-aw:ro"`,                          // gh-aw binary mount
+				`"/usr/bin/gh:/usr/bin/gh:ro"`,                        // gh CLI binary mount
+				`"\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"`,      // workspace mount
+				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                          // temp directory mount
 			},
 			unexpectedContent: []string{
 				`--cmd`,
@@ -302,8 +304,8 @@ func TestRenderAgenticWorkflowsMCPConfigTOML(t *testing.T) {
 			expectedContent := []string{
 				`[mcp_servers.agenticworkflows]`,
 				tt.expectedContainer,
-				`args = ["--network", "host", "-w", "${{ github.workspace }}"]`, // Network access + working directory
-				`env_vars = ["DEBUG", "GITHUB_TOKEN"]`,
+				`args = ["--network", "host", "-w", "${GITHUB_WORKSPACE}"]`, // Network access + working directory
+				`env_vars = ["DEBUG", "GITHUB_TOKEN", "GITHUB_ACTOR", "GITHUB_REPOSITORY"]`,
 			}
 			expectedContent = append(expectedContent, tt.expectedMounts...)
 

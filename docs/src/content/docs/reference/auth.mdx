@@ -1,0 +1,486 @@
+---
+title: Authorization
+description: Comprehensive reference for GitHub Actions secrets, GitHub tokens and GitHub Apps in gh-aw
+sidebar:
+  order: 650
+disable-agentic-editing: true
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+import Video from '../../../components/Video.astro';
+
+This page describes authorization settings for GitHub Agentic Workflows, including:
+
+- GitHub Actions secrets, API Keys and tokens required for different AI engines
+- GitHub tokens for GitHub tools and safe outputs
+- Using a GitHub App as an alternative for authorization
+
+## Which GitHub Actions secrets do I need?
+
+You will need one of the following GitHub Actions secrets configured in your repository to authenticate the AI engine you choose:
+
+- **Copilot** – Add [`COPILOT_GITHUB_TOKEN`](#copilot_github_token)
+- **Claude by Anthropic** – Add [`ANTHROPIC_API_KEY`](#anthropic_api_key)
+- **Codex by OpenAI** – Add [`OPENAI_API_KEY`](#openai_api_key)
+
+Depending on what your workflow needs to do, you may need additional GitHub tokens added as repository secrets:
+
+- **Lockdown mode, cross-repo access, or remote GitHub tools** – Add [`GH_AW_GITHUB_TOKEN`](#gh_aw_github_token)
+- **GitHub Projects v2 operations** – Add [`GH_AW_PROJECT_GITHUB_TOKEN`](#gh_aw_project_github_token)
+- **Assign Copilot agents to issues/PRs** – Add [`GH_AW_AGENT_TOKEN`](#gh_aw_agent_token)
+- **MCP server with special permissions** – Add [`GH_AW_GITHUB_MCP_SERVER_TOKEN`](#gh_aw_github_mcp_server_token)
+
+## How do I add a GitHub Actions secret to my repository?
+
+You can add secrets manually in the GitHub UI or use the CLI for a streamlined experience.
+
+### Adding secrets using the CLI
+
+```bash
+gh aw secrets set COPILOT_GITHUB_TOKEN --value "YOUR_COPILOT_PAT"
+```
+
+You can also check existing secrets with:
+
+```bash
+gh aw secrets bootstrap
+```
+
+> [!WARNING]
+> The `gh aw secrets set` command does not work in GitHub Codespaces. If you're working in Codespaces, use the GitHub UI method below to add secrets.
+
+### Adding secrets using the GitHub UI
+
+1. Go to your repository on GitHub
+2. Click on "Settings" → "Secrets and variables" → "Actions"
+3. Click "New repository secret" and add the token name and value
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcSet="/gh-aw/images/actions-secrets_dark.png" />
+  <img alt="Repository secrets page showing configured tokens" src="/gh-aw/images/actions-secrets_light.png" />
+</picture>
+
+## GitHub Actions secrets and tokens
+
+A reference for all GitHub Actions secrets and tokens used by GitHub Agentic Workflows, including when they are needed and how to set them up.
+
+### `COPILOT_GITHUB_TOKEN`
+
+If using the Copilot CLI, you need a GitHub Actions Secret set to a GitHub Personal Access Token (PAT) with the `copilot-requests` scope to authenticate Copilot CLI.
+
+**Setup**:
+
+Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new):
+
+1. Select your user account, not an organization.
+2. Choose "Public repositories" access, even if adding to a private repo.
+3. Enable "Copilot Requests" permissions.
+
+You **must** have "Public repositories" selected; otherwise, the Copilot Requests permission option will not appear.
+
+Then add the PAT to your GitHub Actions repository secrets as `COPILOT_GITHUB_TOKEN`, either by CLI or GitHub UI (see video).
+
+```bash wrap
+gh aw secrets set COPILOT_GITHUB_TOKEN --value "<your-github-pat>"
+```
+
+<Video
+  src="/gh-aw/videos/create-pat-user-copilot.mp4"
+  caption="Creating a fine-grained PAT for user-owned repositories with Copilot permissions"
+  aspectRatio="16:9"
+  silenced={true}
+/>
+
+---
+
+### `ANTHROPIC_API_KEY`
+
+If using the Claude by Anthropic engine, you need to set a GitHub Actions secret `ANTHROPIC_API_KEY` to be an API key from Anthropic.
+
+**Setup**:
+
+1. Create an API key at https://platform.claude.com/docs/en/get-started
+
+2. Add it to your repository secrets:
+
+   ```bash wrap
+   gh aw secrets set ANTHROPIC_API_KEY --value "YOUR_ANTHROPIC_API_KEY"
+   ```
+
+See also (/gh-aw/reference/engines/#using-claude-by-anthropic-claude-code) for additional configuration needed when using Claude with GitHub MCP.
+
+---
+
+### `OPENAI_API_KEY`
+
+If using the Codex by OpenAI engine, you need to set a GitHub Actions secret `OPENAI_API_KEY` with an API key from OpenAI.
+
+**Setup**:
+
+1. Create an API key at https://platform.openai.com/api-keys
+
+2. Add it to your repository secrets:
+
+   ```bash wrap
+   gh aw secrets set OPENAI_API_KEY --value "YOUR_OPENAI_API_KEY"
+   ```
+
+See also (/gh-aw/reference/engines/#using-openai-codex) for additional configuration needed when using Codex with GitHub MCP.
+
+---
+
+### `GH_AW_GITHUB_TOKEN`
+
+A Personal Access Token (PAT) with appropriate scopes and permissions for enhanced security and cross-repository operations.
+
+**When Required**:
+
+- **Lockdown Mode**: This or a similar token is required when `lockdown: true` is set in workflow frontmatter. The workflow will fail at runtime if the token is not configured.
+- **Cross-repository operations**: Required for accessing other repositories beyond the current one.
+- **Remote GitHub tools mode**: Required for faster startup without Docker.
+- **Codex engine operations**: Required for GitHub MCP integration.
+
+Note that using `GH_AW_GITHUB_TOKEN` replaces the default behaviour of GitHub Agentic Workflows (which arranges temporary `GITHUB_TOKEN` GitHub Actions tokens appropriate to the `permissions:` you have declared).
+
+---
+
+### `GH_AW_GITHUB_MCP_SERVER_TOKEN`
+
+If you need different permissions for the GitHub MCP server than the default, you can configure `GH_AW_GITHUB_MCP_SERVER_TOKEN` with a Personal Access Token (PAT) or use a GitHub App for enhanced security.
+
+Use this when you need different permission levels for MCP server operations versus other workflow operations.
+
+**When to use**:
+
+- You need different permission levels for MCP server vs. other operations.
+- You want to isolate MCP server authentication from general workflow authentication.
+- You are using remote GitHub MCP mode and need a token with specific scopes.
+
+**Setup**:
+
+Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+
+- **Repository access**:
+  - Select specific repos or "All repositories"
+- **Repository permissions** (based on your GitHub tools usage):
+  - Contents: Read (minimum for toolset: repos)
+  - Issues: Read (for toolset: issues)
+  - Pull requests: Read (for toolset: pull_requests)
+  - Adjust based on the toolsets you configure in your workflow
+
+Then configure in your workflow frontmatter:
+
+```yaml wrap
+permissions:
+  contents: read
+  issues: read
+
+tools:
+  github:
+    mode: remote  # or "local" for Docker-based
+    toolsets: [repos, issues, pull_requests]
+    github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+```
+
+Or add to repository secrets:
+
+```bash wrap
+gh aw secrets set GH_AW_GITHUB_MCP_SERVER_TOKEN --value "YOUR_MCP_PAT"
+```
+
+---
+
+### `GH_AW_PROJECT_GITHUB_TOKEN`
+
+If using GitHub Projects v2 operations, you need to configure this GitHub Actions secret with a Personal Access Token (PAT) that has the appropriate scopes and permissions for Projects access.
+
+This is specialized token for [GitHub Projects](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects) operations, required because the default `GITHUB_TOKEN` cannot access the Projects API.
+
+**When to use**:
+
+- Any Projects operation (creating, updating, or reading project boards).
+- Workflows that call `update-project`, `create-project-status-update` safe output.
+- When you want to isolate Projects permissions from other workflow operations.
+
+**Setup**:
+
+The required token type depends on whether you're working with **user-owned** or **organization-owned** Projects:
+
+**For User-owned Projects**:
+
+<Video
+  src="/gh-aw/videos/create-pat-user-project.mp4"
+  caption="Creating a classic PAT for user-owned private projects"
+  aspectRatio="16:9"
+  silenced={true}
+/>
+
+You **must** use a **classic PAT** with the `project` scope. Fine-grained PATs do **not** work with user-owned Projects.
+
+1. Create a [classic PAT](https://github.com/settings/tokens/new) with scopes:
+   - `project` (required for user Projects)
+   - `repo` (required if accessing private repositories)
+
+**For Organization-owned Projects (v2)**:
+
+<Video
+  src="/gh-aw/videos/create-pat-org-project.mp4"
+  caption="Creating a fine-grained PAT for organization-owned projects"
+  aspectRatio="16:9"
+  silenced={true}
+/>
+
+You can use either a classic PAT or a fine-grained PAT:
+
+1. **Option A**: Create a **classic PAT** with `project` and `read:org` scopes:
+   - `project` (required)
+   - `read:org` (required for org Projects)
+   - `repo` (required if accessing private repositories)
+
+2. **Option B (recommended)**: Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+   - **Repository access**: Select specific repos that will use the workflow
+   - **Repository permissions**:
+     - Contents: Read
+     - Issues: Read (if needed for issue-triggered workflows)
+     - Pull requests: Read (if needed for PR-triggered workflows)
+   - **Organization permissions** (must be explicitly granted):
+     - Projects: Read & Write (required for updating org Projects)
+   - **Important**: You must explicitly grant organization access during token creation
+
+3. **Option C**: Use a GitHub App with Projects: Read+Write permission
+
+After creating your token, add it to repository secrets:
+
+```bash wrap
+gh aw secrets set GH_AW_PROJECT_GITHUB_TOKEN --value "YOUR_PROJECT_PAT"
+```
+
+**Token precedence and fallback**:
+
+per-output -> workflow-level -> `GH_AW_PROJECT_GITHUB_TOKEN` -> `GITHUB_TOKEN`.
+
+**Example configuration**:
+
+```yaml wrap
+---
+# Option 1: Use GH_AW_PROJECT_GITHUB_TOKEN secret (recommended for org Projects)
+# Just create the secret - no workflow config needed
+---
+
+# Option 2: Explicitly configure at safe-output level
+safe-outputs:
+  update-project:
+    github-token: ${{ secrets.CUSTOM_PROJECT_TOKEN }}
+
+# Option 3: Organization projects with GitHub tools integration
+tools:
+  github:
+    toolsets: [default, projects]
+    github-token: ${{ secrets.ORG_PROJECT_WRITE }}
+safe-outputs:
+  update-project:
+    github-token: ${{ secrets.ORG_PROJECT_WRITE }}
+```
+
+**Notes**:
+
+- For organization-owned projects, configure both GitHub tools and safe outputs with the same token.
+- Default behavior: `update-project` is update-only. It will not create projects. If a project does not exist, the job fails with instructions to create it manually.
+- The default `GITHUB_TOKEN` cannot be used for Projects v2 operations. Configure `GH_AW_PROJECT_GITHUB_TOKEN` or provide a custom token via `safe-outputs.update-project.github-token`.
+- **GitHub Projects v2 PAT Requirements**:
+  - **User-owned Projects**: Require a classic PAT with the `project` scope (plus `repo` if accessing private repos). Fine-grained PATs do not work with user-owned Projects.
+  - **Organization-owned Projects**: Can use either a classic PAT with `project` + `read:org` scopes, or a fine-grained PAT with:
+    - Repository access to specific repositories
+    - Repository permissions: Contents: Read, Issues: Read, Pull requests: Read (as needed)
+    - Organization permissions: Projects: Read & Write
+    - Explicit organization access granted during token creation
+  - **GitHub App**: Works for both user and org Projects with Projects: Read+Write permission.
+- To opt-in to creating projects, the agent must include `create_if_missing: true` in its output, and the token must have sufficient permissions to create projects in the organization.
+- Use `GH_AW_PROJECT_GITHUB_TOKEN` for Projects-specific isolation; use `GH_AW_GITHUB_TOKEN` if it already has Projects permissions and you do not need isolation.
+
+---
+
+### `GH_AW_AGENT_TOKEN`
+
+If you want to programmatically assign Copilot agents to issues or pull requests, you need to configure `GH_AW_AGENT_TOKEN` with a Personal Access Token (PAT) that has the appropriate scopes and permissions for issue and PR management.
+
+Is token/secret is used by `assign-to-agent:` safe outputs to programmatically assign Copilot agents to issues or pull requests.
+
+**Setup**:
+
+The required token type and permissions depend on whether you own the repository or an organization owns it:
+
+**For User-owned Repositories**:
+
+1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+   - **Resource owner**: Your user account
+   - **Repository access**: "Public repositories" or select specific repos
+   - **Repository permissions**:
+     - Actions: Write
+     - Contents: Write
+     - Issues: Write
+     - Pull requests: Write
+
+**For Organization-owned Repositories**:
+
+<Video
+  src="/gh-aw/videos/create-pat-org-agent.mp4"
+  caption="Creating a fine-grained PAT for organization-owned repositories with permissions for agent assignment"
+  aspectRatio="16:9"
+  silenced={true}
+/>
+
+When an organization owns the repository, you need a fine-grained PAT with the resource owner set to the organization:
+
+1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with:
+   - **Resource owner**: The organization that owns the repository
+   - **Repository access**: Select the specific repositories that will use the workflow
+   - **Repository permissions**:
+     - Actions: Write
+     - Contents: Write
+     - Issues: Write
+     - Pull requests: Write
+   - **Important**: You must set the resource owner to the organization during token creation
+
+2. Add to repository secrets:
+
+```bash wrap
+gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
+```
+
+**Token precedence and fallback**:
+
+`GH_AW_AGENT_TOKEN` -> `GH_AW_GITHUB_TOKEN` -> `GITHUB_TOKEN`.
+
+**Notes**:
+
+**Two ways to assign Copilot agents**
+
+There are two different methods for assigning GitHub Copilot agents to issues or pull requests. Both methods use the same token (`GH_AW_AGENT_TOKEN`) and GraphQL API to perform the assignment:
+
+1. **Via `assign-to-agent` safe output**: Use when you need to programmatically assign agents to existing issues or PRs through workflow automation. This is a standalone operation that requires the token documented on this page.
+
+```yaml
+safe-outputs:
+  assign-to-agent:
+    name: "copilot"
+    allowed: [copilot]
+```
+
+2. **Via `assignees` field in `create-issue`**: Use when creating new issues through workflows and want to assign the agent immediately. When `copilot` is in the assignees list, it is automatically filtered out and assigned via GraphQL in a separate step after issue creation (using the same token and API as method 1).
+
+```yaml
+safe-outputs:
+  create-issue:
+    assignees: copilot  # or assignees: [copilot, user1]
+```
+
+Both methods result in the same outcome as [manually assigning issues to Copilot through the GitHub UI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot). Method 2 is simpler when creating issues, while method 1 provides fine-grained control for existing issues.
+
+**Technical implementation**: Both methods use the GraphQL `replaceActorsForAssignable` mutation to assign the `copilot-swe-agent` bot to issues or PRs. Both follow the token precedence and fallback behavior documented above.
+
+See [GitHub's official documentation on assigning issues to Copilot](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) for more details on the Copilot coding agent.
+
+**Resource owner requirements**: The token's resource owner must match the repository ownership:
+- **User-owned repositories**: Use a token where the resource owner is your user account
+- **Organization-owned repositories**: Use a token where the resource owner is the organization
+
+This ensures the token has the appropriate permissions to assign agents to issues and pull requests in the repository.
+
+---
+
+## Using a GitHub App for authentication
+
+For enhanced security with short-lived tokens, you may configure a GitHub App instead of using PATs.
+
+This does not apply to `COPILOT_GITHUB_TOKEN`, which must currently be a PAT. A single GitHub App can be used for all other GitHub tokens.
+
+After creating your app, there are two ways to configure it in your workflow:
+
+**Option 1: Direct configuration** (more control)
+
+```yaml wrap
+permissions:
+  contents: read
+  issues: read
+
+tools:
+  github:
+    mode: remote
+    toolsets: [repos, issues, pull_requests]
+    app:
+      app-id: ${{ vars.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      owner: "my-org"                    # Optional: defaults to current repo owner
+      repositories: ["repo1", "repo2"]   # Optional: defaults to current repo only
+```
+
+**Option 2: Shared workflow** (recommended - centralized configuration)
+
+Use the provided shared workflow for centralized configuration:
+
+```yaml wrap
+imports:
+  - shared/github-mcp-app.md  # Provides APP_ID and APP_PRIVATE_KEY configuration
+
+permissions:
+  contents: read
+  issues: read
+
+tools:
+  github:
+    mode: remote
+    toolsets: [repos, issues, pull_requests]
+```
+
+The shared workflow (`shared/github-mcp-app.md`) expects:
+- **Repository Variable**: `APP_ID` - Your GitHub App ID
+- **Repository Secret**: `APP_PRIVATE_KEY` - Your GitHub App private key
+
+Set up repository variables and secrets:
+
+```bash wrap
+gh variable set APP_ID --body "123456"
+gh aw secrets set APP_PRIVATE_KEY --value "$(cat path/to/private-key.pem)"
+```
+
+**How it works**:
+
+At workflow start, a token is automatically minted with **permissions matching your job's `permissions:` field**. The token is passed to the GitHub MCP server and automatically revoked at workflow end (even on failure).
+
+This is the same per-job narrowing behavior used by `safe-outputs.app:` - see the [Safe Outputs documentation](/gh-aw/reference/safe-outputs/#github-app-token-app) for a detailed explanation of how GitHub App tokens are narrowed per-job.
+
+## Who owns a GitHub token?
+
+Ownership affects token requirements for repositories and Projects (v2). If the owner is your personal username, it is user-owned. If the owner is an organization, it is org-owned and managed with shared roles and access controls.
+
+To confirm ownership, check the owner name and avatar at the top of the page or in the URL (`github.com/owner-name/...`). Clicking the owner takes you to a personal profile or an organization page, which confirms it instantly. Here are examples of both (left: user-owned, right: org-owned):
+
+<CardGrid>
+  <Card title="User-owned repository">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcSet="/gh-aw/images/user-owned_dark.png" />
+      <img alt="User-owned repository example" src="/gh-aw/images/user-owned_light.png" />
+    </picture>
+    
+    Avatar shows a personal profile icon, URL includes username
+  </Card>
+
+  <Card title="Organization-owned repository">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcSet="/gh-aw/images/org-owned_dark.png" />
+      <img alt="Organization-owned repository example" src="/gh-aw/images/org-owned_light.png" />
+    </picture>
+    
+    Avatar shows organization icon, URL includes org name
+  </Card>
+</CardGrid>
+
+---
+
+## Related Documentation
+
+- [Engines](/gh-aw/reference/engines/) - Engine-specific authentication
+- [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output token configuration
+- [Tools](/gh-aw/reference/tools/) - Tool authentication and modes
+- [Permissions](/gh-aw/reference/permissions/) - Permission model overview

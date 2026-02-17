@@ -16,6 +16,7 @@ interface CreateIssueConfig extends SafeOutputConfig {
   labels?: string[];
   "target-repo"?: string;
   "allowed-repos"?: string[];
+  footer?: boolean;
 }
 
 /**
@@ -26,6 +27,7 @@ interface CreateDiscussionConfig extends SafeOutputConfig {
   "category-id"?: string;
   "target-repo"?: string;
   "allowed-repos"?: string[];
+  footer?: boolean;
 }
 
 /**
@@ -81,6 +83,7 @@ interface CreatePullRequestConfig extends SafeOutputConfig {
   labels?: string[];
   draft?: boolean;
   "if-no-changes"?: string;
+  footer?: boolean;
 }
 
 /**
@@ -89,6 +92,40 @@ interface CreatePullRequestConfig extends SafeOutputConfig {
 interface CreatePullRequestReviewCommentConfig extends SafeOutputConfig {
   side?: string;
   target?: string;
+}
+
+/**
+ * Configuration for submitting a consolidated PR review.
+ * The footer field controls when AI-generated footer is added to the review body:
+ * - "always" (default): Always include footer
+ * - "none": Never include footer
+ * - "if-body": Only include footer when review has body text
+ * Boolean values are also supported: true maps to "always", false maps to "none".
+ */
+interface SubmitPullRequestReviewConfig extends SafeOutputConfig {
+  footer?: boolean | "always" | "none" | "if-body";
+}
+
+/**
+ * Configuration for replying to pull request review comments.
+ * Inherits common fields (e.g. "github-token") from SafeOutputConfig.
+ */
+interface ReplyToPullRequestReviewCommentConfig extends SafeOutputConfig {
+  target?: string;
+  "target-repo"?: string;
+  "allowed-repos"?: string[];
+  footer?: boolean;
+}
+
+/**
+ * Configuration for resolving pull request review threads.
+ * Resolution is scoped to the triggering PR only.
+ *
+ * Inherits common fields (e.g. "github-token") from SafeOutputConfig.
+ * The only new field explicitly supported on this interface is "max".
+ */
+interface ResolvePullRequestReviewThreadConfig extends SafeOutputConfig {
+  // "max" is the only field added beyond those inherited from SafeOutputConfig
 }
 
 /**
@@ -128,6 +165,7 @@ interface UpdateIssueConfig extends SafeOutputConfig {
   target?: string;
   title?: boolean;
   body?: boolean;
+  footer?: boolean;
 }
 
 /**
@@ -137,6 +175,7 @@ interface UpdateDiscussionConfig extends SafeOutputConfig {
   target?: string;
   title?: boolean;
   body?: boolean;
+  footer?: boolean;
 }
 
 /**
@@ -190,6 +229,7 @@ interface AssignToAgentConfig extends SafeOutputConfig {
  */
 interface UpdateReleaseConfig extends SafeOutputConfig {
   target?: string;
+  footer?: boolean;
 }
 
 /**
@@ -262,6 +302,7 @@ type SpecificSafeOutputConfig =
   | AddCommentConfig
   | CreatePullRequestConfig
   | CreatePullRequestReviewCommentConfig
+  | SubmitPullRequestReviewConfig
   | CreateCodeScanningAlertConfig
   | AutofixCodeScanningAlertConfig
   | AddLabelsConfig
@@ -276,7 +317,9 @@ type SpecificSafeOutputConfig =
   | NoOpConfig
   | MissingToolConfig
   | LinkSubIssueConfig
-  | ThreatDetectionConfig;
+  | ReplyToPullRequestReviewCommentConfig
+  | ThreatDetectionConfig
+  | ResolvePullRequestReviewThreadConfig;
 
 type SafeOutputConfigs = Record<string, SafeOutputConfig | SpecificSafeOutputConfig>;
 
@@ -294,6 +337,7 @@ export {
   AddCommentConfig,
   CreatePullRequestConfig,
   CreatePullRequestReviewCommentConfig,
+  SubmitPullRequestReviewConfig,
   CreateCodeScanningAlertConfig,
   AutofixCodeScanningAlertConfig,
   AddLabelsConfig,
@@ -308,7 +352,9 @@ export {
   NoOpConfig,
   MissingToolConfig,
   LinkSubIssueConfig,
+  ReplyToPullRequestReviewCommentConfig,
   ThreatDetectionConfig,
+  ResolvePullRequestReviewThreadConfig,
   SpecificSafeOutputConfig,
   // Safe job configuration types
   SafeJobInput,

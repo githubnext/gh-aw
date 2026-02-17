@@ -125,7 +125,7 @@ func TestGenerateUnifiedPromptCreationStep_SubstitutionWithUserExpressions(t *te
 	userPromptChunks := []string{userPromptWithPlaceholders}
 
 	var yaml strings.Builder
-	compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, expressionMappings, data)
+	allExpressionMappings := compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, expressionMappings, data)
 
 	output := yaml.String()
 
@@ -135,8 +135,15 @@ func TestGenerateUnifiedPromptCreationStep_SubstitutionWithUserExpressions(t *te
 	assert.Contains(t, output, "${{ github.repository }}", "Should have github.repository expression value")
 	assert.Contains(t, output, "${{ github.actor }}", "Should have github.actor expression value")
 
+	// Generate the substitution step separately (as done in compiler_yaml.go)
+	var substYaml strings.Builder
+	if len(allExpressionMappings) > 0 {
+		generatePlaceholderSubstitutionStep(&substYaml, allExpressionMappings, "      ")
+	}
+
 	// Verify substitution step is generated
-	assert.Contains(t, output, "Substitute placeholders", "Should have placeholder substitution step")
+	substOutput := substYaml.String()
+	assert.Contains(t, substOutput, "Substitute placeholders", "Should have placeholder substitution step")
 }
 
 // TestGenerateUnifiedPromptCreationStep_MultipleUserChunks tests that multiple
@@ -167,14 +174,15 @@ func TestGenerateUnifiedPromptCreationStep_MultipleUserChunks(t *testing.T) {
 
 	output := yaml.String()
 
-	// Count PROMPT_EOF markers
+	// Count GH_AW_PROMPT_EOF markers
 	// With system tags:
 	// - 2 for opening <system> tag
 	// - 2 for closing </system> tag
 	// - 2 per user chunk
-	eofCount := strings.Count(output, "PROMPT_EOF")
+	delimiter := GenerateHeredocDelimiter("PROMPT")
+	eofCount := strings.Count(output, delimiter)
 	expectedEOFCount := 4 + (len(userPromptChunks) * 2) // 4 for system tags, 2 per user chunk
-	assert.Equal(t, expectedEOFCount, eofCount, "Should have correct number of PROMPT_EOF markers")
+	assert.Equal(t, expectedEOFCount, eofCount, "Should have correct number of %s markers", delimiter)
 
 	// Verify all user chunks are present and in order
 	part1Pos := strings.Index(output, "# Part 1")
@@ -298,13 +306,14 @@ func TestGenerateUnifiedPromptCreationStep_NoAppendSteps(t *testing.T) {
 	userPromptChunks := []string{userPromptWithPlaceholders}
 
 	var yaml strings.Builder
-	compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, expressionMappings, data)
+	_ = compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, expressionMappings, data)
 
 	output := yaml.String()
 
-	// Verify there's only the unified step and substitution step (not old separate steps)
+	// Verify there's only the unified step (not old separate steps)
+	// The substitution step is now generated separately in compiler_yaml.go
 	stepNameCount := strings.Count(output, "- name:")
-	assert.Equal(t, 2, stepNameCount, "Should have exactly 2 steps: Create prompt and Substitute placeholders")
+	assert.Equal(t, 1, stepNameCount, "Should have exactly 1 step: Create prompt")
 
 	// Verify the old append step name is not present
 	assert.NotContains(t, output, "Append context instructions to prompt",
@@ -345,8 +354,9 @@ func TestGenerateUnifiedPromptCreationStep_FirstContentUsesCreate(t *testing.T) 
 		"First content should use > (create mode): %s", firstCatLine)
 
 	// Find subsequent cat commands (should use >> for append)
+	delimiter := GenerateHeredocDelimiter("PROMPT")
 	remainingOutput := output[firstCatPos+len(firstCatLine):]
-	if strings.Contains(remainingOutput, `cat "`) || strings.Contains(remainingOutput, "cat << 'PROMPT_EOF'") {
+	if strings.Contains(remainingOutput, `cat "`) || strings.Contains(remainingOutput, "cat << '"+delimiter+"'") {
 		// Verify subsequent operations use >> (append mode)
 		assert.Contains(t, remainingOutput, `>> "$GH_AW_PROMPT"`,
 			"Subsequent content should use >> (append mode)")
@@ -526,16 +536,22 @@ func TestGenerateUnifiedPromptCreationStep_CacheAndRepoMemory(t *testing.T) {
 	userPromptChunks := []string{"# User Task"}
 
 	var yaml strings.Builder
-	compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, nil, data)
+	allExpressionMappings := compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, nil, data)
 
 	output := yaml.String()
 
-	// Verify cache template file reference and environment variables
+	// Verify cache template file reference
 	assert.Contains(t, output, "cache_memory_prompt.md", "Should reference cache template file")
-	assert.Contains(t, output, "GH_AW_CACHE_DIR: '/tmp/gh-aw/cache-memory/'", "Should have cache dir env var")
-	assert.Contains(t, output, "GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR", "Should have cache dir in substitution")
 	assert.Contains(t, output, "Repo Memory Available", "Should have repo memory prompt")
 	assert.Contains(t, output, "/tmp/gh-aw/repo-memory/", "Should reference repo memory directory")
+
+	// Generate the substitution step separately to verify cache dir is in substitutions
+	var substYaml strings.Builder
+	if len(allExpressionMappings) > 0 {
+		generatePlaceholderSubstitutionStep(&substYaml, allExpressionMappings, "      ")
+	}
+	substOutput := substYaml.String()
+	assert.Contains(t, substOutput, "GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR", "Should have cache dir in substitution")
 
 	// Verify ordering within system tags
 	systemOpenPos := strings.Index(output, "<system>")
@@ -618,7 +634,7 @@ func TestGenerateUnifiedPromptCreationStep_AllToolsCombined(t *testing.T) {
 	userPromptChunks := []string{"# User Task"}
 
 	var yaml strings.Builder
-	compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, nil, data)
+	allExpressionMappings := compiler.generateUnifiedPromptCreationStep(&yaml, builtinSections, userPromptChunks, nil, data)
 
 	output := yaml.String()
 
@@ -626,12 +642,18 @@ func TestGenerateUnifiedPromptCreationStep_AllToolsCombined(t *testing.T) {
 	assert.Contains(t, output, "temp_folder_prompt.md", "Should have temp folder")
 	assert.Contains(t, output, "playwright_prompt.md", "Should have playwright")
 	assert.Contains(t, output, "cache_memory_prompt.md", "Should have cache memory template")
-	assert.Contains(t, output, "GH_AW_CACHE_DIR: '/tmp/gh-aw/cache-memory/'", "Should have cache dir env var")
-	assert.Contains(t, output, "GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR", "Should have cache dir in substitution")
 	assert.Contains(t, output, "Repo Memory Available", "Should have repo memory")
 	assert.Contains(t, output, "<safe-outputs>", "Should have safe outputs")
 	assert.Contains(t, output, "<github-context>", "Should have GitHub context")
 	assert.Contains(t, output, "pr_context_prompt.md", "Should have PR context")
+
+	// Generate the substitution step separately to verify cache dir is in substitutions
+	var substYaml strings.Builder
+	if len(allExpressionMappings) > 0 {
+		generatePlaceholderSubstitutionStep(&substYaml, allExpressionMappings, "      ")
+	}
+	substOutput := substYaml.String()
+	assert.Contains(t, substOutput, "GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR", "Should have cache dir in substitution")
 
 	// Verify all are within system tags and before user prompt
 	systemOpenPos := strings.Index(output, "<system>")

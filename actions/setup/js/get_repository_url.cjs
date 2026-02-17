@@ -4,6 +4,12 @@
 /**
  * Get the repository URL for different purposes
  * This helper handles trial mode where target repository URLs are different from execution context
+ *
+ * NOTE: This is a URL helper function that does not perform cross-repository operations.
+ * It only generates URLs for display purposes. Handlers that use this function and perform
+ * actual cross-repository operations (like create_issue, add_comment) are responsible for
+ * validating target repositories using validateTargetRepo/checkAllowedRepo from repo_helpers.cjs.
+ *
  * @param {Object} [config] - Optional config object with target-repo field
  * @returns {string} Repository URL
  */

@@ -1,15 +1,20 @@
+//go:build !js && !wasm
+
 package parser
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+	pathpkg "path"
 	"path/filepath"
 	"strings"
 
 	"github.com/cli/go-gh/v2"
 	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -470,7 +475,151 @@ func downloadFileViaGitClone(owner, repo, path, ref string) ([]byte, error) {
 	return content, nil
 }
 
+// isNotFoundError checks if an error message indicates a 404 Not Found response
+func isNotFoundError(errMsg string) bool {
+	lowerMsg := strings.ToLower(errMsg)
+	return strings.Contains(lowerMsg, "404") || strings.Contains(lowerMsg, "not found")
+}
+
+// checkRemoteSymlink checks if a path in a remote GitHub repository is a symlink.
+// Returns the symlink target and true if it is a symlink, or empty string and false otherwise.
+// A nil error with false means the path is not a symlink (e.g., it's a directory or file).
+func checkRemoteSymlink(client *api.RESTClient, owner, repo, dirPath, ref string) (string, bool, error) {
+	endpoint := fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, dirPath, ref)
+	remoteLog.Printf("Checking if path component is symlink: %s/%s/%s@%s", owner, repo, dirPath, ref)
+
+	// The Contents API returns a JSON object for files/symlinks but a JSON array for directories.
+	// Decode into json.RawMessage first to distinguish these cases without error-driven control flow.
+	var raw json.RawMessage
+	err := client.Get(endpoint, &raw)
+	if err != nil {
+		remoteLog.Printf("Contents API error for %s: %v", dirPath, err)
+		return "", false, err
+	}
+
+	// If the response is an array, this is a directory listing — not a symlink
+	trimmed := strings.TrimSpace(string(raw))
+	if len(trimmed) > 0 && trimmed[0] == '[' {
+		remoteLog.Printf("Path component %s is a directory (not a symlink)", dirPath)
+		return "", false, nil
+	}
+
+	// Parse the object response to check the type
+	var result struct {
+		Type   string `json:"type"`
+		Target string `json:"target"`
+	}
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return "", false, fmt.Errorf("failed to parse contents response for %s: %w", dirPath, err)
+	}
+
+	if result.Type == "symlink" && result.Target != "" {
+		remoteLog.Printf("Path component %s is a symlink -> %s", dirPath, result.Target)
+		return result.Target, true, nil
+	}
+
+	remoteLog.Printf("Path component %s is type=%s (not a symlink)", dirPath, result.Type)
+	return "", false, nil
+}
+
+// resolveRemoteSymlinks resolves symlinks in a remote GitHub repository path.
+// The GitHub Contents API doesn't follow symlinks in path components. For example,
+// if .github/workflows/shared is a symlink to ../../gh-agent-workflows/shared,
+// fetching .github/workflows/shared/elastic-tools.md returns 404.
+// This function walks the path components and resolves any symlinks found.
+func resolveRemoteSymlinks(owner, repo, filePath, ref string) (string, error) {
+	parts := strings.Split(filePath, "/")
+	if len(parts) <= 1 {
+		return "", fmt.Errorf("no directory components to resolve in path: %s", filePath)
+	}
+
+	remoteLog.Printf("Attempting symlink resolution for %s/%s/%s@%s (%d path components)", owner, repo, filePath, ref, len(parts))
+
+	client, err := api.DefaultRESTClient()
+	if err != nil {
+		return "", fmt.Errorf("failed to create REST client: %w", err)
+	}
+
+	// Check each directory prefix (not including the final filename) to find symlinks
+	for i := 1; i < len(parts); i++ {
+		dirPath := strings.Join(parts[:i], "/")
+
+		target, isSymlink, err := checkRemoteSymlink(client, owner, repo, dirPath, ref)
+		if err != nil {
+			// Only ignore 404s (path component doesn't exist yet at this prefix level).
+			// Propagate real API failures (auth, rate limit, network) immediately.
+			if isNotFoundError(err.Error()) {
+				remoteLog.Printf("Path component %s returned 404, skipping", dirPath)
+				continue
+			}
+			return "", fmt.Errorf("failed to check path component %s for symlinks: %w", dirPath, err)
+		}
+
+		if isSymlink {
+			// Resolve the symlink target relative to the symlink's parent directory.
+			// For example, if .github/workflows/shared is a symlink to ../../gh-agent-workflows/shared,
+			// the parent is .github/workflows and the resolved base is gh-agent-workflows/shared.
+			parentDir := ""
+			if i > 1 {
+				parentDir = strings.Join(parts[:i-1], "/")
+			}
+
+			remoteLog.Printf("Resolving symlink: component=%s target=%s parentDir=%s", dirPath, target, parentDir)
+
+			var resolvedBase string
+			if parentDir != "" {
+				resolvedBase = pathpkg.Clean(pathpkg.Join(parentDir, target))
+			} else {
+				resolvedBase = pathpkg.Clean(target)
+			}
+
+			remoteLog.Printf("Resolved base after path.Clean: %s", resolvedBase)
+
+			// Validate the resolved base doesn't escape the repository root
+			if resolvedBase == "" || resolvedBase == "." || pathpkg.IsAbs(resolvedBase) || strings.HasPrefix(resolvedBase, "..") {
+				remoteLog.Printf("Rejecting resolved base %q (escapes repository root)", resolvedBase)
+				return "", fmt.Errorf("symlink target %q at %s resolves outside repository root: %s", target, dirPath, resolvedBase)
+			}
+
+			// Reconstruct the full path with the resolved symlink
+			remaining := strings.Join(parts[i:], "/")
+			resolvedPath := resolvedBase + "/" + remaining
+
+			remoteLog.Printf("Resolved symlink in remote path: %s -> %s (full: %s -> %s)",
+				dirPath, target, filePath, resolvedPath)
+
+			return resolvedPath, nil
+		}
+	}
+
+	remoteLog.Printf("No symlinks found after checking all %d directory components of %s", len(parts)-1, filePath)
+	return "", fmt.Errorf("no symlinks found in path: %s", filePath)
+}
+
+// DownloadFileFromGitHub downloads a file from a GitHub repository using the GitHub API.
+// This is the exported wrapper for downloadFileFromGitHub.
+// Parameters:
+// - owner: Repository owner (e.g., "github")
+// - repo: Repository name (e.g., "gh-aw")
+// - path: Path to the file within the repository (e.g., ".github/workflows/workflow.md")
+// - ref: Git reference (branch, tag, or commit SHA)
+// Returns the file content as bytes or an error if the file cannot be retrieved.
+func DownloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
+	return downloadFileFromGitHub(owner, repo, path, ref)
+}
+
+// ResolveRefToSHA resolves a git ref (branch, tag, or short SHA) to its full commit SHA.
+// This is the exported wrapper for resolveRefToSHA.
+// If the ref is already a 40-character hex SHA, it returns it as-is.
+func ResolveRefToSHA(owner, repo, ref string) (string, error) {
+	return resolveRefToSHA(owner, repo, ref)
+}
+
 func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
+	return downloadFileFromGitHubWithDepth(owner, repo, path, ref, 0)
+}
+
+func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth int) ([]byte, error) {
 	// Create REST client
 	client, err := api.DefaultRESTClient()
 	if err != nil {
@@ -487,8 +636,9 @@ func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 	// Fetch file content from GitHub API
 	err = client.Get(fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), &fileContent)
 	if err != nil {
-		// Check if this is an authentication error
 		errStr := err.Error()
+
+		// Check if this is an authentication error
 		if gitutil.IsAuthError(errStr) {
 			remoteLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
 			// Try fallback using git commands for public repositories
@@ -499,6 +649,17 @@ func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 			}
 			return content, nil
 		}
+
+		// Check if this is a 404 — the path may traverse a symlink that the API doesn't follow
+		if isNotFoundError(errStr) && symlinkDepth < constants.MaxSymlinkDepth {
+			remoteLog.Printf("File not found at %s/%s/%s@%s, checking for symlinks in path (depth: %d)", owner, repo, path, ref, symlinkDepth)
+			resolvedPath, resolveErr := resolveRemoteSymlinks(owner, repo, path, ref)
+			if resolveErr == nil && resolvedPath != path {
+				remoteLog.Printf("Retrying download with symlink-resolved path: %s -> %s", path, resolvedPath)
+				return downloadFileFromGitHubWithDepth(owner, repo, resolvedPath, ref, symlinkDepth+1)
+			}
+		}
+
 		return nil, fmt.Errorf("failed to fetch file content from %s/%s/%s@%s: %w", owner, repo, path, ref, err)
 	}
 

@@ -166,8 +166,8 @@ if [ -f /tmp/gh-aw/data/cloc_output.json ] && [ -s /tmp/gh-aw/data/cloc_output.j
     lines_of_code_total=$(jq '.SUM.code' /tmp/gh-aw/data/cloc_output.json)
     
     # Test LOC (find test files and measure)
-    # Scope: Files matching test patterns (*_test.go, *.test.js, *.test.cjs, test_*.py, *_test.py)
-    test_files=$(find . -name "*_test.go" -o -name "*.test.js" -o -name "*.test.cjs" -o -name "test_*.py" -o -name "*_test.py" 2>/dev/null)
+    # Scope: Files matching test patterns (*_test.go, *.test.js, *.test.cjs, test_*.py, *_test.py, *Tests.cs, *Test.cs)
+    test_files=$(find . -name "*_test.go" -o -name "*.test.js" -o -name "*.test.cjs" -o -name "test_*.py" -o -name "*_test.py" -o -name "*Tests.cs" -o -name "*Test.cs" 2>/dev/null)
     
     if [ -n "$test_files" ]; then
         echo "$test_files" | xargs cloc --json --quiet > /tmp/gh-aw/data/test_cloc.json

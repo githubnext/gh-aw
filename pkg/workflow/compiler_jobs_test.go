@@ -343,7 +343,7 @@ func TestShouldAddCheckoutStep(t *testing.T) {
 				CustomSteps: "",
 			},
 			actionMode: ActionModeRelease,
-			expected:   false,
+			expected:   true, // Checkout always needed unless already in steps
 		},
 		{
 			name: "dev mode without agent file",
@@ -473,10 +473,12 @@ func TestBuildActivationJob(t *testing.T) {
 func TestBuildActivationJobWithReaction(t *testing.T) {
 	compiler := NewCompiler()
 
+	statusCommentTrue := true
 	workflowData := &WorkflowData{
-		Name:        "Test Workflow",
-		AIReaction:  "rocket",
-		SafeOutputs: &SafeOutputsConfig{},
+		Name:          "Test Workflow",
+		AIReaction:    "rocket",
+		StatusComment: &statusCommentTrue,
+		SafeOutputs:   &SafeOutputsConfig{},
 	}
 
 	job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")

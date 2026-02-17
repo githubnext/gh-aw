@@ -18,7 +18,6 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -116,38 +115,28 @@ Examples:
 			if len(args) > 0 && args[0] != "" {
 				logsCommandLog.Printf("Resolving workflow name from argument: %s", args[0])
 
-				// Convert workflow ID to GitHub Actions workflow name
-				// First try to resolve as a workflow ID
-				resolvedName, err := workflow.ResolveWorkflowName(args[0])
+				// Use flexible workflow name matching (workflow ID or display name)
+				resolvedName, err := workflow.FindWorkflowName(args[0])
 				if err != nil {
-					// If that fails, check if it's already a GitHub Actions workflow name
-					// by checking if any .lock.yml files have this as their name
-					agenticWorkflowNames, nameErr := getAgenticWorkflowNames(false)
-					if nameErr == nil && sliceutil.Contains(agenticWorkflowNames, args[0]) {
-						// It's already a valid GitHub Actions workflow name
-						workflowName = args[0]
-					} else {
-						// Neither workflow ID nor valid GitHub Actions workflow name
-						suggestions := []string{
-							fmt.Sprintf("Run '%s status' to see all available workflows", string(constants.CLIExtensionPrefix)),
-							"Check for typos in the workflow name",
-							"Use the workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude')",
-						}
-
-						// Add fuzzy match suggestions
-						similarNames := suggestWorkflowNames(args[0])
-						if len(similarNames) > 0 {
-							suggestions = append([]string{fmt.Sprintf("Did you mean: %s?", strings.Join(similarNames, ", "))}, suggestions...)
-						}
-
-						return errors.New(console.FormatErrorWithSuggestions(
-							fmt.Sprintf("workflow '%s' not found", args[0]),
-							suggestions,
-						))
+					// Workflow not found - provide suggestions
+					suggestions := []string{
+						fmt.Sprintf("Run '%s status' to see all available workflows", string(constants.CLIExtensionPrefix)),
+						"Check for typos in the workflow name",
+						"Use the workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude')",
 					}
-				} else {
-					workflowName = resolvedName
+
+					// Add fuzzy match suggestions
+					similarNames := suggestWorkflowNames(args[0])
+					if len(similarNames) > 0 {
+						suggestions = append([]string{fmt.Sprintf("Did you mean: %s?", strings.Join(similarNames, ", "))}, suggestions...)
+					}
+
+					return errors.New(console.FormatErrorWithSuggestions(
+						fmt.Sprintf("workflow '%s' not found", args[0]),
+						suggestions,
+					))
 				}
+				workflowName = resolvedName
 			}
 
 			count, _ := cmd.Flags().GetInt("count")

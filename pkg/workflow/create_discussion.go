@@ -23,6 +23,7 @@ type CreateDiscussionsConfig struct {
 	RequiredCategory      string   `yaml:"required-category,omitempty"`       // Required category for matching when close-older-discussions is enabled
 	Expires               int      `yaml:"expires,omitempty"`                 // Hours until the discussion expires and should be automatically closed
 	FallbackToIssue       *bool    `yaml:"fallback-to-issue,omitempty"`       // When true (default), fallback to create-issue if discussion creation fails due to permissions
+	Footer                *bool    `yaml:"footer,omitempty"`                  // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 }
 
 // parseDiscussionsConfig handles create-discussion configuration
@@ -38,25 +39,7 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 	configData, _ := outputMap["create-discussion"].(map[string]any)
 
 	// Pre-process the expires field (convert to hours before unmarshaling)
-	expiresDisabled := false
-	if configData != nil {
-		if expires, exists := configData["expires"]; exists {
-			// Always parse the expires value through parseExpiresFromConfig
-			// This handles: integers (days), strings (time specs like "48h"), and boolean false
-			expiresInt := parseExpiresFromConfig(configData)
-			if expiresInt == -1 {
-				// Explicitly disabled with false
-				expiresDisabled = true
-				configData["expires"] = 0
-			} else if expiresInt > 0 {
-				configData["expires"] = expiresInt
-			} else {
-				// Invalid or missing - set to 0
-				configData["expires"] = 0
-			}
-			discussionLog.Printf("Parsed expires value %v to %d hours (disabled=%t)", expires, expiresInt, expiresDisabled)
-		}
-	}
+	expiresDisabled := preprocessExpiresField(configData, discussionLog)
 
 	// Unmarshal into typed config struct
 	var config CreateDiscussionsConfig
@@ -92,10 +75,8 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 		return nil // Invalid configuration, return nil to cause validation error
 	}
 
-	// Validate category naming convention (lowercase, preferably plural)
-	if validateDiscussionCategory(config.Category, discussionLog, c.markdownPath) {
-		return nil // Invalid configuration, return nil to cause validation error
-	}
+	// Normalize and validate category naming convention
+	config.Category = normalizeDiscussionCategory(config.Category, discussionLog, c.markdownPath)
 
 	// Log configured values
 	if config.TitlePrefix != "" {
@@ -163,6 +144,12 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		customEnvVars = append(customEnvVars, "          GH_AW_DISCUSSION_FALLBACK_TO_ISSUE: \"true\"\n")
 	}
 
+	// Add footer flag if explicitly set to false
+	if data.SafeOutputs.CreateDiscussions.Footer != nil && !*data.SafeOutputs.CreateDiscussions.Footer {
+		customEnvVars = append(customEnvVars, "          GH_AW_FOOTER: \"false\"\n")
+		discussionLog.Print("Footer disabled - XML markers will be included but visible footer content will be omitted")
+	}
+
 	// Add environment variable for temporary ID map from create_issue job
 	if createIssueJobName != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TEMPORARY_ID_MAP: ${{ needs.%s.outputs.temporary_id_map }}\n", createIssueJobName))
@@ -201,18 +188,18 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	})
 }
 
-// validateDiscussionCategory validates discussion category naming conventions
-// Categories should be lowercase and preferably plural
-// Returns true if validation fails (invalid), false if valid
-func validateDiscussionCategory(category string, log *logger.Logger, markdownPath string) bool {
+// normalizeDiscussionCategory normalizes discussion category to lowercase
+// and provides warnings about naming conventions
+// Returns normalized category (or original if it's a category ID)
+func normalizeDiscussionCategory(category string, log *logger.Logger, markdownPath string) string {
 	// Empty category is allowed (GitHub Discussions will use default)
 	if category == "" {
-		return false
+		return category
 	}
 
-	// GitHub Discussion category IDs start with "DIC_" - these are valid
+	// GitHub Discussion category IDs start with "DIC_" - don't normalize these
 	if strings.HasPrefix(category, "DIC_") {
-		return false
+		return category
 	}
 
 	// List of known category naming issues and their corrections
@@ -223,26 +210,25 @@ func validateDiscussionCategory(category string, log *logger.Logger, markdownPat
 		"Research": "research",
 	}
 
-	// Check if category has uppercase letters
-	if category != strings.ToLower(category) {
+	// Check if category has uppercase letters and normalize
+	normalizedCategory := strings.ToLower(category)
+	if category != normalizedCategory {
 		var message string
 		// Check if we have a known correction
 		if corrected, exists := categoryCorrections[category]; exists {
-			message = fmt.Sprintf("Discussion category %q should use lowercase: %q", category, corrected)
+			message = fmt.Sprintf("Discussion category %q normalized to lowercase: %q", category, corrected)
 			if log != nil {
-				log.Printf("Invalid discussion category %q: should use lowercase: %q", category, corrected)
+				log.Printf("Normalized discussion category %q to lowercase: %q", category, corrected)
 			}
 		} else {
-			message = fmt.Sprintf("Discussion category %q should use lowercase", category)
+			message = fmt.Sprintf("Discussion category %q normalized to lowercase: %q", category, normalizedCategory)
 			if log != nil {
-				log.Printf("Invalid discussion category %q: should use lowercase", category)
+				log.Printf("Normalized discussion category %q to lowercase: %q", category, normalizedCategory)
 			}
 		}
 
-		// Print formatted warning to stderr
-		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
-
-		return true // Validation failed
+		// Print formatted info message to stderr
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "info", message))
 	}
 
 	// Warn about singular forms of common categories
@@ -251,11 +237,11 @@ func validateDiscussionCategory(category string, log *logger.Logger, markdownPat
 		"report": "reports",
 	}
 
-	if plural, isSingular := singularToPlural[category]; isSingular {
+	if plural, isSingular := singularToPlural[normalizedCategory]; isSingular {
 		if log != nil {
-			log.Printf("⚠ Discussion category %q is singular; consider using plural form %q for consistency", category, plural)
+			log.Printf("⚠ Discussion category %q is singular; consider using plural form %q for consistency", normalizedCategory, plural)
 		}
 	}
 
-	return false // Validation passed
+	return normalizedCategory
 }

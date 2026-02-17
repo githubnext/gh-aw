@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { repairJson } = require("./json_repair_helpers.cjs");
+const { repairJson, sanitizePrototypePollution } = require("./json_repair_helpers.cjs");
 const { AGENT_OUTPUT_FILENAME, TMP_GH_AW_PATH } = require("./constants.cjs");
 
 async function main() {
@@ -128,11 +128,15 @@ async function main() {
     }
     function parseJsonWithRepair(jsonStr) {
       try {
-        return JSON.parse(jsonStr);
+        const parsed = JSON.parse(jsonStr);
+        // Sanitize the parsed object to prevent prototype pollution
+        return sanitizePrototypePollution(parsed);
       } catch (originalError) {
         try {
           const repairedJson = repairJson(jsonStr);
-          return JSON.parse(repairedJson);
+          const parsed = JSON.parse(repairedJson);
+          // Sanitize the parsed object to prevent prototype pollution
+          return sanitizePrototypePollution(parsed);
         } catch (repairError) {
           core.info(`invalid input json: ${jsonStr}`);
           const originalMsg = originalError instanceof Error ? originalError.message : String(originalError);
@@ -163,11 +167,15 @@ async function main() {
     if (!outputFile) {
       core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
       core.setOutput("output", "");
+      core.setOutput("output_types", "");
+      core.setOutput("has_patch", "false");
       return;
     }
     if (!fs.existsSync(outputFile)) {
       core.info(`Output file does not exist: ${outputFile}`);
       core.setOutput("output", "");
+      core.setOutput("output_types", "");
+      core.setOutput("has_patch", "false");
       return;
     }
     const outputContent = fs.readFileSync(outputFile, "utf8");
@@ -330,6 +338,10 @@ async function main() {
     if (error instanceof Error && error.stack) {
       core.error(`Stack trace: ${error.stack}`);
     }
+    // Set outputs to empty/false even on error to ensure they are always defined
+    core.setOutput("output", "");
+    core.setOutput("output_types", "");
+    core.setOutput("has_patch", "false");
     core.setFailed(`Agent output ingestion failed: ${errorMsg}`);
     throw error;
   }

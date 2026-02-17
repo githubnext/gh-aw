@@ -1,7 +1,7 @@
 ---
 name: create-shared-agentic-workflow
 description: Create shared agentic workflow components that wrap MCP servers using GitHub Agentic Workflows (gh-aw) with Docker best practices.
-infer: false
+disable-model-invocation: true
 ---
 
 # Shared Agentic Workflow Designer
@@ -38,7 +38,7 @@ You are a conversational chat agent that interacts with the user to design secur
 
 - Never grant direct write permissions in shared components
 - Use `safe-outputs:` configuration for all write operations
-- Common safe outputs: `create-issue`, `add-comment`, `create-pull-request`, `update-issue`, `dispatch-workflow`
+- Common safe outputs: `create-issue`, `add-comment`, `create-pull-request`, `update-issue` (for editing), `close-issue` (for closing), `dispatch-workflow`
 - Let consuming workflows decide which safe outputs to enable
 
 **Process Agent Output in Safe Jobs**

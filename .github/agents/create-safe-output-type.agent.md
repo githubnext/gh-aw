@@ -1,6 +1,6 @@
 ---
 description: Adding a New Safe Output Type to GitHub Agentic Workflows
-infer: false
+disable-model-invocation: true
 ---
 
 # Add New Safe Output Type

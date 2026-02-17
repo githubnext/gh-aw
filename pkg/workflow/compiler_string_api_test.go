@@ -1,0 +1,231 @@
+//go:build !integration
+
+package workflow
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestParseWorkflowString_BasicParsing(t *testing.T) {
+	markdown := `---
+name: hello-world
+description: A simple hello world workflow
+on:
+  workflow_dispatch:
+engine: copilot
+---
+
+# Mission
+
+Say hello to the world!
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	wd, err := compiler.ParseWorkflowString(markdown, "workflow.md")
+	require.NoError(t, err)
+	assert.NotNil(t, wd)
+	assert.Equal(t, "hello-world", wd.Name)
+}
+
+func TestParseWorkflowString_MissingFrontmatter(t *testing.T) {
+	markdown := `# Just a heading
+
+No frontmatter here.
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	_, err := compiler.ParseWorkflowString(markdown, "workflow.md")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "frontmatter")
+}
+
+func TestParseWorkflowString_InvalidFrontmatterYAML(t *testing.T) {
+	markdown := `---
+name: [invalid yaml
+on: {{{
+---
+
+# Broken
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	_, err := compiler.ParseWorkflowString(markdown, "workflow.md")
+	require.Error(t, err)
+}
+
+func TestParseWorkflowString_SharedWorkflowDetection(t *testing.T) {
+	// Shared workflows have no 'on' trigger field
+	markdown := `---
+name: shared-tools
+description: shared component
+tools:
+  bash: ["echo"]
+---
+
+# Shared tools component
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	_, err := compiler.ParseWorkflowString(markdown, "shared/tools.md")
+	require.Error(t, err)
+
+	var sharedErr *SharedWorkflowError
+	assert.ErrorAs(t, err, &sharedErr, "expected SharedWorkflowError")
+}
+
+func TestParseWorkflowString_VirtualPathBehavior(t *testing.T) {
+	markdown := `---
+name: path-test
+on: push
+engine: copilot
+---
+
+# Path test
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	// The virtual path should be cleaned and used for workflow ID derivation
+	wd, err := compiler.ParseWorkflowString(markdown, "some/nested/../workflow.md")
+	require.NoError(t, err)
+	assert.NotNil(t, wd)
+}
+
+func TestCompileToYAML_BasicCompilation(t *testing.T) {
+	markdown := `---
+name: compile-test
+on:
+  workflow_dispatch:
+engine: copilot
+---
+
+# Mission
+
+Greet the user warmly.
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	wd, err := compiler.ParseWorkflowString(markdown, "workflow.md")
+	require.NoError(t, err)
+
+	yaml, err := compiler.CompileToYAML(wd, "workflow.md")
+	require.NoError(t, err)
+	assert.NotEmpty(t, yaml)
+
+	// The generated YAML should contain standard GitHub Actions structure
+	assert.Contains(t, yaml, "name:")
+	assert.Contains(t, yaml, "on:")
+	assert.Contains(t, yaml, "jobs:")
+}
+
+func TestCompileToYAML_OutputContainsWorkflowName(t *testing.T) {
+	markdown := `---
+name: my-unique-workflow
+on: push
+engine: copilot
+---
+
+# Do something
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	wd, err := compiler.ParseWorkflowString(markdown, "workflow.md")
+	require.NoError(t, err)
+
+	yaml, err := compiler.CompileToYAML(wd, "workflow.md")
+	require.NoError(t, err)
+	assert.Contains(t, yaml, "my-unique-workflow")
+}
+
+func TestParseWorkflowString_EmptyContent(t *testing.T) {
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	_, err := compiler.ParseWorkflowString("", "workflow.md")
+	require.Error(t, err)
+}
+
+func TestParseWorkflowString_FrontmatterOnly(t *testing.T) {
+	markdown := `---
+name: no-body
+on: push
+engine: copilot
+---
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	// Should parse successfully even without markdown body
+	wd, err := compiler.ParseWorkflowString(markdown, "workflow.md")
+	require.NoError(t, err)
+	assert.NotNil(t, wd)
+}
+
+func TestCompileToYAML_EndToEnd(t *testing.T) {
+	// Full round trip: markdown string -> parse -> compile -> YAML string
+	markdown := `---
+name: e2e-test
+description: End-to-end string API test
+on:
+  issues:
+    types: [opened]
+engine: copilot
+---
+
+# Mission
+
+When a new issue is opened, add a welcome comment.
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	wd, err := compiler.ParseWorkflowString(markdown, "workflow.md")
+	require.NoError(t, err)
+
+	yaml, err := compiler.CompileToYAML(wd, "workflow.md")
+	require.NoError(t, err)
+
+	// Verify the YAML is valid-looking
+	assert.True(t, strings.HasPrefix(yaml, "#"), "compiled YAML should start with a comment header")
+	assert.Contains(t, yaml, "e2e-test")
+	assert.Contains(t, yaml, "issues")
+}

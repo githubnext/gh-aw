@@ -58,8 +58,9 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	// Parse YAML
 	var frontmatter map[string]any
 	if err := yaml.Unmarshal([]byte(frontmatterYAML), &frontmatter); err != nil {
-		// Use yaml.FormatError to provide colorized, source-positioned error output
-		formattedErr := yaml.FormatError(err, true, true)
+		// Use FormatYAMLError to provide source-positioned error output with adjusted line numbers
+		// FrontmatterStart is 2 (line 2 is where frontmatter content starts after opening ---)
+		formattedErr := FormatYAMLError(err, 2, frontmatterYAML)
 		return nil, fmt.Errorf("failed to parse frontmatter:\n%s", formattedErr)
 	}
 
@@ -266,6 +267,32 @@ func ExtractWorkflowNameFromMarkdown(filePath string) (string, error) {
 
 	// No H1 header found, generate default name from filename
 	defaultName := generateDefaultWorkflowName(filePath)
+	log.Printf("No H1 header found, using default name: %s", defaultName)
+	return defaultName, nil
+}
+
+// ExtractWorkflowNameFromContent extracts the workflow name from markdown content string.
+// This is the in-memory equivalent of ExtractWorkflowNameFromMarkdown, used by Wasm builds
+// where filesystem access is unavailable.
+func ExtractWorkflowNameFromContent(content string, virtualPath string) (string, error) {
+	log.Printf("Extracting workflow name from content: virtualPath=%s, size=%d bytes", virtualPath, len(content))
+
+	markdownContent, err := ExtractMarkdownContent(content)
+	if err != nil {
+		return "", err
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(markdownContent))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "# ") {
+			workflowName := strings.TrimSpace(line[2:])
+			log.Printf("Found workflow name from H1 header: %s", workflowName)
+			return workflowName, nil
+		}
+	}
+
+	defaultName := generateDefaultWorkflowName(virtualPath)
 	log.Printf("No H1 header found, using default name: %s", defaultName)
 	return defaultName, nil
 }

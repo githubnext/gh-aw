@@ -1,3 +1,5 @@
+//go:build !js && !wasm
+
 // This file provides repository feature detection and validation.
 //
 // # Repository Features Validation

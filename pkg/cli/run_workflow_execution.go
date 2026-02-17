@@ -19,9 +19,24 @@ import (
 
 var executionLog = logger.New("cli:run_workflow_execution")
 
+// RunOptions contains all configuration options for running workflows
+type RunOptions struct {
+	Enable            bool     // Enable the workflow if it's disabled
+	EngineOverride    string   // Override AI engine
+	RepoOverride      string   // Target repository (owner/repo format)
+	RefOverride       string   // Branch or tag name
+	AutoMergePRs      bool     // Auto-merge PRs created during execution
+	Push              bool     // Commit and push workflow files before running
+	WaitForCompletion bool     // Wait for workflow completion
+	RepeatCount       int      // Number of times to repeat (0 = run once)
+	Inputs            []string // Workflow inputs in key=value format
+	Verbose           bool     // Enable verbose output
+	DryRun            bool     // Validate without actually triggering
+}
+
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
-func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, push bool, waitForCompletion bool, inputs []string, verbose bool, dryRun bool) error {
-	executionLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s, ref=%s, push=%v, wait=%v, inputs=%v", workflowIdOrName, enable, engineOverride, repoOverride, refOverride, push, waitForCompletion, inputs)
+func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunOptions) error {
+	executionLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s, ref=%s, push=%v, wait=%v, inputs=%v", workflowIdOrName, opts.Enable, opts.EngineOverride, opts.RepoOverride, opts.RefOverride, opts.Push, opts.WaitForCompletion, opts.Inputs)
 
 	// Check context cancellation at the start
 	select {
@@ -36,7 +51,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 	}
 
 	// Validate input format early before attempting workflow validation
-	for _, input := range inputs {
+	for _, input := range opts.Inputs {
 		if !strings.Contains(input, "=") {
 			return fmt.Errorf("invalid input format '%s': expected key=value", input)
 		}
@@ -47,7 +62,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 		}
 	}
 
-	if verbose {
+	if opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Running workflow on GitHub Actions: %s", workflowIdOrName)))
 	}
 
@@ -57,17 +72,17 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 	}
 
 	// Validate workflow exists and is runnable
-	if repoOverride != "" {
-		executionLog.Printf("Validating remote workflow: %s in repo %s", workflowIdOrName, repoOverride)
+	if opts.RepoOverride != "" {
+		executionLog.Printf("Validating remote workflow: %s in repo %s", workflowIdOrName, opts.RepoOverride)
 		// For remote repositories, use remote validation
-		if err := validateRemoteWorkflow(workflowIdOrName, repoOverride, verbose); err != nil {
+		if err := validateRemoteWorkflow(workflowIdOrName, opts.RepoOverride, opts.Verbose); err != nil {
 			return fmt.Errorf("failed to validate remote workflow: %w", err)
 		}
 		// Note: We skip local runnable check for remote workflows as we assume they are properly configured
 	} else {
 		executionLog.Printf("Validating local workflow: %s", workflowIdOrName)
 		// For local workflows, use existing local validation
-		workflowFile, err := resolveWorkflowFile(workflowIdOrName, verbose)
+		workflowFile, err := resolveWorkflowFile(workflowIdOrName, opts.Verbose)
 		if err != nil {
 			// Return error directly without wrapping - it already contains formatted message with suggestions
 			return err
@@ -85,7 +100,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 		executionLog.Printf("Workflow is runnable: %s", workflowFile)
 
 		// Validate workflow inputs
-		if err := validateWorkflowInputs(workflowFile, inputs); err != nil {
+		if err := validateWorkflowInputs(workflowFile, opts.Inputs); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
@@ -114,11 +129,11 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 	// Handle --enable flag logic: check workflow state and enable if needed
 	var wasDisabled bool
 	var workflowID int64
-	if enable {
+	if opts.Enable {
 		// Get current workflow status
-		wf, err := getWorkflowStatus(workflowIdOrName, repoOverride, verbose)
+		wf, err := getWorkflowStatus(workflowIdOrName, opts.RepoOverride, opts.Verbose)
 		if err != nil {
-			if verbose {
+			if opts.Verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not check workflow status: %v", err)))
 			}
 		}
@@ -129,13 +144,13 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 			if wf.State == "disabled_manually" {
 				wasDisabled = true
 				executionLog.Printf("Workflow %s is disabled, temporarily enabling for this run (id=%d)", workflowIdOrName, wf.ID)
-				if verbose {
+				if opts.Verbose {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow '%s' is disabled, enabling it temporarily...", workflowIdOrName)))
 				}
 				// Enable the workflow
 				enableArgs := []string{"workflow", "enable", strconv.FormatInt(wf.ID, 10)}
-				if repoOverride != "" {
-					enableArgs = append(enableArgs, "--repo", repoOverride)
+				if opts.RepoOverride != "" {
+					enableArgs = append(enableArgs, "--repo", opts.RepoOverride)
 				}
 				cmd := workflow.ExecGH(enableArgs...)
 				if err := cmd.Run(); err != nil {
@@ -157,7 +172,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 
 	// For local workflows, validate the workflow exists and check for lock file
 	var lockFilePath string
-	if repoOverride == "" {
+	if opts.RepoOverride == "" {
 		// For local workflows, validate the workflow exists locally
 		workflowsDir := getWorkflowsDir()
 
@@ -184,16 +199,16 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 	}
 
 	// Recompile workflow if engine override is provided (only for local workflows)
-	if engineOverride != "" && repoOverride == "" {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Recompiling workflow with engine override: %s", engineOverride)))
+	if opts.EngineOverride != "" && opts.RepoOverride == "" {
+		if opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Recompiling workflow with engine override: %s", opts.EngineOverride)))
 		}
 
 		workflowMarkdownPath := stringutil.LockFileToMarkdown(lockFilePath)
 		config := CompileConfig{
 			MarkdownFiles:        []string{workflowMarkdownPath},
-			Verbose:              verbose,
-			EngineOverride:       engineOverride,
+			Verbose:              opts.Verbose,
+			EngineOverride:       opts.EngineOverride,
 			Validate:             true,
 			Watch:                false,
 			WorkflowDir:          "",
@@ -208,21 +223,21 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 			return fmt.Errorf("failed to recompile workflow with engine override: %w", err)
 		}
 
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully recompiled workflow with engine: %s", engineOverride)))
+		if opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully recompiled workflow with engine: %s", opts.EngineOverride)))
 		}
-	} else if engineOverride != "" && repoOverride != "" {
-		if verbose {
+	} else if opts.EngineOverride != "" && opts.RepoOverride != "" {
+		if opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Note: Engine override ignored for remote repository workflows"))
 		}
 	}
 
-	if verbose {
+	if opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using lock file: %s", lockFileName)))
 	}
 
 	// Check for missing or outdated lock files (when not using --push)
-	if !push && repoOverride == "" {
+	if !opts.Push && opts.RepoOverride == "" {
 		workflowMarkdownPath := stringutil.LockFileToMarkdown(lockFilePath)
 		if status, err := checkLockFileStatus(workflowMarkdownPath); err == nil {
 			if status.Missing {
@@ -236,134 +251,46 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 	}
 
 	// Handle --push flag: commit and push workflow files before running
-	if push {
+	if opts.Push {
 		// Only valid for local workflows
-		if repoOverride != "" {
+		if opts.RepoOverride != "" {
 			return fmt.Errorf("--push flag is only supported for local workflows, not remote repositories")
 		}
 
-		if verbose {
+		if opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Collecting workflow files for push..."))
 		}
 
 		// Collect the workflow .md file, .lock.yml file, and transitive imports
 		workflowMarkdownPath := stringutil.LockFileToMarkdown(lockFilePath)
-		files, err := collectWorkflowFiles(ctx, workflowMarkdownPath, verbose)
+		files, err := collectWorkflowFiles(ctx, workflowMarkdownPath, opts.Verbose)
 		if err != nil {
 			return fmt.Errorf("failed to collect workflow files: %w", err)
 		}
 
 		// Commit and push the files (includes branch verification if --ref is specified)
-		if err := pushWorkflowFiles(workflowIdOrName, files, refOverride, verbose); err != nil {
+		if err := pushWorkflowFiles(workflowIdOrName, files, opts.RefOverride, opts.Verbose); err != nil {
 			return fmt.Errorf("failed to push workflow files: %w", err)
 		}
 
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully pushed %d file(s) for workflow %s", len(files), workflowIdOrName)))
 	}
 
-	// Handle secret pushing if requested
-	var secretTracker *TrialSecretTracker
-	if pushSecrets {
-		// Determine target repository
-		var targetRepo string
-		if repoOverride != "" {
-			targetRepo = repoOverride
-		} else {
-			// Get current repository slug
-			currentRepo, err := GetCurrentRepoSlug()
-			if err != nil {
-				return fmt.Errorf("failed to determine current repository for secret handling: %w", err)
-			}
-			targetRepo = currentRepo
-		}
-
-		secretTracker = NewTrialSecretTracker(targetRepo)
-		executionLog.Printf("Created secret tracker for repository: %s", targetRepo)
-
-		// Set up secret cleanup to always run on exit
-		defer func() {
-			if err := cleanupTrialSecrets(targetRepo, secretTracker, verbose); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup secrets: %v", err)))
-			}
-		}()
-
-		// Add GitHub token secret
-		if err := addGitHubTokenSecret(targetRepo, secretTracker, verbose); err != nil {
-			return fmt.Errorf("failed to add GitHub token secret: %w", err)
-		}
-
-		// Determine and add engine secrets
-		if repoOverride == "" && lockFilePath != "" {
-			// For local workflows, read and parse the workflow to determine engine requirements
-			workflowMarkdownPath := stringutil.LockFileToMarkdown(lockFilePath)
-			config := CompileConfig{
-				MarkdownFiles:        []string{workflowMarkdownPath},
-				Verbose:              false, // Don't be verbose during secret determination
-				EngineOverride:       engineOverride,
-				Validate:             false,
-				Watch:                false,
-				WorkflowDir:          "",
-				SkipInstructions:     true,
-				NoEmit:               true, // Don't emit files, just compile for analysis
-				Purge:                false,
-				TrialMode:            false,
-				TrialLogicalRepoSlug: "",
-				Strict:               false,
-			}
-			workflowDataList, err := CompileWorkflows(ctx, config)
-			if err == nil && len(workflowDataList) == 1 {
-				workflowData := workflowDataList[0]
-				if err := determineAndAddEngineSecret(workflowData.EngineConfig, targetRepo, secretTracker, engineOverride, verbose); err != nil {
-					// Log warning but don't fail - the workflow might still run without secrets
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to determine engine secret: %v", err)))
-					}
-				}
-			} else if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to compile workflow for secret determination - continuing without engine secrets"))
-			}
-		} else if repoOverride != "" {
-			// For remote workflows, we can't analyze the workflow file, so create a minimal EngineConfig
-			// with engine information and reuse the existing determineAndAddEngineSecret function
-			var engineType string
-			if engineOverride != "" {
-				engineType = engineOverride
-			} else {
-				engineType = "copilot" // Default engine
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Using default Copilot engine for remote workflow secret handling"))
-				}
-			}
-
-			// Create minimal EngineConfig with engine information
-			engineConfig := &workflow.EngineConfig{
-				ID: engineType,
-			}
-
-			if err := determineAndAddEngineSecret(engineConfig, targetRepo, secretTracker, engineOverride, verbose); err != nil {
-				// Log warning but don't fail - the workflow might still run without secrets
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to determine engine secret for remote workflow: %v", err)))
-				}
-			}
-		}
-	}
-
 	// Build the gh workflow run command with optional repo and ref overrides
 	args := []string{"workflow", "run", lockFileName}
-	if repoOverride != "" {
-		args = append(args, "--repo", repoOverride)
+	if opts.RepoOverride != "" {
+		args = append(args, "--repo", opts.RepoOverride)
 	}
 
 	// Determine the ref to use (branch/tag)
 	// If refOverride is specified, use it; otherwise for local workflows, use current branch
-	ref := refOverride
-	if ref == "" && repoOverride == "" {
+	ref := opts.RefOverride
+	if ref == "" && opts.RepoOverride == "" {
 		// For local workflows without explicit ref, use the current branch
 		if currentBranch, err := getCurrentBranch(); err == nil {
 			ref = currentBranch
 			executionLog.Printf("Using current branch for workflow run: %s", ref)
-		} else if verbose {
+		} else if opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Note: Could not determine current branch: %v", err)))
 		}
 	}
@@ -372,8 +299,8 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 	}
 
 	// Add workflow inputs if provided
-	if len(inputs) > 0 {
-		for _, input := range inputs {
+	if len(opts.Inputs) > 0 {
+		for _, input := range opts.Inputs {
 			// Add as raw field flag to gh workflow run
 			args = append(args, "-f", input)
 		}
@@ -383,18 +310,18 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 	workflowStartTime := time.Now()
 
 	// Handle dry-run mode: validate everything but skip actual execution
-	if dryRun {
-		if verbose {
+	if opts.DryRun {
+		if opts.Verbose {
 			var cmdParts []string
 			cmdParts = append(cmdParts, "gh workflow run", lockFileName)
-			if repoOverride != "" {
-				cmdParts = append(cmdParts, "--repo", repoOverride)
+			if opts.RepoOverride != "" {
+				cmdParts = append(cmdParts, "--repo", opts.RepoOverride)
 			}
 			if ref != "" {
 				cmdParts = append(cmdParts, "--ref", ref)
 			}
-			if len(inputs) > 0 {
-				for _, input := range inputs {
+			if len(opts.Inputs) > 0 {
+				for _, input := range opts.Inputs {
 					cmdParts = append(cmdParts, "-f", input)
 				}
 			}
@@ -404,8 +331,8 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Validation passed for workflow: %s (dry run - not executed)", lockFileName)))
 
 		// Restore workflow state if it was disabled and we enabled it
-		if enable && wasDisabled && workflowID != 0 {
-			restoreWorkflowState(workflowIdOrName, workflowID, repoOverride, verbose)
+		if opts.Enable && wasDisabled && workflowID != 0 {
+			restoreWorkflowState(workflowIdOrName, workflowID, opts.RepoOverride, opts.Verbose)
 		}
 
 		return nil
@@ -414,17 +341,17 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 	// Execute gh workflow run command and capture output
 	cmd := workflow.ExecGH(args...)
 
-	if verbose {
+	if opts.Verbose {
 		var cmdParts []string
 		cmdParts = append(cmdParts, "gh workflow run", lockFileName)
-		if repoOverride != "" {
-			cmdParts = append(cmdParts, "--repo", repoOverride)
+		if opts.RepoOverride != "" {
+			cmdParts = append(cmdParts, "--repo", opts.RepoOverride)
 		}
 		if ref != "" {
 			cmdParts = append(cmdParts, "--ref", ref)
 		}
-		if len(inputs) > 0 {
-			for _, input := range inputs {
+		if len(opts.Inputs) > 0 {
+			for _, input := range opts.Inputs {
 				cmdParts = append(cmdParts, "-f", input)
 			}
 		}
@@ -442,8 +369,8 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 		}
 
 		// Restore workflow state if it was disabled and we enabled it (even on error)
-		if enable && wasDisabled && workflowID != 0 {
-			restoreWorkflowState(workflowIdOrName, workflowID, repoOverride, verbose)
+		if opts.Enable && wasDisabled && workflowID != 0 {
+			restoreWorkflowState(workflowIdOrName, workflowID, opts.RepoOverride, opts.Verbose)
 		}
 
 		// Check if this is a permission error in a codespace
@@ -468,31 +395,31 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 
 	// Try to get the latest run for this workflow to show a direct link
 	// Add a delay to allow GitHub Actions time to register the new workflow run
-	runInfo, runErr := getLatestWorkflowRunWithRetry(lockFileName, repoOverride, verbose)
+	runInfo, runErr := getLatestWorkflowRunWithRetry(lockFileName, opts.RepoOverride, opts.Verbose)
 	if runErr == nil && runInfo.URL != "" {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("🔗 View workflow run: %s", runInfo.URL)))
 		executionLog.Printf("Workflow run URL: %s (ID: %d)", runInfo.URL, runInfo.DatabaseID)
 
 		// Suggest audit command for analysis
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("💡 To analyze this run, use: %s audit %d", string(constants.CLIExtensionPrefix), runInfo.DatabaseID)))
-	} else if verbose && runErr != nil {
+	} else if opts.Verbose && runErr != nil {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Note: Could not get workflow run URL: %v", runErr)))
 	}
 
 	// Wait for workflow completion if requested (for --repeat or --auto-merge-prs)
-	if waitForCompletion || autoMergePRs {
+	if opts.WaitForCompletion || opts.AutoMergePRs {
 		if runErr != nil {
-			if autoMergePRs {
+			if opts.AutoMergePRs {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not get workflow run information for auto-merge: %v", runErr)))
-			} else if waitForCompletion {
+			} else if opts.WaitForCompletion {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not get workflow run information: %v", runErr)))
 			}
 		} else {
 			// Determine target repository: use repo override if provided, otherwise get current repo
-			targetRepo := repoOverride
+			targetRepo := opts.RepoOverride
 			if targetRepo == "" {
 				if currentRepo, err := GetCurrentRepoSlug(); err != nil {
-					if autoMergePRs {
+					if opts.AutoMergePRs {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not determine target repository for auto-merge: %v", err)))
 					}
 					targetRepo = ""
@@ -503,23 +430,23 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 
 			if targetRepo != "" {
 				// Wait for workflow completion
-				if autoMergePRs {
+				if opts.AutoMergePRs {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Auto-merge PRs enabled - waiting for workflow completion..."))
 				} else {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Waiting for workflow completion..."))
 				}
 
 				runIDStr := fmt.Sprintf("%d", runInfo.DatabaseID)
-				if err := WaitForWorkflowCompletion(targetRepo, runIDStr, 30, verbose); err != nil {
-					if autoMergePRs {
+				if err := WaitForWorkflowCompletion(targetRepo, runIDStr, 30, opts.Verbose); err != nil {
+					if opts.AutoMergePRs {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow did not complete successfully, skipping auto-merge: %v", err)))
 					} else {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow did not complete successfully: %v", err)))
 					}
 				} else {
 					// Auto-merge PRs if requested and workflow completed successfully
-					if autoMergePRs {
-						if err := AutoMergePullRequestsCreatedAfter(targetRepo, workflowStartTime, verbose); err != nil {
+					if opts.AutoMergePRs {
+						if err := AutoMergePullRequestsCreatedAfter(targetRepo, workflowStartTime, opts.Verbose); err != nil {
 							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to auto-merge pull requests: %v", err)))
 						}
 					}
@@ -529,15 +456,15 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, enable bo
 	}
 
 	// Restore workflow state if it was disabled and we enabled it
-	if enable && wasDisabled && workflowID != 0 {
-		restoreWorkflowState(workflowIdOrName, workflowID, repoOverride, verbose)
+	if opts.Enable && wasDisabled && workflowID != 0 {
+		restoreWorkflowState(workflowIdOrName, workflowID, opts.RepoOverride, opts.Verbose)
 	}
 
 	return nil
 }
 
 // RunWorkflowsOnGitHub runs multiple agentic workflows on GitHub Actions, optionally repeating a specified number of times
-func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCount int, enable bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, push bool, inputs []string, verbose bool, dryRun bool) error {
+func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, opts RunOptions) error {
 	if len(workflowNames) == 0 {
 		return fmt.Errorf("at least one workflow name or ID is required")
 	}
@@ -557,14 +484,14 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCou
 		}
 
 		// Validate workflow exists
-		if repoOverride != "" {
+		if opts.RepoOverride != "" {
 			// For remote repositories, use remote validation
-			if err := validateRemoteWorkflow(workflowName, repoOverride, verbose); err != nil {
+			if err := validateRemoteWorkflow(workflowName, opts.RepoOverride, opts.Verbose); err != nil {
 				return fmt.Errorf("failed to validate remote workflow '%s': %w", workflowName, err)
 			}
 		} else {
 			// For local workflows, use existing local validation
-			workflowFile, err := resolveWorkflowFile(workflowName, verbose)
+			workflowFile, err := resolveWorkflowFile(workflowName, opts.Verbose)
 			if err != nil {
 				// Return error directly without wrapping - it already contains formatted message with suggestions
 				return err
@@ -585,9 +512,6 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCou
 	runAllWorkflows := func() error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Running %d workflow(s)...", len(workflowNames))))
 
-		// Wait for completion when using --repeat to ensure workflows finish before next iteration
-		waitForCompletion := repeatCount > 0
-
 		for i, workflowName := range workflowNames {
 			// Check for cancellation before each workflow
 			select {
@@ -601,7 +525,13 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCou
 				fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)))
 			}
 
-			if err := RunWorkflowOnGitHub(ctx, workflowName, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, push, waitForCompletion, inputs, verbose, dryRun); err != nil {
+			// Create a copy of opts with WaitForCompletion set when using --repeat
+			workflowOpts := opts
+			if opts.RepeatCount > 0 {
+				workflowOpts.WaitForCompletion = true
+			}
+
+			if err := RunWorkflowOnGitHub(ctx, workflowName, workflowOpts); err != nil {
 				return fmt.Errorf("failed to run workflow '%s': %w", workflowName, err)
 			}
 
@@ -616,7 +546,7 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, repeatCou
 	}
 	// Execute workflows with optional repeat functionality
 	return ExecuteWithRepeat(RepeatOptions{
-		RepeatCount:   repeatCount,
+		RepeatCount:   opts.RepeatCount,
 		RepeatMessage: "Repeating workflow run",
 		ExecuteFunc:   runAllWorkflows,
 		UseStderr:     false, // Use stdout for run command

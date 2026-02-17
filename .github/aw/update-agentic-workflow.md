@@ -1,6 +1,6 @@
 ---
 description: Update existing agentic workflows using GitHub Agentic Workflows (gh-aw) extension with intelligent guidance on modifications, improvements, and refactoring.
-infer: false
+disable-model-invocation: true
 ---
 
 This file will configure the agent into a mode to update existing agentic workflows. Read the ENTIRE content of this file carefully before proceeding. Follow the instructions precisely.

@@ -192,15 +192,41 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
-	// Emit experimental warning for sandbox-runtime feature
-	if isSRTEnabled(workflowData) {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: sandbox-runtime firewall"))
-		c.IncrementWarningCount()
+	// Validate labels configuration
+	log.Printf("Validating labels")
+	if err := validateLabels(workflowData); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
-	// Emit warning for sandbox: false (disables all sandbox features)
-	if isSandboxDisabled(workflowData) {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("⚠️  WARNING: Sandbox disabled (sandbox: false). This removes important security protections including the firewall and MCP gateway. The AI agent will have direct network access without any filtering. Only use this for testing or in controlled environments where you trust the AI agent completely."))
+	// Validate workflow-level concurrency group expression
+	log.Printf("Validating workflow-level concurrency configuration")
+	if workflowData.Concurrency != "" {
+		// Extract the group expression from the concurrency YAML
+		// The Concurrency field contains the full YAML (e.g., "concurrency:\n  group: \"...\"")
+		// We need to extract just the group value
+		groupExpr := extractConcurrencyGroupFromYAML(workflowData.Concurrency)
+		if groupExpr != "" {
+			if err := validateConcurrencyGroupExpression(groupExpr); err != nil {
+				return formatCompilerError(markdownPath, "error", fmt.Sprintf("workflow-level concurrency validation failed: %s", err.Error()), err)
+			}
+		}
+	}
+
+	// Validate engine-level concurrency group expression
+	log.Printf("Validating engine-level concurrency configuration")
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Concurrency != "" {
+		// Extract the group expression from the engine concurrency YAML
+		groupExpr := extractConcurrencyGroupFromYAML(workflowData.EngineConfig.Concurrency)
+		if groupExpr != "" {
+			if err := validateConcurrencyGroupExpression(groupExpr); err != nil {
+				return formatCompilerError(markdownPath, "error", fmt.Sprintf("engine.concurrency validation failed: %s", err.Error()), err)
+			}
+		}
+	}
+
+	// Emit warning for sandbox.agent: false (disables agent sandbox firewall)
+	if isAgentSandboxDisabled(workflowData) {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("⚠️  WARNING: Agent sandbox disabled (sandbox.agent: false). This removes firewall protection. The AI agent will have direct network access without firewall filtering. The MCP gateway remains enabled. Only use this for testing or in controlled environments where you trust the AI agent completely."))
 		c.IncrementWarningCount()
 	}
 
@@ -216,6 +242,12 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		c.IncrementWarningCount()
 	}
 
+	// Emit experimental warning for rate-limit feature
+	if workflowData.RateLimit != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental feature: rate-limit"))
+		c.IncrementWarningCount()
+	}
+
 	// Validate workflow_run triggers have branch restrictions
 	log.Printf("Validating workflow_run triggers for branch restrictions")
 	if err := c.validateWorkflowRunBranches(workflowData, markdownPath); err != nil {
@@ -225,26 +257,55 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 	// Validate permissions against GitHub MCP toolsets
 	log.Printf("Validating permissions for GitHub MCP toolsets")
 	if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil {
-		// Parse permissions from the workflow data
-		// WorkflowData.Permissions contains the raw YAML string (including "permissions:" prefix)
-		permissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
+		// Check if GitHub tool was explicitly configured in frontmatter
+		// If permissions exist but tools.github was NOT explicitly configured,
+		// skip validation and let the GitHub MCP server handle permission issues
+		hasPermissions := workflowData.Permissions != ""
 
-		// Validate permissions using the typed GitHub tool configuration
-		validationResult := ValidatePermissions(permissions, workflowData.ParsedTools.GitHub)
+		log.Printf("Permission validation check: hasExplicitGitHubTool=%v, hasPermissions=%v",
+			workflowData.HasExplicitGitHubTool, hasPermissions)
 
-		if validationResult.HasValidationIssues {
-			// Format the validation message
-			message := FormatValidationMessage(validationResult, c.strictMode)
+		// Skip validation if permissions exist but GitHub tool was auto-added (not explicit)
+		if hasPermissions && !workflowData.HasExplicitGitHubTool {
+			log.Printf("Skipping permission validation: permissions exist but tools.github not explicitly configured")
+		} else {
+			// Parse permissions from the workflow data
+			// WorkflowData.Permissions contains the raw YAML string (including "permissions:" prefix)
+			permissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
 
-			if len(validationResult.MissingPermissions) > 0 {
-				if c.strictMode {
-					// In strict mode, missing permissions are errors
-					return formatCompilerError(markdownPath, "error", message, nil)
-				} else {
-					// In non-strict mode, missing permissions are warnings
-					fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
-					c.IncrementWarningCount()
+			// Validate permissions using the typed GitHub tool configuration
+			validationResult := ValidatePermissions(permissions, workflowData.ParsedTools.GitHub)
+
+			if validationResult.HasValidationIssues {
+				// Format the validation message
+				message := FormatValidationMessage(validationResult, c.strictMode)
+
+				if len(validationResult.MissingPermissions) > 0 {
+					if c.strictMode {
+						// In strict mode, missing permissions are errors
+						return formatCompilerError(markdownPath, "error", message, nil)
+					} else {
+						// In non-strict mode, missing permissions are warnings
+						fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
+						c.IncrementWarningCount()
+					}
 				}
+			}
+		}
+	}
+
+	// Emit warning if id-token: write permission is detected
+	log.Printf("Checking for id-token: write permission")
+	if workflowData.Permissions != "" {
+		permissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
+		if permissions != nil {
+			level, exists := permissions.Get(PermissionIdToken)
+			if exists && level == PermissionWrite {
+				warningMsg := `This workflow grants id-token: write permission
+OIDC tokens can authenticate to cloud providers (AWS, Azure, GCP).
+Ensure proper audience validation and trust policies are configured.`
+				fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", warningMsg))
+				c.IncrementWarningCount()
 			}
 		}
 	}
@@ -267,7 +328,7 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		for _, toolset := range originalToolsets {
 			if toolset == "projects" {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("The 'projects' toolset requires a GitHub token with organization Projects permissions."))
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("See: https://github.github.com/gh-aw/reference/tokens/#gh_aw_project_github_token-github-projects-v2"))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("See: https://github.github.com/gh-aw/reference/auth/#gh_aw_project_github_token-github-projects-v2"))
 				break
 			}
 		}
@@ -463,9 +524,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Track compilation time for performance monitoring
 	startTime := time.Now()
 	defer func() {
-		if log.Enabled() {
-			log.Printf("Compilation completed in %v", time.Since(startTime))
-		}
+		log.Printf("Compilation completed in %v", time.Since(startTime))
 	}()
 
 	// Reset the step order tracker for this compilation

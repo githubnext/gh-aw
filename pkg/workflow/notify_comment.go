@@ -10,34 +10,23 @@ import (
 
 var notifyCommentLog = logger.New("workflow:notify_comment")
 
-// buildConclusionJob creates a job that updates the activation comment with workflow completion status
-// This job is only generated when both add-comment and ai-reaction are configured.
+// buildConclusionJob creates a job that handles workflow completion tasks
+// This job is generated when safe-outputs are configured and handles:
+// - Updating status comments (if status-comment: true)
+// - Processing noop messages
+// - Handling agent failures
+// - Recording missing tools
 // This job runs when:
 // 1. always() - runs even if agent fails
-// 2. A comment was created in activation job (comment_id exists)
-// 3. NO add_comment output was produced by the agent
-// 4. NO create_pull_request output was produced by the agent
+// 2. Agent job was not skipped
+// 3. NO add_comment output was produced by the agent (avoids duplicate updates)
 // This job depends on all safe output jobs to ensure it runs last
 func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, safeOutputJobNames []string) (*Job, error) {
 	notifyCommentLog.Printf("Building conclusion job: main_job=%s, safe_output_jobs_count=%d", mainJobName, len(safeOutputJobNames))
 
-	// Create this job when:
-	// 1. Safe outputs are configured (because noop is always enabled as a fallback)
-	// The job will:
-	// - Update activation comment with noop messages (if comment exists)
-	// - Write noop messages to step summary (if no comment)
-
-	hasAddComment := data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil
-	hasCommand := len(data.Command) > 0
-	hasNoOp := data.SafeOutputs != nil && data.SafeOutputs.NoOp != nil
-	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
-	hasSafeOutputs := data.SafeOutputs != nil
-
-	notifyCommentLog.Printf("Configuration checks: has_add_comment=%t, has_command=%t, has_noop=%t, has_reaction=%t, has_safe_outputs=%t", hasAddComment, hasCommand, hasNoOp, hasReaction, hasSafeOutputs)
-
 	// Always create this job when safe-outputs exist (because noop is always enabled)
 	// This ensures noop messages can be handled even without reactions
-	if !hasSafeOutputs {
+	if data.SafeOutputs == nil {
 		notifyCommentLog.Printf("Skipping job: no safe-outputs configured")
 		return nil, nil // No safe-outputs configured, no need for conclusion job
 	}
@@ -57,23 +46,10 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 
 	// Add GitHub App token minting step if app is configured
 	if data.SafeOutputs.App != nil {
-		// Use permissions for the conclusion job
-		permissions := NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite()
+		// Compute permissions based on configured safe outputs (principle of least privilege)
+		permissions := computePermissionsForSafeOutputs(data.SafeOutputs)
 		steps = append(steps, c.buildGitHubAppTokenMintStep(data.SafeOutputs.App, permissions)...)
 	}
-
-	// Add debug step
-	steps = append(steps, "      - name: Debug job inputs\n")
-	steps = append(steps, "        env:\n")
-	steps = append(steps, fmt.Sprintf("          COMMENT_ID: ${{ needs.%s.outputs.comment_id }}\n", constants.ActivationJobName))
-	steps = append(steps, fmt.Sprintf("          COMMENT_REPO: ${{ needs.%s.outputs.comment_repo }}\n", constants.ActivationJobName))
-	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT_TYPES: ${{ needs.%s.outputs.output_types }}\n", mainJobName))
-	steps = append(steps, fmt.Sprintf("          AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
-	steps = append(steps, "        run: |\n")
-	steps = append(steps, "          echo \"Comment ID: $COMMENT_ID\"\n")
-	steps = append(steps, "          echo \"Comment Repo: $COMMENT_REPO\"\n")
-	steps = append(steps, "          echo \"Agent Output Types: $AGENT_OUTPUT_TYPES\"\n")
-	steps = append(steps, "          echo \"Agent Conclusion: $AGENT_CONCLUSION\"\n")
 
 	// Add artifact download steps once (shared by noop and conclusion steps)
 	steps = append(steps, buildAgentOutputDownloadSteps()...)
@@ -151,6 +127,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	agentFailureEnvVars = append(agentFailureEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID)...)
 	agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
 	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
+	agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID))
 
 	// Only add secret_verification_result if the engine adds the validate-secret step
 	// The validate-secret step is only added by engines that include it in GetInstallationSteps()
@@ -187,6 +164,16 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 			notifyCommentLog.Printf("Warning: failed to serialize messages config for agent failure handler: %v", err)
 		} else if messagesJSON != "" {
 			agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
+		}
+	}
+
+	// Pass repo-memory validation failure outputs if repo-memory is configured
+	// This allows the agent failure handler to report validation issues
+	if data.RepoMemoryConfig != nil && len(data.RepoMemoryConfig.Memories) > 0 {
+		for _, memory := range data.RepoMemoryConfig.Memories {
+			// Add validation status for each memory
+			agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_REPO_MEMORY_VALIDATION_FAILED_%s: ${{ needs.push_repo_memory.outputs.validation_failed_%s }}\n", memory.ID, memory.ID))
+			agentFailureEnvVars = append(agentFailureEnvVars, fmt.Sprintf("          GH_AW_REPO_MEMORY_VALIDATION_ERROR_%s: ${{ needs.push_repo_memory.outputs.validation_error_%s }}\n", memory.ID, memory.ID))
 		}
 	}
 
@@ -299,47 +286,24 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		token = data.SafeOutputs.AddComments.GitHubToken
 	}
 
-	// Build the conclusion GitHub Script step (without artifact downloads - already added above)
-	scriptSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
-		StepName:      "Update reaction comment with completion status",
-		StepID:        "conclusion",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        getNotifyCommentErrorScript(),
-		ScriptFile:    "notify_comment_error.cjs",
-		Token:         token,
-	})
-	steps = append(steps, scriptSteps...)
-
-	// Add unlock step if lock-for-agent is enabled
-	if data.LockForAgent {
-		// Build condition: only unlock if issue was locked by activation job
-		// Must match lock condition: event type is 'issues' or 'issue_comment'
-		// Use the issue_locked output from activation job to determine if unlock is needed
-		eventTypeCheck := BuildOr(
-			BuildEventTypeEquals("issues"),
-			BuildEventTypeEquals("issue_comment"),
-		)
-		lockedOutputCheck := BuildEquals(
-			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.issue_locked", constants.ActivationJobName)),
-			BuildStringLiteral("true"),
-		)
-
-		unlockCondition := BuildAnd(
-			BuildFunctionCall("always"), // Always run, even on failure
-			BuildAnd(eventTypeCheck, lockedOutputCheck),
-		)
-
-		steps = append(steps, "      - name: Unlock issue after agent workflow\n")
-		steps = append(steps, "        id: unlock-issue\n")
-		steps = append(steps, fmt.Sprintf("        if: %s\n", unlockCondition.Render()))
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
-		steps = append(steps, "        with:\n")
-		steps = append(steps, "          script: |\n")
-		steps = append(steps, generateGitHubScriptWithRequire("unlock-issue.cjs"))
-
-		notifyCommentLog.Print("Added unlock issue step to conclusion job")
+	// Only add the conclusion update step if status comments are explicitly enabled
+	if data.StatusComment != nil && *data.StatusComment {
+		// Build the conclusion GitHub Script step (without artifact downloads - already added above)
+		scriptSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
+			StepName:      "Update reaction comment with completion status",
+			StepID:        "conclusion",
+			MainJobName:   mainJobName,
+			CustomEnvVars: customEnvVars,
+			Script:        getNotifyCommentErrorScript(),
+			ScriptFile:    "notify_comment_error.cjs",
+			Token:         token,
+		})
+		steps = append(steps, scriptSteps...)
 	}
+
+	// Note: Unlock step has been moved to a dedicated unlock job
+	// that always runs, even if this conclusion job doesn't run.
+	// See buildUnlockJob() in compiler_unlock_job.go
 
 	// Add GitHub App token invalidation step if app is configured
 	if data.SafeOutputs.App != nil {
@@ -411,11 +375,14 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		outputs["total_count"] = "${{ steps.missing_tool.outputs.total_count }}"
 	}
 
+	// Compute permissions based on configured safe outputs (principle of least privilege)
+	permissions := computePermissionsForSafeOutputs(data.SafeOutputs)
+
 	job := &Job{
 		Name:        "conclusion",
 		If:          condition.Render(),
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions: NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite().RenderToYAML(),
+		Permissions: permissions.RenderToYAML(),
 		Steps:       steps,
 		Needs:       needs,
 		Outputs:     outputs,

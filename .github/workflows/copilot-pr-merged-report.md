@@ -14,7 +14,7 @@ permissions:
   actions: read
 
 engine: copilot
-strict: true
+strict: false
 
 tools:
   github: false
@@ -114,6 +114,7 @@ safeinputs-gh with args: "pr view <PR_NUMBER> --repo ${{ github.repository }} --
 From the files list, count how many are test files:
 - Go test files: `*_test.go`
 - JavaScript test files: `*.test.js`, `*.test.cjs`
+- .NET test files: `*Tests.cs`, `*Test.cs`
 - Count both added and modified test files
 
 **Step 2.3: Get Workflow Run Information**
@@ -226,6 +227,7 @@ Create a concise report with the following structure:
 - **Test File Types**:
   - Go tests (`*_test.go`): [count]
   - JavaScript tests (`*.test.js`): [count]
+  - .NET tests (`*Tests.cs`, `*Test.cs`): [count]
 
 ## Workflow Execution
 

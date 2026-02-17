@@ -145,6 +145,16 @@ func extractBotsFromContent(content string) (string, error) {
 	return extractFrontmatterField(content, "bots", "[]")
 }
 
+// extractSkipRolesFromContent extracts skip-roles from on: section as JSON string
+func extractSkipRolesFromContent(content string) (string, error) {
+	return extractOnSectionField(content, "skip-roles")
+}
+
+// extractSkipBotsFromContent extracts skip-bots from on: section as JSON string
+func extractSkipBotsFromContent(content string) (string, error) {
+	return extractOnSectionField(content, "skip-bots")
+}
+
 // extractPluginsFromContent extracts plugins section from frontmatter as JSON string
 func extractPluginsFromContent(content string) (string, error) {
 	return extractFrontmatterField(content, "plugins", "[]")
@@ -182,6 +192,11 @@ func extractCacheFromContent(content string) (string, error) {
 	return extractFrontmatterField(content, "cache", "{}")
 }
 
+// extractFeaturesFromContent extracts features section from frontmatter as JSON string
+func extractFeaturesFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "features", "{}")
+}
+
 // extractFrontmatterField extracts a specific field from frontmatter as JSON string
 func extractFrontmatterField(content, fieldName, emptyValue string) (string, error) {
 	contentExtractorLog.Printf("Extracting field: %s", fieldName)
@@ -207,4 +222,66 @@ func extractFrontmatterField(content, fieldName, emptyValue string) (string, err
 
 	contentExtractorLog.Printf("Successfully extracted field %s: size=%d bytes", fieldName, len(fieldJSON))
 	return strings.TrimSpace(string(fieldJSON)), nil
+}
+
+// extractOnSectionField extracts a specific field from the on: section in frontmatter as JSON string
+func extractOnSectionField(content, fieldName string) (string, error) {
+	contentExtractorLog.Printf("Extracting on: section field: %s", fieldName)
+	result, err := ExtractFrontmatterFromContent(content)
+	if err != nil {
+		contentExtractorLog.Printf("Failed to extract frontmatter for field %s: %v", fieldName, err)
+		return "[]", nil // Return empty array on error
+	}
+
+	// Extract the "on" section
+	onValue, exists := result.Frontmatter["on"]
+	if !exists {
+		contentExtractorLog.Printf("Field 'on' not found in frontmatter")
+		return "[]", nil
+	}
+
+	// The on: section should be a map
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		contentExtractorLog.Printf("Field 'on' is not a map: %T", onValue)
+		return "[]", nil
+	}
+
+	// Extract the requested field from the on: section
+	fieldValue, exists := onMap[fieldName]
+	if !exists {
+		contentExtractorLog.Printf("Field %s not found in 'on' section", fieldName)
+		return "[]", nil
+	}
+
+	// Normalize field value to an array
+	var normalizedValue []any
+	switch v := fieldValue.(type) {
+	case string:
+		// Single string value
+		if v != "" {
+			normalizedValue = []any{v}
+		}
+	case []any:
+		// Already an array
+		normalizedValue = v
+	case []string:
+		// String array - convert to []any
+		for _, s := range v {
+			normalizedValue = append(normalizedValue, s)
+		}
+	default:
+		contentExtractorLog.Printf("Unexpected type for field %s: %T", fieldName, fieldValue)
+		return "[]", nil
+	}
+
+	// Return JSON string
+	jsonData, err := json.Marshal(normalizedValue)
+	if err != nil {
+		contentExtractorLog.Printf("Failed to marshal field %s to JSON: %v", fieldName, err)
+		return "[]", nil
+	}
+
+	contentExtractorLog.Printf("Successfully extracted field %s from on: section: %d bytes", fieldName, len(jsonData))
+	return string(jsonData), nil
 }

@@ -48,6 +48,23 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 		customEnvVars = append(customEnvVars, "          GH_AW_AGENT_IGNORE_IF_ERROR: \"true\"\n")
 	}
 
+	// Add PR repository configuration environment variable (where the PR should be created)
+	if cfg.PullRequestRepoSlug != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_PULL_REQUEST_REPO: %q\n", cfg.PullRequestRepoSlug))
+	}
+
+	// Add allowed PR repos list environment variable (comma-separated)
+	if len(cfg.AllowedPullRequestRepos) > 0 {
+		allowedPullRequestReposStr := ""
+		for i, repo := range cfg.AllowedPullRequestRepos {
+			if i > 0 {
+				allowedPullRequestReposStr += ","
+			}
+			allowedPullRequestReposStr += repo
+		}
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS: %q\n", allowedPullRequestReposStr))
+	}
+
 	// Allow assign_to_agent to reference issues created earlier in the same run via temporary IDs (aw_...)
 	// The handler manager (process_safe_outputs) produces a temporary_id_map output when create_issue is enabled.
 	if data.SafeOutputs != nil && data.SafeOutputs.CreateIssues != nil {

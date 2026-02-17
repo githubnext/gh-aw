@@ -1,3 +1,5 @@
+//go:build !js && !wasm
+
 package console
 
 import (
@@ -6,17 +8,6 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/github/gh-aw/pkg/tty"
 )
-
-// FormField represents a generic form field configuration
-type FormField struct {
-	Type        string // "input", "password", "confirm", "select"
-	Title       string
-	Description string
-	Placeholder string
-	Value       any                // Pointer to the value to store the result
-	Options     []SelectOption     // For select fields
-	Validate    func(string) error // For input/password fields
-}
 
 // RunForm executes a multi-field form with validation
 // This is a higher-level helper that creates a form with multiple fields

@@ -29,11 +29,12 @@
             "number",
             "string"
           ],
-          "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id (e.g., 'aw_abc123def456') from a previously created issue in the same workflow run."
+          "description": "Parent issue number for creating sub-issues. This is the numeric ID from the GitHub URL (e.g., 42 in github.com/owner/repo/issues/42). Can also be a temporary_id (e.g., 'aw_abc123', 'aw_Test123') from a previously created issue in the same workflow run."
         },
         "temporary_id": {
           "type": "string",
-          "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 12 hex characters (e.g., 'aw_abc123def456'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation."
+          "pattern": "^aw_[A-Za-z0-9]{3,8}$",
+          "description": "Unique temporary identifier for referencing this issue before it's created. Format: 'aw_' followed by 3 to 8 alphanumeric characters (e.g., 'aw_abc1', 'aw_Test123'). Use '#aw_ID' in body text to reference other issues by their temporary_id; these are replaced with actual issue numbers after creation."
         }
       },
       "additionalProperties": false
@@ -109,7 +110,7 @@
   },
   {
     "name": "close_discussion",
-    "description": "Close a GitHub discussion with a resolution comment and optional reason. Use this to mark discussions as resolved, answered, or no longer needed. The closing comment should explain why the discussion is being closed.",
+    "description": "Close a GitHub discussion with a resolution comment and optional reason. You can and should always add a comment when closing a discussion to explain the action or provide context. Use this to mark discussions as resolved, answered, or no longer needed. The closing comment should explain why the discussion is being closed. If the discussion is already closed, a comment will still be posted.",
     "inputSchema": {
       "type": "object",
       "required": [
@@ -143,7 +144,7 @@
   },
   {
     "name": "close_issue",
-    "description": "Close a GitHub issue with a closing comment. Use this when work is complete, the issue is no longer relevant, or it's a duplicate. The closing comment should explain the resolution or reason for closing.",
+    "description": "Close a GitHub issue with a closing comment. You can and should always add a comment when closing an issue to explain the action or provide context. This tool is ONLY for closing issues - use update_issue if you need to change the title, body, labels, or other metadata without closing. Use close_issue when work is complete, the issue is no longer relevant, or it's a duplicate. The closing comment should explain the resolution or reason for closing. If the issue is already closed, a comment will still be posted.",
     "inputSchema": {
       "type": "object",
       "required": [
@@ -167,7 +168,7 @@
   },
   {
     "name": "close_pull_request",
-    "description": "Close a pull request WITHOUT merging, adding a closing comment. Use this for PRs that should be abandoned, superseded, or closed for other reasons. The closing comment should explain why the PR is being closed. This does NOT merge the changes.",
+    "description": "Close a pull request WITHOUT merging, adding a closing comment. You can and should always add a comment when closing a PR to explain the action or provide context. Use this for PRs that should be abandoned, superseded, or closed for other reasons. The closing comment should explain why the PR is being closed. This does NOT merge the changes. If the PR is already closed, a comment will still be posted.",
     "inputSchema": {
       "type": "object",
       "required": [
@@ -191,7 +192,7 @@
   },
   {
     "name": "add_comment",
-    "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead.",
+    "description": "Add a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance.",
     "inputSchema": {
       "type": "object",
       "required": [
@@ -200,7 +201,7 @@
       "properties": {
         "body": {
           "type": "string",
-          "description": "The comment text in Markdown format. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation."
+          "description": "The comment text in Markdown format. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. Maximum 10 mentions (@username), maximum 50 links (http/https URLs). A footer (~200-500 characters) is automatically appended with workflow attribution, so leave adequate space. If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
         },
         "item_number": {
           "type": "number",
@@ -283,6 +284,67 @@
             "RIGHT"
           ],
           "description": "Side of the diff to comment on: RIGHT for the new version (additions), LEFT for the old version (deletions). Defaults to RIGHT."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "submit_pull_request_review",
+    "description": "Submit a pull request review with a status decision. All create_pull_request_review_comment outputs are automatically collected and included as inline comments in this review. Use APPROVE to approve the PR, REQUEST_CHANGES to request changes, or COMMENT for general feedback without a decision. If you don't call this tool, review comments are still submitted as a COMMENT review.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "description": "Overall review summary in Markdown. Provide a high-level assessment of the changes. Required for REQUEST_CHANGES; optional for APPROVE and COMMENT."
+        },
+        "event": {
+          "type": "string",
+          "enum": [
+            "APPROVE",
+            "REQUEST_CHANGES",
+            "COMMENT"
+          ],
+          "description": "Review decision: APPROVE to approve the pull request, REQUEST_CHANGES to formally request changes before merging, or COMMENT for general feedback without a formal decision. Defaults to COMMENT when omitted."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "reply_to_pull_request_review_comment",
+    "description": "Reply to an existing review comment on a pull request. Use this to respond to feedback, answer questions, or acknowledge review comments. The comment_id must be the numeric ID of an existing review comment.",
+    "inputSchema": {
+      "type": "object",
+      "required": ["comment_id", "body"],
+      "properties": {
+        "comment_id": {
+          "type": ["number", "string"],
+          "description": "The numeric ID of the review comment to reply to (e.g., 42853901 from the comment URL or API response)."
+        },
+        "body": {
+          "type": "string",
+          "description": "The reply text in Markdown format. Provide a clear response to the review comment."
+        },
+        "pull_request_number": {
+          "type": ["number", "string"],
+          "description": "Pull request number to reply on. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, replies on the PR that triggered this workflow."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "resolve_pull_request_review_thread",
+    "description": "Resolve a review thread on a pull request. Use this to mark a review conversation as resolved after addressing the feedback. The thread_id must be the node ID of the review thread (e.g., PRRT_kwDO...).",
+    "inputSchema": {
+      "type": "object",
+      "required": ["thread_id"],
+      "properties": {
+        "thread_id": {
+          "type": "string",
+          "description": "The node ID of the review thread to resolve (e.g., 'PRRT_kwDOABCD...'). This is the GraphQL node ID, not a numeric ID."
         }
       },
       "additionalProperties": false
@@ -442,7 +504,7 @@
   },
   {
     "name": "assign_to_agent",
-    "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") or assign_to_agent(pull_number=456, agent=\"copilot\")",
+    "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") or assign_to_agent(pull_number=456, agent=\"copilot\", pull_request_repo=\"owner/repo\")",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -451,7 +513,7 @@
             "number",
             "string"
           ],
-          "description": "Issue number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). Can also be a temporary_id (e.g., 'aw_abc123def456') from an issue created earlier in the same workflow run. The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both."
+          "description": "Issue number to assign the Copilot agent to. This is the numeric ID from the GitHub URL (e.g., 234 in github.com/owner/repo/issues/234). Can also be a temporary_id (e.g., 'aw_abc123', 'aw_Test123') from an issue created earlier in the same workflow run. The issue should contain clear, actionable requirements. Either issue_number or pull_number must be provided, but not both."
         },
         "pull_number": {
           "type": [
@@ -463,6 +525,10 @@
         "agent": {
           "type": "string",
           "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified."
+        },
+        "pull_request_repo": {
+          "type": "string",
+          "description": "Target repository where the pull request should be created, in 'owner/repo' format. If omitted, the PR will be created in the same repository as the issue. This allows issues and code to live in different repositories. The global pull-request-repo configuration (if set) is automatically allowed; additional repositories must be listed in allowed-pull-request-repos."
         }
       },
       "additionalProperties": false
@@ -500,8 +566,40 @@
     }
   },
   {
+    "name": "unassign_from_user",
+    "description": "Remove one or more assignees from an issue. Use this to unassign users when work is being reassigned or removed from their queue.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "issue_number": {
+          "type": [
+            "number",
+            "string"
+          ],
+          "description": "Issue number to unassign users from. This is the numeric ID from the GitHub URL (e.g., 543 in github.com/owner/repo/issues/543). If omitted, uses the issue that triggered this workflow."
+        },
+        "assignees": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "GitHub usernames to unassign from the issue (e.g., ['octocat', 'mona'])."
+        },
+        "assignee": {
+          "type": "string",
+          "description": "Single GitHub username to unassign. Use 'assignees' array for multiple users."
+        },
+        "repo": {
+          "type": "string",
+          "description": "Target repository in 'owner/repo' format. If omitted, uses the current repository. Must be in allowed-repos list if specified."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
     "name": "update_issue",
-    "description": "Update an existing GitHub issue's status, title, labels, assignees, milestone, or body. Body updates support replacing, appending to, prepending content, or updating a per-run \"island\" section.",
+    "description": "Update an existing GitHub issue's title, body, labels, assignees, or milestone WITHOUT closing it. This tool is primarily for editing issue metadata and content. While it supports changing status between 'open' and 'closed', use close_issue instead when you want to close an issue with a closing comment. Body updates support replacing, appending to, prepending content, or updating a per-run \"island\" section.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -774,7 +872,7 @@
   },
   {
     "name": "update_project",
-    "description": "Add or update items in GitHub Projects v2 boards. Can add issues/PRs to a project and update custom field values. Requires the project URL, content type (issue or pull_request), and content number.\n\nThree usage modes:\n1. Add/update project item: Requires project + content_type. For 'issue' or 'pull_request', also requires content_number. For 'draft_issue', requires draft_title.\n2. Create project fields: Requires project + operation='create_fields' + field_definitions.\n3. Create project view: Requires project + operation='create_view' + view.",
+    "description": "Manage GitHub Projects: add issues/pull requests/draft issues, update item fields (status, priority, effort, dates), manage custom fields, and create project views. Use this to organize work by adding items to projects, updating field values, creating custom fields up-front, and setting up project views (table, board, roadmap).\n\nThree modes: (1) Add or update project items with custom field values; (2) Create project fields; (3) Create project views. This is the primary tool for ProjectOps automation - add items to projects, set custom fields for tracking, and organize project boards.",
     "inputSchema": {
       "type": "object",
       "required": [
@@ -783,8 +881,8 @@
       "properties": {
         "project": {
           "type": "string",
-          "pattern": "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+$",
-          "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'). Project names or numbers alone are NOT accepted."
+          "pattern": "^(https://github\\.com/(orgs|users)/[^/]+/projects/\\d+|#?aw_[A-Za-z0-9]{3,8})$",
+          "description": "Full GitHub project URL (e.g., 'https://github.com/orgs/myorg/projects/42' or 'https://github.com/users/username/projects/5'), or a temporary project ID from a recent create_project call (e.g., '#aw_abc1', 'aw_Test123'). Project names or numbers alone are NOT accepted."
         },
         "operation": {
           "type": "string",
@@ -804,8 +902,11 @@
           "description": "Type of item to add to the project. Use 'issue' or 'pull_request' to add existing repo content, or 'draft_issue' to create a draft item inside the project. Required when operation is not specified."
         },
         "content_number": {
-          "type": "number",
-          "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456). Required when content_type is 'issue' or 'pull_request'."
+          "type": [
+            "number",
+            "string"
+          ],
+          "description": "Issue or pull request number to add to the project. This is the numeric ID from the GitHub URL (e.g., 123 in github.com/owner/repo/issues/123 for issue #123, or 456 in github.com/owner/repo/pull/456 for PR #456), or a temporary ID from a recent create_issue call (e.g., 'aw_abc123', '#aw_Test123'). Required when content_type is 'issue' or 'pull_request'."
         },
         "draft_title": {
           "type": "string",
@@ -814,6 +915,16 @@
         "draft_body": {
           "type": "string",
           "description": "Optional body for a Projects v2 draft issue (markdown). Only used when content_type is 'draft_issue'."
+        },
+        "draft_issue_id": {
+          "type": "string",
+          "pattern": "^#?aw_[A-Za-z0-9]{3,8}$",
+          "description": "Temporary ID of an existing draft issue to update (e.g., 'aw_abc1', '#aw_Test123'). Use this to reference a draft created earlier with a matching temporary_id. When provided, draft_title is not required for updates."
+        },
+        "temporary_id": {
+          "type": "string",
+          "pattern": "^#?aw_[A-Za-z0-9]{3,8}$",
+          "description": "Unique temporary identifier for this draft issue (e.g., 'aw_abc1', '#aw_Test123'). Provide this when creating a new draft to enable future updates via draft_issue_id. Format: optional leading '#', then 'aw_' followed by 3 to 8 alphanumeric characters."
         },
         "fields": {
           "type": "object",
@@ -924,7 +1035,7 @@
   },
   {
     "name": "create_project",
-    "description": "Create a new empty GitHub Projects v2 board. Use this to create a project board for organizing work. The project is created empty and can be populated with issues and custom fields after creation.",
+    "description": "Create a new GitHub Project board. Use this to create a new project for organizing and tracking work across issues and pull requests, owned by a specific user or organization. You can optionally provide a custom title and add an initial issue item to the project via item_url.",
     "inputSchema": {
       "type": "object",
       "required": [],
@@ -947,8 +1058,13 @@
         },
         "item_url": {
           "type": "string",
-          "pattern": "^https://github\\\\.com/[^/]+/[^/]+/issues/\\\\d+$",
-          "description": "Optional GitHub issue URL to add as the first item to the project (e.g., 'https://github.com/owner/repo/issues/123')."
+          "pattern": "^(https://github\\\\.com/[^/]+/[^/]+/issues/(\\\\d+|#?aw_[A-Za-z0-9]{3,8})|#?aw_[A-Za-z0-9]{3,8})$",
+          "description": "Optional GitHub issue URL or temporary ID to add as the first item to the project. Accepts either a full URL (e.g., 'https://github.com/owner/repo/issues/123'), a URL with temporary ID (e.g., 'https://github.com/owner/repo/issues/aw_abc1'), or a plain temporary ID (e.g., 'aw_abc1', '#aw_Test123') from a previously created issue in the same workflow run."
+        },
+        "temporary_id": {
+          "type": "string",
+          "pattern": "^aw_[A-Za-z0-9]{3,8}$",
+          "description": "Optional temporary identifier for referencing this project before it's created. Format: 'aw_' followed by 3 to 8 alphanumeric characters (e.g., 'aw_abc1', 'aw_Test123'). If not provided, one will be auto-generated and returned in the response. Use '#aw_ID' in update_project to reference this project by its temporary_id."
         }
       },
       "additionalProperties": false
@@ -956,7 +1072,7 @@
   },
   {
     "name": "create_project_status_update",
-    "description": "Create a status update on a GitHub Projects v2 board to communicate project progress. Use this when you need to provide stakeholder updates with status indicators, timeline information, and progress summaries. Status updates create a historical record of project progress tracked over time. Requires project URL, status indicator, dates, and markdown body describing progress/trends/findings.",
+    "description": "Post a status update to a GitHub Project to communicate progress and health. Use this to provide stakeholders with regular updates on project status (on-track, at-risk, off-track, complete, inactive), timeline information, and progress summaries. Status updates create a historical record of project progress, enabling tracking over time and informed decision-making.",
     "inputSchema": {
       "type": "object",
       "required": [

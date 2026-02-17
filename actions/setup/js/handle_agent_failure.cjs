@@ -162,7 +162,7 @@ gh aw audit <run-id>
 ### Resources
 
 - [GitHub Agentic Workflows Documentation](https://github.com/github/gh-aw)
-- [Troubleshooting Guide](https://github.github.io/gh-aw/troubleshooting/common-issues/)
+- [Troubleshooting Guide](https://github.github.com/gh-aw/troubleshooting/common-issues/)
 
 ---
 
@@ -331,6 +331,7 @@ async function main() {
   try {
     // Get workflow context
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "unknown";
+    const workflowID = process.env.GH_AW_WORKFLOW_ID || "unknown";
     const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "";
     const runUrl = process.env.GH_AW_RUN_URL || "";
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
@@ -342,8 +343,23 @@ async function main() {
     const createDiscussionErrorCount = process.env.GH_AW_CREATE_DISCUSSION_ERROR_COUNT || "0";
     const checkoutPRSuccess = process.env.GH_AW_CHECKOUT_PR_SUCCESS || "";
 
+    // Collect repo-memory validation errors from all memory configurations
+    const repoMemoryValidationErrors = [];
+    for (const key in process.env) {
+      if (key.startsWith("GH_AW_REPO_MEMORY_VALIDATION_FAILED_")) {
+        const memoryID = key.replace("GH_AW_REPO_MEMORY_VALIDATION_FAILED_", "");
+        const failed = process.env[key] === "true";
+        if (failed) {
+          const errorKey = `GH_AW_REPO_MEMORY_VALIDATION_ERROR_${memoryID}`;
+          const errorMessage = process.env[errorKey] || "Unknown validation error";
+          repoMemoryValidationErrors.push({ memoryID, errorMessage });
+        }
+      }
+    }
+
     core.info(`Agent conclusion: ${agentConclusion}`);
     core.info(`Workflow name: ${workflowName}`);
+    core.info(`Workflow ID: ${workflowID}`);
     core.info(`Secret verification result: ${secretVerificationResult}`);
     core.info(`Assignment error count: ${assignmentErrorCount}`);
     core.info(`Create discussion error count: ${createDiscussionErrorCount}`);
@@ -461,6 +477,16 @@ async function main() {
         // Build create_discussion errors context
         const createDiscussionErrorsContext = hasCreateDiscussionErrors ? buildCreateDiscussionErrorsContext(createDiscussionErrors) : "";
 
+        // Build repo-memory validation errors context
+        let repoMemoryValidationContext = "";
+        if (repoMemoryValidationErrors.length > 0) {
+          repoMemoryValidationContext = "\n**⚠️ Repo-Memory Validation Failed**: Invalid file types detected in repo-memory.\n\n**Validation Errors:**\n";
+          for (const { memoryID, errorMessage } of repoMemoryValidationErrors) {
+            repoMemoryValidationContext += `- Memory "${memoryID}": ${errorMessage}\n`;
+          }
+          repoMemoryValidationContext += "\n";
+        }
+
         // Build missing_data context
         const missingDataContext = buildMissingDataContext();
 
@@ -483,10 +509,11 @@ async function main() {
           secret_verification_failed: String(secretVerificationResult === "failed"),
           secret_verification_context:
             secretVerificationResult === "failed"
-              ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n\nFor more information on configuring tokens, see: https://github.github.io/gh-aw/reference/engines/\n"
+              ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n"
               : "",
           assignment_errors_context: assignmentErrorsContext,
           create_discussion_errors_context: createDiscussionErrorsContext,
+          repo_memory_validation_context: repoMemoryValidationContext,
           missing_data_context: missingDataContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
         };
@@ -546,6 +573,16 @@ async function main() {
         // Build create_discussion errors context
         const createDiscussionErrorsContext = hasCreateDiscussionErrors ? buildCreateDiscussionErrorsContext(createDiscussionErrors) : "";
 
+        // Build repo-memory validation errors context
+        let repoMemoryValidationContext = "";
+        if (repoMemoryValidationErrors.length > 0) {
+          repoMemoryValidationContext = "\n**⚠️ Repo-Memory Validation Failed**: Invalid file types detected in repo-memory.\n\n**Validation Errors:**\n";
+          for (const { memoryID, errorMessage } of repoMemoryValidationErrors) {
+            repoMemoryValidationContext += `- Memory "${memoryID}": ${errorMessage}\n`;
+          }
+          repoMemoryValidationContext += "\n";
+        }
+
         // Build missing_data context
         const missingDataContext = buildMissingDataContext();
 
@@ -561,6 +598,7 @@ async function main() {
         // Create template context with sanitized workflow name
         const templateContext = {
           workflow_name: sanitizedWorkflowName,
+          workflow_id: workflowID,
           run_url: runUrl,
           workflow_source_url: workflowSourceURL || "#",
           branch: currentBranch,
@@ -568,10 +606,11 @@ async function main() {
           secret_verification_failed: String(secretVerificationResult === "failed"),
           secret_verification_context:
             secretVerificationResult === "failed"
-              ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n\nFor more information on configuring tokens, see: https://github.github.io/gh-aw/reference/engines/\n"
+              ? "\n**⚠️ Secret Verification Failed**: The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.\n\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n"
               : "",
           assignment_errors_context: assignmentErrorsContext,
           create_discussion_errors_context: createDiscussionErrorsContext,
+          repo_memory_validation_context: repoMemoryValidationContext,
           missing_data_context: missingDataContext,
           missing_safe_outputs_context: missingSafeOutputsContext,
         };

@@ -52,7 +52,6 @@ func TestInterfaceSegregation(t *testing.T) {
 
 			// Test capability methods (values can be true/false, just verify they exist)
 			_ = engine.SupportsToolsAllowlist()
-			_ = engine.SupportsHTTPTransport()
 			_ = engine.SupportsMaxTurns()
 			_ = engine.SupportsWebFetch()
 			_ = engine.SupportsWebSearch()
@@ -211,7 +210,6 @@ func TestSpecificInterfaceUsage(t *testing.T) {
 		checkCapabilities := func(cp CapabilityProvider) map[string]bool {
 			return map[string]bool{
 				"tools_allowlist": cp.SupportsToolsAllowlist(),
-				"http_transport":  cp.SupportsHTTPTransport(),
 				"max_turns":       cp.SupportsMaxTurns(),
 				"web_fetch":       cp.SupportsWebFetch(),
 				"web_search":      cp.SupportsWebSearch(),
@@ -223,7 +221,7 @@ func TestSpecificInterfaceUsage(t *testing.T) {
 		for _, engine := range registry.GetAllEngines() {
 			caps := checkCapabilities(engine)
 			assert.NotNil(t, caps, "Engine %s should have capabilities", engine.GetID())
-			assert.Len(t, caps, 6, "Should have 6 capability flags")
+			assert.Len(t, caps, 5, "Should have 5 capability flags")
 		}
 	})
 
@@ -258,7 +256,6 @@ func TestBaseEngineImplementsAllInterfaces(t *testing.T) {
 		description:            "A test engine",
 		experimental:           false,
 		supportsToolsAllowlist: true,
-		supportsHTTPTransport:  true,
 		supportsMaxTurns:       true,
 		supportsWebFetch:       true,
 		supportsWebSearch:      true,
@@ -273,7 +270,6 @@ func TestBaseEngineImplementsAllInterfaces(t *testing.T) {
 
 	// Verify CapabilityProvider interface methods
 	assert.True(t, base.SupportsToolsAllowlist())
-	assert.True(t, base.SupportsHTTPTransport())
 	assert.True(t, base.SupportsMaxTurns())
 	assert.True(t, base.SupportsWebFetch())
 	assert.True(t, base.SupportsWebSearch())
@@ -304,7 +300,6 @@ func TestEngineCapabilityVariety(t *testing.T) {
 	// Test that capabilities differ across engines
 	t.Run("copilot capabilities", func(t *testing.T) {
 		assert.True(t, copilot.SupportsToolsAllowlist())
-		assert.True(t, copilot.SupportsHTTPTransport())
 		assert.False(t, copilot.SupportsMaxTurns())
 		assert.True(t, copilot.SupportsWebFetch())
 		assert.False(t, copilot.SupportsWebSearch())
@@ -314,7 +309,6 @@ func TestEngineCapabilityVariety(t *testing.T) {
 
 	t.Run("claude capabilities", func(t *testing.T) {
 		assert.True(t, claude.SupportsToolsAllowlist())
-		assert.True(t, claude.SupportsHTTPTransport())
 		assert.True(t, claude.SupportsMaxTurns())
 		assert.True(t, claude.SupportsWebFetch())
 		assert.True(t, claude.SupportsWebSearch())
@@ -324,7 +318,6 @@ func TestEngineCapabilityVariety(t *testing.T) {
 
 	t.Run("codex capabilities", func(t *testing.T) {
 		assert.True(t, codex.SupportsToolsAllowlist())
-		assert.True(t, codex.SupportsHTTPTransport())
 		assert.False(t, codex.SupportsMaxTurns())
 		assert.False(t, codex.SupportsWebFetch())
 		assert.True(t, codex.SupportsWebSearch())
@@ -334,7 +327,6 @@ func TestEngineCapabilityVariety(t *testing.T) {
 
 	t.Run("custom capabilities", func(t *testing.T) {
 		assert.False(t, custom.SupportsToolsAllowlist())
-		assert.False(t, custom.SupportsHTTPTransport())
 		assert.True(t, custom.SupportsMaxTurns())
 		assert.False(t, custom.SupportsWebFetch())
 		assert.False(t, custom.SupportsWebSearch())

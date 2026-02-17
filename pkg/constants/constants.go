@@ -294,6 +294,15 @@ const (
 
 	// MaxNetworkPort is the maximum valid network port number
 	MaxNetworkPort = 65535
+
+	// ClaudeLLMGatewayPort is the port for the Claude LLM gateway
+	ClaudeLLMGatewayPort = 10000
+
+	// CodexLLMGatewayPort is the port for the Codex LLM gateway
+	CodexLLMGatewayPort = 10001
+
+	// CopilotSDKLLMGatewayPort is the port for the Copilot SDK LLM gateway
+	CopilotSDKLLMGatewayPort = 10002
 )
 
 // DefaultMCPRegistryURL is the default MCP registry URL.
@@ -304,12 +313,12 @@ const DefaultMCPRegistryURL URL = "https://api.mcp.github.com/v0.1"
 const GitHubCopilotMCPDomain = "api.githubcopilot.com"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.34"
+const DefaultClaudeCodeVersion Version = "2.1.42"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // WARNING: UPGRADING COPILOT CLI REQUIRES A FULL INTEGRATION TEST RUN TO ENSURE COMPATIBILITY.
-const DefaultCopilotVersion Version = "0.0.405"
+const DefaultCopilotVersion Version = "0.0.410"
 
 // DefaultCopilotDetectionModel is the default model for the Copilot engine when used in the detection job
 // Updated to gpt-5.1-codex-mini after gpt-5-mini deprecation on 2026-01-17
@@ -331,19 +340,53 @@ const (
 	EnvVarModelDetectionClaude = "GH_AW_MODEL_DETECTION_CLAUDE"
 	// EnvVarModelDetectionCodex configures the default Codex model for detection
 	EnvVarModelDetectionCodex = "GH_AW_MODEL_DETECTION_CODEX"
+
+	// Common environment variable names used across all engines
+
+	// EnvVarPrompt is the path to the workflow prompt file
+	EnvVarPrompt = "GH_AW_PROMPT"
+
+	// EnvVarMCPConfig is the path to the MCP configuration file
+	EnvVarMCPConfig = "GH_AW_MCP_CONFIG"
+
+	// EnvVarSafeOutputs is the safe-outputs configuration JSON
+	EnvVarSafeOutputs = "GH_AW_SAFE_OUTPUTS"
+
+	// EnvVarMaxTurns is the maximum number of turns for agent execution
+	EnvVarMaxTurns = "GH_AW_MAX_TURNS"
+
+	// EnvVarStartupTimeout is the tool startup timeout in seconds
+	EnvVarStartupTimeout = "GH_AW_STARTUP_TIMEOUT"
+
+	// EnvVarToolTimeout is the tool execution timeout in seconds
+	EnvVarToolTimeout = "GH_AW_TOOL_TIMEOUT"
+
+	// EnvVarGitHubToken is the GitHub token for repository access
+	EnvVarGitHubToken = "GH_AW_GITHUB_TOKEN"
 )
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.98.0"
+const DefaultCodexVersion Version = "0.101.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v0.30.3"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.13.12"
+const DefaultFirewallVersion Version = "v0.19.1"
+
+// AWF (Agentic Workflow Firewall) constants
+
+// AWFDefaultCommand is the default AWF command prefix
+const AWFDefaultCommand = "sudo -E awf"
+
+// AWFProxyLogsDir is the default directory for AWF proxy logs
+const AWFProxyLogsDir = "/tmp/gh-aw/sandbox/firewall/logs"
+
+// AWFDefaultLogLevel is the default log level for AWF
+const AWFDefaultLogLevel = "info"
 
 // DefaultMCPGatewayVersion is the default version of the MCP Gateway (gh-aw-mcpg) Docker image
-const DefaultMCPGatewayVersion Version = "v0.0.113"
+const DefaultMCPGatewayVersion Version = "v0.1.4"
 
 // DefaultMCPGatewayContainer is the default container image for the MCP Gateway
 const DefaultMCPGatewayContainer = "ghcr.io/github/gh-aw-mcpg"
@@ -379,14 +422,11 @@ var SerenaLanguageSupport = map[string][]string{
 	},
 }
 
-// DefaultSandboxRuntimeVersion is the default version of the @anthropic-ai/sandbox-runtime package (SRT)
-const DefaultSandboxRuntimeVersion Version = "0.0.34"
-
 // DefaultPlaywrightMCPVersion is the default version of the @playwright/mcp package
-const DefaultPlaywrightMCPVersion Version = "0.0.64"
+const DefaultPlaywrightMCPVersion Version = "0.0.68"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
-const DefaultPlaywrightBrowserVersion Version = "v1.58.1"
+const DefaultPlaywrightBrowserVersion Version = "v1.58.2"
 
 // DefaultMCPSDKVersion is the default version of the @modelcontextprotocol/sdk package
 const DefaultMCPSDKVersion Version = "1.24.0"
@@ -429,9 +469,9 @@ const DefaultGhBinaryMount = "/usr/bin/gh:/usr/bin/gh:ro"
 const DefaultTmpGhAwMount = "/tmp/gh-aw:/tmp/gh-aw:rw"
 
 // DefaultWorkspaceMount is the mount path for the GitHub workspace directory in containerized MCP servers
-// Uses GitHub Actions expression syntax which expands to the actual workspace path at runtime
-// This is required when MCP servers need read-write access to repository files
-const DefaultWorkspaceMount = "${{ github.workspace }}:${{ github.workspace }}:rw"
+// Security: Uses GITHUB_WORKSPACE environment variable instead of template expansion to prevent template injection
+// The GITHUB_WORKSPACE environment variable is automatically set by GitHub Actions and passed to the MCP gateway
+const DefaultWorkspaceMount = "\\${GITHUB_WORKSPACE}:\\${GITHUB_WORKSPACE}:rw"
 
 // DefaultPythonVersion is the default version of Python for runtime setup
 const DefaultPythonVersion Version = "3.12"
@@ -547,6 +587,26 @@ var AllowedExpressions = []string{
 	"github.workspace",
 } // needs., steps. already allowed
 
+// DangerousPropertyNames contains JavaScript built-in property names that are blocked
+// in GitHub Actions expressions to prevent prototype pollution and traversal attacks.
+// This list matches the DANGEROUS_PROPS list in actions/setup/js/runtime_import.cjs
+// See PR #14826 for context on these security measures.
+var DangerousPropertyNames = []string{
+	"constructor",
+	"__proto__",
+	"prototype",
+	"__defineGetter__",
+	"__defineSetter__",
+	"__lookupGetter__",
+	"__lookupSetter__",
+	"hasOwnProperty",
+	"isPrototypeOf",
+	"propertyIsEnumerable",
+	"toString",
+	"valueOf",
+	"toLocaleString",
+}
+
 const AgentJobName JobName = "agent"
 const ActivationJobName JobName = "activation"
 const PreActivationJobName JobName = "pre_activation"
@@ -575,10 +635,10 @@ const (
 	SafeInputsFeatureFlag FeatureFlag = "safe-inputs"
 	// MCPGatewayFeatureFlag is the feature flag name for enabling MCP gateway
 	MCPGatewayFeatureFlag FeatureFlag = "mcp-gateway"
-	// SandboxRuntimeFeatureFlag is the feature flag name for sandbox runtime
-	SandboxRuntimeFeatureFlag FeatureFlag = "sandbox-runtime"
 	// DangerousPermissionsWriteFeatureFlag is the feature flag name for allowing write permissions
 	DangerousPermissionsWriteFeatureFlag FeatureFlag = "dangerous-permissions-write"
+	// DisableXPIAPromptFeatureFlag is the feature flag name for disabling XPIA prompt
+	DisableXPIAPromptFeatureFlag FeatureFlag = "disable-xpia-prompt"
 )
 
 // Step IDs for pre-activation job
@@ -587,6 +647,9 @@ const CheckStopTimeStepID StepID = "check_stop_time"
 const CheckSkipIfMatchStepID StepID = "check_skip_if_match"
 const CheckSkipIfNoMatchStepID StepID = "check_skip_if_no_match"
 const CheckCommandPositionStepID StepID = "check_command_position"
+const CheckRateLimitStepID StepID = "check_rate_limit"
+const CheckSkipRolesStepID StepID = "check_skip_roles"
+const CheckSkipBotsStepID StepID = "check_skip_bots"
 
 // Output names for pre-activation job steps
 const IsTeamMemberOutput = "is_team_member"
@@ -595,12 +658,21 @@ const SkipCheckOkOutput = "skip_check_ok"
 const SkipNoMatchCheckOkOutput = "skip_no_match_check_ok"
 const CommandPositionOkOutput = "command_position_ok"
 const MatchedCommandOutput = "matched_command"
+const RateLimitOkOutput = "rate_limit_ok"
+const SkipRolesOkOutput = "skip_roles_ok"
+const SkipBotsOkOutput = "skip_bots_ok"
 const ActivatedOutput = "activated"
+
+// Rate limit defaults
+const DefaultRateLimitMax = 5     // Default maximum runs per time window
+const DefaultRateLimitWindow = 60 // Default time window in minutes (1 hour)
 
 // Agentic engine name constants using EngineName type for type safety
 const (
 	// CopilotEngine is the GitHub Copilot engine identifier
 	CopilotEngine EngineName = "copilot"
+	// CopilotSDKEngine is the GitHub Copilot SDK engine identifier
+	CopilotSDKEngine EngineName = "copilot-sdk"
 	// ClaudeEngine is the Anthropic Claude engine identifier
 	ClaudeEngine EngineName = "claude"
 	// CodexEngine is the OpenAI Codex engine identifier
@@ -611,23 +683,25 @@ const (
 
 // AgenticEngines lists all supported agentic engine names
 // Note: This remains a string slice for backward compatibility with existing code
-var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine)}
+var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(CopilotSDKEngine)}
 
 // EngineOption represents a selectable AI engine with its display metadata and secret configuration
 type EngineOption struct {
-	Value       string
-	Label       string
-	Description string
-	SecretName  string // The name of the secret required for this engine (e.g., "COPILOT_GITHUB_TOKEN")
-	EnvVarName  string // Alternative environment variable name if different from SecretName (optional)
-	KeyURL      string // URL where users can obtain their API key (empty for engines with special setup like Copilot)
+	Value              string
+	Label              string
+	Description        string
+	SecretName         string   // The name of the secret required for this engine (e.g., "COPILOT_GITHUB_TOKEN")
+	AlternativeSecrets []string // Alternative secret names that can also be used for this engine
+	EnvVarName         string   // Alternative environment variable name if different from SecretName (optional)
+	KeyURL             string   // URL where users can obtain their API key (empty for engines with special setup like Copilot)
 }
 
 // EngineOptions provides the list of available AI engines for user selection
 var EngineOptions = []EngineOption{
-	{string(CopilotEngine), "GitHub Copilot", "GitHub Copilot CLI with agent support", "COPILOT_GITHUB_TOKEN", "", ""},
-	{string(ClaudeEngine), "Claude", "Anthropic Claude Code coding agent", "ANTHROPIC_API_KEY", "", "https://console.anthropic.com/settings/keys"},
-	{string(CodexEngine), "Codex", "OpenAI Codex/GPT engine", "OPENAI_API_KEY", "", "https://platform.openai.com/api-keys"},
+	{string(CopilotEngine), "GitHub Copilot", "GitHub Copilot CLI with agent support", "COPILOT_GITHUB_TOKEN", nil, "", ""},
+	{string(CopilotSDKEngine), "GitHub Copilot SDK", "GitHub Copilot SDK with headless mode", "COPILOT_GITHUB_TOKEN", nil, "", ""},
+	{string(ClaudeEngine), "Claude", "Anthropic Claude Code coding agent", "ANTHROPIC_API_KEY", []string{"CLAUDE_CODE_OAUTH_TOKEN"}, "", "https://console.anthropic.com/settings/keys"},
+	{string(CodexEngine), "Codex", "OpenAI Codex/GPT engine", "OPENAI_API_KEY", []string{"CODEX_API_KEY"}, "", "https://platform.openai.com/api-keys"},
 }
 
 // GetEngineOption returns the EngineOption for the given engine value, or nil if not found
@@ -638,6 +712,39 @@ func GetEngineOption(engineValue string) *EngineOption {
 		}
 	}
 	return nil
+}
+
+// GetAllEngineSecretNames returns all unique secret names across all configured engines.
+// This includes primary secrets, alternative secrets, and system-level secrets like GH_AW_GITHUB_TOKEN.
+// The returned slice contains no duplicates.
+func GetAllEngineSecretNames() []string {
+	seen := make(map[string]bool)
+	var secrets []string
+
+	// Add primary and alternative secrets from all engines
+	for _, opt := range EngineOptions {
+		if opt.SecretName != "" && !seen[opt.SecretName] {
+			seen[opt.SecretName] = true
+			secrets = append(secrets, opt.SecretName)
+		}
+		for _, alt := range opt.AlternativeSecrets {
+			if alt != "" && !seen[alt] {
+				seen[alt] = true
+				secrets = append(secrets, alt)
+			}
+		}
+	}
+
+	// Add system-level secrets that aren't engine-specific
+	systemSecrets := []string{"GH_AW_GITHUB_TOKEN"}
+	for _, s := range systemSecrets {
+		if !seen[s] {
+			seen[s] = true
+			secrets = append(secrets, s)
+		}
+	}
+
+	return secrets
 }
 
 // DefaultReadOnlyGitHubTools defines the default read-only GitHub MCP tools.
@@ -756,8 +863,8 @@ var PriorityJobFields = []string{"name", "runs-on", "needs", "if", "permissions"
 var PriorityWorkflowFields = []string{"on", "permissions", "if", "network", "imports", "safe-outputs", "steps"}
 
 // IgnoredFrontmatterFields are fields that should be silently ignored during frontmatter validation
-// NOTE: This is now empty as description and applyTo are properly validated by the schema
-var IgnoredFrontmatterFields = []string{}
+// NOTE: user-invokable is a GitHub Copilot custom agent field that is not part of the gh-aw schema
+var IgnoredFrontmatterFields = []string{"user-invokable"}
 
 // SharedWorkflowForbiddenFields lists fields that cannot be used in shared/included workflows.
 // These fields are only allowed in main workflows (workflows with an 'on' trigger field).
@@ -798,3 +905,13 @@ var SharedWorkflowForbiddenFields = []string{
 func GetWorkflowDir() string {
 	return filepath.Join(".github", "workflows")
 }
+
+// MaxSymlinkDepth limits recursive symlink resolution when fetching remote files.
+// The GitHub Contents API doesn't follow symlinks in path components, so gh-aw
+// resolves them manually. This constant caps recursion to prevent infinite loops
+// when symlinks chain to each other.
+const MaxSymlinkDepth = 5
+
+// DefaultAllowedMemoryExtensions is the default list of allowed file extensions for cache-memory and repo-memory storage.
+// An empty slice means all file extensions are allowed. When this is empty, the validation step is not emitted.
+var DefaultAllowedMemoryExtensions = []string{}

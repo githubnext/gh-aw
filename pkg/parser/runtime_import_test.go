@@ -132,7 +132,8 @@ console.log(JSON.stringify({ safe: result }));
 
 			// Run the test script
 			cmd := exec.Command(nodePath, tmpFile.Name(), tt.expression)
-			output, err := cmd.CombinedOutput()
+			// Use Output() to only capture stdout, avoiding stderr like [one-shot-token]
+			output, err := cmd.Output()
 			if err != nil {
 				t.Fatalf("Failed to run test script: %v\nOutput: %s", err, output)
 			}
@@ -253,7 +254,8 @@ try {
 			tmpFile.Close()
 
 			cmd := exec.Command(nodePath, tmpFile.Name(), tt.content)
-			output, err := cmd.CombinedOutput()
+			// Use Output() to only capture stdout, avoiding stderr like [one-shot-token]
+			output, err := cmd.Output()
 			if err != nil {
 				t.Fatalf("Failed to run test script: %v\nOutput: %s", err, output)
 			}
@@ -311,6 +313,10 @@ func TestRuntimeImportWithExpressions(t *testing.T) {
 	if err := os.MkdirAll(githubDir, 0755); err != nil {
 		t.Fatalf("Failed to create .github directory: %v", err)
 	}
+	workflowsDir := filepath.Join(githubDir, "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
 
 	tests := []struct {
 		name         string
@@ -364,8 +370,8 @@ Unsafe: ${{ runner.os }}`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Write test file
-			testFilePath := filepath.Join(githubDir, "test.md")
+			// Write test file to workflows directory
+			testFilePath := filepath.Join(workflowsDir, "test.md")
 			if err := os.WriteFile(testFilePath, []byte(tt.fileContent), 0644); err != nil {
 				t.Fatalf("Failed to write test file: %v", err)
 			}
@@ -414,7 +420,8 @@ const { processRuntimeImport } = require('` + runtimeImportPath + `');
 			tmpFile.Close()
 
 			cmd := exec.Command(nodePath, tmpFile.Name())
-			output, err := cmd.CombinedOutput()
+			// Use Output() to only capture stdout, avoiding stderr like [one-shot-token]
+			output, err := cmd.Output()
 			if err != nil {
 				t.Fatalf("Failed to run test script: %v\nOutput: %s", err, output)
 			}

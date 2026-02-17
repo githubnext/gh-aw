@@ -109,6 +109,81 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("Contact email@example.com");
       expect(result).toBe("Contact email@example.com");
     });
+
+    it("should neutralize @mentions with underscores", () => {
+      const result = sanitizeContent("Hello @user_name");
+      expect(result).toBe("Hello `@user_name`");
+    });
+
+    it("should neutralize @mentions with multiple underscores", () => {
+      const result = sanitizeContent("Hello @user_name_test");
+      expect(result).toBe("Hello `@user_name_test`");
+    });
+
+    it("should neutralize @mentions with underscores and hyphens", () => {
+      const result = sanitizeContent("Hello @user-name_test");
+      expect(result).toBe("Hello `@user-name_test`");
+    });
+
+    it("should neutralize org/team mentions with underscores", () => {
+      const result = sanitizeContent("Hello @my_org/my_team");
+      expect(result).toBe("Hello `@my_org/my_team`");
+    });
+  });
+
+  describe("@mention bypass prevention (underscore-prefixed)", () => {
+    // Security tests for CVE-like vulnerability where underscore before @ could bypass sanitization
+    // These test cases are from the security report documenting the bypass patterns
+
+    it("should neutralize @mentions preceded by underscore in function names", () => {
+      const result = sanitizeContent("test_@user");
+      expect(result).toBe("test_`@user`");
+    });
+
+    it("should neutralize @mentions preceded by underscore in variable names", () => {
+      const result = sanitizeContent("production_@maintainer");
+      expect(result).toBe("production_`@maintainer`");
+    });
+
+    it("should neutralize @mentions preceded by underscore with hyphens", () => {
+      const result = sanitizeContent("validate_@security-team");
+      expect(result).toBe("validate_`@security-team`");
+    });
+
+    it("should neutralize @mentions preceded by underscore in commands", () => {
+      const result = sanitizeContent("run_@admin");
+      expect(result).toBe("run_`@admin`");
+    });
+
+    it("should neutralize @mentions preceded by multiple underscores", () => {
+      const result = sanitizeContent("My_Project_@owner");
+      expect(result).toBe("My_Project_`@owner`");
+    });
+
+    it("should neutralize @mentions with just underscore prefix", () => {
+      const result = sanitizeContent("_@user");
+      expect(result).toBe("_`@user`");
+    });
+
+    it("should neutralize @mentions preceded by underscore with possessive", () => {
+      const result = sanitizeContent("is_@user's project");
+      expect(result).toBe("is_`@user`'s project");
+    });
+
+    it("should neutralize multiple underscore-prefixed @mentions", () => {
+      const result = sanitizeContent("config_@admin and deploy_@maintainer");
+      expect(result).toBe("config_`@admin` and deploy_`@maintainer`");
+    });
+
+    it("should neutralize underscore-prefixed org/team mentions", () => {
+      const result = sanitizeContent("api_@org/team");
+      expect(result).toBe("api_`@org/team`");
+    });
+
+    it("should handle mixed normal and underscore-prefixed mentions", () => {
+      const result = sanitizeContent("Hello @user and test_@admin");
+      expect(result).toBe("Hello `@user` and test_`@admin`");
+    });
   });
 
   describe("@mention allowedAliases", () => {
@@ -160,6 +235,21 @@ describe("sanitize_content.cjs", () => {
     it("should preserve backward compatibility with numeric maxLength parameter", () => {
       const result = sanitizeContent("Hello @user", 524288);
       expect(result).toBe("Hello `@user`");
+    });
+
+    it("should not neutralize allowed mentions with underscores", () => {
+      const result = sanitizeContent("Hello @user_name", { allowedAliases: ["user_name"] });
+      expect(result).toBe("Hello @user_name");
+    });
+
+    it("should neutralize disallowed mentions with underscores", () => {
+      const result = sanitizeContent("Hello @user_name and @other_user", { allowedAliases: ["user_name"] });
+      expect(result).toBe("Hello @user_name and `@other_user`");
+    });
+
+    it("should not neutralize org/team mentions with underscores in allowedAliases", () => {
+      const result = sanitizeContent("Hello @my_org/my_team", { allowedAliases: ["my_org/my_team"] });
+      expect(result).toBe("Hello @my_org/my_team");
     });
 
     it("should log escaped mentions for debugging", () => {
@@ -480,9 +570,9 @@ describe("sanitize_content.cjs", () => {
       expect(sanitizeDomainName("a.b.c")).toBe("a.b.c");
     });
 
-    it("should truncate domains with more than 3 parts", () => {
-      expect(sanitizeDomainName("a.b.c.d.com")).toBe("a.b.c...");
-      expect(sanitizeDomainName("one.two.three.four.five.com")).toBe("one.two.three...");
+    it("should keep domains under 48 characters unchanged", () => {
+      expect(sanitizeDomainName("a.b.c.d.com")).toBe("a.b.c.d.com");
+      expect(sanitizeDomainName("one.two.three.four.five.com")).toBe("one.two.three.four.five.com");
     });
 
     it("should remove non-alphanumeric characters from each part", () => {
@@ -525,8 +615,15 @@ describe("sanitize_content.cjs", () => {
       expect(sanitizeDomainName("@#$")).toBe("");
     });
 
-    it("should truncate with ... for 4+ parts after sanitization", () => {
-      expect(sanitizeDomainName("alpha.beta.gamma.delta.epsilon.com")).toBe("alpha.beta.gamma...");
+    it("should truncate domains longer than 48 characters to show first 24 and last 24", () => {
+      // This domain is 52 characters long
+      const longDomain = "very.long.subdomain.name.with.many.parts.example.com";
+      const result = sanitizeDomainName(longDomain);
+      expect(result.length).toBe(49); // 24 + 1 (ellipsis) + 24
+      expect(result).toBe("very.long.subdomain.name…h.many.parts.example.com");
+
+      // Another long domain test
+      expect(sanitizeDomainName("alpha.beta.gamma.delta.epsilon.com")).toBe("alpha.beta.gamma.delta.epsilon.com");
     });
 
     it("should handle mixed case domains", () => {
@@ -541,12 +638,12 @@ describe("sanitize_content.cjs", () => {
 
     it("should apply sanitization in actual URL redaction for HTTP", () => {
       const result = sanitizeContent("Visit http://sub.example.malicious.com/path");
-      expect(result).toContain("(sub.example.malicious.../redacted)");
+      expect(result).toContain("(sub.example.malicious.com/redacted)");
     });
 
     it("should apply sanitization in actual URL redaction for HTTPS", () => {
       const result = sanitizeContent("Visit https://very.deep.nested.subdomain.evil.com/path");
-      expect(result).toContain("(very.deep.nested.../redacted)");
+      expect(result).toContain("(very.deep.nested.subdomain.evil.com/redacted)");
     });
 
     it("should handle domains with special characters in URL context", () => {
@@ -561,18 +658,19 @@ describe("sanitize_content.cjs", () => {
       expect(result).toContain("(test.com/redacted)");
     });
 
-    it("should handle subdomain with 3 parts correctly", () => {
-      // api.v2.example.com has 4 parts, so it will be truncated
+    it("should handle subdomain with multiple parts correctly", () => {
+      // api.v2.example.com is under 48 chars, so it stays unchanged
       const result = sanitizeContent("Visit http://api.v2.example.com/endpoint");
-      expect(result).toContain("(api.v2.example.../redacted)");
+      expect(result).toContain("(api.v2.example.com/redacted)");
     });
 
-    it("should handle 5+ part domains", () => {
-      expect(sanitizeDomainName("a.b.c.d.e.f.com")).toBe("a.b.c...");
+    it("should handle domains with many parts", () => {
+      // Under 48 chars - not truncated
+      expect(sanitizeDomainName("a.b.c.d.e.f.com")).toBe("a.b.c.d.e.f.com");
     });
 
     it("should handle domains starting with numbers", () => {
-      expect(sanitizeDomainName("123.456.example.com")).toBe("123.456.example...");
+      expect(sanitizeDomainName("123.456.example.com")).toBe("123.456.example.com");
     });
 
     it("should handle single part domain", () => {
@@ -1067,6 +1165,493 @@ describe("sanitize_content.cjs", () => {
         // Clean up
         fs.unlinkSync(defaultPath);
       });
+    });
+  });
+
+  describe("Unicode hardening transformations", () => {
+    describe("zero-width character removal", () => {
+      it("should remove zero-width space (U+200B)", () => {
+        const input = "Hello\u200BWorld";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove zero-width non-joiner (U+200C)", () => {
+        const input = "Test\u200CText";
+        const expected = "TestText";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove zero-width joiner (U+200D)", () => {
+        const input = "Hello\u200DWorld";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove word joiner (U+2060)", () => {
+        const input = "Word\u2060Joiner";
+        const expected = "WordJoiner";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove byte order mark (U+FEFF)", () => {
+        const input = "\uFEFFHello World";
+        const expected = "Hello World";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove multiple zero-width characters", () => {
+        const input = "A\u200BB\u200CC\u200DD\u2060E\uFEFFF";
+        const expected = "ABCDEF";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should handle text with only zero-width characters", () => {
+        const input = "\u200B\u200C\u200D";
+        const expected = "";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+    });
+
+    describe("Unicode normalization (NFC)", () => {
+      it("should normalize composed characters", () => {
+        // e + combining acute accent -> precomposed é
+        const input = "cafe\u0301"; // café with combining accent
+        const result = sanitizeContent(input);
+        // After NFC normalization, should be composed form
+        expect(result).toBe("café");
+        // Verify it's the precomposed character (U+00E9)
+        expect(result.charCodeAt(3)).toBe(0x00e9);
+      });
+
+      it("should normalize multiple combining characters", () => {
+        const input = "n\u0303"; // ñ with combining tilde
+        const result = sanitizeContent(input);
+        expect(result).toBe("ñ");
+      });
+
+      it("should handle already normalized text", () => {
+        const input = "Hello World";
+        const expected = "Hello World";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+    });
+
+    describe("full-width ASCII conversion", () => {
+      it("should convert full-width exclamation mark", () => {
+        const input = "Hello\uFF01"; // Full-width !
+        const expected = "Hello!";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should convert full-width letters", () => {
+        const input = "\uFF21\uFF22\uFF23"; // Full-width ABC
+        const expected = "ABC";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should convert full-width digits", () => {
+        const input = "\uFF11\uFF12\uFF13"; // Full-width 123
+        const expected = "123";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should convert full-width parentheses", () => {
+        const input = "\uFF08test\uFF09"; // Full-width (test)
+        const expected = "(test)";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should convert mixed full-width and normal text", () => {
+        const input = "Hello\uFF01 \uFF37orld"; // Hello! World with full-width ! and W
+        const expected = "Hello! World";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should convert full-width at sign", () => {
+        const input = "\uFF20user"; // Full-width @user
+        // Note: @ mention will also be neutralized
+        const result = sanitizeContent(input);
+        expect(result).toBe("`@user`");
+      });
+
+      it("should handle entire sentence in full-width", () => {
+        const input = "\uFF28\uFF45\uFF4C\uFF4C\uFF4F"; // Full-width Hello
+        const expected = "Hello";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+    });
+
+    describe("directional override removal", () => {
+      it("should remove left-to-right embedding (U+202A)", () => {
+        const input = "Hello\u202AWorld";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove right-to-left embedding (U+202B)", () => {
+        const input = "Hello\u202BWorld";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove pop directional formatting (U+202C)", () => {
+        const input = "Hello\u202CWorld";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove left-to-right override (U+202D)", () => {
+        const input = "Hello\u202DWorld";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove right-to-left override (U+202E)", () => {
+        const input = "Hello\u202EWorld";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove left-to-right isolate (U+2066)", () => {
+        const input = "Hello\u2066World";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove right-to-left isolate (U+2067)", () => {
+        const input = "Hello\u2067World";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove first strong isolate (U+2068)", () => {
+        const input = "Hello\u2068World";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove pop directional isolate (U+2069)", () => {
+        const input = "Hello\u2069World";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should remove multiple directional controls", () => {
+        const input = "A\u202AB\u202BC\u202CD\u202DE\u202EF\u2066G\u2067H\u2068I\u2069J";
+        const expected = "ABCDEFGHIJ";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+    });
+
+    describe("combined Unicode attacks", () => {
+      it("should handle combination of zero-width and directional controls", () => {
+        const input = "Hello\u200B\u202EWorld\u200C";
+        const expected = "HelloWorld";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should handle combination of full-width and zero-width", () => {
+        const input = "\uFF28\u200Bello"; // Full-width H + zero-width space + ello
+        const expected = "Hello";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should handle all transformations together", () => {
+        // Full-width H, zero-width space, combining accent, RTL override, normal text
+        const input = "\uFF28\u200Be\u0301\u202Ello";
+        const expected = "Héllo";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should prevent visual spoofing with mixed scripts", () => {
+        // Example: trying to hide malicious text with RTL override
+        const input = "filename\u202E.txt.exe";
+        // Should remove the RTL override
+        const expected = "filename.txt.exe";
+        expect(sanitizeContent(input)).toBe(expected);
+      });
+
+      it("should handle deeply nested Unicode attacks", () => {
+        const input = "\uFEFF\u200B\uFF21\u202E\u0301\u200C";
+        // BOM + ZWS + full-width A + RTL + combining + ZWNJ
+        const result = sanitizeContent(input);
+        // Should result in just "A" with the combining accent normalized
+        expect(result.replace(/\u0301/g, "")).toBe("A");
+      });
+    });
+
+    describe("edge cases and boundary conditions", () => {
+      it("should handle empty string", () => {
+        expect(sanitizeContent("")).toBe("");
+      });
+
+      it("should handle string with only invisible characters", () => {
+        const input = "\u200B\u202E\uFEFF";
+        expect(sanitizeContent(input)).toBe("");
+      });
+
+      it("should preserve regular whitespace", () => {
+        const input = "Hello   World\t\nTest";
+        const result = sanitizeContent(input);
+        // Should preserve spaces, tabs, and newlines (though trimmed at end)
+        expect(result).toContain("Hello");
+        expect(result).toContain("World");
+      });
+
+      it("should not affect emoji", () => {
+        const input = "Hello 👋 World 🌍";
+        const result = sanitizeContent(input);
+        expect(result).toContain("👋");
+        expect(result).toContain("🌍");
+      });
+
+      it("should handle long text with scattered Unicode attacks", () => {
+        const longText = "A".repeat(100) + "\u200B" + "B".repeat(100) + "\u202E" + "C".repeat(100);
+        const result = sanitizeContent(longText);
+        // Should remove the invisible characters
+        expect(result.length).toBe(300); // 100 + 100 + 100
+        expect(result.includes("\u200B")).toBe(false);
+        expect(result.includes("\u202E")).toBe(false);
+      });
+    });
+  });
+
+  describe("HTML entity decoding for @mention bypass prevention", () => {
+    it("should decode &commat; and neutralize resulting @mention", () => {
+      const result = sanitizeContent("Please review &commat;pelikhan");
+      expect(result).toBe("Please review `@pelikhan`");
+    });
+
+    it("should decode double-encoded &amp;commat; and neutralize resulting @mention", () => {
+      const result = sanitizeContent("Please review &amp;commat;pelikhan");
+      expect(result).toBe("Please review `@pelikhan`");
+    });
+
+    it("should decode &#64; (decimal) and neutralize resulting @mention", () => {
+      const result = sanitizeContent("Please review &#64;pelikhan");
+      expect(result).toBe("Please review `@pelikhan`");
+    });
+
+    it("should decode double-encoded &amp;#64; and neutralize resulting @mention", () => {
+      const result = sanitizeContent("Please review &amp;#64;pelikhan");
+      expect(result).toBe("Please review `@pelikhan`");
+    });
+
+    it("should decode &#x40; (hex lowercase) and neutralize resulting @mention", () => {
+      const result = sanitizeContent("Please review &#x40;pelikhan");
+      expect(result).toBe("Please review `@pelikhan`");
+    });
+
+    it("should decode &#X40; (hex uppercase) and neutralize resulting @mention", () => {
+      const result = sanitizeContent("Please review &#X40;pelikhan");
+      expect(result).toBe("Please review `@pelikhan`");
+    });
+
+    it("should decode double-encoded &amp;#x40; and neutralize resulting @mention", () => {
+      const result = sanitizeContent("Please review &amp;#x40;pelikhan");
+      expect(result).toBe("Please review `@pelikhan`");
+    });
+
+    it("should decode double-encoded &amp;#X40; and neutralize resulting @mention", () => {
+      const result = sanitizeContent("Please review &amp;#X40;pelikhan");
+      expect(result).toBe("Please review `@pelikhan`");
+    });
+
+    it("should decode multiple HTML-encoded @mentions", () => {
+      const result = sanitizeContent("&commat;user1 and &#64;user2 and &#x40;user3");
+      expect(result).toBe("`@user1` and `@user2` and `@user3`");
+    });
+
+    it("should decode mixed HTML entities and normal @mentions", () => {
+      const result = sanitizeContent("&commat;user1 and @user2");
+      expect(result).toBe("`@user1` and `@user2`");
+    });
+
+    it("should decode HTML entities in org/team mentions", () => {
+      const result = sanitizeContent("&commat;myorg/myteam should review");
+      expect(result).toBe("`@myorg/myteam` should review");
+    });
+
+    it("should decode general decimal entities correctly", () => {
+      const result = sanitizeContent("&#72;&#101;&#108;&#108;&#111;"); // "Hello"
+      expect(result).toBe("Hello");
+    });
+
+    it("should decode general hex entities correctly", () => {
+      const result = sanitizeContent("&#x48;&#x65;&#x6C;&#x6C;&#x6F;"); // "Hello"
+      expect(result).toBe("Hello");
+    });
+
+    it("should decode double-encoded general entities correctly", () => {
+      const result = sanitizeContent("&amp;#72;ello"); // "&Hello"
+      expect(result).toBe("Hello");
+    });
+
+    it("should handle invalid code points gracefully", () => {
+      const result = sanitizeContent("Invalid &#999999999; entity");
+      expect(result).toBe("Invalid &#999999999; entity"); // Keep original if invalid
+    });
+
+    it("should handle malformed HTML entities without crashing", () => {
+      const result = sanitizeContent("Malformed &# or &#x entity");
+      expect(result).toBe("Malformed &# or &#x entity");
+    });
+
+    it("should decode entities before Unicode hardening", () => {
+      // Ensure entity decoding happens as part of hardenUnicodeText
+      const result = sanitizeContent("&#xFF01;"); // Full-width exclamation (U+FF01)
+      expect(result).toBe("!"); // Should become ASCII !
+    });
+
+    it("should decode entities in combination with other sanitization", () => {
+      const result = sanitizeContent("&commat;user <!-- comment --> text");
+      expect(result).toBe("`@user`  text");
+    });
+
+    it("should decode entities even in backticks (security-first approach)", () => {
+      // Entities are decoded during Unicode hardening, which happens before
+      // mention neutralization. This is intentional - we decode entities early
+      // to prevent bypasses, then the @mention gets neutralized properly.
+      const result = sanitizeContent("`&commat;user`");
+      expect(result).toBe("`@user`");
+    });
+
+    it("should preserve legitimate URLs after entity decoding", () => {
+      const result = sanitizeContent("Visit https://github.com/user");
+      expect(result).toBe("Visit https://github.com/user");
+    });
+
+    it("should decode case-insensitive named entities", () => {
+      const result = sanitizeContent("&COMMAT;user and &CoMmAt;user2");
+      expect(result).toBe("`@user` and `@user2`");
+    });
+
+    it("should decode entities with mixed case hex digits", () => {
+      const result = sanitizeContent("&#x4O; is invalid but &#x4A; is valid"); // Note: using letter 'O' not digit '0'
+      expect(result).toContain("&#x4O;"); // Invalid should remain
+      expect(result).toContain("J"); // Valid 0x4A = J
+    });
+
+    it("should handle zero code point", () => {
+      const result = sanitizeContent("&#0;text");
+      // Code point 0 is valid but typically removed as control character
+      expect(result).toContain("text");
+    });
+
+    it("should respect allowed aliases even with HTML-encoded mentions", () => {
+      const result = sanitizeContent("&commat;author is allowed", { allowedAliases: ["author"] });
+      expect(result).toBe("@author is allowed");
+    });
+  });
+
+  describe("template delimiter neutralization (T24)", () => {
+    it("should escape Jinja2/Liquid double curly braces", () => {
+      const result = sanitizeContent("{{ secrets.TOKEN }}");
+      expect(result).toBe("\\{\\{ secrets.TOKEN }}");
+      expect(mockCore.info).toHaveBeenCalledWith("Template syntax detected: Jinja2/Liquid double braces {{");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Template-like syntax detected and escaped"));
+    });
+
+    it("should escape ERB delimiters", () => {
+      const result = sanitizeContent("<%= config %>");
+      expect(result).toBe("\\<%= config %>");
+      expect(mockCore.info).toHaveBeenCalledWith("Template syntax detected: ERB delimiter <%=");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Template-like syntax detected and escaped"));
+    });
+
+    it("should escape JavaScript template literals", () => {
+      const result = sanitizeContent("${ expression }");
+      expect(result).toBe("\\$\\{ expression }");
+      expect(mockCore.info).toHaveBeenCalledWith("Template syntax detected: JavaScript template literal ${");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Template-like syntax detected and escaped"));
+    });
+
+    it("should escape Jinja2 comment delimiters", () => {
+      const result = sanitizeContent("{# comment #}");
+      expect(result).toBe("\\{\\# comment #}");
+      expect(mockCore.info).toHaveBeenCalledWith("Template syntax detected: Jinja2 comment {#");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Template-like syntax detected and escaped"));
+    });
+
+    it("should escape Jekyll raw blocks", () => {
+      const result = sanitizeContent("{% raw %}{{code}}{% endraw %}");
+      expect(result).toBe("\\{\\% raw %}\\{\\{code}}\\{\\% endraw %}");
+      expect(mockCore.info).toHaveBeenCalledWith("Template syntax detected: Jekyll/Liquid directive {%");
+      expect(mockCore.info).toHaveBeenCalledWith("Template syntax detected: Jinja2/Liquid double braces {{");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Template-like syntax detected and escaped"));
+    });
+
+    it("should escape multiple template patterns in the same text", () => {
+      const result = sanitizeContent("Mix: {{ var }}, <%= erb %>, ${ js }");
+      expect(result).toBe("Mix: \\{\\{ var }}, \\<%= erb %>, \\$\\{ js }");
+      expect(mockCore.info).toHaveBeenCalledWith("Template syntax detected: Jinja2/Liquid double braces {{");
+      expect(mockCore.info).toHaveBeenCalledWith("Template syntax detected: ERB delimiter <%=");
+      expect(mockCore.info).toHaveBeenCalledWith("Template syntax detected: JavaScript template literal ${");
+    });
+
+    it("should not log when no template delimiters are present", () => {
+      const result = sanitizeContent("Normal text without templates");
+      expect(result).toBe("Normal text without templates");
+      expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Template-like syntax detected"));
+    });
+
+    it("should handle multiple occurrences of the same template type", () => {
+      const result = sanitizeContent("{{ var1 }} and {{ var2 }} and {{ var3 }}");
+      expect(result).toBe("\\{\\{ var1 }} and \\{\\{ var2 }} and \\{\\{ var3 }}");
+      expect(mockCore.info).toHaveBeenCalledWith("Template syntax detected: Jinja2/Liquid double braces {{");
+    });
+
+    it("should escape template delimiters in multi-line content", () => {
+      const result = sanitizeContent("Line 1: {{ var }}\nLine 2: <%= erb %>\nLine 3: ${ js }");
+      expect(result).toContain("\\{\\{ var }}");
+      expect(result).toContain("\\<%= erb %>");
+      expect(result).toContain("\\$\\{ js }");
+    });
+
+    it("should not double-escape already escaped template delimiters", () => {
+      // If content already has backslashes, we still escape (it's safer to escape again)
+      const result = sanitizeContent("\\{{ already }}");
+      expect(result).toBe("\\\\{\\{ already }}");
+    });
+
+    it("should preserve normal curly braces that are not template delimiters", () => {
+      const result = sanitizeContent("{ single brace }");
+      expect(result).toBe("{ single brace }");
+      expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Template-like syntax detected"));
+    });
+
+    it("should preserve dollar sign without curly brace", () => {
+      const result = sanitizeContent("Price: $100");
+      expect(result).toBe("Price: $100");
+      expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Template-like syntax detected"));
+    });
+
+    it("should escape template delimiters in code blocks", () => {
+      // Template delimiters should still be escaped even in code blocks
+      // This is defense-in-depth - we escape everywhere
+      const result = sanitizeContent("`code with {{ var }}`");
+      expect(result).toBe("`code with \\{\\{ var }}`");
+    });
+
+    it("should handle real-world GitHub Actions template expressions", () => {
+      const result = sanitizeContent("${{ github.event.issue.title }}");
+      // Note: ${{ is NOT the same as ${ followed by {
+      // ${{ only matches the {{ pattern, not the ${ pattern
+      // So only {{ gets escaped
+      expect(result).toBe("$\\{\\{ github.event.issue.title }}");
+    });
+
+    it("should handle nested template patterns", () => {
+      const result = sanitizeContent("{% if {{ condition }} %}");
+      expect(result).toBe("\\{\\% if \\{\\{ condition }} %}");
+    });
+
+    it("should escape templates combined with other content", () => {
+      const result = sanitizeContent("Hello @user, check {{ secret }} at https://example.com");
+      expect(result).toContain("`@user`"); // mention escaped
+      expect(result).toContain("\\{\\{"); // template escaped
+      expect(result).toContain("(example.com/redacted)"); // URL redacted (not in allowed domains)
     });
   });
 });

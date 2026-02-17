@@ -36,6 +36,132 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		return "", fmt.Errorf("not a fuzzy schedule: %s", fuzzyCron)
 	}
 
+	// For FUZZY:DAILY_AROUND_WEEKDAYS:HH:MM * * *, scatter around the target time on weekdays
+	if strings.HasPrefix(fuzzyCron, "FUZZY:DAILY_AROUND_WEEKDAYS:") {
+		// Extract the target hour and minute from FUZZY:DAILY_AROUND_WEEKDAYS:HH:MM
+		parts := strings.Split(fuzzyCron, " ")
+		if len(parts) < 1 {
+			return "", fmt.Errorf("invalid fuzzy daily around weekdays pattern: %s", fuzzyCron)
+		}
+
+		// Parse the target time from FUZZY:DAILY_AROUND_WEEKDAYS:HH:MM
+		timePart := strings.TrimPrefix(parts[0], "FUZZY:DAILY_AROUND_WEEKDAYS:")
+		timeParts := strings.Split(timePart, ":")
+		if len(timeParts) != 2 {
+			return "", fmt.Errorf("invalid time format in fuzzy daily around weekdays pattern: %s", fuzzyCron)
+		}
+
+		targetHour, err := strconv.Atoi(timeParts[0])
+		if err != nil || targetHour < 0 || targetHour > 23 {
+			return "", fmt.Errorf("invalid target hour in fuzzy daily around weekdays pattern: %s", fuzzyCron)
+		}
+
+		targetMinute, err := strconv.Atoi(timeParts[1])
+		if err != nil || targetMinute < 0 || targetMinute > 59 {
+			return "", fmt.Errorf("invalid target minute in fuzzy daily around weekdays pattern: %s", fuzzyCron)
+		}
+
+		// Calculate target time in minutes since midnight
+		targetMinutes := targetHour*60 + targetMinute
+
+		// Define the scattering window: ±1 hour (120 minutes total range)
+		windowSize := 120 // Total window is 2 hours (±1 hour)
+
+		// Use a stable hash to get a deterministic offset within the window
+		hash := stableHash(workflowIdentifier, windowSize)
+
+		// Calculate offset from target time: range is [-60, +59] minutes
+		offset := hash - (windowSize / 2)
+
+		// Apply offset to target time
+		scatteredMinutes := targetMinutes + offset
+
+		// Handle wrap-around (keep within 0-1439 minutes, which is 0:00-23:59)
+		for scatteredMinutes < 0 {
+			scatteredMinutes += 24 * 60
+		}
+		for scatteredMinutes >= 24*60 {
+			scatteredMinutes -= 24 * 60
+		}
+
+		hour := scatteredMinutes / 60
+		minute := scatteredMinutes % 60
+
+		result := fmt.Sprintf("%d %d * * 1-5", minute, hour)
+		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY_AROUND_WEEKDAYS scattered: original=%d:%d, scattered=%d:%d, result=%s", targetHour, targetMinute, hour, minute, result)
+		// Return scattered daily cron with weekday restriction: minute hour * * 1-5
+		return result, nil
+	}
+
+	// For FUZZY:DAILY_BETWEEN_WEEKDAYS:START_H:START_M:END_H:END_M * * *, scatter within the time range on weekdays
+	if strings.HasPrefix(fuzzyCron, "FUZZY:DAILY_BETWEEN_WEEKDAYS:") {
+		// Extract the start and end times from FUZZY:DAILY_BETWEEN_WEEKDAYS:START_H:START_M:END_H:END_M
+		parts := strings.Split(fuzzyCron, " ")
+		if len(parts) < 1 {
+			return "", fmt.Errorf("invalid fuzzy daily between weekdays pattern: %s", fuzzyCron)
+		}
+
+		// Parse the times from FUZZY:DAILY_BETWEEN_WEEKDAYS:START_H:START_M:END_H:END_M
+		timePart := strings.TrimPrefix(parts[0], "FUZZY:DAILY_BETWEEN_WEEKDAYS:")
+		timeParts := strings.Split(timePart, ":")
+		if len(timeParts) != 4 {
+			return "", fmt.Errorf("invalid time format in fuzzy daily between weekdays pattern: %s", fuzzyCron)
+		}
+
+		startHour, err := strconv.Atoi(timeParts[0])
+		if err != nil || startHour < 0 || startHour > 23 {
+			return "", fmt.Errorf("invalid start hour in fuzzy daily between weekdays pattern: %s", fuzzyCron)
+		}
+
+		startMinute, err := strconv.Atoi(timeParts[1])
+		if err != nil || startMinute < 0 || startMinute > 59 {
+			return "", fmt.Errorf("invalid start minute in fuzzy daily between weekdays pattern: %s", fuzzyCron)
+		}
+
+		endHour, err := strconv.Atoi(timeParts[2])
+		if err != nil || endHour < 0 || endHour > 23 {
+			return "", fmt.Errorf("invalid end hour in fuzzy daily between weekdays pattern: %s", fuzzyCron)
+		}
+
+		endMinute, err := strconv.Atoi(timeParts[3])
+		if err != nil || endMinute < 0 || endMinute > 59 {
+			return "", fmt.Errorf("invalid end minute in fuzzy daily between weekdays pattern: %s", fuzzyCron)
+		}
+
+		// Calculate start and end times in minutes since midnight
+		startMinutes := startHour*60 + startMinute
+		endMinutes := endHour*60 + endMinute
+
+		// Calculate the range size, handling ranges that cross midnight
+		var rangeSize int
+		if endMinutes > startMinutes {
+			// Normal case: range within a single day (e.g., 9:00 to 17:00)
+			rangeSize = endMinutes - startMinutes
+		} else {
+			// Range crosses midnight (e.g., 22:00 to 02:00)
+			rangeSize = (24*60 - startMinutes) + endMinutes
+		}
+
+		// Use a stable hash to get a deterministic offset within the range
+		hash := stableHash(workflowIdentifier, rangeSize)
+
+		// Calculate the scattered time by adding hash offset to start time
+		scatteredMinutes := startMinutes + hash
+
+		// Handle wrap-around for ranges that cross midnight
+		if scatteredMinutes >= 24*60 {
+			scatteredMinutes -= 24 * 60
+		}
+
+		hour := scatteredMinutes / 60
+		minute := scatteredMinutes % 60
+
+		result := fmt.Sprintf("%d %d * * 1-5", minute, hour)
+		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY_BETWEEN_WEEKDAYS scattered: start=%d:%d, end=%d:%d, scattered=%d:%d, result=%s", startHour, startMinute, endHour, endMinute, hour, minute, result)
+		// Return scattered daily cron with weekday restriction: minute hour * * 1-5
+		return result, nil
+	}
+
 	// For FUZZY:DAILY_AROUND:HH:MM * * *, scatter around the target time
 	if strings.HasPrefix(fuzzyCron, "FUZZY:DAILY_AROUND:") {
 		// Extract the target hour and minute from FUZZY:DAILY_AROUND:HH:MM
@@ -162,6 +288,20 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		return result, nil
 	}
 
+	// For FUZZY:DAILY_WEEKDAYS * * *, we scatter across 24 hours on weekdays only
+	if strings.HasPrefix(fuzzyCron, "FUZZY:DAILY_WEEKDAYS") {
+		// Use a stable hash of the workflow identifier to get a deterministic time
+		hash := stableHash(workflowIdentifier, 1440) // Total minutes in a day
+
+		hour := hash / 60
+		minute := hash % 60
+
+		result := fmt.Sprintf("%d %d * * 1-5", minute, hour)
+		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY_WEEKDAYS scattered: hash=%d, result=%s", hash, result)
+		// Return scattered daily cron with weekday restriction: minute hour * * 1-5
+		return result, nil
+	}
+
 	// For FUZZY:DAILY * * *, we scatter across 24 hours
 	if strings.HasPrefix(fuzzyCron, "FUZZY:DAILY") {
 		// Use a stable hash of the workflow identifier to get a deterministic time
@@ -173,6 +313,30 @@ func ScatterSchedule(fuzzyCron, workflowIdentifier string) (string, error) {
 		result := fmt.Sprintf("%d %d * * *", minute, hour)
 		scheduleFuzzyScatterLog.Printf("FUZZY:DAILY scattered: hash=%d, result=%s", hash, result)
 		// Return scattered daily cron: minute hour * * *
+		return result, nil
+	}
+
+	// For FUZZY:HOURLY_WEEKDAYS/N * * *, we scatter the minute offset within the hour on weekdays only
+	if strings.HasPrefix(fuzzyCron, "FUZZY:HOURLY_WEEKDAYS/") {
+		// Extract the interval from FUZZY:HOURLY_WEEKDAYS/N
+		parts := strings.Split(fuzzyCron, " ")
+		if len(parts) < 1 {
+			return "", fmt.Errorf("invalid fuzzy hourly weekdays pattern: %s", fuzzyCron)
+		}
+
+		hourlyPart := parts[0]
+		intervalStr := strings.TrimPrefix(hourlyPart, "FUZZY:HOURLY_WEEKDAYS/")
+		interval, err := strconv.Atoi(intervalStr)
+		if err != nil {
+			return "", fmt.Errorf("invalid interval in fuzzy hourly weekdays pattern: %s", fuzzyCron)
+		}
+
+		// Use a stable hash to get a deterministic minute offset (0-59)
+		minute := stableHash(workflowIdentifier, 60)
+
+		result := fmt.Sprintf("%d */%d * * 1-5", minute, interval)
+		scheduleFuzzyScatterLog.Printf("FUZZY:HOURLY_WEEKDAYS/%d scattered: minute=%d, result=%s", interval, minute, result)
+		// Return scattered hourly cron with weekday restriction: minute */N * * 1-5
 		return result, nil
 	}
 

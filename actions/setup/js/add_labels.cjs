@@ -10,6 +10,15 @@ const HANDLER_TYPE = "add_labels";
 
 const { validateLabels } = require("./safe_output_validator.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
+
+/**
+ * Maximum limits for label parameters to prevent resource exhaustion.
+ * These limits align with GitHub's API constraints and security best practices.
+ */
+/** @type {number} Maximum number of labels allowed per operation */
+const MAX_LABELS = 10;
 
 /**
  * Main handler factory for add_labels
@@ -20,10 +29,18 @@ async function main(config = {}) {
   // Extract configuration
   const allowedLabels = config.allowed || [];
   const maxCount = config.max || 10;
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+
+  // Check if we're in staged mode
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   core.info(`Add labels configuration: max=${maxCount}`);
   if (allowedLabels.length > 0) {
     core.info(`Allowed labels: ${allowedLabels.join(", ")}`);
+  }
+  core.info(`Default target repo: ${defaultTargetRepo}`);
+  if (allowedRepos.size > 0) {
+    core.info(`Allowed repos: ${[...allowedRepos].join(", ")}`);
   }
 
   // Track how many items we've processed for max limit
@@ -47,6 +64,18 @@ async function main(config = {}) {
 
     processedCount++;
 
+    // Resolve and validate target repository
+    const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "label");
+    if (!repoResult.success) {
+      core.warning(`Skipping add_labels: ${repoResult.error}`);
+      return {
+        success: false,
+        error: repoResult.error,
+      };
+    }
+    const { repo: itemRepo, repoParts } = repoResult;
+    core.info(`Target repository: ${itemRepo}`);
+
     // Determine target issue/PR number
     const itemNumber = message.item_number !== undefined ? parseInt(String(message.item_number), 10) : (context.payload?.issue?.number ?? context.payload?.pull_request?.number);
 
@@ -66,6 +95,13 @@ async function main(config = {}) {
       const error = `No labels provided. Please provide at least one label from ${labelSource}`;
       core.info(error);
       return { success: false, error };
+    }
+
+    // Enforce max limits on labels before validation
+    const limitResult = tryEnforceArrayLimit(requestedLabels, MAX_LABELS, "labels");
+    if (!limitResult.success) {
+      core.warning(`Label limit exceeded: ${limitResult.error}`);
+      return { success: false, error: limitResult.error };
     }
 
     // Use validation helper to sanitize and validate labels
@@ -102,16 +138,32 @@ async function main(config = {}) {
       };
     }
 
-    core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
+    core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}: ${JSON.stringify(uniqueLabels)}`);
+
+    // If in staged mode, preview the labels without adding them
+    if (isStaged) {
+      core.info(`Staged mode: Would add ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}`);
+      return {
+        success: true,
+        staged: true,
+        previewInfo: {
+          number: itemNumber,
+          repo: itemRepo,
+          labels: uniqueLabels,
+          contextType,
+        },
+      };
+    }
 
     try {
       await github.rest.issues.addLabels({
-        ...context.repo,
+        owner: repoParts.owner,
+        repo: repoParts.repo,
         issue_number: itemNumber,
         labels: uniqueLabels,
       });
 
-      core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
+      core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}`);
       return {
         success: true,
         number: itemNumber,

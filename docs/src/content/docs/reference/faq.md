@@ -179,6 +179,14 @@ network:
 
 See [Network Permissions](/gh-aw/reference/network/) for complete configuration options.
 
+### What is GitHub lockdown mode and when is it enabled?
+
+**GitHub lockdown mode** is a security feature that filters content in public repositories to only show issues, pull requests, and comments from users with push access. This protects workflows from processing potentially malicious input from untrusted users.
+
+Lockdown is **automatically enabled** for public repositories if [`GH_AW_GITHUB_TOKEN`](/gh-aw/reference/auth/#gh_aw_github_token) or [`GH_AW_GITHUB_MCP_SERVER_TOKEN`](/gh-aw/reference/auth/#gh_aw_github_mcp_server_token) is configured. It is not in effect for private or internal repositories.
+
+See [Lockdown Mode](/gh-aw/reference/lockdown-mode/) for detailed configuration guidance and security considerations.
+
 ## Configuration & Setup
 
 ### What is a workflow lock file?
@@ -198,7 +206,7 @@ When the workflow runs, the prompt itself is taken from the markdown file at run
 
 ### Why do I need a token or key?
 
-When using **GitHub Copilot CLI**, a Personal Access Token (PAT) with "Copilot Requests" permission authenticates and associates automation work with your GitHub account. This ensures usage tracking against your subscription, appropriate AI permissions, and auditable actions. In the future, this may support organization-level association. See [GitHub Tokens](/gh-aw/reference/tokens/).
+When using **GitHub Copilot CLI**, a Personal Access Token (PAT) with "Copilot Requests" permission authenticates and associates automation work with your GitHub account. This ensures usage tracking against your subscription, appropriate AI permissions, and auditable actions. In the future, this may support organization-level association. See [Authentication](/gh-aw/reference/auth/).
 
 ### What hidden runtime dependencies does this have?
 
@@ -215,6 +223,140 @@ Yes! Use [TrialOps](/gh-aw/patterns/trialops/) to test workflows in isolated tri
 ### Where can I find help with common issues?
 
 See [Common Issues](/gh-aw/troubleshooting/common-issues/) for detailed troubleshooting guidance including workflow failures, debugging strategies, permission issues, and network problems.
+
+### Why is my create-discussion workflow failing with integration-forbidden?
+
+Discussion creation requires announcement-capable categories. If your workflow fails with an `integration-forbidden` error, ensure the `category` field in your configuration specifies a category that has announcement capabilities enabled in your repository's discussion settings.
+
+Common issues:
+- **Non-announcement categories**: Only categories configured to support announcements can be used for automated discussion creation. Check your repository's discussion settings to verify which categories have announcement capabilities.
+- **Category name typos**: Verify the category name spelling in your workflow configuration matches exactly with your repository's discussion categories. Category names are case-sensitive.
+- **Category slugs**: Use lowercase category slugs (e.g., `general`, `announcements`) rather than display names for better reliability.
+
+If discussions are not enabled or the category lacks announcement capabilities, consider using `fallback-to-issue: true` (the default) to automatically create an issue instead. See [Discussion Creation](/gh-aw/reference/safe-outputs/#discussion-creation-create-discussion) for configuration details.
+
+### Why is my create-pull-request workflow failing with "GitHub Actions is not permitted to create or approve pull requests"?
+
+Some organizations disable pull request creation by GitHub Actions workflows through repository or organization settings. This security policy prevents automation from creating PRs, resulting in the error: **"GitHub Actions is not permitted to create or approve pull requests."**
+
+**Organization Setting Location:**
+- Navigate to your organization's **Settings** → **Actions** → **General**
+- Look for **"Workflow permissions"** section
+- Check if **"Allow GitHub Actions to create and approve pull requests"** is disabled
+
+**Workaround Options:**
+
+If you cannot enable PR creation or prefer to keep it disabled for security reasons, you have two alternatives:
+
+**Option 1: Use create-issue with automatic fallback (default)**
+
+The `create-pull-request` safe output automatically falls back to creating an issue when PR creation is blocked:
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+    # fallback-as-issue: true is the default behavior
+    # When PR creation fails, an issue is created with branch link
+```
+
+This requires both `contents: write` + `pull-requests: write` (for PR attempt) and `issues: write` (for fallback).
+
+**Option 2: Use create-issue directly with Copilot assignment**
+
+Create an issue describing the desired changes and assign it to Copilot for automated implementation:
+
+```yaml wrap
+safe-outputs:
+  create-issue:
+    assignees: [copilot]              # Assign to Copilot for PR creation
+    labels: [automation, enhancement] # Add tracking labels
+```
+
+When assigned to Copilot, the issue can be automatically picked up for processing in a separate workflow or manually reviewed by the Copilot agent to create the PR.
+
+**Option 3: Disable issue fallback to save permissions**
+
+If you only want PR creation (no fallback), disable the issue fallback to avoid requiring `issues: write`:
+
+```yaml wrap
+safe-outputs:
+  create-pull-request:
+    fallback-as-issue: false          # Only attempt PR creation
+```
+
+This requires only `contents: write` + `pull-requests: write`, but workflows will fail if PR creation is blocked at the organization level.
+
+> [!TIP]
+> For workflows that need to work across different organizations with varying PR policies, use the default `fallback-as-issue: true` behavior. This ensures workflows gracefully adapt to organization settings.
+
+See [Pull Request Creation](/gh-aw/reference/safe-outputs/#pull-request-creation-create-pull-request) for complete configuration details and the fallback mechanism explanation.
+
+### Why don't pull requests created by agentic workflows trigger my CI checks?
+
+This is expected GitHub Actions security behavior. Pull requests created using the default `GITHUB_TOKEN` or by the GitHub Actions bot user **do not trigger workflow runs** on `pull_request`, `pull_request_target`, or `push` events. This is a [GitHub Actions security feature](https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow) designed to prevent accidental recursive workflow execution.
+
+**Why GitHub implements this protection:**
+
+GitHub Actions prevents the `GITHUB_TOKEN` from triggering new workflow runs to avoid infinite loops and uncontrolled automation chains. Without this protection, a workflow could create a PR, which triggers another workflow, which creates another PR, and so on indefinitely.
+
+**Workarounds:**
+
+If you need CI checks to run on PRs created by agentic workflows, you have three options:
+
+**Option 1: Use a Personal Access Token (PAT)**
+
+Configure your workflow to use a PAT instead of `GITHUB_TOKEN`. This allows PR creation to trigger CI workflows:
+
+```yaml wrap
+# In your workflow frontmatter
+env:
+  GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+```
+
+The PAT must have `repo` scope (or `public_repo` for public repositories only) and should belong to a service account or automation user rather than a personal account.
+
+> [!CAUTION]
+> Using a PAT bypasses GitHub's recursive workflow protection. Ensure your CI workflows cannot trigger the PR creation workflow to avoid infinite loops. Consider using conditional expressions with `if: github.actor != 'automation-user'` to prevent recursive execution.
+
+**Option 2: Use a GitHub App**
+
+Create a GitHub App and use its authentication token instead of `GITHUB_TOKEN`. This is the recommended approach for organizations as it provides better security, auditability, and granular permissions:
+
+```yaml wrap
+# In your workflow frontmatter
+env:
+  GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+
+steps:
+  - name: Generate token
+    id: generate-token
+    uses: actions/create-github-app-token@v1
+    with:
+      app-id: ${{ secrets.APP_ID }}
+      private-key: ${{ secrets.APP_PRIVATE_KEY }}
+```
+
+The GitHub App must have **Contents** (read and write) and **Pull requests** (read and write) permissions. PRs created with the app's token will trigger CI workflows and be attributed to the app.
+
+> [!TIP]
+> GitHub Apps provide better security than PATs because they have repository-scoped permissions, automatic token expiration, and don't require a user account. They're ideal for organization-wide automation.
+
+**Option 3: Use workflow_run trigger**
+
+Configure your CI workflows to run on `workflow_run` events, which allows them to react to completed workflows:
+
+```yaml wrap
+on:
+  workflow_run:
+    workflows: ["Create Pull Request Workflow"]
+    types: [completed]
+```
+
+This approach maintains security while allowing CI to run after PR creation. See [GitHub Actions workflow_run documentation](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#workflow_run) for details.
+
+**Recommendation:**
+
+For organizations, **Option 2 (GitHub App)** provides the best security and auditability. For individual users or smaller teams, **Option 1 (PAT with a service account)** is simpler to set up. In both cases, ensure proper safeguards are in place to prevent recursive workflow execution.
 
 ## Workflow Design
 

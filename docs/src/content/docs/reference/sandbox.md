@@ -3,11 +3,12 @@ title: Sandbox Configuration
 description: Configure sandbox environments for AI engines including AWF agent container, mounted tools, runtime environments, and MCP Gateway
 sidebar:
   order: 1350
+disable-agentic-editing: true
 ---
 
 The `sandbox` field configures sandbox environments for AI engines, providing two main capabilities:
 
-1. **Agent Sandbox** - Controls the agent runtime security (AWF or Sandbox Runtime)
+1. **Agent Sandbox** - Controls the agent runtime security using AWF (Agent Workflow Firewall)
 2. **Model Context Protocol (MCP) Gateway** - Routes MCP server calls through a unified HTTP gateway
 
 ## Configuration
@@ -21,16 +22,20 @@ Configure the agent sandbox type to control how the AI engine is isolated:
 sandbox:
   agent: awf
 
-# Use Sandbox Runtime (SRT) - experimental
+# Disable agent sandbox (firewall only) - use with caution
 sandbox:
-  agent: srt
+  agent: false
 
 # Or omit sandbox entirely to use the default (awf)
 ```
 
 > [!NOTE]
 > Default Behavior
-> If `sandbox` is not specified in your workflow, it defaults to `sandbox.agent: awf`. The agent sandbox is now mandatory for all workflows.
+> If `sandbox` is not specified in your workflow, it defaults to `sandbox.agent: awf`. The agent sandbox is recommended for all workflows.
+
+> [!CAUTION]
+> Disabling Agent Sandbox
+> Setting `sandbox.agent: false` disables only the agent firewall while keeping the MCP gateway enabled. This reduces security isolation and should only be used when necessary. The MCP gateway cannot be disabled and remains active in all workflows.
 
 ### MCP Gateway (Experimental)
 
@@ -80,7 +85,7 @@ network:
 
 #### Chroot Mode
 
-AWF v0.13.1+ uses **chroot mode** (`--enable-chroot`) to provide transparent host filesystem access while maintaining network isolation via iptables. This eliminates explicit volume mounts and environment variable configuration.
+AWF v0.15.0+ uses **chroot mode by default** to provide transparent host filesystem access while maintaining network isolation via iptables. This eliminates explicit volume mounts and environment variable configuration.
 
 ```text
 ┌─────────────────────────────────────────────┐
@@ -182,7 +187,7 @@ Custom mounts are useful for:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | `string` | Agent identifier: `awf` or `srt` |
+| `id` | `string` | Agent identifier: `awf` |
 | `command` | `string` | Custom command to replace AWF binary installation |
 | `args` | `string[]` | Additional arguments appended to the command |
 | `env` | `object` | Environment variables set on the execution step |
@@ -190,71 +195,29 @@ Custom mounts are useful for:
 
 When `command` is specified, the standard AWF installation is skipped and your custom command is used instead.
 
-### Sandbox Runtime (SRT)
+## Deprecated: Sandbox Runtime (SRT)
 
 > [!CAUTION]
-> Experimental
-> Sandbox Runtime is experimental and requires the `sandbox-runtime` feature flag.
+> Removed
+> Sandbox Runtime (SRT) support has been removed. AWF is now the only supported sandbox implementation.
 
-Sandbox Runtime provides enhanced isolation using Anthropic's sandbox technology. It supports custom filesystem configuration while network permissions are controlled by the top-level `network` field.
+### Migration
 
+Legacy workflows using `sandbox.agent: srt` or `sandbox: sandbox-runtime` are automatically migrated to AWF during workflow parsing. No manual changes are required.
+
+**Before (automatically migrated):**
 ```yaml wrap
-features:
-  sandbox-runtime: true
-
 sandbox:
-  agent:
-    type: srt
-    config:
-      filesystem:
-        allowWrite: [".", "/tmp", "/home/runner/.copilot"]
-        denyRead: ["/etc/passwd"]
-      enableWeakerNestedSandbox: true
-
-network:
-  allowed:
-    - defaults
-    - python
+  agent: srt
 ```
 
-#### SRT Configuration Options
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `filesystem.allowWrite` | `string[]` | Paths allowed for write access |
-| `filesystem.denyRead` | `string[]` | Paths denied for read access |
-| `filesystem.denyWrite` | `string[]` | Paths denied for write access |
-| `ignoreViolations` | `object` | Map of command patterns to paths that should ignore violations |
-| `enableWeakerNestedSandbox` | `boolean` | Enable weaker nested sandbox mode (use only when required) |
-
-> [!NOTE]
-> Network Configuration
-> Network configuration for SRT is controlled by the top-level `network` field, not the sandbox config. This ensures consistent network policy across all sandbox types.
-
-#### Custom SRT Configuration
-
-Similar to AWF, SRT supports custom commands, arguments, and environment variables:
-
+**After (transparent conversion):**
 ```yaml wrap
-features:
-  sandbox-runtime: true
-
 sandbox:
-  agent:
-    id: srt
-    command: "custom-srt-wrapper"
-    args:
-      - "--custom-arg"
-      - "--debug"
-    env:
-      SRT_DEBUG: "true"
-      SRT_CUSTOM_VAR: "test_value"
-    config:
-      filesystem:
-        allowWrite: [".", "/tmp"]
+  agent: awf
 ```
 
-When `command` is specified, the standard SRT installation is skipped. The `config` field can still be used for filesystem configuration.
+If your workflow previously used SRT, it will now use AWF with the same network permissions configured in the `network` field. AWF provides network egress control while maintaining compatibility with existing workflow configurations.
 
 ## MCP Gateway
 
@@ -326,7 +289,7 @@ sandbox:
 For backward compatibility, legacy formats are still supported:
 
 ```yaml wrap
-# Legacy string format (deprecated)
+# Legacy string format - automatically migrated to AWF
 sandbox: sandbox-runtime
 
 # Legacy object format with 'type' field (deprecated)
@@ -342,22 +305,28 @@ sandbox:
 
 The `id` field replaces the legacy `type` field in the object format. When both are present, `id` takes precedence.
 
+> [!NOTE]
+> SRT Migration
+> The legacy string format `sandbox: sandbox-runtime` is automatically converted to `sandbox.agent: awf` during workflow parsing.
+
 ## Feature Flags
 
 Some sandbox features require feature flags:
 
 | Feature | Flag | Description |
 |---------|------|-------------|
-| Sandbox Runtime | `sandbox-runtime` | Enable SRT agent sandbox |
 | MCP Gateway | `mcp-gateway` | Enable MCP gateway routing |
 
 Enable feature flags in your workflow:
 
 ```yaml wrap
 features:
-  sandbox-runtime: true
   mcp-gateway: true
 ```
+
+> [!NOTE]
+> Removed Feature Flags
+> The `sandbox-runtime` feature flag has been removed. It is no longer recognized and will be ignored if present in workflow configurations.
 
 ## Related Documentation
 

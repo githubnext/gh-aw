@@ -84,10 +84,12 @@ func validateSafeOutputsTarget(config *SafeOutputsConfig) error {
 	if config.CreatePullRequestReviewComments != nil {
 		configs = append(configs, targetConfig{"create-pull-request-review-comment", config.CreatePullRequestReviewComments.Target})
 	}
+	if config.ReplyToPullRequestReviewComment != nil {
+		configs = append(configs, targetConfig{"reply-to-pull-request-review-comment", config.ReplyToPullRequestReviewComment.Target})
+	}
 	if config.PushToPullRequestBranch != nil {
 		configs = append(configs, targetConfig{"push-to-pull-request-branch", config.PushToPullRequestBranch.Target})
 	}
-
 	// Validate each target field
 	for _, cfg := range configs {
 		if err := validateTargetValue(cfg.name, cfg.target); err != nil {

@@ -762,6 +762,44 @@ make test        # Includes -race flag
 go test -race ./...
 ```
 
+### Expression Transformations in Workflows
+
+**Automatic Activation Output Transformations:**
+
+The compiler automatically transforms certain `needs.activation.outputs.*` expressions to `steps.sanitized.outputs.*` for compatibility with the activation job context.
+
+**Why this transformation occurs:**
+
+The prompt is generated **within the activation job**, which means it cannot reference its own `needs.activation.*` outputs (a job cannot reference its own needs outputs in GitHub Actions). The compiler automatically rewrites these expressions to reference the `sanitized` step, which computes sanitized versions of the triggering content.
+
+**Transformations:**
+- `needs.activation.outputs.text` → `steps.sanitized.outputs.text`
+- `needs.activation.outputs.title` → `steps.sanitized.outputs.title`
+- `needs.activation.outputs.body` → `steps.sanitized.outputs.body`
+
+**Important notes:**
+- Only `text`, `title`, and `body` outputs are transformed
+- Other activation outputs (`comment_id`, `comment_repo`, `slash_command`) are NOT transformed
+- Transformation uses word boundary checking to prevent incorrect partial matches (e.g., `text_custom` is not transformed)
+- This is particularly important for runtime-import, where markdown can change without recompilation
+
+**Example:**
+
+```markdown
+Analyze this content: "${{ needs.activation.outputs.text }}"
+```
+
+Is automatically transformed to:
+
+```markdown
+Analyze this content: "${{ steps.sanitized.outputs.text }}"
+```
+
+**Implementation:**
+- Transformation happens in `pkg/workflow/expression_extraction.go::transformActivationOutputs()`
+- Applied during expression extraction from markdown
+- Transformations are logged for debugging when `DEBUG=workflow:expression_extraction`
+
 ### YAML Library Usage
 
 **Primary YAML Library**: `goccy/go-yaml` v1.19.1
@@ -1009,6 +1047,34 @@ See [documentation skill](skills/documentation/SKILL.md) for details.
 
 This project is still in an experimental phase. When you are requested to make a change, do not add fallback or legacy support unless explicitly instructed.
 
+### Workflow Artifacts and Cache-Memory
+
+When writing workflows that use `cache-memory` to persist data across runs, be aware of filename limitations:
+
+**Filename Requirements:**
+- **No colons (`:`)**: GitHub Actions artifacts don't support colons due to NTFS filesystem limitations
+- **No special characters**: Avoid quotes (`"`, `'`), pipes (`|`), angle brackets (`<`, `>`), asterisks (`*`), or question marks (`?`)
+- **Use filesystem-safe formats**: When including timestamps, use `YYYY-MM-DD-HH-MM-SS-sss` instead of ISO 8601
+
+**Examples:**
+```bash
+# ✅ GOOD - Filesystem-safe timestamp
+/tmp/gh-aw/cache-memory/investigation-2026-02-12-11-20-45-458.json
+
+# ❌ BAD - Contains colons (will fail artifact upload)
+/tmp/gh-aw/cache-memory/investigation-2026-02-12T11:20:45.458Z.json
+```
+
+**Why this matters:**
+- Cache-memory data is uploaded as GitHub Actions artifacts when threat detection is enabled
+- Artifacts are stored on Windows-compatible filesystems (NTFS) which restrict certain characters
+- Filenames with invalid characters cause `actions/upload-artifact` to fail
+
+**When writing workflow prompts:**
+- Explicitly instruct AI agents to use filesystem-safe timestamp formats
+- Include examples of valid and invalid filenames
+- Document this requirement in the "Cache Usage Strategy" section
+
 ## Key Features
 
 ### MCP Server Management
@@ -1117,6 +1183,7 @@ Skills provide specialized, detailed knowledge on specific topics. **Use them on
 - **[copilot-cli](skills/copilot-cli/SKILL.md)** - GitHub Copilot CLI integration for agentic workflows
 - **[custom-agents](skills/custom-agents/SKILL.md)** - GitHub custom agent file format
 - **[gh-agent-session](skills/gh-agent-session/SKILL.md)** - GitHub CLI agent session extension
+- **<a>adding-new-engines</a>** - Comprehensive guide for adding new agentic engines (AI coding agents)
 
 ### Safe Outputs & Features
 - **[temporary-id-safe-output](skills/temporary-id-safe-output/SKILL.md)** - Adding temporary ID support to safe output jobs

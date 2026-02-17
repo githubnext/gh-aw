@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gh-aw Playground</title>
+<style>
+/* ============================================================
+   CSS Custom Properties
+   ============================================================ */
+:root {
+  /* Light theme (default) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --bg-tertiary: #eaeef2;
+  --bg-header: #ffffff;
+  --bg-input: #ffffff;
+  --bg-output: #f6f8fa;
+  --bg-hover: #eaeef2;
+  --bg-loading: rgba(255,255,255,0.92);
+
+  --text-primary: #1f2328;
+  --text-secondary: #656d76;
+  --text-muted: #8b949e;
+  --text-on-accent: #ffffff;
+
+  --border-primary: #d1d9e0;
+  --border-secondary: #eaeef2;
+  --border-focus: #0969da;
+
+  --accent: #0969da;
+  --accent-hover: #0860ca;
+  --accent-subtle: #ddf4ff;
+
+  --error-bg: #ffebe9;
+  --error-border: #ff818266;
+  --error-text: #cf222e;
+
+  --warning-bg: #fff8c5;
+  --warning-border: #d4a72c66;
+  --warning-text: #9a6700;
+
+  --success-bg: #dafbe1;
+  --success-text: #116329;
+
+  --shadow-sm: 0 1px 2px rgba(27,31,36,0.04);
+  --shadow-md: 0 3px 6px rgba(140,149,159,0.15);
+  --shadow-lg: 0 8px 24px rgba(140,149,159,0.2);
+
+  --divider-color: #d1d9e0;
+  --divider-hover: #0969da;
+
+  --line-number-bg: #f6f8fa;
+  --line-number-text: #8b949e;
+  --line-number-border: #d1d9e0;
+
+  --scrollbar-track: #f6f8fa;
+  --scrollbar-thumb: #d1d9e0;
+  --scrollbar-thumb-hover: #afb8c1;
+
+  --toggle-bg: #eaeef2;
+  --toggle-bg-active: #0969da;
+  --toggle-knob: #ffffff;
+
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --transition: 180ms ease;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-tertiary: #21262d;
+  --bg-header: #161b22;
+  --bg-input: #0d1117;
+  --bg-output: #0d1117;
+  --bg-hover: #30363d;
+  --bg-loading: rgba(13,17,23,0.92);
+
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted: #6e7681;
+  --text-on-accent: #ffffff;
+
+  --border-primary: #30363d;
+  --border-secondary: #21262d;
+  --border-focus: #58a6ff;
+
+  --accent: #58a6ff;
+  --accent-hover: #79c0ff;
+  --accent-subtle: #388bfd26;
+
+  --error-bg: #490202;
+  --error-border: #f8514966;
+  --error-text: #f85149;
+
+  --warning-bg: #341a04;
+  --warning-border: #d29922;
+  --warning-text: #e3b341;
+
+  --success-bg: #0d2818;
+  --success-text: #3fb950;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 3px 6px rgba(0,0,0,0.3);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+
+  --divider-color: #30363d;
+  --divider-hover: #58a6ff;
+
+  --line-number-bg: #161b22;
+  --line-number-text: #6e7681;
+  --line-number-border: #21262d;
+
+  --scrollbar-track: #161b22;
+  --scrollbar-thumb: #30363d;
+  --scrollbar-thumb-hover: #484f58;
+
+  --toggle-bg: #30363d;
+  --toggle-bg-active: #58a6ff;
+  --toggle-knob: #e6edf3;
+}
+
+/* ============================================================
+   Reset & Base
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background var(--transition), color var(--transition);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================================
+   App Layout
+   ============================================================ */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ============================================================
+   Header
+   ============================================================ */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  height: 52px;
+  min-height: 52px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-sm);
+  z-index: 10;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 15px;
+  white-space: nowrap;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.header-logo svg {
+  flex-shrink: 0;
+}
+
+.header-separator {
+  width: 1px;
+  height: 24px;
+  background: var(--border-primary);
+  flex-shrink: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border-color: var(--accent);
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
+}
+
+.btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Status badge */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 20px;
+  white-space: nowrap;
+  transition: all var(--transition);
+}
+
+.status-badge[data-status="loading"] {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.status-badge[data-status="ready"] {
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+
+.status-badge[data-status="compiling"] {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.status-badge[data-status="error"] {
+  background: var(--error-bg);
+  color: var(--error-text);
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.status-badge[data-status="loading"] .status-dot,
+.status-badge[data-status="compiling"] .status-dot {
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* Auto-compile toggle */
+.toggle-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-track {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  background: var(--toggle-bg);
+  border-radius: 10px;
+  transition: background var(--transition);
+  flex-shrink: 0;
+}
+
+.toggle-track.active {
+  background: var(--toggle-bg-active);
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--toggle-knob);
+  border-radius: 50%;
+  transition: transform var(--transition);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.toggle-track.active .toggle-knob {
+  transform: translateX(14px);
+}
+
+/* Theme toggle */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  color: var(--text-secondary);
+}
+
+.theme-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+.theme-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ============================================================
+   Error/Warning Banner
+   ============================================================ */
+.banner {
+  display: none;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  border-bottom: 1px solid;
+  transition: all var(--transition);
+}
+
+.banner.visible {
+  display: flex;
+}
+
+.banner-error {
+  background: var(--error-bg);
+  border-color: var(--error-border);
+  color: var(--error-text);
+}
+
+.banner-warning {
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+  color: var(--warning-text);
+}
+
+.banner-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.banner-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.banner-text {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.banner-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 2px;
+  opacity: 0.7;
+  transition: opacity var(--transition);
+}
+
+.banner-close:hover {
+  opacity: 1;
+}
+
+/* ============================================================
+   Panels
+   ============================================================ */
+.panels {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.panel-editor {
+  flex: 1 1 50%;
+}
+
+.panel-output {
+  flex: 1 1 50%;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-secondary);
+  min-height: 36px;
+  user-select: none;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+
+.panel-header-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.panel-header-label svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.6;
+}
+
+/* Divider */
+.divider {
+  width: 5px;
+  cursor: col-resize;
+  background: var(--divider-color);
+  transition: background var(--transition);
+  flex-shrink: 0;
+  z-index: 5;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Larger hit area for easier grabbing */
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -4px;
+  right: -4px;
+  bottom: 0;
+}
+
+/* Grip dots */
+.divider::after {
+  content: '';
+  width: 3px;
+  height: 24px;
+  border-radius: 2px;
+  background: var(--text-muted);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.divider:hover::after,
+.divider.dragging::after {
+  opacity: 0.5;
+}
+
+.divider:hover,
+.divider.dragging {
+  background: var(--divider-hover);
+}
+
+/* ============================================================
+   Editor (left panel)
+   ============================================================ */
+.editor-container {
+  flex: 1;
+  display: flex;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.line-numbers {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 48px;
+  height: 100%;
+  background: var(--line-number-bg);
+  border-right: 1px solid var(--line-number-border);
+  overflow: hidden;
+  z-index: 2;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.line-numbers-inner {
+  padding: 12px 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--line-number-text);
+  text-align: right;
+  user-select: none;
+}
+
+.line-numbers-inner div {
+  padding-right: 12px;
+  height: 20.8px;
+}
+
+.editor-textarea {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  padding: 12px 16px 12px 60px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: none;
+  resize: none;
+  outline: none;
+  tab-size: 2;
+  -moz-tab-size: 2;
+  overflow: auto;
+  transition: background var(--transition), color var(--transition);
+}
+
+.editor-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.editor-textarea::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.editor-textarea::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+.editor-textarea::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+.editor-textarea::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* ============================================================
+   Output (right panel)
+   ============================================================ */
+.output-container {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg-output);
+  transition: background var(--transition);
+}
+
+.output-pre {
+  margin: 0;
+  padding: 12px 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre;
+  min-height: 100%;
+  transition: color var(--transition);
+}
+
+.output-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 24px;
+  text-align: center;
+}
+
+.output-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.output-container::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+.output-container::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+.output-container::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* ============================================================
+   Loading Overlay
+   ============================================================ */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-loading);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  transition: opacity 300ms ease;
+}
+
+.loading-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-primary);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.loading-subtext {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   Copy feedback
+   ============================================================ */
+.copy-feedback {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 200ms ease, transform 200ms ease;
+  pointer-events: none;
+}
+
+.copy-feedback.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ============================================================
+   Responsive (<768px)
+   ============================================================ */
+@media (max-width: 767px) {
+  .panels {
+    flex-direction: column;
+  }
+
+  .divider {
+    width: 100%;
+    height: 4px;
+    cursor: row-resize;
+  }
+
+  .panel-editor,
+  .panel-output {
+    flex: 1 1 50%;
+  }
+
+  .header {
+    gap: 8px;
+    padding: 0 12px;
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 48px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .header-separator {
+    display: none;
+  }
+
+  .auto-compile-label-text {
+    display: none;
+  }
+}
+
+/* ============================================================
+   Keyboard hint
+   ============================================================ */
+.kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 3px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading gh-aw compiler...</div>
+    <div class="loading-subtext">Downloading WebAssembly module (~17 MB)</div>
+  </div>
+
+  <!-- Header -->
+  <header class="header">
+    <a class="header-logo" href="/gh-aw/" title="Back to docs">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="4 17 10 11 4 5"></polyline>
+        <line x1="12" y1="19" x2="20" y2="19"></line>
+      </svg>
+      <span>gh-aw Playground</span>
+    </a>
+
+    <div class="header-separator"></div>
+
+    <div class="status-badge" id="statusBadge" data-status="loading">
+      <span class="status-dot"></span>
+      <span id="statusText">Loading...</span>
+    </div>
+
+    <div class="header-actions">
+      <label class="toggle-group" id="autoCompileToggle" title="Auto-compile on change">
+        <div class="toggle-track active" id="toggleTrack">
+          <div class="toggle-knob"></div>
+        </div>
+        <span class="auto-compile-label-text">Auto</span>
+      </label>
+
+      <button class="btn btn-primary" id="compileBtn" disabled title="Compile workflow">
+        <svg viewBox="0 0 16 16" fill="currentColor">
+          <path d="M4 2a1 1 0 011.5-.87l8.5 5a1 1 0 010 1.74l-8.5 5A1 1 0 014 12V2z"/>
+        </svg>
+        Compile
+      </button>
+
+      <button class="btn btn-secondary" id="copyBtn" disabled title="Copy YAML to clipboard">
+        <svg viewBox="0 0 16 16" fill="currentColor">
+          <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"/>
+          <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z"/>
+        </svg>
+        Copy YAML
+      </button>
+
+      <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle dark mode">
+        <!-- Sun icon (shown in dark mode) -->
+        <svg class="icon-sun" viewBox="0 0 16 16" fill="currentColor" style="display:none">
+          <path d="M8 12a4 4 0 100-8 4 4 0 000 8zm0-1.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5zm5.657-8.157a.75.75 0 010 1.06l-1.061 1.06a.75.75 0 01-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm13 0a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zm-8 8a.75.75 0 01-.75-.75v-1.5a.75.75 0 011.5 0v1.5A.75.75 0 018 16zm-5.657-2.343a.75.75 0 010-1.06l1.06-1.061a.75.75 0 111.06 1.06l-1.06 1.06a.75.75 0 01-1.06 0zm12.728 0l-1.06-1.06a.75.75 0 011.06-1.061l1.06 1.06a.75.75 0 01-1.06 1.06z"/>
+        </svg>
+        <!-- Moon icon (shown in light mode) -->
+        <svg class="icon-moon" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Banner (error/warning) -->
+  <div class="banner banner-error" id="errorBanner">
+    <span class="banner-icon">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4.47.22A.749.749 0 015 0h6c.199 0 .389.079.53.22l4.25 4.25c.141.14.22.331.22.53v6a.749.749 0 01-.22.53l-4.25 4.25A.749.749 0 0111 16H5a.749.749 0 01-.53-.22L.22 11.53A.749.749 0 010 11V5c0-.199.079-.389.22-.53Zm.84 1.28L1.5 5.31v5.38l3.81 3.81h5.38l3.81-3.81V5.31L10.69 1.5ZM8 4a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 018 4zm0 8a1 1 0 100-2 1 1 0 000 2z"/></svg>
+    </span>
+    <span class="banner-text" id="errorText"></span>
+    <button class="banner-close" id="errorClose" aria-label="Dismiss">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 011.06 0L8 6.94l3.22-3.22a.749.749 0 011.275.326.749.749 0 01-.215.734L9.06 8l3.22 3.22a.749.749 0 01-.326 1.275.749.749 0 01-.734-.215L8 9.06l-3.22 3.22a.751.751 0 01-1.042-.018.751.751 0 01-.018-1.042L6.94 8 3.72 4.78a.75.75 0 010-1.06z"/></svg>
+    </button>
+  </div>
+
+  <div class="banner banner-warning" id="warningBanner">
+    <span class="banner-icon">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0114.082 15H1.918a1.75 1.75 0 01-1.543-2.575Zm1.763.707a.25.25 0 00-.44 0L1.698 13.132a.25.25 0 00.22.368h12.164a.25.25 0 00.22-.368Zm.53 3.996v2.5a.75.75 0 01-1.5 0v-2.5a.75.75 0 011.5 0ZM9 11a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
+    </span>
+    <span class="banner-text" id="warningText"></span>
+    <button class="banner-close" id="warningClose" aria-label="Dismiss">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 011.06 0L8 6.94l3.22-3.22a.749.749 0 011.275.326.749.749 0 01-.215.734L9.06 8l3.22 3.22a.749.749 0 01-.326 1.275.749.749 0 01-.734-.215L8 9.06l-3.22 3.22a.751.751 0 01-1.042-.018.751.751 0 01-.018-1.042L6.94 8 3.72 4.78a.75.75 0 010-1.06z"/></svg>
+    </button>
+  </div>
+
+  <!-- Main Panels -->
+  <div class="panels" id="panels">
+    <div class="panel panel-editor" id="panelEditor">
+      <div class="panel-header">
+        <span class="panel-header-label">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0114.25 15H1.75A1.75 1.75 0 010 13.25V2.75C0 1.784.784 1 1.75 1zm12.5 1.5H1.75a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V2.75a.25.25 0 00-.25-.25zM3 5.5a.75.75 0 01.75-.75h8.5a.75.75 0 010 1.5h-8.5A.75.75 0 013 5.5zm0 4a.75.75 0 01.75-.75h5.5a.75.75 0 010 1.5h-5.5A.75.75 0 013 9.5z"/></svg>
+          Workflow (.md)
+        </span>
+        <span class="kbd" title="Press to compile">
+          <span class="kbd-hint-mac" style="display:none">&#8984;&#9166;</span>
+          <span class="kbd-hint-other">Ctrl+Enter</span>
+        </span>
+      </div>
+      <div class="editor-container">
+        <div class="line-numbers" id="lineNumbers">
+          <div class="line-numbers-inner" id="lineNumbersInner"></div>
+        </div>
+        <textarea
+          class="editor-textarea"
+          id="editor"
+          spellcheck="false"
+          autocapitalize="off"
+          autocomplete="off"
+          autocorrect="off"
+          placeholder="Write your agentic workflow here..."
+        ></textarea>
+      </div>
+    </div>
+
+    <div class="divider" id="divider"></div>
+
+    <div class="panel panel-output" id="panelOutput">
+      <div class="panel-header">
+        <span class="panel-header-label">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0114.25 16H1.75A1.75 1.75 0 010 14.25Zm1.75-.25a.25.25 0 00-.25.25v12.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V1.75a.25.25 0 00-.25-.25Zm7.47 3.97a.75.75 0 011.06 0l2 2a.75.75 0 010 1.06l-2 2a.75.75 0 11-1.06-1.06L10.69 8 9.22 6.53a.75.75 0 010-1.06zm-3.44 0a.75.75 0 010 1.06L4.31 8l1.47 1.47a.75.75 0 01-1.06 1.06l-2-2a.75.75 0 010-1.06l2-2a.75.75 0 011.06 0z"/></svg>
+          Compiled Output (.lock.yml)
+        </span>
+      </div>
+      <div class="output-container" id="outputContainer">
+        <div class="output-placeholder" id="outputPlaceholder">
+          Compiled YAML will appear here
+        </div>
+        <pre class="output-pre" id="outputPre" style="display:none"></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Copy feedback toast -->
+  <div class="copy-feedback" id="copyFeedback">Copied to clipboard!</div>
+</div>
+
+<script type="module">
+// ================================================================
+// gh-aw Playground - Application Logic
+// ================================================================
+
+import { createWorkerCompiler } from '/gh-aw/wasm/compiler-loader.js';
+
+// ---------------------------------------------------------------
+// Default workflow content
+// ---------------------------------------------------------------
+const DEFAULT_CONTENT = [
+  '---',
+  'name: hello-world',
+  'description: A simple hello world workflow',
+  'on:',
+  '  workflow_dispatch:',
+  'engine: copilot',
+  '---',
+  '',
+  '# Mission',
+  '',
+  'Say hello to the world! Check the current date and time, and greet the user warmly.',
+  ''
+].join('\n');
+
+// ---------------------------------------------------------------
+// DOM Elements
+// ---------------------------------------------------------------
+const $ = (id) => document.getElementById(id);
+
+const editor = $('editor');
+const outputPre = $('outputPre');
+const outputPlaceholder = $('outputPlaceholder');
+const outputContainer = $('outputContainer');
+const compileBtn = $('compileBtn');
+const copyBtn = $('copyBtn');
+const statusBadge = $('statusBadge');
+const statusText = $('statusText');
+const loadingOverlay = $('loadingOverlay');
+const errorBanner = $('errorBanner');
+const errorText = $('errorText');
+const warningBanner = $('warningBanner');
+const warningText = $('warningText');
+const lineNumbersInner = $('lineNumbersInner');
+const themeToggle = $('themeToggle');
+const toggleTrack = $('toggleTrack');
+const divider = $('divider');
+const panelEditor = $('panelEditor');
+const panelOutput = $('panelOutput');
+const panels = $('panels');
+
+// ---------------------------------------------------------------
+// State
+// ---------------------------------------------------------------
+let compiler = null;
+let isReady = false;
+let isCompiling = false;
+let autoCompile = true;
+let compileTimer = null;
+let currentYaml = '';
+
+// ---------------------------------------------------------------
+// Theme
+// ---------------------------------------------------------------
+function getPreferredTheme() {
+  const saved = localStorage.getItem('gh-aw-playground-theme');
+  if (saved) return saved;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('gh-aw-playground-theme', theme);
+  const sunIcon = themeToggle.querySelector('.icon-sun');
+  const moonIcon = themeToggle.querySelector('.icon-moon');
+  if (theme === 'dark') {
+    sunIcon.style.display = 'block';
+    moonIcon.style.display = 'none';
+  } else {
+    sunIcon.style.display = 'none';
+    moonIcon.style.display = 'block';
+  }
+}
+
+setTheme(getPreferredTheme());
+
+themeToggle.addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-theme');
+  setTheme(current === 'dark' ? 'light' : 'dark');
+});
+
+// Listen for OS theme changes
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  if (!localStorage.getItem('gh-aw-playground-theme')) {
+    setTheme(e.matches ? 'dark' : 'light');
+  }
+});
+
+// ---------------------------------------------------------------
+// Keyboard shortcut hint (Mac vs other)
+// ---------------------------------------------------------------
+const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+document.querySelectorAll('.kbd-hint-mac').forEach(el => el.style.display = isMac ? 'inline' : 'none');
+document.querySelectorAll('.kbd-hint-other').forEach(el => el.style.display = isMac ? 'none' : 'inline');
+
+// ---------------------------------------------------------------
+// Status
+// ---------------------------------------------------------------
+function setStatus(status, text) {
+  statusBadge.setAttribute('data-status', status);
+  statusText.textContent = text;
+}
+
+// ---------------------------------------------------------------
+// Line numbers
+// ---------------------------------------------------------------
+function updateLineNumbers() {
+  const lines = editor.value.split('\n').length;
+  let html = '';
+  for (let i = 1; i <= lines; i++) {
+    html += '<div>' + i + '</div>';
+  }
+  lineNumbersInner.innerHTML = html;
+}
+
+function syncLineNumberScroll() {
+  const lineNumbers = $('lineNumbers');
+  lineNumbers.scrollTop = editor.scrollTop;
+}
+
+// ---------------------------------------------------------------
+// Editor setup
+// ---------------------------------------------------------------
+editor.value = DEFAULT_CONTENT;
+updateLineNumbers();
+
+editor.addEventListener('input', () => {
+  updateLineNumbers();
+  if (autoCompile && isReady) {
+    scheduleCompile();
+  }
+});
+
+editor.addEventListener('scroll', syncLineNumberScroll);
+
+// Tab key inserts 2 spaces
+editor.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const val = editor.value;
+    editor.value = val.substring(0, start) + '  ' + val.substring(end);
+    editor.selectionStart = editor.selectionEnd = start + 2;
+    editor.dispatchEvent(new Event('input'));
+  }
+
+  // Ctrl+Enter or Cmd+Enter to compile
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    doCompile();
+  }
+});
+
+// ---------------------------------------------------------------
+// Auto-compile toggle
+// ---------------------------------------------------------------
+$('autoCompileToggle').addEventListener('click', () => {
+  autoCompile = !autoCompile;
+  if (autoCompile) {
+    toggleTrack.classList.add('active');
+  } else {
+    toggleTrack.classList.remove('active');
+  }
+});
+
+// ---------------------------------------------------------------
+// Compile
+// ---------------------------------------------------------------
+function scheduleCompile() {
+  if (compileTimer) clearTimeout(compileTimer);
+  compileTimer = setTimeout(doCompile, 400);
+}
+
+async function doCompile() {
+  if (!isReady || isCompiling) return;
+  if (compileTimer) {
+    clearTimeout(compileTimer);
+    compileTimer = null;
+  }
+
+  const md = editor.value;
+  if (!md.trim()) {
+    outputPre.style.display = 'none';
+    outputPlaceholder.style.display = 'flex';
+    outputPlaceholder.textContent = 'Compiled YAML will appear here';
+    currentYaml = '';
+    copyBtn.disabled = true;
+    return;
+  }
+
+  isCompiling = true;
+  setStatus('compiling', 'Compiling...');
+  compileBtn.disabled = true;
+
+  // Hide old banners
+  errorBanner.classList.remove('visible');
+  warningBanner.classList.remove('visible');
+
+  try {
+    const result = await compiler.compile(md);
+
+    if (result.error) {
+      setStatus('error', 'Error');
+      errorText.textContent = result.error;
+      errorBanner.classList.add('visible');
+      // Keep previous output visible but dim? No, just keep it.
+    } else {
+      setStatus('ready', 'Ready');
+      currentYaml = result.yaml;
+      outputPre.textContent = result.yaml;
+      outputPre.style.display = 'block';
+      outputPlaceholder.style.display = 'none';
+      copyBtn.disabled = false;
+
+      if (result.warnings && result.warnings.length > 0) {
+        warningText.textContent = result.warnings.join('\n');
+        warningBanner.classList.add('visible');
+      }
+    }
+  } catch (err) {
+    setStatus('error', 'Error');
+    errorText.textContent = err.message || String(err);
+    errorBanner.classList.add('visible');
+  } finally {
+    isCompiling = false;
+    compileBtn.disabled = !isReady;
+  }
+}
+
+compileBtn.addEventListener('click', doCompile);
+
+// ---------------------------------------------------------------
+// Copy YAML
+// ---------------------------------------------------------------
+copyBtn.addEventListener('click', async () => {
+  if (!currentYaml) return;
+  try {
+    await navigator.clipboard.writeText(currentYaml);
+    const feedback = $('copyFeedback');
+    feedback.classList.add('show');
+    setTimeout(() => feedback.classList.remove('show'), 2000);
+  } catch (err) {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = currentYaml;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const feedback = $('copyFeedback');
+    feedback.classList.add('show');
+    setTimeout(() => feedback.classList.remove('show'), 2000);
+  }
+});
+
+// ---------------------------------------------------------------
+// Banner close
+// ---------------------------------------------------------------
+$('errorClose').addEventListener('click', () => errorBanner.classList.remove('visible'));
+$('warningClose').addEventListener('click', () => warningBanner.classList.remove('visible'));
+
+// ---------------------------------------------------------------
+// Draggable divider
+// ---------------------------------------------------------------
+let isDragging = false;
+
+divider.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  divider.classList.add('dragging');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  const rect = panels.getBoundingClientRect();
+  const isMobile = window.innerWidth < 768;
+
+  if (isMobile) {
+    const fraction = (e.clientY - rect.top) / rect.height;
+    const clamped = Math.max(0.2, Math.min(0.8, fraction));
+    panelEditor.style.flex = `0 0 ${clamped * 100}%`;
+    panelOutput.style.flex = `0 0 ${(1 - clamped) * 100}%`;
+  } else {
+    const fraction = (e.clientX - rect.left) / rect.width;
+    const clamped = Math.max(0.2, Math.min(0.8, fraction));
+    panelEditor.style.flex = `0 0 ${clamped * 100}%`;
+    panelOutput.style.flex = `0 0 ${(1 - clamped) * 100}%`;
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  if (isDragging) {
+    isDragging = false;
+    divider.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+});
+
+// Touch support for mobile divider
+divider.addEventListener('touchstart', (e) => {
+  isDragging = true;
+  divider.classList.add('dragging');
+  e.preventDefault();
+});
+
+document.addEventListener('touchmove', (e) => {
+  if (!isDragging) return;
+  const touch = e.touches[0];
+  const rect = panels.getBoundingClientRect();
+  const isMobile = window.innerWidth < 768;
+
+  if (isMobile) {
+    const fraction = (touch.clientY - rect.top) / rect.height;
+    const clamped = Math.max(0.2, Math.min(0.8, fraction));
+    panelEditor.style.flex = `0 0 ${clamped * 100}%`;
+    panelOutput.style.flex = `0 0 ${(1 - clamped) * 100}%`;
+  } else {
+    const fraction = (touch.clientX - rect.left) / rect.width;
+    const clamped = Math.max(0.2, Math.min(0.8, fraction));
+    panelEditor.style.flex = `0 0 ${clamped * 100}%`;
+    panelOutput.style.flex = `0 0 ${(1 - clamped) * 100}%`;
+  }
+});
+
+document.addEventListener('touchend', () => {
+  if (isDragging) {
+    isDragging = false;
+    divider.classList.remove('dragging');
+  }
+});
+
+// ---------------------------------------------------------------
+// Initialize compiler
+// ---------------------------------------------------------------
+async function init() {
+  try {
+    compiler = createWorkerCompiler({
+      workerUrl: '/gh-aw/wasm/compiler-worker.js'
+    });
+
+    await compiler.ready;
+    isReady = true;
+    setStatus('ready', 'Ready');
+    compileBtn.disabled = false;
+    loadingOverlay.classList.add('hidden');
+
+    // Auto-compile the default content
+    if (autoCompile) {
+      doCompile();
+    }
+  } catch (err) {
+    setStatus('error', 'Failed to load');
+    loadingOverlay.querySelector('.loading-text').textContent = 'Failed to load compiler';
+    loadingOverlay.querySelector('.loading-subtext').textContent = err.message;
+    loadingOverlay.querySelector('.loading-spinner').style.display = 'none';
+  }
+}
+
+init();
+</script>
+</body>
+</html>

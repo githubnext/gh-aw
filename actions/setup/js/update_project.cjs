@@ -3,7 +3,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { loadTemporaryIdMap, resolveIssueNumber, isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
+const { loadTemporaryIdMapFromResolved, resolveIssueNumber, isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 
 /**
  * Normalize agent output keys for update_project.
@@ -696,16 +696,14 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
       const rawDraftIssueId = typeof output.draft_issue_id === "string" ? output.draft_issue_id.trim() : "";
       const draftIssueId = rawDraftIssueId.startsWith("#") ? rawDraftIssueId.slice(1) : rawDraftIssueId;
 
-      // Validate temporary_id format if it uses the auto-generated prefix
-      // Allow user-friendly IDs like "draft-1" but enforce format for auto-generated IDs
-      if (temporaryId && temporaryId.startsWith("aw_") && !isTemporaryId(temporaryId)) {
-        throw new Error(`Invalid temporary_id format: "${temporaryId}". Expected format: aw_ followed by 12 hex characters (e.g., "aw_abc123def456").`);
+      // Validate IDs used for draft chaining.
+      // Draft issue chaining must use strict temporary IDs to match the unified handler manager.
+      if (temporaryId && !isTemporaryId(temporaryId)) {
+        throw new Error(`Invalid temporary_id format: "${temporaryId}". Expected format: aw_ followed by 3 to 8 alphanumeric characters (e.g., "aw_abc", "aw_Test123").`);
       }
 
-      // Validate draft_issue_id format if it uses the auto-generated prefix
-      // Allow user-friendly IDs like "draft-1" but enforce format for auto-generated IDs
-      if (draftIssueId && draftIssueId.startsWith("aw_") && !isTemporaryId(draftIssueId)) {
-        throw new Error(`Invalid draft_issue_id format: "${draftIssueId}". Expected format: aw_ followed by 12 hex characters (e.g., "aw_abc123def456").`);
+      if (draftIssueId && !isTemporaryId(draftIssueId)) {
+        throw new Error(`Invalid draft_issue_id format: "${draftIssueId}". Expected format: aw_ followed by 3 to 8 alphanumeric characters (e.g., "aw_abc", "aw_Test123").`);
       }
 
       const draftTitle = typeof output.draft_title === "string" ? output.draft_title.trim() : "";
@@ -937,7 +935,7 @@ async function updateProject(output, temporaryIdMap = new Map(), githubClient = 
         } else {
           // Not a temporary ID - validate as numeric
           if (!/^\d+$/.test(sanitizedContentNumber)) {
-            throw new Error(`Invalid content number "${rawContentNumber}". Provide a positive integer or a valid temporary ID (format: aw_XXXXXXXXXXXX).`);
+            throw new Error(`Invalid content number "${rawContentNumber}". Provide a positive integer or a valid temporary ID (format: aw_ followed by 3-8 alphanumeric characters).`);
           }
           contentNumber = Number.parseInt(sanitizedContentNumber, 10);
         }
@@ -1156,6 +1154,9 @@ async function main(config = {}, githubClient = null) {
   const configuredViews = Array.isArray(config.views) ? config.views : [];
   const configuredFieldDefinitions = Array.isArray(config.field_definitions) ? config.field_definitions : [];
 
+  // Check if we're in staged mode
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+
   if (configuredViews.length > 0) {
     core.info(`Found ${configuredViews.length} configured view(s) in frontmatter`);
   }
@@ -1173,12 +1174,14 @@ async function main(config = {}, githubClient = null) {
   /**
    * Message handler function that processes a single update_project message
    * @param {Object} message - The update_project message to process
-   * @param {Map<string, {repo?: string, number?: number, projectUrl?: string, draftItemId?: string}>} temporaryIdMap - Unified map of temporary IDs
    * @param {Object} resolvedTemporaryIds - Plain object version of temporaryIdMap for backward compatibility
+   * @param {Map<string, {repo?: string, number?: number, projectUrl?: string, draftItemId?: string}>|null} temporaryIdMap - Unified map of temporary IDs
    * @returns {Promise<Object>} Result with success/error status, and optionally temporaryId/draftItemId for draft issue creation
    */
-  return async function handleUpdateProject(message, temporaryIdMap, resolvedTemporaryIds = {}) {
+  return async function handleUpdateProject(message, resolvedTemporaryIds = {}, temporaryIdMap = null) {
     message = normalizeUpdateProjectOutput(message);
+
+    const tempIdMap = temporaryIdMap instanceof Map ? temporaryIdMap : loadTemporaryIdMapFromResolved(resolvedTemporaryIds);
 
     // Check max limit
     if (processedCount >= maxCount) {
@@ -1224,11 +1227,12 @@ async function main(config = {}, githubClient = null) {
         const projectStr = effectiveProjectUrl.trim();
         const projectWithoutHash = projectStr.startsWith("#") ? projectStr.substring(1) : projectStr;
 
-        // Check if it's a temporary ID (aw_XXXXXXXXXXXX)
-        if (/^aw_[0-9a-f]{12}$/i.test(projectWithoutHash)) {
-          // Look up in the unified temporaryIdMap
-          const resolved = temporaryIdMap.get(projectWithoutHash.toLowerCase());
-          if (resolved && resolved.projectUrl) {
+        // Check if it's a temporary ID using the canonical pattern (aw_XXX to aw_XXXXXXXX)
+        if (isTemporaryId(projectWithoutHash)) {
+          // Look up in the unified temporaryIdMap using normalized (lowercase) ID
+          const normalizedId = normalizeTemporaryId(projectWithoutHash);
+          const resolved = tempIdMap.get(normalizedId);
+          if (resolved && typeof resolved === "object" && "projectUrl" in resolved && resolved.projectUrl) {
             core.info(`Resolved temporary project ID ${projectStr} to ${resolved.projectUrl}`);
             effectiveProjectUrl = resolved.projectUrl;
           } else {
@@ -1239,6 +1243,23 @@ async function main(config = {}, githubClient = null) {
 
       // Create effective message with resolved project URL
       const resolvedMessage = { ...message, project: effectiveProjectUrl };
+
+      const hasContentNumber = resolvedMessage.content_number !== undefined && resolvedMessage.content_number !== null && String(resolvedMessage.content_number).trim() !== "";
+      const hasIssue = resolvedMessage.issue !== undefined && resolvedMessage.issue !== null && String(resolvedMessage.issue).trim() !== "";
+      const hasPullRequest = resolvedMessage.pull_request !== undefined && resolvedMessage.pull_request !== null && String(resolvedMessage.pull_request).trim() !== "";
+      if (resolvedMessage.content_type !== "draft_issue" && (hasContentNumber || hasIssue || hasPullRequest)) {
+        const rawContentNumber = hasContentNumber ? resolvedMessage.content_number : hasIssue ? resolvedMessage.issue : resolvedMessage.pull_request;
+        const sanitizedContentNumber = typeof rawContentNumber === "number" ? rawContentNumber.toString() : String(rawContentNumber).trim();
+        const resolved = resolveIssueNumber(sanitizedContentNumber, tempIdMap);
+        if (resolved.wasTemporaryId && !resolved.resolved) {
+          core.info(`Deferring update_project: unresolved temporary ID (${sanitizedContentNumber})`);
+          return {
+            success: false,
+            deferred: true,
+            error: resolved.errorMessage || `Unresolved temporary ID: ${sanitizedContentNumber}`,
+          };
+        }
+      }
 
       // Store the first project URL for view creation
       if (!firstProjectUrl && effectiveProjectUrl) {
@@ -1261,7 +1282,7 @@ async function main(config = {}, githubClient = null) {
           };
 
           try {
-            await updateProject(fieldsOutput, temporaryIdMap, github);
+            await updateProject(fieldsOutput, tempIdMap, github);
             core.info("✓ Created configured fields");
           } catch (err) {
             // prettier-ignore
@@ -1278,8 +1299,22 @@ async function main(config = {}, githubClient = null) {
         effectiveMessage.field_definitions = configuredFieldDefinitions;
       }
 
+      // If in staged mode, preview without executing
+      if (isStaged) {
+        const operation = effectiveMessage?.operation || "update";
+        core.info(`Staged mode: Would ${operation} project ${effectiveProjectUrl}`);
+        return {
+          success: true,
+          staged: true,
+          previewInfo: {
+            projectUrl: effectiveProjectUrl,
+            operation,
+          },
+        };
+      }
+
       // Process the update_project message
-      const updateResult = await updateProject(effectiveMessage, temporaryIdMap, github);
+      const updateResult = await updateProject(effectiveMessage, tempIdMap, github);
 
       // After processing the first message, create configured views if any
       // Views are created after the first item is processed to ensure the project exists
@@ -1304,7 +1339,7 @@ async function main(config = {}, githubClient = null) {
               },
             };
 
-            await updateProject(viewOutput, temporaryIdMap, github);
+            await updateProject(viewOutput, tempIdMap, github);
             core.info(`✓ Created view ${i + 1}/${configuredViews.length}: ${viewConfig.name} (${viewConfig.layout})`);
           } catch (err) {
             // prettier-ignore

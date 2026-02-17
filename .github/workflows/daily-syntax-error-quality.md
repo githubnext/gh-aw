@@ -12,6 +12,7 @@ tracker-id: daily-syntax-error-quality
 engine: copilot
 tools:
   github:
+    lockdown: false
     toolsets:
       - default
   bash:
@@ -30,6 +31,21 @@ safe-outputs:
     close-older-issues: true
 timeout-minutes: 20
 strict: true
+steps:
+  - name: Set up Go
+    uses: actions/setup-go@v5
+    with:
+      go-version-file: go.mod
+      cache: true
+      
+  - name: Build gh-aw
+    run: |
+      make build
+      
+  - name: Verify gh-aw installation
+    run: |
+      ./gh-aw --version
+      echo "gh-aw binary is ready at ./gh-aw"
 imports:
   - shared/mood.md
   - shared/reporting.md

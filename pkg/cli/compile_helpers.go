@@ -100,7 +100,8 @@ func compileSingleFile(compiler *workflow.Compiler, file string, stats *Compilat
 
 	if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false, false); err != nil {
 		// Always show compilation errors on new line
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+		// Note: Don't wrap in FormatErrorMessage as the error is already formatted by console.FormatError
+		fmt.Fprintln(os.Stderr, err.Error())
 		stats.Errors++
 		stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
 	} else {
@@ -343,14 +344,15 @@ func handleFileDeleted(mdFile string, verbose bool) {
 }
 
 // trackWorkflowFailure adds a workflow failure to the compilation statistics
-func trackWorkflowFailure(stats *CompilationStats, workflowPath string, errorCount int) {
+func trackWorkflowFailure(stats *CompilationStats, workflowPath string, errorCount int, errorMessages []string) {
 	// Add to FailedWorkflows for backward compatibility
 	stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(workflowPath))
 
 	// Add detailed failure information
 	stats.FailureDetails = append(stats.FailureDetails, WorkflowFailure{
-		Path:       workflowPath,
-		ErrorCount: errorCount,
+		Path:          workflowPath,
+		ErrorCount:    errorCount,
+		ErrorMessages: errorMessages,
 	})
 }
 
@@ -366,22 +368,30 @@ func printCompilationSummary(stats *CompilationStats) {
 	// Use different formatting based on whether there were errors
 	if stats.Errors > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(summary))
-		// List the failed workflows with their error counts
+
+		// Show agent-friendly list of failed workflow IDs first
 		if len(stats.FailureDetails) > 0 {
+			fmt.Fprintln(os.Stderr)
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Failed workflows:"))
 			for _, failure := range stats.FailureDetails {
-				errorWord := "error"
-				if failure.ErrorCount > 1 {
-					errorWord = "errors"
+				fmt.Fprintf(os.Stderr, "  ✗ %s\n", filepath.Base(failure.Path))
+			}
+			fmt.Fprintln(os.Stderr)
+
+			// Display the actual error messages for each failed workflow
+			for _, failure := range stats.FailureDetails {
+				for _, errMsg := range failure.ErrorMessages {
+					fmt.Fprintln(os.Stderr, errMsg)
 				}
-				fmt.Fprintf(os.Stderr, "  - %s (%d %s)\n", failure.Path, failure.ErrorCount, errorWord)
 			}
 		} else if len(stats.FailedWorkflows) > 0 {
 			// Fallback for backward compatibility if FailureDetails is not populated
+			fmt.Fprintln(os.Stderr)
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Failed workflows:"))
 			for _, workflow := range stats.FailedWorkflows {
-				fmt.Fprintf(os.Stderr, "  - %s\n", workflow)
+				fmt.Fprintf(os.Stderr, "  ✗ %s\n", workflow)
 			}
+			fmt.Fprintln(os.Stderr)
 		}
 	} else if stats.Warnings > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(summary))

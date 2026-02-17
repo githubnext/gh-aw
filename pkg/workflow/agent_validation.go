@@ -11,7 +11,6 @@
 // # Validation Functions
 //
 //   - validateAgentFile() - Validates custom agent file exists
-//   - validateHTTPTransportSupport() - Validates HTTP MCP compatibility with engine
 //   - validateMaxTurnsSupport() - Validates max-turns feature support
 //   - validateWebSearchSupport() - Validates web-search feature support (warning)
 //   - validateWorkflowRunBranches() - Validates workflow_run has branch restrictions
@@ -94,25 +93,6 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 	if c.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 			fmt.Sprintf("✓ Agent file exists: %s", agentPath)))
-	}
-
-	return nil
-}
-
-// validateHTTPTransportSupport validates that HTTP MCP servers are only used with engines that support HTTP transport
-func (c *Compiler) validateHTTPTransportSupport(tools map[string]any, engine CodingAgentEngine) error {
-	if engine.SupportsHTTPTransport() {
-		// Engine supports HTTP transport, no validation needed
-		return nil
-	}
-
-	// Engine doesn't support HTTP transport, check for HTTP MCP servers
-	for toolName, toolConfig := range tools {
-		if config, ok := toolConfig.(map[string]any); ok {
-			if hasMcp, mcpType := hasMCPConfig(config); hasMcp && mcpType == "http" {
-				return fmt.Errorf("tool '%s' uses HTTP transport which is not supported by engine '%s'. Only stdio transport is supported. Use a different engine (e.g., copilot) or change the tool to use stdio transport. Example:\ntools:\n  %s:\n    type: stdio\n    command: \"node server.js\"", toolName, engine.GetID(), toolName)
-			}
-		}
 	}
 
 	return nil

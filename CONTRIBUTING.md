@@ -28,12 +28,24 @@ This project practices what it preaches: agentic workflows are used to build age
 
 Fork <https://github.com/github/gh-aw/> to your GitHub account
 
-### Step 2: Open an Issue or Discussion
+### Step 2: Analyze with an Agent (for bug reports)
+
+**Before filing a bug report**, use an agent to:
+
+- Scan the source code to identify root causes
+- Analyze execution patterns and trace the issue
+- Research similar issues and solutions
+- Propose specific fixes with code examples
+
+**Then open an issue** with your analysis:
 
 - Describe what you want to contribute
+- Include your agent's analysis and findings (for bugs)
 - Explain the use case and expected behavior
 - Provide examples if applicable
 - Tag with appropriate labels (see [Label Guidelines](scratchpad/labels.md))
+
+See [Reporting Issues and Feature Requests](#reporting-issues-and-feature-requests) for complete guidelines.
 
 ### Step 3: Create a Pull Request with GitHub Copilot Agent
 
@@ -89,13 +101,41 @@ The GitHub Copilot Agent automatically:
 - **Updates documentation** for new features
 - **Creates tests** for new functionality
 
-### Reporting Issues
+### Reporting Issues and Feature Requests
 
-Use the GitHub issue tracker to report bugs or request features:
+Before filing an issue, **use an agent to perform thorough analysis and research**. This accelerates implementation and helps maintainers focus on high-quality contributions.
 
-- Include detailed steps to reproduce issues
-- Explain the use case for feature requests
-- Provide examples if applicable
+#### 🤖 Use Agents for Bug Analysis
+
+**Bug reports submitted with minimal analysis or research are likely to be ignored.**
+
+Use an agent to analyze the source code, identify root causes, propose fixes, and research similar issues before filing a bug report.
+
+#### 🐛 Debugging Workflow Failures
+
+For workflow failures, use this prompt with your agent:
+
+```markdown
+Please debug this workflow failure:
+https://github.com/owner/repo/actions/runs/RUN_ID
+
+Load [https://github.com/github/gh-aw/.github/agents/agentic-workflows.agent.md and](https://github.com/github/gh-aw/blob/main/.github/agents/agentic-workflows.agent.md) investigate:
+- Why the workflow failed
+- What tools were missing
+- How to fix the configuration
+
+Generate an investigation report and a plan to address the issue for an agent.
+```
+
+The agent will use `gh aw` or the mcp server to analyze the failure. See [`.github/aw/debug-agentic-workflow.md`](.github/aw/debug-agentic-workflow.md) for details.
+
+#### 📝 Issue Guidelines
+
+When filing issues:
+
+- **Bugs**: Include thorough agent analysis, root cause, and proposed fix
+- **Features**: Explain the use case, provide examples, suggest implementation approach
+- **Workflow failures**: Debug with agents first, then report with analysis
 - Follow [Label Guidelines](scratchpad/labels.md)
 - The agent will read the issue and implement fixes in a PR
 
@@ -168,6 +208,36 @@ The agent places validation logic appropriately:
 - `expression_safety.go` - Expression security
 
 See [Validation Architecture](scratchpad/validation-architecture.md) for the complete decision tree.
+
+#### File Path Security
+
+All file operations must validate paths to prevent path traversal attacks:
+
+**Use `fileutil.ValidateAbsolutePath` before file operations:**
+
+```go
+import "github.com/github/gh-aw/pkg/fileutil"
+
+// Validate path before reading/writing files
+cleanPath, err := fileutil.ValidateAbsolutePath(userInputPath)
+if err != nil {
+    return fmt.Errorf("invalid path: %w", err)
+}
+content, err := os.ReadFile(cleanPath)
+```
+
+**Security checks performed:**
+- Normalizes path using `filepath.Clean` (removes `.` and `..` components)
+- Verifies path is absolute (blocks relative path traversal)
+- Returns descriptive errors for invalid paths
+
+**When to use:**
+- Before `os.ReadFile`, `os.WriteFile`, `os.Stat`, `os.Open`
+- Before `os.MkdirAll` or other directory operations
+- After constructing paths with `filepath.Join`
+- When processing user-provided file paths
+
+This provides defense-in-depth against path traversal vulnerabilities (e.g., `../../../etc/passwd`).
 
 #### CLI Breaking Changes
 
@@ -353,6 +423,16 @@ Quick reference:
 - `make test-unit` - Fast unit tests (~25s)
 - `make test` - Full test suite (~30s)
 - `make agent-finish` - Complete validation before committing
+
+## 🚫 Spam Prevention
+
+**Be nice, don't spam.** The project maintainers reserve the right to clean up spam, unsolicited promotions, or off-topic content as needed to keep discussions focused and valuable for all contributors.
+
+This includes but is not limited to:
+- Repeated identical or similar comments across multiple issues or pull requests
+- Unsolicited promotional content or advertisements
+- Off-topic comments that don't contribute to the discussion
+- Automated bot comments without prior approval
 
 ## 🤝 Community
 

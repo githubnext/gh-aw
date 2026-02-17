@@ -45,7 +45,7 @@ describe("log_parser_bootstrap.cjs", () => {
           (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }),
             expect(mockParseLog).toHaveBeenCalledWith("Test log content"),
             expect(mockCore.info).toHaveBeenCalledWith("TestParser log parsed successfully"),
-            expect(mockCore.summary.addRaw).toHaveBeenCalledWith("<details open>\n<summary>🤖 TestParser CLI Session</summary>\n\n## Parsed Log\n\nSuccess!\n</details>"),
+            expect(mockCore.summary.addRaw).toHaveBeenCalledWith("<details open>\n<summary>Agentic Conversation</summary>\n\n## Parsed Log\n\nSuccess!\n</details>"),
             expect(mockCore.summary.write).toHaveBeenCalled(),
             fs.unlinkSync(logFile),
             fs.rmdirSync(tmpDir));
@@ -57,10 +57,24 @@ describe("log_parser_bootstrap.cjs", () => {
           const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: !1 });
           (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }),
             expect(mockCore.info).toHaveBeenCalledWith("TestParser log parsed successfully"),
-            expect(mockCore.summary.addRaw).toHaveBeenCalledWith("<details open>\n<summary>🤖 TestParser CLI Session</summary>\n\n## Result\n\n</details>"),
+            expect(mockCore.summary.addRaw).toHaveBeenCalledWith("<details open>\n<summary>Agentic Conversation</summary>\n\n## Result\n\n</details>"),
             expect(mockCore.setFailed).not.toHaveBeenCalled(),
             fs.unlinkSync(logFile),
             fs.rmdirSync(tmpDir));
+        }),
+        it("should fail Claude runs when no structured log entries are parsed", () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const logFile = path.join(tmpDir, "test.log");
+          try {
+            fs.writeFileSync(logFile, "unstructured log output");
+            process.env.GH_AW_AGENT_OUTPUT = logFile;
+            const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
+            runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
+            expect(mockCore.setFailed).toHaveBeenCalledWith("Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.");
+          } finally {
+            fs.unlinkSync(logFile);
+            fs.rmdirSync(tmpDir);
+          }
         }),
         it("should generate plain text summary when logEntries are available", () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-")),
@@ -223,14 +237,17 @@ More content.`;
           const mockParseLog = vi.fn();
           runLogParser({ parseLog: mockParseLog, parserName: "Copilot", supportsDirectories: true });
 
-          // Should transform headers (# to ##, ## to ###, etc.)
+          // Should transform headers (# to ##, ## to ###, etc.) and wrap in details/summary
           const summaryCall = mockCore.summary.addRaw.mock.calls[0];
           expect(summaryCall).toBeDefined();
+          // Content should be wrapped in details/summary with "Agentic Conversation" title
+          expect(summaryCall[0]).toContain("<details open>");
+          expect(summaryCall[0]).toContain("<summary>Agentic Conversation</summary>");
+          expect(summaryCall[0]).toContain("</details>");
+          // Should transform headers (# to ##, ## to ###, etc.)
           expect(summaryCall[0]).toContain("## Main Title");
           expect(summaryCall[0]).toContain("### Section 1");
           expect(summaryCall[0]).toContain("#### Subsection");
-          // Verify the original header level was transformed (check start of line)
-          expect(summaryCall[0].split("\n")[0]).toBe("## Main Title");
 
           // Parser should not be called since conversation.md is used directly
           expect(mockParseLog).not.toHaveBeenCalled();

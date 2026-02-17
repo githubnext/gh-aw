@@ -9,6 +9,43 @@ var safeOutputsConfigLog = logger.New("workflow:safe_outputs_config")
 // ========================================
 // Safe Output Configuration Extraction
 // ========================================
+//
+// ## Schema Generation Architecture
+//
+// MCP tool schemas for Safe Outputs are managed through a hybrid approach:
+//
+// ### Static Schemas (30+ built-in safe output types)
+// Defined in: pkg/workflow/js/safe_outputs_tools.json
+// - Embedded at compile time via //go:embed directive in pkg/workflow/js.go
+// - Contains complete MCP tool definitions with inputSchema for all built-in types
+// - Examples: create_issue, create_pull_request, add_comment, update_project, etc.
+// - Accessed via GetSafeOutputsToolsJSON() function
+//
+// ### Dynamic Schema Generation (custom safe-jobs)
+// Implemented in: pkg/workflow/safe_outputs_config_generation.go
+// - generateCustomJobToolDefinition() builds MCP tool schemas from SafeJobConfig
+// - Converts job input definitions to JSON Schema format
+// - Supports type mapping (string, boolean, number, choice/enum)
+// - Enforces required fields and additionalProperties: false
+// - Custom job tools are merged with static tools at runtime
+//
+// ### Schema Filtering
+// Implemented in: pkg/workflow/safe_outputs_config_generation.go
+// - generateFilteredToolsJSON() filters tools based on enabled safe-outputs
+// - Only includes tools that are configured in the workflow frontmatter
+// - Reduces MCP gateway overhead by exposing only necessary tools
+//
+// ### Validation
+// Implemented in: pkg/workflow/safe_outputs_tools_schema_test.go
+// - TestSafeOutputsToolsJSONCompliesWithMCPSchema validates against MCP spec
+// - TestEachToolHasRequiredMCPFields checks name, description, inputSchema
+// - TestNoTopLevelOneOfAllOfAnyOf prevents unsupported schema constructs
+//
+// This architecture ensures schema consistency by:
+// 1. Using embedded JSON for static schemas (single source of truth)
+// 2. Programmatic generation for dynamic schemas (type-safe)
+// 3. Automated validation in CI (regression prevention)
+//
 
 // extractSafeOutputsConfig extracts output configuration from frontmatter
 func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOutputsConfig {
@@ -18,11 +55,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 
 	if output, exists := frontmatter["safe-outputs"]; exists {
 		if outputMap, ok := output.(map[string]any); ok {
+			safeOutputsConfigLog.Printf("Processing safe-outputs configuration with %d top-level keys", len(outputMap))
 			config = &SafeOutputsConfig{}
 
 			// Handle create-issue
 			issuesConfig := c.parseIssuesConfig(outputMap)
 			if issuesConfig != nil {
+				safeOutputsConfigLog.Print("Configured create-issue output handler")
 				config.CreateIssues = issuesConfig
 			}
 
@@ -89,6 +128,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			// Handle create-pull-request
 			pullRequestsConfig := c.parsePullRequestsConfig(outputMap)
 			if pullRequestsConfig != nil {
+				safeOutputsConfigLog.Print("Configured create-pull-request output handler")
 				config.CreatePullRequests = pullRequestsConfig
 			}
 
@@ -96,6 +136,24 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			prReviewCommentsConfig := c.parsePullRequestReviewCommentsConfig(outputMap)
 			if prReviewCommentsConfig != nil {
 				config.CreatePullRequestReviewComments = prReviewCommentsConfig
+			}
+
+			// Handle submit-pull-request-review
+			submitPRReviewConfig := c.parseSubmitPullRequestReviewConfig(outputMap)
+			if submitPRReviewConfig != nil {
+				config.SubmitPullRequestReview = submitPRReviewConfig
+			}
+
+			// Handle reply-to-pull-request-review-comment
+			replyToPRReviewCommentConfig := c.parseReplyToPullRequestReviewCommentConfig(outputMap)
+			if replyToPRReviewCommentConfig != nil {
+				config.ReplyToPullRequestReviewComment = replyToPRReviewCommentConfig
+			}
+
+			// Handle resolve-pull-request-review-thread
+			resolvePRReviewThreadConfig := c.parseResolvePullRequestReviewThreadConfig(outputMap)
+			if resolvePRReviewThreadConfig != nil {
+				config.ResolvePullRequestReviewThread = resolvePRReviewThreadConfig
 			}
 
 			// Handle create-code-scanning-alert
@@ -120,6 +178,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 						}
 					}
 					config.AllowedDomains = domainStrings
+					safeOutputsConfigLog.Printf("Configured allowed-domains with %d domain(s)", len(domainStrings))
 				}
 			}
 
@@ -170,6 +229,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			assignToUserConfig := c.parseAssignToUserConfig(outputMap)
 			if assignToUserConfig != nil {
 				config.AssignToUser = assignToUserConfig
+			}
+
+			// Handle unassign-from-user
+			unassignFromUserConfig := c.parseUnassignFromUserConfig(outputMap)
+			if unassignFromUserConfig != nil {
+				config.UnassignFromUser = unassignFromUserConfig
 			}
 
 			// Handle update-issue
@@ -355,6 +420,14 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.Mentions = parseMentionsConfig(mentions)
 			}
 
+			// Handle global footer flag
+			if footer, exists := outputMap["footer"]; exists {
+				if footerBool, ok := footer.(bool); ok {
+					config.Footer = &footerBool
+					safeOutputsConfigLog.Printf("Global footer control: %t", footerBool)
+				}
+			}
+
 			// Handle jobs (safe-jobs must be under safe-outputs)
 			if jobs, exists := outputMap["jobs"]; exists {
 				if jobsMap, ok := jobs.(map[string]any); ok {
@@ -379,10 +452,17 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			if outputMap, ok := output.(map[string]any); ok {
 				if _, exists := outputMap["threat-detection"]; !exists {
 					// Only apply default if threat-detection key doesn't exist
+					safeOutputsConfigLog.Print("Applying default threat-detection configuration")
 					config.ThreatDetection = &ThreatDetectionConfig{}
 				}
 			}
 		}
+	}
+
+	if config != nil {
+		safeOutputsConfigLog.Print("Successfully extracted safe-outputs configuration")
+	} else {
+		safeOutputsConfigLog.Print("No safe-outputs configuration found in frontmatter")
 	}
 
 	return config

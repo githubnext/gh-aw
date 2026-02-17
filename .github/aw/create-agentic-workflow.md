@@ -1,6 +1,6 @@
 ---
 description: Create new agentic workflows using GitHub Agentic Workflows (gh-aw) extension with interactive guidance on triggers, tools, and security best practices.
-infer: false
+disable-model-invocation: true
 ---
 
 This file will configure the agent into a mode to create new agentic workflows. Read the ENTIRE content of this file carefully before proceeding. Follow the instructions precisely.
@@ -64,7 +64,7 @@ When triggered from a GitHub issue created via the "Create an Agentic Workflow" 
    - Include complete frontmatter with all necessary configuration
    - Write a clear prompt body with instructions for the AI agent
 
-4. **Compile the Workflow** using `gh aw compile <workflow-id>` to generate the `.lock.yml` file
+4. **Generate the lock file for the Workflow** using `gh aw compile <workflow-id>` to generate the `.lock.yml` file
 
 5. **Create a Pull Request** with both the `.md` and `.lock.yml` files
 
@@ -201,10 +201,12 @@ These resources contain workflow patterns, best practices, safe outputs, and per
    **Scheduling Best Practices:**
 
    - 📅 When creating a **daily or weekly scheduled workflow**, use **fuzzy scheduling** by simply specifying `daily` or `weekly` without a time. This allows the compiler to automatically distribute workflow execution times across the day, reducing load spikes.
-   - ✨ **Recommended**: `schedule: daily` or `schedule: weekly` (fuzzy schedule - time will be scattered deterministically)
+   - ✨ **Recommended**: `schedule: daily on weekdays` or `schedule: weekly` (fuzzy schedule - time will be scattered deterministically)
+   - 🏢 **Prefer weekday schedules for daily workflows**: For daily scheduled workflows, strongly prefer **`daily on weekdays`** to run only Monday-Friday. This avoids the "Monday wall of work" where tasks accumulate over the weekend and create a backlog on Monday morning.
    - 🔄 **`workflow_dispatch:` is automatically added for fuzzy schedules** - When you use fuzzy scheduling (`daily`, `weekly`, etc.), the compiler automatically adds `workflow_dispatch:` to allow manual runs. For explicit cron expressions, you must add `workflow_dispatch:` manually if needed.
    - ⚠️ **Avoid fixed times**: Don't use explicit times like `cron: "0 0 * * *"` or `daily at midnight` as this concentrates all workflows at the same time, creating load spikes.
-   - Example fuzzy daily schedule: `schedule: daily` (compiler will scatter to something like `43 5 * * *` and add workflow_dispatch)
+   - Example fuzzy daily weekday schedule: `schedule: daily on weekdays` (compiler will scatter to something like `43 5 * * 1-5` and add workflow_dispatch)
+   - Example fuzzy daily schedule (all days): `schedule: daily` (compiler will scatter to something like `43 5 * * *` and add workflow_dispatch)
    - Example fuzzy weekly schedule: `schedule: weekly` (compiler will scatter appropriately and add workflow_dispatch)
    - Example explicit cron: `schedule: - cron: "0 0 * * *"` (workflow_dispatch NOT auto-added - add manually if needed)
 
@@ -300,9 +302,9 @@ These resources contain workflow patterns, best practices, safe outputs, and per
    - Need to trigger workflows in other repos (use separate workflow in target repo)
 
    **Documentation Reference:**
-   - Full guide: https://github.github.io/gh-aw/patterns/multirepoops/
-   - Safe Outputs Reference: https://github.github.io/gh-aw/reference/safe-outputs/
-   - GitHub Tools: https://github.github.io/gh-aw/reference/tools/#github-tools-github
+   - Full guide: https://github.github.com/gh-aw/patterns/multirepoops/
+   - Safe Outputs Reference: https://github.github.com/gh-aw/reference/safe-outputs/
+   - GitHub Tools: https://github.github.com/gh-aw/reference/tools/#github-tools-github
 
    **Custom Safe Output Jobs (for new safe outputs):**
 
@@ -425,6 +427,25 @@ These resources contain workflow patterns, best practices, safe outputs, and per
    - **Always use `safe-outputs` instead** for any GitHub write operations (creating issues, adding comments, etc.)
    - **Mode configuration** - Both `mode: local` (Docker-based, default) and `mode: remote` (hosted) are supported. Remote mode offers faster startup and no Docker requirement.
 
+   **GitHub lockdown Mode (Security Feature)**:
+
+   GitHub lockdown mode is a security feature that filters content in public repositories to only show issues, PRs, and comments from users with push access. This protects workflows from processing potentially malicious input from untrusted users.
+
+   - **Automatic by default** - Lockdown is automatically enabled for public repositories, and has no impact for for private repositories (where all collaborators are trusted)
+   - **When to disable**: Only disable lockdown (`lockdown: false`) for specific safe use cases:
+     - Issue triage/labeling workflows with restricted safe outputs
+     - Spam detection systems designed to handle untrusted content
+     - Public status dashboards with read-only operations
+     - Command workflows that explicitly verify user permissions before acting
+   - **How to disable**:
+     ```yaml
+     tools:
+       github:
+         lockdown: false  # Only for workflows designed to safely process all user input
+     ```
+   - **Security considerations**: Workflows with `lockdown: false` should have read-only operations, restrictive safe outputs with specific allowed values, no bash/web-fetch/playwright tools, and explicit input validation
+   - **Documentation**: See https://github.github.com/gh-aw/reference/lockdown-mode/ for complete guidance
+
   **Advanced static analysis tools**:
   For advanced code analysis tasks, see `.github/aw/serena-tool.md` for when and how to use Serena language server.
   For coordinator-style workflows, see `.github/aw/orchestration.md` for orchestration patterns.
@@ -460,7 +481,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
      - 📋 **DO NOT include other fields with good defaults** - Let the compiler use sensible defaults unless customization is needed.
    - Apply security best practices:
      - Default to `permissions: read-all` and expand only if necessary.
-     - Prefer `safe-outputs` (`create-issue`, `add-comment`, `create-pull-request`, `create-pull-request-review-comment`, `update-issue`, `dispatch-workflow`) over granting write perms.
+     - Prefer `safe-outputs` (`create-issue`, `add-comment`, `create-pull-request`, `create-pull-request-review-comment`, `update-issue` for editing, `close-issue` for closing, `dispatch-workflow`) over granting write perms.
      - For custom write operations to external services (email, Slack, webhooks), use `safe-outputs.jobs:` to create custom safe output jobs.
      - Constrain `network:` to the minimum required ecosystems/domains.
      - Use sanitized expressions (`${{ needs.activation.outputs.text }}`) instead of raw event text.
@@ -546,7 +567,7 @@ Based on the parsed requirements, determine:
 2. **Triggers**: Infer appropriate triggers from the description:
    - Issue automation → `on: issues: types: [opened, edited]` (add `workflow_dispatch:` manually if manual runs needed)
    - PR automation → `on: pull_request: types: [opened, synchronize]` (add `workflow_dispatch:` manually if manual runs needed)
-   - Scheduled tasks → `on: schedule: daily` (use fuzzy scheduling - workflow_dispatch auto-added for fuzzy schedules only)
+   - Scheduled tasks → `on: schedule: daily on weekdays` (prefer weekdays to avoid Monday backlog - workflow_dispatch auto-added for fuzzy schedules only)
    - **Note**: `workflow_dispatch:` is automatically added ONLY for fuzzy schedules (`daily`, `weekly`, etc.). For other triggers, add it explicitly if manual execution is desired.
 3. **Tools**: Determine required tools:
    - **`bash` and `edit` are enabled by default** - No need to add (sandboxed by AWF)
@@ -630,7 +651,7 @@ When you identify issues requiring tracking:
 ```
 
 **Reference Documentation:**
-- https://github.github.io/gh-aw/patterns/multirepoops/
+- https://github.github.com/gh-aw/patterns/multirepoops/
 
 ### Step 3: Create the Workflow File
 

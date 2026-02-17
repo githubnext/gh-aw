@@ -23,6 +23,7 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 	switch toolName {
 	case "create_issue":
 		if config := safeOutputs.CreateIssues; config != nil {
+			toolDescriptionEnhancerLog.Printf("Found create_issue config: max=%d, titlePrefix=%s", config.Max, config.TitlePrefix)
 			if config.Max > 0 {
 				constraints = append(constraints, fmt.Sprintf("Maximum %d issue(s) can be created.", config.Max))
 			}
@@ -126,6 +127,7 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "create_pull_request":
 		if config := safeOutputs.CreatePullRequests; config != nil {
+			toolDescriptionEnhancerLog.Printf("Found create_pull_request config: max=%d, titlePrefix=%s, draft=%v", config.Max, config.TitlePrefix, config.Draft)
 			if config.Max > 0 {
 				constraints = append(constraints, fmt.Sprintf("Maximum %d pull request(s) can be created.", config.Max))
 			}
@@ -153,6 +155,27 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 			}
 			if config.Side != "" {
 				constraints = append(constraints, fmt.Sprintf("Comments will be on the %s side of the diff.", config.Side))
+			}
+		}
+
+	case "submit_pull_request_review":
+		if config := safeOutputs.SubmitPullRequestReview; config != nil {
+			if config.Max > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d review(s) can be submitted.", config.Max))
+			}
+		}
+
+	case "reply_to_pull_request_review_comment":
+		if config := safeOutputs.ReplyToPullRequestReviewComment; config != nil {
+			if config.Max > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d reply/replies can be created.", config.Max))
+			}
+		}
+
+	case "resolve_pull_request_review_thread":
+		if config := safeOutputs.ResolvePullRequestReviewThread; config != nil {
+			if config.Max > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d review thread(s) can be resolved.", config.Max))
 			}
 		}
 
@@ -234,6 +257,7 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 
 	case "upload_asset":
 		if config := safeOutputs.UploadAssets; config != nil {
+			toolDescriptionEnhancerLog.Printf("Found upload_asset config: max=%d, maxSizeKB=%d, allowedExts=%v", config.Max, config.MaxSizeKB, config.AllowedExts)
 			if config.Max > 0 {
 				constraints = append(constraints, fmt.Sprintf("Maximum %d asset(s) can be uploaded.", config.Max))
 			}
@@ -277,6 +301,26 @@ func enhanceToolDescription(toolName, baseDescription string, safeOutputs *SafeO
 		if config := safeOutputs.AssignToAgent; config != nil {
 			if config.Max > 0 {
 				constraints = append(constraints, fmt.Sprintf("Maximum %d issue(s) can be assigned to agent.", config.Max))
+			}
+		}
+
+	case "update_project":
+		if config := safeOutputs.UpdateProjects; config != nil {
+			if config.Max > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d project operation(s) can be performed.", config.Max))
+			}
+			if config.Project != "" {
+				constraints = append(constraints, fmt.Sprintf("Default project URL: %q.", config.Project))
+			}
+		}
+
+	case "create_project_status_update":
+		if config := safeOutputs.CreateProjectStatusUpdates; config != nil {
+			if config.Max > 0 {
+				constraints = append(constraints, fmt.Sprintf("Maximum %d status update(s) can be created.", config.Max))
+			}
+			if config.Project != "" {
+				constraints = append(constraints, fmt.Sprintf("Default project URL: %q.", config.Project))
 			}
 		}
 

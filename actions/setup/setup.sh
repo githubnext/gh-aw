@@ -214,6 +214,7 @@ SAFE_OUTPUTS_FILES=(
   "error_helpers.cjs"
   "git_helpers.cjs"
   "mcp_enhanced_errors.cjs"
+  "comment_limit_helpers.cjs"
 )
 
 SAFE_OUTPUTS_COUNT=0
@@ -272,6 +273,20 @@ if [ ! -f "${SAFE_OUTPUTS_DEST}/config.json" ]; then
 fi
 
 echo "Successfully copied ${SAFE_OUTPUTS_COUNT} safe-outputs files to ${SAFE_OUTPUTS_DEST}"
+
+# Copy copilot-client.js to /opt/gh-aw/copilot/ directory
+COPILOT_DEST="/opt/gh-aw/copilot"
+echo "Copying copilot-client.js to ${COPILOT_DEST}"
+mkdir -p "${COPILOT_DEST}"
+
+if [ -f "${JS_SOURCE_DIR}/copilot-client.js" ]; then
+  cp "${JS_SOURCE_DIR}/copilot-client.js" "${COPILOT_DEST}/copilot-client.js"
+  echo "✓ Successfully copied copilot-client.js to ${COPILOT_DEST}"
+else
+  echo "::error::copilot-client.js not found in ${JS_SOURCE_DIR}"
+  echo "::error::This file is required for copilot-client functionality"
+  exit 1
+fi
 
 # Install @actions/github package ONLY if safe-output-projects flag is enabled
 # This package is needed by the unified handler manager to create separate Octokit clients

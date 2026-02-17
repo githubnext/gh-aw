@@ -3,6 +3,7 @@ title: Security Architecture
 description: Comprehensive security architecture overview for GitHub Agentic Workflows, including defense-in-depth mechanisms against rogue MCP servers and malicious agents.
 sidebar:
   order: 3
+disable-agentic-editing: true
 ---
 
 import { Aside } from '@astrojs/starlight/components';
@@ -28,7 +29,7 @@ We assume the adversary does not compromise the underlying hardware or cryptogra
 
 ### Layer 1: Substrate-Level Trust
 
-AWs run on a GitHub Actions runner virtual machine (VM) and trust Actions' hardware and kernel-level enforcement mechanisms, including the CPU, MMU, kernel, and container runtime. AWs also rely on two privileged containers: (1) a network firewall that is trusted to configure connectivity for other components via 'iptables' and launch the agent container, and (2) an MCP Gateway that is trusted to configure and spawn isolated MCP-server containers. Collectively, the substrate level ensures memory isolation between components, CPU and resource isolation, mediation of privileged operations and system calls, and explicit, kernel-enforced communication boundaries. These guarantees hold even if an untrusted user-level component is fully compromised and executes arbitrary code. Trust violations at the substrate level require vulnerabilities in the firewall, MCP Gateway, container runtime, kernel, hypervisor, or hardware. If this layer fails, higher-level security guarantees may not hold.
+AWs run on a GitHub Actions runner virtual machine (VM) and trust Actions' hardware and kernel-level enforcement mechanisms, including the CPU, MMU, kernel, and container runtime. AWs also rely on three privileged containers: (1) a network firewall that is trusted to configure connectivity for other components via 'iptables' and launch the agent container, (2) an API proxy that holds authentication tokens so that they do not need to be shared with the agent container (when supported), and (3) an MCP Gateway that is trusted to configure and spawn isolated MCP-server containers. Collectively, the substrate level ensures memory isolation between components, CPU and resource isolation, mediation of privileged operations and system calls, and explicit, kernel-enforced communication boundaries. These guarantees hold even if an untrusted user-level component is fully compromised and executes arbitrary code. Trust violations at the substrate level require vulnerabilities in the firewall, MCP Gateway, container runtime, kernel, hypervisor, or hardware. If this layer fails, higher-level security guarantees may not hold.
 
 ---
 
@@ -75,6 +76,7 @@ flowchart TB
 
     subgraph Isolation["🛡️ Isolation Layer"]
         AWF["Agent Workflow Firewall<br/>Network Egress Control"]
+        PROXY["API Proxy<br/>Agent auth-token isolation"]
         MCP["MCP Server Sandboxing<br/>Container Isolation"]
         TOOL["Tool Allowlisting<br/>Explicit Permissions"]
     end
@@ -103,6 +105,7 @@ flowchart TB
     ACT --> AGENT
 
     AGENT <--> AWF
+    AGENT <--> PROXY
     AGENT <--> MCP
     AGENT <--> TOOL
 
@@ -257,6 +260,7 @@ flowchart LR
 2. The agent container can only egress through Squid. To reach the gateway, it uses `host.docker.internal:80` (Docker's host alias). This hostname must be included in the firewall's allowed list.
 3. The `gh-aw-mcpg` container publishes host port 80 mapped to container port 8000. It uses the Docker socket to spawn MCP server containers.
 4. All MCP traffic remains within the host boundary: AWF restricts egress, and the gateway routes requests to sandboxed MCP servers.
+5. When supported by an agent, AWF creates a trusted `api-proxy` that holds the agent's authentication token. The proxy keeps tokens out of the agent container so that they cannot be exfiltrated in a prompt-injection attack.
 
 ## MCP Server Sandboxing
 
@@ -447,14 +451,12 @@ flowchart TB
 **Compilation Commands:**
 
 ```bash wrap
-# Standard compilation
+# Generate the lock file from the workflow frontmatter, which includes schema validation,
+# expression safety checks, action pinning, and security scanning
 gh aw compile
 
-# Strict mode enforces additional security constraints (no write permissions, explicit network configuration)
-gh aw compile --strict
-
-# Enable security scanners for additional validation
-gh aw compile --strict --actionlint --zizmor --poutine
+# Enable added security scanners for additional validation
+gh aw compile --actionlint --zizmor --poutine
 ```
 
 ## Content Sanitization
@@ -550,6 +552,19 @@ XML and HTML tags are converted to a safe parentheses format to prevent injectio
 
 <Aside type="caution">
 Workflows should use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields to ensure proper sanitization of user-provided content.
+</Aside>
+
+## GitHub Lockdown Mode
+
+GitHub lockdown mode is a security feature of the GitHub MCP server that filters content in public repositories to only surface items from users with push access. This protects workflows from processing potentially malicious or misleading input from untrusted users.
+
+When **lockdown mode is enabled**, the GitHub MCP server:
+- Only returns issues, PRs, comments, and discussions from users with push, maintain, or admin access
+- Blocks coding agent from seeing content from other users
+- Has no particular effect for private or internal repos
+
+<Aside type="tip">
+See [Lockdown Mode Reference](/gh-aw/reference/lockdown-mode/) for complete configuration guidance, use cases, and security considerations.
 </Aside>
 
 ## Secret Redaction
@@ -782,6 +797,7 @@ gh aw status
 | **Configuration** | Action SHA pinning | Supply chain attacks, tag hijacking |
 | **Configuration** | Security scanners (actionlint, zizmor, poutine) | Privilege escalation, misconfigurations, supply chain risks |
 | **Configuration** | Pre-activation checks (role/permission) | Unauthorized users, expired workflows |
+| **Plan** | GitHub lockdown mode | Untrusted user input, context poisoning, social engineering |
 | **Plan** | Content sanitization | @mention abuse, bot triggers |
 | **Plan** | Secret redaction | Credential leakage in logs/artifacts |
 | **Plan** | Threat detection | Malicious patches, secret leaks |
@@ -791,6 +807,7 @@ gh aw status
 
 ## Related Documentation
 
+- [Lockdown Mode](/gh-aw/reference/lockdown-mode/) - GitHub content filtering for public repositories
 - [Threat Detection Guide](/gh-aw/reference/threat-detection/) - Configuring threat analysis
 - [Network Permissions](/gh-aw/reference/network/) - Network access control
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Output processing configuration

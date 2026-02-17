@@ -21,12 +21,13 @@ roles:
   - admin
   - maintainer
 engine: copilot
+strict: false
 timeout-minutes: 20
 network:
   allowed:
     - defaults
     - node
-    - "github.github.io"
+    - "github.github.com"
 sandbox:
   agent: awf  # Firewall enabled (migrated from network.firewall)
 tools:

@@ -88,10 +88,6 @@ func TestCustomEngine(t *testing.T) {
 		t.Error("Expected custom engine to not support tools allowlist")
 	}
 
-	if engine.SupportsHTTPTransport() {
-		t.Error("Expected custom engine to not support HTTP transport")
-	}
-
 	if !engine.SupportsMaxTurns() {
 		t.Error("Expected custom engine to support max turns for consistency with other engines")
 	}
@@ -262,7 +258,7 @@ func TestCustomEngineRenderMCPConfig(t *testing.T) {
 	engine.RenderMCPConfig(&yaml, map[string]any{}, []string{}, nil)
 
 	output := yaml.String()
-	expectedPrefix := "          cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh"
+	expectedPrefix := "          cat << GH_AW_MCP_CONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh"
 	if !strings.Contains(output, expectedPrefix) {
 		t.Errorf("Expected MCP config to contain setup prefix, got '%s'", output)
 	}

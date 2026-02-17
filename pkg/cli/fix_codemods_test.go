@@ -43,7 +43,7 @@ func TestGetAllCodemods_ReturnsAllCodemods(t *testing.T) {
 	codemods := GetAllCodemods()
 
 	// Verify we have the expected number of codemods
-	expectedCount := 17
+	expectedCount := 18
 	assert.Len(t, codemods, expectedCount, "Should return all %d codemods", expectedCount)
 
 	// Verify all codemods have required fields
@@ -75,7 +75,7 @@ func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
 		"write-permissions-to-read-migration",
 		"permissions-read-to-read-all",
 		"agent-task-to-agent-session-migration",
-		"sandbox-agent-false-removal",
+		"sandbox-false-to-agent-false",
 		"schedule-at-to-around-migration",
 		"delete-schema-file",
 		"grep-tool-removal",
@@ -112,7 +112,7 @@ func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
 		"write-permissions-to-read-migration",
 		"permissions-read-to-read-all",
 		"agent-task-to-agent-session-migration",
-		"sandbox-agent-false-removal",
+		"sandbox-false-to-agent-false",
 		"schedule-at-to-around-migration",
 		"delete-schema-file",
 		"grep-tool-removal",
@@ -121,6 +121,7 @@ func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
 		"mcp-mode-to-type-migration",
 		"install-script-url-migration",
 		"bash-anonymous-removal",
+		"activation-outputs-to-sanitized-step",
 	}
 
 	require.Len(t, codemods, len(expectedOrder), "Should have expected number of codemods")

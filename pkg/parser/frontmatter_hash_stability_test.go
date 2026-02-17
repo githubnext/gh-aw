@@ -127,7 +127,8 @@ main();
 	cmd := exec.Command("node", testScript, workflowPath)
 	cmd.Dir = repoRoot
 
-	output, err := cmd.CombinedOutput()
+	// Use Output() to only capture stdout, avoiding stderr like [one-shot-token]
+	output, err := cmd.Output()
 	if err != nil {
 		return "", err
 	}

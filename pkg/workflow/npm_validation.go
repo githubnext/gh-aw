@@ -1,3 +1,5 @@
+//go:build !js && !wasm
+
 // This file provides NPM package validation for agentic workflows.
 //
 // # NPM Package Validation

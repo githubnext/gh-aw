@@ -28,6 +28,13 @@ func FuzzScheduleParser(f *testing.F) {
 	f.Add("daily at noon")
 	f.Add("daily at 09:30")
 
+	// Daily schedules with weekday restriction
+	f.Add("daily on weekdays")
+	f.Add("daily around 9am on weekdays")
+	f.Add("daily around 14:00 on weekdays")
+	f.Add("daily between 9:00 and 17:00 on weekdays")
+	f.Add("daily between 9am and 5pm on weekdays")
+
 	// Daily around schedules (fuzzy with target time)
 	f.Add("daily around 14:00")
 	f.Add("daily around 02:00")
@@ -115,6 +122,11 @@ func FuzzScheduleParser(f *testing.F) {
 	f.Add("every 1mo")
 	f.Add("every 2mo")
 
+	// Interval schedules with weekday restriction
+	f.Add("hourly on weekdays")
+	f.Add("every 2h on weekdays")
+	f.Add("every 2 hours on weekdays")
+
 	// UTC offset schedules
 	f.Add("daily at 02:00 utc+9")
 	f.Add("daily at 14:00 utc-5")
@@ -158,6 +170,13 @@ func FuzzScheduleParser(f *testing.F) {
 	f.Add("MONTHLY ON 15")
 
 	// Invalid schedules (should error gracefully)
+
+	// Invalid weekday patterns
+	f.Add("every 10 minutes on weekdays")
+	f.Add("every 5m on weekdays")
+	f.Add("daily on weekday")
+	f.Add("daily on weekend")
+	f.Add("daily on weekdays on weekends")
 
 	// Empty and whitespace
 	f.Add("")
@@ -380,13 +399,25 @@ func FuzzScheduleParser(f *testing.F) {
 				}
 
 				// For FUZZY:DAILY_BETWEEN, validate the time range format
-				if strings.HasPrefix(cron, "FUZZY:DAILY_BETWEEN:") {
+				if strings.HasPrefix(cron, "FUZZY:DAILY_BETWEEN:") || strings.HasPrefix(cron, "FUZZY:DAILY_BETWEEN_WEEKDAYS:") {
 					// Extract the time range from FUZZY:DAILY_BETWEEN:START_H:START_M:END_H:END_M
 					firstField := fields[0]
 					timePart := strings.TrimPrefix(firstField, "FUZZY:DAILY_BETWEEN:")
+					timePart = strings.TrimPrefix(timePart, "FUZZY:DAILY_BETWEEN_WEEKDAYS:")
 					timeParts := strings.Split(timePart, ":")
 					if len(timeParts) != 4 {
 						t.Errorf("ParseSchedule returned invalid FUZZY:DAILY_BETWEEN format (expected START_H:START_M:END_H:END_M): %q for input: %q", cron, input)
+					}
+				}
+
+				// For FUZZY:DAILY_AROUND_WEEKDAYS, validate the time format
+				if strings.HasPrefix(cron, "FUZZY:DAILY_AROUND_WEEKDAYS:") {
+					// Extract the time part from FUZZY:DAILY_AROUND_WEEKDAYS:HH:MM
+					firstField := fields[0]
+					timePart := strings.TrimPrefix(firstField, "FUZZY:DAILY_AROUND_WEEKDAYS:")
+					timeParts := strings.Split(timePart, ":")
+					if len(timeParts) != 2 {
+						t.Errorf("ParseSchedule returned invalid FUZZY:DAILY_AROUND_WEEKDAYS format (expected HH:MM): %q for input: %q", cron, input)
 					}
 				}
 			} else {

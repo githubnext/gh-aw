@@ -14,6 +14,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -37,10 +38,142 @@ func mcpErrorData(v any) json.RawMessage {
 	return data
 }
 
+// getRepository retrieves the current repository name (owner/repo format).
+// Results are cached for 1 hour to avoid repeated queries.
+// Checks GITHUB_REPOSITORY environment variable first, then falls back to gh repo view.
+func getRepository() (string, error) {
+	// Check cache first
+	if repo, ok := mcpCache.GetRepo(); ok {
+		mcpLog.Printf("Using cached repository: %s", repo)
+		return repo, nil
+	}
+
+	// Try GITHUB_REPOSITORY environment variable first
+	repo := os.Getenv("GITHUB_REPOSITORY")
+	if repo != "" {
+		mcpLog.Printf("Got repository from GITHUB_REPOSITORY: %s", repo)
+		mcpCache.SetRepo(repo)
+		return repo, nil
+	}
+
+	// Fall back to gh repo view
+	mcpLog.Print("Querying repository using gh repo view")
+	cmd := workflow.ExecGH("repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
+	output, err := cmd.Output()
+	if err != nil {
+		mcpLog.Printf("Failed to get repository: %v", err)
+		return "", fmt.Errorf("failed to get repository: %w", err)
+	}
+
+	repo = strings.TrimSpace(string(output))
+	if repo == "" {
+		return "", fmt.Errorf("repository not found")
+	}
+
+	mcpLog.Printf("Got repository from gh repo view: %s", repo)
+	mcpCache.SetRepo(repo)
+	return repo, nil
+}
+
+// queryActorRole queries the GitHub API to determine the actor's role in the repository.
+// Returns the permission level (admin, maintain, write, triage, read) or an error.
+// Results are cached for 1 hour to avoid excessive API calls.
+func queryActorRole(ctx context.Context, actor string, repo string) (string, error) {
+	if actor == "" {
+		return "", fmt.Errorf("actor not specified")
+	}
+	if repo == "" {
+		return "", fmt.Errorf("repository not specified")
+	}
+
+	// Check cache first
+	if perm, ok := mcpCache.GetPermission(actor, repo); ok {
+		mcpLog.Printf("Using cached permission for %s in %s: %s", actor, repo, perm)
+		return perm, nil
+	}
+
+	// Query GitHub API for user's permission level
+	// GET /repos/{owner}/{repo}/collaborators/{username}/permission
+	apiPath := fmt.Sprintf("/repos/%s/collaborators/%s/permission", repo, actor)
+	mcpLog.Printf("Querying GitHub API for %s's permission in %s", actor, repo)
+
+	cmd := workflow.ExecGHContext(ctx, "api", apiPath, "--jq", ".permission")
+	output, err := cmd.Output()
+	if err != nil {
+		mcpLog.Printf("Failed to query actor permission: %v", err)
+		return "", fmt.Errorf("failed to query actor permission: %w", err)
+	}
+
+	permission := strings.TrimSpace(string(output))
+	if permission == "" {
+		return "", fmt.Errorf("no permission found for actor %s in repository %s", actor, repo)
+	}
+
+	mcpCache.SetPermission(actor, repo, permission)
+	mcpLog.Printf("Cached permission for %s in %s: %s", actor, repo, permission)
+
+	return permission, nil
+}
+
+// hasWriteAccess checks if the given permission level is write or higher.
+// Permission levels from highest to lowest: admin, maintain, write, triage, read
+func hasWriteAccess(permission string) bool {
+	switch permission {
+	case "admin", "maintain", "write":
+		return true
+	default:
+		return false
+	}
+}
+
+// validateWorkflowName validates that a workflow name exists.
+// Returns nil if the workflow exists, or an error with suggestions if not.
+// Empty workflow names are considered valid (means all workflows).
+func validateWorkflowName(workflowName string) error {
+	// Empty workflow name means "all workflows" - this is valid
+	if workflowName == "" {
+		return nil
+	}
+
+	mcpLog.Printf("Validating workflow name: %s", workflowName)
+
+	// Try to resolve as workflow ID first
+	resolvedName, err := workflow.ResolveWorkflowName(workflowName)
+	if err == nil {
+		mcpLog.Printf("Workflow name resolved successfully: %s -> %s", workflowName, resolvedName)
+		return nil
+	}
+
+	// Check if it's a valid GitHub Actions workflow name
+	agenticWorkflowNames, nameErr := getAgenticWorkflowNames(false)
+	if nameErr == nil && sliceutil.Contains(agenticWorkflowNames, workflowName) {
+		mcpLog.Printf("Workflow name is valid GitHub Actions workflow name: %s", workflowName)
+		return nil
+	}
+
+	// Workflow not found - build error with suggestions
+	mcpLog.Printf("Workflow name not found: %s", workflowName)
+
+	suggestions := []string{
+		"Use the 'status' tool to see all available workflows",
+		"Check for typos in the workflow name",
+		"Use the workflow ID (e.g., 'test-claude') or GitHub Actions workflow name (e.g., 'Test Claude')",
+	}
+
+	// Add fuzzy match suggestions
+	similarNames := suggestWorkflowNames(workflowName)
+	if len(similarNames) > 0 {
+		suggestions = append([]string{fmt.Sprintf("Did you mean: %s?", strings.Join(similarNames, ", "))}, suggestions...)
+	}
+
+	return fmt.Errorf("workflow '%s' not found. %s", workflowName, strings.Join(suggestions, " "))
+}
+
 // NewMCPServerCommand creates the mcp-server command
 func NewMCPServerCommand() *cobra.Command {
 	var port int
 	var cmdPath string
+	var validateActor bool
 
 	cmd := &cobra.Command{
 		Use:   "mcp-server",
@@ -54,28 +187,41 @@ secrets are not shared with the MCP server process itself.
 The server provides the following tools:
   - status      - Show status of agentic workflow files
   - compile     - Compile Markdown workflows to GitHub Actions YAML
-  - logs        - Download and analyze workflow logs
-  - audit       - Investigate a workflow run, job, or step and generate a report
+  - logs        - Download and analyze workflow logs (requires write+ access)
+  - audit       - Investigate a workflow run, job, or step and generate a report (requires write+ access)
   - mcp-inspect - Inspect MCP servers in workflows and list available tools
   - add         - Add workflows from remote repositories to .github/workflows
   - update      - Update workflows from their source repositories
   - fix         - Apply automatic codemod-style fixes to workflow files
 
+Access Control:
+  The GITHUB_ACTOR environment variable specifies the GitHub username for role-based
+  access control. The actor's repository role (admin, maintain, write, etc.) determines
+  which tools are available. Tools requiring elevated permissions (logs, audit) are always
+  mounted but will return permission denied errors if the actor lacks write+ access.
+
+  Use the --validate-actor flag to enforce actor validation. When enabled, logs and audit
+  tools will return permission denied errors if GITHUB_ACTOR is not set. When disabled
+  (default), these tools will work without actor validation.
+
 By default, the server uses stdio transport. Use the --port flag to run
 an HTTP server with SSE (Server-Sent Events) transport instead.
 
 Examples:
-  gh aw mcp-server                    # Run with stdio transport (default for MCP clients)
-  gh aw mcp-server --port 8080        # Run HTTP server on port 8080 (for web-based clients)
-  gh aw mcp-server --cmd ./gh-aw      # Use custom gh-aw binary path
-  DEBUG=mcp:* gh aw mcp-server        # Run with verbose logging for debugging`,
+  gh aw mcp-server                                     # Run with stdio transport (default for MCP clients)
+  gh aw mcp-server --validate-actor                    # Run with actor validation enforced
+  gh aw mcp-server --port 8080                         # Run HTTP server on port 8080 (for web-based clients)
+  gh aw mcp-server --cmd ./gh-aw                       # Use custom gh-aw binary path
+  GITHUB_ACTOR=octocat gh aw mcp-server                # Set actor via environment variable for access control
+  DEBUG=mcp:* GITHUB_ACTOR=octocat gh aw mcp-server    # Run with verbose logging and actor`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runMCPServer(port, cmdPath)
+			return runMCPServer(port, cmdPath, validateActor)
 		},
 	}
 
 	cmd.Flags().IntVarP(&port, "port", "p", 0, "Port to run HTTP server on (uses stdio if not specified)")
 	cmd.Flags().StringVar(&cmdPath, "cmd", "", "Path to gh aw command to use (defaults to 'gh aw')")
+	cmd.Flags().BoolVar(&validateActor, "validate-actor", false, "Enforce actor validation (logs/audit tools return errors without GITHUB_ACTOR)")
 
 	return cmd
 }
@@ -101,7 +247,27 @@ func checkAndLogGHVersion() {
 }
 
 // runMCPServer starts the MCP server on stdio or HTTP transport
-func runMCPServer(port int, cmdPath string) error {
+func runMCPServer(port int, cmdPath string, validateActor bool) error {
+	// Get actor from environment variable
+	actor := os.Getenv("GITHUB_ACTOR")
+
+	if validateActor {
+		mcpLog.Printf("Actor validation enabled (--validate-actor flag)")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Actor validation enabled"))
+	}
+
+	if actor != "" {
+		mcpLog.Printf("Using actor: %s", actor)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Actor: %s", actor)))
+	} else {
+		mcpLog.Print("No actor specified (GITHUB_ACTOR environment variable)")
+		if validateActor {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No actor specified - logs and audit tools will not be mounted (actor validation enabled)"))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No actor specified - all tools will be mounted (actor validation disabled)"))
+		}
+	}
+
 	if port > 0 {
 		mcpLog.Printf("Starting MCP server on HTTP port %d", port)
 	} else {
@@ -141,7 +307,7 @@ func runMCPServer(port int, cmdPath string) error {
 	}
 
 	// Create the server configuration
-	server := createMCPServer(cmdPath)
+	server := createMCPServer(cmdPath, actor, validateActor)
 
 	if port > 0 {
 		// Run HTTP server with SSE transport
@@ -153,8 +319,88 @@ func runMCPServer(port int, cmdPath string) error {
 	return server.Run(context.Background(), &mcp.StdioTransport{})
 }
 
+// checkActorPermission validates if the actor has sufficient permissions for restricted tools.
+// Returns nil if access is allowed, or a jsonrpc.Error if access is denied.
+// Uses GitHub API to query the actor's actual repository role with 1-hour caching.
+func checkActorPermission(actor string, validateActor bool, toolName string) error {
+	// If validation is disabled, always allow access
+	if !validateActor {
+		mcpLog.Printf("Tool %s: access allowed (validation disabled)", toolName)
+		return nil
+	}
+
+	// If validation is enabled but no actor is specified, deny access
+	if actor == "" {
+		mcpLog.Printf("Tool %s: access denied (no actor specified, validation enabled)", toolName)
+		return &jsonrpc.Error{
+			Code:    jsonrpc.CodeInvalidRequest,
+			Message: "permission denied: insufficient role",
+			Data: mcpErrorData(map[string]any{
+				"error":  "GITHUB_ACTOR environment variable not set",
+				"tool":   toolName,
+				"reason": "This tool requires at least write access to the repository. Set GITHUB_ACTOR environment variable to enable access.",
+			}),
+		}
+	}
+
+	// Get repository using cached lookup
+	repo, err := getRepository()
+	if err != nil {
+		mcpLog.Printf("Tool %s: failed to get repository context, allowing access: %v", toolName, err)
+		// If we can't determine the repository, allow access (fail open)
+		return nil
+	}
+
+	if repo == "" {
+		mcpLog.Printf("Tool %s: no repository context, allowing access", toolName)
+		// No repository context, allow access
+		return nil
+	}
+
+	// Query actor's role in the repository with caching
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	permission, err := queryActorRole(ctx, actor, repo)
+	if err != nil {
+		mcpLog.Printf("Tool %s: failed to query actor role, denying access: %v", toolName, err)
+		return &jsonrpc.Error{
+			Code:    jsonrpc.CodeInternalError,
+			Message: "permission denied: unable to verify repository access",
+			Data: mcpErrorData(map[string]any{
+				"error":      err.Error(),
+				"tool":       toolName,
+				"actor":      actor,
+				"repository": repo,
+				"reason":     "Failed to query actor's repository permissions from GitHub API.",
+			}),
+		}
+	}
+
+	// Check if the actor has write+ access
+	if !hasWriteAccess(permission) {
+		mcpLog.Printf("Tool %s: access denied for actor %s (permission: %s, requires: write+)", toolName, actor, permission)
+		return &jsonrpc.Error{
+			Code:    jsonrpc.CodeInvalidRequest,
+			Message: "permission denied: insufficient role",
+			Data: mcpErrorData(map[string]any{
+				"error":      "insufficient repository permissions",
+				"tool":       toolName,
+				"actor":      actor,
+				"repository": repo,
+				"role":       permission,
+				"required":   "write, maintain, or admin",
+				"reason":     fmt.Sprintf("Actor %s has %s access to %s. This tool requires at least write access.", actor, permission, repo),
+			}),
+		}
+	}
+
+	mcpLog.Printf("Tool %s: access allowed for actor %s (permission: %s)", toolName, actor, permission)
+	return nil
+}
+
 // createMCPServer creates and configures the MCP server with all tools
-func createMCPServer(cmdPath string) *mcp.Server {
+func createMCPServer(cmdPath string, actor string, validateActor bool) *mcp.Server {
 	// Helper function to execute command with proper path
 	execCmd := func(ctx context.Context, args ...string) *exec.Cmd {
 		if cmdPath != "" {
@@ -165,7 +411,23 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		return workflow.ExecGHContext(ctx, append([]string{"aw"}, args...)...)
 	}
 
+	// Log actor and validation settings
+	if validateActor {
+		if actor != "" {
+			mcpLog.Printf("Actor validation enabled: actor=%s (logs/audit tools will check permissions)", actor)
+		} else {
+			mcpLog.Print("Actor validation enabled: no actor specified (logs/audit tools will deny access)")
+		}
+	} else {
+		if actor != "" {
+			mcpLog.Printf("Actor validation disabled: actor=%s (logs/audit tools will allow access)", actor)
+		} else {
+			mcpLog.Print("Actor validation disabled: no actor specified (logs/audit tools will allow access)")
+		}
+	}
+
 	// Create MCP server with capabilities and logging
+	// Note: Schema caching is automatic in go-sdk v1.3.0+ (eliminates repeated reflection overhead)
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "gh-aw",
 		Version: GetVersion(),
@@ -180,8 +442,7 @@ func createMCPServer(cmdPath string) *mcp.Server {
 
 	// Add status tool
 	type statusArgs struct {
-		Pattern  string `json:"pattern,omitempty" jsonschema:"Optional pattern to filter workflows by name"`
-		JqFilter string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
+		Pattern string `json:"pattern,omitempty" jsonschema:"Optional pattern to filter workflows by name"`
 	}
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -193,9 +454,7 @@ Returns a JSON array where each element has the following structure:
 - agent: AI engine used (e.g., "copilot", "claude", "codex")
 - compiled: Whether the workflow is compiled ("Yes", "No", or "N/A")
 - status: GitHub workflow status ("active", "disabled", "Unknown")
-- time_remaining: Time remaining until workflow deadline (if applicable)
-
-Note: Output can be filtered using the jq parameter.`,
+- time_remaining: Time remaining until workflow deadline (if applicable)`,
 		Icons: []mcp.Icon{
 			{Source: "📊"},
 		},
@@ -211,7 +470,7 @@ Note: Output can be filtered using the jq parameter.`,
 		default:
 		}
 
-		mcpLog.Printf("Executing status tool: pattern=%s, jqFilter=%s", args.Pattern, args.JqFilter)
+		mcpLog.Printf("Executing status tool: pattern=%s", args.Pattern)
 
 		// Call GetWorkflowStatuses directly instead of spawning subprocess
 		statuses, err := GetWorkflowStatuses(args.Pattern, "", "", "")
@@ -235,19 +494,6 @@ Note: Output can be filtered using the jq parameter.`,
 
 		outputStr := string(jsonBytes)
 
-		// Apply jq filter if provided
-		if args.JqFilter != "" {
-			filteredOutput, jqErr := ApplyJqFilter(outputStr, args.JqFilter)
-			if jqErr != nil {
-				return nil, nil, &jsonrpc.Error{
-					Code:    jsonrpc.CodeInvalidParams,
-					Message: "invalid jq filter expression",
-					Data:    mcpErrorData(map[string]any{"error": jqErr.Error(), "filter": args.JqFilter}),
-				}
-			}
-			outputStr = filteredOutput
-		}
-
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: outputStr},
@@ -263,7 +509,6 @@ Note: Output can be filtered using the jq parameter.`,
 		Poutine    bool     `json:"poutine,omitempty" jsonschema:"Run poutine security scanner on generated .lock.yml files"`
 		Actionlint bool     `json:"actionlint,omitempty" jsonschema:"Run actionlint linter on generated .lock.yml files"`
 		Fix        bool     `json:"fix,omitempty" jsonschema:"Apply automatic codemod fixes to workflows before compiling"`
-		JqFilter   string   `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
 
 	// Generate schema with elicitation defaults
@@ -294,9 +539,7 @@ Returns JSON array with validation results for each workflow:
 - valid: Boolean indicating if compilation was successful
 - errors: Array of error objects with type, message, and optional line number
 - warnings: Array of warning objects
-- compiled_file: Path to the generated .lock.yml file
-
-Note: Output can be filtered using the jq parameter.`,
+- compiled_file: Path to the generated .lock.yml file`,
 		InputSchema: compileSchema,
 		Icons: []mcp.Icon{
 			{Source: "🔨"},
@@ -399,19 +642,6 @@ Note: Output can be filtered using the jq parameter.`,
 			// and return it to the LLM
 		}
 
-		// Apply jq filter if provided
-		if args.JqFilter != "" {
-			filteredOutput, jqErr := ApplyJqFilter(outputStr, args.JqFilter)
-			if jqErr != nil {
-				return nil, nil, &jsonrpc.Error{
-					Code:    jsonrpc.CodeInvalidParams,
-					Message: "invalid jq filter expression",
-					Data:    mcpErrorData(map[string]any{"error": jqErr.Error(), "filter": args.JqFilter}),
-				}
-			}
-			outputStr = filteredOutput
-		}
-
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: outputStr},
@@ -419,7 +649,7 @@ Note: Output can be filtered using the jq parameter.`,
 		}, nil, nil
 	})
 
-	// Add logs tool
+	// Add logs tool (requires write+ access)
 	type logsArgs struct {
 		WorkflowName string `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
 		Count        int    `json:"count,omitempty" jsonschema:"Number of workflow runs to download (default: 100)"`
@@ -432,7 +662,6 @@ Note: Output can be filtered using the jq parameter.`,
 		AfterRunID   int64  `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
 		BeforeRunID  int64  `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
 		Timeout      int    `json:"timeout,omitempty" jsonschema:"Maximum time in seconds to spend downloading logs (default: 50 for MCP server)"`
-		JqFilter     string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 		MaxTokens    int    `json:"max_tokens,omitempty" jsonschema:"Maximum number of tokens in output before triggering guardrail (default: 12000)"`
 	}
 
@@ -465,16 +694,17 @@ The continuation field includes all necessary parameters (before_run_id, etc.) t
 the previous request stopped due to timeout.
 
 ⚠️  Output Size Guardrail: If the output exceeds the token limit (default: 12000 tokens), the tool will 
-return a schema description and suggested jq filters instead of the full output. Use the 'jq' parameter 
-to filter the output to a manageable size, or adjust the 'max_tokens' parameter. Common filters include:
-  - .summary (get only summary statistics)
-  - .runs[:5] (get first 5 runs)
-  - .runs | map(select(.conclusion == "failure")) (get only failed runs)`,
+return a schema description instead of the full output. Adjust the 'max_tokens' parameter to control this behavior.`,
 		InputSchema: logsSchema,
 		Icons: []mcp.Icon{
 			{Source: "📜"},
 		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
+		// Check actor permissions first
+		if err := checkActorPermission(actor, validateActor, "logs"); err != nil {
+			return nil, nil, err
+		}
+
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
@@ -492,6 +722,19 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 				Code:    jsonrpc.CodeInvalidParams,
 				Message: "conflicting parameters: cannot specify both 'firewall' and 'no_firewall'",
 				Data:    nil,
+			}
+		}
+
+		// Validate workflow name before executing command
+		if err := validateWorkflowName(args.WorkflowName); err != nil {
+			mcpLog.Printf("Workflow name validation failed: %v", err)
+			return nil, nil, &jsonrpc.Error{
+				Code:    jsonrpc.CodeInvalidParams,
+				Message: err.Error(),
+				Data: mcpErrorData(map[string]any{
+					"workflow_name": args.WorkflowName,
+					"error_type":    "workflow_not_found",
+				}),
 			}
 		}
 
@@ -584,19 +827,6 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 			}
 		}
 
-		// Apply jq filter if provided
-		if args.JqFilter != "" {
-			filteredOutput, err := ApplyJqFilter(outputStr, args.JqFilter)
-			if err != nil {
-				return nil, nil, &jsonrpc.Error{
-					Code:    jsonrpc.CodeInvalidParams,
-					Message: "invalid jq filter expression",
-					Data:    mcpErrorData(map[string]any{"error": err.Error(), "filter": args.JqFilter}),
-				}
-			}
-			outputStr = filteredOutput
-		}
-
 		// Check output size and apply guardrail if needed
 		finalOutput, _ := checkLogsOutputSize(outputStr, args.MaxTokens)
 
@@ -607,10 +837,9 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 		}, nil, nil
 	})
 
-	// Add audit tool
+	// Add audit tool (requires write+ access)
 	type auditArgs struct {
 		RunIDOrURL string `json:"run_id_or_url" jsonschema:"GitHub Actions workflow run ID or URL. Accepts: numeric run ID (e.g., 1234567890), run URL (https://github.com/owner/repo/actions/runs/1234567890), job URL (https://github.com/owner/repo/actions/runs/1234567890/job/9876543210), or job URL with step (https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1)"`
-		JqFilter   string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
 
 	// Generate schema for audit tool
@@ -645,14 +874,17 @@ Returns JSON with the following structure:
 - errors: Error details (file, line, type, message)
 - warnings: Warning details (file, line, type, message)
 - tool_usage: Tool usage statistics (name, call_count, max_output_size, max_duration)
-- firewall_analysis: Network firewall analysis if available (total_requests, allowed_requests, blocked_requests, allowed_domains, blocked_domains)
-
-Note: Output can be filtered using the jq parameter.`,
+- firewall_analysis: Network firewall analysis if available (total_requests, allowed_requests, blocked_requests, allowed_domains, blocked_domains)`,
 		InputSchema: auditSchema,
 		Icons: []mcp.Icon{
 			{Source: "🔍"},
 		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditArgs) (*mcp.CallToolResult, any, error) {
+		// Check actor permissions first
+		if err := checkActorPermission(actor, validateActor, "audit"); err != nil {
+			return nil, nil, err
+		}
+
 		// Check for cancellation before starting
 		select {
 		case <-ctx.Done():
@@ -671,29 +903,42 @@ Note: Output can be filtered using the jq parameter.`,
 		cmdArgs := []string{"audit", args.RunIDOrURL, "-o", "/tmp/gh-aw/aw-mcp/logs", "--json"}
 
 		// Execute the CLI command
+		// Use separate stdout/stderr capture instead of CombinedOutput because:
+		// - Stdout contains JSON output (--json flag)
+		// - Stderr contains console messages and debug logs that shouldn't be mixed with JSON
 		cmd := execCmd(ctx, cmdArgs...)
-		output, err := cmd.CombinedOutput()
+		stdout, err := cmd.Output()
+
+		// The audit command outputs JSON to stdout when --json flag is used.
+		// If the command fails, we need to provide detailed error information.
+		outputStr := string(stdout)
 
 		if err != nil {
+			// Try to get stderr and exit code for detailed error reporting
+			var stderr string
+			var exitCode int
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				stderr = string(exitErr.Stderr)
+				exitCode = exitErr.ExitCode()
+			}
+
+			mcpLog.Printf("Audit command exited with error: %v (stdout length: %d, stderr length: %d, exit_code: %d)",
+				err, len(outputStr), len(stderr), exitCode)
+
+			// Build detailed error data
+			errorData := map[string]any{
+				"error":         err.Error(),
+				"exit_code":     exitCode,
+				"stdout":        outputStr,
+				"stderr":        stderr,
+				"run_id_or_url": args.RunIDOrURL,
+			}
+
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
-				Message: "failed to audit workflow run",
-				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output), "run_id_or_url": args.RunIDOrURL}),
+				Message: fmt.Sprintf("failed to audit workflow run: %s", err.Error()),
+				Data:    mcpErrorData(errorData),
 			}
-		}
-
-		// Apply jq filter if provided
-		outputStr := string(output)
-		if args.JqFilter != "" {
-			filteredOutput, jqErr := ApplyJqFilter(outputStr, args.JqFilter)
-			if jqErr != nil {
-				return nil, nil, &jsonrpc.Error{
-					Code:    jsonrpc.CodeInvalidParams,
-					Message: "invalid jq filter expression",
-					Data:    mcpErrorData(map[string]any{"error": jqErr.Error(), "filter": args.JqFilter}),
-				}
-			}
-			outputStr = filteredOutput
 		}
 
 		return &mcp.CallToolResult{

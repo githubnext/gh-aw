@@ -26,7 +26,7 @@ type WorkflowOption struct {
 }
 
 // RunWorkflowInteractively runs a workflow in interactive mode
-func RunWorkflowInteractively(ctx context.Context, verbose bool, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, push bool, engineOverride string, dryRun bool) error {
+func RunWorkflowInteractively(ctx context.Context, verbose bool, repoOverride string, refOverride string, autoMergePRs bool, push bool, engineOverride string, dryRun bool) error {
 	runInteractiveLog.Print("Starting interactive workflow run")
 
 	// Check if running in CI environment
@@ -72,13 +72,23 @@ func RunWorkflowInteractively(ctx context.Context, verbose bool, repoOverride st
 	}
 
 	// Step 6: Build command string for display
-	cmdStr := buildCommandString(selectedWorkflow.Name, inputValues, repoOverride, refOverride, autoMergePRs, pushSecrets, push, engineOverride)
+	cmdStr := buildCommandString(selectedWorkflow.Name, inputValues, repoOverride, refOverride, autoMergePRs, push, engineOverride)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nRunning workflow..."))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("Equivalent command: %s", cmdStr)))
 	fmt.Fprintln(os.Stderr, "")
 
 	// Step 7: Execute the workflow
-	err = RunWorkflowOnGitHub(ctx, selectedWorkflow.Name, false, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, push, false, inputValues, verbose, dryRun)
+	err = RunWorkflowOnGitHub(ctx, selectedWorkflow.Name, RunOptions{
+		Enable:         false,
+		EngineOverride: engineOverride,
+		RepoOverride:   repoOverride,
+		RefOverride:    refOverride,
+		AutoMergePRs:   autoMergePRs,
+		Push:           push,
+		Inputs:         inputValues,
+		Verbose:        verbose,
+		DryRun:         dryRun,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to run workflow: %w", err)
 	}
@@ -355,7 +365,7 @@ func confirmExecution(wf *WorkflowOption, inputs []string) bool {
 // RunSpecificWorkflowInteractively runs a specific workflow in interactive mode
 // This is similar to RunWorkflowInteractively but skips the workflow selection step
 // since the workflow name is already known. It will still collect inputs if the workflow has them.
-func RunSpecificWorkflowInteractively(ctx context.Context, workflowName string, verbose bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, pushSecrets bool, push bool, dryRun bool) error {
+func RunSpecificWorkflowInteractively(ctx context.Context, workflowName string, verbose bool, engineOverride string, repoOverride string, refOverride string, autoMergePRs bool, push bool, dryRun bool) error {
 	runInteractiveLog.Printf("Running specific workflow interactively: %s", workflowName)
 
 	// Find the workflow file
@@ -401,13 +411,24 @@ func RunSpecificWorkflowInteractively(ctx context.Context, workflowName string, 
 	}
 
 	// Build command string for display
-	cmdStr := buildCommandString(workflowName, inputValues, repoOverride, refOverride, autoMergePRs, pushSecrets, push, engineOverride)
+	cmdStr := buildCommandString(workflowName, inputValues, repoOverride, refOverride, autoMergePRs, push, engineOverride)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nRunning workflow..."))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("Equivalent command: %s", cmdStr)))
 	fmt.Fprintln(os.Stderr, "")
 
 	// Execute the workflow
-	err = RunWorkflowOnGitHub(ctx, workflowName, false, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, push, true, inputValues, verbose, dryRun)
+	err = RunWorkflowOnGitHub(ctx, workflowName, RunOptions{
+		Enable:            false,
+		EngineOverride:    engineOverride,
+		RepoOverride:      repoOverride,
+		RefOverride:       refOverride,
+		AutoMergePRs:      autoMergePRs,
+		Push:              push,
+		WaitForCompletion: true,
+		Inputs:            inputValues,
+		Verbose:           verbose,
+		DryRun:            dryRun,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to run workflow: %w", err)
 	}
@@ -416,7 +437,7 @@ func RunSpecificWorkflowInteractively(ctx context.Context, workflowName string, 
 }
 
 // buildCommandString builds the equivalent command string for display
-func buildCommandString(workflowName string, inputs []string, repoOverride, refOverride string, autoMergePRs, pushSecrets, push bool, engineOverride string) string {
+func buildCommandString(workflowName string, inputs []string, repoOverride, refOverride string, autoMergePRs, push bool, engineOverride string) string {
 	var parts []string
 	parts = append(parts, string(constants.CLIExtensionPrefix), "run", workflowName)
 
@@ -434,9 +455,6 @@ func buildCommandString(workflowName string, inputs []string, repoOverride, refO
 	}
 	if autoMergePRs {
 		parts = append(parts, "--auto-merge-prs")
-	}
-	if pushSecrets {
-		parts = append(parts, "--use-local-secrets")
 	}
 	if push {
 		parts = append(parts, "--push")

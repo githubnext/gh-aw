@@ -22,7 +22,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -55,7 +54,6 @@ func compileSpecificFiles(
 	var workflowDataList []*workflow.WorkflowData
 	var compiledCount int
 	var errorCount int
-	var errorMessages []string
 	var lockFilesForActionlint []string
 	var lockFilesForZizmor []string
 
@@ -77,10 +75,9 @@ func compileSpecificFiles(
 		if err != nil {
 			// Don't print error here - it will be displayed in the compilation summary
 			// The error is stored in ValidationResult for JSON output and returned for main to display
-			errorMessages = append(errorMessages, err.Error())
 			errorCount++
 			stats.Errors++
-			trackWorkflowFailure(stats, markdownFile, 1)
+			trackWorkflowFailure(stats, markdownFile, 1, []string{err.Error()})
 			result.Valid = false
 			result.Errors = append(result.Errors, CompileValidationError{
 				Type:    "resolution_error",
@@ -104,8 +101,12 @@ func compileSpecificFiles(
 		if !fileResult.success {
 			errorCount++
 			stats.Errors++
-			trackWorkflowFailure(stats, resolvedFile, 1)
-			errorMessages = append(errorMessages, fileResult.validationResult.Errors[0].Message)
+			// Collect error messages from validation result for display in summary
+			var errMsgs []string
+			for _, verr := range fileResult.validationResult.Errors {
+				errMsgs = append(errMsgs, verr.Message)
+			}
+			trackWorkflowFailure(stats, resolvedFile, 1, errMsgs)
 		} else {
 			compiledCount++
 			workflowDataList = append(workflowDataList, fileResult.workflowData)
@@ -172,10 +173,9 @@ func compileSpecificFiles(
 	}
 
 	// Return error if any compilations failed
+	// Don't return the detailed error message here since it's already printed in the summary
+	// Returning a simple error prevents duplication in the output
 	if errorCount > 0 {
-		if len(errorMessages) > 0 {
-			return workflowDataList, errors.New(errorMessages[0])
-		}
 		return workflowDataList, fmt.Errorf("compilation failed")
 	}
 
@@ -259,7 +259,12 @@ func compileAllFilesInDirectory(
 		if !fileResult.success {
 			errorCount++
 			stats.Errors++
-			trackWorkflowFailure(stats, file, 1)
+			// Collect error messages from validation result
+			var errMsgs []string
+			for _, verr := range fileResult.validationResult.Errors {
+				errMsgs = append(errMsgs, verr.Message)
+			}
+			trackWorkflowFailure(stats, file, 1, errMsgs)
 		} else {
 			successCount++
 			workflowDataList = append(workflowDataList, fileResult.workflowData)

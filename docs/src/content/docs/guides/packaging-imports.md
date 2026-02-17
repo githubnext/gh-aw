@@ -15,7 +15,7 @@ gh aw add githubnext/agentics/ci-doctor@v1.0.0       # with version
 gh aw add githubnext/agentics/workflows/ci-doctor.md # explicit path
 ```
 
-Use `--name`, `--pr`, `--force`, `--number`, `--engine`, or `--verbose` flags to customize installation. The `source` field is automatically added to workflow frontmatter for tracking origin and enabling updates.
+Use `--name`, `--pr`, `--force`, `--engine`, or `--verbose` flags to customize installation. The `source` field is automatically added to workflow frontmatter for tracking origin and enabling updates.
 
 ## Updating Workflows
 

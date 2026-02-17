@@ -318,17 +318,17 @@ describe("create_issue", () => {
       const handler = await main({});
       const result = await handler({ title: "Test" });
 
-      expect(result.temporaryId).toMatch(/^aw_[0-9a-f]{12}$/);
+      expect(result.temporaryId).toMatch(/^aw_[A-Za-z0-9]{3,8}$/);
     });
 
     it("should use provided temporary ID", async () => {
       const handler = await main({});
       const result = await handler({
         title: "Test",
-        temporary_id: "aw_abc123def456",
+        temporary_id: "aw_abc123",
       });
 
-      expect(result.temporaryId).toBe("aw_abc123def456");
+      expect(result.temporaryId).toBe("aw_abc123");
     });
 
     it("should track temporary ID after creating issue", async () => {
@@ -336,11 +336,11 @@ describe("create_issue", () => {
 
       const result = await handler({
         title: "Test Issue",
-        temporary_id: "aw_test123456",
+        temporary_id: "aw_deadbeef",
       });
 
       expect(result.success).toBe(true);
-      expect(result.temporaryId).toBe("aw_test123456");
+      expect(result.temporaryId).toBe("aw_deadbeef");
       expect(result.number).toBe(123);
     });
   });
@@ -388,6 +388,50 @@ describe("create_issue", () => {
 
       const createCall = mockGithub.rest.issues.create.mock.calls[0][0];
       expect(createCall.body).toContain("Related to #456");
+    });
+  });
+
+  describe("max limit enforcement", () => {
+    it("should enforce max limit on labels", async () => {
+      const handler = await main({});
+
+      const result = await handler({
+        title: "Test Issue",
+        body: "Test body",
+        labels: [
+          "label1",
+          "label2",
+          "label3",
+          "label4",
+          "label5",
+          "label6",
+          "label7",
+          "label8",
+          "label9",
+          "label10",
+          "label11", // 11th label exceeds limit
+        ],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("E003");
+      expect(result.error).toContain("Cannot add more than 10 labels");
+      expect(result.error).toContain("received 11");
+    });
+
+    it("should enforce max limit on assignees", async () => {
+      const handler = await main({});
+
+      const result = await handler({
+        title: "Test Issue",
+        body: "Test body",
+        assignees: ["user1", "user2", "user3", "user4", "user5", "user6"], // 6 assignees exceeds limit of 5
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("E003");
+      expect(result.error).toContain("Cannot add more than 5 assignees");
+      expect(result.error).toContain("received 6");
     });
   });
 });

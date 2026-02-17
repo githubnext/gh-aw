@@ -10,6 +10,8 @@ const { writeLargeContentToFile } = require("./write_large_content_to_file.cjs")
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { getBaseBranch } = require("./get_base_branch.cjs");
 const { generateGitPatch } = require("./generate_git_patch.cjs");
+const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
  * Create handlers for safe output tools
@@ -372,12 +374,38 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     };
   };
 
+  /**
+   * Handler for add_comment tool
+   * Per Safe Outputs Specification MCE1: Enforces constraints during tool invocation
+   * to provide immediate feedback to the LLM before recording to NDJSON
+   */
+  const addCommentHandler = args => {
+    // Validate comment constraints before appending to safe outputs
+    // This provides early feedback per Requirement MCE1 (Early Validation)
+    try {
+      const body = args.body || "";
+      enforceCommentLimits(body);
+    } catch (error) {
+      // Return validation error with specific constraint violation details
+      // Per Requirement MCE3 (Actionable Error Responses)
+      // Use JSON-RPC error code -32602 (Invalid params) per MCP specification
+      throw {
+        code: -32602,
+        message: getErrorMessage(error),
+      };
+    }
+
+    // If validation passes, record the operation using default handler
+    return defaultHandler("add_comment")(args);
+  };
+
   return {
     defaultHandler,
     uploadAssetHandler,
     createPullRequestHandler,
     pushToPullRequestBranchHandler,
     createProjectHandler,
+    addCommentHandler,
   };
 }
 

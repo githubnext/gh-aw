@@ -262,3 +262,124 @@ Do research.
 		t.Errorf("Result should NOT contain malformed path '%s' (the original bug)\nGot:\n%s", malformedPath, result)
 	}
 }
+
+func TestIsWorkflowSpecFormat(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected bool
+	}{
+		{
+			name:     "workflowspec with SHA",
+			path:     "owner/repo/path/file.md@abc123",
+			expected: true,
+		},
+		{
+			name:     "workflowspec with version tag",
+			path:     "owner/repo/file.md@v1.0.0",
+			expected: true,
+		},
+		{
+			name:     "workflowspec without version - NOT a workflowspec",
+			path:     "owner/repo/path/file.md",
+			expected: false, // Without @, it's not detected as a workflowspec
+		},
+		{
+			name:     "three-part relative path - NOT a workflowspec",
+			path:     "shared/mcp/arxiv.md",
+			expected: false, // Local path, not a workflowspec
+		},
+		{
+			name:     "two-part relative path",
+			path:     "shared/file.md",
+			expected: false,
+		},
+		{
+			name:     "relative path with ./",
+			path:     "./shared/file.md",
+			expected: false,
+		},
+		{
+			name:     "absolute path",
+			path:     "/shared/file.md",
+			expected: false,
+		},
+		{
+			name:     "workflowspec with section and version",
+			path:     "owner/repo/path/file.md@sha#section",
+			expected: true,
+		},
+		{
+			name:     "simple filename",
+			path:     "file.md",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isWorkflowSpecFormat(tt.path)
+			if result != tt.expected {
+				t.Errorf("isWorkflowSpecFormat(%q) = %v, want %v", tt.path, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestProcessImportsWithWorkflowSpec_ThreePartPath(t *testing.T) {
+	// Test that three-part paths like "shared/mcp/arxiv.md" are correctly converted
+	// to workflowspecs, not skipped as if they were already workflowspecs
+	content := `---
+engine: copilot
+imports:
+  - shared/mcp/arxiv.md
+  - shared/mood.md
+  - shared/mcp/brave.md
+---
+
+# Test Workflow
+
+Test content.
+`
+
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "main",
+		},
+		WorkflowPath: ".github/workflows/test-workflow.md",
+	}
+
+	commitSHA := "abc123def456"
+
+	result, err := processImportsWithWorkflowSpec(content, workflow, commitSHA, false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// All imports should be converted to workflowspecs with the commit SHA
+	expectedImports := []string{
+		"github/gh-aw/.github/workflows/shared/mcp/arxiv.md@abc123def456",
+		"github/gh-aw/.github/workflows/shared/mood.md@abc123def456",
+		"github/gh-aw/.github/workflows/shared/mcp/brave.md@abc123def456",
+	}
+
+	for _, expected := range expectedImports {
+		if !strings.Contains(result, expected) {
+			t.Errorf("Expected result to contain '%s'\nGot:\n%s", expected, result)
+		}
+	}
+
+	// The original paths should NOT appear unchanged
+	unchangedPaths := []string{
+		"- shared/mcp/arxiv.md",
+		"- shared/mood.md",
+		"- shared/mcp/brave.md",
+	}
+
+	for _, unchanged := range unchangedPaths {
+		if strings.Contains(result, unchanged) {
+			t.Errorf("Did not expect result to contain unchanged path '%s'\nGot:\n%s", unchanged, result)
+		}
+	}
+}

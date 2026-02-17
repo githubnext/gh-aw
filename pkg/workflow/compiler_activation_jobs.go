@@ -56,6 +56,14 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		perms.Set(PermissionDiscussions, PermissionWrite)
 	}
 
+	// Add actions: read permission if rate limiting is configured (needed to query workflow runs)
+	if data.RateLimit != nil {
+		if perms == nil {
+			perms = NewPermissions()
+		}
+		perms.Set(PermissionActions, PermissionRead)
+	}
+
 	// Set permissions if any were configured
 	if perms != nil {
 		permissions = perms.RenderToYAML()
@@ -87,6 +95,11 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	// Add team member check if permission checks are needed
 	if needsPermissionCheck {
 		steps = c.generateMembershipCheck(data, steps)
+	}
+
+	// Add rate limit check if configured
+	if data.RateLimit != nil {
+		steps = c.generateRateLimitCheck(data, steps)
 	}
 
 	// Add stop-time check if configured
@@ -139,6 +152,39 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("check_skip_if_no_match.cjs"))
+	}
+
+	// Add skip-roles check if configured
+	if len(data.SkipRoles) > 0 {
+		// Extract workflow name for the skip-roles check
+		workflowName := data.Name
+
+		steps = append(steps, "      - name: Check skip-roles\n")
+		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckSkipRolesStepID))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_ROLES: %s\n", strings.Join(data.SkipRoles, ",")))
+		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          github-token: ${{ secrets.GITHUB_TOKEN }}\n")
+		steps = append(steps, "          script: |\n")
+		steps = append(steps, generateGitHubScriptWithRequire("check_skip_roles.cjs"))
+	}
+
+	// Add skip-bots check if configured
+	if len(data.SkipBots) > 0 {
+		// Extract workflow name for the skip-bots check
+		workflowName := data.Name
+
+		steps = append(steps, "      - name: Check skip-bots\n")
+		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckSkipBotsStepID))
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GH_AW_SKIP_BOTS: %s\n", strings.Join(data.SkipBots, ",")))
+		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+		steps = append(steps, generateGitHubScriptWithRequire("check_skip_bots.cjs"))
 	}
 
 	// Add command position check if this is a command workflow
@@ -205,6 +251,36 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			BuildStringLiteral("true"),
 		)
 		conditions = append(conditions, skipNoMatchCheckOk)
+	}
+
+	if len(data.SkipRoles) > 0 {
+		// Add skip-roles check condition
+		skipRolesCheckOk := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckSkipRolesStepID, constants.SkipRolesOkOutput)),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, skipRolesCheckOk)
+	}
+
+	if len(data.SkipBots) > 0 {
+		// Add skip-bots check condition
+		skipBotsCheckOk := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckSkipBotsStepID, constants.SkipBotsOkOutput)),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, skipBotsCheckOk)
+	}
+
+	if data.RateLimit != nil {
+		// Add rate limit check condition
+		rateLimitCheck := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckRateLimitStepID, constants.RateLimitOkOutput)),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, rateLimitCheck)
 	}
 
 	if len(data.Command) > 0 {
@@ -383,6 +459,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Activation job doesn't need project support (no safe outputs processed here)
 	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
 
+	// Checkout .github and .agents folders for accessing workflow configurations and runtime imports
+	// This is needed for prompt generation which may reference runtime imports from .github folder
+	// Always add this checkout in activation job since it needs access to workflow files for runtime imports
+	checkoutSteps := c.generateCheckoutGitHubFolderForActivation(data)
+	steps = append(steps, checkoutSteps...)
+
 	// Add timestamp check for lock file vs source file using GitHub API
 	// No checkout step needed - uses GitHub API to check commit times
 	steps = append(steps, "      - name: Check workflow file timestamps\n")
@@ -393,22 +475,33 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	steps = append(steps, "          script: |\n")
 	steps = append(steps, generateGitHubScriptWithRequire("check_workflow_timestamp_api.cjs"))
 
-	// Use inlined compute-text script only if needed (no shared action)
+	// Generate sanitized text/title/body outputs if needed
+	// This step computes sanitized versions of the triggering content (issue/PR/comment text, title, body)
+	// and makes them available as step outputs.
+	//
+	// IMPORTANT: These outputs are referenced as steps.sanitized.outputs.{text|title|body} in the activation job.
+	// The compiler automatically transforms markdown expressions like needs.activation.outputs.text to
+	// steps.sanitized.outputs.text because a job cannot reference its own needs.* outputs in GitHub Actions.
+	// See pkg/workflow/expression_extraction.go::transformActivationOutputs() for the transformation logic.
 	if data.NeedsTextOutput {
 		steps = append(steps, "      - name: Compute current body text\n")
-		steps = append(steps, "        id: compute-text\n")
+		steps = append(steps, "        id: sanitized\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("compute_text.cjs"))
 
-		// Set up outputs
-		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
+		// Set up outputs - includes text, title, and body
+		// These are exposed as needs.activation.outputs.* for downstream jobs
+		// but within the activation job itself, they must be referenced as steps.sanitized.outputs.*
+		outputs["text"] = "${{ steps.sanitized.outputs.text }}"
+		outputs["title"] = "${{ steps.sanitized.outputs.title }}"
+		outputs["body"] = "${{ steps.sanitized.outputs.body }}"
 	}
 
-	// Add comment with workflow run link if ai-reaction is configured and not "none"
+	// Add comment with workflow run link if status comments are explicitly enabled
 	// Note: The reaction was already added in the pre-activation job for immediate feedback
-	if data.AIReaction != "" && data.AIReaction != "none" {
+	if data.StatusComment != nil && *data.StatusComment {
 		reactionCondition := BuildReactionCondition()
 
 		steps = append(steps, "      - name: Add comment with workflow run link\n")
@@ -561,6 +654,20 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		activationCondition = c.combineJobIfConditions(activationCondition, workflowRunRepoSafety)
 	}
 
+	// Generate prompt in the activation job (before agent job runs)
+	compilerActivationJobsLog.Print("Generating prompt in activation job")
+	c.generatePromptInActivationJob(&steps, data)
+
+	// Upload prompt.txt as an artifact for the agent job to download
+	compilerActivationJobsLog.Print("Adding prompt artifact upload step")
+	steps = append(steps, "      - name: Upload prompt artifact\n")
+	steps = append(steps, "        if: success()\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          name: prompt\n")
+	steps = append(steps, "          path: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	steps = append(steps, "          retention-days: 1\n")
+
 	// Set permissions - activation job always needs contents:read for GitHub API access
 	// Also add reaction permissions if reaction is configured and not "none"
 	// Also add issues:write permission if lock-for-agent is enabled (for locking issues)
@@ -621,9 +728,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
 	}
 
-	// Checkout .github folder for agent job to access workflow configurations and runtime imports
-	// This works in all modes including release mode where actions aren't checked out
-	steps = append(steps, c.generateCheckoutGitHubFolder(data)...)
+	// Checkout .github folder is now done in activation job (before prompt generation)
+	// This ensures the activation job has access to .github and .agents folders for runtime imports
 
 	// Find custom jobs that depend on pre_activation - these are handled by the activation job
 	customJobsBeforeActivation := c.getCustomJobsDependingOnPreActivation(data.Jobs)
@@ -786,6 +892,17 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		env["DEFAULT_BRANCH"] = "${{ github.event.repository.default_branch }}"
 	}
 
+	// Set GH_AW_WORKFLOW_ID_SANITIZED for cache-memory keys
+	// This contains the workflow ID with all hyphens removed and lowercased
+	// Used in cache keys to avoid spaces and special characters
+	if data.WorkflowID != "" {
+		if env == nil {
+			env = make(map[string]string)
+		}
+		sanitizedID := SanitizeWorkflowIDForCacheKey(data.WorkflowID)
+		env["GH_AW_WORKFLOW_ID_SANITIZED"] = sanitizedID
+	}
+
 	// Generate agent concurrency configuration
 	agentConcurrency := GenerateJobConcurrencyConfig(data)
 
@@ -824,4 +941,61 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	}
 
 	return job, nil
+}
+
+// generatePromptInActivationJob generates the prompt creation steps and adds them to the activation job
+// This creates the prompt.txt file that will be uploaded as an artifact and downloaded by the agent job
+func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *WorkflowData) {
+	compilerActivationJobsLog.Print("Generating prompt steps in activation job")
+
+	// Use a string builder to collect the YAML
+	var yaml strings.Builder
+
+	// Call the existing generatePrompt method to get all the prompt steps
+	c.generatePrompt(&yaml, data)
+
+	// Append the generated YAML content as a single string to steps
+	yamlContent := yaml.String()
+	*steps = append(*steps, yamlContent)
+
+	compilerActivationJobsLog.Print("Prompt generation steps added to activation job")
+}
+
+// generateCheckoutGitHubFolderForActivation generates the checkout step for .github and .agents folders
+// specifically for the activation job. Unlike generateCheckoutGitHubFolder, this method doesn't skip
+// the checkout when the agent job will have a full repository checkout, because the activation job
+// runs before the agent job and needs independent access to workflow files for runtime imports during
+// prompt generation.
+func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData) []string {
+	// Check if action-tag is specified - if so, skip checkout
+	if data != nil && data.Features != nil {
+		if actionTagVal, exists := data.Features["action-tag"]; exists {
+			if actionTagStr, ok := actionTagVal.(string); ok && actionTagStr != "" {
+				// action-tag is set, no checkout needed
+				compilerActivationJobsLog.Print("Skipping .github checkout in activation: action-tag specified")
+				return nil
+			}
+		}
+	}
+
+	// Check if we have contents permission - without it, checkout is not possible
+	permParser := NewPermissionsParser(data.Permissions)
+	if !permParser.HasContentsReadAccess() {
+		compilerActivationJobsLog.Print("Skipping .github checkout in activation: no contents read access")
+		return nil
+	}
+
+	// For activation job, always add sparse checkout of .github and .agents folders
+	// This is needed for runtime imports during prompt generation
+	compilerActivationJobsLog.Print("Adding .github and .agents sparse checkout in activation job")
+	return []string{
+		"      - name: Checkout .github and .agents folders\n",
+		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")),
+		"        with:\n",
+		"          sparse-checkout: |\n",
+		"            .github\n",
+		"            .agents\n",
+		"          fetch-depth: 1\n",
+		"          persist-credentials: false\n",
+	}
 }

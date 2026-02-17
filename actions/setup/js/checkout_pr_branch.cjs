@@ -18,6 +18,11 @@
  * 3. Other PR events (issue_comment, pull_request_review, etc.):
  *    - Also run in base repository context
  *    - Must use `gh pr checkout` to get PR branch
+ *
+ * NOTE: This handler operates within the PR context from the workflow event
+ * and does not support cross-repository operations or target-repo parameters.
+ * No allowlist validation (checkAllowedRepo/validateTargetRepo) is needed as
+ * it only works with the PR from the triggering event.
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");

@@ -466,3 +466,45 @@ func TestJobDependencies(t *testing.T) {
 		})
 	}
 }
+
+// TestGitHubAppWithPushToPRBranch tests that GitHub App token step is not duplicated
+// when both app and push-to-pull-request-branch are configured
+// Regression test for duplicate step bug reported in issue
+func TestGitHubAppWithPushToPRBranch(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			App: &GitHubAppConfig{
+				AppID:      "${{ vars.ACTIONS_APP_ID }}",
+				PrivateKey: "${{ secrets.ACTIONS_PRIVATE_KEY }}",
+			},
+			PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, string(constants.AgentJobName), "test.md")
+
+	require.NoError(t, err, "Should successfully build job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsContent := strings.Join(job.Steps, "")
+
+	// Should include app token minting step exactly once
+	tokenMintCount := strings.Count(stepsContent, "Generate GitHub App token")
+	assert.Equal(t, 1, tokenMintCount, "App token minting step should appear exactly once, found %d times", tokenMintCount)
+
+	// Should include app token invalidation step exactly once
+	tokenInvalidateCount := strings.Count(stepsContent, "Invalidate GitHub App token")
+	assert.Equal(t, 1, tokenInvalidateCount, "App token invalidation step should appear exactly once, found %d times", tokenInvalidateCount)
+
+	// Token step should come before checkout step (checkout references the token)
+	tokenIndex := strings.Index(stepsContent, "Generate GitHub App token")
+	checkoutIndex := strings.Index(stepsContent, "Checkout repository")
+	assert.Less(t, tokenIndex, checkoutIndex, "Token minting step should come before checkout step")
+
+	// Verify step ID is set correctly
+	assert.Contains(t, stepsContent, "id: safe-outputs-app-token")
+}

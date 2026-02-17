@@ -16,6 +16,8 @@ const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
 const { setCollectedMissings } = require("./missing_messages_helper.cjs");
 const { writeSafeOutputSummaries } = require("./safe_output_summary.cjs");
 const { getIssuesToAssignCopilot } = require("./create_issue.cjs");
+const { createReviewBuffer } = require("./pr_review_buffer.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * Handler map configuration
@@ -34,6 +36,9 @@ const HANDLER_MAP = {
   link_sub_issue: "./link_sub_issue.cjs",
   update_release: "./update_release.cjs",
   create_pull_request_review_comment: "./create_pr_review_comment.cjs",
+  submit_pull_request_review: "./submit_pr_review.cjs",
+  reply_to_pull_request_review_comment: "./reply_to_pr_review_comment.cjs",
+  resolve_pull_request_review_thread: "./resolve_pr_review_thread.cjs",
   create_pull_request: "./create_pull_request.cjs",
   push_to_pull_request_branch: "./push_to_pull_request_branch.cjs",
   update_pull_request: "./update_pull_request.cjs",
@@ -43,6 +48,7 @@ const HANDLER_MAP = {
   add_reviewer: "./add_reviewer.cjs",
   assign_milestone: "./assign_milestone.cjs",
   assign_to_user: "./assign_to_user.cjs",
+  unassign_from_user: "./unassign_from_user.cjs",
   create_code_scanning_alert: "./create_code_scanning_alert.cjs",
   autofix_code_scanning_alert: "./autofix_code_scanning_alert.cjs",
   dispatch_workflow: "./dispatch_workflow.cjs",
@@ -85,13 +91,17 @@ function loadConfig() {
   }
 }
 
+/** @type {Set<string>} Handler types that participate in the PR review buffer */
+const PR_REVIEW_HANDLER_TYPES = new Set(["create_pull_request_review_comment", "submit_pull_request_review"]);
+
 /**
  * Load and initialize handlers for enabled safe output types
  * Calls each handler's factory function (main) to get message processors
  * @param {Object} config - Safe outputs configuration
+ * @param {Object} prReviewBuffer - Shared PR review buffer instance
  * @returns {Promise<Map<string, Function>>} Map of type to message handler function
  */
-async function loadHandlers(config) {
+async function loadHandlers(config, prReviewBuffer) {
   const messageHandlers = new Map();
 
   core.info("Loading and initializing safe output handlers based on configuration...");
@@ -104,7 +114,13 @@ async function loadHandlers(config) {
         const handlerModule = require(handlerPath);
         if (handlerModule && typeof handlerModule.main === "function") {
           // Call the factory function with config to get the message handler
-          const handlerConfig = config[type] || {};
+          const handlerConfig = { ...(config[type] || {}) };
+
+          // Inject shared PR review buffer into handlers that need it
+          if (PR_REVIEW_HANDLER_TYPES.has(type)) {
+            handlerConfig._prReviewBuffer = prReviewBuffer;
+          }
+
           const messageHandler = await handlerModule.main(handlerConfig);
 
           if (typeof messageHandler !== "function") {
@@ -264,7 +280,7 @@ async function processMessages(messageHandlers, messages) {
       const tempIdMapSizeBefore = temporaryIdMap.size;
 
       // Call the message handler with the individual message and resolved temp IDs
-      const result = await messageHandler(message, resolvedTemporaryIds);
+      const result = await messageHandler(message, resolvedTemporaryIds, temporaryIdMap);
 
       // Check if the handler explicitly returned a failure
       if (result && result.success === false && !result.deferred) {
@@ -386,7 +402,7 @@ async function processMessages(messageHandlers, messages) {
         const tempIdMapSizeBefore = temporaryIdMap.size;
 
         // Call the handler again with updated temp ID map
-        const result = await deferred.handler(deferred.message, resolvedTemporaryIds);
+        const result = await deferred.handler(deferred.message, resolvedTemporaryIds, temporaryIdMap);
 
         // Check if the handler explicitly returned a failure
         if (result && result.success === false && !result.deferred) {
@@ -509,7 +525,7 @@ async function updateIssueBody(github, context, repo, issueNumber, updatedBody) 
     owner,
     repo: repoName,
     issue_number: issueNumber,
-    body: updatedBody,
+    body: sanitizeContent(updatedBody),
   });
 
   core.info(`✓ Updated issue ${repo}#${issueNumber}`);
@@ -562,7 +578,7 @@ async function updateDiscussionBody(github, context, repo, discussionNumber, upd
 
   await github.graphql(mutation, {
     discussionId,
-    body: updatedBody,
+    body: sanitizeContent(updatedBody),
   });
 
   core.info(`✓ Updated discussion ${repo}#${discussionNumber}`);
@@ -583,6 +599,8 @@ async function updateCommentBody(github, context, repo, commentId, updatedBody, 
 
   core.info(`Updating comment ${commentId} body with resolved temporary IDs`);
 
+  const sanitizedBody = sanitizeContent(updatedBody);
+
   if (isDiscussion) {
     // For discussion comments, we need to use GraphQL
     // Get the comment node ID first
@@ -598,7 +616,7 @@ async function updateCommentBody(github, context, repo, commentId, updatedBody, 
 
     await github.graphql(mutation, {
       commentId,
-      body: updatedBody,
+      body: sanitizedBody,
     });
   } else {
     // For issue/PR comments, use REST API
@@ -606,7 +624,7 @@ async function updateCommentBody(github, context, repo, commentId, updatedBody, 
       owner,
       repo: repoName,
       comment_id: commentId,
-      body: updatedBody,
+      body: sanitizedBody,
     });
   }
 
@@ -721,8 +739,24 @@ async function main() {
 
     core.info(`Found ${agentOutput.items.length} message(s) in agent output`);
 
+    // Create the shared PR review buffer instance (no global state)
+    const prReviewBuffer = createReviewBuffer();
+
+    // Apply footer config with priority:
+    // 1. submit_pull_request_review.footer (highest priority — footer controls review body)
+    // 2. Default: "always"
+    let footerConfig = undefined;
+    if (config.submit_pull_request_review?.footer !== undefined) {
+      footerConfig = config.submit_pull_request_review.footer;
+      core.info(`Using footer config from submit_pull_request_review: ${footerConfig}`);
+    }
+
+    if (footerConfig !== undefined) {
+      prReviewBuffer.setFooterMode(footerConfig);
+    }
+
     // Load and initialize handlers based on configuration (factory pattern)
-    const messageHandlers = await loadHandlers(config);
+    const messageHandlers = await loadHandlers(config, prReviewBuffer);
 
     if (messageHandlers.size === 0) {
       core.info("No handlers loaded - nothing to process");
@@ -734,6 +768,28 @@ async function main() {
 
     // Process all messages in order of appearance
     const processingResult = await processMessages(messageHandlers, agentOutput.items);
+
+    // Finalize buffered PR review — submit when comments or metadata exist
+    if (prReviewBuffer.hasBufferedComments() || prReviewBuffer.hasReviewMetadata()) {
+      core.info(`\n=== Finalizing PR Review ===`);
+      const bufferedCount = prReviewBuffer.getBufferedCount();
+      if (bufferedCount > 0) {
+        core.info(`Submitting ${bufferedCount} buffered review comment(s) as a single PR review`);
+      } else {
+        core.info("Submitting PR review (body-only, no inline comments)");
+      }
+      try {
+        const reviewResult = await prReviewBuffer.submitReview();
+        if (reviewResult.success && !reviewResult.skipped) {
+          core.info(`✓ PR review submitted successfully: ${reviewResult.review_url}`);
+        } else if (!reviewResult.success) {
+          core.warning(`✗ Failed to submit PR review: ${reviewResult.error}`);
+        }
+      } catch (reviewError) {
+        const errorMessage = reviewError instanceof Error ? reviewError.message : String(reviewError);
+        core.warning(`✗ Exception while submitting PR review: ${errorMessage}`);
+      }
+    }
 
     // Store collected missings in helper module for handlers to access
     if (processingResult.missings) {

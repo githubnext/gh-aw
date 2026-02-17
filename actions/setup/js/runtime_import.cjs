@@ -116,18 +116,52 @@ const ALLOWED_EXPRESSIONS = [
 function isSafeExpression(expr) {
   const trimmed = expr.trim();
 
+  // Block dangerous JavaScript built-in property names
+  const DANGEROUS_PROPS = [
+    "constructor",
+    "__proto__",
+    "prototype",
+    "__defineGetter__",
+    "__defineSetter__",
+    "__lookupGetter__",
+    "__lookupSetter__",
+    "hasOwnProperty",
+    "isPrototypeOf",
+    "propertyIsEnumerable",
+    "toString",
+    "valueOf",
+    "toLocaleString",
+  ];
+
+  // Split expression into parts and check each for dangerous properties
+  // Handle both dot notation (e.g., "github.event.issue") and bracket notation (e.g., "release.assets[0].id")
+  const parts = trimmed.split(/[.\[\]]+/).filter(p => p && !/^\d+$/.test(p));
+
+  for (const part of parts) {
+    if (DANGEROUS_PROPS.includes(part)) {
+      return false; // Block dangerous property
+    }
+  }
+
   // Check exact match in allowed list
   if (ALLOWED_EXPRESSIONS.includes(trimmed)) {
     return true;
   }
 
   // Check if it matches dynamic patterns:
-  // - needs.* and steps.* (job dependencies and step outputs)
+  // - needs.* and steps.* (job dependencies and step outputs) - max depth 5 levels
   // - github.event.inputs.* (workflow_dispatch inputs)
   // - github.aw.inputs.* (shared workflow inputs)
   // - inputs.* (workflow_call inputs)
   // - env.* (environment variables)
-  const dynamicPatterns = [/^(needs|steps)\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$/, /^github\.event\.inputs\.[a-zA-Z0-9_-]+$/, /^github\.aw\.inputs\.[a-zA-Z0-9_-]+$/, /^inputs\.[a-zA-Z0-9_-]+$/, /^env\.[a-zA-Z0-9_-]+$/];
+  // Limit nesting depth to max 5 levels to prevent deep traversal attacks
+  const dynamicPatterns = [
+    /^(needs|steps)\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+){0,2}$/, // Max depth: needs.job.outputs.foo.bar (5 levels)
+    /^github\.event\.inputs\.[a-zA-Z0-9_-]+$/,
+    /^github\.aw\.inputs\.[a-zA-Z0-9_-]+$/,
+    /^inputs\.[a-zA-Z0-9_-]+$/,
+    /^env\.[a-zA-Z0-9_-]+$/,
+  ];
 
   for (const pattern of dynamicPatterns) {
     if (pattern.test(trimmed)) {
@@ -151,12 +185,36 @@ function isSafeExpression(expr) {
 
     // Check if right side is a literal string (single, double, or backtick quotes)
     const isStringLiteral = /^(['"`]).*\1$/.test(rightExpr);
+    if (isStringLiteral) {
+      // Validate string literal content for security
+      const contentMatch = rightExpr.match(/^(['"`])(.+)\1$/);
+      if (contentMatch) {
+        const content = contentMatch[2];
+
+        // Reject nested expressions
+        if (content.includes("${{") || content.includes("}}")) {
+          return false;
+        }
+
+        // Reject escape sequences that could hide keywords
+        if (/\\[xu][\da-fA-F]/.test(content) || /\\[0-7]{1,3}/.test(content)) {
+          return false;
+        }
+
+        // Reject zero-width characters
+        if (/[\u200B-\u200D\uFEFF]/.test(content)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
     // Check if right side is a number literal
     const isNumberLiteral = /^-?\d+(\.\d+)?$/.test(rightExpr);
     // Check if right side is a boolean literal
     const isBooleanLiteral = rightExpr === "true" || rightExpr === "false";
 
-    if (isStringLiteral || isNumberLiteral || isBooleanLiteral) {
+    if (isNumberLiteral || isBooleanLiteral) {
       return true;
     }
 
@@ -196,7 +254,9 @@ function evaluateExpression(expr) {
     // If right side is a literal, extract and return it
     const stringLiteralMatch = rightExpr.match(/^(['"`])(.+)\1$/);
     if (stringLiteralMatch) {
-      return stringLiteralMatch[2]; // Return the literal value without quotes
+      const content = stringLiteralMatch[2];
+      // Neutralize any expression markers
+      return content.replace(/\$/g, "\\$").replace(/\{/g, "\\{");
     }
 
     // If right side is a number or boolean literal, return it
@@ -245,8 +305,13 @@ function evaluateExpression(expr) {
         inputs: context.payload?.inputs || {},
       };
 
+      // Freeze the evaluation context to prevent modification
+      Object.freeze(evalContext);
+      Object.freeze(evalContext.github);
+
       // Parse property access (e.g., "github.actor" -> ["github", "actor"])
       const parts = trimmed.split(".");
+      /** @type {any} */
       let value = evalContext;
 
       for (const part of parts) {
@@ -255,9 +320,27 @@ function evaluateExpression(expr) {
         if (arrayMatch) {
           const key = arrayMatch[1];
           const index = parseInt(arrayMatch[2], 10);
-          value = value?.[key]?.[index];
+          // Use Object.prototype.hasOwnProperty.call() to prevent prototype chain access
+          if (value && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, key)) {
+            const arrayValue = value[key];
+            if (Array.isArray(arrayValue) && index >= 0 && index < arrayValue.length) {
+              value = arrayValue[index];
+            } else {
+              value = undefined;
+              break;
+            }
+          } else {
+            value = undefined;
+            break;
+          }
         } else {
-          value = value?.[part];
+          // Use Object.prototype.hasOwnProperty.call() to prevent prototype chain access
+          if (value && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, part)) {
+            value = value[part];
+          } else {
+            value = undefined;
+            break;
+          }
         }
 
         if (value === undefined || value === null) {
@@ -630,34 +713,68 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
 
   // Otherwise, process as a file
   let filepath = filepathOrUrl;
+  let isAgentsPath = false;
 
-  // Trim .github/ prefix if provided (support both .github/file and file)
-  // This allows users to use either format
-  if (filepath.startsWith(".github/")) {
+  // Check if this is a .agents/ path (top-level folder for skills)
+  if (filepath.startsWith(".agents/")) {
+    isAgentsPath = true;
+    // Keep .agents/ as is - it's a top-level folder at workspace root
+  } else if (filepath.startsWith(".agents\\")) {
+    isAgentsPath = true;
+    // Keep .agents\ as is - it's a top-level folder at workspace root (Windows)
+  } else if (filepath.startsWith(".github/")) {
+    // Trim .github/ prefix if provided (support both .github/file and file)
     filepath = filepath.substring(8); // Remove ".github/"
   } else if (filepath.startsWith(".github\\")) {
     filepath = filepath.substring(8); // Remove ".github\" (Windows)
+  } else {
+    // If path doesn't start with .github or .agents, prefix with workflows/
+    // This makes imports like "a.md" resolve to ".github/workflows/a.md"
+    filepath = path.join("workflows", filepath);
   }
 
-  // Remove leading ./ or ../ if present
-  if (filepath.startsWith("./")) {
-    filepath = filepath.substring(2);
-  } else if (filepath.startsWith(".\\")) {
-    filepath = filepath.substring(2);
+  // Remove leading ./ or ../ if present (only for non-agents paths)
+  if (!isAgentsPath) {
+    if (filepath.startsWith("./")) {
+      filepath = filepath.substring(2);
+    } else if (filepath.startsWith(".\\")) {
+      filepath = filepath.substring(2);
+    }
   }
-  // Note: We don't allow ../ paths as they would escape .github folder
+  // Note: We don't allow ../ paths as they would escape the base folder
 
-  // Construct the path within .github folder
-  const githubFolder = path.join(workspaceDir, ".github");
-  const absolutePath = path.resolve(githubFolder, filepath);
-  const normalizedPath = path.normalize(absolutePath);
-  const normalizedGithubFolder = path.normalize(githubFolder);
+  // Construct the absolute path - .agents paths are relative to workspace root, others to .github
+  let absolutePath, normalizedPath, baseFolder, normalizedBaseFolder;
 
-  // Security check: ensure the resolved path is within the .github folder
-  // Use path.relative to check if the path escapes the .github folder
-  const relativePath = path.relative(normalizedGithubFolder, normalizedPath);
-  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-    throw new Error(`Security: Path ${filepathOrUrl} must be within .github folder (resolves to: ${relativePath})`);
+  if (isAgentsPath) {
+    // .agents/ paths resolve to top-level .agents folder at workspace root
+    baseFolder = workspaceDir;
+    absolutePath = path.resolve(workspaceDir, filepath);
+    normalizedPath = path.normalize(absolutePath);
+    normalizedBaseFolder = path.normalize(baseFolder);
+
+    // Security check: ensure the resolved path is within the workspace
+    const relativePath = path.relative(normalizedBaseFolder, normalizedPath);
+    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+      throw new Error(`Security: Path ${filepathOrUrl} must be within workspace (resolves to: ${relativePath})`);
+    }
+    // Additional check: ensure path stays within .agents folder
+    if (!relativePath.startsWith(".agents" + path.sep) && relativePath !== ".agents") {
+      throw new Error(`Security: Path ${filepathOrUrl} must be within .agents folder`);
+    }
+  } else {
+    // Regular paths resolve within .github folder
+    const githubFolder = path.join(workspaceDir, ".github");
+    baseFolder = githubFolder;
+    absolutePath = path.resolve(githubFolder, filepath);
+    normalizedPath = path.normalize(absolutePath);
+    normalizedBaseFolder = path.normalize(githubFolder);
+
+    // Security check: ensure the resolved path is within the .github folder
+    const relativePath = path.relative(normalizedBaseFolder, normalizedPath);
+    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+      throw new Error(`Security: Path ${filepathOrUrl} must be within .github folder (resolves to: ${relativePath})`);
+    }
   }
 
   // Check if file exists

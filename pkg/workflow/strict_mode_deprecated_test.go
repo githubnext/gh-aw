@@ -17,7 +17,7 @@ func TestStrictModeDeprecatedFields(t *testing.T) {
 		errorMsg    string
 	}{
 		{
-			name: "deprecated timeout_minutes field refused in strict mode",
+			name: "removed timeout_minutes field rejected (unknown property)",
 			content: `---
 on: push
 permissions:
@@ -28,12 +28,12 @@ timeout_minutes: 10
 engine: copilot
 network:
   allowed:
-    - "api.example.com"
+    - defaults
 ---
 
 # Test Workflow`,
 			expectError: true,
-			errorMsg:    "deprecated fields are not allowed",
+			errorMsg:    "Unknown property: timeout_minutes",
 		},
 		{
 			name: "non-deprecated timeout-minutes field allowed in strict mode",
@@ -47,14 +47,14 @@ timeout-minutes: 10
 engine: copilot
 network:
   allowed:
-    - "api.example.com"
+    - defaults
 ---
 
 # Test Workflow`,
 			expectError: false,
 		},
 		{
-			name: "deprecated field allowed in non-strict mode",
+			name: "removed field rejected even in non-strict mode",
 			content: `---
 on: push
 permissions:
@@ -65,7 +65,8 @@ strict: false
 ---
 
 # Test Workflow`,
-			expectError: false,
+			expectError: true,
+			errorMsg:    "Unknown property: timeout_minutes",
 		},
 	}
 
@@ -115,7 +116,7 @@ timeout_minutes: 10
 engine: copilot
 network:
   allowed:
-    - "api.example.com"
+    - defaults
 ---
 
 # Test Workflow`
@@ -142,9 +143,9 @@ network:
 	errorMsg := err.Error()
 
 	// Check that error message includes:
-	// 1. Mentions deprecated fields
-	if !strings.Contains(errorMsg, "deprecated") {
-		t.Errorf("Error message should mention 'deprecated': %s", errorMsg)
+	// 1. Mentions unknown property (timeout_minutes has been removed from schema)
+	if !strings.Contains(errorMsg, "Unknown property") {
+		t.Errorf("Error message should mention 'Unknown property': %s", errorMsg)
 	}
 
 	// 2. Mentions the specific field

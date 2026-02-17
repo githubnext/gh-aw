@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -44,6 +45,7 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 		yaml.WriteString("          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes\n")
 		yaml.WriteString("          - **Merge Strategy**: In case of conflicts, your changes (current version) win\n")
 		yaml.WriteString("          - **Persistence**: Files persist across workflow runs via git branch storage\n")
+		yaml.WriteString("          - **Allowed File Types**: Only the following file extensions are allowed: `.json`, `.jsonl`, `.txt`, `.md`, `.csv`. Files with other extensions will be rejected during validation.\n")
 
 		// Add file constraints if specified
 		if len(memory.FileGlob) > 0 || memory.MaxFileSize > 0 || memory.MaxFileCount > 0 {
@@ -63,10 +65,13 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 		yaml.WriteString("          \n")
 		yaml.WriteString("          Examples of what you can store:\n")
 		fmt.Fprintf(yaml, "          - `%snotes.md` - general notes and observations\n", memoryDir)
+		fmt.Fprintf(yaml, "          - `%snotes.txt` - plain text notes\n", memoryDir)
 		fmt.Fprintf(yaml, "          - `%sstate.json` - structured state data\n", memoryDir)
-		fmt.Fprintf(yaml, "          - `%shistory/` - organized history files in subdirectories\n", memoryDir)
+		fmt.Fprintf(yaml, "          - `%shistory.jsonl` - activity history in JSON Lines format\n", memoryDir)
+		fmt.Fprintf(yaml, "          - `%sdata.csv` - tabular data\n", memoryDir)
+		fmt.Fprintf(yaml, "          - `%shistory/` - organized history files in subdirectories (with allowed file types)\n", memoryDir)
 		yaml.WriteString("          \n")
-		yaml.WriteString("          Feel free to create, read, update, and organize files in this folder as needed for your tasks.\n")
+		yaml.WriteString("          Feel free to create, read, update, and organize files in this folder as needed for your tasks, using only the allowed file types.\n")
 	} else {
 		// Multiple memories or non-default single memory
 		repoMemoryPromptLog.Printf("Generating multiple repo memory prompts: count=%d", len(config.Memories))
@@ -92,13 +97,52 @@ func generateRepoMemoryPromptSection(yaml *strings.Builder, config *RepoMemoryCo
 		yaml.WriteString("          - **Automatic Push**: Changes are automatically committed and pushed after the workflow completes\n")
 		yaml.WriteString("          - **Merge Strategy**: In case of conflicts, your changes (current version) win\n")
 		yaml.WriteString("          - **Persistence**: Files persist across workflow runs via git branch storage\n")
+		// Build allowed extensions text - check if all memories have the same extensions
+		allowedExtsText := strings.Join(config.Memories[0].AllowedExtensions, "`, `")
+		allSame := true
+		for i := 1; i < len(config.Memories); i++ {
+			if len(config.Memories[i].AllowedExtensions) != len(config.Memories[0].AllowedExtensions) {
+				allSame = false
+				break
+			}
+			for j, ext := range config.Memories[i].AllowedExtensions {
+				if ext != config.Memories[0].AllowedExtensions[j] {
+					allSame = false
+					break
+				}
+			}
+			if !allSame {
+				break
+			}
+		}
+
+		// If not all the same, build a union of all extensions
+		if !allSame {
+			extensionSet := make(map[string]bool)
+			for _, mem := range config.Memories {
+				for _, ext := range mem.AllowedExtensions {
+					extensionSet[ext] = true
+				}
+			}
+			// Convert set to sorted slice for consistent output
+			var allExtensions []string
+			for ext := range extensionSet {
+				allExtensions = append(allExtensions, ext)
+			}
+			sort.Strings(allExtensions)
+			allowedExtsText = strings.Join(allExtensions, "`, `")
+		}
+		fmt.Fprintf(yaml, "          - **Allowed File Types**: Only the following file extensions are allowed: `%s`. Files with other extensions will be rejected during validation.\n", allowedExtsText)
 		yaml.WriteString("          \n")
 		yaml.WriteString("          Examples of what you can store:\n")
 		memoryDir := "/tmp/gh-aw/repo-memory"
 		fmt.Fprintf(yaml, "          - `%s/notes.md` - general notes and observations\n", memoryDir)
+		fmt.Fprintf(yaml, "          - `%s/notes.txt` - plain text notes\n", memoryDir)
 		fmt.Fprintf(yaml, "          - `%s/state.json` - structured state data\n", memoryDir)
-		fmt.Fprintf(yaml, "          - `%s/history/` - organized history files\n", memoryDir)
+		fmt.Fprintf(yaml, "          - `%s/history.jsonl` - activity history in JSON Lines format\n", memoryDir)
+		fmt.Fprintf(yaml, "          - `%s/data.csv` - tabular data\n", memoryDir)
+		fmt.Fprintf(yaml, "          - `%s/history/` - organized history files (with allowed file types)\n", memoryDir)
 		yaml.WriteString("          \n")
-		yaml.WriteString("          Feel free to create, read, update, and organize files in these folders as needed for your tasks.\n")
+		yaml.WriteString("          Feel free to create, read, update, and organize files in these folders as needed for your tasks, using only the allowed file types.\n")
 	}
 }

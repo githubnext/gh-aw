@@ -58,6 +58,7 @@ func populateDispatchWorkflowFiles(data *WorkflowData, markdownPath string) {
 func generateSafeOutputsConfig(data *WorkflowData) string {
 	// Pass the safe-outputs configuration for validation
 	if data.SafeOutputs == nil {
+		safeOutputsConfigLog.Print("No safe outputs configuration found, returning empty config")
 		return ""
 	}
 	safeOutputsConfigLog.Print("Generating safe outputs configuration for workflow")
@@ -89,10 +90,19 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			)
 		}
 		if data.SafeOutputs.AddComments != nil {
-			safeOutputsConfig["add_comment"] = generateMaxWithTargetConfig(
+			additionalFields := make(map[string]any)
+			// Note: AddCommentsConfig has Target, TargetRepoSlug, AllowedRepos but not embedded SafeOutputTargetConfig
+			// So we need to construct the target config manually
+			targetConfig := SafeOutputTargetConfig{
+				Target:         data.SafeOutputs.AddComments.Target,
+				TargetRepoSlug: data.SafeOutputs.AddComments.TargetRepoSlug,
+				AllowedRepos:   data.SafeOutputs.AddComments.AllowedRepos,
+			}
+			safeOutputsConfig["add_comment"] = generateTargetConfigWithRepos(
+				targetConfig,
 				data.SafeOutputs.AddComments.Max,
 				1, // default max
-				data.SafeOutputs.AddComments.Target,
+				additionalFields,
 			)
 		}
 		if data.SafeOutputs.CreateDiscussions != nil {
@@ -117,11 +127,18 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			)
 		}
 		if data.SafeOutputs.CloseIssues != nil {
-			safeOutputsConfig["close_issue"] = generateMaxWithRequiredFieldsConfig(
+			additionalFields := make(map[string]any)
+			if len(data.SafeOutputs.CloseIssues.RequiredLabels) > 0 {
+				additionalFields["required_labels"] = data.SafeOutputs.CloseIssues.RequiredLabels
+			}
+			if data.SafeOutputs.CloseIssues.RequiredTitlePrefix != "" {
+				additionalFields["required_title_prefix"] = data.SafeOutputs.CloseIssues.RequiredTitlePrefix
+			}
+			safeOutputsConfig["close_issue"] = generateTargetConfigWithRepos(
+				data.SafeOutputs.CloseIssues.SafeOutputTargetConfig,
 				data.SafeOutputs.CloseIssues.Max,
 				1, // default max
-				data.SafeOutputs.CloseIssues.RequiredLabels,
-				data.SafeOutputs.CloseIssues.RequiredTitlePrefix,
+				additionalFields,
 			)
 		}
 		if data.SafeOutputs.CreatePullRequests != nil {
@@ -138,6 +155,18 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				10, // default max
 			)
 		}
+		if data.SafeOutputs.SubmitPullRequestReview != nil {
+			safeOutputsConfig["submit_pull_request_review"] = generateMaxConfig(
+				data.SafeOutputs.SubmitPullRequestReview.Max,
+				1, // default max
+			)
+		}
+		if data.SafeOutputs.ResolvePullRequestReviewThread != nil {
+			safeOutputsConfig["resolve_pull_request_review_thread"] = generateMaxConfig(
+				data.SafeOutputs.ResolvePullRequestReviewThread.Max,
+				10, // default max
+			)
+		}
 		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 			safeOutputsConfig["create_code_scanning_alert"] = generateMaxConfig(
 				data.SafeOutputs.CreateCodeScanningAlerts.Max,
@@ -151,10 +180,15 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			)
 		}
 		if data.SafeOutputs.AddLabels != nil {
-			safeOutputsConfig["add_labels"] = generateMaxWithAllowedConfig(
+			additionalFields := make(map[string]any)
+			if len(data.SafeOutputs.AddLabels.Allowed) > 0 {
+				additionalFields["allowed"] = data.SafeOutputs.AddLabels.Allowed
+			}
+			safeOutputsConfig["add_labels"] = generateTargetConfigWithRepos(
+				data.SafeOutputs.AddLabels.SafeOutputTargetConfig,
 				data.SafeOutputs.AddLabels.Max,
 				3, // default max
-				data.SafeOutputs.AddLabels.Allowed,
+				additionalFields,
 			)
 		}
 		if data.SafeOutputs.RemoveLabels != nil {
@@ -181,6 +215,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 		if data.SafeOutputs.AssignToAgent != nil {
 			safeOutputsConfig["assign_to_agent"] = generateAssignToAgentConfig(
 				data.SafeOutputs.AssignToAgent.Max,
+				1, // default max
 				data.SafeOutputs.AssignToAgent.DefaultAgent,
 				data.SafeOutputs.AssignToAgent.Target,
 				data.SafeOutputs.AssignToAgent.Allowed,
@@ -191,6 +226,13 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				data.SafeOutputs.AssignToUser.Max,
 				1, // default max
 				data.SafeOutputs.AssignToUser.Allowed,
+			)
+		}
+		if data.SafeOutputs.UnassignFromUser != nil {
+			safeOutputsConfig["unassign_from_user"] = generateMaxWithAllowedConfig(
+				data.SafeOutputs.UnassignFromUser.Max,
+				1, // default max
+				data.SafeOutputs.UnassignFromUser.Allowed,
 			)
 		}
 		if data.SafeOutputs.UpdateIssues != nil {
@@ -341,7 +383,9 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 
 	// Add safe-jobs configuration from SafeOutputs.Jobs
 	if len(data.SafeOutputs.Jobs) > 0 {
+		safeOutputsConfigLog.Printf("Processing %d safe job configurations", len(data.SafeOutputs.Jobs))
 		for jobName, jobConfig := range data.SafeOutputs.Jobs {
+			safeOutputsConfigLog.Printf("Generating config for safe job: %s", jobName)
 			safeJobConfig := map[string]any{}
 
 			// Add description if present
@@ -441,6 +485,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 	}
 
 	configJSON, _ := json.Marshal(safeOutputsConfig)
+	safeOutputsConfigLog.Printf("Safe outputs config generation complete: %d tool types configured", len(safeOutputsConfig))
 	return string(configJSON)
 }
 
@@ -590,6 +635,15 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
 		enabledTools["create_pull_request_review_comment"] = true
 	}
+	if data.SafeOutputs.SubmitPullRequestReview != nil {
+		enabledTools["submit_pull_request_review"] = true
+	}
+	if data.SafeOutputs.ReplyToPullRequestReviewComment != nil {
+		enabledTools["reply_to_pull_request_review_comment"] = true
+	}
+	if data.SafeOutputs.ResolvePullRequestReviewThread != nil {
+		enabledTools["resolve_pull_request_review_thread"] = true
+	}
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 		enabledTools["create_code_scanning_alert"] = true
 	}
@@ -613,6 +667,9 @@ func generateFilteredToolsJSON(data *WorkflowData, markdownPath string) (string,
 	}
 	if data.SafeOutputs.AssignToUser != nil {
 		enabledTools["assign_to_user"] = true
+	}
+	if data.SafeOutputs.UnassignFromUser != nil {
+		enabledTools["unassign_from_user"] = true
 	}
 	if data.SafeOutputs.UpdateIssues != nil {
 		enabledTools["update_issue"] = true
@@ -813,6 +870,11 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 			hasAllowedRepos = len(config.AllowedRepos) > 0
 			targetRepoSlug = config.TargetRepoSlug
 		}
+	case "reply_to_pull_request_review_comment":
+		if config := safeOutputs.ReplyToPullRequestReviewComment; config != nil {
+			hasAllowedRepos = len(config.AllowedRepos) > 0
+			targetRepoSlug = config.TargetRepoSlug
+		}
 	case "create_agent_session":
 		if config := safeOutputs.CreateAgentSessions; config != nil {
 			hasAllowedRepos = len(config.AllowedRepos) > 0
@@ -843,7 +905,7 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 			targetRepoSlug = config.TargetRepoSlug
 		}
 	case "add_labels", "remove_labels", "hide_comment", "link_sub_issue", "mark_pull_request_as_ready_for_review",
-		"add_reviewer", "assign_milestone", "assign_to_agent", "assign_to_user":
+		"add_reviewer", "assign_milestone", "assign_to_agent", "assign_to_user", "unassign_from_user":
 		// These use SafeOutputTargetConfig - check the appropriate config
 		switch toolName {
 		case "add_labels":
@@ -888,6 +950,11 @@ func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs 
 			}
 		case "assign_to_user":
 			if config := safeOutputs.AssignToUser; config != nil {
+				hasAllowedRepos = len(config.AllowedRepos) > 0
+				targetRepoSlug = config.TargetRepoSlug
+			}
+		case "unassign_from_user":
+			if config := safeOutputs.UnassignFromUser; config != nil {
 				hasAllowedRepos = len(config.AllowedRepos) > 0
 				targetRepoSlug = config.TargetRepoSlug
 			}

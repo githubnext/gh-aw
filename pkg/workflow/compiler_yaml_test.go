@@ -44,7 +44,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with unclosed bracket.`,
-			expectedErrorLine:   9, // Error detected at 'engine: claude' line in YAML (line 9 after opening ---)
+			expectedErrorLine:   10, // Error detected at 'engine: claude' line (line 10 in file, line 9 in YAML content after opening ---)
 			expectedErrorColumn: 1,
 			expectedMessagePart: "',' or ']' must be specified",
 			description:         "unclosed bracket in array should be detected",
@@ -68,7 +68,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with bad mapping.`,
-			expectedErrorLine:   6, // Line 6 in YAML content (after opening ---)
+			expectedErrorLine:   7, // Line 7 in file (line 6 in YAML content after opening ---)
 			expectedErrorColumn: 10,
 			expectedMessagePart: "mapping value is not allowed in this context",
 			description:         "invalid mapping context should be detected",
@@ -89,7 +89,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with bad indentation.`,
-			expectedErrorLine:   3, // Line 3 in YAML content
+			expectedErrorLine:   4, // Line 4 in file (line 3 in YAML content after opening ---)
 			expectedErrorColumn: 11,
 			expectedMessagePart: "mapping value is not allowed in this context",
 			description:         "bad indentation should be detected",
@@ -114,7 +114,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with unclosed quote.`,
-			expectedErrorLine:   8, // Line 8 in YAML content
+			expectedErrorLine:   9, // Line 9 in file (line 8 in YAML content after opening ---)
 			expectedErrorColumn: 15,
 			expectedMessagePart: "could not find end character of double-quoted text",
 			description:         "unclosed quote should be detected",
@@ -138,7 +138,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with duplicate keys.`,
-			expectedErrorLine:   6, // Line 6 in YAML content (second permissions:)
+			expectedErrorLine:   7, // Line 7 in file (line 6 in YAML content - second permissions:)
 			expectedErrorColumn: 1,
 			expectedMessagePart: "mapping key \"permissions\" already defined",
 			description:         "duplicate keys should be detected",
@@ -179,7 +179,7 @@ features:
 # Test Workflow
 
 Invalid YAML with missing colon.`,
-			expectedErrorLine:   2, // Line 2 in YAML content (permissions without colon)
+			expectedErrorLine:   3, // Line 3 in file (line 2 in YAML content - permissions without colon)
 			expectedErrorColumn: 1,
 			expectedMessagePart: "unexpected key name",
 			description:         "missing colon in mapping should be detected",
@@ -198,7 +198,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with missing comma in array.`,
-			expectedErrorLine:   4, // Line 4 in YAML content (the allowed line)
+			expectedErrorLine:   5, // Line 5 in file (line 4 in YAML content - the allowed line)
 			expectedErrorColumn: 29,
 			expectedMessagePart: "',' or ']' must be specified",
 			description:         "missing comma in array should be detected",
@@ -206,7 +206,7 @@ Invalid YAML with missing comma in array.`,
 		{
 			name:                "mixed_tabs_and_spaces",
 			content:             "---\non: push\npermissions:\n  contents: read\n\tissues: write\nengine: claude\n---\n\n# Test Workflow\n\nInvalid YAML with mixed tabs and spaces.",
-			expectedErrorLine:   4, // Line 4 in YAML content (the line with tab)
+			expectedErrorLine:   5, // Line 5 in file (line 4 in YAML content - the line with tab)
 			expectedErrorColumn: 1,
 			expectedMessagePart: "found character '\t' that cannot start any token",
 			description:         "mixed tabs and spaces should be detected",
@@ -252,7 +252,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with malformed nested structure.`,
-			expectedErrorLine:   6, // Line 6 in YAML content (claude: [)
+			expectedErrorLine:   7, // Line 7 in file (line 6 in YAML content - claude: [)
 			expectedErrorColumn: 11,
 			expectedMessagePart: "sequence end token ']' not found",
 			description:         "invalid nested structure should be detected",
@@ -271,7 +271,7 @@ strict: false
 # Test Workflow
 
 Invalid YAML with unclosed flow mapping.`,
-			expectedErrorLine:   3, // Line 3 in YAML content (engine: claude - where error is detected)
+			expectedErrorLine:   4, // Line 4 in file (line 3 in YAML content - engine: claude where error is detected)
 			expectedErrorColumn: 1,
 			expectedMessagePart: "',' or '}' must be specified",
 			description:         "unclosed flow mapping should be detected",
@@ -378,7 +378,7 @@ engine: copilot
 # Test
 
 Test content.`,
-			expectedLineCol: "[2:10]",
+			expectedLineCol: "[3:10]", // Line 3 in file (line 2 in YAML content)
 			expectedInError: []string{"mapping value is not allowed"},
 			expectPointer:   true,
 			description:     "simple syntax error shows formatted output",
@@ -398,7 +398,7 @@ engine: copilot
 # Test
 
 Test content.`,
-			expectedLineCol: "[5:1]",
+			expectedLineCol: "[6:1]", // Line 6 in file (second tools: key)
 			expectedInError: []string{"mapping key \"tools\" already defined"},
 			expectPointer:   true,
 			description:     "duplicate key error shows formatted output with both locations",
@@ -415,7 +415,7 @@ engine: copilot
 # Test
 
 Test content.`,
-			expectedLineCol: "[2:1]",
+			expectedLineCol: "[3:1]", // Line 3 in file (permissions without colon)
 			expectedInError: []string{"unexpected key name", "permissions"},
 			expectPointer:   true,
 			description:     "missing colon shows formatted output",
@@ -438,9 +438,25 @@ Test content.`,
 
 			errorStr := err.Error()
 
-			// Check for [line:col] format from yaml.FormatError()
-			if !strings.Contains(errorStr, tt.expectedLineCol) {
-				t.Errorf("%s: error should contain line:col format '%s', got: %s", tt.description, tt.expectedLineCol, errorStr)
+			// Check for VSCode-compatible format on the first line: filename:line:column: error: message
+			// This should NOT include a duplicate [line:col] line
+			vscodeFormatPattern := fmt.Sprintf("%s: error:", tt.expectedLineCol[1:len(tt.expectedLineCol)-1])
+			if !strings.Contains(errorStr, vscodeFormatPattern) {
+				t.Errorf("%s: error should contain VSCode format '%s', got: %s", tt.description, vscodeFormatPattern, errorStr)
+			}
+
+			// The error should NOT contain the duplicate [line:col] line (we only want source context)
+			// Check that we don't have the standalone [line:col] message line
+			lines := strings.Split(errorStr, "\n")
+			for i, line := range lines {
+				// Skip the first line (VSCode format)
+				if i == 0 {
+					continue
+				}
+				// Check if any subsequent line is just [line:col] message without source context markers
+				if strings.HasPrefix(strings.TrimSpace(line), "[") && !strings.Contains(line, "|") && !strings.Contains(line, "already defined at") {
+					t.Errorf("%s: error should not contain duplicate [line:col] message line (line %d: %q), got: %s", tt.description, i+1, line, errorStr)
+				}
 			}
 
 			// Check that expected strings are in the error
@@ -460,9 +476,10 @@ Test content.`,
 				t.Errorf("%s: error should contain visual pointer '>' from yaml.FormatError(), got: %s", tt.description, errorStr)
 			}
 
-			// Check that it's a YAML parsing error (not schema validation)
-			if !strings.Contains(errorStr, "failed to parse frontmatter:") {
-				t.Errorf("%s: error should be a frontmatter parsing error, got: %s", tt.description, errorStr)
+			// Check that it's a YAML parsing error with VSCode-compatible format
+			// Format: filename:line:column: error: message
+			if !strings.Contains(errorStr, ": error: ") {
+				t.Errorf("%s: error should have VSCode-compatible format (filename:line:column: error: message), got: %s", tt.description, errorStr)
 			}
 		})
 	}
@@ -1109,5 +1126,114 @@ Test content.`
 	// Verify no ANSI escape sequences remain
 	if strings.Contains(yamlStr, "\x1b[") {
 		t.Error("Found ANSI escape sequences in generated YAML file")
+	}
+}
+
+// TestRuntimeImportPathGitHubIO tests that repositories ending with .github.io
+// generate correct runtime-import paths without duplicating the .github.io suffix
+func TestRuntimeImportPathGitHubIO(t *testing.T) {
+	tests := []struct {
+		name        string
+		repoName    string // simulated repo name in path
+		expected    string
+		description string
+	}{
+		{
+			name:        "github_pages_repo",
+			repoName:    "testuser.github.io",
+			expected:    "{{#runtime-import .github/workflows/translate-to-ptbr.md}}",
+			description: "GitHub Pages repo should not duplicate .github.io in runtime-import path",
+		},
+		{
+			name:        "another_github_pages_repo",
+			repoName:    "anotheruser.github.io",
+			expected:    "{{#runtime-import .github/workflows/test.md}}",
+			description: "Another GitHub Pages repo should work correctly",
+		},
+		{
+			name:        "normal_repo",
+			repoName:    "myrepo",
+			expected:    "{{#runtime-import .github/workflows/workflow.md}}",
+			description: "Normal repo without .github.io should work as before",
+		},
+		{
+			name:        "repo_with_github_in_name",
+			repoName:    "my-github-project",
+			expected:    "{{#runtime-import .github/workflows/test.md}}",
+			description: "Repo with 'github' in name should only match .github directory",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a temporary directory that simulates the repo structure
+			// with repo name in the path
+			tmpBase := testutil.TempDir(t, "runtime-import-path-test")
+			tmpDir := filepath.Join(tmpBase, tt.repoName)
+
+			// Create .github/workflows directory
+			workflowDir := filepath.Join(tmpDir, ".github", "workflows")
+			if err := os.MkdirAll(workflowDir, 0755); err != nil {
+				t.Fatalf("Failed to create workflow directory: %v", err)
+			}
+
+			// Determine workflow filename from expected path
+			expectedParts := strings.Split(tt.expected, " ")
+			if len(expectedParts) < 2 {
+				t.Fatalf("Invalid expected format: %s", tt.expected)
+			}
+			workflowFilePath := strings.TrimSuffix(expectedParts[1], "}}")
+			workflowBasename := filepath.Base(workflowFilePath)
+
+			// Create a simple workflow file
+			workflowPath := filepath.Join(workflowDir, workflowBasename)
+			workflowContent := `---
+on: push
+engine: copilot
+---
+
+# Test Workflow
+
+This is a test workflow.`
+
+			if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+				t.Fatalf("Failed to write workflow file: %v", err)
+			}
+
+			// Compile the workflow
+			compiler := NewCompiler()
+			if err := compiler.CompileWorkflow(workflowPath); err != nil {
+				t.Fatalf("%s: Compilation failed: %v", tt.description, err)
+			}
+
+			// Calculate lock file path
+			lockFile := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+
+			// Read the generated lock file
+			lockContent, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+
+			lockContentStr := string(lockContent)
+
+			// Check that the runtime-import path is correct
+			if !strings.Contains(lockContentStr, tt.expected) {
+				t.Errorf("%s: Expected to find '%s' in lock file", tt.description, tt.expected)
+
+				// Find what runtime-import was actually generated
+				lines := strings.Split(lockContentStr, "\n")
+				for _, line := range lines {
+					if strings.Contains(line, "{{#runtime-import") {
+						t.Logf("Found runtime-import: %s", strings.TrimSpace(line))
+					}
+				}
+			}
+
+			// Also verify that .github.io is NOT duplicated in the path
+			if strings.Contains(lockContentStr, ".github.io/.github/workflows") {
+				t.Errorf("%s: Found incorrect path with duplicated .github.io prefix", tt.description)
+			}
+		})
 	}
 }

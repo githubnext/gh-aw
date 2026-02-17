@@ -45,6 +45,7 @@ tools:
     - "find specs -maxdepth 1 -ls"
     - "grep -r '*' specs"
     - "wc -l scratchpad/*.md"
+    - "git"
 
 timeout-minutes: 30
 
@@ -68,7 +69,7 @@ Analyze markdown files in the specs directory, standardize their tone and format
 
 - **Repository**: ${{ github.repository }}
 - **Specs Directory**: `scratchpad/`
-- **Target File**: `.github/agents/developer.instructions.agent.md`
+- **Target File**: `scratchpad/dev.md`
 - **Cache Memory**: `/tmp/gh-aw/cache-memory/`
 
 ## Phase 0: Setup and Configuration
@@ -261,14 +262,9 @@ Place diagrams near the concepts they illustrate, with clear captions.
 
 ### 1. Design Consolidated Structure
 
-Create a logical structure for `developer.instructions.md`:
+Create a logical structure for `dev.md`:
 
 ```markdown
----
-description: Developer Instructions for GitHub Agentic Workflows
-applyTo: "**/*"
----
-
 # Developer Instructions
 
 ## Overview
@@ -302,10 +298,9 @@ For each topic:
 
 ### 3. Create the Consolidated File
 
-**You have direct file editing capabilities** - Write the consolidated content directly to `.github/agents/developer.instructions.agent.md` using Serena's edit tools.
+**You have direct file editing capabilities** - Write the consolidated content directly to `scratchpad/dev.md` using Serena's edit tools.
 
 The file should:
-- Start with frontmatter (description and applyTo)
 - Have a clear structure with logical sections
 - Use consistent technical tone throughout
 - Include Mermaid diagrams for complex concepts
@@ -322,7 +317,6 @@ The file should:
 ### 1. Validate Consolidated File
 
 Check the generated file:
-- ✅ Has proper frontmatter
 - ✅ Markdown is valid
 - ✅ Code blocks have language tags
 - ✅ Mermaid diagrams render correctly
@@ -368,7 +362,7 @@ Create a comprehensive report of what was done:
 
 ## Summary
 
-Analyzed [N] markdown files in the specs directory, made [X] tone adjustments, added [Y] Mermaid diagrams, and consolidated content into `.github/agents/developer.instructions.agent.md`.
+Analyzed [N] markdown files in the specs directory, made [X] tone adjustments, added [Y] Mermaid diagrams, and consolidated content into `scratchpad/dev.md`.
 
 <details>
 <summary><b>Full Consolidation Report</b></summary>
@@ -461,7 +455,7 @@ Analyzed [N] markdown files in the specs directory, made [X] tone adjustments, a
 
 ## Next Steps
 
-- Review the consolidated file at `.github/agents/developer.instructions.agent.md`
+- Review the consolidated file at `scratchpad/dev.md`
 - Verify Mermaid diagrams render correctly
 - Check that all technical content is accurate
 - Consider additional sections if needed
@@ -485,7 +479,7 @@ The discussion should:
 
 Before the PR is created, you need to make the actual file changes:
 
-1. **Update `.github/agents/developer.instructions.agent.md`**:
+1. **Update `scratchpad/dev.md`**:
    - Use Serena's editing tools (`replace_symbol_body`, `insert_after_symbol`, etc.)
    - Or use the standard `edit` tool to modify sections
    - Make all consolidation changes directly to the file
@@ -511,7 +505,7 @@ After you've made file changes, a pull request will be created automatically wit
 ```markdown
 ## Developer Documentation Consolidation
 
-This PR consolidates markdown specifications from the `scratchpad/` directory into a unified `.github/agents/developer.instructions.agent.md` file.
+This PR consolidates markdown specifications from the `scratchpad/` directory into a unified `scratchpad/dev.md` file.
 
 ### Changes Made
 
@@ -523,7 +517,7 @@ This PR consolidates markdown specifications from the `scratchpad/` directory in
 
 ### Files Modified
 
-- Created/Updated: `.github/agents/developer.instructions.agent.md`
+- Created/Updated: `scratchpad/dev.md`
 - [List any spec files that were modified]
 
 ### Validation
@@ -531,7 +525,6 @@ This PR consolidates markdown specifications from the `scratchpad/` directory in
 ✅ All markdown validated
 ✅ Mermaid diagrams render correctly  
 ✅ Consistent technical tone
-✅ Proper frontmatter
 
 ### Review Notes
 

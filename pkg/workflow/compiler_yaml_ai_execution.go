@@ -76,7 +76,7 @@ func (c *Compiler) generateSafeInputsLogParsing(yaml *strings.Builder) {
 func (c *Compiler) generateMCPGatewayLogParsing(yaml *strings.Builder) {
 	compilerYamlLog.Print("Generating MCP gateway log parsing step")
 
-	yaml.WriteString("      - name: Parse MCP gateway logs for step summary\n")
+	yaml.WriteString("      - name: Parse MCP Gateway logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
 	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/github-script"))
 	yaml.WriteString("        with:\n")
@@ -95,12 +95,12 @@ func (c *Compiler) generateMCPGatewayLogParsing(yaml *strings.Builder) {
 func (c *Compiler) generateStopMCPGateway(yaml *strings.Builder, data *WorkflowData) {
 	compilerYamlLog.Print("Generating MCP gateway stop step")
 
-	yaml.WriteString("      - name: Stop MCP gateway\n")
+	yaml.WriteString("      - name: Stop MCP Gateway\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        continue-on-error: true\n")
 
 	// Add environment variables for graceful shutdown via /close endpoint
-	// These values come from the Start MCP gateway step outputs
+	// These values come from the Start MCP Gateway step outputs
 	// Security: Pass all step outputs through environment variables to prevent template injection
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          MCP_GATEWAY_PORT: ${{ steps.start-mcp-gateway.outputs.gateway-port }}\n")

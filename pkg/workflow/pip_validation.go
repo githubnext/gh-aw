@@ -1,3 +1,5 @@
+//go:build !js && !wasm
+
 // This file provides Python package validation for agentic workflows.
 //
 // # Python Package Validation

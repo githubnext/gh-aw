@@ -172,14 +172,14 @@ SRC_LOC=$(find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" | x
 echo "Test ratio: $(echo "scale=2; $TEST_LOC / $SRC_LOC" | bc)"
 
 # Test file count
-find . -name "*_test.go" -o -name "*.test.js" | wc -l
+find . -type f \( -name "*_test.go" -o -name "*.test.js" -o -name "*Tests.cs" -o -name "*Test.cs" \) | wc -l
 ```
 
 ### Security Analysis
 
 ```bash
 # Check for common security issues
-grep -r "password\|secret\|api_key" --include="*.go" --include="*.js" . 2>/dev/null | grep -v "test" | wc -l
+grep -r "password\|secret\|api_key" --include="*.go" --include="*.js" --include="*.cs" . 2>/dev/null | grep -v "test" | wc -l
 
 # Dependency vulnerability check (conceptual)
 go list -m all | head -20

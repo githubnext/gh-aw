@@ -909,21 +909,17 @@ network:
     # example.com itself) and ecosystem names like 'python', 'node'.
 
 # Sandbox configuration for AI engines. Controls agent sandbox (AWF or Sandbox
-# Runtime) and MCP gateway.
+# Runtime) and MCP gateway. The MCP gateway is always enabled and cannot be
+# disabled.
 # (optional)
 # This field supports multiple formats (oneOf):
 
-# Option 1: Set to false to completely disable sandbox features (firewall and
-# gateway). Warning: This removes important security protections and should only
-# be used in controlled environments. Not allowed in strict mode.
-sandbox: true
-
-# Option 2: Legacy string format for sandbox type: 'default' for no sandbox,
+# Option 1: Legacy string format for sandbox type: 'default' for no sandbox,
 # 'sandbox-runtime' or 'srt' for Anthropic Sandbox Runtime, 'awf' for Agent
 # Workflow Firewall
 sandbox: "default"
 
-# Option 3: Object format for full sandbox configuration with agent and mcp
+# Option 2: Object format for full sandbox configuration with agent and mcp
 # options
 sandbox:
   # Legacy sandbox type field (use agent instead)
@@ -931,15 +927,22 @@ sandbox:
   type: "default"
 
   # Agent sandbox type: 'awf' uses AWF (Agent Workflow Firewall), 'srt' uses
-  # Anthropic Sandbox Runtime. Defaults to 'awf' if not specified.
+  # Anthropic Sandbox Runtime, or false to disable agent sandbox. Defaults to 'awf'
+  # if not specified. Note: Disabling the agent sandbox (false) removes firewall
+  # protection but keeps the MCP gateway enabled.
   # (optional)
   # This field supports multiple formats (oneOf):
 
-  # Option 1: Sandbox type: 'awf' for Agent Workflow Firewall, 'srt' for Sandbox
+  # Option 1: Set to false to disable the agent sandbox (firewall). Warning: This
+  # removes firewall protection but keeps the MCP gateway enabled. Not allowed in
+  # strict mode.
+  agent: true
+
+  # Option 2: Sandbox type: 'awf' for Agent Workflow Firewall, 'srt' for Sandbox
   # Runtime
   agent: "awf"
 
-  # Option 2: Custom sandbox runtime configuration
+  # Option 3: Custom sandbox runtime configuration
   agent:
     # Agent identifier (replaces 'type' field in new format): 'awf' for Agent Workflow
     # Firewall, 'srt' for Sandbox Runtime
@@ -1508,6 +1511,18 @@ tools:
     # (optional)
     restore-only: true
 
+    # Cache restore key scope: 'workflow' (default, only restores from same workflow)
+    # or 'repo' (restores from any workflow in the repository). Use 'repo' with
+    # caution as it allows cross-workflow cache sharing.
+    # (optional)
+    scope: "workflow"
+
+    # List of allowed file extensions (e.g., [".json", ".txt"]). Default: [".json",
+    # ".jsonl", ".txt", ".md", ".csv"]
+    # (optional)
+    allowed-extensions: []
+      # Array of strings
+
   # Option 4: Array of cache-memory configurations for multiple caches
   cache-memory: []
     # Array items: object
@@ -1705,6 +1720,12 @@ tools:
     # (optional)
     create-orphan: true
 
+    # List of allowed file extensions (e.g., [".json", ".txt"]). Default: [".json",
+    # ".jsonl", ".txt", ".md", ".csv"]
+    # (optional)
+    allowed-extensions: []
+      # Array of strings
+
   # Option 4: Array of repo-memory configurations for multiple memory locations
   repo-memory: []
     # Array items: object
@@ -1869,6 +1890,12 @@ safe-outputs:
     # (optional)
     close-older-issues: true
 
+    # Controls whether AI-generated footer is added to the issue. When false, the
+    # visible footer content is omitted but XML markers (workflow-id, tracker-id,
+    # metadata) are still included for searchability. Defaults to true.
+    # (optional)
+    footer: true
+
   # Option 2: Enable issue creation with default configuration
   create-issue: null
 
@@ -1950,23 +1977,25 @@ safe-outputs:
   # Option 2: Enable agent session creation with default configuration
   create-agent-session: null
 
-  # Enable AI agents to update GitHub Project items (issues, pull requests) with
-  # status changes, field updates, and metadata modifications.
+  # Enable AI agents to add items to GitHub Projects, update custom fields, and
+  # manage project structure. Use this for organizing work into projects with status
+  # tracking, priority management, and custom metadata.
   # (optional)
   # This field supports multiple formats (oneOf):
 
-  # Option 1: Configuration for managing GitHub Projects v2 boards. Smart tool that
-  # can add issue/PR items and update custom fields on existing items. By default it
-  # is update-only: if the project does not exist, the job fails with instructions
-  # to create it manually. To allow workflows to create missing projects, explicitly
-  # opt in via the agent output field create_if_missing=true (and/or provide a
-  # github-token override). NOTE: Projects v2 requires a Personal Access Token (PAT)
-  # or GitHub App token with appropriate permissions; the GITHUB_TOKEN cannot be
-  # used for Projects v2. Safe output items produced by the agent use
-  # type=update_project. Configuration also supports an optional views array for
-  # declaring project views to create. Safe output items produced by the agent use
-  # type=update_project and may include: project (board name), content_type
-  # (issue|pull_request), content_number, fields, and create_if_missing.
+  # Option 1: Configuration for managing GitHub Projects boards. Enable agents to
+  # add issues and pull requests to projects, update custom field values (status,
+  # priority, effort, dates), create project fields and views. By default it is
+  # update-only: if the project does not exist, the job fails with instructions to
+  # create it. To allow workflows to create missing projects, explicitly opt in via
+  # agent output field create_if_missing=true. Requires a Personal Access Token
+  # (PAT) or GitHub App token with Projects permissions (default GITHUB_TOKEN cannot
+  # be used). Agent output includes: project (full URL or temporary project ID like
+  # aw_XXXXXXXXXXXX or #aw_XXXXXXXXXXXX from create_project), content_type
+  # (issue|pull_request|draft_issue), content_number, fields, create_if_missing. For
+  # specialized operations, agent can also provide: operation
+  # (create_fields|create_view), field_definitions (array of field configs when
+  # operation=create_fields), view (view config object when operation=create_view).
   update-project:
     # Maximum number of project operations to perform (default: 10). Each operation
     # may add a project item, or update its fields.
@@ -2027,19 +2056,19 @@ safe-outputs:
   # Option 2: Enable project management with default configuration (max=10)
   update-project: null
 
-  # Enable AI agents to create new GitHub Project boards with custom fields, views,
-  # and configurations.
+  # Enable AI agents to create new GitHub Projects for organizing and tracking work
+  # across issues and pull requests.
   # (optional)
   # This field supports multiple formats (oneOf):
 
-  # Option 1: Configuration for creating new GitHub Projects v2 boards. Creates a
-  # new empty project that can be populated with issues and custom fields. Requires
-  # a Personal Access Token (PAT) or GitHub App token with Projects permissions; the
-  # GITHUB_TOKEN cannot be used. Safe output items use type=create_project and
-  # include: title (project name), owner (org/user login), owner_type ('org' or
-  # 'user', default: 'org'), and optional item_url (GitHub issue URL to add as first
-  # item). The target-owner can be configured in the workflow frontmatter to provide
-  # a default that the agent can use or override.
+  # Option 1: Configuration for creating new GitHub Projects boards. Enables agents
+  # to create new project boards with optional custom fields, views, and an initial
+  # item. Requires a Personal Access Token (PAT) or GitHub App token with Projects
+  # write permission (default GITHUB_TOKEN cannot be used). Agent output includes:
+  # title (project name), owner (org/user login, uses default if omitted),
+  # owner_type ('org' or 'user'), optional item_url (issue to add as first item),
+  # and optional field_definitions. Returns a temporary project ID for use in
+  # subsequent update_project operations.
   create-project:
     # Maximum number of create operations to perform (default: 1).
     # (optional)
@@ -2111,18 +2140,19 @@ safe-outputs:
 
   # Option 3: Alternative null value syntax
 
-  # Enable AI agents to post status updates to GitHub Projects, providing progress
-  # reports and milestone tracking.
+  # Enable AI agents to post status updates to GitHub Projects for progress tracking
+  # and stakeholder communication.
   # (optional)
   # This field supports multiple formats (oneOf):
 
-  # Option 1: Configuration for creating GitHub Project status updates. Status
-  # updates provide stakeholder communication and historical record of project
-  # progress. Requires a Personal Access Token (PAT) or GitHub App token with
-  # Projects: Read+Write permission. The GITHUB_TOKEN cannot be used for Projects
-  # v2. Status updates are created on the specified project board and appear in the
-  # Updates tab. Typically used by orchestrators to post run summaries with
-  # progress, findings, and next steps.
+  # Option 1: Configuration for posting status updates to GitHub Projects. Status
+  # updates provide stakeholder communication about project progress, health, and
+  # timeline. Each update appears in the project's Updates tab and creates a
+  # historical record. Requires a Personal Access Token (PAT) or GitHub App token
+  # with Projects read & write permission (default GITHUB_TOKEN cannot be used).
+  # Typically used by scheduled workflows or orchestrators to post regular progress
+  # summaries with status indicators (on-track, at-risk, off-track, complete,
+  # inactive), dates, and progress details.
   create-project-status-update:
     # Maximum number of status updates to create (default: 1). Typically 1 per
     # orchestrator run.
@@ -2209,6 +2239,12 @@ safe-outputs:
     # close-older-issues logic will be applied to the fallback issue.
     # (optional)
     fallback-to-issue: true
+
+    # Controls whether AI-generated footer is added to the discussion. When false, the
+    # visible footer content is omitted but XML markers (workflow-id, tracker-id,
+    # metadata) are still included for searchability. Defaults to true.
+    # (optional)
+    footer: true
 
     # Time until the discussion expires and should be automatically closed. Supports
     # integer (days), relative time format like '2h' (2 hours), '7d' (7 days), '2w' (2
@@ -2310,6 +2346,12 @@ safe-outputs:
     # (optional)
     target-repo: "example-value"
 
+    # Controls whether AI-generated footer is added when updating the discussion body.
+    # When false, the visible footer content is omitted. Defaults to true. Only
+    # applies when 'body' is enabled.
+    # (optional)
+    footer: true
+
   # Option 2: Enable discussion updating with default configuration
   update-discussion: null
 
@@ -2343,6 +2385,14 @@ safe-outputs:
     # precedence over trial target repo settings.
     # (optional)
     target-repo: "example-value"
+
+    # List of additional repositories in format 'owner/repo' that issues can be closed
+    # in. When specified, the agent can use a 'repo' field in the output to specify
+    # which repository to close the issue in. The target repository (current or
+    # target-repo) is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
 
   # Option 2: Enable issue closing with default configuration
   close-issue: null
@@ -2569,6 +2619,25 @@ safe-outputs:
     # (optional)
     auto-merge: true
 
+    # Base branch for the pull request. Defaults to the workflow's branch
+    # (github.ref_name) if not specified. Useful for cross-repository PRs targeting
+    # non-default branches (e.g., 'vnext', 'release/v1.0').
+    # (optional)
+    base-branch: "example-value"
+
+    # Controls whether AI-generated footer is added to the pull request. When false,
+    # the visible footer content is omitted but XML markers (workflow-id, tracker-id,
+    # metadata) are still included for searchability. Defaults to true.
+    # (optional)
+    footer: true
+
+    # Controls the fallback behavior when pull request creation fails. When true
+    # (default), an issue is created as a fallback with the patch content. When false,
+    # no issue is created and the workflow fails with an error. Setting to false also
+    # removes the issues:write permission requirement.
+    # (optional)
+    fallback-as-issue: true
+
   # Option 2: Enable pull request creation with default configuration
   create-pull-request: null
 
@@ -2613,6 +2682,91 @@ safe-outputs:
 
   # Option 2: Enable PR review comment creation with default configuration
   create-pull-request-review-comment: null
+
+  # Enable AI agents to submit consolidated pull request reviews with a status
+  # decision. Works with create-pull-request-review-comment to batch inline comments
+  # into a single review.
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Configuration for submitting a consolidated PR review with a status
+  # decision (APPROVE, REQUEST_CHANGES, COMMENT). All
+  # create-pull-request-review-comment outputs are collected and submitted as part
+  # of this review.
+  submit-pull-request-review:
+    # Maximum number of reviews to submit (default: 1)
+    # (optional)
+    max: 1
+
+    # Controls whether AI-generated footer is added to the review body. When false,
+    # the footer is omitted. Defaults to true.
+    # (optional)
+    footer: true
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable PR review submission with default configuration
+  submit-pull-request-review: null
+
+  # Enable AI agents to reply to existing review comments on pull requests.
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Configuration for replying to existing pull request review comments
+  reply-to-pull-request-review-comment:
+    # Maximum number of replies to create (default: 10)
+    # (optional)
+    max: 1
+
+    # Target for replies: 'triggering' (default), '*' (any PR), or explicit PR number
+    # (optional)
+    target: "example-value"
+
+    # Target repository in format 'owner/repo' for cross-repository operations
+    # (optional)
+    target-repo: "example-value"
+
+    # List of additional repositories that replies can target
+    # (optional)
+    allowed-repos: []
+      # Array of strings
+
+    # Controls whether AI-generated footer is added to the reply body. When false, the
+    # footer is omitted. Defaults to true.
+    # (optional)
+    footer: true
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable with default configuration
+  reply-to-pull-request-review-comment: null
+
+  # Enable AI agents to resolve review threads on the triggering pull request after
+  # addressing feedback.
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Configuration for resolving review threads on pull requests.
+  # Resolution is scoped to the triggering PR only — threads on other PRs cannot be
+  # resolved.
+  resolve-pull-request-review-thread:
+    # Maximum number of review threads to resolve (default: 10)
+    # (optional)
+    max: 1
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable review thread resolution with default configuration
+  resolve-pull-request-review-thread: null
 
   # Enable AI agents to create GitHub Advanced Security code scanning alerts for
   # detected vulnerabilities or security issues.
@@ -2697,6 +2851,14 @@ safe-outputs:
     # if specified.
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # List of additional repositories in format 'owner/repo' that labels can be added
+    # to. When specified, the agent can use a 'repo' field in the output to specify
+    # which repository to add labels to. The target repository (current or
+    # target-repo) is always implicitly allowed.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
 
   # Enable AI agents to remove labels from GitHub issues or pull requests.
   # (optional)
@@ -2885,6 +3047,48 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
+  # Enable AI agents to unassign users from issues or pull requests. Useful for
+  # reassigning work or removing users from issues.
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Enable user unassignment with default configuration
+  unassign-from-user: null
+
+  # Option 2: Configuration for removing assignees from issues in agentic workflow
+  # output
+  unassign-from-user:
+    # Optional list of allowed usernames. If specified, only these users can be
+    # unassigned.
+    # (optional)
+    allowed: []
+      # Array of strings
+
+    # Optional maximum number of unassignment operations (default: 1)
+    # (optional)
+    max: 1
+
+    # Target issue to unassign users from. Use 'triggering' (default) for the
+    # triggering issue, '*' to allow any issue, or a specific issue number.
+    # (optional)
+    target: null
+
+    # Target repository in format 'owner/repo' for cross-repository user unassignment.
+    # Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # List of allowed repositories in format 'owner/repo' for cross-repository
+    # unassignment operations. Use with 'repo' field in tool calls.
+    # (optional)
+    allowed-repos: []
+      # Array of strings
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
   # Enable AI agents to create hierarchical relationships between issues using
   # GitHub's sub-issue (tasklist) feature.
   # (optional)
@@ -2949,9 +3153,16 @@ safe-outputs:
     # (optional)
     title: null
 
-    # Allow updating issue body - presence of key indicates field can be updated
+    # Allow updating issue body. Set to true to enable body updates, false to disable.
+    # For backward compatibility, null (body:) also enables body updates.
     # (optional)
     body: null
+
+    # Controls whether AI-generated footer is added when updating the issue body. When
+    # false, the visible footer content is omitted but XML markers are still included.
+    # Defaults to true. Only applies when 'body' is enabled.
+    # (optional)
+    footer: true
 
     # Maximum number of issues to update (default: 1)
     # (optional)
@@ -3262,6 +3473,11 @@ safe-outputs:
     # (optional)
     target-repo: "example-value"
 
+    # Controls whether AI-generated footer is added when updating the release body.
+    # When false, the visible footer content is omitted. Defaults to true.
+    # (optional)
+    footer: true
+
   # Option 2: Enable release updates with default configuration
   update-release: null
 
@@ -3455,6 +3671,14 @@ safe-outputs:
     # (optional)
     max: 1
 
+  # Global footer control for all safe outputs. When false, omits visible
+  # AI-generated footer content from all created/updated entities (issues, PRs,
+  # discussions, releases) while still including XML markers for searchability.
+  # Individual safe-output types (create-issue, update-issue, etc.) can override
+  # this by specifying their own footer field. Defaults to true.
+  # (optional)
+  footer: true
+
   # Runner specification for all safe-outputs jobs (activation, create-issue,
   # add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest',
   # 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'. See
@@ -3494,6 +3718,35 @@ roles: []
 bots: []
   # Array of Bot identifier/name (e.g., 'dependabot[bot]', 'renovate[bot]',
   # 'github-actions[bot]')
+
+# Rate limiting configuration to restrict how frequently users can trigger the
+# workflow. Helps prevent abuse and resource exhaustion from programmatically
+# triggered events.
+# (optional)
+rate-limit:
+  # Maximum number of workflow runs allowed per user within the time window.
+  # Required field.
+  max: 1
+
+  # Time window in minutes for rate limiting. Defaults to 60 (1 hour). Maximum: 180
+  # (3 hours).
+  # (optional)
+  window: 1
+
+  # Optional list of event types to apply rate limiting to. If not specified, rate
+  # limiting applies to all programmatically triggered events (e.g.,
+  # workflow_dispatch, issue_comment, pull_request_review).
+  # (optional)
+  events: []
+    # Array of strings
+
+  # Optional list of roles that are exempt from rate limiting. Defaults to ['admin',
+  # 'maintain', 'write'] if not specified. Users with any of these roles will not be
+  # subject to rate limiting checks. To apply rate limiting to all users, set to an
+  # empty array: []
+  # (optional)
+  ignored-roles: []
+    # Array of strings
 
 # Enable strict mode validation for enhanced security and compliance. Strict mode
 # enforces: (1) Write Permissions - refuses contents:write, issues:write,

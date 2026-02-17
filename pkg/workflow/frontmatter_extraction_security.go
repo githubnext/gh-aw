@@ -160,23 +160,15 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 		return nil
 	}
 
-	// Handle boolean format: sandbox: false (disables all sandbox features)
-	if sandboxBool, ok := sandbox.(bool); ok {
-		if !sandboxBool {
-			frontmatterExtractionSecurityLog.Print("Sandbox explicitly disabled with sandbox: false")
-			// Return a marker config with Disabled flag set
-			return &SandboxConfig{
-				Agent: &AgentSandboxConfig{
-					Disabled: true,
-				},
-			}
-		}
-		// sandbox: true is not meaningful, treat as no configuration
-		frontmatterExtractionSecurityLog.Print("Sandbox: true specified but has no effect, treating as unconfigured")
+	// Handle boolean format: sandbox: false (NO LONGER SUPPORTED)
+	// This format has been removed - only sandbox.agent: false is supported
+	if _, ok := sandbox.(bool); ok {
+		frontmatterExtractionSecurityLog.Print("Top-level sandbox: false is no longer supported")
+		// Return nil to trigger schema validation error
 		return nil
 	}
 
-	// Handle legacy string format: "default" or "sandbox-runtime"
+	// Handle legacy string format: "default" or "awf" (legacy srt/sandbox-runtime are auto-migrated)
 	if sandboxStr, ok := sandbox.(string); ok {
 		frontmatterExtractionSecurityLog.Printf("Sandbox string format: type=%s", sandboxStr)
 		sandboxType := SandboxType(sandboxStr)
@@ -203,17 +195,6 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 	// Check for new format: { agent: ..., mcp: ... }
 	if agentVal, hasAgent := sandboxObj["agent"]; hasAgent {
 		frontmatterExtractionSecurityLog.Print("Extracting agent sandbox configuration")
-
-		// Check if agent is set to false (boolean) - this is no longer supported
-		if agentBool, ok := agentVal.(bool); ok && !agentBool {
-			// Return a marker config that will be caught during validation
-			return &SandboxConfig{
-				Agent: &AgentSandboxConfig{
-					Disabled: true, // This will be caught by validation
-				},
-			}
-		}
-
 		config.Agent = c.extractAgentSandboxConfig(agentVal)
 	}
 
@@ -245,13 +226,20 @@ func (c *Compiler) extractSandboxConfig(frontmatter map[string]any) *SandboxConf
 
 // extractAgentSandboxConfig extracts agent sandbox configuration
 func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
-	// Handle boolean format: REJECTED - sandbox.agent: false is no longer supported
-	if _, ok := agentVal.(bool); ok {
-		// Both true and false are invalid - must use string or object format
+	// Handle boolean format: agent: false (disables agent sandbox but keeps MCP gateway)
+	if agentBool, ok := agentVal.(bool); ok {
+		if !agentBool {
+			frontmatterExtractionSecurityLog.Print("Agent sandbox explicitly disabled with agent: false")
+			return &AgentSandboxConfig{
+				Disabled: true,
+			}
+		}
+		// agent: true is not meaningful, treat as unconfigured
+		frontmatterExtractionSecurityLog.Print("Agent: true specified but has no effect, treating as unconfigured")
 		return nil
 	}
 
-	// Handle string format: "awf" or "srt"
+	// Handle string format: "awf" or false (legacy srt values are auto-migrated)
 	if agentStr, ok := agentVal.(string); ok {
 		agentType := SandboxType(agentStr)
 		if isSupportedSandboxType(agentType) {

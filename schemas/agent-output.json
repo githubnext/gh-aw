@@ -52,7 +52,10 @@
         { "$ref": "#/$defs/LinkSubIssueOutput" },
         { "$ref": "#/$defs/HideCommentOutput" },
         { "$ref": "#/$defs/DispatchWorkflowOutput" },
-        { "$ref": "#/$defs/AutofixCodeScanningAlertOutput" }
+        { "$ref": "#/$defs/AutofixCodeScanningAlertOutput" },
+        { "$ref": "#/$defs/SubmitPullRequestReviewOutput" },
+        { "$ref": "#/$defs/ReplyToPullRequestReviewCommentOutput" },
+        { "$ref": "#/$defs/ResolvePullRequestReviewThreadOutput" }
       ]
     },
     "CreateIssueOutput": {
@@ -295,6 +298,89 @@
         }
       },
       "required": ["type", "path", "line", "body"],
+      "additionalProperties": false
+    },
+    "SubmitPullRequestReviewOutput": {
+      "title": "Submit Pull Request Review Output",
+      "description": "Output for submitting a PR review with a status (APPROVE, REQUEST_CHANGES, COMMENT). All create_pull_request_review_comment outputs are collected and submitted as part of this review. If omitted, comments are submitted as a COMMENT review.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "submit_pull_request_review"
+        },
+        "body": {
+          "type": "string",
+          "description": "Review body text summarizing the review. Required for REQUEST_CHANGES; optional for APPROVE and COMMENT."
+        },
+        "event": {
+          "type": "string",
+          "description": "Review decision: APPROVE to approve the PR, REQUEST_CHANGES to request changes, or COMMENT for general feedback. Defaults to COMMENT when omitted.",
+          "enum": ["APPROVE", "REQUEST_CHANGES", "COMMENT"],
+          "default": "COMMENT"
+        }
+      },
+      "required": ["type"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "event": { "const": "REQUEST_CHANGES" }
+            },
+            "required": ["event"]
+          },
+          "then": {
+            "required": ["type", "event", "body"],
+            "properties": {
+              "body": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ReplyToPullRequestReviewCommentOutput": {
+      "title": "Reply to Pull Request Review Comment Output",
+      "description": "Output for replying to an existing review comment on a pull request",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "reply_to_pull_request_review_comment"
+        },
+        "comment_id": {
+          "type": ["number", "string"],
+          "description": "The numeric ID of the review comment to reply to"
+        },
+        "body": {
+          "type": "string",
+          "description": "The reply body text",
+          "minLength": 1
+        },
+        "pull_request_number": {
+          "type": ["number", "string"],
+          "description": "Pull request number (optional - uses triggering PR if not provided)"
+        }
+      },
+      "required": ["type", "comment_id", "body"],
+      "additionalProperties": false
+    },
+    "ResolvePullRequestReviewThreadOutput": {
+      "title": "Resolve Pull Request Review Thread Output",
+      "description": "Output for resolving a review thread on a pull request. Marks a review conversation as resolved after the feedback has been addressed.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "resolve_pull_request_review_thread"
+        },
+        "thread_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The node ID of the review thread to resolve (e.g., 'PRRT_kwDOABCD...'). This is the GraphQL node ID, not a numeric ID."
+        }
+      },
+      "required": ["type", "thread_id"],
       "additionalProperties": false
     },
     "CreateDiscussionOutput": {

@@ -66,6 +66,15 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract YAML configuration sections from frontmatter
 	c.extractYAMLSections(result.Frontmatter, workflowData)
 
+	// Merge features from imports
+	if len(engineSetup.importsResult.MergedFeatures) > 0 {
+		mergedFeatures, err := c.MergeFeatures(workflowData.Features, engineSetup.importsResult.MergedFeatures)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge features from imports: %w", err)
+		}
+		workflowData.Features = mergedFeatures
+	}
+
 	// Process and merge custom steps with imported steps
 	c.processAndMergeSteps(result.Frontmatter, workflowData, engineSetup.importsResult)
 
@@ -88,6 +97,13 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 
+	// Validate that git tool is allowed if using create-pull-request or push-to-pull-request-branch
+	// This must happen BEFORE applyDefaults() modifies the tools map
+	// We're checking if user's explicit bash configuration would prevent git from running
+	if err := validateGitToolForSafeOutputs(workflowData.ParsedTools, workflowData.SafeOutputs, workflowData.Name); err != nil {
+		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	}
+
 	// Process on section configuration and apply filters
 	if err := c.processOnSectionAndFilters(result.Frontmatter, workflowData, cleanPath); err != nil {
 		return nil, err
@@ -107,40 +123,41 @@ func (c *Compiler) buildInitialWorkflowData(
 	orchestratorWorkflowLog.Print("Building initial workflow data")
 
 	return &WorkflowData{
-		Name:                 toolsResult.workflowName,
-		FrontmatterName:      toolsResult.frontmatterName,
-		FrontmatterYAML:      strings.Join(result.FrontmatterLines, "\n"),
-		Description:          c.extractDescription(result.Frontmatter),
-		Source:               c.extractSource(result.Frontmatter),
-		TrackerID:            toolsResult.trackerID,
-		ImportedFiles:        importsResult.ImportedFiles,
-		ImportedMarkdown:     toolsResult.importedMarkdown, // Only imports WITH inputs
-		ImportPaths:          toolsResult.importPaths,      // Import paths for runtime-import macros (imports without inputs)
-		MainWorkflowMarkdown: toolsResult.mainWorkflowMarkdown,
-		IncludedFiles:        toolsResult.allIncludedFiles,
-		ImportInputs:         importsResult.ImportInputs,
-		Tools:                toolsResult.tools,
-		ParsedTools:          NewTools(toolsResult.tools),
-		Runtimes:             toolsResult.runtimes,
-		PluginInfo:           toolsResult.pluginInfo,
-		MarkdownContent:      toolsResult.markdownContent,
-		AI:                   engineSetup.engineSetting,
-		EngineConfig:         engineSetup.engineConfig,
-		AgentFile:            importsResult.AgentFile,
-		AgentImportSpec:      importsResult.AgentImportSpec,
-		RepositoryImports:    importsResult.RepositoryImports,
-		NetworkPermissions:   engineSetup.networkPermissions,
-		SandboxConfig:        applySandboxDefaults(engineSetup.sandboxConfig, engineSetup.engineConfig),
-		NeedsTextOutput:      toolsResult.needsTextOutput,
-		ToolsTimeout:         toolsResult.toolsTimeout,
-		ToolsStartupTimeout:  toolsResult.toolsStartupTimeout,
-		TrialMode:            c.trialMode,
-		TrialLogicalRepo:     c.trialLogicalRepoSlug,
-		GitHubToken:          extractStringFromMap(result.Frontmatter, "github-token", nil),
-		StrictMode:           c.strictMode,
-		SecretMasking:        toolsResult.secretMasking,
-		ParsedFrontmatter:    toolsResult.parsedFrontmatter,
-		ActionMode:           c.actionMode,
+		Name:                  toolsResult.workflowName,
+		FrontmatterName:       toolsResult.frontmatterName,
+		FrontmatterYAML:       strings.Join(result.FrontmatterLines, "\n"),
+		Description:           c.extractDescription(result.Frontmatter),
+		Source:                c.extractSource(result.Frontmatter),
+		TrackerID:             toolsResult.trackerID,
+		ImportedFiles:         importsResult.ImportedFiles,
+		ImportedMarkdown:      toolsResult.importedMarkdown, // Only imports WITH inputs
+		ImportPaths:           toolsResult.importPaths,      // Import paths for runtime-import macros (imports without inputs)
+		MainWorkflowMarkdown:  toolsResult.mainWorkflowMarkdown,
+		IncludedFiles:         toolsResult.allIncludedFiles,
+		ImportInputs:          importsResult.ImportInputs,
+		Tools:                 toolsResult.tools,
+		ParsedTools:           NewTools(toolsResult.tools),
+		Runtimes:              toolsResult.runtimes,
+		PluginInfo:            toolsResult.pluginInfo,
+		MarkdownContent:       toolsResult.markdownContent,
+		AI:                    engineSetup.engineSetting,
+		EngineConfig:          engineSetup.engineConfig,
+		AgentFile:             importsResult.AgentFile,
+		AgentImportSpec:       importsResult.AgentImportSpec,
+		RepositoryImports:     importsResult.RepositoryImports,
+		NetworkPermissions:    engineSetup.networkPermissions,
+		SandboxConfig:         applySandboxDefaults(engineSetup.sandboxConfig, engineSetup.engineConfig),
+		NeedsTextOutput:       toolsResult.needsTextOutput,
+		ToolsTimeout:          toolsResult.toolsTimeout,
+		ToolsStartupTimeout:   toolsResult.toolsStartupTimeout,
+		TrialMode:             c.trialMode,
+		TrialLogicalRepo:      c.trialLogicalRepoSlug,
+		GitHubToken:           extractStringFromMap(result.Frontmatter, "github-token", nil),
+		StrictMode:            c.strictMode,
+		SecretMasking:         toolsResult.secretMasking,
+		ParsedFrontmatter:     toolsResult.parsedFrontmatter,
+		HasExplicitGitHubTool: toolsResult.hasExplicitGitHubTool,
+		ActionMode:            c.actionMode,
 	}
 }
 
@@ -419,6 +436,9 @@ func (c *Compiler) extractAdditionalConfigurations(
 
 	workflowData.Roles = c.extractRoles(frontmatter)
 	workflowData.Bots = c.extractBots(frontmatter)
+	workflowData.RateLimit = c.extractRateLimitConfig(frontmatter)
+	workflowData.SkipRoles = c.mergeSkipRoles(c.extractSkipRoles(frontmatter), importsResult.MergedSkipRoles)
+	workflowData.SkipBots = c.mergeSkipBots(c.extractSkipBots(frontmatter), importsResult.MergedSkipBots)
 
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs

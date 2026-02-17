@@ -16,9 +16,9 @@ Coding and development workflows streamline common development tasks through int
 
 ## Sample Workflows
 
-### Daily Dependency Updater
+### Daily Dependabot PR Bundler
 
-Automatically checks for dependency updates, creates branches, and submits PRs with updated versions to keep dependencies current without manual tracking. [Learn more](https://github.com/githubnext/agentics/blob/main/docs/daily-dependency-updates.md)
+This workflow checks Dependabot alerts and updates dependencies in package manifests (not just lock files). Bundles multiple compatible updates into single pull requests, runs tests to verify compatibility, and creates draft PRs with working changes. Documents investigation attempts for problematic updates. [Learn more](https://github.com/githubnext/agentics/blob/main/docs/dependabot-pr-bundler.md)
 
 ### Regular Documentation Update
 

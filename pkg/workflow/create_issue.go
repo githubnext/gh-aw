@@ -20,6 +20,7 @@ type CreateIssuesConfig struct {
 	CloseOlderIssues     bool     `yaml:"close-older-issues,omitempty"` // When true, close older issues with same title prefix or labels as "not planned"
 	Expires              int      `yaml:"expires,omitempty"`            // Hours until the issue expires and should be automatically closed
 	Group                bool     `yaml:"group,omitempty"`              // If true, group issues as sub-issues under a parent issue (workflow ID is used as group identifier)
+	Footer               *bool    `yaml:"footer,omitempty"`             // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 }
 
 // parseIssuesConfig handles create-issue configuration
@@ -35,25 +36,7 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 	configData, _ := outputMap["create-issue"].(map[string]any)
 
 	// Pre-process the expires field (convert to hours before unmarshaling)
-	expiresDisabled := false
-	if configData != nil {
-		if expires, exists := configData["expires"]; exists {
-			// Always parse the expires value through parseExpiresFromConfig
-			// This handles: integers (days), strings (time specs like "48h"), and boolean false
-			expiresInt := parseExpiresFromConfig(configData)
-			if expiresInt == -1 {
-				// Explicitly disabled with false
-				expiresDisabled = true
-				configData["expires"] = 0
-			} else if expiresInt > 0 {
-				configData["expires"] = expiresInt
-			} else {
-				// Invalid or missing - set to 0
-				configData["expires"] = 0
-			}
-			createIssueLog.Printf("Parsed expires value %v to %d hours (disabled=%t)", expires, expiresInt, expiresDisabled)
-		}
-	}
+	expiresDisabled := preprocessExpiresField(configData, createIssueLog)
 
 	// Unmarshal into typed config struct
 	var config CreateIssuesConfig
@@ -170,6 +153,12 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	if data.SafeOutputs.CreateIssues.CloseOlderIssues {
 		customEnvVars = append(customEnvVars, "          GH_AW_CLOSE_OLDER_ISSUES: \"true\"\n")
 		createIssueLog.Print("Close older issues enabled - older issues with same title prefix or labels will be closed")
+	}
+
+	// Add footer flag if explicitly set to false
+	if data.SafeOutputs.CreateIssues.Footer != nil && !*data.SafeOutputs.CreateIssues.Footer {
+		customEnvVars = append(customEnvVars, "          GH_AW_FOOTER: \"false\"\n")
+		createIssueLog.Print("Footer disabled - XML markers will be included but visible footer content will be omitted")
 	}
 
 	// Add standard environment variables (metadata + staged/target repo)

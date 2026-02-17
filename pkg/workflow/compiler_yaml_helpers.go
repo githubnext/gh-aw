@@ -18,6 +18,17 @@ func GetWorkflowIDFromPath(markdownPath string) string {
 	return strings.TrimSuffix(filepath.Base(markdownPath), ".md")
 }
 
+// SanitizeWorkflowIDForCacheKey sanitizes a workflow ID for use in cache keys.
+// It removes all hyphens and converts to lowercase to create a filesystem-safe identifier.
+// Example: "Smoke-Copilot" -> "smokecopilot"
+func SanitizeWorkflowIDForCacheKey(workflowID string) string {
+	// Convert to lowercase
+	sanitized := strings.ToLower(workflowID)
+	// Remove all hyphens
+	sanitized = strings.ReplaceAll(sanitized, "-", "")
+	return sanitized
+}
+
 // convertStepToYAML converts a step map to YAML format.
 // This is a method wrapper around the package-level ConvertStepToYAML function.
 func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
@@ -86,6 +97,10 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 	yaml.WriteString(indent + "  with:\n")
 	yaml.WriteString(indent + "    script: |\n")
 
+	// Use setup_globals helper to make GitHub Actions objects available globally
+	yaml.WriteString(indent + "      const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
+	yaml.WriteString(indent + "      setupGlobals(core, github, context, exec, io);\n")
+	yaml.WriteString(indent + "      \n")
 	// Use require() to load script from copied files
 	yaml.WriteString(indent + "      const substitutePlaceholders = require('" + SetupActionDestination + "/substitute_placeholders.cjs');\n")
 	yaml.WriteString(indent + "      \n")
@@ -135,7 +150,7 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 			"          sparse-checkout: |\n",
 			"            actions\n",
 			"          path: /tmp/gh-aw/actions-source\n",
-			"          depth: 1\n",
+			"          fetch-depth: 1\n",
 			"          persist-credentials: false\n",
 		}
 	}
@@ -209,7 +224,7 @@ func (c *Compiler) generateCheckoutGitHubFolder(data *WorkflowData) []string {
 		"          sparse-checkout: |\n",
 		"            .github\n",
 		"            .agents\n",
-		"          depth: 1\n",
+		"          fetch-depth: 1\n",
 		"          persist-credentials: false\n",
 	}
 }
@@ -231,6 +246,30 @@ func generateGitHubScriptWithRequire(scriptPath string) string {
 	script.WriteString("            await main();\n")
 
 	return script.String()
+}
+
+// generateInlineGitHubScriptStep generates a simple inline github-script step
+// for validation or utility operations that don't require artifact downloads.
+//
+// Parameters:
+//   - stepName: The name of the step (e.g., "Validate cache-memory file types")
+//   - script: The JavaScript code to execute (pre-formatted with proper indentation)
+//   - condition: Optional if condition (e.g., "always()"). Empty string means no condition.
+//
+// Returns a string containing the complete YAML for the github-script step.
+func generateInlineGitHubScriptStep(stepName, script, condition string) string {
+	var step strings.Builder
+
+	step.WriteString("      - name: " + stepName + "\n")
+	if condition != "" {
+		step.WriteString("        if: " + condition + "\n")
+	}
+	step.WriteString("        uses: " + GetActionPin("actions/github-script") + "\n")
+	step.WriteString("        with:\n")
+	step.WriteString("          script: |\n")
+	step.WriteString(script)
+
+	return step.String()
 }
 
 // generateSetupStep generates the setup step based on the action mode.

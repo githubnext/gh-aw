@@ -7,6 +7,7 @@ const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { execGitSync } = require("./git_helpers.cjs");
+const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
 
 /**
  * Push repo-memory changes to git branch
@@ -17,6 +18,7 @@ const { execGitSync } = require("./git_helpers.cjs");
  *   BRANCH_NAME: Branch name to push to
  *   MAX_FILE_SIZE: Maximum file size in bytes
  *   MAX_FILE_COUNT: Maximum number of files per commit
+ *   ALLOWED_EXTENSIONS: JSON array of allowed file extensions (e.g., '[".json",".txt"]')
  *   FILE_GLOB_FILTER: Optional space-separated list of file patterns (e.g., "*.md metrics/** data/**")
  *                     Supports * (matches any chars except /) and ** (matches any chars including /)
  *
@@ -43,14 +45,29 @@ async function main() {
   const maxFileSize = parseInt(process.env.MAX_FILE_SIZE || "10240", 10);
   const maxFileCount = parseInt(process.env.MAX_FILE_COUNT || "100", 10);
   const fileGlobFilter = process.env.FILE_GLOB_FILTER || "";
+
+  // Parse allowed extensions with error handling
+  let allowedExtensions = [".json", ".jsonl", ".txt", ".md", ".csv"];
+  if (process.env.ALLOWED_EXTENSIONS) {
+    try {
+      allowedExtensions = JSON.parse(process.env.ALLOWED_EXTENSIONS);
+    } catch (/** @type {any} */ error) {
+      core.setFailed(`Failed to parse ALLOWED_EXTENSIONS environment variable: ${error.message}. Expected JSON array format.`);
+      return;
+    }
+  }
+
   const ghToken = process.env.GH_TOKEN;
   const githubRunId = process.env.GITHUB_RUN_ID || "unknown";
+  const githubServerUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const serverHost = githubServerUrl.replace(/^https?:\/\//, "");
 
   // Log environment variable configuration for debugging
   core.info("Environment configuration:");
   core.info(`  MEMORY_ID: ${memoryId}`);
   core.info(`  MAX_FILE_SIZE: ${maxFileSize}`);
   core.info(`  MAX_FILE_COUNT: ${maxFileCount}`);
+  core.info(`  ALLOWED_EXTENSIONS: ${JSON.stringify(allowedExtensions)}`);
   core.info(`  FILE_GLOB_FILTER: ${fileGlobFilter ? `"${fileGlobFilter}"` : "(empty - all files accepted)"}`);
   core.info(`  FILE_GLOB_FILTER length: ${fileGlobFilter.length}`);
 
@@ -75,6 +92,17 @@ async function main() {
   // Validate required environment variables
   if (!artifactDir || !memoryId || !targetRepo || !branchName || !ghToken) {
     core.setFailed("Missing required environment variables: ARTIFACT_DIR, MEMORY_ID, TARGET_REPO, BRANCH_NAME, GH_TOKEN");
+    return;
+  }
+
+  // Validate target repository against allowlist
+  const allowedReposEnv = process.env.REPO_MEMORY_ALLOWED_REPOS?.trim();
+  const allowedRepos = parseAllowedRepos(allowedReposEnv);
+  const defaultRepo = `${context.repo.owner}/${context.repo.repo}`;
+
+  const repoValidation = validateRepo(targetRepo, defaultRepo, allowedRepos);
+  if (!repoValidation.valid) {
+    core.setFailed(`E004: ${repoValidation.error}`);
     return;
   }
 
@@ -105,7 +133,7 @@ async function main() {
   // Checkout or create the memory branch
   core.info(`Checking out branch: ${branchName}...`);
   try {
-    const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+    const repoUrl = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
 
     // Try to fetch the branch
     try {
@@ -241,6 +269,17 @@ async function main() {
     return;
   }
 
+  // Validate file types before copying
+  const { validateMemoryFiles } = require("./validate_memory_files.cjs");
+  const validation = validateMemoryFiles(sourceMemoryPath, "repo", allowedExtensions);
+  if (!validation.valid) {
+    const errorMessage = `File type validation failed: Found ${validation.invalidFiles.length} file(s) with invalid extensions. Only ${allowedExtensions.join(", ")} are allowed. Invalid files: ${validation.invalidFiles.join(", ")}`;
+    core.setOutput("validation_failed", "true");
+    core.setOutput("validation_error", errorMessage);
+    core.setFailed(errorMessage);
+    return;
+  }
+
   core.info(`Copying ${filesToCopy.length} validated file(s)...`);
 
   // Copy files to destination (preserving directory structure)
@@ -305,7 +344,7 @@ async function main() {
   // Pull with merge strategy (ours wins on conflicts)
   core.info(`Pulling latest changes from ${branchName}...`);
   try {
-    const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+    const repoUrl = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
     execGitSync(["pull", "--no-rebase", "-X", "ours", repoUrl, branchName], { stdio: "inherit" });
   } catch (error) {
     // Pull might fail if branch doesn't exist yet or on conflicts - this is acceptable
@@ -315,7 +354,7 @@ async function main() {
   // Push changes
   core.info(`Pushing changes to ${branchName}...`);
   try {
-    const repoUrl = `https://x-access-token:${ghToken}@github.com/${targetRepo}.git`;
+    const repoUrl = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
     execGitSync(["push", repoUrl, `HEAD:${branchName}`], { stdio: "inherit" });
     core.info(`Successfully pushed changes to ${branchName} branch`);
   } catch (error) {

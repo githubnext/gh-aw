@@ -1,9 +1,15 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
   info: vi.fn(),
+  debug: vi.fn(),
   warning: vi.fn(),
+  startGroup: vi.fn(),
+  endGroup: vi.fn(),
   summary: {
     addRaw: vi.fn().mockReturnThis(),
     write: vi.fn().mockResolvedValue(undefined),
@@ -206,6 +212,157 @@ describe("safe_output_summary", () => {
       await writeSafeOutputSummaries(results, messages);
 
       expect(mockCore.warning).toHaveBeenCalledWith("Failed to write safe output summaries: Write failed");
+    });
+
+    it("should log raw .jsonl content when safe outputs file exists", async () => {
+      // Create a temporary .jsonl file
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "test-safe-outputs-"));
+      const jsonlFile = path.join(tempDir, "outputs.jsonl");
+      const jsonlContent = '{"type":"create_issue","title":"Test Issue"}\n{"type":"add_comment","body":"Test comment"}';
+      fs.writeFileSync(jsonlFile, jsonlContent, "utf8");
+
+      // Set environment variable
+      const originalEnv = process.env.GH_AW_SAFE_OUTPUTS;
+      process.env.GH_AW_SAFE_OUTPUTS = jsonlFile;
+
+      try {
+        const results = [
+          {
+            type: "create_issue",
+            messageIndex: 0,
+            success: true,
+            result: { repo: "owner/repo", number: 123 },
+          },
+        ];
+
+        const messages = [{ title: "Issue 1" }];
+
+        await writeSafeOutputSummaries(results, messages);
+
+        // Verify that displayFileContent was called (which uses core.startGroup and core.endGroup)
+        expect(mockCore.startGroup).toHaveBeenCalled();
+        expect(mockCore.endGroup).toHaveBeenCalled();
+
+        // Verify that the group title includes the file name and size
+        const startGroupCalls = mockCore.startGroup.mock.calls.map(call => call[0]);
+        expect(startGroupCalls.some(call => call.includes("safe-outputs.jsonl"))).toBe(true);
+
+        // Verify that content lines were logged
+        const infoCalls = mockCore.info.mock.calls.map(call => call[0]);
+        expect(infoCalls.length).toBeGreaterThan(0);
+      } finally {
+        // Cleanup
+        process.env.GH_AW_SAFE_OUTPUTS = originalEnv;
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should handle missing safe outputs file gracefully", async () => {
+      // Set environment variable to a non-existent file
+      const originalEnv = process.env.GH_AW_SAFE_OUTPUTS;
+      process.env.GH_AW_SAFE_OUTPUTS = "/non/existent/file.jsonl";
+
+      try {
+        const results = [
+          {
+            type: "create_issue",
+            messageIndex: 0,
+            success: true,
+            result: { repo: "owner/repo", number: 123 },
+          },
+        ];
+
+        const messages = [{ title: "Issue 1" }];
+
+        await writeSafeOutputSummaries(results, messages);
+
+        // Should not throw and should still write summary
+        expect(mockCore.summary.write).toHaveBeenCalledTimes(1);
+        expect(mockCore.info).toHaveBeenCalledWith("📝 Safe output summaries written to step summary");
+      } finally {
+        // Cleanup
+        process.env.GH_AW_SAFE_OUTPUTS = originalEnv;
+      }
+    });
+
+    it("should skip logging when safe outputs file is empty", async () => {
+      // Create a temporary empty .jsonl file
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "test-safe-outputs-"));
+      const jsonlFile = path.join(tempDir, "outputs.jsonl");
+      fs.writeFileSync(jsonlFile, "", "utf8");
+
+      // Set environment variable
+      const originalEnv = process.env.GH_AW_SAFE_OUTPUTS;
+      process.env.GH_AW_SAFE_OUTPUTS = jsonlFile;
+
+      try {
+        const results = [
+          {
+            type: "create_issue",
+            messageIndex: 0,
+            success: true,
+            result: { repo: "owner/repo", number: 123 },
+          },
+        ];
+
+        const messages = [{ title: "Issue 1" }];
+
+        await writeSafeOutputSummaries(results, messages);
+
+        // Should not log empty content or start a log group
+        expect(mockCore.startGroup).not.toHaveBeenCalled();
+        expect(mockCore.endGroup).not.toHaveBeenCalled();
+      } finally {
+        // Cleanup
+        process.env.GH_AW_SAFE_OUTPUTS = originalEnv;
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should truncate large safe outputs file content", async () => {
+      // Create a temporary .jsonl file with large content (> 5000 bytes)
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "test-safe-outputs-"));
+      const jsonlFile = path.join(tempDir, "outputs.jsonl");
+
+      // Create content larger than 5000 bytes
+      const largeEntry = { type: "create_issue", title: "Test", body: "a".repeat(5000) };
+      const jsonlContent = JSON.stringify(largeEntry) + "\n" + JSON.stringify(largeEntry);
+      fs.writeFileSync(jsonlFile, jsonlContent, "utf8");
+
+      // Set environment variable
+      const originalEnv = process.env.GH_AW_SAFE_OUTPUTS;
+      process.env.GH_AW_SAFE_OUTPUTS = jsonlFile;
+
+      try {
+        const results = [
+          {
+            type: "create_issue",
+            messageIndex: 0,
+            success: true,
+            result: { repo: "owner/repo", number: 123 },
+          },
+        ];
+
+        const messages = [{ title: "Issue 1" }];
+
+        await writeSafeOutputSummaries(results, messages);
+
+        // Verify that displayFileContent was called (which uses core.startGroup and core.endGroup)
+        expect(mockCore.startGroup).toHaveBeenCalled();
+        expect(mockCore.endGroup).toHaveBeenCalled();
+
+        // Verify that the group title includes the file name
+        const startGroupCalls = mockCore.startGroup.mock.calls.map(call => call[0]);
+        expect(startGroupCalls.some(call => call.includes("safe-outputs.jsonl"))).toBe(true);
+
+        // Verify that truncation message was logged (displayFileContent shows truncation info)
+        const infoCalls = mockCore.info.mock.calls.map(call => call[0]);
+        expect(infoCalls.some(call => call.includes("truncated") || call.includes("..."))).toBe(true);
+      } finally {
+        // Cleanup
+        process.env.GH_AW_SAFE_OUTPUTS = originalEnv;
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
     });
   });
 });

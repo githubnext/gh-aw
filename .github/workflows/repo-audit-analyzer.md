@@ -119,7 +119,7 @@ tree -L 3 -d -I 'node_modules|.git|vendor' . || find . -type d -maxdepth 3 ! -pa
 ls -lh README* LICENSE* CONTRIBUTING* CODE_OF_CONDUCT* SECURITY* 2>/dev/null
 
 # Build and test files
-find . -maxdepth 2 -name "Makefile" -o -name "*.mk" -o -name "package.json" -o -name "go.mod" -o -name "requirements.txt" -o -name "Cargo.toml" -o -name "pom.xml" -o -name "build.gradle" -o -name ".fsproj" -o -name "*.sln"
+find . -maxdepth 2 -name "Makefile" -o -name "*.mk" -o -name "package.json" -o -name "go.mod" -o -name "requirements.txt" -o -name "Cargo.toml" -o -name "pom.xml" -o -name "build.gradle" -o -name "*.csproj" -o -name "*.fsproj" -o -name "*.sln" -o -name "*.slnx"
 
 # Documentation
 find . -type d -name "docs" -o -name "documentation" -o -name "wiki"

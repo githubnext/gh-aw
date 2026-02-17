@@ -167,12 +167,15 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Add cache steps if cache configuration is present
+	compilerYamlLog.Printf("Generating cache steps for workflow")
 	generateCacheSteps(yaml, data, c.verbose)
 
 	// Add cache-memory steps if cache-memory configuration is present
+	compilerYamlLog.Printf("Generating cache-memory steps for workflow")
 	generateCacheMemorySteps(yaml, data)
 
 	// Add repo-memory clone steps if repo-memory configuration is present
+	compilerYamlLog.Printf("Generating repo-memory steps for workflow")
 	generateRepoMemorySteps(yaml, data)
 
 	// Configure git credentials for agentic workflows
@@ -189,6 +192,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	if err != nil {
 		return err
+	}
+
+	// Ensure MCP gateway defaults are set before generating aw_info.json
+	// This is needed so that awmg_version is populated correctly
+	if HasMCPServers(data) {
+		ensureDefaultMCPGatewayConfig(data)
 	}
 
 	// Generate aw_info.json with agentic run metadata (must run before secret validation and workflow overview)
@@ -208,6 +217,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add GitHub MCP lockdown detection step if needed
 	c.generateGitHubMCPLockdownDetectionStep(yaml, data)
 
+	// Add GitHub MCP lockdown validation step if lockdown is explicitly enabled
+	c.generateGitHubMCPLockdownValidationStep(yaml, data)
+
 	// Add GitHub MCP app token minting step if configured
 	c.generateGitHubMCPAppTokenMintingStep(yaml, data)
 
@@ -221,8 +233,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// This reads from aw_info.json for consistent data
 	c.generateWorkflowOverviewStep(yaml, data, engine)
 
-	// Add prompt creation step
-	c.generatePrompt(yaml, data)
+	// Download prompt artifact from activation job
+	compilerYamlLog.Print("Adding prompt artifact download step")
+	yaml.WriteString("      - name: Download prompt artifact\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", GetActionPin("actions/download-artifact"))
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: prompt\n")
+	yaml.WriteString("          path: /tmp/gh-aw/aw-prompts\n")
 
 	// Collect artifact paths for unified upload at the end
 	var artifactPaths []string
@@ -240,9 +257,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Add AI execution step using the agentic engine
+	compilerYamlLog.Printf("Generating engine execution steps for %s", engine.GetID())
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
 
 	// Mark that we've completed agent execution - step order validation starts from here
+	compilerYamlLog.Print("Marking agent execution as complete for step order tracking")
 	c.stepOrderTracker.MarkAgentExecutionComplete()
 
 	// Regenerate git credentials after agent execution
@@ -289,10 +308,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Stop MCP gateway after agent execution and before secret redaction
 	// This ensures the gateway process is properly cleaned up
-	// Skip if sandbox is disabled (sandbox: false)
-	if !isSandboxDisabled(data) {
-		c.generateStopMCPGateway(yaml, data)
-	}
+	// The MCP gateway is always enabled, even when agent sandbox is disabled
+	c.generateStopMCPGateway(yaml, data)
 
 	// Add secret redaction step BEFORE any artifact uploads
 	// This ensures all artifacts are scanned for secrets before being uploaded
@@ -329,10 +346,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// parse MCP gateway logs for GITHUB_STEP_SUMMARY
-	// Skip if sandbox is disabled (sandbox: false) as gateway won't be running
-	if !isSandboxDisabled(data) {
-		c.generateMCPGatewayLogParsing(yaml)
-	}
+	// The MCP gateway is always enabled, even when agent sandbox is disabled
+	c.generateMCPGatewayLogParsing(yaml)
 
 	// Add firewall log parsing steps (but not upload - collected for unified upload)
 	// For Copilot, Codex, and Claude engines
@@ -385,6 +400,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add repo-memory artifact upload to save state for push job
 	generateRepoMemoryArtifactUpload(yaml, data)
+
+	// Add cache-memory validation (after agent execution)
+	// This validates file types before cache is saved or uploaded
+	generateCacheMemoryValidation(yaml, data)
 
 	// Add cache-memory artifact upload (after agent execution)
 	// This ensures artifacts are uploaded after the agent has finished modifying the cache

@@ -109,24 +109,16 @@ Setup: `gh aw secrets set GH_AW_GITHUB_TOKEN --value "<your-pat>"`
 
 **Read-Only**: Default behavior; restricts to read operations unless write operations configured.
 
-**Lockdown**: Automatically determined based on repository visibility when using a custom token (`GH_AW_GITHUB_MCP_SERVER_TOKEN`). Filters public repository content to items from users with push access. Private repositories are unaffected.
-
-- **Automatic (default)**: When `GH_AW_GITHUB_MCP_SERVER_TOKEN` is defined, lockdown is automatically enabled for public repositories and disabled for private/internal repositories
-- **Manual override**: Explicitly set `lockdown: true` or `lockdown: false` to override automatic determination
+**Lockdown Mode**: Security feature that filters public repository content to only show issues, PRs, and comments from users with push access. Automatically enabled for public repositories when using custom tokens. See [Lockdown Mode](/gh-aw/reference/lockdown-mode/) for complete documentation.
 
 ```yaml wrap
 tools:
   github:
-    # Option 1: Automatic (recommended) - determined at runtime
-    # Lockdown automatically enabled for public repos when GH_AW_GITHUB_MCP_SERVER_TOKEN is set
-
-    # Option 2: Explicit override
-    lockdown: true   # Force enable
-    # or
-    lockdown: false  # Explicitly disable (use with caution in public repos)
+    lockdown: true   # Force enable (automatic for public repos)
+    lockdown: false  # Disable (for workflows processing all user input)
 ```
 
-See [GitHub Tokens](/gh-aw/reference/tokens/#github-app-tokens-for-github-mcp-server) for security implications.
+See [Authentication](/gh-aw/reference/auth/) for security implications and authentication options.
 
 ### GitHub App Authentication
 
@@ -166,7 +158,7 @@ tools:
 - Works with both local (Docker) and remote (hosted) modes
 - Isolated from safe-outputs token configuration
 
-See [GitHub App Tokens for GitHub MCP Server](/gh-aw/reference/tokens/#github-app-tokens-for-github-mcp-server) for complete setup and configuration details.
+See [GitHub App Tokens for GitHub MCP Server](/gh-aw/reference/auth/#gh_aw_github_mcp_server_token) for complete setup and configuration details.
 
 **Token precedence**: GitHub App → `github-token` → `GH_AW_GITHUB_MCP_SERVER_TOKEN` → `GH_AW_GITHUB_TOKEN` → `GITHUB_TOKEN`
 
@@ -183,6 +175,8 @@ tools:
 
 **Domain Access**: Uses `network:` ecosystem bundles (`defaults`, `github`, `node`, `python`, etc.). Defaults to `["localhost", "127.0.0.1"]`. Domains auto-include subdomains.
 
+**GitHub Actions Compatibility**: Playwright runs in a Docker container with security flags required for Chromium to function on GitHub Actions runners (`--security-opt seccomp=unconfined` and `--ipc=host`). These flags are automatically configured by gh-aw version 0.41.0 and later.
+
 ## Built-in MCP Tools
 
 ### Agentic Workflows (`agentic-workflows:`)
@@ -196,7 +190,10 @@ tools:
   agentic-workflows:
 ```
 
-See [MCP Server](/gh-aw/setup/mcp-server/#using-as-agentic-workflows-tool) for available operations.
+> [!NOTE]
+> The `logs` and `audit` tools require the workflow actor to have **write, maintain, or admin** repository role. Other tools (status, compile, mcp-inspect, add, update, fix) are available to all users.
+
+See [MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/#using-as-agentic-workflows-tool) for available operations.
 
 ### Cache Memory (`cache-memory:`)
 

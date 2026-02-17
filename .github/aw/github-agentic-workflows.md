@@ -54,6 +54,9 @@ gh aw compile my-workflow
 # Compile with strict security checks
 gh aw compile --strict
 
+# Stop at first error (default: aggregate all errors)
+gh aw compile --fail-fast
+
 # Remove orphaned .lock.yml files (no corresponding .md)
 gh aw compile --purge
 
@@ -149,20 +152,6 @@ The YAML frontmatter supports these fields:
   - This identifier is inserted in the body/description of all created assets (issues, discussions, comments, pull requests)
   - Enables searching and retrieving assets associated with this workflow
   - Examples: `"workflow-2024-q1"`, `"team-alpha-bot"`, `"security_audit_v2"`
-
-- **`project:`** - GitHub Projects integration configuration (string or object)
-  - String format: `"https://github.com/orgs/myorg/projects/42"` - Project URL only
-  - Object format for advanced configuration:
-    ```yaml
-    project:
-      url: "https://github.com/orgs/myorg/projects/42"  # Required: full project URL
-      scope: ["owner/repo", "org:name"]                  # Optional: repositories/organizations workflow can operate on
-      max-updates: 100                                   # Optional: max project updates per run (default: 100)
-      max-status-updates: 1                              # Optional: max status updates per run (default: 1)
-      github-token: ${{ secrets.PROJECTS_PAT }}          # Optional: custom token for project operations
-    ```
-  - When configured, enables project board management operations
-  - Works with `update-project` safe-output for automated project tracking
 
 - **`secret-masking:`** - Configuration for secret redaction behavior in workflow outputs and artifacts (object)
   - `steps:` - Additional secret redaction steps to inject after the built-in secret redaction (array)
@@ -388,7 +377,7 @@ The YAML frontmatter supports these fields:
     {"type": "create_issue", "temporary_id": "aw_abc123def456", "title": "Parent", "body": "Parent issue"}
     {"type": "create_issue", "parent": "aw_abc123def456", "title": "Sub-task", "body": "References #aw_abc123def456"}
     ```
-  - `close-issue:` - Close issues with comment
+  - `close-issue:` - Close issues with comment (use this to close issues, not update-issue)
     ```yaml
     safe-outputs:
       close-issue:
@@ -431,7 +420,6 @@ The YAML frontmatter supports these fields:
       add-comment:
         max: 3                          # Optional: maximum number of comments (default: 1)
         target: "*"                     # Optional: target for comments (default: "triggering")
-        discussion: true                # Optional: target discussions
         hide-older-comments: true       # Optional: minimize previous comments from same workflow
         allowed-reasons: [outdated]     # Optional: restrict hiding reasons (default: outdated)
         target-repo: "owner/repo"       # Optional: cross-repository
@@ -451,6 +439,7 @@ The YAML frontmatter supports these fields:
         if-no-changes: "warn"           # Optional: "warn" (default), "error", or "ignore"
         expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y; min: 2h)
         auto-merge: false               # Optional: enable auto-merge when checks pass (default: false)
+        base-branch: "vnext"            # Optional: base branch for PR (defaults to workflow's branch)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
 
@@ -461,13 +450,18 @@ The YAML frontmatter supports these fields:
     ```yaml
     safe-outputs:
       create-pull-request-review-comment:
-        max: 3                          # Optional: maximum number of review comments (default: 1)
+        max: 3                          # Optional: maximum number of review comments (default: 10)
         side: "RIGHT"                   # Optional: side of diff ("LEFT" or "RIGHT", default: "RIGHT")
         target: "*"                     # Optional: "triggering" (default), "*", or number
         target-repo: "owner/repo"       # Optional: cross-repository
+      submit-pull-request-review:
+        max: 1                          # Optional: maximum number of reviews to submit (default: 1)
+        footer: "if-body"               # Optional: footer control ("always", "none", "if-body", default: "always")
     ```
+    **Footer Control**: The `footer` field on `submit-pull-request-review` controls when AI-generated footers appear in the PR review body. Values: `"always"` (default, always include footer), `"none"` (never include footer), `"if-body"` (only include footer when review body is non-empty). Boolean values are also supported: `true` maps to `"always"`, `false` maps to `"none"`. This is useful for clean approval reviews — with `"if-body"`, approvals without explanatory text appear without a footer.
+
     When using `safe-outputs.create-pull-request-review-comment`, the main job does **not** need `pull-requests: write` permission since review comment creation is handled by a separate job with appropriate permissions.
-  - `update-issue:` - Safe issue updates
+  - `update-issue:` - Update issue title, body, labels, assignees, or milestone (NOT for closing - use close-issue instead)
     ```yaml
     safe-outputs:
       update-issue:
@@ -478,6 +472,7 @@ The YAML frontmatter supports these fields:
         max: 3                          # Optional: maximum number of issues to update (default: 1)
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
+    **Note:** While `update-issue` technically supports changing status between 'open' and 'closed', use `close-issue` instead when you want to close an issue with a closing comment. Use `update-issue` primarily for changing the title, body, labels, assignees, or milestone without closing.
     When using `safe-outputs.update-issue`, the main job does **not** need `issues: write` permission since issue updates are handled by a separate job with appropriate permissions.
   - `update-pull-request:` - Update PR title or body
     ```yaml
@@ -562,43 +557,119 @@ The YAML frontmatter supports these fields:
         target-repo: "owner/repo"          # Optional: cross-repository
     ```
     Links issues as sub-issues using GitHub's parent-child relationships. Agent output includes `parent_issue_number` and `sub_issue_number`. Use with `create-issue` temporary IDs or existing issue numbers.
-  - `create-project:` - Create GitHub Projects V2
+  - `create-project:` - Create a new GitHub Project board with optional fields and views
     ```yaml
     safe-outputs:
       create-project:
         max: 1                          # Optional: max projects (default: 1)
-        github-token: ${{ secrets.PROJECTS_PAT }}  # Optional: token with projects:write
+        # github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # Optional: override default PAT (NOT GITHUB_TOKEN)
         target-owner: "org-or-user"     # Optional: owner for created projects
         title-prefix: "[ai] "           # Optional: prefix for project titles
     ```
+    Use this to create new projects for organizing and tracking work across issues and pull requests. Can optionally specify custom fields, project views, and an initial item to add.
+    
+    **⚠️ IMPORTANT**: GitHub Projects requires a **Personal Access Token (PAT)** or GitHub App token with Projects permissions. The default `GITHUB_TOKEN` cannot be used. Ensure `${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}` exists and contains a token with:
+    - Classic PAT: `project` and `repo` scopes
+    - Fine-grained PAT: Organization permission `Projects: Read & Write` and repository access
+    
+    Project tools automatically fall back to `${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}` when per-output and top-level `github-token` values are omitted, so specifying `github-token` is optional unless you need to override the default token.
     Not supported for cross-repository operations.
-  - `update-project:` - Manage GitHub Projects boards
+  - `update-project:` - Add items to GitHub Projects, update custom fields, manage project structure
     ```yaml
     safe-outputs:
       update-project:
         max: 20                         # Optional: max project operations (default: 10)
-        github-token: ${{ secrets.PROJECTS_PAT }}  # Optional: token with projects:write
+        project: "https://github.com/orgs/myorg/projects/42"  # REQUIRED in agent output (full URL)
+        # github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # Optional here if GH_AW_PROJECT_GITHUB_TOKEN is set; PAT with projects:write (NOT GITHUB_TOKEN) is still required
     ```
-    Agent output includes the `project` field as a **full GitHub project URL** (e.g., `https://github.com/orgs/myorg/projects/42` or `https://github.com/users/username/projects/5`). Project names or numbers alone are NOT accepted.
+    Use this to organize work by adding issues and pull requests to projects, updating field values (status, priority, effort, dates), creating custom fields, and setting up project views.
+    
+    **⚠️ IMPORTANT REQUIREMENTS:**
+    - Agent must include full project URL in **every** call: `project: "https://github.com/orgs/myorg/projects/42"` or `https://github.com/users/username/projects/5`
+    - Project URLs must be full URLs; project numbers alone are NOT accepted
+    - Requires a **PAT or GitHub App token** with Projects permissions (for example via `github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}` or the `GH_AW_PROJECT_GITHUB_TOKEN` fallback)
+    - Default `GITHUB_TOKEN` **cannot** access Projects v2 API
+    - Token scopes:
+      - Classic PAT: `project` and `repo` scopes
+      - Fine-grained PAT: Organization `Projects: Read & Write` permission
+    
+    **Three calling modes:**
 
-    For adding existing issues/PRs: Include `content_type` ("issue" or "pull_request") and `content_number`:
+    **Mode 1: Add/update existing issues or PRs**
     ```json
-    {"type": "update_project", "project": "https://github.com/orgs/myorg/projects/42", "content_type": "issue", "content_number": 123, "fields": {"Status": "In Progress"}}
+    {
+      "type": "update_project",
+      "project": "https://github.com/orgs/myorg/projects/42",
+      "content_type": "issue",
+      "content_number": 123,
+      "fields": {"Status": "In Progress", "Priority": "High"}
+    }
     ```
+    - `content_type`: "issue" or "pull_request"
+    - `content_number`: The issue or PR number to add/update
+    - `fields`: Custom field values to set on the item (optional)
 
-    For creating draft issues: Include `content_type` as "draft_issue" with `draft_title` and optional `draft_body`:
+    **Mode 2: Create draft issues in the project**
     ```json
-    {"type": "update_project", "project": "https://github.com/orgs/myorg/projects/42", "content_type": "draft_issue", "draft_title": "Task title", "draft_body": "Task description", "fields": {"Status": "Todo"}}
+    {
+      "type": "update_project",
+      "project": "https://github.com/orgs/myorg/projects/42",
+      "content_type": "draft_issue",
+      "draft_title": "Follow-up: investigate performance",
+      "draft_body": "Check memory usage under load",
+      "temporary_id": "aw_abc123def456",
+      "fields": {"Status": "Backlog"}
+    }
     ```
+    - `content_type`: "draft_issue"
+    - `draft_title`: Title of the draft issue (required when creating new)
+    - `draft_body`: Description in markdown (optional)
+    - `temporary_id`: Unique ID for this draft (format: `aw_` + 12 hex chars) for referencing in future updates (optional)
+    - `draft_issue_id`: Reference an existing draft by its temporary_id to update it (optional)
+    - `fields`: Custom field values (optional)
+
+    **Mode 3: Create custom fields or views** (with `operation` field)
+    ```json
+    {
+      "type": "update_project",
+      "project": "https://github.com/orgs/myorg/projects/42",
+      "operation": "create_fields",
+      "field_definitions": [
+        {"name": "Priority", "data_type": "SINGLE_SELECT", "options": ["High", "Medium", "Low"]},
+        {"name": "Due Date", "data_type": "DATE"}
+      ]
+    }
+    ```
+    - `operation`: "create_fields" or "create_view"
+    - `field_definitions`: Array of field definitions (for create_fields)
+    - `view`: View configuration object with `name`, `layout` (table/board/roadmap), optional `filter` and `visible_fields` (for create_view)
 
     Not supported for cross-repository operations.
-  - `create-project-status-update:` - Create GitHub project status updates
+  - `create-project-status-update:` - Post status updates to GitHub Projects for progress tracking
     ```yaml
     safe-outputs:
       create-project-status-update:
-        max: 10                         # Optional: max status updates (default: 10)
-        github-token: ${{ secrets.PROJECTS_PAT }}  # Optional: token with projects:write
+        max: 1                          # Optional: max status updates (default: 1)
+        project: "https://github.com/orgs/myorg/projects/42"  # REQUIRED in agent output (full URL)
+        github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # REQUIRED: PAT with projects:write (NOT GITHUB_TOKEN)
     ```
+    Use this to provide stakeholders with regular updates on project status (on-track, at-risk, off-track, complete, inactive), timeline information, and progress summaries. Status updates create a historical record of project progress and enable tracking over time.
+    
+    **⚠️ IMPORTANT REQUIREMENTS:**
+    - Agent must include full project URL in **every** call: `project: "https://github.com/orgs/myorg/projects/42"`
+    - Requires a **PAT or GitHub App token** with Projects permissions configured as `github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}`
+    - Default `GITHUB_TOKEN` **cannot** access Projects v2 API
+    - Token scopes:
+      - Classic PAT: `project` and `repo` scopes
+      - Fine-grained PAT: Organization `Projects: Read & Write` permission
+    
+    **Agent output fields:**
+    - `project`: Full project URL (required) - MUST be explicitly included in output
+    - `status`: ON_TRACK, AT_RISK, OFF_TRACK, COMPLETE, or INACTIVE (optional, defaults to ON_TRACK)
+    - `start_date`: Project start date in YYYY-MM-DD format (optional)
+    - `target_date`: Project end date in YYYY-MM-DD format (optional)
+    - `body`: Status summary in markdown (required)
+    
     Not supported for cross-repository operations.
   - `push-to-pull-request-branch:` - Push changes to PR branch
     ```yaml
@@ -767,10 +838,12 @@ The YAML frontmatter supports these fields:
       - `detection-failure:` - Detection job failure message
       - `staged-title:` - Staged mode preview title
       - `staged-description:` - Staged mode preview description
+      - `append-only-comments:` - Create new comments instead of editing existing ones (boolean, default: false)
     - Example:
       ```yaml
       safe-outputs:
         messages:
+          append-only-comments: true
           footer: "> Generated by [{workflow_name}]({run_url})"
           run-started: "[{workflow_name}]({run_url}) started processing this {event_type}."
       ```
@@ -989,6 +1062,47 @@ on:
   schedule:
     - cron: "0 9 * * 1"  # Monday 9AM UTC
   workflow_dispatch:    # Manual trigger
+```
+
+#### Fuzzy Scheduling
+
+Instead of specifying exact cron expressions, use **fuzzy scheduling** to automatically distribute workflow execution times. This reduces load spikes and avoids the "Monday wall of work" problem where weekend tasks pile up.
+
+**Basic Fuzzy Schedules:**
+```yaml
+on:
+  schedule: daily on weekdays    # Monday-Friday only (recommended for daily workflows)
+  schedule: daily                # All 7 days
+  schedule: weekly               # Once per week
+  schedule: hourly               # Every hour
+```
+
+**Examples with Intervals:**
+```yaml
+on:
+  schedule: every 2 hours on weekdays    # Every 2 hours, Monday-Friday
+  schedule: every 6 hours                # Every 6 hours, all days
+```
+
+**Why Prefer Weekday Schedules:**
+- **Avoids Monday backlog**: Daily workflows that run on weekends accumulate work that hits on Monday morning
+- **Better resource usage**: Team-facing workflows align with business hours
+- **Reduced noise**: Notifications and issues are created when team members are active
+
+The compiler automatically:
+- Converts fuzzy schedules to deterministic cron expressions
+- Scatters execution times to avoid load spikes (e.g., `daily on weekdays` → `43 5 * * 1-5`)
+- Adds `workflow_dispatch:` trigger for manual runs
+
+**Recommended Pattern:**
+```yaml
+# ✅ GOOD - Weekday schedule avoids Monday wall of work
+on:
+  schedule: daily on weekdays
+
+# ⚠️ ACCEPTABLE - But may create Monday backlog
+on:
+  schedule: daily
 ```
 
 #### Fork Security for Pull Requests
@@ -1505,8 +1619,7 @@ Analyze issue #${{ github.event.issue.number }} and:
 ```markdown
 ---
 on:
-  schedule:
-    - cron: "0 9 * * 1"  # Monday 9AM
+  schedule: weekly
 permissions:
   contents: read
   actions: read
@@ -1552,9 +1665,7 @@ Respond to /helper-bot mentions with helpful information related to ${{ github.r
 ```markdown
 ---
 on:
-  schedule:
-    - cron: "0 9 * * 1"  # Monday 9AM
-  workflow_dispatch:
+  schedule: weekly
 permissions:
   contents: read
   actions: read

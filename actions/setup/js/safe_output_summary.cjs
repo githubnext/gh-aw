@@ -8,6 +8,8 @@
  * Each processed safe-output generates a summary enclosed in a <details> section.
  */
 
+const { displayFileContent } = require("./display_file_helpers.cjs");
+
 /**
  * Generate a step summary for a single safe-output message
  * @param {Object} options - Summary generation options
@@ -92,6 +94,24 @@ function generateSafeOutputSummary(options) {
 async function writeSafeOutputSummaries(results, messages) {
   if (!results || results.length === 0) {
     return;
+  }
+
+  // Log the raw .jsonl content from the safe outputs file
+  const safeOutputsFile = process.env.GH_AW_SAFE_OUTPUTS;
+  if (safeOutputsFile) {
+    const fs = require("fs");
+    if (fs.existsSync(safeOutputsFile)) {
+      try {
+        const content = fs.readFileSync(safeOutputsFile, "utf8");
+        if (content.trim()) {
+          // Use displayFileContent helper to show file with truncation and collapsible group
+          // Pass a filename with .jsonl extension so it's recognized as displayable
+          displayFileContent(safeOutputsFile, "safe-outputs.jsonl", 5000);
+        }
+      } catch (error) {
+        core.debug(`Could not read raw safe-output file: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
   }
 
   let summaryContent = `## Safe Output Processing Summary\n\n`;

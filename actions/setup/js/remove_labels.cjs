@@ -10,6 +10,7 @@ const HANDLER_TYPE = "remove_labels";
 
 const { validateLabels } = require("./safe_output_validator.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 
 /**
  * Main handler factory for remove_labels
@@ -20,10 +21,18 @@ async function main(config = {}) {
   // Extract configuration
   const allowedLabels = config.allowed || [];
   const maxCount = config.max || 10;
+  const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+
+  // Check if we're in staged mode
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   core.info(`Remove labels configuration: max=${maxCount}`);
   if (allowedLabels.length > 0) {
     core.info(`Allowed labels to remove: ${allowedLabels.join(", ")}`);
+  }
+  core.info(`Default target repo: ${defaultTargetRepo}`);
+  if (allowedRepos.size > 0) {
+    core.info(`Allowed repos: ${Array.from(allowedRepos).join(", ")}`);
   }
 
   // Track how many items we've processed for max limit
@@ -46,6 +55,18 @@ async function main(config = {}) {
     }
 
     processedCount++;
+
+    // Resolve and validate target repository
+    const repoResult = resolveAndValidateRepo(message, defaultTargetRepo, allowedRepos, "label");
+    if (!repoResult.success) {
+      core.warning(`Skipping remove_labels: ${repoResult.error}`);
+      return {
+        success: false,
+        error: repoResult.error,
+      };
+    }
+    const { repo: itemRepo, repoParts } = repoResult;
+    core.info(`Target repository: ${itemRepo}`);
 
     // Determine target issue/PR number
     const itemNumber = message.item_number !== undefined ? parseInt(String(message.item_number), 10) : context.payload?.issue?.number || context.payload?.pull_request?.number;
@@ -111,7 +132,22 @@ async function main(config = {}) {
       };
     }
 
-    core.info(`Removing ${uniqueLabels.length} labels from ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
+    core.info(`Removing ${uniqueLabels.length} labels from ${contextType} #${itemNumber} in ${itemRepo}: ${JSON.stringify(uniqueLabels)}`);
+
+    // If in staged mode, preview the label removal without actually removing
+    if (isStaged) {
+      core.info(`Staged mode: Would remove ${uniqueLabels.length} labels from ${contextType} #${itemNumber} in ${itemRepo}`);
+      return {
+        success: true,
+        staged: true,
+        previewInfo: {
+          number: itemNumber,
+          repo: itemRepo,
+          labels: uniqueLabels,
+          contextType,
+        },
+      };
+    }
 
     // Track successfully removed labels
     const removedLabels = [];
@@ -121,17 +157,18 @@ async function main(config = {}) {
     for (const label of uniqueLabels) {
       try {
         await github.rest.issues.removeLabel({
-          ...context.repo,
+          owner: repoParts.owner,
+          repo: repoParts.repo,
           issue_number: itemNumber,
           name: label,
         });
         removedLabels.push(label);
-        core.info(`Removed label "${label}" from ${contextType} #${itemNumber}`);
+        core.info(`Removed label "${label}" from ${contextType} #${itemNumber} in ${itemRepo}`);
       } catch (error) {
         // Label might not exist on the issue/PR - this is not a failure
         const errorMessage = getErrorMessage(error);
         if (errorMessage.includes("Label does not exist") || errorMessage.includes("404")) {
-          core.info(`Label "${label}" was not present on ${contextType} #${itemNumber}, skipping`);
+          core.info(`Label "${label}" was not present on ${contextType} #${itemNumber} in ${itemRepo}, skipping`);
         } else {
           core.warning(`Failed to remove label "${label}": ${errorMessage}`);
           failedLabels.push({ label, error: errorMessage });
@@ -140,7 +177,7 @@ async function main(config = {}) {
     }
 
     if (removedLabels.length > 0) {
-      core.info(`Successfully removed ${removedLabels.length} labels from ${contextType} #${itemNumber}`);
+      core.info(`Successfully removed ${removedLabels.length} labels from ${contextType} #${itemNumber} in ${itemRepo}`);
     }
 
     return {

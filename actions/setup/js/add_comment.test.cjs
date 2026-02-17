@@ -952,4 +952,390 @@ describe("add_comment", () => {
       expect(graphqlCallCount).toBe(1);
     });
   });
+
+  describe("temporary ID resolution", () => {
+    it("should resolve temporary ID in item_number field", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let capturedIssueNumber = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedIssueNumber = params.issue_number;
+        return {
+          data: {
+            id: 12345,
+            html_url: `https://github.com/owner/repo/issues/${params.issue_number}#issuecomment-12345`,
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        item_number: "aw_test01",
+        body: "Comment on issue created with temporary ID",
+      };
+
+      // Provide resolved temporary ID
+      const resolvedTemporaryIds = {
+        aw_test01: { repo: "owner/repo", number: 42 },
+      };
+
+      const result = await handler(message, resolvedTemporaryIds);
+
+      expect(result.success).toBe(true);
+      expect(capturedIssueNumber).toBe(42);
+      expect(result.itemNumber).toBe(42);
+    });
+
+    it("should defer when temporary ID is not yet resolved", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        item_number: "aw_test99",
+        body: "Comment on issue with unresolved temporary ID",
+      };
+
+      // Empty resolved map - temporary ID not yet resolved
+      const resolvedTemporaryIds = {};
+
+      const result = await handler(message, resolvedTemporaryIds);
+
+      expect(result.success).toBe(false);
+      expect(result.deferred).toBe(true);
+      expect(result.error).toContain("aw_test99");
+    });
+
+    it("should handle temporary ID with hash prefix", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let capturedIssueNumber = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedIssueNumber = params.issue_number;
+        return {
+          data: {
+            id: 12345,
+            html_url: `https://github.com/owner/repo/issues/${params.issue_number}#issuecomment-12345`,
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        item_number: "#aw_test02",
+        body: "Comment with hash prefix",
+      };
+
+      // Provide resolved temporary ID
+      const resolvedTemporaryIds = {
+        aw_test02: { repo: "owner/repo", number: 100 },
+      };
+
+      const result = await handler(message, resolvedTemporaryIds);
+
+      expect(result.success).toBe(true);
+      expect(capturedIssueNumber).toBe(100);
+    });
+
+    it("should handle invalid temporary ID format", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        item_number: "aw_", // Invalid: too short
+        body: "Comment with invalid temporary ID",
+      };
+
+      const resolvedTemporaryIds = {};
+
+      const result = await handler(message, resolvedTemporaryIds);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Invalid item_number specified");
+    });
+
+    it("should replace temporary IDs in comment body", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let capturedBody = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedBody = params.body;
+        return {
+          data: {
+            id: 12345,
+            html_url: `https://github.com/owner/repo/issues/${params.issue_number}#issuecomment-12345`,
+          },
+        };
+      };
+
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        item_number: 42,
+        body: "References: #aw_test01 and #aw_test02",
+      };
+
+      // Provide resolved temporary IDs
+      const resolvedTemporaryIds = {
+        aw_test01: { repo: "owner/repo", number: 100 },
+        aw_test02: { repo: "owner/repo", number: 200 },
+      };
+
+      const result = await handler(message, resolvedTemporaryIds);
+
+      expect(result.success).toBe(true);
+      expect(capturedBody).toContain("#100");
+      expect(capturedBody).toContain("#200");
+      expect(capturedBody).not.toContain("aw_test01");
+      expect(capturedBody).not.toContain("aw_test02");
+    });
+  });
+
+  describe("sanitization preserves markers", () => {
+    it("should preserve tracker ID markers after sanitization", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      // Setup environment
+      process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+      process.env.GH_AW_TRACKER_ID = "test-tracker-123";
+
+      let capturedBody = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedBody = params.body;
+        return {
+          data: {
+            id: 12345,
+            html_url: "https://github.com/owner/repo/issues/42#issuecomment-12345",
+          },
+        };
+      };
+
+      // Execute the handler
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "User content with <script>alert('xss')</script> attempt",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedBody).toBeDefined();
+      // Verify tracker ID is present (not removed by sanitization)
+      expect(capturedBody).toContain("<!-- gh-aw-tracker-id: test-tracker-123 -->");
+      // Verify script tags were sanitized (converted to safe format)
+      expect(capturedBody).not.toContain("<script>");
+      expect(capturedBody).toContain("(script)"); // Tags converted to parentheses
+
+      delete process.env.GH_AW_WORKFLOW_NAME;
+      delete process.env.GH_AW_TRACKER_ID;
+    });
+
+    it("should preserve workflow footer after sanitization", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      // Setup environment
+      process.env.GH_AW_WORKFLOW_NAME = "Security Test Workflow";
+
+      let capturedBody = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedBody = params.body;
+        return {
+          data: {
+            id: 12345,
+            html_url: "https://github.com/owner/repo/issues/42#issuecomment-12345",
+          },
+        };
+      };
+
+      // Execute the handler
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "User content <!-- malicious comment -->",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedBody).toBeDefined();
+      // Verify footer is present (not removed by sanitization)
+      expect(capturedBody).toContain("Generated by");
+      expect(capturedBody).toContain("Security Test Workflow");
+      // Verify malicious comment in user content was removed by sanitization
+      expect(capturedBody).not.toContain("<!-- malicious comment -->");
+
+      delete process.env.GH_AW_WORKFLOW_NAME;
+    });
+
+    it("should sanitize user content but preserve system markers", async () => {
+      const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+
+      let capturedBody = null;
+      mockGithub.rest.issues.createComment = async params => {
+        capturedBody = params.body;
+        return {
+          data: {
+            id: 12345,
+            html_url: "https://github.com/owner/repo/issues/42#issuecomment-12345",
+          },
+        };
+      };
+
+      // Execute the handler
+      const handler = await eval(`(async () => { ${addCommentScript}; return await main({}); })()`);
+
+      const message = {
+        type: "add_comment",
+        body: "User says: @badactor please <!-- inject this --> [phishing](http://evil.com)",
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(capturedBody).toBeDefined();
+
+      // User content should be sanitized
+      expect(capturedBody).toContain("`@badactor`"); // Mention neutralized
+      expect(capturedBody).not.toContain("<!-- inject this -->"); // Comment removed
+      expect(capturedBody).toContain("(evil.com/redacted)"); // HTTP URL redacted
+
+      // But footer should still be present with proper markdown
+      expect(capturedBody).toContain("> Generated by");
+    });
+  });
+});
+
+describe("enforceCommentLimits", () => {
+  let enforceCommentLimits;
+  let MAX_COMMENT_LENGTH;
+  let MAX_MENTIONS;
+  let MAX_LINKS;
+
+  beforeEach(async () => {
+    const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+    const exports = await eval(`(async () => { ${addCommentScript}; return { enforceCommentLimits, MAX_COMMENT_LENGTH, MAX_MENTIONS, MAX_LINKS }; })()`);
+    enforceCommentLimits = exports.enforceCommentLimits;
+    MAX_COMMENT_LENGTH = exports.MAX_COMMENT_LENGTH;
+    MAX_MENTIONS = exports.MAX_MENTIONS;
+    MAX_LINKS = exports.MAX_LINKS;
+  });
+
+  it("should accept comment within all limits", () => {
+    const validBody = "This is a valid comment with @user1 and https://github.com";
+    expect(() => enforceCommentLimits(validBody)).not.toThrow();
+  });
+
+  it("should reject comment exceeding MAX_COMMENT_LENGTH", () => {
+    const longBody = "a".repeat(MAX_COMMENT_LENGTH + 1);
+    expect(() => enforceCommentLimits(longBody)).toThrow(/E006.*maximum length/i);
+  });
+
+  it("should accept comment at exactly MAX_COMMENT_LENGTH", () => {
+    const exactBody = "a".repeat(MAX_COMMENT_LENGTH);
+    expect(() => enforceCommentLimits(exactBody)).not.toThrow();
+  });
+
+  it("should reject comment with too many mentions", () => {
+    const mentions = Array.from({ length: MAX_MENTIONS + 1 }, (_, i) => `@user${i}`).join(" ");
+    const bodyWithMentions = `Comment with mentions: ${mentions}`;
+    expect(() => enforceCommentLimits(bodyWithMentions)).toThrow(/E007.*mentions/i);
+  });
+
+  it("should accept comment at exactly MAX_MENTIONS", () => {
+    const mentions = Array.from({ length: MAX_MENTIONS }, (_, i) => `@user${i}`).join(" ");
+    const bodyWithMentions = `Comment with mentions: ${mentions}`;
+    expect(() => enforceCommentLimits(bodyWithMentions)).not.toThrow();
+  });
+
+  it("should reject comment with too many links", () => {
+    const links = Array.from({ length: MAX_LINKS + 1 }, (_, i) => `https://example.com/${i}`).join(" ");
+    const bodyWithLinks = `Comment with links: ${links}`;
+    expect(() => enforceCommentLimits(bodyWithLinks)).toThrow(/E008.*links/i);
+  });
+
+  it("should accept comment at exactly MAX_LINKS", () => {
+    const links = Array.from({ length: MAX_LINKS }, (_, i) => `https://example.com/${i}`).join(" ");
+    const bodyWithLinks = `Comment with links: ${links}`;
+    expect(() => enforceCommentLimits(bodyWithLinks)).not.toThrow();
+  });
+
+  it("should count both http and https links", () => {
+    const httpLinks = Array.from({ length: 26 }, (_, i) => `http://example.com/${i}`).join(" ");
+    const httpsLinks = Array.from({ length: 25 }, (_, i) => `https://example.com/${i}`).join(" ");
+    const bodyWithMixedLinks = `Comment with mixed: ${httpLinks} ${httpsLinks}`;
+    expect(() => enforceCommentLimits(bodyWithMixedLinks)).toThrow(/E008.*links/i);
+  });
+
+  it("should provide detailed error message for length violation", () => {
+    const longBody = "a".repeat(MAX_COMMENT_LENGTH + 100);
+    try {
+      enforceCommentLimits(longBody);
+      throw new Error("Should have thrown");
+    } catch (error) {
+      expect(error.message).toMatch(/E006/);
+      expect(error.message).toMatch(/65536/);
+      expect(error.message).toMatch(/65636/);
+    }
+  });
+
+  it("should provide detailed error message for mentions violation", () => {
+    const mentions = Array.from({ length: 15 }, (_, i) => `@user${i}`).join(" ");
+    const bodyWithMentions = `Comment: ${mentions}`;
+    try {
+      enforceCommentLimits(bodyWithMentions);
+      throw new Error("Should have thrown");
+    } catch (error) {
+      expect(error.message).toMatch(/E007/);
+      expect(error.message).toMatch(/15 mentions/);
+      expect(error.message).toMatch(/maximum is 10/);
+    }
+  });
+
+  it("should provide detailed error message for links violation", () => {
+    const links = Array.from({ length: 60 }, (_, i) => `https://example.com/${i}`).join(" ");
+    const bodyWithLinks = `Comment: ${links}`;
+    try {
+      enforceCommentLimits(bodyWithLinks);
+      throw new Error("Should have thrown");
+    } catch (error) {
+      expect(error.message).toMatch(/E008/);
+      expect(error.message).toMatch(/60 links/);
+      expect(error.message).toMatch(/maximum is 50/);
+    }
+  });
+
+  it("should handle empty comment body", () => {
+    expect(() => enforceCommentLimits("")).not.toThrow();
+  });
+
+  it("should handle comment with no mentions", () => {
+    const body = "This is a comment without any mentions at all";
+    expect(() => enforceCommentLimits(body)).not.toThrow();
+  });
+
+  it("should handle comment with no links", () => {
+    const body = "This is a comment without any links at all";
+    expect(() => enforceCommentLimits(body)).not.toThrow();
+  });
+
+  it("should not count incomplete mention patterns", () => {
+    const body = "@ not a mention, @ also not, @123 is not a mention";
+    expect(() => enforceCommentLimits(body)).not.toThrow();
+  });
+
+  it("should count valid mention patterns only", () => {
+    const body = "Valid: @user1 @user2. Invalid: @ @123 email@example.com";
+    expect(() => enforceCommentLimits(body)).not.toThrow();
+  });
 });

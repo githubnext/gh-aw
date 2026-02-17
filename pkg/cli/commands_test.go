@@ -339,13 +339,13 @@ func TestDisableWorkflowsFailureScenarios(t *testing.T) {
 
 func TestRunWorkflowOnGitHub(t *testing.T) {
 	// Test with empty workflow name
-	err := RunWorkflowOnGitHub(context.Background(), "", false, "", "", "", false, false, false, false, []string{}, false, false)
+	err := RunWorkflowOnGitHub(context.Background(), "", RunOptions{})
 	if err == nil {
 		t.Error("RunWorkflowOnGitHub should return error for empty workflow name")
 	}
 
 	// Test with nonexistent workflow (this will fail but gracefully)
-	err = RunWorkflowOnGitHub(context.Background(), "nonexistent-workflow", false, "", "", "", false, false, false, false, []string{}, false, false)
+	err = RunWorkflowOnGitHub(context.Background(), "nonexistent-workflow", RunOptions{})
 	if err == nil {
 		t.Error("RunWorkflowOnGitHub should return error for non-existent workflow")
 	}
@@ -353,25 +353,25 @@ func TestRunWorkflowOnGitHub(t *testing.T) {
 
 func TestRunWorkflowsOnGitHub(t *testing.T) {
 	// Test with empty workflow list
-	err := RunWorkflowsOnGitHub(context.Background(), []string{}, 0, false, "", "", "", false, false, false, []string{}, false, false)
+	err := RunWorkflowsOnGitHub(context.Background(), []string{}, RunOptions{})
 	if err == nil {
 		t.Error("RunWorkflowsOnGitHub should return error for empty workflow list")
 	}
 
 	// Test with workflow list containing empty name
-	err = RunWorkflowsOnGitHub(context.Background(), []string{"valid-workflow", ""}, 0, false, "", "", "", false, false, false, []string{}, false, false)
+	err = RunWorkflowsOnGitHub(context.Background(), []string{"valid-workflow", ""}, RunOptions{})
 	if err == nil {
 		t.Error("RunWorkflowsOnGitHub should return error for workflow list containing empty name")
 	}
 
 	// Test with nonexistent workflows (this will fail but gracefully)
-	err = RunWorkflowsOnGitHub(context.Background(), []string{"nonexistent-workflow1", "nonexistent-workflow2"}, 0, false, "", "", "", false, false, false, []string{}, false, false)
+	err = RunWorkflowsOnGitHub(context.Background(), []string{"nonexistent-workflow1", "nonexistent-workflow2"}, RunOptions{})
 	if err == nil {
 		t.Error("RunWorkflowsOnGitHub should return error for non-existent workflows")
 	}
 
 	// Test with negative repeat seconds (should work as 0)
-	err = RunWorkflowsOnGitHub(context.Background(), []string{"nonexistent-workflow"}, -1, false, "", "", "", false, false, false, []string{}, false, false)
+	err = RunWorkflowsOnGitHub(context.Background(), []string{"nonexistent-workflow"}, RunOptions{RepeatCount: -1})
 	if err == nil {
 		t.Error("RunWorkflowsOnGitHub should return error for non-existent workflow regardless of repeat value")
 	}
@@ -482,10 +482,10 @@ Test workflow for command existence.`
 		{func() error { return EnableWorkflows("nonexistent") }, true, "EnableWorkflows"},                            // Should now error when no workflows found to enable
 		{func() error { return DisableWorkflows("nonexistent") }, true, "DisableWorkflows"},                          // Should now also error when no workflows found to disable
 		{func() error {
-			return RunWorkflowOnGitHub(context.Background(), "", false, "", "", "", false, false, false, false, []string{}, false, false)
+			return RunWorkflowOnGitHub(context.Background(), "", RunOptions{})
 		}, true, "RunWorkflowOnGitHub"}, // Should error with empty workflow name
 		{func() error {
-			return RunWorkflowsOnGitHub(context.Background(), []string{}, 0, false, "", "", "", false, false, false, []string{}, false, false)
+			return RunWorkflowsOnGitHub(context.Background(), []string{}, RunOptions{})
 		}, true, "RunWorkflowsOnGitHub"}, // Should error with empty workflow list
 	}
 
@@ -496,76 +496,6 @@ Test workflow for command existence.`
 		} else if !test.expectError && err != nil {
 			t.Errorf("%s: unexpected error: %v", test.name, err)
 		}
-	}
-}
-
-// TestInstallPackage tests the InstallPackage function
-func TestInstallPackage(t *testing.T) {
-
-	// Create a temporary directory for testing
-	tempDir, err := os.MkdirTemp("", "gh-aw-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Mock the getPackagesDir function by temporarily changing directory
-	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir)
-
-	tests := []struct {
-		name        string
-		repoSpec    string
-		verbose     bool
-		expectError bool
-		errorMsg    string
-	}{
-		{
-			name:        "invalid repo spec",
-			repoSpec:    "invalid",
-			verbose:     false,
-			expectError: true,
-			errorMsg:    "invalid repository specification",
-		},
-		{
-			name:        "empty repo spec",
-			repoSpec:    "",
-			verbose:     false,
-			expectError: true,
-			errorMsg:    "invalid repository specification",
-		},
-		{
-			name:        "valid repo spec but download will fail",
-			repoSpec:    "nonexistent/repo",
-			verbose:     true,
-			expectError: true,
-			errorMsg:    "failed to download workflows",
-		},
-		{
-			name:        "valid repo spec with version but download will fail",
-			repoSpec:    "nonexistent/repo@v1.0.0",
-			verbose:     false,
-			expectError: true,
-			errorMsg:    "failed to download workflows",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := InstallPackage(tt.repoSpec, tt.verbose)
-
-			if tt.expectError && err == nil {
-				t.Errorf("Expected error for test '%s', got nil", tt.name)
-			} else if !tt.expectError && err != nil {
-				t.Errorf("Unexpected error for test '%s': %v", tt.name, err)
-			}
-
-			if tt.expectError && err != nil {
-				if !strings.Contains(err.Error(), tt.errorMsg) {
-					t.Errorf("Expected error containing '%s', got: %v", tt.errorMsg, err)
-				}
-			}
-		})
 	}
 }
 
@@ -1134,13 +1064,13 @@ func TestCalculateTimeRemaining(t *testing.T) {
 
 func TestRunWorkflowOnGitHubWithEnable(t *testing.T) {
 	// Test with enable flag enabled (should not error for basic validation)
-	err := RunWorkflowOnGitHub(context.Background(), "nonexistent-workflow", true, "", "", "", false, false, false, false, []string{}, false, false)
+	err := RunWorkflowOnGitHub(context.Background(), "nonexistent-workflow", RunOptions{Enable: true})
 	if err == nil {
 		t.Error("RunWorkflowOnGitHub should return error for non-existent workflow even with enable flag")
 	}
 
 	// Test with empty workflow name and enable flag
-	err = RunWorkflowOnGitHub(context.Background(), "", true, "", "", "", false, false, false, false, []string{}, false, false)
+	err = RunWorkflowOnGitHub(context.Background(), "", RunOptions{Enable: true})
 	if err == nil {
 		t.Error("RunWorkflowOnGitHub should return error for empty workflow name regardless of enable flag")
 	}

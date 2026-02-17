@@ -124,6 +124,15 @@ func NewPermissionsContentsWrite() *Permissions {
 	})
 }
 
+// NewPermissionsContentsWritePRWrite creates permissions with contents: write, pull-requests: write
+// Used when create-pull-request has fallback-as-issue: false (no issue creation fallback)
+func NewPermissionsContentsWritePRWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents:     PermissionWrite,
+		PermissionPullRequests: PermissionWrite,
+	})
+}
+
 // NewPermissionsContentsWriteIssuesWritePRWrite creates permissions with contents: write, issues: write, pull-requests: write
 func NewPermissionsContentsWriteIssuesWritePRWrite() *Permissions {
 	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{

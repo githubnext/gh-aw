@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { sanitizeContent } = require("./sanitize_content.cjs");
+
 /**
  * Handle create_pull_request permission errors
  * This script is called from the conclusion job when create_pull_request fails
@@ -64,7 +66,7 @@ async function main() {
     core.info("Issue already exists: #" + existingIssue.number);
 
     // Add a comment with run details
-    const commentBody = "This error occurred again in workflow run: " + runUrl;
+    const commentBody = sanitizeContent("This error occurred again in workflow run: " + runUrl);
     await github.rest.issues.createComment({
       owner,
       repo,
@@ -78,7 +80,7 @@ async function main() {
       owner,
       repo,
       title: issueTitle,
-      body: issueBody,
+      body: sanitizeContent(issueBody),
       labels: ["agentic-workflows", "configuration"],
     });
     core.info("Created issue #" + issue.number + ": " + issue.html_url);

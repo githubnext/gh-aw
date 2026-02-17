@@ -3,6 +3,7 @@
 
 const { AGENT_LOGIN_NAMES, findAgent, getIssueDetails, assignAgentToIssue, generatePermissionErrorSummary } = require("./assign_agent_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { sleep } = require("./error_recovery.cjs");
 
 /**
  * Assign copilot to issues created by create_issue job.
@@ -40,7 +41,8 @@ async function main() {
   const results = [];
   let agentId = null;
 
-  for (const entry of issueEntries) {
+  for (let i = 0; i < issueEntries.length; i++) {
+    const entry = issueEntries[i];
     // Parse repo:number format
     const parts = entry.split(":");
     if (parts.length !== 2) {
@@ -121,6 +123,13 @@ async function main() {
         success: false,
         error: errorMessage,
       });
+    }
+
+    // Add 10-second delay between agent assignments to avoid spawning too many agents at once
+    // Skip delay after the last item
+    if (i < issueEntries.length - 1) {
+      core.info("Waiting 10 seconds before processing next agent assignment...");
+      await sleep(10000);
     }
   }
 

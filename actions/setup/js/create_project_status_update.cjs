@@ -3,6 +3,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -281,6 +282,9 @@ function formatDate(date) {
 async function main(config = {}, githubClient = null) {
   const maxCount = config.max || 10;
 
+  // Check if we're in staged mode
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+
   // Use the provided github client, or fall back to the global github object
   // @ts-ignore - global.github is set by setupGlobals() from github-script context
   const github = githubClient || global.github;
@@ -358,10 +362,23 @@ async function main(config = {}, githubClient = null) {
       const status = validateStatus(output.status);
       const startDate = formatDate(output.start_date);
       const targetDate = formatDate(output.target_date);
-      const body = String(output.body);
+      const body = sanitizeContent(String(output.body));
 
       core.info(`Creating status update: ${status} (${startDate} → ${targetDate})`);
       core.info(`Body preview: ${body.substring(0, 100)}${body.length > 100 ? "..." : ""}`);
+
+      // If in staged mode, preview without executing
+      if (isStaged) {
+        core.info(`Staged mode: Would create status update for project ${effectiveProjectUrl}`);
+        return {
+          success: true,
+          staged: true,
+          previewInfo: {
+            projectUrl: effectiveProjectUrl,
+            status,
+          },
+        };
+      }
 
       // Create the status update using GraphQL mutation
       const mutation = `

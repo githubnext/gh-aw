@@ -443,6 +443,12 @@ func hasSafeOutputType(config *SafeOutputsConfig, key string) bool {
 		return config.CreatePullRequests != nil
 	case "create-pull-request-review-comment":
 		return config.CreatePullRequestReviewComments != nil
+	case "submit-pull-request-review":
+		return config.SubmitPullRequestReview != nil
+	case "reply-to-pull-request-review-comment":
+		return config.ReplyToPullRequestReviewComment != nil
+	case "resolve-pull-request-review-thread":
+		return config.ResolvePullRequestReviewThread != nil
 	case "create-code-scanning-alert":
 		return config.CreateCodeScanningAlerts != nil
 	case "add-labels":
@@ -525,6 +531,15 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	}
 	if result.CreatePullRequestReviewComments == nil && importedConfig.CreatePullRequestReviewComments != nil {
 		result.CreatePullRequestReviewComments = importedConfig.CreatePullRequestReviewComments
+	}
+	if result.SubmitPullRequestReview == nil && importedConfig.SubmitPullRequestReview != nil {
+		result.SubmitPullRequestReview = importedConfig.SubmitPullRequestReview
+	}
+	if result.ReplyToPullRequestReviewComment == nil && importedConfig.ReplyToPullRequestReviewComment != nil {
+		result.ReplyToPullRequestReviewComment = importedConfig.ReplyToPullRequestReviewComment
+	}
+	if result.ResolvePullRequestReviewThread == nil && importedConfig.ResolvePullRequestReviewThread != nil {
+		result.ResolvePullRequestReviewThread = importedConfig.ResolvePullRequestReviewThread
 	}
 	if result.CreateCodeScanningAlerts == nil && importedConfig.CreateCodeScanningAlerts != nil {
 		result.CreateCodeScanningAlerts = importedConfig.CreateCodeScanningAlerts
@@ -647,6 +662,12 @@ func mergeMessagesConfig(result, imported *SafeOutputMessagesConfig) *SafeOutput
 	if result.FooterInstall == "" && imported.FooterInstall != "" {
 		result.FooterInstall = imported.FooterInstall
 	}
+	if result.FooterWorkflowRecompile == "" && imported.FooterWorkflowRecompile != "" {
+		result.FooterWorkflowRecompile = imported.FooterWorkflowRecompile
+	}
+	if result.FooterWorkflowRecompileComment == "" && imported.FooterWorkflowRecompileComment != "" {
+		result.FooterWorkflowRecompileComment = imported.FooterWorkflowRecompileComment
+	}
 	if result.StagedTitle == "" && imported.StagedTitle != "" {
 		result.StagedTitle = imported.StagedTitle
 	}
@@ -662,5 +683,48 @@ func mergeMessagesConfig(result, imported *SafeOutputMessagesConfig) *SafeOutput
 	if result.RunFailure == "" && imported.RunFailure != "" {
 		result.RunFailure = imported.RunFailure
 	}
+	if !result.AppendOnlyComments && imported.AppendOnlyComments {
+		result.AppendOnlyComments = imported.AppendOnlyComments
+	}
 	return result
+}
+
+// MergeFeatures merges features configurations from imports with top-level features
+// Features from top-level take precedence over imported features
+func (c *Compiler) MergeFeatures(topFeatures map[string]any, importedFeatures []map[string]any) (map[string]any, error) {
+	importsLog.Print("Merging features from imports")
+
+	// If no imported features, return top-level features as-is
+	if len(importedFeatures) == 0 {
+		importsLog.Print("No imported features to merge")
+		return topFeatures, nil
+	}
+
+	// Start with top-level features or create a new map
+	result := make(map[string]any)
+	if topFeatures != nil {
+		for k, v := range topFeatures {
+			result[k] = v
+		}
+		importsLog.Printf("Starting with %d top-level features", len(topFeatures))
+	}
+
+	// Process each imported features map
+	importsLog.Printf("Processing %d imported feature maps", len(importedFeatures))
+
+	for _, importedFeaturesMap := range importedFeatures {
+		// Merge features - top-level features take precedence over imported ones
+		for featureName, featureValue := range importedFeaturesMap {
+			// Only add feature if it's not already defined in top-level
+			if _, exists := result[featureName]; !exists {
+				importsLog.Printf("Merging feature from import: %s", featureName)
+				result[featureName] = featureValue
+			} else {
+				importsLog.Printf("Skipping imported feature (top-level takes precedence): %s", featureName)
+			}
+		}
+	}
+
+	importsLog.Printf("Successfully merged features: total=%d", len(result))
+	return result, nil
 }

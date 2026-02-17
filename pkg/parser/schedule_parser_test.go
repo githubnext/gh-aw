@@ -901,6 +901,81 @@ func TestParseSchedule(t *testing.T) {
 			expectedCron: "*/5 * * * *",
 			expectedOrig: "every 5 minutes",
 		},
+
+		// Weekday suffix tests
+		{
+			name:         "daily on weekdays",
+			input:        "daily on weekdays",
+			expectedCron: "FUZZY:DAILY_WEEKDAYS * * *",
+			expectedOrig: "daily on weekdays",
+		},
+		{
+			name:         "hourly on weekdays",
+			input:        "hourly on weekdays",
+			expectedCron: "FUZZY:HOURLY_WEEKDAYS/1 * * *",
+			expectedOrig: "hourly on weekdays",
+		},
+		{
+			name:         "every 2h on weekdays",
+			input:        "every 2h on weekdays",
+			expectedCron: "FUZZY:HOURLY_WEEKDAYS/2 * * *",
+			expectedOrig: "every 2h on weekdays",
+		},
+		{
+			name:         "every 2 hours on weekdays",
+			input:        "every 2 hours on weekdays",
+			expectedCron: "FUZZY:HOURLY_WEEKDAYS/2 * * *",
+			expectedOrig: "every 2 hours on weekdays",
+		},
+		{
+			name:         "daily around 9am on weekdays",
+			input:        "daily around 9am on weekdays",
+			expectedCron: "FUZZY:DAILY_AROUND_WEEKDAYS:9:0 * * *",
+			expectedOrig: "daily around 9am on weekdays",
+		},
+		{
+			name:         "daily around 14:00 on weekdays",
+			input:        "daily around 14:00 on weekdays",
+			expectedCron: "FUZZY:DAILY_AROUND_WEEKDAYS:14:0 * * *",
+			expectedOrig: "daily around 14:00 on weekdays",
+		},
+		{
+			name:         "daily between 9:00 and 17:00 on weekdays",
+			input:        "daily between 9:00 and 17:00 on weekdays",
+			expectedCron: "FUZZY:DAILY_BETWEEN_WEEKDAYS:9:0:17:0 * * *",
+			expectedOrig: "daily between 9:00 and 17:00 on weekdays",
+		},
+		{
+			name:         "daily between 9am and 5pm on weekdays",
+			input:        "daily between 9am and 5pm on weekdays",
+			expectedCron: "FUZZY:DAILY_BETWEEN_WEEKDAYS:9:0:17:0 * * *",
+			expectedOrig: "daily between 9am and 5pm on weekdays",
+		},
+		{
+			name:         "daily around 9am utc-5 on weekdays",
+			input:        "daily around 9am utc-5 on weekdays",
+			expectedCron: "FUZZY:DAILY_AROUND_WEEKDAYS:14:0 * * *",
+			expectedOrig: "daily around 9am utc-5 on weekdays",
+		},
+		{
+			name:         "daily between 9am utc-5 and 5pm utc-5 on weekdays",
+			input:        "daily between 9am utc-5 and 5pm utc-5 on weekdays",
+			expectedCron: "FUZZY:DAILY_BETWEEN_WEEKDAYS:14:0:22:0 * * *",
+			expectedOrig: "daily between 9am utc-5 and 5pm utc-5 on weekdays",
+		},
+		// Error cases for weekdays
+		{
+			name:           "minute intervals with weekdays not supported",
+			input:          "every 10 minutes on weekdays",
+			shouldError:    true,
+			errorSubstring: "minute intervals with 'on weekdays' are not supported",
+		},
+		{
+			name:           "every 5m on weekdays not supported",
+			input:          "every 5m on weekdays",
+			shouldError:    true,
+			errorSubstring: "minute intervals with 'on weekdays' are not supported",
+		},
 	}
 
 	for _, tt := range tests {

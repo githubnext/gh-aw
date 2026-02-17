@@ -36,13 +36,18 @@ func NewCodexEngine() *CodexEngine {
 			description:            "Uses OpenAI Codex CLI with MCP server support",
 			experimental:           false,
 			supportsToolsAllowlist: true,
-			supportsHTTPTransport:  true,  // Codex now supports HTTP transport for remote MCP servers
 			supportsMaxTurns:       false, // Codex does not support max-turns feature
 			supportsWebFetch:       false, // Codex does not have built-in web-fetch support
 			supportsWebSearch:      true,  // Codex has built-in web-search support
 			supportsFirewall:       true,  // Codex supports network firewalling via AWF
+			supportsLLMGateway:     true,  // Codex supports LLM gateway on port 10001
 		},
 	}
+}
+
+// SupportsLLMGateway returns the LLM gateway port for Codex engine
+func (e *CodexEngine) SupportsLLMGateway() int {
+	return constants.CodexLLMGatewayPort
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Codex engine
@@ -183,131 +188,44 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	// Build the full command with agent file handling and AWF wrapping if enabled
 	var command string
 	if firewallEnabled {
-		// Build AWF-wrapped command
-		firewallConfig := getFirewallConfig(workflowData)
-		agentConfig := getAgentConfig(workflowData)
-		var awfLogLevel = "info"
-		if firewallConfig != nil && firewallConfig.LogLevel != "" {
-			awfLogLevel = firewallConfig.LogLevel
-		}
-
+		// Build AWF-wrapped command using helper function
 		// Get allowed domains (Codex defaults + network permissions + HTTP MCP server URLs + runtime ecosystem domains)
 		allowedDomains := GetCodexAllowedDomainsWithToolsAndRuntimes(workflowData.NetworkPermissions, workflowData.Tools, workflowData.Runtimes)
 
-		// Build AWF arguments: enable-chroot mode + standard flags + custom args from config
-		// AWF v0.13.1+ chroot mode provides transparent access to host binaries and environment
-		// while maintaining network isolation, eliminating the need for explicit mounts and env flags
-		var awfArgs []string
-		awfArgs = append(awfArgs, "--enable-chroot")
-		codexEngineLog.Print("Enabled chroot mode for transparent host access")
-
-		// Pass all environment variables to the container
-		awfArgs = append(awfArgs, "--env-all")
-
-		// Set container working directory to match GITHUB_WORKSPACE
-		awfArgs = append(awfArgs, "--container-workdir", "\"${GITHUB_WORKSPACE}\"")
-		codexEngineLog.Print("Set container working directory to GITHUB_WORKSPACE")
-
-		// Add custom mounts from agent config if specified
-		if agentConfig != nil && len(agentConfig.Mounts) > 0 {
-			sortedMounts := make([]string, len(agentConfig.Mounts))
-			copy(sortedMounts, agentConfig.Mounts)
-			sort.Strings(sortedMounts)
-
-			for _, mount := range sortedMounts {
-				awfArgs = append(awfArgs, "--mount", mount)
-			}
-			codexEngineLog.Printf("Added %d custom mounts from agent config", len(sortedMounts))
-		}
-
-		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
-
-		// Add blocked domains if specified
-		blockedDomains := formatBlockedDomains(workflowData.NetworkPermissions)
-		if blockedDomains != "" {
-			awfArgs = append(awfArgs, "--block-domains", blockedDomains)
-			codexEngineLog.Printf("Added blocked domains: %s", blockedDomains)
-		}
-
-		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
-		awfArgs = append(awfArgs, "--proxy-logs-dir", "/tmp/gh-aw/sandbox/firewall/logs")
-
-		// Add --enable-host-access when MCP servers are configured (gateway is used)
-		// This allows awf to access host.docker.internal for MCP gateway communication
-		if HasMCPServers(workflowData) {
-			awfArgs = append(awfArgs, "--enable-host-access")
-			codexEngineLog.Print("Added --enable-host-access for MCP gateway communication")
-		}
-
-		// Pin AWF Docker image version to match the installed binary version
-		awfImageTag := getAWFImageTag(firewallConfig)
-		awfArgs = append(awfArgs, "--image-tag", awfImageTag)
-		codexEngineLog.Printf("Pinned AWF image tag to %s", awfImageTag)
-
-		// Skip pulling images since they are pre-downloaded in the Download container images step
-		awfArgs = append(awfArgs, "--skip-pull")
-		codexEngineLog.Print("Using --skip-pull since images are pre-downloaded")
-
-		// Note: No --tty flag for Codex (it's not a TUI, it outputs to stdout/stderr)
-
-		// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
-		sslBumpArgs := getSSLBumpArgs(firewallConfig)
-		awfArgs = append(awfArgs, sslBumpArgs...)
-
-		// Add custom args if specified in firewall config
-		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
-			awfArgs = append(awfArgs, firewallConfig.Args...)
-		}
-
-		// Add custom args from agent config if specified
-		if agentConfig != nil && len(agentConfig.Args) > 0 {
-			awfArgs = append(awfArgs, agentConfig.Args...)
-			codexEngineLog.Printf("Added %d custom args from agent config", len(agentConfig.Args))
-		}
-
-		// Determine the AWF command to use (custom or standard)
-		var awfCommand string
-		if agentConfig != nil && agentConfig.Command != "" {
-			awfCommand = agentConfig.Command
-			codexEngineLog.Printf("Using custom AWF command: %s", awfCommand)
-		} else {
-			awfCommand = "sudo -E awf"
-			codexEngineLog.Print("Using standard AWF command")
-		}
+		// Enable API proxy sidecar if this engine supports LLM gateway
+		llmGatewayPort := e.SupportsLLMGateway()
+		usesAPIProxy := llmGatewayPort > 0
 
 		// Build the command with agent file handling if specified
 		// INSTRUCTION reading is done inside the AWF command to avoid Docker Compose interpolation
 		// issues with $ characters in the prompt.
 		//
-		// AWF with --enable-chroot and --env-all handles most PATH setup natively:
+		// AWF v0.15.0+ with --env-all handles most PATH setup natively (chroot mode is default):
 		// - GOROOT, JAVA_HOME, etc. are handled via AWF_HOST_PATH and entrypoint.sh
 		// However, npm-installed CLIs (like codex) need hostedtoolcache bin directories in PATH.
 		npmPathSetup := GetNpmBinPathSetup()
 
+		// Codex reads both agent file and prompt inside AWF container (PATH setup + agent file reading + codex command)
+		var codexCommandWithSetup string
 		if workflowData.AgentFile != "" {
 			agentPath := ResolveAgentFilePath(workflowData.AgentFile)
 			// Read agent file and prompt inside AWF container, with PATH setup for npm binaries
-			codexCommandWithSetup := fmt.Sprintf(`%s && AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)" && INSTRUCTION="$(printf "%%s\n\n%%s" "$AGENT_CONTENT" "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)")" && %s`, npmPathSetup, agentPath, codexCommand)
-			escapedCodexCommand := strings.ReplaceAll(codexCommandWithSetup, "'", "'\\''")
-			shellWrappedCommand := fmt.Sprintf("/bin/bash -c '%s'", escapedCodexCommand)
-
-			command = fmt.Sprintf(`set -o pipefail
-mkdir -p "$CODEX_HOME/logs"
-%s %s \
-  -- %s \
-  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand, shellEscapeArg(logFile))
+			codexCommandWithSetup = fmt.Sprintf(`%s && AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)" && INSTRUCTION="$(printf "%%s\n\n%%s" "$AGENT_CONTENT" "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)")" && %s`, npmPathSetup, agentPath, codexCommand)
 		} else {
 			// Read prompt inside AWF container to avoid Docker Compose interpolation issues, with PATH setup
-			codexCommandWithSetup := fmt.Sprintf(`%s && INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" && %s`, npmPathSetup, codexCommand)
-			escapedCodexCommand := strings.ReplaceAll(codexCommandWithSetup, "'", "'\\''")
-			shellWrappedCommand := fmt.Sprintf("/bin/bash -c '%s'", escapedCodexCommand)
-
-			command = fmt.Sprintf(`set -o pipefail
-mkdir -p "$CODEX_HOME/logs"
-%s %s \
-  -- %s \
-  2>&1 | tee %s`, awfCommand, shellJoinArgs(awfArgs), shellWrappedCommand, shellEscapeArg(logFile))
+			codexCommandWithSetup = fmt.Sprintf(`%s && INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" && %s`, npmPathSetup, codexCommand)
 		}
+
+		command = BuildAWFCommand(AWFCommandConfig{
+			EngineName:     "codex",
+			EngineCommand:  codexCommandWithSetup,
+			LogFile:        logFile,
+			WorkflowData:   workflowData,
+			UsesTTY:        false, // Codex is not a TUI, outputs to stdout/stderr
+			UsesAPIProxy:   usesAPIProxy,
+			AllowedDomains: allowedDomains,
+			PathSetup:      "mkdir -p \"$CODEX_HOME/logs\"", // Create logs directory before AWF
+		})
 	} else {
 		// Build the command without AWF wrapping
 		// Reuse commandName already determined above

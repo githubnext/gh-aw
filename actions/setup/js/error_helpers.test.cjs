@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getErrorMessage } from "./error_helpers.cjs";
+import { getErrorMessage, isLockedError } from "./error_helpers.cjs";
 
 describe("error_helpers", () => {
   describe("getErrorMessage", () => {
@@ -37,6 +37,56 @@ describe("error_helpers", () => {
     it("should handle object without message property", () => {
       const error = { code: "ERROR_CODE", status: 500 };
       expect(getErrorMessage(error)).toBe("[object Object]");
+    });
+  });
+
+  describe("isLockedError", () => {
+    it("should return true for 403 error with 'locked' in message", () => {
+      const error = new Error("Issue is locked");
+      error.status = 403;
+      expect(isLockedError(error)).toBe(true);
+    });
+
+    it("should return true for 403 error with 'Lock conversation' in message", () => {
+      const error = new Error("Lock conversation is enabled");
+      error.status = 403;
+      expect(isLockedError(error)).toBe(true);
+    });
+
+    it("should return false for 403 error without 'locked' in message", () => {
+      const error = new Error("Forbidden: insufficient permissions");
+      error.status = 403;
+      expect(isLockedError(error)).toBe(false);
+    });
+
+    it("should return false for non-403 error with 'locked' in message", () => {
+      const error = new Error("Issue is locked");
+      error.status = 500;
+      expect(isLockedError(error)).toBe(false);
+    });
+
+    it("should return false for error without status property", () => {
+      const error = new Error("Issue is locked");
+      expect(isLockedError(error)).toBe(false);
+    });
+
+    it("should return false for null error", () => {
+      expect(isLockedError(null)).toBe(false);
+    });
+
+    it("should return false for undefined error", () => {
+      expect(isLockedError(undefined)).toBe(false);
+    });
+
+    it("should handle object errors with status and message", () => {
+      const error = { status: 403, message: "This resource is locked" };
+      expect(isLockedError(error)).toBe(true);
+    });
+
+    it("should return false for 403 error with only partial match", () => {
+      const error = { status: 403, message: "This issue has been unlocked" };
+      // Contains "unlocked" which includes "locked" substring
+      expect(isLockedError(error)).toBe(true);
     });
   });
 });

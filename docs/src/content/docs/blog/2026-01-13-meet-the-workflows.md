@@ -76,6 +76,8 @@ Note how concise this is - it's like reading a to-do list for the agent. The wor
 
 In the frontmatter, we define [permissions](/gh-aw/reference/frontmatter/#permissions-permissions), [tools](/gh-aw/reference/tools/), and [safe outputs](/gh-aw/reference/safe-outputs/). This ensures the agent only has access to what it needs and can't perform any unsafe actions. The natural language instructions in the body guide the agent's behavior in a clear, human-readable way.
 
+Issue triage workflows in public repositories are one of the [rare cases where you might disable lockdown mode](/gh-aw/reference/faq/#what-is-github-lockdown-mode-and-when-is-it-enabled) to process issues from all contributors. If you are a maintainer in a public repository and need your triage agent to see and label issues from users without push access, configure `lockdown: false` in your GitHub tools configuration. See [Lockdown Mode](/gh-aw/reference/lockdown-mode/) for security considerations and best practices.
+
 We've deliberately kept this workflow ultra-simple. In practice, in your own repo, **customization** is key. Triage differs in every repository. Tailoring workflows to your specific context will make them more effective. Generic agents are okay, but customized ones are often a better fit.
 
 ## Using These Workflows
@@ -88,7 +90,7 @@ You can add this workflow to your own repository and remix it as follows:
 gh aw add-wizard https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/issue-triage-agent.md
 ```
 
-Then edit and remix the workflow specification to meet your needs, recompile using `gh aw compile`, and push to your repository. See our [Quick Start](https://github.github.com/gh-aw/setup/quick-start/) for further installation and setup instructions.
+Then edit and remix the workflow specification to meet your needs, regenerate the lock file using `gh aw compile`, and push to your repository. See our [Quick Start](https://github.github.com/gh-aw/setup/quick-start/) for further installation and setup instructions.
 
 You can also [create your own workflows](/gh-aw/setup/creating-workflows).
 

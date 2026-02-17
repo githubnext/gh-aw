@@ -226,10 +226,16 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 	yaml.WriteString("          container = \"" + playwrightImage + "\"\n")
 
 	// Docker runtime args (goes before container image in docker run command)
+	// Add security-opt and ipc flags for Chromium browser compatibility in GitHub Actions
+	// --security-opt seccomp=unconfined: Required for Chromium sandbox to function properly
+	// --ipc=host: Provides shared memory access required by Chromium
 	yaml.WriteString("          args = [\n")
 	yaml.WriteString("            \"--init\",\n")
 	yaml.WriteString("            \"--network\",\n")
 	yaml.WriteString("            \"host\",\n")
+	yaml.WriteString("            \"--security-opt\",\n")
+	yaml.WriteString("            \"seccomp=unconfined\",\n")
+	yaml.WriteString("            \"--ipc=host\",\n")
 	yaml.WriteString("          ]\n")
 
 	// Entrypoint args for Playwright MCP server (goes after container image)
@@ -311,7 +317,8 @@ func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, seren
 		yaml.WriteString("            \"--context\",\n")
 		yaml.WriteString("            \"codex\",\n")
 		yaml.WriteString("            \"--project\",\n")
-		yaml.WriteString("            \"${{ github.workspace }}\"")
+		// Security: Use GITHUB_WORKSPACE environment variable instead of template expansion to prevent template injection
+		yaml.WriteString("            \"${GITHUB_WORKSPACE}\"")
 
 		// Append custom args if present
 		for _, arg := range customArgs {
@@ -323,7 +330,8 @@ func (r *MCPConfigRendererUnified) renderSerenaTOML(yaml *strings.Builder, seren
 		yaml.WriteString("          ]\n")
 
 		// Add volume mount for workspace access
-		yaml.WriteString("          mounts = [\"${{ github.workspace }}:${{ github.workspace }}:rw\"]\n")
+		// Security: Use GITHUB_WORKSPACE environment variable instead of template expansion to prevent template injection
+		yaml.WriteString("          mounts = [\"${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw\"]\n")
 	}
 }
 
@@ -421,7 +429,7 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 
 	if r.options.ActionMode.IsDev() {
 		// Dev mode: Use locally built Docker image which includes gh-aw binary and gh CLI
-		// The Dockerfile sets ENTRYPOINT ["gh-aw"] and CMD ["mcp-server", "--cmd", "gh-aw"]
+		// The Dockerfile sets ENTRYPOINT ["gh-aw"] and CMD ["mcp-server", "--validate-actor"]
 		// So we don't need to specify entrypoint or entrypointArgs
 		containerImage = constants.DevModeGhAwImage
 		entrypoint = ""      // Use container's default ENTRYPOINT
@@ -431,7 +439,7 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 	} else {
 		// Release mode: Use minimal Alpine image with mounted binaries
 		entrypoint = "/opt/gh-aw/gh-aw"
-		entrypointArgs = []string{"mcp-server"}
+		entrypointArgs = []string{"mcp-server", "--validate-actor"}
 		// Mount gh-aw binary, gh CLI binary, workspace, and temp directory
 		mounts = []string{constants.DefaultGhAwMount, constants.DefaultGhBinaryMount, constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount}
 	}
@@ -447,7 +455,14 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 	// Only write entrypointArgs if specified (release mode)
 	// In dev mode, use the container's default CMD
 	if entrypointArgs != nil {
-		yaml.WriteString("          entrypointArgs = [\"mcp-server\"]\n")
+		yaml.WriteString("          entrypointArgs = [")
+		for i, arg := range entrypointArgs {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("\"" + arg + "\"")
+		}
+		yaml.WriteString("]\n")
 	}
 
 	// Write mounts
@@ -460,7 +475,7 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 	}
 	yaml.WriteString("]\n")
 
-	yaml.WriteString("          env_vars = [\"DEBUG\", \"GH_TOKEN\", \"GITHUB_TOKEN\"]\n")
+	yaml.WriteString("          env_vars = [\"DEBUG\", \"GH_TOKEN\", \"GITHUB_TOKEN\", \"GITHUB_ACTOR\", \"GITHUB_REPOSITORY\"]\n")
 }
 
 // renderGitHubTOML generates GitHub MCP configuration in TOML format (for Codex engine)
@@ -734,10 +749,10 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 		envVars["GITHUB_READ_ONLY"] = "1"
 	}
 
-	// Lockdown mode
+	// GitHub lockdown mode
 	if options.LockdownFromStep {
 		// Security: Use environment variable instead of template expression to prevent template injection
-		// The GITHUB_MCP_LOCKDOWN env var is set in Start MCP gateway step from step output
+		// The GITHUB_MCP_LOCKDOWN env var is set in Start MCP Gateway step from step output
 		// Value is already converted to "1" or "0" in the environment variable
 		envVars["GITHUB_LOCKDOWN_MODE"] = "$GITHUB_MCP_LOCKDOWN"
 	} else if options.Lockdown {
@@ -961,10 +976,11 @@ func RenderJSONMCPConfig(
 	// Get the generated configuration
 	generatedConfig := configBuilder.String()
 
+	delimiter := GenerateHeredocDelimiter("MCP_CONFIG")
 	// Write the configuration to the YAML output
-	yaml.WriteString("          cat << MCPCONFIG_EOF | bash /opt/gh-aw/actions/start_mcp_gateway.sh\n")
+	yaml.WriteString("          cat << " + delimiter + " | bash /opt/gh-aw/actions/start_mcp_gateway.sh\n")
 	yaml.WriteString(generatedConfig)
-	yaml.WriteString("          MCPCONFIG_EOF\n")
+	yaml.WriteString("          " + delimiter + "\n")
 
 	// Note: Post-EOF commands are no longer needed since we pipe directly to the gateway script
 	return nil

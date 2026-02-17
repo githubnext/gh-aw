@@ -29,11 +29,6 @@ func TestNewAddCommand(t *testing.T) {
 	// Verify flags are registered
 	flags := cmd.Flags()
 
-	// Check number flag
-	numberFlag := flags.Lookup("number")
-	assert.NotNil(t, numberFlag, "Should have 'number' flag")
-	assert.Empty(t, numberFlag.Shorthand, "Number flag should not have shorthand (conflicts with logs -c)")
-
 	// Check name flag
 	nameFlag := flags.Lookup("name")
 	assert.NotNil(t, nameFlag, "Should have 'name' flag")
@@ -88,28 +83,27 @@ func TestAddWorkflows(t *testing.T) {
 	tests := []struct {
 		name          string
 		workflows     []string
-		number        int
 		expectError   bool
 		errorContains string
 	}{
 		{
 			name:          "empty workflows list",
 			workflows:     []string{},
-			number:        1,
 			expectError:   true,
 			errorContains: "at least one workflow",
 		},
 		{
-			name:        "repo-only spec (should list workflows)",
-			workflows:   []string{"owner/repo"},
-			number:      1,
-			expectError: true, // Will error on workflow listing, but tests repo-only detection
+			name:          "repo-only spec (requires workflow path)",
+			workflows:     []string{"owner/repo"},
+			expectError:   true,
+			errorContains: "workflow specification must be in format",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := AddWorkflows(tt.workflows, tt.number, false, "", "", false, "", false, false, false, "", false, "")
+			opts := AddOptions{}
+			_, err := AddWorkflows(tt.workflows, opts)
 
 			if tt.expectError {
 				require.Error(t, err, "Expected error for test case: %s", tt.name)
@@ -123,34 +117,17 @@ func TestAddWorkflows(t *testing.T) {
 	}
 }
 
-// TestUpdateWorkflowTitle is tested in commands_utils_test.go
-// Removed duplicate test to avoid redeclaration
-
 // TestAddCommandStructure removed - redundant with TestNewAddCommand
 
 func TestAddResolvedWorkflows(t *testing.T) {
 	tests := []struct {
 		name          string
-		number        int
 		expectError   bool
 		errorContains string
 	}{
 		{
-			name:          "invalid number - zero",
-			number:        0,
-			expectError:   true,
-			errorContains: "number of copies must be a positive integer",
-		},
-		{
-			name:          "invalid number - negative",
-			number:        -1,
-			expectError:   true,
-			errorContains: "number of copies must be a positive integer",
-		},
-		{
-			name:        "valid number - one",
-			number:      1,
-			expectError: true, // Will still error due to missing workflow, but validates number check
+			name:        "valid workflow",
+			expectError: true, // Will still error due to missing git repo, but validates basic flow
 		},
 	}
 
@@ -171,22 +148,11 @@ func TestAddResolvedWorkflows(t *testing.T) {
 				},
 			}
 
+			opts := AddOptions{}
 			_, err := AddResolvedWorkflows(
 				[]string{"test/repo/test-workflow"},
 				resolved,
-				tt.number,
-				false, // verbose
-				false, // quiet
-				"",    // engineOverride
-				"",    // name
-				false, // force
-				"",    // appendText
-				false, // createPR
-				false, // push
-				false, // noGitattributes
-				"",    // workflowDir
-				false, // noStopAfter
-				"",    // stopAfter
+				opts,
 			)
 
 			if tt.expectError {
@@ -326,7 +292,6 @@ func TestAddCommandFlagDefaults(t *testing.T) {
 		flagName     string
 		defaultValue string
 	}{
-		{"number", "1"},
 		{"name", ""},
 		{"engine", ""},
 		{"repo", ""},

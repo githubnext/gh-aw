@@ -113,15 +113,15 @@ Test Codex workflow with safe inputs
 
 			yamlStr := string(lockContent)
 
-			// Check for "Start MCP gateway" step
-			if !strings.Contains(yamlStr, "Start MCP gateway") {
+			// Check for "Start MCP Gateway" step
+			if !strings.Contains(yamlStr, "Start MCP Gateway") {
 				t.Skip("No MCP gateway step generated (sandbox might be disabled)")
 			}
 
 			// Extract the MCP gateway step section
-			startIdx := strings.Index(yamlStr, "Start MCP gateway")
+			startIdx := strings.Index(yamlStr, "Start MCP Gateway")
 			if startIdx == -1 {
-				t.Fatal("Start MCP gateway step not found")
+				t.Fatal("Start MCP Gateway step not found")
 			}
 
 			// Find the next step or end of steps section

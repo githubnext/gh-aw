@@ -60,18 +60,6 @@ func generateMaxWithAllowedConfig(max int, defaultMax int, allowed []string) map
 	return config
 }
 
-// generateMaxWithRequiredFieldsConfig creates a config with max and optional required filter fields
-func generateMaxWithRequiredFieldsConfig(max int, defaultMax int, requiredLabels []string, requiredTitlePrefix string) map[string]any {
-	config := generateMaxConfig(max, defaultMax)
-	if len(requiredLabels) > 0 {
-		config["required_labels"] = requiredLabels
-	}
-	if requiredTitlePrefix != "" {
-		config["required_title_prefix"] = requiredTitlePrefix
-	}
-	return config
-}
-
 // generateMaxWithDiscussionFieldsConfig creates a config with discussion-specific filter fields
 func generateMaxWithDiscussionFieldsConfig(max int, defaultMax int, requiredCategory string, requiredLabels []string, requiredTitlePrefix string) map[string]any {
 	config := generateMaxConfig(max, defaultMax)
@@ -97,15 +85,20 @@ func generateMaxWithReviewersConfig(max int, defaultMax int, reviewers []string)
 }
 
 // generateAssignToAgentConfig creates a config with optional max, default_agent, target, and allowed
-func generateAssignToAgentConfig(max int, defaultAgent string, target string, allowed []string) map[string]any {
+func generateAssignToAgentConfig(max int, defaultMax int, defaultAgent string, target string, allowed []string) map[string]any {
 	if safeOutputsConfigGenLog.Enabled() {
-		safeOutputsConfigGenLog.Printf("Generating assign-to-agent config: max=%d, defaultAgent=%s, target=%s, allowed_count=%d",
-			max, defaultAgent, target, len(allowed))
+		safeOutputsConfigGenLog.Printf("Generating assign-to-agent config: max=%d, defaultMax=%d, defaultAgent=%s, target=%s, allowed_count=%d",
+			max, defaultMax, defaultAgent, target, len(allowed))
 	}
 	config := make(map[string]any)
+
+	// Apply default max if max is not specified
+	maxValue := defaultMax
 	if max > 0 {
-		config["max"] = max
+		maxValue = max
 	}
+	config["max"] = maxValue
+
 	if defaultAgent != "" {
 		config["default_agent"] = defaultAgent
 	}
@@ -148,5 +141,36 @@ func generateHideCommentConfig(max int, defaultMax int, allowedReasons []string)
 	if len(allowedReasons) > 0 {
 		config["allowed_reasons"] = allowedReasons
 	}
+	return config
+}
+
+// generateTargetConfigWithRepos creates a config with target, target-repo, allowed_repos, and optional fields.
+// Note on naming conventions:
+// - "target-repo" uses hyphen to match frontmatter YAML format (key in config.json)
+// - "allowed_repos" uses underscore to match JavaScript handler expectations (see repo_helpers.cjs)
+// This inconsistency is intentional to maintain compatibility with existing handler code.
+func generateTargetConfigWithRepos(targetConfig SafeOutputTargetConfig, max int, defaultMax int, additionalFields map[string]any) map[string]any {
+	config := generateMaxConfig(max, defaultMax)
+
+	// Add target if specified
+	if targetConfig.Target != "" {
+		config["target"] = targetConfig.Target
+	}
+
+	// Add target-repo if specified (use hyphenated key for consistency with frontmatter)
+	if targetConfig.TargetRepoSlug != "" {
+		config["target-repo"] = targetConfig.TargetRepoSlug
+	}
+
+	// Add allowed_repos if specified (use underscore for consistency with handler code)
+	if len(targetConfig.AllowedRepos) > 0 {
+		config["allowed_repos"] = targetConfig.AllowedRepos
+	}
+
+	// Add any additional fields
+	for key, value := range additionalFields {
+		config[key] = value
+	}
+
 	return config
 }

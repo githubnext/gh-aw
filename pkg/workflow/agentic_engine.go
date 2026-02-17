@@ -37,7 +37,6 @@ type GitHubActionStep []string
 //
 //   CapabilityProvider (feature detection - optional)
 //   ├── SupportsToolsAllowlist()
-//   ├── SupportsHTTPTransport()
 //   ├── SupportsMaxTurns()
 //   ├── SupportsWebFetch()
 //   ├── SupportsWebSearch()
@@ -110,9 +109,6 @@ type CapabilityProvider interface {
 	// SupportsToolsAllowlist returns true if this engine supports MCP tool allow-listing
 	SupportsToolsAllowlist() bool
 
-	// SupportsHTTPTransport returns true if this engine supports HTTP transport for MCP servers
-	SupportsHTTPTransport() bool
-
 	// SupportsMaxTurns returns true if this engine supports the max-turns feature
 	SupportsMaxTurns() bool
 
@@ -129,6 +125,13 @@ type CapabilityProvider interface {
 	// SupportsPlugins returns true if this engine supports plugin installation
 	// When true, plugins can be installed using the engine's plugin install command
 	SupportsPlugins() bool
+
+	// SupportsLLMGateway returns the LLM gateway port number for this engine
+	// Returns the port number (e.g., 10000) if the engine supports an LLM gateway
+	// Returns -1 if the engine does not support an LLM gateway
+	// The port is used to configure AWF api-proxy sidecar container
+	// In strict mode, engines without LLM gateway support require additional security constraints
+	SupportsLLMGateway() int
 }
 
 // WorkflowExecutor handles workflow compilation and execution
@@ -198,12 +201,12 @@ type BaseEngine struct {
 	description            string
 	experimental           bool
 	supportsToolsAllowlist bool
-	supportsHTTPTransport  bool
 	supportsMaxTurns       bool
 	supportsWebFetch       bool
 	supportsWebSearch      bool
 	supportsFirewall       bool
 	supportsPlugins        bool
+	supportsLLMGateway     bool
 }
 
 func (e *BaseEngine) GetID() string {
@@ -226,10 +229,6 @@ func (e *BaseEngine) SupportsToolsAllowlist() bool {
 	return e.supportsToolsAllowlist
 }
 
-func (e *BaseEngine) SupportsHTTPTransport() bool {
-	return e.supportsHTTPTransport
-}
-
 func (e *BaseEngine) SupportsMaxTurns() bool {
 	return e.supportsMaxTurns
 }
@@ -248,6 +247,12 @@ func (e *BaseEngine) SupportsFirewall() bool {
 
 func (e *BaseEngine) SupportsPlugins() bool {
 	return e.supportsPlugins
+}
+
+func (e *BaseEngine) SupportsLLMGateway() int {
+	// Engines that support LLM gateway must override this method
+	// to return their specific port number (e.g., 10000, 10001, 10002)
+	return -1
 }
 
 // GetDeclaredOutputFiles returns an empty list by default (engines can override)
@@ -302,6 +307,7 @@ func NewEngineRegistry() *EngineRegistry {
 	registry.Register(NewClaudeEngine())
 	registry.Register(NewCodexEngine())
 	registry.Register(NewCopilotEngine())
+	registry.Register(NewCopilotSDKEngine())
 	registry.Register(NewCustomEngine())
 
 	agenticEngineLog.Printf("Registered %d engines", len(registry.engines))

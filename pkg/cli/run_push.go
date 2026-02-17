@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
@@ -35,6 +36,13 @@ func collectWorkflowFiles(ctx context.Context, workflowPath string, verbose bool
 		return nil, fmt.Errorf("failed to get absolute path for workflow: %w", err)
 	}
 	runPushLog.Printf("Resolved absolute workflow path: %s", absWorkflowPath)
+
+	// Validate the absolute path
+	absWorkflowPath, err = fileutil.ValidateAbsolutePath(absWorkflowPath)
+	if err != nil {
+		runPushLog.Printf("Invalid workflow path: %v", err)
+		return nil, fmt.Errorf("invalid workflow path: %w", err)
+	}
 
 	// Add the workflow .md file
 	files[absWorkflowPath] = true
@@ -172,6 +180,13 @@ func checkLockFileStatus(workflowPath string) (*LockFileStatus, error) {
 		return nil, fmt.Errorf("failed to get absolute path for workflow: %w", err)
 	}
 	runPushLog.Printf("Resolved absolute path: %s", absWorkflowPath)
+
+	// Validate the absolute path
+	absWorkflowPath, err = fileutil.ValidateAbsolutePath(absWorkflowPath)
+	if err != nil {
+		runPushLog.Printf("Invalid workflow path: %v", err)
+		return nil, fmt.Errorf("invalid workflow path: %w", err)
+	}
 
 	lockFilePath := stringutil.MarkdownToLockFile(absWorkflowPath)
 	runPushLog.Printf("Expected lock file path: %s", lockFilePath)
@@ -347,7 +362,7 @@ func resolveImportPathLocal(importPath, baseDir string) string {
 	}
 
 	// Skip workflowspec format imports (owner/repo/path@sha)
-	if strings.Contains(importPath, "@") || isWorkflowSpecFormatLocal(importPath) {
+	if isWorkflowSpecFormatLocal(importPath) {
 		runPushLog.Printf("Skipping workflowspec format import: %s", importPath)
 		return ""
 	}
@@ -375,30 +390,9 @@ func resolveImportPathLocal(importPath, baseDir string) string {
 // isWorkflowSpecFormatLocal is a local version of isWorkflowSpecFormat for push functionality
 // This is duplicated from imports.go to avoid circular dependencies
 func isWorkflowSpecFormatLocal(path string) bool {
-	runPushLog.Printf("Checking if workflowspec format: %s", path)
-
-	// Check if it contains @ (ref separator) or looks like owner/repo/path
-	if strings.Contains(path, "@") {
-		runPushLog.Printf("Path contains @ - workflowspec format: %s", path)
-		return true
-	}
-
-	// Remove section reference if present
-	cleanPath := path
-	if idx := strings.Index(path, "#"); idx != -1 {
-		cleanPath = path[:idx]
-		runPushLog.Printf("Removed section reference: %s -> %s", path, cleanPath)
-	}
-
-	// Check if it has at least 3 parts and doesn't start with . or /
-	parts := strings.Split(cleanPath, "/")
-	if len(parts) >= 3 && !strings.HasPrefix(cleanPath, ".") && !strings.HasPrefix(cleanPath, "/") {
-		runPushLog.Printf("Path has %d parts and matches owner/repo/path format - workflowspec format: %s", len(parts), path)
-		return true
-	}
-
-	runPushLog.Printf("Path is not workflowspec format: %s", path)
-	return false
+	// The only reliable indicator of a workflowspec is the @ version separator
+	// Paths like "shared/mcp/arxiv.md" should be treated as local paths, not workflowspecs
+	return strings.Contains(path, "@")
 }
 
 // pushWorkflowFiles commits and pushes the workflow files to the repository
@@ -481,8 +475,14 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 		// Normalize the path
 		absPath, err := filepath.Abs(file)
 		if err == nil {
-			ourFiles[absPath] = true
-			runPushLog.Printf("Added to our files map: %s (absolute: %s)", file, absPath)
+			// Validate the absolute path
+			validPath, validErr := fileutil.ValidateAbsolutePath(absPath)
+			if validErr == nil {
+				ourFiles[validPath] = true
+				runPushLog.Printf("Added to our files map: %s (absolute: %s)", file, validPath)
+			} else {
+				runPushLog.Printf("Failed to validate path for %s: %v", absPath, validErr)
+			}
 		} else {
 			runPushLog.Printf("Failed to get absolute path for %s: %v", file, err)
 		}
@@ -497,9 +497,13 @@ func pushWorkflowFiles(workflowName string, files []string, refOverride string, 
 		runPushLog.Printf("Checking staged file: %s", stagedFile)
 		// Try both absolute and relative paths
 		absStagedPath, err := filepath.Abs(stagedFile)
-		if err == nil && ourFiles[absStagedPath] {
-			runPushLog.Printf("Staged file %s matches our file %s (absolute)", stagedFile, absStagedPath)
-			continue
+		if err == nil {
+			// Validate the staged path
+			validPath, validErr := fileutil.ValidateAbsolutePath(absStagedPath)
+			if validErr == nil && ourFiles[validPath] {
+				runPushLog.Printf("Staged file %s matches our file %s (absolute)", stagedFile, validPath)
+				continue
+			}
 		}
 		if ourFiles[stagedFile] {
 			runPushLog.Printf("Staged file %s matches our file (relative)", stagedFile)

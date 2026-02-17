@@ -12,6 +12,18 @@ const { resolveTarget } = require("./safe_output_helpers.cjs");
 const { createUpdateHandlerFactory } = require("./update_handler_factory.cjs");
 const { updateBody } = require("./update_pr_description_helpers.cjs");
 const { loadTemporaryProjectMap, replaceTemporaryProjectReferences } = require("./temporary_id.cjs");
+const { sanitizeTitle } = require("./sanitize_title.cjs");
+const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
+
+/**
+ * Maximum limits for issue update parameters to prevent resource exhaustion.
+ * These limits align with GitHub's API constraints and security best practices.
+ */
+/** @type {number} Maximum number of labels allowed per issue */
+const MAX_LABELS = 10;
+
+/** @type {number} Maximum number of assignees allowed per issue */
+const MAX_ASSIGNEES = 5;
 
 /**
  * Execute the issue update API call
@@ -26,9 +38,10 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
   // Default to "append" to add footer with AI attribution
   const operation = updateData._operation || "append";
   let rawBody = updateData._rawBody;
+  const includeFooter = updateData._includeFooter !== false; // Default to true
 
   // Remove internal fields
-  const { _operation, _rawBody, ...apiData } = updateData;
+  const { _operation, _rawBody, _includeFooter, ...apiData } = updateData;
 
   // If we have a body, process it with the appropriate operation
   if (rawBody !== undefined) {
@@ -50,6 +63,7 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
 
     // Get workflow run URL for AI attribution
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "GitHub Agentic Workflow";
+    const workflowId = process.env.GH_AW_WORKFLOW_ID || "";
     const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
     // Use helper to update body (handles all operations including replace)
@@ -59,7 +73,8 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
       operation,
       workflowName,
       runUrl,
-      runId: context.runId,
+      workflowId,
+      includeFooter, // Pass footer flag to helper
     });
 
     core.info(`Will update body (length: ${apiData.body.length})`);
@@ -109,13 +124,19 @@ function buildIssueUpdateData(item, config) {
   const updateData = {};
 
   if (item.title !== undefined) {
-    updateData.title = item.title;
+    // Sanitize title for Unicode security (no prefix handling needed for updates)
+    updateData.title = sanitizeTitle(item.title);
   }
-  if (item.body !== undefined) {
+  // Check if body updates are allowed (defaults to true if not specified)
+  const canUpdateBody = config.allow_body !== false;
+  if (item.body !== undefined && canUpdateBody) {
     // Store operation information for consistent footer/append behavior.
     // Default to "append" so we preserve the original issue text.
     updateData._operation = item.operation || "append";
     updateData._rawBody = item.body;
+  } else if (item.body !== undefined && !canUpdateBody) {
+    // Body update attempted but not allowed by configuration
+    core.warning("Body update not allowed by safe-outputs configuration");
   }
   // The safe-outputs schema uses "status" (open/closed), while the GitHub API uses "state".
   // Accept both for compatibility.
@@ -133,6 +154,22 @@ function buildIssueUpdateData(item, config) {
   if (item.milestone !== undefined) {
     updateData.milestone = item.milestone;
   }
+
+  // Enforce max limits on labels and assignees before API calls
+  const labelsLimitResult = tryEnforceArrayLimit(updateData.labels, MAX_LABELS, "labels");
+  if (!labelsLimitResult.success) {
+    core.warning(`Issue update limit exceeded: ${labelsLimitResult.error}`);
+    return { success: false, error: labelsLimitResult.error };
+  }
+
+  const assigneesLimitResult = tryEnforceArrayLimit(updateData.assignees, MAX_ASSIGNEES, "assignees");
+  if (!assigneesLimitResult.success) {
+    core.warning(`Issue update limit exceeded: ${assigneesLimitResult.error}`);
+    return { success: false, error: assigneesLimitResult.error };
+  }
+
+  // Pass footer config to executeUpdate (default to true)
+  updateData._includeFooter = config.footer !== false;
 
   return { success: true, data: updateData };
 }

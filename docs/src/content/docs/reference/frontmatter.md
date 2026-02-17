@@ -35,6 +35,8 @@ The `on:` section uses standard GitHub Actions syntax to define workflow trigger
 - `stop-after:` - Automatically disable triggers after a deadline
 - `manual-approval:` - Require manual approval using environment protection rules
 - `forks:` - Configure fork filtering for pull_request triggers
+- `skip-roles:` - Skip workflow execution for specific repository roles
+- `skip-bots:` - Skip workflow execution for specific GitHub actors
 
 See [Trigger Events](/gh-aw/reference/triggers/) for complete documentation.
 
@@ -91,12 +93,13 @@ github-token: ${{ secrets.CUSTOM_PAT }}
 ```
 
 **Token precedence** (highest to lowest):
+
 1. Individual safe-output `github-token` (e.g., `create-issue.github-token`)
 2. Safe-outputs global `github-token`
 3. Top-level `github-token`
 4. Default: `${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`
 
-See [GitHub Tokens](/gh-aw/reference/tokens/) for complete documentation.
+See [Authentication](/gh-aw/reference/auth/) for complete documentation.
 
 ### Plugins (`plugins:`)
 
@@ -261,6 +264,60 @@ bots:
 - `github-actions[bot]` - GitHub Actions bot
 - `agentic-workflows-dev[bot]` - Development bot for testing workflows
 
+### Skip Roles (`on.skip-roles`)
+
+Skip workflow execution for users with specific repository permission levels. Useful for exempting team members from automated checks that should only apply to external contributors.
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  skip-roles: [admin, maintainer, write]
+```
+
+**Available roles**: `admin`, `maintainer`, `write`, `read`
+
+**Behavior**:
+- Workflow is cancelled during pre-activation when triggered by users with listed roles
+- Check runs before agent execution to avoid unnecessary compute costs
+- Merged as union when importing workflows (all skip-roles from imported workflows are combined)
+- Useful for AI moderation workflows that should only check external user content
+
+**Example use case**: An AI content moderation workflow that checks issues for policy violations but exempts trusted team members with write access or higher.
+
+### Skip Bots (`on.skip-bots`)
+
+Skip workflow execution when triggered by specific GitHub actors (users or bots). Complements `skip-roles` by filtering based on actor identity rather than permission level.
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  skip-bots: [github-actions, copilot, dependabot]
+```
+
+**Bot name matching**: Automatic flexible matching handles bot names with or without the `[bot]` suffix. For example, specifying `github-actions` matches both `github-actions` and `github-actions[bot]` actors automatically.
+
+**Behavior**:
+- Workflow is cancelled during pre-activation when `github.actor` matches any listed actor
+- Check runs before agent execution to avoid unnecessary compute costs
+- Merged as union when importing workflows (all skip-bots from imported workflows are combined)
+- Accepts both user accounts and bot accounts
+
+**String or array format**:
+```yaml wrap
+# Single bot
+skip-bots: github-actions
+
+# Multiple bots
+skip-bots: [github-actions, copilot, renovate]
+```
+
+**Example use cases**:
+- Skip AI workflows when triggered by automation bots to avoid bot-to-bot interactions
+- Prevent workflow loops where one workflow's output triggers another
+- Exempt specific known bots from content checks or policy enforcement
+
 ### Strict Mode (`strict:`)
 
 Enables enhanced security validation for production workflows. **Enabled by default**.
@@ -274,15 +331,18 @@ strict: false  # Disable for development/testing
 1. Refuses write permissions (`contents:write`, `issues:write`, `pull-requests:write`) - use [safe-outputs](/gh-aw/reference/safe-outputs/) instead
 2. Requires explicit [network configuration](/gh-aw/reference/network/)
 3. Refuses wildcard `*` in `network.allowed` domains
-4. Requires network config for custom MCP servers with containers
-5. Enforces GitHub Actions pinned to commit SHAs
-6. Refuses deprecated frontmatter fields
+4. Requires ecosystem identifiers (e.g., `python`, `node`) instead of individual ecosystem domains (e.g., `pypi.org`, `npmjs.org`) for all engines
+5. Requires network config for custom MCP servers with containers
+6. Enforces GitHub Actions pinned to commit SHAs
+7. Refuses deprecated frontmatter fields
+
+When strict mode rejects individual ecosystem domains, helpful error messages suggest the appropriate ecosystem identifier (e.g., "Did you mean: 'pypi.org' belongs to ecosystem 'python'?").
 
 **Configuration:**
 - **Frontmatter**: `strict: true/false` (per-workflow)
 - **CLI flag**: `gh aw compile --strict` (all workflows, overrides frontmatter)
 
-See [CLI Commands](/gh-aw/setup/cli/#compile) for details.
+See [Network Permissions - Strict Mode Validation](/gh-aw/reference/network/#strict-mode-validation) for details on network validation and [CLI Commands](/gh-aw/setup/cli/#compile) for compilation options.
 
 ### Feature Flags (`features:`)
 
@@ -376,10 +436,12 @@ Standard GitHub Actions properties:
 ```yaml wrap
 run-name: "Custom workflow run name"  # Defaults to workflow name
 runs-on: ubuntu-latest               # Defaults to ubuntu-latest (main job only)
-timeout-minutes: 30                  # Defaults to 20 minutes (timeout_minutes deprecated)
+timeout-minutes: 30                  # Defaults to 20 minutes
 ```
 
-**Note**: The `timeout_minutes` field is deprecated. Use `timeout-minutes` instead to follow GitHub Actions naming convention.
+> [!CAUTION]
+> Breaking Change: `timeout_minutes` Removed
+> The underscore variant `timeout_minutes` has been removed and is no longer supported. Use `timeout-minutes` (with hyphen) instead. Workflows using `timeout_minutes` will fail compilation with an "Unknown property" error.
 
 ### Workflow Concurrency Control (`concurrency:`)
 

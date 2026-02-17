@@ -21,6 +21,7 @@ const {
   convertXmlTags,
   neutralizeBotTriggers,
   applyTruncation,
+  hardenUnicodeText,
 } = require("./sanitize_content_core.cjs");
 
 const { balanceCodeRegions } = require("./markdown_code_region_balancer.cjs");
@@ -72,6 +73,9 @@ function sanitizeContent(content, maxLengthOrOptions) {
 
   let sanitized = content;
 
+  // Apply Unicode hardening first to normalize text representation
+  sanitized = hardenUnicodeText(sanitized);
+
   // Remove ANSI escape sequences and control characters early
   sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
   sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
@@ -114,7 +118,7 @@ function sanitizeContent(content, maxLengthOrOptions) {
    * @returns {string} Processed string
    */
   function neutralizeMentions(s, allowedLowercase) {
-    return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => {
+    return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (_m, p1, p2) => {
       // Check if this mention is in the allowed aliases list (case-insensitive)
       const isAllowed = allowedLowercase.includes(p2.toLowerCase());
       if (isAllowed) {

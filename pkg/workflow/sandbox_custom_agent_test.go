@@ -80,7 +80,7 @@ func TestGetAgentType(t *testing.T) {
 			name: "ID field takes precedence over Type",
 			agent: &AgentSandboxConfig{
 				ID:   "awf",
-				Type: SandboxTypeSRT,
+				Type: SandboxTypeAWF,
 			},
 			expected: "awf",
 		},
@@ -94,9 +94,9 @@ func TestGetAgentType(t *testing.T) {
 		{
 			name: "ID field only",
 			agent: &AgentSandboxConfig{
-				ID: "srt",
+				ID: "awf",
 			},
-			expected: "srt",
+			expected: "awf",
 		},
 	}
 
@@ -123,6 +123,7 @@ func TestCustomAWFCommandExecution(t *testing.T) {
 on:
   workflow_dispatch:
 engine: copilot
+strict: false
 network:
   allowed:
     - "example.com"
@@ -200,6 +201,7 @@ sandbox:
 on:
   workflow_dispatch:
 engine: copilot
+strict: false
 network:
   allowed:
     - "example.com"
@@ -246,9 +248,9 @@ sandbox:
 		}
 	})
 
-	t.Run("custom command and args for SRT", func(t *testing.T) {
+	t.Run("custom command and args for AWF", func(t *testing.T) {
 		// Create temp directory for test
-		tmpDir, err := os.MkdirTemp("", "custom-srt-test")
+		tmpDir, err := os.MkdirTemp("", "custom-awf-test")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -258,21 +260,19 @@ sandbox:
 on:
   workflow_dispatch:
 engine: copilot
-features:
-  sandbox-runtime: true
 sandbox:
   agent:
-    id: srt
-    command: "custom-srt-wrapper"
+    id: awf
+    command: "custom-awf-wrapper"
     args:
-      - "--custom-srt-arg"
+      - "--custom-awf-arg"
       - "--debug"
     env:
-      SRT_CUSTOM_VAR: "test_value"
-      SRT_DEBUG: "true"
+      AWF_CUSTOM_VAR: "test_value"
+      AWF_DEBUG: "true"
 ---
 
-# Test Custom SRT
+# Test Custom AWF
 `
 
 		testFile := filepath.Join(tmpDir, "test-workflow.md")
@@ -298,30 +298,30 @@ sandbox:
 		}
 		lockStr := string(lockContent)
 
-		// Verify custom SRT command is used
-		if !strings.Contains(lockStr, "custom-srt-wrapper") {
-			t.Error("Expected custom SRT command 'custom-srt-wrapper' in compiled workflow")
+		// Verify custom AWF command is used
+		if !strings.Contains(lockStr, "custom-awf-wrapper") {
+			t.Error("Expected custom AWF command 'custom-awf-wrapper' in compiled workflow")
 		}
 
 		// Verify custom args are included
-		if !strings.Contains(lockStr, "--custom-srt-arg") {
-			t.Error("Expected custom arg '--custom-srt-arg' in compiled workflow")
+		if !strings.Contains(lockStr, "--custom-awf-arg") {
+			t.Error("Expected custom arg '--custom-awf-arg' in compiled workflow")
 		}
 		if !strings.Contains(lockStr, "--debug") {
 			t.Error("Expected custom arg '--debug' in compiled workflow")
 		}
 
 		// Verify custom env is included
-		if !strings.Contains(lockStr, "SRT_CUSTOM_VAR: test_value") {
-			t.Error("Expected custom env 'SRT_CUSTOM_VAR: test_value' in compiled workflow")
+		if !strings.Contains(lockStr, "AWF_CUSTOM_VAR: test_value") {
+			t.Error("Expected custom env 'AWF_CUSTOM_VAR: test_value' in compiled workflow")
 		}
-		if !strings.Contains(lockStr, "SRT_DEBUG: true") {
-			t.Error("Expected custom env 'SRT_DEBUG: true' in compiled workflow")
+		if !strings.Contains(lockStr, "AWF_DEBUG: true") {
+			t.Error("Expected custom env 'AWF_DEBUG: true' in compiled workflow")
 		}
 
 		// Verify installation steps were skipped
-		if strings.Contains(lockStr, "Install Sandbox Runtime") {
-			t.Error("Expected SRT installation step to be skipped when custom command is specified")
+		if strings.Contains(lockStr, "Install AWF") {
+			t.Error("Expected AWF installation step to be skipped when custom command is specified")
 		}
 	})
 }

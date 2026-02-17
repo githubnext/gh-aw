@@ -153,6 +153,27 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"side":       {Type: "string", Enum: []string{"LEFT", "RIGHT"}},
 		},
 	},
+	"submit_pull_request_review": {
+		DefaultMax: 1,
+		Fields: map[string]FieldValidation{
+			"body":  {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"event": {Type: "string", Enum: []string{"APPROVE", "REQUEST_CHANGES", "COMMENT"}},
+		},
+	},
+	"reply_to_pull_request_review_comment": {
+		DefaultMax: 10,
+		Fields: map[string]FieldValidation{
+			"comment_id":          {Required: true, PositiveInteger: true},
+			"body":                {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"pull_request_number": {OptionalPositiveInteger: true},
+		},
+	},
+	"resolve_pull_request_review_thread": {
+		DefaultMax: 10,
+		Fields: map[string]FieldValidation{
+			"thread_id": {Required: true, Type: "string"},
+		},
+	},
 	"create_discussion": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
@@ -236,7 +257,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"project":        {Required: true, Type: "string", Sanitize: true, MaxLength: 512, Pattern: "^https://github\\.com/(orgs|users)/[^/]+/projects/\\d+", PatternError: "must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/42)"},
 			"content_type":   {Type: "string", Enum: []string{"issue", "pull_request", "draft_issue"}},
-			"content_number": {OptionalPositiveInteger: true},
+			"content_number": {IssueNumberOrTemporaryID: true},
 			"issue":          {OptionalPositiveInteger: true}, // Legacy
 			"pull_request":   {OptionalPositiveInteger: true}, // Legacy
 			"draft_title":    {Type: "string", Sanitize: true, MaxLength: 256},
@@ -250,7 +271,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"title":      {Type: "string", Sanitize: true, MaxLength: 256},
 			"owner":      {Type: "string", Sanitize: true, MaxLength: 128},
 			"owner_type": {Type: "string", Enum: []string{"org", "user"}},
-			"item_url":   {Type: "string", Sanitize: true, MaxLength: 512, Pattern: "^https://github\\.com/[^/]+/[^/]+/issues/\\d+", PatternError: "must be a full GitHub issue URL (e.g., https://github.com/owner/repo/issues/123)"},
+			"item_url":   {Type: "string", Sanitize: true, MaxLength: 512},
 		},
 	},
 	"create_project_status_update": {

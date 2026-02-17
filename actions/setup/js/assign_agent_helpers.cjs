@@ -246,9 +246,10 @@ async function getPullRequestDetails(owner, repo, pullNumber) {
  * @param {Array<{id: string, login: string}>} currentAssignees - List of current assignees with id and login
  * @param {string} agentName - Agent name for error messages
  * @param {string[]|null} allowedAgents - Optional list of allowed agent names. If provided, filters out non-allowed agents from current assignees.
+ * @param {string|null} pullRequestRepoId - Optional pull request repository ID for specifying where the PR should be created (GitHub agentAssignment.targetRepositoryId)
  * @returns {Promise<boolean>} True if successful
  */
-async function assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents = null) {
+async function assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents = null, pullRequestRepoId = null) {
   // Filter current assignees based on allowed list (if configured)
   let filteredAssignees = currentAssignees;
   if (allowedAgents && allowedAgents.length > 0) {
@@ -271,24 +272,54 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
   // Build actor IDs array - include new agent and preserve filtered assignees
   const actorIds = [agentId, ...filteredAssignees.map(a => a.id).filter(id => id !== agentId)];
 
-  const mutation = `
-    mutation($assignableId: ID!, $actorIds: [ID!]!) {
-      replaceActorsForAssignable(input: {
-        assignableId: $assignableId,
-        actorIds: $actorIds
-      }) {
-        __typename
+  // Build the mutation - conditionally include agentAssignment if pullRequestRepoId is provided
+  let mutation;
+  let variables;
+
+  if (pullRequestRepoId) {
+    // Include agentAssignment with targetRepositoryId for cross-repo PR creation
+    mutation = `
+      mutation($assignableId: ID!, $actorIds: [ID!]!, $targetRepoId: ID!) {
+        replaceActorsForAssignable(input: {
+          assignableId: $assignableId,
+          actorIds: $actorIds,
+          agentAssignment: {
+            targetRepositoryId: $targetRepoId
+          }
+        }) {
+          __typename
+        }
       }
-    }
-  `;
+    `;
+    variables = {
+      assignableId: assignableId,
+      actorIds,
+      targetRepoId: pullRequestRepoId,
+    };
+  } else {
+    // Standard mutation without agentAssignment
+    mutation = `
+      mutation($assignableId: ID!, $actorIds: [ID!]!) {
+        replaceActorsForAssignable(input: {
+          assignableId: $assignableId,
+          actorIds: $actorIds
+        }) {
+          __typename
+        }
+      }
+    `;
+    variables = {
+      assignableId: assignableId,
+      actorIds,
+    };
+  }
 
   try {
     core.info("Using built-in github object for mutation");
 
-    core.debug(`GraphQL mutation with variables: assignableId=${assignableId}, actorIds=${JSON.stringify(actorIds)}`);
+    core.debug(`GraphQL mutation with variables: assignableId=${assignableId}, actorIds=${JSON.stringify(actorIds)}${pullRequestRepoId ? `, targetRepoId=${pullRequestRepoId}` : ""}`);
     const response = await github.graphql(mutation, {
-      assignableId: assignableId,
-      actorIds,
+      ...variables,
       headers: {
         "GraphQL-Features": "issues_copilot_assignment_api_support",
       },

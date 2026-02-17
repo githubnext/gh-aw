@@ -155,13 +155,17 @@ function sanitizeDomainName(domain) {
   // Filter out empty parts
   const nonEmptyParts = sanitizedParts.filter(part => part.length > 0);
 
-  // Take up to 3 parts
-  if (nonEmptyParts.length <= 3) {
-    return nonEmptyParts.join(".");
-  } else {
-    // Take first 3 parts and add "..."
-    return nonEmptyParts.slice(0, 3).join(".") + "...";
+  // Join the parts back together
+  const joined = nonEmptyParts.join(".");
+
+  // If the domain is longer than 48 characters, truncate to show first 24 and last 24
+  if (joined.length > 48) {
+    const first24 = joined.substring(0, 24);
+    const last24 = joined.substring(joined.length - 24);
+    return first24 + "…" + last24;
   }
+
+  return joined;
 }
 
 /**
@@ -297,7 +301,9 @@ function neutralizeCommands(s) {
 function neutralizeAllMentions(s) {
   // Replace @name or @org/team outside code with `@name`
   // No filtering - all mentions are neutralized
-  return s.replace(/(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (m, p1, p2) => {
+  // Changed [^\w`] to [^A-Za-z0-9`] to include underscore as a valid preceding character
+  // This prevents bypass patterns like "test_@user" from escaping sanitization
+  return s.replace(/(^|[^A-Za-z0-9`])@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g, (m, p1, p2) => {
     // Log when a mention is escaped to help debug issues
     if (typeof core !== "undefined" && core.info) {
       core.info(`Escaped mention: @${p2} (not in allowed list)`);
@@ -366,6 +372,88 @@ function convertXmlTags(s) {
 function neutralizeBotTriggers(s) {
   // Neutralize common bot trigger phrases like "fixes #123", "closes #asdfs", etc.
   return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
+}
+
+/**
+ * Neutralizes template syntax delimiters to prevent potential template injection
+ * if content is processed by downstream template engines.
+ *
+ * This is a defense-in-depth measure. GitHub's markdown rendering doesn't evaluate
+ * template syntax, but this prevents issues if content is later processed by
+ * template engines (Jinja2, Liquid, ERB, JavaScript template literals).
+ *
+ * @param {string} s - The string to process
+ * @returns {string} The string with escaped template delimiters
+ */
+function neutralizeTemplateDelimiters(s) {
+  if (!s || typeof s !== "string") {
+    return "";
+  }
+
+  let result = s;
+  let templatesDetected = false;
+
+  // Escape Jinja2/Liquid double curly braces: {{ ... }}
+  // Replace {{ with \{\{ to prevent template evaluation
+  if (/\{\{/.test(result)) {
+    templatesDetected = true;
+    if (typeof core !== "undefined" && core.info) {
+      core.info("Template syntax detected: Jinja2/Liquid double braces {{");
+    }
+    result = result.replace(/\{\{/g, "\\{\\{");
+  }
+
+  // Escape ERB delimiters: <%= ... %>
+  // Replace <%= with \<%= to prevent ERB evaluation
+  if (/<%=/.test(result)) {
+    templatesDetected = true;
+    if (typeof core !== "undefined" && core.info) {
+      core.info("Template syntax detected: ERB delimiter <%=");
+    }
+    result = result.replace(/<%=/g, "\\<%=");
+  }
+
+  // Escape JavaScript template literal delimiters: ${ ... }
+  // Replace ${ with \$\{ to prevent template literal evaluation
+  if (/\$\{/.test(result)) {
+    templatesDetected = true;
+    if (typeof core !== "undefined" && core.info) {
+      core.info("Template syntax detected: JavaScript template literal ${");
+    }
+    result = result.replace(/\$\{/g, "\\$\\{");
+  }
+
+  // Escape Jinja2 comment delimiters: {# ... #}
+  // Replace {# with \{\# to prevent Jinja2 comment evaluation
+  if (/\{#/.test(result)) {
+    templatesDetected = true;
+    if (typeof core !== "undefined" && core.info) {
+      core.info("Template syntax detected: Jinja2 comment {#");
+    }
+    result = result.replace(/\{#/g, "\\{\\#");
+  }
+
+  // Escape Jekyll raw blocks: {% raw %} and {% endraw %}
+  // Replace {% with \{\% to prevent Jekyll directive evaluation
+  if (/\{%/.test(result)) {
+    templatesDetected = true;
+    if (typeof core !== "undefined" && core.info) {
+      core.info("Template syntax detected: Jekyll/Liquid directive {%");
+    }
+    result = result.replace(/\{%/g, "\\{\\%");
+  }
+
+  // Log a summary warning if any template patterns were detected
+  if (templatesDetected && typeof core !== "undefined" && core.warning) {
+    core.warning(
+      "Template-like syntax detected and escaped. " +
+        "This is a defense-in-depth measure to prevent potential template injection " +
+        "if content is processed by downstream template engines. " +
+        "GitHub's markdown rendering does not evaluate template syntax."
+    );
+  }
+
+  return result;
 }
 
 /**
@@ -486,6 +574,99 @@ function applyTruncation(content, maxLength) {
 }
 
 /**
+ * Decodes HTML entities to prevent bypass of @mention detection.
+ * Handles named entities (e.g., &commat;), decimal entities (e.g., &#64;),
+ * and hex entities (e.g., &#x40;), including double-encoded variants (e.g., &amp;commat;).
+ *
+ * @param {string} text - Input text that may contain HTML entities
+ * @returns {string} Text with HTML entities decoded
+ */
+function decodeHtmlEntities(text) {
+  if (!text || typeof text !== "string") {
+    return "";
+  }
+
+  let result = text;
+
+  // Decode named entity for @ symbol (including double-encoded variants)
+  // &commat; and &amp;commat; → @
+  result = result.replace(/&(?:amp;)?commat;/gi, "@");
+
+  // Decode decimal entities (including double-encoded variants)
+  // &#64; and &amp;#64; → @
+  // &#NNN; and &amp;#NNN; → corresponding character
+  result = result.replace(/&(?:amp;)?#(\d+);/g, (match, code) => {
+    const codePoint = parseInt(code, 10);
+    // Validate code point is in valid Unicode range
+    if (codePoint >= 0 && codePoint <= 0x10ffff) {
+      return String.fromCodePoint(codePoint);
+    }
+    // Return original match if invalid
+    return match;
+  });
+
+  // Decode hex entities (including double-encoded variants)
+  // &#x40;, &#X40;, &amp;#x40;, &amp;#X40; → @
+  // &#xHHH;, &#XHHH;, &amp;#xHHH;, &amp;#XHHH; → corresponding character
+  result = result.replace(/&(?:amp;)?#[xX]([0-9a-fA-F]+);/g, (match, code) => {
+    const codePoint = parseInt(code, 16);
+    // Validate code point is in valid Unicode range
+    if (codePoint >= 0 && codePoint <= 0x10ffff) {
+      return String.fromCodePoint(codePoint);
+    }
+    // Return original match if invalid
+    return match;
+  });
+
+  return result;
+}
+
+/**
+ * Performs text hardening to protect against Unicode-based attacks.
+ * This applies multiple layers of character normalization and filtering
+ * to ensure consistent text processing and prevent visual spoofing.
+ *
+ * @param {string} text - Input text to harden
+ * @returns {string} Hardened text with Unicode security applied
+ */
+function hardenUnicodeText(text) {
+  if (!text || typeof text !== "string") {
+    return "";
+  }
+
+  let result = text;
+
+  // Step 1: Normalize Unicode to canonical composition (NFC)
+  // This ensures consistent character representation across different encodings
+  result = result.normalize("NFC");
+
+  // Step 2: Decode HTML entities to prevent @mention bypass
+  // This MUST happen early, before any other processing, to ensure entities
+  // are converted to their actual characters for proper sanitization
+  result = decodeHtmlEntities(result);
+
+  // Step 3: Strip invisible zero-width characters that can hide content
+  // These include: zero-width space, zero-width non-joiner, zero-width joiner,
+  // word joiner, and byte order mark
+  result = result.replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, "");
+
+  // Step 4: Remove bidirectional text override controls
+  // These can be used to reverse text direction and create visual spoofs
+  result = result.replace(/[\u202A\u202B\u202C\u202D\u202E\u2066\u2067\u2068\u2069]/g, "");
+
+  // Step 5: Convert full-width ASCII characters to standard ASCII
+  // Full-width characters (U+FF01-FF5E) can be used to bypass filters
+  result = result.replace(/[\uFF01-\uFF5E]/g, char => {
+    const code = char.charCodeAt(0);
+    // Map full-width to half-width by subtracting offset
+    const standardCode = code - 0xfee0;
+    return String.fromCharCode(standardCode);
+  });
+
+  return result;
+}
+
+/**
  * Core sanitization function without mention filtering
  * @param {string} content - The content to sanitize
  * @param {number} [maxLength] - Maximum length of content (default: 524288)
@@ -503,6 +684,10 @@ function sanitizeContentCore(content, maxLength) {
   const allowedGitHubRefs = buildAllowedGitHubReferences();
 
   let sanitized = content;
+
+  // Apply Unicode hardening first to normalize text representation
+  // This prevents Unicode-based attacks and ensures consistent processing
+  sanitized = hardenUnicodeText(sanitized);
 
   // Remove ANSI escape sequences and control characters early
   // This must happen before mention neutralization to avoid creating bare mentions
@@ -538,6 +723,10 @@ function sanitizeContentCore(content, maxLength) {
   // Neutralize common bot trigger phrases
   sanitized = neutralizeBotTriggers(sanitized);
 
+  // Neutralize template syntax delimiters (defense-in-depth)
+  // This prevents potential issues if content is processed by downstream template engines
+  sanitized = neutralizeTemplateDelimiters(sanitized);
+
   // Balance markdown code regions to fix improperly nested fences
   // This repairs markdown where AI models generate nested code blocks at the same indentation
   const { balanceCodeRegions } = require("./markdown_code_region_balancer.cjs");
@@ -565,5 +754,8 @@ module.exports = {
   removeXmlComments,
   convertXmlTags,
   neutralizeBotTriggers,
+  neutralizeTemplateDelimiters,
   applyTruncation,
+  hardenUnicodeText,
+  decodeHtmlEntities,
 };

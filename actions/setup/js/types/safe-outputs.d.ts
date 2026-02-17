@@ -122,6 +122,8 @@ interface CreatePullRequestItem extends BaseSafeOutputItem {
   branch?: string;
   /** Optional labels to add to the PR */
   labels?: string[];
+  /** Whether to create the PR as a draft (default: true) */
+  draft?: boolean;
 }
 
 /**
@@ -221,6 +223,8 @@ interface UpdatePullRequestItem extends BaseSafeOutputItem {
   operation?: "replace" | "append" | "prepend";
   /** Optional pull request number for target "*" */
   pull_request_number?: number | string;
+  /** Whether the PR should be a draft (true) or ready for review (false) */
+  draft?: boolean;
 }
 
 /**
@@ -323,6 +327,19 @@ interface HideCommentItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for replying to a pull request review comment
+ */
+interface ReplyToPullRequestReviewCommentItem extends BaseSafeOutputItem {
+  type: "reply_to_pull_request_review_comment";
+  /** The numeric ID of the review comment to reply to */
+  comment_id: number | string;
+  /** The reply body text in Markdown */
+  body: string;
+  /** Optional PR number (required when target is "*") */
+  pull_request_number?: number | string;
+}
+
+/**
  * JSONL item for creating a GitHub Project V2
  */
 interface CreateProjectItem extends BaseSafeOutputItem {
@@ -348,6 +365,15 @@ interface AutofixCodeScanningAlertItem extends BaseSafeOutputItem {
   fix_description: string;
   /** The code changes to apply as the autofix */
   fix_code: string;
+}
+
+/**
+ * JSONL item for resolving a review thread on a pull request
+ */
+interface ResolvePullRequestReviewThreadItem extends BaseSafeOutputItem {
+  type: "resolve_pull_request_review_thread";
+  /** The node ID of the review thread to resolve (e.g., 'PRRT_kwDOABCD...') */
+  thread_id: string;
 }
 
 /**
@@ -379,8 +405,10 @@ type SafeOutputItem =
   | NoOpItem
   | LinkSubIssueItem
   | HideCommentItem
+  | ReplyToPullRequestReviewCommentItem
   | CreateProjectItem
-  | AutofixCodeScanningAlertItem;
+  | AutofixCodeScanningAlertItem
+  | ResolvePullRequestReviewThreadItem;
 
 /**
  * Sanitized safe output items
@@ -418,7 +446,9 @@ export {
   NoOpItem,
   LinkSubIssueItem,
   HideCommentItem,
+  ReplyToPullRequestReviewCommentItem,
   AutofixCodeScanningAlertItem,
+  ResolvePullRequestReviewThreadItem,
   SafeOutputItem,
   SafeOutputItems,
 };

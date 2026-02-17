@@ -389,6 +389,52 @@ describe("add_reaction", () => {
       expect(mockCore.error).toHaveBeenCalled();
       expect(mockCore.setFailed).toHaveBeenCalled();
     });
+
+    it("should silently ignore locked issue errors (status 403)", async () => {
+      const lockedError = new Error("Issue is locked");
+      lockedError.status = 403;
+      mockGithub.request.mockRejectedValueOnce(lockedError);
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("resource is locked"));
+      expect(mockCore.error).not.toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should fail for errors with 'locked' message but non-403 status", async () => {
+      // Errors mentioning "locked" should only be ignored if they have 403 status
+      const lockedError = new Error("Lock conversation is enabled");
+      lockedError.status = 500; // Not 403
+      mockGithub.request.mockRejectedValueOnce(lockedError);
+
+      await runScript();
+
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction"));
+    });
+
+    it("should fail for 403 errors that don't mention locked", async () => {
+      const forbiddenError = new Error("Forbidden: insufficient permissions");
+      forbiddenError.status = 403;
+      mockGithub.request.mockRejectedValueOnce(forbiddenError);
+
+      await runScript();
+
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction"));
+    });
+
+    it("should fail for other non-403 errors", async () => {
+      const serverError = new Error("Internal server error");
+      serverError.status = 500;
+      mockGithub.request.mockRejectedValueOnce(serverError);
+
+      await runScript();
+
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Failed to add reaction"));
+    });
   });
 
   describe("output handling", () => {

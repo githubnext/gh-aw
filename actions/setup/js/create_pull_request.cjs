@@ -9,11 +9,13 @@ const { updateActivationComment } = require("./update_activation_comment.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { addExpirationComment } = require("./expiration_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
+const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
+const { replaceTemporaryIdReferences, isTemporaryId } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
+const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -22,6 +24,34 @@ const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request";
 
+/**
+ * Maximum limits for pull request parameters to prevent resource exhaustion.
+ * These limits align with GitHub's API constraints and security best practices.
+ */
+/** @type {number} Maximum number of files allowed per pull request */
+const MAX_FILES = 100;
+
+/**
+ * Enforces maximum limits on pull request parameters to prevent resource exhaustion attacks.
+ * Per Safe Outputs specification requirement SEC-003, limits must be enforced before API calls.
+ *
+ * @param {string} patchContent - Patch content to validate
+ * @throws {Error} When any limit is exceeded, with error code E003 and details
+ */
+function enforcePullRequestLimits(patchContent) {
+  if (!patchContent || !patchContent.trim()) {
+    return;
+  }
+
+  // Count files in patch by looking for "diff --git" lines
+  const fileMatches = patchContent.match(/^diff --git /gm);
+  const fileCount = fileMatches ? fileMatches.length : 0;
+
+  // Check file count - max limit exceeded check
+  if (fileCount > MAX_FILES) {
+    throw new Error(`E003: Cannot create pull request with more than ${MAX_FILES} files (received ${fileCount})`);
+  }
+}
 /**
  * Generate a patch preview with max 500 lines and 2000 chars for issue body
  * @param {string} patchContent - The full patch content
@@ -67,9 +97,11 @@ async function main(config = {}) {
   const autoMerge = config.auto_merge || false;
   const expiresHours = config.expires ? parseInt(String(config.expires), 10) : 0;
   const maxCount = config.max || 1; // PRs are typically limited to 1
-  const baseBranch = config.base_branch || "";
+  let baseBranch = config.base_branch || "";
   const maxSizeKb = config.max_patch_size ? parseInt(String(config.max_patch_size), 10) : 1024;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  const includeFooter = config.footer !== false; // Default to true (include footer)
+  const fallbackAsIssue = config.fallback_as_issue !== false; // Default to true (fallback enabled)
 
   // Environment validation - fail early if required variables are missing
   const workflowId = process.env.GH_AW_WORKFLOW_ID;
@@ -79,6 +111,18 @@ async function main(config = {}) {
 
   if (!baseBranch) {
     throw new Error("base_branch configuration is required");
+  }
+
+  // SECURITY: Sanitize base branch name to prevent shell injection (defense in depth)
+  // Even though base_branch comes from workflow config, normalize it for safety
+  const originalBaseBranch = baseBranch;
+  baseBranch = normalizeBranchName(baseBranch);
+  if (!baseBranch) {
+    throw new Error(`Invalid base_branch: sanitization resulted in empty string (original: "${originalBaseBranch}")`);
+  }
+  // Fail if base branch name changes during normalization (indicates invalid config)
+  if (originalBaseBranch !== baseBranch) {
+    throw new Error(`Invalid base_branch: contains invalid characters (original: "${originalBaseBranch}", normalized: "${baseBranch}")`);
   }
 
   // Extract triggering issue number from context (for auto-linking PRs to issues)
@@ -130,6 +174,32 @@ async function main(config = {}) {
     processedCount++;
 
     const pullRequestItem = message;
+
+    let temporaryId;
+    if (pullRequestItem.temporary_id !== undefined && pullRequestItem.temporary_id !== null) {
+      if (typeof pullRequestItem.temporary_id !== "string") {
+        core.warning(`Skipping create_pull_request: temporary_id must be a string (got ${typeof pullRequestItem.temporary_id})`);
+        return {
+          success: false,
+          error: `temporary_id must be a string (got ${typeof pullRequestItem.temporary_id})`,
+        };
+      }
+
+      const rawTemporaryId = pullRequestItem.temporary_id.trim();
+      const normalized = rawTemporaryId.startsWith("#") ? rawTemporaryId.substring(1).trim() : rawTemporaryId;
+
+      if (!isTemporaryId(normalized)) {
+        core.warning(
+          `Skipping create_pull_request: Invalid temporary_id format: '${pullRequestItem.temporary_id}'. Temporary IDs must be in format 'aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_Test123'`
+        );
+        return {
+          success: false,
+          error: `Invalid temporary_id format: '${pullRequestItem.temporary_id}'. Temporary IDs must be in format 'aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_Test123'`,
+        };
+      }
+
+      temporaryId = normalized.toLowerCase();
+    }
 
     core.info(`Processing create_pull_request: title=${pullRequestItem.title || "No title"}, bodyLength=${pullRequestItem.body?.length || 0}`);
 
@@ -188,6 +258,15 @@ async function main(config = {}) {
     if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
       patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
       isEmpty = !patchContent || !patchContent.trim();
+    }
+
+    // Enforce max limits on patch before processing
+    try {
+      enforcePullRequestLimits(patchContent);
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      core.warning(`Pull request limit exceeded: ${errorMessage}`);
+      return { success: false, error: errorMessage };
     }
 
     // Check for actual error conditions (but allow empty patches as valid noop)
@@ -345,15 +424,32 @@ async function main(config = {}) {
     let bodyLines = processedBody.split("\n");
     let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
 
+    // SECURITY: Sanitize branch name to prevent shell injection (CWE-78)
+    // Branch names from user input must be normalized before use in git commands
+    if (branchName) {
+      const originalBranchName = branchName;
+      branchName = normalizeBranchName(branchName);
+
+      // Validate it's not empty after normalization
+      if (!branchName) {
+        throw new Error(`Invalid branch name: sanitization resulted in empty string (original: "${originalBranchName}")`);
+      }
+
+      if (originalBranchName !== branchName) {
+        core.info(`Branch name sanitized: "${originalBranchName}" -> "${branchName}"`);
+      }
+    }
+
     // If no title was found, use a default
     if (!title) {
       title = "Agent Output";
     }
 
-    // Apply title prefix from config
-    if (titlePrefix && !title.startsWith(titlePrefix)) {
-      title = titlePrefix + title;
-    }
+    // Sanitize title for Unicode security and remove any duplicate prefixes
+    title = sanitizeTitle(title, titlePrefix);
+
+    // Apply title prefix (only if it doesn't already exist)
+    title = applyTitlePrefix(title, titlePrefix);
 
     // Add AI disclaimer with workflow name and run url
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
@@ -369,16 +465,19 @@ async function main(config = {}) {
     }
 
     // Generate footer with expiration using helper
-    const footer = generateFooterWithExpiration({
-      footerText: `> AI generated by [${workflowName}](${runUrl})`,
-      expiresHours,
-      entityType: "Pull Request",
-      suffix: expiresHours > 0 ? "\n\n<!-- gh-aw-expires-type: pull-request -->" : undefined,
-    });
-
-    bodyLines.push(``, ``, footer);
+    // When footer is disabled, only add XML markers (no visible footer content)
+    if (includeFooter) {
+      const footer = generateFooterWithExpiration({
+        footerText: `> AI generated by [${workflowName}](${runUrl})`,
+        expiresHours,
+        entityType: "Pull Request",
+        suffix: expiresHours > 0 ? "\n\n<!-- gh-aw-expires-type: pull-request -->" : undefined,
+      });
+      bodyLines.push(``, ``, footer);
+    }
 
     // Add standalone workflow-id marker for searchability (consistent with comments)
+    // Always add XML markers even when footer is disabled
     if (workflowId) {
       bodyLines.push(``, generateWorkflowIdMarker(workflowId));
     }
@@ -508,8 +607,20 @@ async function main(config = {}) {
         await exec.exec(`git push origin ${branchName}`);
         core.info("Changes pushed to branch");
       } catch (pushError) {
-        // Push failed - create fallback issue instead of PR
+        // Push failed - create fallback issue instead of PR (if fallback is enabled)
         core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
+
+        if (!fallbackAsIssue) {
+          // Fallback is disabled - return error without creating issue
+          core.error("fallback-as-issue is disabled - not creating fallback issue");
+          const error = `Failed to push changes: ${pushError instanceof Error ? pushError.message : String(pushError)}`;
+          return {
+            success: false,
+            error,
+            error_type: "push_failed",
+          };
+        }
+
         core.warning("Git push operation failed - creating fallback issue instead of pull request");
 
         const runId = context.runId;
@@ -724,7 +835,7 @@ ${patchPreview}`;
         pull_request_number: pullRequest.number,
         pull_request_url: pullRequest.html_url,
         branch_name: branchName,
-        temporary_id: pullRequestItem.temporary_id, // Pass through if present
+        temporary_id: temporaryId,
         repo: itemRepo,
       };
     } catch (prError) {
@@ -743,6 +854,16 @@ ${patchPreview}`;
           success: false,
           error: errorMessage,
           error_type: "permission_denied",
+        };
+      }
+
+      if (!fallbackAsIssue) {
+        // Fallback is disabled - return error without creating issue
+        core.error("fallback-as-issue is disabled - not creating fallback issue");
+        return {
+          success: false,
+          error: errorMessage,
+          error_type: "pr_creation_failed",
         };
       }
 
@@ -804,4 +925,4 @@ You can manually create a pull request from the branch if needed.${patchPreview}
   }; // End of handleCreatePullRequest
 } // End of main
 
-module.exports = { main };
+module.exports = { main, enforcePullRequestLimits };

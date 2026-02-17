@@ -5,6 +5,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplate } = require("./messages_core.cjs");
 const { createExpirationLine, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const fs = require("fs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -86,7 +87,7 @@ async function main(config = {}) {
         commentLines.push(`> Workflow: [${workflowName}](${workflowSourceURL})`);
         commentLines.push(`> Run: ${runUrl}`);
 
-        const commentBody = commentLines.join("\n");
+        const commentBody = sanitizeContent(commentLines.join("\n"));
 
         await github.rest.issues.createComment({
           owner,
@@ -143,7 +144,7 @@ async function main(config = {}) {
           footerText: `> Workflow: [${workflowName}](${workflowSourceURL})`,
           expiresHours: 24 * 7, // 7 days
         });
-        const issueBody = `${issueBodyContent}\n\n${footer}`;
+        const issueBody = sanitizeContent(`${issueBodyContent}\n\n${footer}`);
 
         const newIssue = await github.rest.issues.create({
           owner,

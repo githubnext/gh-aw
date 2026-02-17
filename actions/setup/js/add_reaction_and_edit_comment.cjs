@@ -4,6 +4,7 @@
 const { getRunStartedMessage } = require("./messages_run_status.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 async function main() {
   // Read inputs from environment variables
@@ -154,6 +155,20 @@ async function main() {
     }
   } catch (error) {
     const errorMessage = getErrorMessage(error);
+
+    // Check if the error is due to a locked issue/PR/discussion
+    // GitHub API returns 403 with specific messages for locked resources
+    const is403Error = error && typeof error === "object" && "status" in error && error.status === 403;
+    const hasLockedMessage = errorMessage && (errorMessage.includes("locked") || errorMessage.includes("Lock conversation"));
+
+    // Only ignore the error if it's BOTH a 403 status code AND mentions locked
+    if (is403Error && hasLockedMessage) {
+      // Silently ignore locked resource errors - just log for debugging
+      core.info(`Cannot add reaction: resource is locked (this is expected and not an error)`);
+      return;
+    }
+
+    // For other errors, fail as before
     core.error(`Failed to process reaction and comment creation: ${errorMessage}`);
     core.setFailed(`Failed to process reaction and comment creation: ${errorMessage}`);
   }
@@ -328,17 +343,19 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
       eventType: eventTypeDescription,
     });
 
-    // Add workflow-id and tracker-id markers for hide-older-comments feature
-    const workflowId = process.env.GITHUB_WORKFLOW || "";
-    const trackerId = process.env.GH_AW_TRACKER_ID || "";
-
-    let commentBody = workflowLinkText;
+    // Sanitize the workflow link text to prevent injection attacks (defense in depth for custom message templates)
+    // This must happen BEFORE adding workflow markers to preserve them
+    let commentBody = sanitizeContent(workflowLinkText);
 
     // Add lock notice if lock-for-agent is enabled for issues or issue_comment
     const lockForAgent = process.env.GH_AW_LOCK_FOR_AGENT === "true";
     if (lockForAgent && (eventName === "issues" || eventName === "issue_comment")) {
       commentBody += "\n\n🔒 This issue has been locked while the workflow is running to prevent concurrent modifications.";
     }
+
+    // Add workflow-id and tracker-id markers for hide-older-comments feature
+    const workflowId = process.env.GITHUB_WORKFLOW || "";
+    const trackerId = process.env.GH_AW_TRACKER_ID || "";
 
     // Add workflow-id marker if available
     if (workflowId) {

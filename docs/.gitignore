@@ -33,4 +33,3 @@ take-screenshots.mjs
 test-results/
 playwright-report/
 screenshots/
-*.png

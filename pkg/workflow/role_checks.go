@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -33,6 +34,55 @@ func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) [
 	steps = append(steps, "          github-token: ${{ secrets.GITHUB_TOKEN }}\n")
 	steps = append(steps, "          script: |\n")
 	steps = append(steps, generateGitHubScriptWithRequire("check_membership.cjs"))
+
+	return steps
+}
+
+// generateRateLimitCheck generates steps for rate limiting check
+func (c *Compiler) generateRateLimitCheck(data *WorkflowData, steps []string) []string {
+	steps = append(steps, "      - name: Check user rate limit\n")
+	steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckRateLimitStepID))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+
+	// Add environment variables for rate limit check
+	steps = append(steps, "        env:\n")
+
+	// Set max (default: 5)
+	max := constants.DefaultRateLimitMax
+	if data.RateLimit.Max > 0 {
+		max = data.RateLimit.Max
+	}
+	steps = append(steps, fmt.Sprintf("          GH_AW_RATE_LIMIT_MAX: \"%d\"\n", max))
+
+	// Set window (default: 60 minutes)
+	window := constants.DefaultRateLimitWindow
+	if data.RateLimit.Window > 0 {
+		window = data.RateLimit.Window
+	}
+	steps = append(steps, fmt.Sprintf("          GH_AW_RATE_LIMIT_WINDOW: \"%d\"\n", window))
+
+	// Set events to check (if specified)
+	if len(data.RateLimit.Events) > 0 {
+		// Sort events alphabetically for consistent output
+		events := make([]string, len(data.RateLimit.Events))
+		copy(events, data.RateLimit.Events)
+		sort.Strings(events)
+		steps = append(steps, fmt.Sprintf("          GH_AW_RATE_LIMIT_EVENTS: %q\n", strings.Join(events, ",")))
+	}
+
+	// Set ignored roles (if specified)
+	if len(data.RateLimit.IgnoredRoles) > 0 {
+		// Sort roles alphabetically for consistent output
+		ignoredRoles := make([]string, len(data.RateLimit.IgnoredRoles))
+		copy(ignoredRoles, data.RateLimit.IgnoredRoles)
+		sort.Strings(ignoredRoles)
+		steps = append(steps, fmt.Sprintf("          GH_AW_RATE_LIMIT_IGNORED_ROLES: %q\n", strings.Join(ignoredRoles, ",")))
+	}
+
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          github-token: ${{ secrets.GITHUB_TOKEN }}\n")
+	steps = append(steps, "          script: |\n")
+	steps = append(steps, generateGitHubScriptWithRequire("check_rate_limit.cjs"))
 
 	return steps
 }
@@ -99,6 +149,137 @@ func (c *Compiler) extractBots(frontmatter map[string]any) []string {
 	// No bots specified, return empty array
 	roleLog.Print("No bots specified")
 	return []string{}
+}
+
+// extractRateLimitConfig extracts the 'rate-limit' field from frontmatter
+func (c *Compiler) extractRateLimitConfig(frontmatter map[string]any) *RateLimitConfig {
+	if rateLimitValue, exists := frontmatter["rate-limit"]; exists && rateLimitValue != nil {
+		switch v := rateLimitValue.(type) {
+		case map[string]any:
+			config := &RateLimitConfig{}
+
+			// Extract max (default: 5)
+			if maxValue, ok := v["max"]; ok {
+				switch max := maxValue.(type) {
+				case int:
+					config.Max = max
+				case int64:
+					config.Max = int(max)
+				case uint64:
+					config.Max = int(max)
+				case float64:
+					config.Max = int(max)
+				}
+			}
+
+			// Extract window (default: 60 minutes)
+			if windowValue, ok := v["window"]; ok {
+				switch window := windowValue.(type) {
+				case int:
+					config.Window = window
+				case int64:
+					config.Window = int(window)
+				case uint64:
+					config.Window = int(window)
+				case float64:
+					config.Window = int(window)
+				}
+			}
+
+			// Extract events
+			if eventsValue, ok := v["events"]; ok {
+				switch events := eventsValue.(type) {
+				case []any:
+					for _, item := range events {
+						if str, ok := item.(string); ok {
+							config.Events = append(config.Events, str)
+						}
+					}
+				case []string:
+					config.Events = events
+				case string:
+					config.Events = []string{events}
+				}
+			} else {
+				// If events not specified, infer from the 'on:' section of frontmatter
+				config.Events = c.inferEventsFromTriggers(frontmatter)
+				if len(config.Events) > 0 {
+					roleLog.Printf("Inferred events from workflow triggers: %v", config.Events)
+				}
+			}
+
+			// Extract ignored-roles
+			if ignoredRolesValue, ok := v["ignored-roles"]; ok {
+				switch ignoredRoles := ignoredRolesValue.(type) {
+				case []any:
+					for _, item := range ignoredRoles {
+						if str, ok := item.(string); ok {
+							config.IgnoredRoles = append(config.IgnoredRoles, str)
+						}
+					}
+				case []string:
+					config.IgnoredRoles = ignoredRoles
+				case string:
+					config.IgnoredRoles = []string{ignoredRoles}
+				}
+			} else {
+				// Default: admin, maintain, and write roles are exempt from rate limiting
+				config.IgnoredRoles = []string{"admin", "maintain", "write"}
+				roleLog.Print("No ignored-roles specified, using defaults: admin, maintain, write")
+			}
+
+			roleLog.Printf("Extracted rate-limit config: max=%d, window=%d, events=%v, ignored-roles=%v", config.Max, config.Window, config.Events, config.IgnoredRoles)
+			return config
+		}
+	}
+	roleLog.Print("No rate-limit configuration specified")
+	return nil
+}
+
+// inferEventsFromTriggers infers rate-limit events from the workflow's 'on:' triggers
+func (c *Compiler) inferEventsFromTriggers(frontmatter map[string]any) []string {
+	onValue, exists := frontmatter["on"]
+	if !exists || onValue == nil {
+		return nil
+	}
+
+	var events []string
+	programmaticTriggers := map[string]string{
+		"discussion":                  "discussion",
+		"discussion_comment":          "discussion_comment",
+		"issue_comment":               "issue_comment",
+		"issues":                      "issues",
+		"pull_request":                "pull_request",
+		"pull_request_review":         "pull_request_review",
+		"pull_request_review_comment": "pull_request_review_comment",
+		"repository_dispatch":         "repository_dispatch",
+		"workflow_dispatch":           "workflow_dispatch",
+	}
+
+	switch on := onValue.(type) {
+	case map[string]any:
+		for trigger := range on {
+			if eventName, ok := programmaticTriggers[trigger]; ok {
+				events = append(events, eventName)
+			}
+		}
+	case []any:
+		for _, item := range on {
+			if triggerStr, ok := item.(string); ok {
+				if eventName, ok := programmaticTriggers[triggerStr]; ok {
+					events = append(events, eventName)
+				}
+			}
+		}
+	case string:
+		if eventName, ok := programmaticTriggers[on]; ok {
+			events = []string{eventName}
+		}
+	}
+
+	// Sort events alphabetically for consistent output
+	sort.Strings(events)
+	return events
 }
 
 // needsRoleCheck determines if the workflow needs permission checks with full context
@@ -285,4 +466,141 @@ func (c *Compiler) combineJobIfConditions(existingCondition, workflowRunRepoSafe
 
 	combinedExpr := BuildAnd(existingNode, safetyNode)
 	return combinedExpr.Render()
+}
+
+// extractSkipRoles extracts the 'skip-roles' field from the 'on:' section of frontmatter
+// Returns nil if skip-roles is not configured
+func (c *Compiler) extractSkipRoles(frontmatter map[string]any) []string {
+	// Check the "on" section in frontmatter
+	onValue, exists := frontmatter["on"]
+	if !exists || onValue == nil {
+		return nil
+	}
+
+	// Handle different formats of the on: section
+	switch on := onValue.(type) {
+	case map[string]any:
+		// Complex object format - look for skip-roles
+		if skipRolesValue, exists := on["skip-roles"]; exists && skipRolesValue != nil {
+			return extractStringSliceField(skipRolesValue, "skip-roles")
+		}
+	}
+
+	return nil
+}
+
+// extractSkipBots extracts the 'skip-bots' field from the 'on:' section of frontmatter
+// Returns nil if skip-bots is not configured
+func (c *Compiler) extractSkipBots(frontmatter map[string]any) []string {
+	// Check the "on" section in frontmatter
+	onValue, exists := frontmatter["on"]
+	if !exists || onValue == nil {
+		return nil
+	}
+
+	// Handle different formats of the on: section
+	switch on := onValue.(type) {
+	case map[string]any:
+		// Complex object format - look for skip-bots
+		if skipBotsValue, exists := on["skip-bots"]; exists && skipBotsValue != nil {
+			return extractStringSliceField(skipBotsValue, "skip-bots")
+		}
+	}
+
+	return nil
+}
+
+// extractStringSliceField extracts a string slice from various input formats
+// Handles: string, []string, []any (with string elements)
+// Returns nil if the input is empty or invalid
+func extractStringSliceField(value any, fieldName string) []string {
+	switch v := value.(type) {
+	case string:
+		// Single string
+		if v == "" {
+			return nil
+		}
+		roleLog.Printf("Extracted single %s: %s", fieldName, v)
+		return []string{v}
+	case []string:
+		// Already a string slice
+		if len(v) == 0 {
+			return nil
+		}
+		roleLog.Printf("Extracted %d %s: %v", len(v), fieldName, v)
+		return v
+	case []any:
+		// Array of any - extract strings
+		var result []string
+		for _, item := range v {
+			if str, ok := item.(string); ok && str != "" {
+				result = append(result, str)
+			}
+		}
+		if len(result) == 0 {
+			return nil
+		}
+		roleLog.Printf("Extracted %d %s from array: %v", len(result), fieldName, result)
+		return result
+	}
+	roleLog.Printf("No valid %s found or unsupported type: %T", fieldName, value)
+	return nil
+}
+
+// mergeSkipRoles merges top-level skip-roles with imported skip-roles (union)
+func (c *Compiler) mergeSkipRoles(topSkipRoles []string, importedSkipRoles []string) []string {
+	// Create a set for deduplication
+	rolesSet := make(map[string]bool)
+	var result []string
+
+	// Add top-level skip-roles first
+	for _, role := range topSkipRoles {
+		if !rolesSet[role] {
+			rolesSet[role] = true
+			result = append(result, role)
+		}
+	}
+
+	// Merge imported skip-roles
+	for _, role := range importedSkipRoles {
+		if !rolesSet[role] {
+			rolesSet[role] = true
+			result = append(result, role)
+		}
+	}
+
+	if len(result) > 0 {
+		roleLog.Printf("Merged skip-roles: %v (top=%d, imported=%d, total=%d)", result, len(topSkipRoles), len(importedSkipRoles), len(result))
+	}
+
+	return result
+}
+
+// mergeSkipBots merges top-level skip-bots with imported skip-bots (union)
+func (c *Compiler) mergeSkipBots(topSkipBots []string, importedSkipBots []string) []string {
+	// Create a set for deduplication
+	usersSet := make(map[string]bool)
+	var result []string
+
+	// Add top-level skip-bots first
+	for _, user := range topSkipBots {
+		if !usersSet[user] {
+			usersSet[user] = true
+			result = append(result, user)
+		}
+	}
+
+	// Merge imported skip-bots
+	for _, user := range importedSkipBots {
+		if !usersSet[user] {
+			usersSet[user] = true
+			result = append(result, user)
+		}
+	}
+
+	if len(result) > 0 {
+		roleLog.Printf("Merged skip-bots: %v (top=%d, imported=%d, total=%d)", result, len(topSkipBots), len(importedSkipBots), len(result))
+	}
+
+	return result
 }

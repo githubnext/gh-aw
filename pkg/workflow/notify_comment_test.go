@@ -19,6 +19,7 @@ func TestConclusionJob(t *testing.T) {
 		expectJob          bool
 		expectConditions   []string
 		expectNeeds        []string
+		expectUpdateStep   bool // whether to expect the "Update reaction comment" step
 	}{
 		{
 			name:               "conclusion job created when add-comment and ai-reaction are configured",
@@ -27,6 +28,7 @@ func TestConclusionJob(t *testing.T) {
 			command:            nil,
 			safeOutputJobNames: []string{"add_comment", "create_issue", "missing_tool"},
 			expectJob:          true,
+			expectUpdateStep:   false, // No automatic bundling - status-comment must be explicit
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
@@ -41,6 +43,7 @@ func TestConclusionJob(t *testing.T) {
 			command:            nil,
 			safeOutputJobNames: []string{"add_comment", "create_issue", "missing_tool"},
 			expectJob:          true,
+			expectUpdateStep:   false, // No automatic bundling - status-comment must be explicit
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
@@ -55,6 +58,7 @@ func TestConclusionJob(t *testing.T) {
 			command:            nil,
 			safeOutputJobNames: []string{},
 			expectJob:          false,
+			expectUpdateStep:   false,
 		},
 		{
 			name:               "conclusion job created when add-comment is configured but ai-reaction is not",
@@ -63,6 +67,7 @@ func TestConclusionJob(t *testing.T) {
 			command:            nil,
 			safeOutputJobNames: []string{"add_comment", "missing_tool"},
 			expectJob:          true,
+			expectUpdateStep:   false, // No update step when no ai-reaction
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
@@ -77,6 +82,7 @@ func TestConclusionJob(t *testing.T) {
 			command:            nil,
 			safeOutputJobNames: []string{"add_comment", "missing_tool"},
 			expectJob:          true,
+			expectUpdateStep:   false, // No update step when reaction is none
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
@@ -91,6 +97,7 @@ func TestConclusionJob(t *testing.T) {
 			command:            []string{"test-command"},
 			safeOutputJobNames: []string{"missing_tool"},
 			expectJob:          true,
+			expectUpdateStep:   false, // No automatic bundling - status-comment must be explicit
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
@@ -104,6 +111,7 @@ func TestConclusionJob(t *testing.T) {
 			command:            []string{"mergefest"},
 			safeOutputJobNames: []string{"push_to_pull_request_branch", "missing_tool"},
 			expectJob:          true,
+			expectUpdateStep:   false, // No automatic bundling - status-comment must be explicit
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
@@ -117,6 +125,7 @@ func TestConclusionJob(t *testing.T) {
 			command:            []string{"test-command"},
 			safeOutputJobNames: []string{"missing_tool"},
 			expectJob:          true,
+			expectUpdateStep:   false, // No update step when reaction is none
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
@@ -130,6 +139,7 @@ func TestConclusionJob(t *testing.T) {
 			command:            nil,
 			safeOutputJobNames: []string{"add_comment", "create_issue", "my_custom_job", "another_custom_safe_job"},
 			expectJob:          true,
+			expectUpdateStep:   false, // No automatic bundling - status-comment must be explicit
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
@@ -205,27 +215,42 @@ func TestConclusionJob(t *testing.T) {
 					}
 				}
 
-				// Check permissions
-				if !strings.Contains(job.Permissions, "issues: write") {
-					t.Error("Expected 'issues: write' permission in conclusion job")
+				// Check permissions based on what safe-outputs are configured
+				// When add-comment is configured, it requires issues, pull-requests, and discussions permissions
+				// When only missing_tool/noop is configured, minimal permissions are needed
+				if tt.addCommentConfig {
+					// add-comment requires full write permissions
+					if !strings.Contains(job.Permissions, "issues: write") {
+						t.Error("Expected 'issues: write' permission when add-comment is configured")
+					}
+					if !strings.Contains(job.Permissions, "pull-requests: write") {
+						t.Error("Expected 'pull-requests: write' permission when add-comment is configured")
+					}
+					if !strings.Contains(job.Permissions, "discussions: write") {
+						t.Error("Expected 'discussions: write' permission when add-comment is configured")
+					}
 				}
-				if !strings.Contains(job.Permissions, "pull-requests: write") {
-					t.Error("Expected 'pull-requests: write' permission in conclusion job")
-				}
-				if !strings.Contains(job.Permissions, "discussions: write") {
-					t.Error("Expected 'discussions: write' permission in conclusion job")
-				}
+				// No need to check for specific permissions when only noop/missing_tool is configured
+				// as they don't require write permissions on their own
 
-				// Check that the job has the update reaction step
+				// Check that the job has the update reaction step (if expected)
 				stepsYAML := strings.Join(job.Steps, "")
-				if !strings.Contains(stepsYAML, "Update reaction comment with completion status") {
-					t.Error("Expected 'Update reaction comment with completion status' step in conclusion job")
+				hasUpdateStep := strings.Contains(stepsYAML, "Update reaction comment with completion status")
+				if tt.expectUpdateStep {
+					if !hasUpdateStep {
+						t.Errorf("[%s] Expected 'Update reaction comment with completion status' step in conclusion job", tt.name)
+					}
+					if !strings.Contains(stepsYAML, "GH_AW_COMMENT_ID") {
+						t.Errorf("[%s] Expected GH_AW_COMMENT_ID environment variable in conclusion job", tt.name)
+					}
+				} else {
+					if hasUpdateStep {
+						t.Errorf("[%s] Did not expect 'Update reaction comment with completion status' step in conclusion job", tt.name)
+					}
 				}
-				if !strings.Contains(stepsYAML, "GH_AW_COMMENT_ID") {
-					t.Error("Expected GH_AW_COMMENT_ID environment variable in conclusion job")
-				}
+				// GH_AW_AGENT_CONCLUSION should always be present for agent failure handling
 				if !strings.Contains(stepsYAML, "GH_AW_AGENT_CONCLUSION") {
-					t.Error("Expected GH_AW_AGENT_CONCLUSION environment variable in conclusion job")
+					t.Errorf("[%s] Expected GH_AW_AGENT_CONCLUSION environment variable in conclusion job", tt.name)
 				}
 			} else {
 				if job != nil {
@@ -239,9 +264,11 @@ func TestConclusionJob(t *testing.T) {
 func TestConclusionJobIntegration(t *testing.T) {
 	// Test that the job is properly integrated with activation job outputs
 	compiler := NewCompiler()
+	statusCommentTrue := true
 	workflowData := &WorkflowData{
-		Name:       "Test Workflow",
-		AIReaction: "eyes", // This causes the activation job to create a comment
+		Name:          "Test Workflow",
+		AIReaction:    "eyes",
+		StatusComment: &statusCommentTrue, // Explicitly enable status comments
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -307,9 +334,11 @@ func TestConclusionJobIntegration(t *testing.T) {
 func TestConclusionJobWithMessages(t *testing.T) {
 	// Test that the conclusion job includes custom messages when configured
 	compiler := NewCompiler()
+	statusCommentTrue := true
 	workflowData := &WorkflowData{
-		Name:       "Test Workflow",
-		AIReaction: "eyes",
+		Name:          "Test Workflow",
+		AIReaction:    "eyes",
+		StatusComment: &statusCommentTrue, // Explicitly enable status comments
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -400,9 +429,11 @@ func TestConclusionJobWithoutMessages(t *testing.T) {
 func TestActivationJobWithMessages(t *testing.T) {
 	// Test that the activation job includes custom messages when configured
 	compiler := NewCompiler()
+	statusCommentTrue := true
 	workflowData := &WorkflowData{
-		Name:       "Test Workflow",
-		AIReaction: "eyes",
+		Name:          "Test Workflow",
+		AIReaction:    "eyes",
+		StatusComment: &statusCommentTrue, // Explicitly enable status comments
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -489,9 +520,11 @@ func TestActivationJobWithoutMessages(t *testing.T) {
 func TestConclusionJobWithGeneratedAssets(t *testing.T) {
 	compiler := NewCompiler()
 
+	statusCommentTrue := true
 	// Create workflow data with safe outputs configuration
 	workflowData := &WorkflowData{
-		Name: "Test Workflow",
+		Name:          "Test Workflow",
+		StatusComment: &statusCommentTrue, // Explicitly enable status comments
 		SafeOutputs: &SafeOutputsConfig{
 			AddComments: &AddCommentsConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -641,6 +674,124 @@ func TestBuildSafeOutputJobsEnvVars(t *testing.T) {
 					}
 				}
 			}
+		})
+	}
+}
+
+// TestStatusCommentDecoupling tests the decoupling of status-comment from ai-reaction
+func TestStatusCommentDecoupling(t *testing.T) {
+	tests := []struct {
+		name                     string
+		aiReaction               string
+		statusComment            *bool
+		expectActivationComment  bool
+		expectConclusionUpdate   bool
+		expectActivationReaction bool
+		safeOutputJobNames       []string
+	}{
+		{
+			name:                     "ai-reaction without status-comment",
+			aiReaction:               "eyes",
+			statusComment:            nil,
+			expectActivationComment:  false,
+			expectConclusionUpdate:   false,
+			expectActivationReaction: true,
+			safeOutputJobNames:       []string{"missing_tool"},
+		},
+		{
+			name:                     "both ai-reaction and status-comment enabled",
+			aiReaction:               "eyes",
+			statusComment:            boolPtr(true),
+			expectActivationComment:  true,
+			expectConclusionUpdate:   true,
+			expectActivationReaction: true,
+			safeOutputJobNames:       []string{"missing_tool"},
+		},
+		{
+			name:                     "ai-reaction with explicit status-comment: false",
+			aiReaction:               "eyes",
+			statusComment:            boolPtr(false),
+			expectActivationComment:  false,
+			expectConclusionUpdate:   false,
+			expectActivationReaction: true,
+			safeOutputJobNames:       []string{"missing_tool"},
+		},
+		{
+			name:                     "neither ai-reaction nor status-comment",
+			aiReaction:               "",
+			statusComment:            nil,
+			expectActivationComment:  false,
+			expectConclusionUpdate:   false,
+			expectActivationReaction: false,
+			safeOutputJobNames:       []string{"missing_tool"},
+		},
+		{
+			name:                     "status-comment without ai-reaction",
+			aiReaction:               "",
+			statusComment:            boolPtr(true),
+			expectActivationComment:  true,
+			expectConclusionUpdate:   true,
+			expectActivationReaction: false,
+			safeOutputJobNames:       []string{"missing_tool"},
+		},
+		{
+			name:                     "status-comment with ai-reaction: none",
+			aiReaction:               "none",
+			statusComment:            boolPtr(true),
+			expectActivationComment:  true,
+			expectConclusionUpdate:   true,
+			expectActivationReaction: false,
+			safeOutputJobNames:       []string{"missing_tool"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			// Test activation job
+			workflowData := &WorkflowData{
+				Name:          "Test Workflow",
+				AIReaction:    tt.aiReaction,
+				StatusComment: tt.statusComment,
+				SafeOutputs: &SafeOutputsConfig{
+					MissingTool: &MissingToolConfig{},
+				},
+			}
+
+			activationJob, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+			if err != nil {
+				t.Fatalf("Failed to build activation job: %v", err)
+			}
+
+			activationSteps := strings.Join(activationJob.Steps, "")
+
+			// Check for activation comment step
+			hasActivationComment := strings.Contains(activationSteps, "Add comment with workflow run link")
+			if hasActivationComment != tt.expectActivationComment {
+				t.Errorf("Expected activation comment step: %v, got: %v", tt.expectActivationComment, hasActivationComment)
+			}
+
+			// Test conclusion job
+			conclusionJob, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), tt.safeOutputJobNames)
+			if err != nil {
+				t.Fatalf("Failed to build conclusion job: %v", err)
+			}
+
+			if conclusionJob == nil {
+				t.Fatal("Expected conclusion job to be created")
+			}
+
+			conclusionSteps := strings.Join(conclusionJob.Steps, "")
+
+			// Check for conclusion update step
+			hasConclusionUpdate := strings.Contains(conclusionSteps, "Update reaction comment with completion status")
+			if hasConclusionUpdate != tt.expectConclusionUpdate {
+				t.Errorf("Expected conclusion update step: %v, got: %v", tt.expectConclusionUpdate, hasConclusionUpdate)
+			}
+
+			// Note: Reaction is added in pre-activation job, not activation job
+			// We're just checking that the workflow is correctly configured
 		})
 	}
 }

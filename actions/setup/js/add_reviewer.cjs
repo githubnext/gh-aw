@@ -7,6 +7,7 @@
 
 const { processItems } = require("./safe_output_processor.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { getPullRequestNumber } = require("./pr_helpers.cjs");
 
 // GitHub Copilot reviewer bot username
 const COPILOT_REVIEWER_BOT = "copilot-pull-request-reviewer[bot]";
@@ -23,6 +24,9 @@ async function main(config = {}) {
   // Extract configuration
   const allowedReviewers = config.allowed || [];
   const maxCount = config.max || 10;
+
+  // Check if we're in staged mode
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   core.info(`Add reviewer configuration: max=${maxCount}`);
   if (allowedReviewers.length > 0) {
@@ -52,28 +56,15 @@ async function main(config = {}) {
 
     const reviewerItem = message;
 
-    // Determine PR number
-    let prNumber;
-    if (reviewerItem.pull_request_number !== undefined) {
-      prNumber = parseInt(String(reviewerItem.pull_request_number), 10);
-      if (isNaN(prNumber)) {
-        core.warning(`Invalid pull_request_number: ${reviewerItem.pull_request_number}`);
-        return {
-          success: false,
-          error: `Invalid pull_request_number: ${reviewerItem.pull_request_number}`,
-        };
-      }
-    } else {
-      // Use context PR if available
-      const contextPR = context.payload?.pull_request?.number;
-      if (!contextPR) {
-        core.warning("No pull_request_number provided and not in PR context");
-        return {
-          success: false,
-          error: "No PR number available",
-        };
-      }
-      prNumber = contextPR;
+    // Determine PR number using helper
+    const { prNumber, error } = getPullRequestNumber(reviewerItem, context);
+
+    if (error) {
+      core.warning(error);
+      return {
+        success: false,
+        error: error,
+      };
     }
 
     const requestedReviewers = reviewerItem.reviewers || [];
@@ -94,10 +85,23 @@ async function main(config = {}) {
 
     core.info(`Adding ${uniqueReviewers.length} reviewers to PR #${prNumber}: ${JSON.stringify(uniqueReviewers)}`);
 
+    // If in staged mode, preview without executing
+    if (isStaged) {
+      core.info(`Staged mode: Would add reviewers to PR #${prNumber}`);
+      return {
+        success: true,
+        staged: true,
+        previewInfo: {
+          number: prNumber,
+          reviewers: uniqueReviewers,
+        },
+      };
+    }
+
     try {
-      // Special handling for "copilot" reviewer - separate it from other reviewers in a single pass
+      // Special handling for "copilot" reviewer - separate it from other reviewers
       const hasCopilot = uniqueReviewers.includes("copilot");
-      const otherReviewers = hasCopilot ? uniqueReviewers.filter(r => r !== "copilot") : uniqueReviewers;
+      const otherReviewers = uniqueReviewers.filter(r => r !== "copilot");
 
       // Add non-copilot reviewers first
       if (otherReviewers.length > 0) {
@@ -121,8 +125,7 @@ async function main(config = {}) {
           });
           core.info(`Successfully added copilot as reviewer to PR #${prNumber}`);
         } catch (copilotError) {
-          const copilotErrorMsg = copilotError instanceof Error ? copilotError.message : String(copilotError);
-          core.warning(`Failed to add copilot as reviewer: ${copilotErrorMsg}`);
+          core.warning(`Failed to add copilot as reviewer: ${getErrorMessage(copilotError)}`);
           // Don't fail the whole step if copilot reviewer fails
         }
       }

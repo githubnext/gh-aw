@@ -66,6 +66,13 @@ const SAMPLE_VALIDATION_CONFIG = {
       side: { type: "string", enum: ["LEFT", "RIGHT"] },
     },
   },
+  submit_pull_request_review: {
+    defaultMax: 1,
+    fields: {
+      body: { type: "string", sanitize: true, maxLength: 65000 },
+      event: { type: "string", enum: ["APPROVE", "REQUEST_CHANGES", "COMMENT"] },
+    },
+  },
   link_sub_issue: {
     defaultMax: 5,
     customValidation: "parentAndSubDifferent",
@@ -292,11 +299,11 @@ describe("safe_output_type_validator", () => {
     it("should accept temporary ID", async () => {
       const { validateIssueNumberOrTemporaryId } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateIssueNumberOrTemporaryId("aw_abc123def456", "issue_number", 1);
+      const result = validateIssueNumberOrTemporaryId("aw_abc123", "issue_number", 1);
 
       expect(result.isValid).toBe(true);
       expect(result.isTemporary).toBe(true);
-      expect(result.normalizedValue).toBe("aw_abc123def456");
+      expect(result.normalizedValue).toBe("aw_abc123");
     });
 
     it("should reject invalid values", async () => {

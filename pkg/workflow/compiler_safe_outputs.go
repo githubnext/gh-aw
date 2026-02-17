@@ -58,6 +58,16 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				workflowData.AIReaction = reactionStr
 			}
 
+			// Extract status-comment from on section
+			if statusCommentValue, hasStatusCommentField := onMap["status-comment"]; hasStatusCommentField {
+				if statusCommentBool, ok := statusCommentValue.(bool); ok {
+					workflowData.StatusComment = &statusCommentBool
+					compilerSafeOutputsLog.Printf("status-comment set to: %v", statusCommentBool)
+				} else {
+					return fmt.Errorf("status-comment must be a boolean value, got %T", statusCommentValue)
+				}
+			}
+
 			// Extract lock-for-agent from on.issues section
 			if issuesValue, hasIssues := onMap["issues"]; hasIssues {
 				if issuesMap, ok := issuesValue.(map[string]any); ok {
@@ -126,8 +136,8 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				// Clear the On field so applyDefaults will handle command trigger generation
 				workflowData.On = ""
 			}
-			// Extract other (non-conflicting) events excluding slash_command, command, reaction, and stop-after
-			otherEvents = filterMapKeys(onMap, "slash_command", "command", "reaction", "stop-after")
+			// Extract other (non-conflicting) events excluding slash_command, command, reaction, status-comment, and stop-after
+			otherEvents = filterMapKeys(onMap, "slash_command", "command", "reaction", "status-comment", "stop-after")
 		}
 	}
 
@@ -316,7 +326,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 
 	// Enable edit and bash tools by default when sandbox is enabled
 	// The sandbox is enabled when:
-	// 1. Explicitly configured via sandbox.agent (awf/srt)
+	// 1. Explicitly configured via sandbox.agent (awf)
 	// 2. Auto-enabled by firewall default enablement (when network restrictions are present)
 	if isSandboxEnabled(sandboxConfig, networkPermissions) {
 		compilerSafeOutputsLog.Print("Sandbox enabled, applying default edit and bash tools")
@@ -457,9 +467,8 @@ func needsGitCommands(safeOutputs *SafeOutputsConfig) bool {
 
 // isSandboxEnabled checks if the sandbox is enabled (either explicitly or auto-enabled)
 // Returns true when:
-// - sandbox.agent is explicitly set to a sandbox type (awf, srt, etc.)
+// - sandbox.agent is explicitly set to awf
 // - Firewall is auto-enabled (networkPermissions.Firewall is set and enabled)
-// - SRT sandbox is enabled
 // Returns false when:
 // - sandbox.agent is false (explicitly disabled)
 // - No sandbox configuration and no auto-enabled firewall
@@ -477,8 +486,8 @@ func isSandboxEnabled(sandboxConfig *SandboxConfig, networkPermissions *NetworkP
 		}
 	}
 
-	// Check if SRT is enabled via legacy Type field
-	if sandboxConfig != nil && (sandboxConfig.Type == SandboxTypeSRT || sandboxConfig.Type == SandboxTypeRuntime) {
+	// Check legacy top-level Type field (deprecated but still supported)
+	if sandboxConfig != nil && isSupportedSandboxType(sandboxConfig.Type) {
 		return true
 	}
 

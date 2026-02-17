@@ -15,23 +15,24 @@ var orchestratorToolsLog = logger.New("workflow:compiler_orchestrator_tools")
 
 // toolsProcessingResult holds the results of tools and markdown processing
 type toolsProcessingResult struct {
-	tools                map[string]any
-	runtimes             map[string]any
-	pluginInfo           *PluginInfo // Consolidated plugin information
-	toolsTimeout         int
-	toolsStartupTimeout  int
-	markdownContent      string
-	importedMarkdown     string   // Only imports WITH inputs (for compile-time substitution)
-	importPaths          []string // Import paths for runtime-import macro generation (imports without inputs)
-	mainWorkflowMarkdown string   // main workflow markdown without imports (for runtime-import)
-	allIncludedFiles     []string
-	workflowName         string
-	frontmatterName      string
-	needsTextOutput      bool
-	trackerID            string
-	safeOutputs          *SafeOutputsConfig
-	secretMasking        *SecretMaskingConfig
-	parsedFrontmatter    *FrontmatterConfig
+	tools                 map[string]any
+	runtimes              map[string]any
+	pluginInfo            *PluginInfo // Consolidated plugin information
+	toolsTimeout          int
+	toolsStartupTimeout   int
+	markdownContent       string
+	importedMarkdown      string   // Only imports WITH inputs (for compile-time substitution)
+	importPaths           []string // Import paths for runtime-import macro generation (imports without inputs)
+	mainWorkflowMarkdown  string   // main workflow markdown without imports (for runtime-import)
+	allIncludedFiles      []string
+	workflowName          string
+	frontmatterName       string
+	needsTextOutput       bool
+	trackerID             string
+	safeOutputs           *SafeOutputsConfig
+	secretMasking         *SecretMaskingConfig
+	parsedFrontmatter     *FrontmatterConfig
+	hasExplicitGitHubTool bool // true if tools.github was explicitly configured in frontmatter
 }
 
 // processToolsAndMarkdown processes tools configuration, runtimes, and markdown content.
@@ -112,6 +113,23 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		orchestratorToolsLog.Printf("Tools merge failed: %v", err)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
+
+	// Check if GitHub tool was explicitly configured in the original frontmatter
+	// This is needed to determine if permissions validation should be skipped
+	hasExplicitGitHubTool := false
+	if tools != nil {
+		if _, exists := tools["github"]; exists {
+			// GitHub tool exists in merged tools - check if it was explicitly configured
+			// by looking at the original frontmatter before any merging
+			if topTools != nil {
+				if _, existsInTop := topTools["github"]; existsInTop {
+					hasExplicitGitHubTool = true
+					orchestratorToolsLog.Print("GitHub tool was explicitly configured in frontmatter")
+				}
+			}
+		}
+	}
+	orchestratorToolsLog.Printf("hasExplicitGitHubTool: %v", hasExplicitGitHubTool)
 
 	// Extract and validate tools timeout settings
 	toolsTimeout, err := c.extractToolsTimeout(tools)
@@ -196,12 +214,6 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 		return nil, err
 	}
 
-	// Validate HTTP transport support for the current engine
-	if err := c.validateHTTPTransportSupport(tools, agenticEngine); err != nil {
-		orchestratorToolsLog.Printf("HTTP transport validation failed: %v", err)
-		return nil, err
-	}
-
 	if !agenticEngine.SupportsToolsAllowlist() {
 		// For engines that don't support tool allowlists (like custom engine), ignore tools section and provide warnings
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), agenticEngine.GetID())))
@@ -270,8 +282,13 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	// Sort files alphabetically to ensure consistent ordering in lock files
 	sort.Strings(allIncludedFiles)
 
-	// Extract workflow name
-	workflowName, err := parser.ExtractWorkflowNameFromMarkdown(cleanPath)
+	// Extract workflow name — use content-based extraction when content is pre-loaded (Wasm)
+	var workflowName string
+	if c.contentOverride != "" {
+		workflowName, err = parser.ExtractWorkflowNameFromContent(c.contentOverride, cleanPath)
+	} else {
+		workflowName, err = parser.ExtractWorkflowNameFromMarkdown(cleanPath)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract workflow name: %w", err)
 	}
@@ -302,30 +319,37 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	}
 
 	return &toolsProcessingResult{
-		tools:                tools,
-		runtimes:             runtimes,
-		pluginInfo:           pluginInfo,
-		toolsTimeout:         toolsTimeout,
-		toolsStartupTimeout:  toolsStartupTimeout,
-		markdownContent:      markdownContent,
-		importedMarkdown:     importedMarkdown, // Only imports WITH inputs
-		importPaths:          importPaths,      // Import paths for runtime-import macros (imports without inputs)
-		mainWorkflowMarkdown: mainWorkflowMarkdown,
-		allIncludedFiles:     allIncludedFiles,
-		workflowName:         workflowName,
-		frontmatterName:      frontmatterName,
-		needsTextOutput:      needsTextOutput,
-		trackerID:            trackerID,
-		safeOutputs:          safeOutputs,
-		secretMasking:        secretMasking,
-		parsedFrontmatter:    parsedFrontmatter,
+		tools:                 tools,
+		runtimes:              runtimes,
+		pluginInfo:            pluginInfo,
+		toolsTimeout:          toolsTimeout,
+		toolsStartupTimeout:   toolsStartupTimeout,
+		markdownContent:       markdownContent,
+		importedMarkdown:      importedMarkdown, // Only imports WITH inputs
+		importPaths:           importPaths,      // Import paths for runtime-import macros (imports without inputs)
+		mainWorkflowMarkdown:  mainWorkflowMarkdown,
+		allIncludedFiles:      allIncludedFiles,
+		workflowName:          workflowName,
+		frontmatterName:       frontmatterName,
+		needsTextOutput:       needsTextOutput,
+		trackerID:             trackerID,
+		safeOutputs:           safeOutputs,
+		secretMasking:         secretMasking,
+		parsedFrontmatter:     parsedFrontmatter,
+		hasExplicitGitHubTool: hasExplicitGitHubTool,
 	}, nil
 }
 
-// detectTextOutputUsage checks if the markdown content uses ${{ needs.activation.outputs.text }}
+// detectTextOutputUsage checks if the markdown content uses ${{ needs.activation.outputs.text }},
+// ${{ needs.activation.outputs.title }}, or ${{ needs.activation.outputs.body }}
 func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
-	// Check for the specific GitHub Actions expression
-	hasUsage := strings.Contains(markdownContent, "${{ needs.activation.outputs.text }}")
-	detectionLog.Printf("Detected usage of activation.outputs.text: %v", hasUsage)
+	// Check for any of the text-related output expressions
+	hasTextUsage := strings.Contains(markdownContent, "${{ needs.activation.outputs.text }}")
+	hasTitleUsage := strings.Contains(markdownContent, "${{ needs.activation.outputs.title }}")
+	hasBodyUsage := strings.Contains(markdownContent, "${{ needs.activation.outputs.body }}")
+
+	hasUsage := hasTextUsage || hasTitleUsage || hasBodyUsage
+	detectionLog.Printf("Detected usage of activation outputs - text: %v, title: %v, body: %v, any: %v",
+		hasTextUsage, hasTitleUsage, hasBodyUsage, hasUsage)
 	return hasUsage
 }

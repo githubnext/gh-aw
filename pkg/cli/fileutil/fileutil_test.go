@@ -5,6 +5,7 @@ package fileutil
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -69,6 +70,23 @@ func TestDirExists(t *testing.T) {
 
 	if DirExists(testFile) {
 		t.Errorf("DirExists() = true, want false for file")
+	}
+
+	// Test with inaccessible path (permission denied)
+	if runtime.GOOS != "windows" && os.Getuid() != 0 {
+		parentDir := filepath.Join(tmpDir, "noaccess")
+		childDir := filepath.Join(parentDir, "child")
+		if err := os.MkdirAll(childDir, 0755); err != nil {
+			t.Fatalf("Failed to create child dir: %v", err)
+		}
+		if err := os.Chmod(parentDir, 0000); err != nil {
+			t.Fatalf("Failed to chmod parent dir: %v", err)
+		}
+		t.Cleanup(func() { os.Chmod(parentDir, 0755) })
+
+		if DirExists(childDir) {
+			t.Errorf("DirExists() = true, want false for inaccessible path")
+		}
 	}
 }
 

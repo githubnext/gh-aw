@@ -149,11 +149,11 @@ Test mixed plugin configuration
 			}
 
 			// Verify MCP gateway step exists
-			assert.Contains(t, lockContent, "Start MCP gateway",
+			assert.Contains(t, lockContent, "Start MCP Gateway",
 				"Lock file should contain MCP gateway step")
 
 			// Extract the MCP gateway step section
-			startIdx := strings.Index(lockContent, "Start MCP gateway")
+			startIdx := strings.Index(lockContent, "Start MCP Gateway")
 			require.Greater(t, startIdx, 0, "MCP gateway step should exist")
 
 			// Find the end of the MCP gateway step (next step or end of job)

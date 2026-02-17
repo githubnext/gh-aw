@@ -1,108 +1,67 @@
 package workflow
 
 import (
-	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/parser"
 )
 
 var frontmatterErrorLog = logger.New("workflow:frontmatter_error")
 
+// Package-level compiled regex patterns for better performance
+var (
+	lineColPattern       = regexp.MustCompile(`\[(\d+):(\d+)\]\s*(.+)`)
+	sourceContextPattern = regexp.MustCompile(`\n(\s+\d+\s*\|)`)
+)
+
 // createFrontmatterError creates a detailed error for frontmatter parsing issues
 // frontmatterLineOffset is the line number where the frontmatter content begins (1-based)
+// Returns error in VSCode-compatible format: filename:line:column: error message
 func (c *Compiler) createFrontmatterError(filePath, content string, err error, frontmatterLineOffset int) error {
 	frontmatterErrorLog.Printf("Creating frontmatter error for file: %s, offset: %d", filePath, frontmatterLineOffset)
-	lines := strings.Split(content, "\n")
 
-	// Check if error already contains formatted yaml.FormatError() output
-	// yaml.FormatError() produces output like "\n[line:col] message\n  line | content..."
 	errorStr := err.Error()
-	if strings.Contains(errorStr, "failed to parse frontmatter:\n[") && strings.Contains(errorStr, "\n>") {
-		// This is already formatted by yaml.FormatError(), return as-is with filename prefix
-		frontmatterErrorLog.Print("Detected yaml.FormatError() formatted output, using as-is")
+
+	// Check if error already contains formatted yaml.FormatError() output with source context
+	// yaml.FormatError() produces output like "failed to parse frontmatter:\n[line:col] message\n>  line | content..."
+	if strings.Contains(errorStr, "failed to parse frontmatter:\n[") && (strings.Contains(errorStr, "\n>") || strings.Contains(errorStr, "|")) {
+		// Extract line and column from the formatted error for VSCode compatibility
+		// Pattern: [line:col] message
+		if matches := lineColPattern.FindStringSubmatch(errorStr); len(matches) >= 4 {
+			line := matches[1]
+			col := matches[2]
+			message := matches[3]
+			// Extract just the first line of the message (before newline)
+			if idx := strings.Index(message, "\n"); idx != -1 {
+				message = message[:idx]
+			}
+
+			// Format as: filename:line:column: error: message
+			// This is compatible with VSCode's problem matcher
+			vscodeFormat := fmt.Sprintf("%s:%s:%s: error: %s", filePath, line, col, message)
+
+			// Extract just the source context lines (skip the [line:col] message line to avoid duplication)
+			// Find the first line that starts with whitespace + digit + | (source context line)
+			if loc := sourceContextPattern.FindStringIndex(errorStr); loc != nil {
+				// Extract from the first source context line to the end
+				context := errorStr[loc[0]+1:] // +1 to skip the leading newline
+				// Return VSCode-compatible format on first line, followed by source context only
+				frontmatterErrorLog.Print("Formatting error for VSCode compatibility")
+				return fmt.Errorf("%s\n%s", vscodeFormat, context)
+			}
+
+			// If we can't extract source context, return just the VSCode format
+			return fmt.Errorf("%s", vscodeFormat)
+		}
+
+		// Fallback if we can't parse the line/col
+		frontmatterErrorLog.Print("Could not extract line/col from formatted error")
 		return fmt.Errorf("%s: %v", filePath, err)
 	}
 
-	// Check if this is a YAML parsing error that we can enhance
-	if strings.Contains(errorStr, "failed to parse frontmatter:") {
-		frontmatterErrorLog.Print("Detected wrapped YAML parsing error")
-		// Extract the inner YAML error
-		parts := strings.SplitN(errorStr, "failed to parse frontmatter: ", 2)
-		if len(parts) > 1 {
-			yamlErr := errors.New(parts[1])
-			line, column, message := parser.ExtractYAMLError(yamlErr, frontmatterLineOffset)
-
-			if line > 0 || column > 0 {
-				frontmatterErrorLog.Printf("Extracted YAML error at line %d, column %d", line, column)
-				// Create context lines around the error
-				var context []string
-				startLine := max(1, line-2)
-				endLine := min(len(lines), line+2)
-
-				for i := startLine; i <= endLine; i++ {
-					if i-1 < len(lines) {
-						context = append(context, lines[i-1])
-					}
-				}
-
-				compilerErr := console.CompilerError{
-					Position: console.ErrorPosition{
-						File:   filePath,
-						Line:   line,
-						Column: column,
-					},
-					Type:    "error",
-					Message: fmt.Sprintf("frontmatter parsing failed: %s", message),
-					Context: context,
-					Hint:    "check YAML syntax in frontmatter section",
-				}
-
-				// Format and return the error
-				formattedErr := console.FormatError(compilerErr)
-				return errors.New(formattedErr)
-			}
-		}
-	} else {
-		frontmatterErrorLog.Print("Attempting direct YAML error extraction")
-		// Try to extract YAML error directly from the original error
-		line, column, message := parser.ExtractYAMLError(err, frontmatterLineOffset)
-
-		if line > 0 || column > 0 {
-			frontmatterErrorLog.Printf("Extracted YAML error at line %d, column %d", line, column)
-			// Create context lines around the error
-			var context []string
-			startLine := max(1, line-2)
-			endLine := min(len(lines), line+2)
-
-			for i := startLine; i <= endLine; i++ {
-				if i-1 < len(lines) {
-					context = append(context, lines[i-1])
-				}
-			}
-
-			compilerErr := console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   filePath,
-					Line:   line,
-					Column: column, // Use original column, we'll extend to word in console rendering
-				},
-				Type:    "error",
-				Message: fmt.Sprintf("frontmatter parsing failed: %s", message),
-				Context: context,
-				// Hints removed as per requirements
-			}
-
-			// Format and return the error
-			formattedErr := console.FormatError(compilerErr)
-			return errors.New(formattedErr)
-		}
-	}
-
-	// Fallback to original error
+	// Fallback: if not already formatted, return with filename prefix
 	frontmatterErrorLog.Printf("Using fallback error message: %v", err)
-	return fmt.Errorf("failed to extract frontmatter: %w", err)
+	return fmt.Errorf("%s: failed to extract frontmatter: %w", filePath, err)
 }

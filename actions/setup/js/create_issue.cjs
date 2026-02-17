@@ -26,9 +26,11 @@ function resetIssuesToAssignCopilot() {
 }
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
-const { generateFooter, generateWorkflowIdMarker } = require("./generate_footer.cjs");
+const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
+const { generateFooterWithMessages } = require("./messages_footer.cjs");
+const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
-const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
+const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, getOrGenerateTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { parseAllowedRepos, getDefaultTargetRepo, validateRepo, parseRepoSlug } = require("./repo_helpers.cjs");
 const { removeDuplicateTitleFromDescription } = require("./remove_duplicate_title.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -36,6 +38,7 @@ const { renderTemplate } = require("./messages_core.cjs");
 const { createExpirationLine, addExpirationToFooter } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { closeOlderIssues } = require("./close_older_issues.cjs");
+const { tryEnforceArrayLimit } = require("./limit_enforcement_helpers.cjs");
 const fs = require("fs");
 
 /**
@@ -50,6 +53,16 @@ const MAX_SUB_ISSUES_PER_PARENT = MAX_SUB_ISSUES;
 
 /** @type {number} Maximum number of parent issues to check when searching */
 const MAX_PARENT_ISSUES_TO_CHECK = 10;
+
+/**
+ * Maximum limits for issue parameters to prevent resource exhaustion.
+ * These limits align with GitHub's API constraints and security best practices.
+ */
+/** @type {number} Maximum number of labels allowed per issue */
+const MAX_LABELS = 10;
+
+/** @type {number} Maximum number of assignees allowed per issue */
+const MAX_ASSIGNEES = 5;
 
 /**
  * Searches for an existing parent issue that can accept more sub-issues
@@ -197,9 +210,13 @@ async function main(config = {}) {
   const defaultTargetRepo = getDefaultTargetRepo(config);
   const groupEnabled = config.group === true || config.group === "true";
   const closeOlderIssuesEnabled = config.close_older_issues === true || config.close_older_issues === "true";
+  const includeFooter = config.footer !== false; // Default to true (include footer)
 
   // Check if copilot assignment is enabled
   const assignCopilot = process.env.GH_AW_ASSIGN_COPILOT === "true";
+
+  // Check if we're in staged mode
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {
@@ -303,7 +320,16 @@ async function main(config = {}) {
     }
 
     // Get or generate the temporary ID for this issue
-    const temporaryId = message.temporary_id ?? generateTemporaryId();
+    const tempIdResult = getOrGenerateTemporaryId(message, "issue");
+    if (tempIdResult.error) {
+      core.warning(`Skipping issue: ${tempIdResult.error}`);
+      return {
+        success: false,
+        error: tempIdResult.error,
+      };
+    }
+    // At this point, temporaryId is guaranteed to be a string (not null)
+    const temporaryId = /** @type {string} */ tempIdResult.temporaryId;
     core.info(`Processing create_issue: title=${message.title}, bodyLength=${message.body?.length ?? 0}, temporaryId=${temporaryId}, repo=${qualifiedItemRepo}`);
 
     // Resolve parent: check if it's a temporary ID reference
@@ -327,7 +353,7 @@ async function main(config = {}) {
       } else {
         // Check if it looks like a malformed temporary ID
         if (parentWithoutHash.startsWith("aw_")) {
-          core.warning(`Invalid temporary ID format for parent: '${message.parent}'. Temporary IDs must be in format 'aw_' followed by exactly 12 hexadecimal characters (0-9, a-f). Example: 'aw_abc123def456'`);
+          core.warning(`Invalid temporary ID format for parent: '${message.parent}'. Temporary IDs must be in format 'aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_Test123'`);
         } else {
           // It's a real issue number
           const parsed = parseInt(parentWithoutHash, 10);
@@ -370,6 +396,19 @@ async function main(config = {}) {
     // Copilot is not a valid GitHub user and must be assigned via the agent assignment API
     assignees = assignees.filter(assignee => assignee !== "copilot");
 
+    // Enforce max limits on labels and assignees before API calls
+    const labelsLimitResult = tryEnforceArrayLimit(labels, MAX_LABELS, "labels");
+    if (!labelsLimitResult.success) {
+      core.warning(`Issue limit exceeded: ${labelsLimitResult.error}`);
+      return { success: false, error: labelsLimitResult.error };
+    }
+
+    const assigneesLimitResult = tryEnforceArrayLimit(assignees, MAX_ASSIGNEES, "assignees");
+    if (!assigneesLimitResult.success) {
+      core.warning(`Issue limit exceeded: ${assigneesLimitResult.error}`);
+      return { success: false, error: assigneesLimitResult.error };
+    }
+
     let title = message.title?.trim() ?? "";
 
     // Replace temporary ID references in the body using already-created issues
@@ -384,10 +423,11 @@ async function main(config = {}) {
       title = message.body ?? "Agent Output";
     }
 
-    // Apply title prefix
-    if (titlePrefix && !title.startsWith(titlePrefix)) {
-      title = titlePrefix + title;
-    }
+    // Sanitize title for Unicode security and remove any duplicate prefixes
+    title = sanitizeTitle(title, titlePrefix);
+
+    // Apply title prefix (only if it doesn't already exist)
+    title = applyTitlePrefix(title, titlePrefix);
 
     // Add parent reference
     if (effectiveParentIssueNumber) {
@@ -415,11 +455,14 @@ async function main(config = {}) {
     }
 
     // Generate footer and add expiration using helper
-    const footer = addExpirationToFooter(generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), expiresHours, "Issue");
-
-    bodyLines.push(``, ``, footer);
+    // When footer is disabled, only add XML markers (no visible footer content)
+    if (includeFooter) {
+      const footer = addExpirationToFooter(generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber).trimEnd(), expiresHours, "Issue");
+      bodyLines.push(``, ``, footer);
+    }
 
     // Add standalone workflow-id marker for searchability (consistent with comments)
+    // Always add XML markers even when footer is disabled
     if (workflowId) {
       bodyLines.push(``, generateWorkflowIdMarker(workflowId));
     }
@@ -433,6 +476,24 @@ async function main(config = {}) {
       core.info(`Assignees: ${assignees.join(", ")}`);
     }
     core.info(`Body length: ${body.length}`);
+
+    // If in staged mode, preview the issue without creating it
+    if (isStaged) {
+      core.info(`Staged mode: Would create issue in ${qualifiedItemRepo} with title: ${title}`);
+      // Return success with staged flag and preview info
+      return {
+        success: true,
+        staged: true,
+        previewInfo: {
+          repo: qualifiedItemRepo,
+          title,
+          labels,
+          assignees,
+          bodyLength: body.length,
+          temporaryId,
+        },
+      };
+    }
 
     try {
       const { data: issue } = await github.rest.issues.create({
@@ -448,7 +509,9 @@ async function main(config = {}) {
       createdIssues.push({ ...issue, _repo: qualifiedItemRepo });
 
       // Store the mapping of temporary_id -> {repo, number}
-      temporaryIdMap.set(normalizeTemporaryId(temporaryId), { repo: qualifiedItemRepo, number: issue.number });
+      // temporaryId is guaranteed to be non-null because we checked tempIdResult.error above
+      const normalizedTempId = normalizeTemporaryId(String(temporaryId));
+      temporaryIdMap.set(normalizedTempId, { repo: qualifiedItemRepo, number: issue.number });
       core.info(`Stored temporary ID mapping: ${temporaryId} -> ${qualifiedItemRepo}#${issue.number}`);
 
       // Track issue for copilot assignment if needed

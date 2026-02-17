@@ -297,9 +297,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 func TestGetActionPinsSorting(t *testing.T) {
 	pins := getActionPins()
 
-	// Verify we got all the pins (43 as of February 2026)
-	if len(pins) != 43 {
-		t.Errorf("getActionPins() returned %d pins, expected 43", len(pins))
+	// Verify we got all the pins (39 as of February 2026)
+	if len(pins) != 39 {
+		t.Errorf("getActionPins() returned %d pins, expected 39", len(pins))
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)
@@ -339,13 +339,13 @@ func TestGetActionPinByRepo(t *testing.T) {
 			repo:         "actions/checkout",
 			expectExists: true,
 			expectRepo:   "actions/checkout",
-			expectVer:    "v6",
+			expectVer:    "v6.0.2",
 		},
 		{
 			repo:         "actions/setup-node",
 			expectExists: true,
 			expectRepo:   "actions/setup-node",
-			expectVer:    "v6.1.0",
+			expectVer:    "v6.2.0",
 		},
 		{
 			repo:         "unknown/action",
@@ -533,61 +533,6 @@ func TestApplyActionPinToTypedStep_Immutability(t *testing.T) {
 	}
 }
 
-// TestGetActionPinSemverPreference verifies that when multiple versions exist for the same repo,
-// the latest version by semver is returned
-func TestGetActionPinSemverPreference(t *testing.T) {
-	tests := []struct {
-		name            string
-		repo            string
-		expectedVersion string
-	}{
-		{
-			name:            "setup-go prefers v6.1.0 over v6",
-			repo:            "actions/setup-go",
-			expectedVersion: "v6.1.0",
-		},
-		{
-			name:            "setup-node prefers v6.1.0 over v6",
-			repo:            "actions/setup-node",
-			expectedVersion: "v6.1.0",
-		},
-		{
-			name:            "upload-artifact prefers v6.0.0 over v5 and v4",
-			repo:            "actions/upload-artifact",
-			expectedVersion: "v6.0.0",
-		},
-		{
-			name:            "setup-python prefers v5.6.0 over v5",
-			repo:            "actions/setup-python",
-			expectedVersion: "v5.6.0",
-		},
-		{
-			name:            "cache prefers v4.3.0 over v4",
-			repo:            "actions/cache",
-			expectedVersion: "v4.3.0",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Test GetActionPin
-			result := GetActionPin(tt.repo)
-			if !strings.Contains(result, "# "+tt.expectedVersion) {
-				t.Errorf("GetActionPin(%s) = %s, expected version %s", tt.repo, result, tt.expectedVersion)
-			}
-
-			// Test GetActionPinByRepo
-			pin, exists := GetActionPinByRepo(tt.repo)
-			if !exists {
-				t.Fatalf("GetActionPinByRepo(%s) returned false, expected true", tt.repo)
-			}
-			if pin.Version != tt.expectedVersion {
-				t.Errorf("GetActionPinByRepo(%s).Version = %s, expected %s", tt.repo, pin.Version, tt.expectedVersion)
-			}
-		})
-	}
-}
-
 // TestGetActionPinWithData_SemverPreference tests that GetActionPinWithData
 // resolves actions using the exact version tag specified, and only falls back
 // to compatible versions when the exact tag doesn't exist in hardcoded pins
@@ -601,18 +546,18 @@ func TestGetActionPinWithData_SemverPreference(t *testing.T) {
 		shouldFallback bool // Whether we expect to fall back to highest version
 	}{
 		{
-			name:           "exact match for setup-go v6.1.0",
+			name:           "exact match for setup-go v6.2.0",
 			repo:           "actions/setup-go",
-			requestedVer:   "v6.1.0",
-			expectedVer:    "v6.1.0",
+			requestedVer:   "v6.2.0",
+			expectedVer:    "v6.2.0",
 			strictMode:     false,
 			shouldFallback: false,
 		},
 		{
-			name:           "exact match for setup-go v6 from hardcoded pins",
+			name:           "exact match for setup-go v6.2.0 from hardcoded pins",
 			repo:           "actions/setup-go",
-			requestedVer:   "v6",
-			expectedVer:    "v6", // Should match exactly v6, not v6.1.0
+			requestedVer:   "v6.2.0",
+			expectedVer:    "v6.2.0", // Should match exactly v6.2.0
 			strictMode:     false,
 			shouldFallback: false,
 		},

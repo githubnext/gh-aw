@@ -5,7 +5,6 @@ package cli
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -58,13 +57,9 @@ This is a test local workflow.
 	}
 
 	// Test parsing local workflow spec
-	// Note: This will fail if we're not in a git repository, which is expected
+	// Local workflows don't require a git repository or remote
 	spec, err := parseWorkflowSpec("./workflows/test-local.md")
 	if err != nil {
-		// If we're not in a git repository, skip the rest of the test
-		if strings.Contains(err.Error(), "failed to get current repository info") {
-			t.Skip("Skipping test because we're not in a git repository (this is expected behavior)")
-		}
 		t.Fatalf("Failed to parse local workflow spec: %v", err)
 	}
 
@@ -78,6 +73,10 @@ This is a test local workflow.
 	if spec.Version != "" {
 		t.Errorf("Expected empty Version for local workflow, got %q", spec.Version)
 	}
+	// Local workflows have no RepoSlug since they don't come from a remote source
+	if spec.RepoSlug != "" {
+		t.Errorf("Expected empty RepoSlug for local workflow, got %q", spec.RepoSlug)
+	}
 
 	// Test String() method
 	stringResult := spec.String()
@@ -85,32 +84,9 @@ This is a test local workflow.
 		t.Errorf("Expected String() './workflows/test-local.md', got %q", stringResult)
 	}
 
-	// Test buildSourceString (should remove ./ prefix)
+	// Test buildSourceString - returns empty for local workflows (no remote source to track)
 	sourceString := buildSourceString(spec)
-	expectedSourceString := spec.RepoSlug + "/workflows/test-local.md"
-	if sourceString != expectedSourceString {
-		t.Errorf("Expected buildSourceString() %q, got %q", expectedSourceString, sourceString)
-	}
-
-	// Test findWorkflowInPackageForRepo
-	content, sourceInfo, err := findWorkflowInPackageForRepo(spec, false)
-	if err != nil {
-		t.Fatalf("Failed to find local workflow: %v", err)
-	}
-
-	if string(content) != testContent {
-		t.Errorf("Content mismatch")
-	}
-
-	if sourceInfo.PackagePath != "." {
-		t.Errorf("Expected PackagePath '.', got %q", sourceInfo.PackagePath)
-	}
-
-	if sourceInfo.SourcePath != "./workflows/test-local.md" {
-		t.Errorf("Expected SourcePath './workflows/test-local.md', got %q", sourceInfo.SourcePath)
-	}
-
-	if sourceInfo.CommitSHA != "" {
-		t.Errorf("Expected empty CommitSHA for local workflow, got %q", sourceInfo.CommitSHA)
+	if sourceString != "" {
+		t.Errorf("Expected buildSourceString() to return empty string for local workflow, got %q", sourceString)
 	}
 }

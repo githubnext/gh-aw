@@ -2,10 +2,11 @@
 /// <reference types="@actions/github-script" />
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateFooter } = require("./generate_footer.cjs");
+const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * @typedef {'issue' | 'pull_request'} EntityType
@@ -57,23 +58,21 @@ function buildCommentBody(body, triggeringIssueNumber, triggeringPRNumber) {
   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
   const runUrl = buildRunUrl();
 
-  let commentBody = body.trim();
-  commentBody += getTrackerID("markdown");
-  commentBody += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined);
+  // Sanitize the body content to prevent injection attacks
+  const sanitizedBody = sanitizeContent(body);
 
-  return commentBody;
+  return sanitizedBody.trim() + getTrackerID("markdown") + generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, undefined);
 }
 
 /**
  * Check if labels match the required labels filter
  * @param {Array<{name: string}>} entityLabels - Labels on the entity
  * @param {string[]} requiredLabels - Required labels (any match)
- * @returns {boolean} True if entity has at least one required label
+ * @returns {boolean} True if entity has at least one required label or no filter is set
  */
 function checkLabelFilter(entityLabels, requiredLabels) {
-  if (requiredLabels.length === 0) {
-    return true;
-  }
+  if (requiredLabels.length === 0) return true;
+
   const labelNames = entityLabels.map(l => l.name);
   return requiredLabels.some(required => labelNames.includes(required));
 }
@@ -82,12 +81,10 @@ function checkLabelFilter(entityLabels, requiredLabels) {
  * Check if title matches the required prefix filter
  * @param {string} title - Entity title
  * @param {string} requiredTitlePrefix - Required title prefix
- * @returns {boolean} True if title starts with required prefix
+ * @returns {boolean} True if title starts with required prefix or no filter is set
  */
 function checkTitlePrefixFilter(title, requiredTitlePrefix) {
-  if (!requiredTitlePrefix) {
-    return true;
-  }
+  if (!requiredTitlePrefix) return true;
   return title.startsWith(requiredTitlePrefix);
 }
 
@@ -297,22 +294,28 @@ async function processCloseEntityItems(config, callbacks, handlerConfig = {}) {
         continue;
       }
 
-      // Check if already closed
-      if (entity.state === "closed") {
-        core.info(`${config.displayNameCapitalized} #${entityNumber} is already closed, skipping`);
-        continue;
+      // Check if already closed - but still add comment
+      const wasAlreadyClosed = entity.state === "closed";
+      if (wasAlreadyClosed) {
+        core.info(`${config.displayNameCapitalized} #${entityNumber} is already closed, but will still add comment`);
       }
 
       // Build comment body
       const commentBody = buildCommentBody(item.body, triggeringIssueNumber, triggeringPRNumber);
 
-      // Add comment before closing
+      // Add comment before closing (or to already-closed entity)
       const comment = await callbacks.addComment(github, context.repo.owner, context.repo.repo, entityNumber, commentBody);
       core.info(`✓ Added comment to ${config.displayName} #${entityNumber}: ${comment.html_url}`);
 
-      // Close the entity
-      const closedEntity = await callbacks.closeEntity(github, context.repo.owner, context.repo.repo, entityNumber);
-      core.info(`✓ Closed ${config.displayName} #${entityNumber}: ${closedEntity.html_url}`);
+      // Close the entity if not already closed
+      let closedEntity;
+      if (wasAlreadyClosed) {
+        core.info(`${config.displayNameCapitalized} #${entityNumber} was already closed, comment added`);
+        closedEntity = entity;
+      } else {
+        closedEntity = await callbacks.closeEntity(github, context.repo.owner, context.repo.repo, entityNumber);
+        core.info(`✓ Closed ${config.displayName} #${entityNumber}: ${closedEntity.html_url}`);
+      }
 
       closedEntities.push({
         entity: closedEntity,

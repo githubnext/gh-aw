@@ -20,11 +20,11 @@ tools:
   edit:
   web-fetch:
 safe-outputs:
-  add-comment:
-    max: 1
   create-pull-request-review-comment:
     max: 10
     side: "RIGHT"
+  submit-pull-request-review:
+    max: 1
   messages:
     footer: "> 🔒 *Security review by [{workflow_name}]({run_url})*"
     run-started: "🔍 [{workflow_name}]({run_url}) is analyzing this {event_type} for security implications..."
@@ -175,9 +175,9 @@ For each security concern found:
    - Potential attack vector or risk
    - Recommended mitigation or alternative
 
-### Step 5: Summary Comment
+### Step 5: Submit the Review
 
-Create a summary comment with:
+Submit a review using `submit_pull_request_review` with:
 - Total number of security concerns by severity
 - Overview of boundaries affected
 - Recommendations for the PR author

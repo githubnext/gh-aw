@@ -435,3 +435,173 @@ func findSubstring(s, substr string) bool {
 	}
 	return false
 }
+
+func TestFindWorkflowName(t *testing.T) {
+	// Create a temporary directory with workflow files
+	tempDir := testutil.TempDir(t, "test-*")
+	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
+	err := os.MkdirAll(workflowsDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create sample workflow files
+	testWorkflows := map[string]string{
+		"ci-failure-doctor": "CI Failure Doctor",
+		"weekly-research":   "Weekly Research",
+		"daily-plan":        "Daily Plan",
+	}
+	for workflowID, displayName := range testWorkflows {
+		mdFile := filepath.Join(workflowsDir, workflowID+".md")
+		lockFile := filepath.Join(workflowsDir, workflowID+".lock.yml")
+
+		err = os.WriteFile(mdFile, []byte("# "+workflowID+"\nSome content"), 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		lockContent := "name: \"" + displayName + "\"\non: push\n"
+		err = os.WriteFile(lockFile, []byte(lockContent), 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Change to the temp directory
+	t.Chdir(tempDir)
+
+	tests := []struct {
+		name         string
+		input        string
+		expectedName string
+		expectError  bool
+	}{
+		{
+			name:         "exact workflow ID match",
+			input:        "ci-failure-doctor",
+			expectedName: "CI Failure Doctor",
+			expectError:  false,
+		},
+		{
+			name:         "case-insensitive workflow ID match",
+			input:        "CI-FAILURE-DOCTOR",
+			expectedName: "CI Failure Doctor",
+			expectError:  false,
+		},
+		{
+			name:         "mixed case workflow ID match",
+			input:        "Ci-Failure-Doctor",
+			expectedName: "CI Failure Doctor",
+			expectError:  false,
+		},
+		{
+			name:         "exact display name match",
+			input:        "CI Failure Doctor",
+			expectedName: "CI Failure Doctor",
+			expectError:  false,
+		},
+		{
+			name:         "case-insensitive display name match",
+			input:        "ci failure doctor",
+			expectedName: "CI Failure Doctor",
+			expectError:  false,
+		},
+		{
+			name:         "workflow ID with .md extension",
+			input:        "weekly-research.md",
+			expectedName: "Weekly Research",
+			expectError:  false,
+		},
+		{
+			name:         "workflow ID with .lock.yml extension",
+			input:        "daily-plan.lock.yml",
+			expectedName: "Daily Plan",
+			expectError:  false,
+		},
+		{
+			name:        "non-existent workflow",
+			input:       "non-existent-workflow",
+			expectError: true,
+		},
+		{
+			name:         "empty input",
+			input:        "",
+			expectedName: "",
+			expectError:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := FindWorkflowName(tt.input)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error for input %q, but got none", tt.input)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error for input %q: %v", tt.input, err)
+				}
+				if result != tt.expectedName {
+					t.Errorf("Expected workflow name %q, got %q", tt.expectedName, result)
+				}
+			}
+		})
+	}
+}
+
+func TestGetAllWorkflows(t *testing.T) {
+	// Create a temporary directory with workflow files
+	tempDir := testutil.TempDir(t, "test-*")
+	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
+	err := os.MkdirAll(workflowsDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create sample workflow files
+	testWorkflows := map[string]string{
+		"workflow-one":   "Workflow One",
+		"workflow-two":   "Workflow Two",
+		"workflow-three": "Workflow Three",
+	}
+	for workflowID, displayName := range testWorkflows {
+		lockFile := filepath.Join(workflowsDir, workflowID+".lock.yml")
+		lockContent := "name: \"" + displayName + "\"\non: push\n"
+		err = os.WriteFile(lockFile, []byte(lockContent), 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Change to the temp directory
+	t.Chdir(tempDir)
+
+	// Get all workflows
+	workflows, err := GetAllWorkflows()
+	if err != nil {
+		t.Fatalf("GetAllWorkflows returned error: %v", err)
+	}
+
+	// Check count
+	if len(workflows) != len(testWorkflows) {
+		t.Errorf("Expected %d workflows, got %d", len(testWorkflows), len(workflows))
+	}
+
+	// Check that all workflows are present
+	workflowMap := make(map[string]string)
+	for _, wf := range workflows {
+		workflowMap[wf.WorkflowID] = wf.DisplayName
+	}
+
+	for workflowID, expectedDisplayName := range testWorkflows {
+		actualDisplayName, exists := workflowMap[workflowID]
+		if !exists {
+			t.Errorf("Expected workflow ID %q not found in results", workflowID)
+		} else if actualDisplayName != expectedDisplayName {
+			t.Errorf("For workflow ID %q, expected display name %q, got %q",
+				workflowID, expectedDisplayName, actualDisplayName)
+		}
+	}
+}

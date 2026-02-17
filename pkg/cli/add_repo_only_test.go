@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"os"
 	"testing"
 )
 
@@ -58,27 +57,4 @@ func TestIsRepoOnlySpec(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestListWorkflowsInPackage(t *testing.T) {
-	// Since we can't easily mock getPackagesDir, we'll just verify the function
-	// handles missing packages correctly
-	workflows, err := listWorkflowsInPackage("absolutely-nonexistent-repo-xyz123/test-repo-abc456", false)
-	if err == nil {
-		t.Errorf("Expected error for nonexistent package, got nil. Workflows: %v", workflows)
-	}
-}
-
-func TestHandleRepoOnlySpecIntegration(t *testing.T) {
-	// This is more of an integration test that would require GitHub authentication
-	// We'll skip it in normal test runs
-	if os.Getenv("GITHUB_TOKEN") == "" && os.Getenv("GH_TOKEN") == "" {
-		t.Skip("Skipping integration test: no GitHub token available")
-	}
-
-	// Test with verbose output to see the workflow listing
-	// Note: This will actually try to install the package
-	// err := handleRepoOnlySpec("githubnext/agentics", true)
-	// For now, we'll just verify the function exists and can be called
-	// without testing the actual GitHub interaction
 }

@@ -35,7 +35,7 @@ tools:
 
 # Test Workflow
 
-Test workflow with GitHub MCP server app configuration.
+Test workflow with GitHub MCP Server app configuration.
 `
 
 	// Create a temporary test file
@@ -111,8 +111,8 @@ Test workflow with GitHub MCP app token minting.
 	assert.Contains(t, lockContent, "if: always()", "Invalidation step should always run")
 	assert.Contains(t, lockContent, "steps.github-mcp-app-token.outputs.token", "Should reference github-mcp-app-token output")
 
-	// Verify the app token is used for GitHub MCP server
-	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "Should use app token for GitHub MCP server")
+	// Verify the app token is used for GitHub MCP Server
+	assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "Should use app token for GitHub MCP Server")
 }
 
 // TestGitHubMCPAppTokenOverridesDefaultToken tests that app token overrides custom and default tokens
@@ -179,7 +179,7 @@ engine: claude
 
 # Test Workflow
 
-Test app token with remote GitHub MCP server.
+Test app token with remote GitHub MCP Server.
 `
 
 	// Create a temporary test file
@@ -209,6 +209,6 @@ Test app token with remote GitHub MCP server.
 		t.Log("App token correctly used in remote mode Authorization header")
 	} else {
 		// Also check for the env var reference pattern used by Claude engine
-		assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "Should use app token for GitHub MCP server in remote mode")
+		assert.Contains(t, lockContent, "GITHUB_MCP_SERVER_TOKEN: ${{ steps.github-mcp-app-token.outputs.token }}", "Should use app token for GitHub MCP Server in remote mode")
 	}
 }

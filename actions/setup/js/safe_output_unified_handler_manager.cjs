@@ -16,13 +16,15 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, normalizeTemporaryId, loadTemporaryIdMap } = require("./temporary_id.cjs");
+const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, normalizeTemporaryId, loadTemporaryIdMap, isTemporaryId } = require("./temporary_id.cjs");
 const { generateMissingInfoSections } = require("./missing_info_formatter.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 const { setCollectedMissings } = require("./missing_messages_helper.cjs");
 const { writeSafeOutputSummaries } = require("./safe_output_summary.cjs");
 const { getIssuesToAssignCopilot } = require("./create_issue.cjs");
 const { sortSafeOutputMessages } = require("./safe_output_topological_sort.cjs");
 const { loadCustomSafeOutputJobTypes } = require("./safe_output_helpers.cjs");
+const { createReviewBuffer } = require("./pr_review_buffer.cjs");
 
 /**
  * Handler map configuration for regular handlers
@@ -42,6 +44,9 @@ const HANDLER_MAP = {
   link_sub_issue: "./link_sub_issue.cjs",
   update_release: "./update_release.cjs",
   create_pull_request_review_comment: "./create_pr_review_comment.cjs",
+  submit_pull_request_review: "./submit_pr_review.cjs",
+  reply_to_pull_request_review_comment: "./reply_to_pr_review_comment.cjs",
+  resolve_pull_request_review_thread: "./resolve_pr_review_thread.cjs",
   create_pull_request: "./create_pull_request.cjs",
   push_to_pull_request_branch: "./push_to_pull_request_branch.cjs",
   update_pull_request: "./update_pull_request.cjs",
@@ -51,6 +56,7 @@ const HANDLER_MAP = {
   add_reviewer: "./add_reviewer.cjs",
   assign_milestone: "./assign_milestone.cjs",
   assign_to_user: "./assign_to_user.cjs",
+  unassign_from_user: "./unassign_from_user.cjs",
   create_code_scanning_alert: "./create_code_scanning_alert.cjs",
   autofix_code_scanning_alert: "./autofix_code_scanning_alert.cjs",
   dispatch_workflow: "./dispatch_workflow.cjs",
@@ -174,15 +180,19 @@ async function setupProjectGitHubClient() {
   return octokit;
 }
 
+/** @type {Set<string>} Handler types that participate in the PR review buffer */
+const PR_REVIEW_HANDLER_TYPES = new Set(["create_pull_request_review_comment", "submit_pull_request_review"]);
+
 /**
  * Load and initialize handlers for enabled safe output types
  * Calls each handler's factory function (main) to get message processors
  * Regular handlers use the global github object, project handlers use a separate Octokit instance
  * @param {{regular: Object, project: Object}} configs - Safe outputs configuration for regular and project handlers
  * @param {Object} projectOctokit - Octokit instance for project handlers (optional, required if project handlers are configured)
+ * @param {Object} prReviewBuffer - Shared PR review buffer instance
  * @returns {Promise<Map<string, Function>>} Map of type to message handler function
  */
-async function loadHandlers(configs, projectOctokit = null) {
+async function loadHandlers(configs, projectOctokit = null, prReviewBuffer = null) {
   const messageHandlers = new Map();
 
   core.info("Loading and initializing safe output handlers based on configuration...");
@@ -194,7 +204,13 @@ async function loadHandlers(configs, projectOctokit = null) {
         const handlerModule = require(handlerPath);
         if (handlerModule && typeof handlerModule.main === "function") {
           // Call the factory function with config to get the message handler
-          const handlerConfig = configs.regular[type] || {};
+          const handlerConfig = { ...(configs.regular[type] || {}) };
+
+          // Inject shared PR review buffer into handlers that need it
+          if (PR_REVIEW_HANDLER_TYPES.has(type) && prReviewBuffer) {
+            handlerConfig._prReviewBuffer = prReviewBuffer;
+          }
+
           const messageHandler = await handlerModule.main(handlerConfig);
 
           if (typeof messageHandler !== "function") {
@@ -419,6 +435,8 @@ async function processMessages(messageHandlers, messages, projectOctokit = null)
     try {
       core.info(`Processing message ${i + 1}/${messages.length}: ${messageType}`);
 
+      normalizeAndValidateTemporaryId(message, messageType, i);
+
       // Record the temp ID map size before processing to detect new IDs
       const tempIdMapSizeBefore = temporaryIdMap.size;
 
@@ -569,6 +587,8 @@ async function processMessages(messageHandlers, messages, projectOctokit = null)
       try {
         core.info(`Retrying message ${deferred.messageIndex + 1}/${messages.length}: ${deferred.type}`);
 
+        normalizeAndValidateTemporaryId(deferred.message, deferred.type, deferred.messageIndex);
+
         // Convert Map to plain object for handler
         const resolvedTemporaryIds = Object.fromEntries(temporaryIdMap);
 
@@ -682,6 +702,47 @@ function getContentToCheck(messageType, message) {
 }
 
 /**
+ * Validate and normalize `temporary_id` on an agent-provided safe output message.
+ * Agents are not trusted to follow schemas; this enforces the strict format at runtime.
+ *
+ * - Accepts optional leading '#', normalizes to bare 'aw_...' string
+ * - Rejects any non-strict IDs (e.g. 'aw_bundle_npm001')
+ *
+ * @param {any} message - Safe output message
+ * @param {string} messageType - Message type
+ * @param {number} messageIndex - 0-based index for error context
+ */
+function normalizeAndValidateTemporaryId(message, messageType, messageIndex) {
+  if (!message || typeof message !== "object") {
+    return;
+  }
+
+  // Support accidental camelCase from agents; normalize to snake_case.
+  if (message.temporary_id === undefined && message.temporaryId !== undefined) {
+    message.temporary_id = message.temporaryId;
+  }
+
+  if (message.temporary_id === undefined || message.temporary_id === null) {
+    return;
+  }
+
+  if (typeof message.temporary_id !== "string") {
+    throw new Error(`Message ${messageIndex + 1} (${messageType}): temporary_id must be a string (got ${typeof message.temporary_id})`);
+  }
+
+  const raw = message.temporary_id;
+  const trimmed = raw.trim();
+  const withoutHash = trimmed.startsWith("#") ? trimmed.substring(1).trim() : trimmed;
+
+  if (!isTemporaryId(withoutHash)) {
+    throw new Error(`Message ${messageIndex + 1} (${messageType}): invalid temporary_id '${raw}'. Temporary IDs must be 'aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9), e.g. 'aw_abc' or 'aw_Test123'`);
+  }
+
+  // Normalize to the strict bare ID to keep lookups consistent.
+  message.temporary_id = withoutHash.toLowerCase();
+}
+
+/**
  * Update the body of an issue with resolved temporary IDs
  * @param {any} github - GitHub API client
  * @param {any} context - GitHub Actions context
@@ -699,7 +760,7 @@ async function updateIssueBody(github, context, repo, issueNumber, updatedBody) 
     owner,
     repo: repoName,
     issue_number: issueNumber,
-    body: updatedBody,
+    body: sanitizeContent(updatedBody),
   });
 
   core.info(`✓ Updated issue ${repo}#${issueNumber}`);
@@ -752,7 +813,7 @@ async function updateDiscussionBody(github, context, repo, discussionNumber, upd
 
   await github.graphql(mutation, {
     discussionId,
-    body: updatedBody,
+    body: sanitizeContent(updatedBody),
   });
 
   core.info(`✓ Updated discussion ${repo}#${discussionNumber}`);
@@ -773,6 +834,8 @@ async function updateCommentBody(github, context, repo, commentId, updatedBody, 
 
   core.info(`Updating comment ${commentId} body with resolved temporary IDs`);
 
+  const sanitizedBody = sanitizeContent(updatedBody);
+
   if (isDiscussion) {
     // For discussion comments, we need to use GraphQL
     // Get the comment node ID first
@@ -788,7 +851,7 @@ async function updateCommentBody(github, context, repo, commentId, updatedBody, 
 
     await github.graphql(mutation, {
       commentId,
-      body: updatedBody,
+      body: sanitizedBody,
     });
   } else {
     // For issue/PR comments, use REST API
@@ -796,7 +859,7 @@ async function updateCommentBody(github, context, repo, commentId, updatedBody, 
       owner,
       repo: repoName,
       comment_id: commentId,
-      body: updatedBody,
+      body: sanitizedBody,
     });
   }
 
@@ -921,9 +984,25 @@ async function main() {
 
     core.info(`Found ${agentOutput.items.length} message(s) in agent output`);
 
+    // Create the shared PR review buffer instance (no global state)
+    const prReviewBuffer = createReviewBuffer();
+
+    // Apply footer config with priority:
+    // 1. submit_pull_request_review.footer (highest priority — footer controls review body)
+    // 2. Default: "always"
+    let footerConfig = undefined;
+    if (configs.regular?.submit_pull_request_review?.footer !== undefined) {
+      footerConfig = configs.regular.submit_pull_request_review.footer;
+      core.info(`Using footer config from submit_pull_request_review: ${footerConfig}`);
+    }
+
+    if (footerConfig !== undefined) {
+      prReviewBuffer.setFooterMode(footerConfig);
+    }
+
     // Load and initialize handlers based on configuration (factory pattern)
     // Regular handlers use the global github object, project handlers use the projectOctokit
-    const messageHandlers = await loadHandlers(configs, projectOctokit);
+    const messageHandlers = await loadHandlers(configs, projectOctokit, prReviewBuffer);
 
     if (messageHandlers.size === 0) {
       core.info("No handlers loaded - nothing to process");
@@ -936,6 +1015,28 @@ async function main() {
     // Process all messages in order of appearance
     // Pass the projectOctokit so project handlers can use it
     const processingResult = await processMessages(messageHandlers, agentOutput.items, projectOctokit);
+
+    // Finalize buffered PR review — submit when comments or metadata exist
+    if (prReviewBuffer.hasBufferedComments() || prReviewBuffer.hasReviewMetadata()) {
+      core.info(`\n=== Finalizing PR Review ===`);
+      const bufferedCount = prReviewBuffer.getBufferedCount();
+      if (bufferedCount > 0) {
+        core.info(`Submitting ${bufferedCount} buffered review comment(s) as a single PR review`);
+      } else {
+        core.info("Submitting PR review (body-only, no inline comments)");
+      }
+      try {
+        const reviewResult = await prReviewBuffer.submitReview();
+        if (reviewResult.success && !reviewResult.skipped) {
+          core.info(`✓ PR review submitted successfully: ${reviewResult.review_url}`);
+        } else if (!reviewResult.success) {
+          core.warning(`✗ Failed to submit PR review: ${reviewResult.error}`);
+        }
+      } catch (reviewError) {
+        const errorMessage = reviewError instanceof Error ? reviewError.message : String(reviewError);
+        core.warning(`✗ Exception while submitting PR review: ${errorMessage}`);
+      }
+    }
 
     // Store collected missings in helper module for handlers to access
     if (processingResult.missings) {

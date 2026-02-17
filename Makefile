@@ -40,6 +40,24 @@ build-darwin:
 build-windows:
 	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-windows-amd64.exe ./cmd/gh-aw
 
+# Build WebAssembly module for browser usage
+# Optionally runs wasm-opt (from Binaryen) if available for ~8% size reduction
+.PHONY: build-wasm
+build-wasm:
+	GOOS=js GOARCH=wasm go build -ldflags="-w -s" -o gh-aw.wasm ./cmd/gh-aw-wasm
+	@if command -v wasm-opt >/dev/null 2>&1; then \
+		echo "Running wasm-opt -Oz (size optimization)..."; \
+		BEFORE=$$(wc -c < gh-aw.wasm); \
+		wasm-opt -Oz --enable-bulk-memory gh-aw.wasm -o gh-aw.opt.wasm && \
+		mv gh-aw.opt.wasm gh-aw.wasm; \
+		AFTER=$$(wc -c < gh-aw.wasm); \
+		echo "✓ wasm-opt: $$BEFORE → $$AFTER bytes"; \
+	else \
+		echo "⚠ wasm-opt not found, skipping optimization (install binaryen for ~8% size reduction)"; \
+	fi
+	@echo "✓ Built gh-aw.wasm ($$(du -h gh-aw.wasm | cut -f1))"
+	@echo "  Copy wasm_exec.js from: $$(go env GOROOT)/misc/wasm/wasm_exec.js"
+
 # Test the code (runs both unlabelled unit tests and integration tests and long tests)
 .PHONY: test
 test: test-unit test-integration
@@ -110,7 +128,7 @@ bench-performance:
 		-benchmem -benchtime=3x -run=^$$ ./pkg/workflow | tee bench_performance.txt
 	@echo ""
 	@echo "Also running CLI helper benchmarks..."
-	@go test -bench='Benchmark(ExtractWorkflowNameFromFile|UpdateWorkflowTitle|FindIncludesInContent)$$' \
+	@go test -bench='Benchmark(ExtractWorkflowNameFromFile|FindIncludesInContent)$$' \
 		-benchmem -benchtime=3x -run=^$$ ./pkg/cli >> bench_performance.txt
 	@echo ""
 	@echo "Performance benchmark results saved to bench_performance.txt"
@@ -155,7 +173,7 @@ security-scan: security-gosec security-govulncheck security-trivy
 .PHONY: security-gosec
 security-gosec:
 	@echo "Running gosec security scanner..."
-	@command -v gosec >/dev/null || go install github.com/securego/gosec/v2/cmd/gosec@v2.22.11
+	@command -v gosec >/dev/null || go install github.com/securego/gosec/v2/cmd/gosec@v2.23.0
 	@# Exclusions configured in .golangci.yml (linters-settings.gosec.exclude)
 	@# Keep this list in sync with .golangci.yml for consistency
 	@GOPATH=$$(go env GOPATH); \
@@ -203,9 +221,26 @@ bundle-js:
 	@echo "✓ bundle-js tool built"
 	@echo "To bundle a JavaScript file: ./bundle-js <input-file> [output-file]"
 
-# Test all code (Go and JavaScript)
+# Install copilot-client dependencies
+.PHONY: deps-copilot-client
+deps-copilot-client: check-node-version
+	cd copilot-client && npm ci
+
+# Build copilot-client TypeScript project
+.PHONY: copilot-client
+copilot-client: deps-copilot-client
+	@echo "Building copilot-client..."
+	cd copilot-client && npm run build
+	@echo "✓ Copilot client built"
+
+# Test copilot-client
+.PHONY: test-copilot-client
+test-copilot-client: copilot-client
+	cd copilot-client && npm test
+
+# Test all code (Go, JavaScript, and copilot-client)
 .PHONY: test-all
-test-all: test test-js
+test-all: test test-js test-copilot-client
 
 # Run tests with coverage
 .PHONY: test-coverage
@@ -362,6 +397,40 @@ tools: ## Install build-time tools from tools.go
 	@grep _ tools.go | awk -F'"' '{print $$2}' | xargs -tI % go install %
 	@echo "✓ Tools installed successfully"
 
+# Install golangci-lint binary (avoiding GPL dependencies in go.mod)
+# Downloads pre-built binary from GitHub releases
+.PHONY: install-golangci-lint
+install-golangci-lint:
+	@echo "Installing golangci-lint binary..."
+	@GOLANGCI_LINT_VERSION="v2.8.0"; \
+	GOPATH=$$(go env GOPATH); \
+	GOOS=$$(go env GOOS); \
+	GOARCH=$$(go env GOARCH); \
+	BINARY_NAME="golangci-lint"; \
+	if [ "$$GOOS" = "windows" ]; then \
+		BINARY_NAME="golangci-lint.exe"; \
+	fi; \
+	if [ -x "$$GOPATH/bin/$$BINARY_NAME" ]; then \
+		INSTALLED_VERSION=$$("$$GOPATH/bin/$$BINARY_NAME" version --short 2>/dev/null || echo "unknown"); \
+		if [ "$$INSTALLED_VERSION" = "$${GOLANGCI_LINT_VERSION#v}" ]; then \
+			echo "✓ golangci-lint $$GOLANGCI_LINT_VERSION already installed"; \
+			exit 0; \
+		fi; \
+	fi; \
+	DOWNLOAD_URL="https://github.com/golangci/golangci-lint/releases/download/$$GOLANGCI_LINT_VERSION/golangci-lint-$${GOLANGCI_LINT_VERSION#v}-$$GOOS-$$GOARCH.tar.gz"; \
+	TEMP_DIR=$$(mktemp -d); \
+	trap "rm -rf $$TEMP_DIR" EXIT; \
+	echo "Downloading golangci-lint $$GOLANGCI_LINT_VERSION for $$GOOS/$$GOARCH..."; \
+	if curl -sSL "$$DOWNLOAD_URL" | tar -xz -C "$$TEMP_DIR"; then \
+		mkdir -p "$$GOPATH/bin"; \
+		mv "$$TEMP_DIR"/golangci-lint-*/$$BINARY_NAME "$$GOPATH/bin/$$BINARY_NAME"; \
+		chmod +x "$$GOPATH/bin/$$BINARY_NAME"; \
+		echo "✓ golangci-lint $$GOLANGCI_LINT_VERSION installed to $$GOPATH/bin/$$BINARY_NAME"; \
+	else \
+		echo "Error: Failed to download golangci-lint from $$DOWNLOAD_URL"; \
+		exit 1; \
+	fi
+
 # License compliance checking
 .PHONY: license-check
 license-check: ## Check dependency licenses for compliance
@@ -386,7 +455,7 @@ deps: check-node-version
 
 # Install development tools (including linter)
 .PHONY: deps-dev
-deps-dev: check-node-version deps tools download-github-actions-schema
+deps-dev: check-node-version deps tools install-golangci-lint download-github-actions-schema
 	@echo "✓ Development dependencies installed"
 
 # Download GitHub Actions workflow schema for embedded validation
@@ -600,7 +669,7 @@ sync-action-scripts:
 
 # Recompile all workflow files
 .PHONY: recompile
-recompile: build
+recompile: build copilot-client
 	./$(BINARY_NAME) init --codespaces
 	./$(BINARY_NAME) compile --validate --verbose --purge --stats
 #	./$(BINARY_NAME) compile --dir pkg/cli/workflows --validate --verbose --purge

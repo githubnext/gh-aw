@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -28,6 +29,9 @@ type PromptSection struct {
 // GitHub context, PR context, cache memory, repo memory) into one step.
 func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *WorkflowData) {
 	unifiedPromptLog.Print("Generating unified prompt step")
+
+	// Get the heredoc delimiter for consistent usage
+	delimiter := GenerateHeredocDelimiter("PROMPT")
 
 	// Collect all prompt sections in order
 	sections := c.collectPromptSections(data)
@@ -81,7 +85,7 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 		if section.ShellCondition != "" {
 			// Close heredoc if open, add conditional
 			if inHeredoc {
-				yaml.WriteString("          PROMPT_EOF\n")
+				yaml.WriteString("          " + delimiter + "\n")
 				inHeredoc = false
 			}
 			fmt.Fprintf(yaml, "          if %s; then\n", section.ShellCondition)
@@ -92,14 +96,14 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 				yaml.WriteString("            " + fmt.Sprintf("cat \"%s\" >> \"$GH_AW_PROMPT\"\n", promptPath))
 			} else {
 				// Inline content inside conditional - open heredoc, write content, close
-				yaml.WriteString("            cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
+				yaml.WriteString("            cat << '" + delimiter + "' >> \"$GH_AW_PROMPT\"\n")
 				normalizedContent := normalizeLeadingWhitespace(section.Content)
 				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
 				contentLines := strings.Split(cleanedContent, "\n")
 				for _, line := range contentLines {
 					yaml.WriteString("            " + line + "\n")
 				}
-				yaml.WriteString("            PROMPT_EOF\n")
+				yaml.WriteString("            " + delimiter + "\n")
 			}
 
 			yaml.WriteString("          fi\n")
@@ -108,7 +112,7 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 			if section.IsFile {
 				// Close heredoc if open
 				if inHeredoc {
-					yaml.WriteString("          PROMPT_EOF\n")
+					yaml.WriteString("          " + delimiter + "\n")
 					inHeredoc = false
 				}
 				// Cat the file
@@ -117,7 +121,7 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 			} else {
 				// Inline content - open heredoc if not already open
 				if !inHeredoc {
-					yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
+					yaml.WriteString("          cat << '" + delimiter + "' >> \"$GH_AW_PROMPT\"\n")
 					inHeredoc = true
 				}
 				// Write content directly to open heredoc
@@ -133,7 +137,7 @@ func (c *Compiler) generateUnifiedPromptStep(yaml *strings.Builder, data *Workfl
 
 	// Close heredoc if still open
 	if inHeredoc {
-		yaml.WriteString("          PROMPT_EOF\n")
+		yaml.WriteString("          " + delimiter + "\n")
 	}
 
 	unifiedPromptLog.Print("Unified prompt step generated successfully")
@@ -217,6 +221,17 @@ func removeConsecutiveEmptyLines(content string) string {
 func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection {
 	var sections []PromptSection
 
+	// 0. XPia instructions (unless disabled by feature flag)
+	if !isFeatureEnabled(constants.DisableXPIAPromptFeatureFlag, data) {
+		unifiedPromptLog.Print("Adding XPIA section")
+		sections = append(sections, PromptSection{
+			Content: xpiaPromptFile,
+			IsFile:  true,
+		})
+	} else {
+		unifiedPromptLog.Print("XPIA section disabled by feature flag")
+	}
+
 	// 1. Temporary folder instructions (always included)
 	unifiedPromptLog.Print("Adding temp folder section")
 	sections = append(sections, PromptSection{
@@ -280,6 +295,19 @@ The gh CLI is NOT authenticated. Do NOT use gh commands for GitHub operations.
 </important>
 <instructions>
 To create or modify GitHub resources (issues, discussions, pull requests, etc.), you MUST call the appropriate safe output tool. Simply writing content will NOT work - the workflow requires actual tool calls.
+
+Temporary IDs: Some safe output tools support a temporary ID field (usually named temporary_id) so you can reference newly-created items elsewhere in the SAME agent output (for example, using #aw_abc1 in a later body). 
+
+**IMPORTANT - temporary_id format rules:**
+- If you DON'T need to reference the item later, OMIT the temporary_id field entirely (it will be auto-generated if needed)
+- If you DO need cross-references/chaining, you MUST match this EXACT validation regex: /^aw_[A-Za-z0-9]{3,8}$/i
+- Format: aw_ prefix followed by 3 to 8 alphanumeric characters (A-Z, a-z, 0-9, case-insensitive)
+- Valid alphanumeric characters: ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
+- INVALID examples: aw_ab (too short), aw_123456789 (too long), aw_test-id (contains hyphen), aw_id_123 (contains underscore)
+- VALID examples: aw_abc, aw_abc1, aw_Test123, aw_A1B2C3D4, aw_12345678
+- To generate valid IDs: use 3-8 random alphanumeric characters or omit the field to let the system auto-generate
+
+Do NOT invent other aw_* formats — downstream steps will reject them with validation errors matching against /^aw_[A-Za-z0-9]{3,8}$/i.
 
 Discover available tools from the safeoutputs MCP server.
 
@@ -356,9 +384,13 @@ Discover available tools from the safeoutputs MCP server.
 // 2. User prompt content from markdown - APPENDED
 //
 // The function handles chunking for large content and ensures proper environment variable handling.
-func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, builtinSections []PromptSection, userPromptChunks []string, expressionMappings []*ExpressionMapping, data *WorkflowData) {
+// Returns the combined expression mappings for use in the placeholder substitution step.
+func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, builtinSections []PromptSection, userPromptChunks []string, expressionMappings []*ExpressionMapping, data *WorkflowData) []*ExpressionMapping {
 	unifiedPromptLog.Print("Generating unified prompt creation step")
 	unifiedPromptLog.Printf("Built-in sections: %d, User prompt chunks: %d", len(builtinSections), len(userPromptChunks))
+
+	// Get the heredoc delimiter for consistent usage
+	delimiter := GenerateHeredocDelimiter("PROMPT")
 
 	// Collect all environment variables from built-in sections and user prompt expressions
 	allEnvVars := make(map[string]string)
@@ -446,13 +478,13 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	if len(builtinSections) > 0 {
 		// Open system tag for built-in prompts
 		if isFirstContent {
-			yaml.WriteString("          cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"\n")
+			yaml.WriteString("          cat << '" + delimiter + "' > \"$GH_AW_PROMPT\"\n")
 			isFirstContent = false
 		} else {
-			yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
+			yaml.WriteString("          cat << '" + delimiter + "' >> \"$GH_AW_PROMPT\"\n")
 		}
 		yaml.WriteString("          <system>\n")
-		yaml.WriteString("          PROMPT_EOF\n")
+		yaml.WriteString("          " + delimiter + "\n")
 	}
 
 	for i, section := range builtinSections {
@@ -462,7 +494,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 		if section.ShellCondition != "" {
 			// Close heredoc if open, add conditional
 			if inHeredoc {
-				yaml.WriteString("          PROMPT_EOF\n")
+				yaml.WriteString("          " + delimiter + "\n")
 				inHeredoc = false
 			}
 			fmt.Fprintf(yaml, "          if %s; then\n", section.ShellCondition)
@@ -479,10 +511,10 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 			} else {
 				// Inline content inside conditional - open heredoc, write content, close
 				if isFirstContent {
-					yaml.WriteString("            cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"\n")
+					yaml.WriteString("            cat << '" + delimiter + "' > \"$GH_AW_PROMPT\"\n")
 					isFirstContent = false
 				} else {
-					yaml.WriteString("            cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
+					yaml.WriteString("            cat << '" + delimiter + "' >> \"$GH_AW_PROMPT\"\n")
 				}
 				normalizedContent := normalizeLeadingWhitespace(section.Content)
 				cleanedContent := removeConsecutiveEmptyLines(normalizedContent)
@@ -490,7 +522,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 				for _, line := range contentLines {
 					yaml.WriteString("            " + line + "\n")
 				}
-				yaml.WriteString("            PROMPT_EOF\n")
+				yaml.WriteString("            " + delimiter + "\n")
 			}
 
 			yaml.WriteString("          fi\n")
@@ -499,7 +531,7 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 			if section.IsFile {
 				// Close heredoc if open
 				if inHeredoc {
-					yaml.WriteString("          PROMPT_EOF\n")
+					yaml.WriteString("          " + delimiter + "\n")
 					inHeredoc = false
 				}
 				// Cat the file
@@ -514,10 +546,10 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 				// Inline content - open heredoc if not already open
 				if !inHeredoc {
 					if isFirstContent {
-						yaml.WriteString("          cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"\n")
+						yaml.WriteString("          cat << '" + delimiter + "' > \"$GH_AW_PROMPT\"\n")
 						isFirstContent = false
 					} else {
-						yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
+						yaml.WriteString("          cat << '" + delimiter + "' >> \"$GH_AW_PROMPT\"\n")
 					}
 					inHeredoc = true
 				}
@@ -536,12 +568,12 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 	if len(builtinSections) > 0 {
 		// Close heredoc if open
 		if inHeredoc {
-			yaml.WriteString("          PROMPT_EOF\n")
+			yaml.WriteString("          " + delimiter + "\n")
 			inHeredoc = false
 		}
-		yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
+		yaml.WriteString("          cat << '" + delimiter + "' >> \"$GH_AW_PROMPT\"\n")
 		yaml.WriteString("          </system>\n")
-		yaml.WriteString("          PROMPT_EOF\n")
+		yaml.WriteString("          " + delimiter + "\n")
 	}
 
 	// 2. Write user prompt chunks (appended after built-in sections)
@@ -555,35 +587,35 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 
 			// Close heredoc if open before writing runtime-import macro
 			if inHeredoc {
-				yaml.WriteString("          PROMPT_EOF\n")
+				yaml.WriteString("          " + delimiter + "\n")
 				inHeredoc = false
 			}
 
 			// Write the macro directly with proper indentation
 			// Write the macro using a heredoc to avoid potential escaping issues
 			if isFirstContent {
-				yaml.WriteString("          cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"\n")
+				yaml.WriteString("          cat << '" + delimiter + "' > \"$GH_AW_PROMPT\"\n")
 				isFirstContent = false
 			} else {
-				yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
+				yaml.WriteString("          cat << '" + delimiter + "' >> \"$GH_AW_PROMPT\"\n")
 			}
 			yaml.WriteString("          " + chunk + "\n")
-			yaml.WriteString("          PROMPT_EOF\n")
+			yaml.WriteString("          " + delimiter + "\n")
 			continue
 		}
 
 		// Regular chunk - close heredoc if open before starting new chunk
 		if inHeredoc {
-			yaml.WriteString("          PROMPT_EOF\n")
+			yaml.WriteString("          " + delimiter + "\n")
 			inHeredoc = false
 		}
 
 		// Each user prompt chunk is written as a separate heredoc append
 		if isFirstContent {
-			yaml.WriteString("          cat << 'PROMPT_EOF' > \"$GH_AW_PROMPT\"\n")
+			yaml.WriteString("          cat << '" + delimiter + "' > \"$GH_AW_PROMPT\"\n")
 			isFirstContent = false
 		} else {
-			yaml.WriteString("          cat << 'PROMPT_EOF' >> \"$GH_AW_PROMPT\"\n")
+			yaml.WriteString("          cat << '" + delimiter + "' >> \"$GH_AW_PROMPT\"\n")
 		}
 
 		lines := strings.Split(chunk, "\n")
@@ -592,19 +624,17 @@ func (c *Compiler) generateUnifiedPromptCreationStep(yaml *strings.Builder, buil
 			yaml.WriteString(line)
 			yaml.WriteByte('\n')
 		}
-		yaml.WriteString("          PROMPT_EOF\n")
+		yaml.WriteString("          " + delimiter + "\n")
 	}
 
 	// Close heredoc if still open
 	if inHeredoc {
-		yaml.WriteString("          PROMPT_EOF\n")
-	}
-
-	// Generate JavaScript-based placeholder substitution step (replaces multiple sed calls)
-	// This handles both built-in section expressions and user prompt expressions
-	if len(allExpressionMappings) > 0 {
-		generatePlaceholderSubstitutionStep(yaml, allExpressionMappings, "      ")
+		yaml.WriteString("          " + delimiter + "\n")
 	}
 
 	unifiedPromptLog.Print("Unified prompt creation step generated successfully")
+
+	// Return all expression mappings for use in the placeholder substitution step
+	// This allows the substitution to happen AFTER runtime-import processing
+	return allExpressionMappings
 }

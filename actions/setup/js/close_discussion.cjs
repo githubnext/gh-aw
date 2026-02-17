@@ -6,6 +6,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 /**
  * Get discussion details using GraphQL with pagination for labels
@@ -13,7 +14,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} discussionNumber - Discussion number
- * @returns {Promise<{id: string, title: string, category: {name: string}, labels: {nodes: Array<{name: string}>}, url: string}>} Discussion details
+ * @returns {Promise<{id: string, title: string, closed: boolean, category: {name: string}, labels: {nodes: Array<{name: string}>}, url: string}>} Discussion details
  */
 async function getDiscussionDetails(github, owner, repo, discussionNumber) {
   // Fetch all labels with pagination
@@ -30,6 +31,7 @@ async function getDiscussionDetails(github, owner, repo, discussionNumber) {
           discussion(number: $num) {
             id
             title
+            closed
             category {
               name
             }
@@ -58,6 +60,7 @@ async function getDiscussionDetails(github, owner, repo, discussionNumber) {
       discussion = {
         id: query.repository.discussion.id,
         title: query.repository.discussion.title,
+        closed: query.repository.discussion.closed,
         category: query.repository.discussion.category,
         url: query.repository.discussion.url,
       };
@@ -77,6 +80,7 @@ async function getDiscussionDetails(github, owner, repo, discussionNumber) {
   return {
     id: discussion.id,
     title: discussion.title,
+    closed: discussion.closed,
     category: discussion.category,
     url: discussion.url,
     labels: {
@@ -153,6 +157,9 @@ async function main(config = {}) {
   const requiredLabels = config.required_labels || [];
   const requiredTitlePrefix = config.required_title_prefix || "";
   const maxCount = config.max || 10;
+
+  // Check if we're in staged mode
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   core.info(`Close discussion configuration: max=${maxCount}`);
   if (requiredLabels.length > 0) {
@@ -235,25 +242,51 @@ async function main(config = {}) {
         };
       }
 
+      // Check if already closed - but still add comment
+      const wasAlreadyClosed = discussion.closed;
+      if (wasAlreadyClosed) {
+        core.info(`Discussion #${discussionNumber} is already closed, but will still add comment`);
+      }
+
+      // If in staged mode, preview the close without executing it
+      if (isStaged) {
+        core.info(`Staged mode: Would close discussion #${discussionNumber}`);
+        return {
+          success: true,
+          staged: true,
+          previewInfo: {
+            number: discussionNumber,
+            alreadyClosed: wasAlreadyClosed,
+            hasComment: !!item.body,
+          },
+        };
+      }
+
       // Add comment if body is provided
       let commentUrl;
       if (item.body) {
-        const comment = await addDiscussionComment(github, discussion.id, item.body);
+        const sanitizedBody = sanitizeContent(item.body);
+        const comment = await addDiscussionComment(github, discussion.id, sanitizedBody);
         core.info(`Added comment to discussion #${discussionNumber}: ${comment.url}`);
         commentUrl = comment.url;
       }
 
-      // Close the discussion
-      const reason = item.reason || undefined;
-      core.info(`Closing discussion #${discussionNumber} with reason: ${reason || "none"}`);
-      const closedDiscussion = await closeDiscussion(github, discussion.id, reason);
-      core.info(`Closed discussion #${discussionNumber}: ${closedDiscussion.url}`);
+      // Close the discussion if not already closed
+      if (wasAlreadyClosed) {
+        core.info(`Discussion #${discussionNumber} was already closed, comment added`);
+      } else {
+        const reason = item.reason || undefined;
+        core.info(`Closing discussion #${discussionNumber} with reason: ${reason || "none"}`);
+        const closedDiscussion = await closeDiscussion(github, discussion.id, reason);
+        core.info(`Closed discussion #${discussionNumber}: ${closedDiscussion.url}`);
+      }
 
       return {
         success: true,
         number: discussionNumber,
         url: discussion.url,
         commentUrl: commentUrl,
+        alreadyClosed: wasAlreadyClosed,
       };
     } catch (error) {
       const errorMessage = getErrorMessage(error);

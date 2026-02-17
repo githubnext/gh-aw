@@ -24,6 +24,10 @@ const createTestableFunction = scriptContent => {
         },
       };
     }
+    if (module === "./sanitize_content.cjs") {
+      // Mock sanitizeContent to return input as-is for testing
+      return { sanitizeContent: content => content };
+    }
     throw new Error(`Module ${module} not mocked in test`);
   };
   return new Function(`\n    const { github, core, context, process } = arguments[0];\n    const require = ${mockRequire.toString()};\n    \n    ${scriptBody}\n    \n    return { updateActivationComment };\n  `);

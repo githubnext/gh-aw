@@ -55,6 +55,7 @@
     "oneocsp.microsoft.com"
   ],
   "dart": ["pub.dev", "pub.dartlang.org"],
+  "fonts": ["fonts.googleapis.com", "fonts.gstatic.com"],
   "github": [
     "*.githubusercontent.com",
     "raw.githubusercontent.com",
@@ -65,7 +66,7 @@
     "codeload.github.com",
     "github.githubassets.com"
   ],
-  "go": ["go.dev", "golang.org", "proxy.golang.org", "sum.golang.org", "pkg.go.dev", "goproxy.io"],
+  "go": ["go.dev", "golang.org", "proxy.golang.org", "sum.golang.org", "pkg.go.dev", "goproxy.io", "storage.googleapis.com"],
   "terraform": ["releases.hashicorp.com", "apt.releases.hashicorp.com", "yum.releases.hashicorp.com", "registry.terraform.io"],
   "haskell": ["haskell.org", "*.hackage.haskell.org", "get-ghcup.haskell.org", "downloads.haskell.org"],
   "java": [
@@ -134,6 +135,7 @@
     "*.jsr.io",
     "registry.bower.io"
   ],
+  "node-cdns": ["cdn.jsdelivr.net"],
   "perl": ["cpan.org", "www.cpan.org", "metacpan.org", "cpan.metacpan.org"],
   "php": ["repo.packagist.org", "packagist.org", "getcomposer.org"],
   "playwright": ["playwright.download.prss.microsoft.com", "cdn.playwright.dev"],

@@ -83,7 +83,7 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 	}
 
 	// Collect AWF (firewall) container images when firewall is enabled
-	// AWF uses two containers: squid (proxy) and agent
+	// AWF uses three containers: squid (proxy), agent, and api-proxy (for engines with LLM gateway support)
 	if isFirewallEnabled(workflowData) {
 		// Get the firewall version for image tags
 		firewallConfig := getFirewallConfig(workflowData)
@@ -103,6 +103,23 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData, actio
 			images = append(images, agentImage)
 			imageSet[agentImage] = true
 			dockerLog.Printf("Added AWF agent container: %s", agentImage)
+		}
+
+		// Add api-proxy sidecar container for engines that support LLM gateway
+		// The api-proxy holds LLM API keys securely and proxies requests through Squid
+		// Each engine uses its own dedicated port for communication
+		// Check if the engine supports LLM gateway by querying the engine registry
+		if workflowData != nil && workflowData.AI != "" {
+			registry := GetGlobalEngineRegistry()
+			engine, err := registry.GetEngine(workflowData.AI)
+			if err == nil && engine.SupportsLLMGateway() > 0 {
+				apiProxyImage := constants.DefaultFirewallRegistry + "/api-proxy:" + awfImageTag
+				if !imageSet[apiProxyImage] {
+					images = append(images, apiProxyImage)
+					imageSet[apiProxyImage] = true
+					dockerLog.Printf("Added AWF api-proxy sidecar container for engine with LLM gateway support: %s", apiProxyImage)
+				}
+			}
 		}
 	}
 

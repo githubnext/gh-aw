@@ -881,7 +881,7 @@ func TestCompilerIsSandboxEnabled(t *testing.T) {
 			name: "sandbox SRT enabled via ID",
 			sandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
-					ID: "srt",
+					ID: "awf",
 				},
 			},
 			expected: true,
@@ -890,7 +890,7 @@ func TestCompilerIsSandboxEnabled(t *testing.T) {
 			name: "sandbox SRT enabled via Type (legacy)",
 			sandboxConfig: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
-					Type: SandboxTypeSRT,
+					Type: SandboxTypeAWF,
 				},
 			},
 			expected: true,
@@ -907,14 +907,14 @@ func TestCompilerIsSandboxEnabled(t *testing.T) {
 		{
 			name: "legacy type field SRT",
 			sandboxConfig: &SandboxConfig{
-				Type: SandboxTypeSRT,
+				Type: SandboxTypeAWF,
 			},
 			expected: true,
 		},
 		{
 			name: "legacy type field runtime",
 			sandboxConfig: &SandboxConfig{
-				Type: SandboxTypeRuntime,
+				Type: SandboxTypeAWF,
 			},
 			expected: true,
 		},
@@ -1403,10 +1403,10 @@ func TestCompilerIsSandboxEnabledPrecedence(t *testing.T) {
 	config := &SandboxConfig{
 		Agent: &AgentSandboxConfig{
 			ID:       "awf",
-			Type:     SandboxTypeSRT,
+			Type:     SandboxTypeAWF,
 			Disabled: true,
 		},
-		Type: SandboxTypeSRT,
+		Type: SandboxTypeAWF,
 	}
 	networkPerms := &NetworkPermissions{
 		Firewall: &FirewallConfig{Enabled: true},

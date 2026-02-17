@@ -18,10 +18,12 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -41,14 +43,15 @@ type RepoMemoryConfig struct {
 
 // RepoMemoryEntry represents a single repo-memory configuration
 type RepoMemoryEntry struct {
-	ID           string   `yaml:"id"`                       // memory identifier (required for array notation)
-	TargetRepo   string   `yaml:"target-repo,omitempty"`    // target repository (default: current repo)
-	BranchName   string   `yaml:"branch-name,omitempty"`    // branch name (default: memory/{memory-id})
-	FileGlob     []string `yaml:"file-glob,omitempty"`      // file glob patterns for allowed files
-	MaxFileSize  int      `yaml:"max-file-size,omitempty"`  // maximum size per file in bytes (default: 10KB)
-	MaxFileCount int      `yaml:"max-file-count,omitempty"` // maximum file count per commit (default: 100)
-	Description  string   `yaml:"description,omitempty"`    // optional description for this memory
-	CreateOrphan bool     `yaml:"create-orphan,omitempty"`  // create orphaned branch if missing (default: true)
+	ID                string   `yaml:"id"`                           // memory identifier (required for array notation)
+	TargetRepo        string   `yaml:"target-repo,omitempty"`        // target repository (default: current repo)
+	BranchName        string   `yaml:"branch-name,omitempty"`        // branch name (default: memory/{memory-id})
+	FileGlob          []string `yaml:"file-glob,omitempty"`          // file glob patterns for allowed files
+	MaxFileSize       int      `yaml:"max-file-size,omitempty"`      // maximum size per file in bytes (default: 10KB)
+	MaxFileCount      int      `yaml:"max-file-count,omitempty"`     // maximum file count per commit (default: 100)
+	Description       string   `yaml:"description,omitempty"`        // optional description for this memory
+	CreateOrphan      bool     `yaml:"create-orphan,omitempty"`      // create orphaned branch if missing (default: true)
+	AllowedExtensions []string `yaml:"allowed-extensions,omitempty"` // allowed file extensions (default: [".json", ".jsonl", ".txt", ".md", ".csv"])
 }
 
 // RepoMemoryToolConfig represents the configuration for repo-memory in tools
@@ -112,11 +115,12 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 		repoMemoryLog.Print("Using default repo-memory configuration (nil value)")
 		config.Memories = []RepoMemoryEntry{
 			{
-				ID:           "default",
-				BranchName:   generateDefaultBranchName("default", config.BranchPrefix),
-				MaxFileSize:  10240, // 10KB
-				MaxFileCount: 100,
-				CreateOrphan: true,
+				ID:                "default",
+				BranchName:        generateDefaultBranchName("default", config.BranchPrefix),
+				MaxFileSize:       10240, // 10KB
+				MaxFileCount:      100,
+				CreateOrphan:      true,
+				AllowedExtensions: constants.DefaultAllowedMemoryExtensions,
 			},
 		}
 		return config, nil
@@ -129,11 +133,12 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 			// Create a single default memory entry
 			config.Memories = []RepoMemoryEntry{
 				{
-					ID:           "default",
-					BranchName:   generateDefaultBranchName("default", config.BranchPrefix),
-					MaxFileSize:  10240, // 10KB
-					MaxFileCount: 100,
-					CreateOrphan: true,
+					ID:                "default",
+					BranchName:        generateDefaultBranchName("default", config.BranchPrefix),
+					MaxFileSize:       10240, // 10KB
+					MaxFileCount:      100,
+					CreateOrphan:      true,
+					AllowedExtensions: constants.DefaultAllowedMemoryExtensions,
 				},
 			}
 		} else {
@@ -260,6 +265,22 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 					}
 				}
 
+				// Parse allowed-extensions field
+				if allowedExts, exists := memoryMap["allowed-extensions"]; exists {
+					if extArray, ok := allowedExts.([]any); ok {
+						entry.AllowedExtensions = make([]string, 0, len(extArray))
+						for _, ext := range extArray {
+							if extStr, ok := ext.(string); ok {
+								entry.AllowedExtensions = append(entry.AllowedExtensions, extStr)
+							}
+						}
+					}
+				}
+				// Default to standard allowed extensions if not specified
+				if len(entry.AllowedExtensions) == 0 {
+					entry.AllowedExtensions = constants.DefaultAllowedMemoryExtensions
+				}
+
 				config.Memories = append(config.Memories, entry)
 			}
 		}
@@ -369,6 +390,22 @@ func (c *Compiler) extractRepoMemoryConfig(toolsConfig *ToolsConfig) (*RepoMemor
 			}
 		}
 
+		// Parse allowed-extensions field
+		if allowedExts, exists := configMap["allowed-extensions"]; exists {
+			if extArray, ok := allowedExts.([]any); ok {
+				entry.AllowedExtensions = make([]string, 0, len(extArray))
+				for _, ext := range extArray {
+					if extStr, ok := ext.(string); ok {
+						entry.AllowedExtensions = append(entry.AllowedExtensions, extStr)
+					}
+				}
+			}
+		}
+		// Default to standard allowed extensions if not specified
+		if len(entry.AllowedExtensions) == 0 {
+			entry.AllowedExtensions = constants.DefaultAllowedMemoryExtensions
+		}
+
 		config.Memories = []RepoMemoryEntry{entry}
 		return config, nil
 	}
@@ -403,12 +440,15 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 		// Determine the memory directory
 		memoryDir := fmt.Sprintf("/tmp/gh-aw/repo-memory/%s", memory.ID)
 
+		// Sanitize memory ID for artifact naming (remove hyphens, lowercase)
+		sanitizedID := SanitizeWorkflowIDForCacheKey(memory.ID)
+
 		// Step: Upload repo-memory directory as artifact
 		fmt.Fprintf(builder, "      - name: Upload repo-memory artifact (%s)\n", memory.ID)
 		builder.WriteString("        if: always()\n")
 		fmt.Fprintf(builder, "        uses: %s\n", GetActionPin("actions/upload-artifact"))
 		builder.WriteString("        with:\n")
-		fmt.Fprintf(builder, "          name: repo-memory-%s\n", memory.ID)
+		fmt.Fprintf(builder, "          name: repo-memory-%s\n", sanitizedID)
 		fmt.Fprintf(builder, "          path: %s\n", memoryDir)
 		builder.WriteString("          retention-days: 1\n")
 		builder.WriteString("          if-no-files-found: ignore\n")
@@ -441,9 +481,13 @@ func generateRepoMemoryPushSteps(builder *strings.Builder, data *WorkflowData) {
 		builder.WriteString("        if: always()\n")
 		builder.WriteString("        env:\n")
 		builder.WriteString("          GH_TOKEN: ${{ github.token }}\n")
+		builder.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
 		builder.WriteString("        run: |\n")
 		builder.WriteString("          set -e\n")
 		fmt.Fprintf(builder, "          cd \"%s\" || exit 0\n", memoryDir)
+		builder.WriteString("          \n")
+		builder.WriteString("          # Extract host from server URL (remove https:// prefix)\n")
+		builder.WriteString("          SERVER_HOST=\"${GITHUB_SERVER_URL#https://}\"\n")
 		builder.WriteString("          \n")
 		builder.WriteString("          # Check if we have any changes to commit\n")
 		builder.WriteString("          if [ -n \"$(git status --porcelain)\" ]; then\n")
@@ -483,13 +527,13 @@ func generateRepoMemoryPushSteps(builder *strings.Builder, data *WorkflowData) {
 		builder.WriteString("            \n")
 		builder.WriteString("            # Pull with ours merge strategy (our changes win in conflicts)\n")
 		builder.WriteString("            set +e\n")
-		fmt.Fprintf(builder, "            git pull --no-rebase -s recursive -X ours \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\" \"%s\" 2>&1\n",
+		fmt.Fprintf(builder, "            git pull --no-rebase -s recursive -X ours \"https://x-access-token:${GH_TOKEN}@${SERVER_HOST}/%s.git\" \"%s\" 2>&1\n",
 			targetRepo, memory.BranchName)
 		builder.WriteString("            PULL_EXIT_CODE=$?\n")
 		builder.WriteString("            set -e\n")
 		builder.WriteString("            \n")
 		builder.WriteString("            # Push changes (force push if needed due to conflict resolution)\n")
-		fmt.Fprintf(builder, "            git push \"https://x-access-token:${GH_TOKEN}@github.com/%s.git\" \"HEAD:%s\"\n",
+		fmt.Fprintf(builder, "            git push \"https://x-access-token:${GH_TOKEN}@${SERVER_HOST}/%s.git\" \"HEAD:%s\"\n",
 			targetRepo, memory.BranchName)
 		builder.WriteString("            \n")
 		builder.WriteString("            echo \"Successfully pushed changes to repo memory\"\n")
@@ -523,6 +567,7 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		fmt.Fprintf(builder, "      - name: Clone repo-memory branch (%s)\n", memory.ID)
 		builder.WriteString("        env:\n")
 		builder.WriteString("          GH_TOKEN: ${{ github.token }}\n")
+		builder.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
 		fmt.Fprintf(builder, "          BRANCH_NAME: %s\n", memory.BranchName)
 		fmt.Fprintf(builder, "          TARGET_REPO: %s\n", targetRepo)
 		fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
@@ -569,13 +614,16 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 
 	// Build steps as complete YAML strings
 	for _, memory := range data.RepoMemoryConfig.Memories {
+		// Sanitize memory ID for artifact naming (remove hyphens, lowercase)
+		sanitizedID := SanitizeWorkflowIDForCacheKey(memory.ID)
+
 		// Download artifact step
 		var step strings.Builder
 		fmt.Fprintf(&step, "      - name: Download repo-memory artifact (%s)\n", memory.ID)
 		fmt.Fprintf(&step, "        uses: %s\n", GetActionPin("actions/download-artifact"))
 		step.WriteString("        continue-on-error: true\n")
 		step.WriteString("        with:\n")
-		fmt.Fprintf(&step, "          name: repo-memory-%s\n", memory.ID)
+		fmt.Fprintf(&step, "          name: repo-memory-%s\n", sanitizedID)
 		fmt.Fprintf(&step, "          path: /tmp/gh-aw/repo-memory/%s\n", memory.ID)
 		steps = append(steps, step.String())
 	}
@@ -601,17 +649,22 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		// Build step with github-script action
 		var step strings.Builder
 		fmt.Fprintf(&step, "      - name: Push repo-memory changes (%s)\n", memory.ID)
+		fmt.Fprintf(&step, "        id: push_repo_memory_%s\n", memory.ID)
 		step.WriteString("        if: always()\n")
 		fmt.Fprintf(&step, "        uses: %s\n", GetActionPin("actions/github-script"))
 		step.WriteString("        env:\n")
 		step.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 		step.WriteString("          GITHUB_RUN_ID: ${{ github.run_id }}\n")
+		step.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
 		fmt.Fprintf(&step, "          ARTIFACT_DIR: %s\n", artifactDir)
 		fmt.Fprintf(&step, "          MEMORY_ID: %s\n", memory.ID)
 		fmt.Fprintf(&step, "          TARGET_REPO: %s\n", targetRepo)
 		fmt.Fprintf(&step, "          BRANCH_NAME: %s\n", memory.BranchName)
 		fmt.Fprintf(&step, "          MAX_FILE_SIZE: %d\n", memory.MaxFileSize)
 		fmt.Fprintf(&step, "          MAX_FILE_COUNT: %d\n", memory.MaxFileCount)
+		// Pass allowed extensions as JSON array
+		allowedExtsJSON, _ := json.Marshal(memory.AllowedExtensions)
+		fmt.Fprintf(&step, "          ALLOWED_EXTENSIONS: '%s'\n", allowedExtsJSON)
 		if fileGlobFilter != "" {
 			// Quote the value to prevent YAML alias interpretation of patterns like *.md
 			fmt.Fprintf(&step, "          FILE_GLOB_FILTER: \"%s\"\n", fileGlobFilter)
@@ -647,6 +700,15 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		jobCondition = "always() && needs.detection.outputs.success == 'true'"
 	}
 
+	// Build outputs map for validation failures from all memory steps
+	outputs := make(map[string]string)
+	for _, memory := range data.RepoMemoryConfig.Memories {
+		stepID := fmt.Sprintf("push_repo_memory_%s", memory.ID)
+		// Add outputs for each memory's validation status
+		outputs[fmt.Sprintf("validation_failed_%s", memory.ID)] = fmt.Sprintf("${{ steps.%s.outputs.validation_failed }}", stepID)
+		outputs[fmt.Sprintf("validation_error_%s", memory.ID)] = fmt.Sprintf("${{ steps.%s.outputs.validation_error }}", stepID)
+	}
+
 	job := &Job{
 		Name:        "push_repo_memory",
 		DisplayName: "", // No display name - job ID is sufficient
@@ -655,6 +717,7 @@ func (c *Compiler) buildPushRepoMemoryJob(data *WorkflowData, threatDetectionEna
 		Permissions: "permissions:\n      contents: write",
 		Needs:       []string{"agent"}, // Detection dependency added by caller if needed
 		Steps:       steps,
+		Outputs:     outputs,
 	}
 
 	return job, nil

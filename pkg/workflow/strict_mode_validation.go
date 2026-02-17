@@ -178,6 +178,39 @@ func (c *Compiler) validateStrictTools(frontmatter map[string]any) error {
 		}
 	}
 
+	// Check if cache-memory is configured with scope: repo
+	cacheMemoryValue, hasCacheMemory := toolsMap["cache-memory"]
+	if hasCacheMemory {
+		// Helper function to check scope in a cache entry
+		checkScope := func(cacheMap map[string]any) error {
+			if scope, hasScope := cacheMap["scope"]; hasScope {
+				if scopeStr, ok := scope.(string); ok && scopeStr == "repo" {
+					strictModeValidationLog.Printf("Cache-memory repo scope validation failed")
+					return fmt.Errorf("strict mode: cache-memory with 'scope: repo' is not allowed for security reasons. Repo scope allows cache sharing across all workflows in the repository, which can enable cross-workflow cache poisoning attacks. Use 'scope: workflow' (default) instead, which isolates caches to individual workflows. See: https://github.github.com/gh-aw/reference/tools/#cache-memory")
+				}
+			}
+			return nil
+		}
+
+		// Check if cache-memory is a map (object notation)
+		if cacheMemoryConfig, ok := cacheMemoryValue.(map[string]any); ok {
+			if err := checkScope(cacheMemoryConfig); err != nil {
+				return err
+			}
+		}
+
+		// Check if cache-memory is an array (array notation)
+		if cacheMemoryArray, ok := cacheMemoryValue.([]any); ok {
+			for _, item := range cacheMemoryArray {
+				if cacheMap, ok := item.(map[string]any); ok {
+					if err := checkScope(cacheMap); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -278,41 +311,108 @@ func (c *Compiler) validateStrictMode(frontmatter map[string]any, networkPermiss
 }
 
 // validateStrictFirewall requires firewall to be enabled in strict mode for copilot and codex engines
-// when network domains are provided (non-wildcard)
+// when network domains are provided (non-wildcard).
+// In strict mode, ALL engines (regardless of LLM gateway support) require that network domains
+// must be defaults or from known ecosystems, and sandbox.agent must be enabled.
 func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *NetworkPermissions, sandboxConfig *SandboxConfig) error {
 	if !c.strictMode {
 		strictModeValidationLog.Printf("Strict mode disabled, skipping firewall validation")
 		return nil
 	}
 
-	// Check if sandbox: false or sandbox.agent: false is set (explicitly disabled)
-	// In strict mode, this is not allowed for any engine as it disables the agent sandbox
-	if sandboxConfig != nil && sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled {
-		strictModeValidationLog.Printf("sandbox: false is set, refusing in strict mode")
-		return fmt.Errorf("strict mode: 'sandbox: false' is not allowed because it disables all sandbox features including the firewall and gateway. This removes important security protections. Remove 'sandbox: false' or set 'strict: false' to disable strict mode. See: https://github.github.com/gh-aw/reference/sandbox/")
+	// Get the engine instance to check LLM gateway support
+	agenticEngine, err := c.engineRegistry.GetEngine(engineID)
+	if err != nil {
+		strictModeValidationLog.Printf("Failed to get engine: %v", err)
+		return fmt.Errorf("internal error: failed to get engine '%s': %w", engineID, err)
 	}
 
-	// Only apply to copilot and codex engines
+	// Check if engine supports LLM gateway
+	llmGatewayPort := agenticEngine.SupportsLLMGateway()
+	strictModeValidationLog.Printf("Engine '%s' LLM gateway port: %d", engineID, llmGatewayPort)
+
+	// Check if sandbox.agent: false is set (explicitly disabled)
+	sandboxAgentDisabled := sandboxConfig != nil && sandboxConfig.Agent != nil && sandboxConfig.Agent.Disabled
+
+	// In strict mode, sandbox.agent: false is not allowed for any engine as it disables the agent sandbox firewall
+	if sandboxAgentDisabled {
+		strictModeValidationLog.Printf("sandbox.agent: false is set, refusing in strict mode")
+		// For engines without LLM gateway support, provide more specific error message
+		if llmGatewayPort < 0 {
+			return fmt.Errorf("strict mode: engine '%s' does not support LLM gateway and requires 'sandbox.agent' to be enabled for security. Remove 'sandbox.agent: false' or set 'strict: false'. See: https://github.github.com/gh-aw/reference/sandbox/", engineID)
+		}
+		return fmt.Errorf("strict mode: 'sandbox.agent: false' is not allowed because it disables the agent sandbox firewall. This removes important security protections. Remove 'sandbox.agent: false' or set 'strict: false' to disable strict mode. See: https://github.github.com/gh-aw/reference/sandbox/")
+	}
+
+	// In strict mode, ALL engines must use network domains from known ecosystems (not custom domains)
+	// This applies regardless of LLM gateway support
+	if networkPermissions != nil && len(networkPermissions.Allowed) > 0 {
+		strictModeValidationLog.Printf("Validating network domains in strict mode for all engines")
+
+		// Check if allowed domains contain only known ecosystem identifiers
+		// Track domains that are not ecosystem identifiers (both individual ecosystem domains and truly custom domains)
+		type domainSuggestion struct {
+			domain    string
+			ecosystem string // empty if no ecosystem found, non-empty if domain belongs to known ecosystem
+		}
+		var invalidDomains []domainSuggestion
+
+		for _, domain := range networkPermissions.Allowed {
+			// Skip wildcards (handled below)
+			if domain == "*" {
+				continue
+			}
+
+			// Check if this is a known ecosystem identifier
+			ecosystemDomains := getEcosystemDomains(domain)
+			if len(ecosystemDomains) > 0 {
+				// This is a known ecosystem identifier - allowed in strict mode
+				strictModeValidationLog.Printf("Domain '%s' is a known ecosystem identifier", domain)
+				continue
+			}
+
+			// Not an ecosystem identifier - check if it belongs to any ecosystem
+			ecosystem := GetDomainEcosystem(domain)
+			// Add to invalid domains (with or without ecosystem suggestion)
+			strictModeValidationLog.Printf("Domain '%s' ecosystem: '%s'", domain, ecosystem)
+			invalidDomains = append(invalidDomains, domainSuggestion{domain: domain, ecosystem: ecosystem})
+		}
+
+		if len(invalidDomains) > 0 {
+			strictModeValidationLog.Printf("Engine '%s' has invalid domains in strict mode, failing validation", engineID)
+
+			// Build error message with ecosystem suggestions
+			errorMsg := "strict mode: network domains must be from known ecosystems (e.g., 'defaults', 'python', 'node') for all engines in strict mode. Custom domains are not allowed for security."
+
+			// Add suggestions for domains that belong to known ecosystems
+			var suggestions []string
+			for _, ds := range invalidDomains {
+				if ds.ecosystem != "" {
+					suggestions = append(suggestions, fmt.Sprintf("'%s' belongs to ecosystem '%s'", ds.domain, ds.ecosystem))
+				}
+			}
+
+			if len(suggestions) > 0 {
+				errorMsg += " Did you mean: " + strings.Join(suggestions, ", ") + "?"
+			}
+
+			errorMsg += " Set 'strict: false' to use custom domains. See: https://github.github.com/gh-aw/reference/network/"
+
+			return fmt.Errorf("%s", errorMsg)
+		}
+	}
+
+	// Only apply firewall validation to copilot and codex engines
 	if engineID != "copilot" && engineID != "codex" {
 		strictModeValidationLog.Printf("Engine '%s' does not support firewall, skipping firewall validation", engineID)
 		return nil
 	}
 
-	// Check if SRT is enabled (SRT and AWF are mutually exclusive)
-	if sandboxConfig != nil {
-		// Check legacy Type field
-		if sandboxConfig.Type == SandboxTypeRuntime {
-			strictModeValidationLog.Printf("SRT sandbox is enabled (via Type), skipping firewall validation")
-			return nil
-		}
-		// Check new Agent field
-		if sandboxConfig.Agent != nil {
-			agentType := getAgentType(sandboxConfig.Agent)
-			if agentType == SandboxTypeRuntime || agentType == SandboxTypeSRT {
-				strictModeValidationLog.Printf("SRT sandbox is enabled (via Agent), skipping firewall validation")
-				return nil
-			}
-		}
+	// Skip firewall validation when agent sandbox is enabled (AWF/SRT)
+	// The agent sandbox provides its own network isolation
+	if isSandboxEnabled(sandboxConfig, networkPermissions) {
+		strictModeValidationLog.Printf("Agent sandbox is enabled, skipping firewall validation")
+		return nil
 	}
 
 	// If network permissions don't exist, that's fine (will default to "defaults")

@@ -1,3 +1,5 @@
+//go:build !js && !wasm
+
 // Package console provides terminal UI components including spinners for
 // long-running operations.
 //

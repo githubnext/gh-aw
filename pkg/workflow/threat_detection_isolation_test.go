@@ -71,7 +71,7 @@ Test workflow`
 	}
 
 	// Test 2: Detection job should NOT have MCP setup
-	if strings.Contains(detectionSection, "Start MCP gateway") {
+	if strings.Contains(detectionSection, "Start MCP Gateway") {
 		t.Error("Detection job should NOT have MCP setup step")
 	}
 
@@ -88,7 +88,7 @@ Test workflow`
 	}
 
 	// Test 4: Main agent job should have MCP setup (for comparison)
-	if !strings.Contains(agentSection, "Start MCP gateway") {
+	if !strings.Contains(agentSection, "Start MCP Gateway") {
 		t.Error("Main agent job should have MCP setup step")
 	}
 }

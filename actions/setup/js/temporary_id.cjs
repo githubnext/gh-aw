@@ -1,15 +1,27 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+/**
+ * Temporary ID helper utilities for safe outputs
+ *
+ * This module provides helper functions for generating, validating, and resolving
+ * temporary IDs used to reference not-yet-created resources.
+ *
+ * NOTE: This is a utility library that provides helper functions for other handlers.
+ * It does not perform cross-repository operations directly. Handlers that use these
+ * utilities (like create_issue, add_comment, etc.) are responsible for validating
+ * target repositories against their configured allowlists (validateTargetRepo/checkAllowedRepo).
+ */
+
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 const crypto = require("crypto");
 
 /**
  * Regex pattern for matching temporary ID references in text
- * Format: #aw_XXXXXXXXXXXX (aw_ prefix + 12 hex characters)
+ * Format: #aw_XXX to #aw_XXXXXXXX (aw_ prefix + 3 to 8 alphanumeric characters)
  */
-const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
+const TEMPORARY_ID_PATTERN = /#(aw_[A-Za-z0-9]{3,8})/gi;
 
 /**
  * @typedef {Object} RepoIssuePair
@@ -19,20 +31,27 @@ const TEMPORARY_ID_PATTERN = /#(aw_[0-9a-f]{12})/gi;
 
 /**
  * Generate a temporary ID with aw_ prefix for temporary issue IDs
- * @returns {string} A temporary ID in format aw_XXXXXXXXXXXX (12 hex characters)
+ * @returns {string} A temporary ID in format aw_XXXXXXXX (8 alphanumeric characters)
  */
 function generateTemporaryId() {
-  return "aw_" + crypto.randomBytes(6).toString("hex");
+  // Generate 8 random alphanumeric characters (A-Za-z0-9)
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "aw_";
+  for (let i = 0; i < 8; i++) {
+    const randomIndex = Math.floor(Math.random() * chars.length);
+    result += chars[randomIndex];
+  }
+  return result;
 }
 
 /**
- * Check if a value is a valid temporary ID (aw_ prefix + 12-character hex string)
+ * Check if a value is a valid temporary ID (aw_ prefix + 3 to 8 alphanumeric characters)
  * @param {any} value - The value to check
  * @returns {boolean} True if the value is a valid temporary ID
  */
 function isTemporaryId(value) {
   if (typeof value === "string") {
-    return /^aw_[0-9a-f]{12}$/i.test(value);
+    return /^aw_[A-Za-z0-9]{3,8}$/i.test(value);
   }
   return false;
 }
@@ -48,7 +67,7 @@ function normalizeTemporaryId(tempId) {
 
 /**
  * Replace temporary ID references in text with actual issue numbers
- * Format: #aw_XXXXXXXXXXXX -> #123 (same repo) or owner/repo#123 (cross-repo)
+ * Format: #aw_XXXX (or #aw_XXXXXXXX) -> #123 (same repo) or owner/repo#123 (cross-repo)
  * @param {string} text - The text to process
  * @param {Map<string, RepoIssuePair>} tempIdMap - Map of temporary_id to {repo, number}
  * @param {string} [currentRepo] - Current repository slug for same-repo references
@@ -73,7 +92,7 @@ function replaceTemporaryIdReferences(text, tempIdMap, currentRepo) {
 /**
  * Replace temporary ID references in text with actual issue numbers (legacy format)
  * This is a compatibility function that works with Map<string, number>
- * Format: #aw_XXXXXXXXXXXX -> #123
+ * Format: #aw_XXXX (or #aw_XXXXXXXX) -> #123
  * @param {string} text - The text to process
  * @param {Map<string, number>} tempIdMap - Map of temporary_id to issue number
  * @returns {string} Text with temporary IDs replaced with issue numbers
@@ -87,6 +106,48 @@ function replaceTemporaryIdReferencesLegacy(text, tempIdMap) {
     // Return original if not found (it may be created later)
     return match;
   });
+}
+
+/**
+ * Validate and process a temporary_id from a message
+ * Auto-generates a temporary ID if not provided, or validates and normalizes if provided
+ *
+ * @param {Object} message - The message object that may contain a temporary_id field
+ * @param {string} entityType - Type of entity (e.g., "issue", "discussion", "project") for error messages
+ * @returns {{temporaryId: string, error: null} | {temporaryId: null, error: string}} Result with temporaryId or error
+ */
+function getOrGenerateTemporaryId(message, entityType = "item") {
+  // Auto-generate if not provided
+  if (message.temporary_id === undefined || message.temporary_id === null) {
+    return {
+      temporaryId: generateTemporaryId(),
+      error: null,
+    };
+  }
+
+  // Validate type
+  if (typeof message.temporary_id !== "string") {
+    return {
+      temporaryId: null,
+      error: `temporary_id must be a string (got ${typeof message.temporary_id})`,
+    };
+  }
+
+  // Normalize and validate format
+  const rawTemporaryId = message.temporary_id.trim();
+  const normalized = rawTemporaryId.startsWith("#") ? rawTemporaryId.substring(1).trim() : rawTemporaryId;
+
+  if (!isTemporaryId(normalized)) {
+    return {
+      temporaryId: null,
+      error: `Invalid temporary_id format: '${message.temporary_id}'. Temporary IDs must be in format 'aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_Test123'`,
+    };
+  }
+
+  return {
+    temporaryId: normalized.toLowerCase(),
+    error: null,
+  };
 }
 
 /**
@@ -215,14 +276,14 @@ function resolveIssueNumber(value, temporaryIdMap) {
     return {
       resolved: null,
       wasTemporaryId: false,
-      errorMessage: `Invalid temporary ID format: '${valueStr}'. Temporary IDs must be in format 'aw_' followed by exactly 12 hexadecimal characters (0-9, a-f). Example: 'aw_abc123def456'`,
+      errorMessage: `Invalid temporary ID format: '${valueStr}'. Temporary IDs must be in format 'aw_' followed by 3 to 8 alphanumeric characters (A-Za-z0-9). Example: 'aw_abc' or 'aw_abc12345'`,
     };
   }
 
   // It's a real issue number - use context repo as default
   const issueNumber = typeof value === "number" ? value : parseInt(valueWithoutHash, 10);
   if (isNaN(issueNumber) || issueNumber <= 0) {
-    return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}. Expected either a valid temporary ID (format: aw_XXXXXXXXXXXX where X is a hex digit) or a numeric issue number.` };
+    return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}. Expected either a valid temporary ID (format: aw_ followed by 3-8 alphanumeric characters) or a numeric issue number.` };
   }
 
   const contextRepo = typeof context !== "undefined" ? `${context.repo.owner}/${context.repo.repo}` : "";
@@ -336,7 +397,7 @@ function loadTemporaryProjectMap() {
 
 /**
  * Replace temporary project ID references in text with actual project URLs
- * Format: #aw_XXXXXXXXXXXX -> https://github.com/orgs/myorg/projects/123
+ * Format: #aw_XXXX (or #aw_XXXXXXXX) -> https://github.com/orgs/myorg/projects/123
  * @param {string} text - The text to process
  * @param {Map<string, string>} tempProjectMap - Map of temporary_project_id to project URL
  * @returns {string} Text with temporary project IDs replaced with project URLs
@@ -382,7 +443,7 @@ function extractTemporaryIdReferences(message) {
   }
 
   // Check direct ID reference fields
-  const idFields = ["parent_issue_number", "sub_issue_number", "issue_number", "discussion_number", "pull_request_number"];
+  const idFields = ["parent_issue_number", "sub_issue_number", "issue_number", "discussion_number", "pull_request_number", "content_number"];
 
   for (const field of idFields) {
     const value = message[field];
@@ -393,6 +454,32 @@ function extractTemporaryIdReferences(message) {
 
       if (isTemporaryId(valueWithoutHash)) {
         tempIds.add(normalizeTemporaryId(valueWithoutHash));
+      }
+    }
+  }
+
+  // Check URL fields that may contain temporary IDs instead of issue numbers
+  // Format: https://github.com/owner/repo/issues/#aw_XXXXXXXXXXXX or just #aw_XXXXXXXXXXXX
+  const urlFields = ["item_url"];
+
+  for (const field of urlFields) {
+    const value = message[field];
+    if (value !== undefined && value !== null && typeof value === "string") {
+      // Extract potential temporary ID from URL or plain ID
+      // Match: https://github.com/owner/repo/issues/#aw_XXX or #aw_XXXXXXXX
+      const urlMatch = value.match(/issues\/(#?aw_[A-Za-z0-9]{3,8})\s*$/i);
+      if (urlMatch) {
+        const valueWithoutHash = urlMatch[1].startsWith("#") ? urlMatch[1].substring(1) : urlMatch[1];
+        if (isTemporaryId(valueWithoutHash)) {
+          tempIds.add(normalizeTemporaryId(valueWithoutHash));
+        }
+      } else {
+        // Also check if the entire value is a temporary ID (with or without #)
+        const valueStr = String(value).trim();
+        const valueWithoutHash = valueStr.startsWith("#") ? valueStr.substring(1) : valueStr;
+        if (isTemporaryId(valueWithoutHash)) {
+          tempIds.add(normalizeTemporaryId(valueWithoutHash));
+        }
       }
     }
   }
@@ -437,6 +524,7 @@ module.exports = {
   generateTemporaryId,
   isTemporaryId,
   normalizeTemporaryId,
+  getOrGenerateTemporaryId,
   replaceTemporaryIdReferences,
   replaceTemporaryIdReferencesLegacy,
   loadTemporaryIdMap,

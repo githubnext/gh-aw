@@ -319,12 +319,9 @@ Examples:
 			FailFast:               failFast,
 		}
 		if _, err := cli.CompileWorkflows(cmd.Context(), config); err != nil {
-			// Format validation error for better user experience
-			// The main function will detect the ✗ prefix and print it without double formatting
-			if !jsonOutput {
-				// Return a new error with formatted message so main() can print it
-				return fmt.Errorf("%s", cli.FormatValidationError(err))
-			}
+			// Return error as-is without additional formatting
+			// Errors from CompileWorkflows are already formatted with console.FormatError
+			// which provides IDE-parseable location information (file:line:column)
 			return err
 		}
 		return nil
@@ -371,7 +368,6 @@ Examples:
 		repoOverride, _ := cmd.Flags().GetString("repo")
 		refOverride, _ := cmd.Flags().GetString("ref")
 		autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
-		pushSecrets, _ := cmd.Flags().GetBool("use-local-secrets")
 		inputs, _ := cmd.Flags().GetStringArray("raw-field")
 		push, _ := cmd.Flags().GetBool("push")
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
@@ -398,10 +394,21 @@ Examples:
 				return fmt.Errorf("workflow inputs cannot be specified in interactive mode (they will be collected interactively)")
 			}
 
-			return cli.RunWorkflowInteractively(cmd.Context(), verboseFlag, repoOverride, refOverride, autoMergePRs, pushSecrets, push, engineOverride, dryRun)
+			return cli.RunWorkflowInteractively(cmd.Context(), verboseFlag, repoOverride, refOverride, autoMergePRs, push, engineOverride, dryRun)
 		}
 
-		return cli.RunWorkflowsOnGitHub(cmd.Context(), args, repeatCount, enable, engineOverride, repoOverride, refOverride, autoMergePRs, pushSecrets, push, inputs, verboseFlag, dryRun)
+		return cli.RunWorkflowsOnGitHub(cmd.Context(), args, cli.RunOptions{
+			RepeatCount:    repeatCount,
+			Enable:         enable,
+			EngineOverride: engineOverride,
+			RepoOverride:   repoOverride,
+			RefOverride:    refOverride,
+			AutoMergePRs:   autoMergePRs,
+			Push:           push,
+			Inputs:         inputs,
+			Verbose:        verboseFlag,
+			DryRun:         dryRun,
+		})
 	},
 }
 
@@ -580,7 +587,6 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
 	runCmd.Flags().String("ref", "", "Branch or tag name to run the workflow on (default: current branch)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
-	runCmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for workflow execution (pushes and cleans up secrets in repository)")
 	runCmd.Flags().StringArrayP("raw-field", "F", []string{}, "Add a string parameter in key=value format (can be used multiple times)")
 	runCmd.Flags().Bool("push", false, "Commit and push workflow files (including transitive imports) before running")
 	runCmd.Flags().Bool("dry-run", false, "Validate workflow without actually triggering execution on GitHub Actions")
@@ -685,9 +691,15 @@ func main() {
 
 	if err := rootCmd.Execute(); err != nil {
 		errMsg := err.Error()
-		// Check if error is already formatted (contains suggestions or starts with ✗)
-		// to avoid double formatting with FormatErrorMessage
-		if strings.Contains(errMsg, "Suggestions:") || strings.HasPrefix(errMsg, "✗") {
+		// Check if error is already formatted to avoid double formatting:
+		// - Contains suggestions (FormatErrorWithSuggestions)
+		// - Starts with ✗ (FormatErrorMessage)
+		// - Contains file:line:column: pattern (console.FormatError)
+		isAlreadyFormatted := strings.Contains(errMsg, "Suggestions:") ||
+			strings.HasPrefix(errMsg, "✗") ||
+			strings.Contains(errMsg, ":") && (strings.Contains(errMsg, "error:") || strings.Contains(errMsg, "warning:"))
+
+		if isAlreadyFormatted {
 			fmt.Fprintln(os.Stderr, errMsg)
 		} else {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))

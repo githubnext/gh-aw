@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
 
 const fs = require("fs");
 const path = require("path");
@@ -80,6 +81,19 @@ async function main() {
   // Get base branch from environment or use current branch
   const baseBranch = process.env.GITHUB_AW_AGENT_SESSION_BASE || process.env.GITHUB_REF_NAME || "main";
   const targetRepo = process.env.GITHUB_AW_TARGET_REPO;
+
+  // Validate target repository against allowlist if specified
+  if (targetRepo) {
+    const allowedReposEnv = process.env.GH_AW_AGENT_SESSION_ALLOWED_REPOS?.trim();
+    const allowedRepos = parseAllowedRepos(allowedReposEnv);
+    const defaultRepo = `${context.repo.owner}/${context.repo.repo}`;
+
+    const repoValidation = validateRepo(targetRepo, defaultRepo, allowedRepos);
+    if (!repoValidation.valid) {
+      core.setFailed(`E004: ${repoValidation.error}`);
+      return;
+    }
+  }
 
   // Process all agent session items
   const createdTasks = [];

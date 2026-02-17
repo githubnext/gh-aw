@@ -40,7 +40,7 @@ tools:
 				"- name: Create cache-memory directory",
 				"- name: Cache cache-memory file share data",
 				"uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
-				"key: memory-${{ github.workflow }}-${{ github.run_id }}",
+				"key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
 				"path: /tmp/gh-aw/cache-memory",
 				"cat \"/opt/gh-aw/prompts/cache_memory_prompt.md\"",
 				"GH_AW_CACHE_DIR: '/tmp/gh-aw/cache-memory/'",
@@ -49,7 +49,7 @@ tools:
 			notExpectedInLock: []string{
 				// Should NOT upload artifact when detection is disabled
 				"- name: Upload cache-memory data as artifact",
-				"## Cache Folders Available",
+				"cache_memory_prompt_multi.md", // Should not use multi template for default-only cache
 				"cache-memory/default/",
 				"cache-memory/session/",
 			},
@@ -85,7 +85,7 @@ tools:
 				"- name: Cache cache-memory file share data (session)",
 				"key: memory-session-${{ github.run_id }}",
 				"path: /tmp/gh-aw/cache-memory-session",
-				"## Cache Folders Available",
+				"cache_memory_prompt_multi.md", // Template file reference for multiple caches
 				"- **default**: `/tmp/gh-aw/cache-memory/`",
 				"- **session**: `/tmp/gh-aw/cache-memory-session/`",
 			},
@@ -109,22 +109,22 @@ engine: claude
 tools:
   cache-memory:
     - id: data
-      key: memory-data-${{ github.workflow }}
+      key: memory-data-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}
     - id: logs
-      key: memory-logs-${{ github.workflow }}
+      key: memory-logs-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}
   github:
     allowed: [get_repository]
 ---`,
 			expectedInLock: []string{
 				"- name: Create cache-memory directory (data)",
 				"mkdir -p /tmp/gh-aw/cache-memory-data",
-				"key: memory-data-${{ github.workflow }}-${{ github.run_id }}",
+				"key: memory-data-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
 				"path: /tmp/gh-aw/cache-memory-data",
 				"- name: Create cache-memory directory (logs)",
 				"mkdir -p /tmp/gh-aw/cache-memory-logs",
-				"key: memory-logs-${{ github.workflow }}-${{ github.run_id }}",
+				"key: memory-logs-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}",
 				"path: /tmp/gh-aw/cache-memory-logs",
-				"## Cache Folders Available",
+				"cache_memory_prompt_multi.md", // Template file reference for multiple caches
 				"- **data**: `/tmp/gh-aw/cache-memory-data/`",
 				"- **logs**: `/tmp/gh-aw/cache-memory-logs/`",
 			},

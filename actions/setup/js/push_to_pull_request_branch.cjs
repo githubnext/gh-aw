@@ -7,6 +7,7 @@ const { generateStagedPreview } = require("./staged_preview.cjs");
 const { updateActivationCommentWithCommit } = require("./update_activation_comment.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { replaceTemporaryIdReferences } = require("./temporary_id.cjs");
+const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -206,6 +207,22 @@ async function main(config = {}) {
     } catch (error) {
       core.info(`Warning: Could not fetch PR ${pullNumber} details: ${getErrorMessage(error)}`);
       return { success: false, error: `Failed to determine branch name for PR ${pullNumber}` };
+    }
+
+    // SECURITY: Sanitize branch name to prevent shell injection (CWE-78)
+    // Branch names from GitHub API must be normalized before use in git commands
+    if (branchName) {
+      const originalBranchName = branchName;
+      branchName = normalizeBranchName(branchName);
+
+      // Validate it's not empty after normalization
+      if (!branchName) {
+        return { success: false, error: `Invalid branch name: sanitization resulted in empty string (original: "${originalBranchName}")` };
+      }
+
+      if (originalBranchName !== branchName) {
+        core.info(`Branch name sanitized: "${originalBranchName}" -> "${branchName}"`);
+      }
     }
 
     core.info(`Target branch: ${branchName}`);

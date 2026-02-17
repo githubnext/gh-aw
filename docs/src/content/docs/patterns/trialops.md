@@ -267,7 +267,7 @@ jobs:
 |-------|----------|
 | `workflow not found` | Use correct format: `owner/repo/workflow-name`, `owner/repo/.github/workflows/workflow.md`, or `./local-workflow.md` |
 | `workflow_dispatch not supported` | Add `workflow_dispatch:` to workflow frontmatter `on:` section |
-| `authentication failed` | Set API keys: `COPILOT_GITHUB_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`. Use `--use-local-secrets` to push to trial repo |
+| `authentication failed` | Set API keys: `COPILOT_GITHUB_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`. Trial automatically prompts for missing secrets and uploads them to the trial repo |
 | `failed to create trial repository` | Check `gh auth status`, verify quota with `gh api user \| jq .plan`, try explicit `--host-repo name` |
 | `execution timed out` | Increase with `--timeout 60` (minutes, default: 30) |
 | No issues/PRs created | Configure `safe-outputs` in workflow frontmatter, check Actions logs for errors |

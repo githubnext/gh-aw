@@ -30,7 +30,7 @@ Ready to get your first agentic workflow running? Follow our step-by-step [Quick
 
 ## Overview
 
-Learn about the concepts behind agentic workflows, explore available workflow types, and understand how AI can automate your repository tasks. See [How It Works](https://github.github.io/gh-aw/introduction/how-they-work/).
+Learn about the concepts behind agentic workflows, explore available workflow types, and understand how AI can automate your repository tasks. See [How It Works](https://github.github.com/gh-aw/introduction/how-they-work/).
 
 ## Guardrails
 
@@ -48,7 +48,10 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 ## Share Feedback
 
-We welcome your feedback on GitHub Agentic Workflows! Please file bugs and feature requests as issues in this repository, and share your thoughts in the [GitHub Next Discord](https://gh.io/next-discord).
+We welcome your feedback on GitHub Agentic Workflows! 
+
+- [Community Feedback Discussions](https://github.com/orgs/community/discussions/186451)
+- [GitHub Next Discord](https://gh.io/next-discord)
 
 ## Peli's Agent Factory
 

@@ -34,10 +34,6 @@ func TestCopilotEngine(t *testing.T) {
 		t.Error("Expected copilot engine to support tools allowlist")
 	}
 
-	if !engine.SupportsHTTPTransport() {
-		t.Error("Expected copilot engine to support HTTP transport")
-	}
-
 	if engine.SupportsMaxTurns() {
 		t.Error("Expected copilot engine to not support max-turns yet")
 	}
@@ -1472,7 +1468,7 @@ func TestCopilotEnginePluginDiscoveryWithSRT(t *testing.T) {
 			Plugins: []string{"github/auto-agentics"},
 		},
 		SandboxConfig: &SandboxConfig{
-			Type: "sandbox-runtime",
+			Type: "awf",
 		},
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")

@@ -7,6 +7,7 @@ on:
     types: [labeled]
     names: ["smoke"]
   reaction: "eyes"
+  status-comment: true
 permissions:
   contents: read
   pull-requests: read
@@ -47,14 +48,25 @@ sandbox:
     container: "ghcr.io/github/gh-aw-mcpg"
 safe-outputs:
     add-comment:
+      allowed-repos: ["github/gh-aw"]
       hide-older-comments: true
       max: 2
     create-issue:
       expires: 2h
       group: true
       close-older-issues: true
+    create-discussion:
+      category: announcements
+      labels: [ai-generated]
+      expires: 2h
+      close-older-discussions: true
+      max: 1
+    create-pull-request-review-comment:
+      max: 5
+    submit-pull-request-review:
     add-labels:
       allowed: [smoke-copilot]
+      allowed-repos: ["github/gh-aw"]
     remove-labels:
       allowed: [smoke]
     dispatch-workflow:
@@ -118,7 +130,9 @@ strict: true
    - Extract the discussion number from the result (e.g., if the result is `{"number": 123, "title": "...", ...}`, extract 123)
    - Use the `add_comment` tool with `discussion_number: <extracted_number>` to add a fun, playful comment stating that the smoke test agent was here
 8. **Build gh-aw**: Run `GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make build` to verify the agent can successfully build the gh-aw project (both caches must be set to /tmp because the default cache locations are not writable). If the command fails, mark this test as ❌ and report the failure.
-9. **Workflow Dispatch Testing**: Use the `dispatch_workflow` safe output tool to trigger the `haiku-printer` workflow with a haiku as the message input. Create an original, creative haiku about software testing or automation.
+9. **Discussion Creation Testing**: Use the `create_discussion` safe-output tool to create a discussion in the announcements category titled "copilot was here" with the label "ai-generated"
+10. **Workflow Dispatch Testing**: Use the `dispatch_workflow` safe output tool to trigger the `haiku-printer` workflow with a haiku as the message input. Create an original, creative haiku about software testing or automation.
+11. **PR Review Testing**: Review the diff of the current pull request. Leave 1-2 inline `create_pull_request_review_comment` comments on specific lines, then call `submit_pull_request_review` with a brief body summarizing your review and event `COMMENT`.
 
 ## Output
 

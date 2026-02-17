@@ -16,11 +16,11 @@ safe-outputs:
     title-prefix: "[nitpick-report] "
     category: "general"
     max: 1
-  add-comment:
-    max: 3
   create-pull-request-review-comment:
     max: 10
     side: "RIGHT"
+  submit-pull-request-review:
+    max: 1
   messages:
     footer: "> 🔍 *Meticulously inspected by [{workflow_name}]({run_url})*"
     run-started: "🔬 Adjusting monocle... [{workflow_name}]({run_url}) is scrutinizing every pixel of this {event_type}..."
@@ -167,7 +167,7 @@ For each nitpick found, decide on the appropriate output type:
 - Keep comments constructive and helpful
 - Maximum 10 review comments (most important issues)
 
-#### Use `add-comment` for:
+#### Use `submit_pull_request_review` for:
 - **General observations** - Overall patterns across the PR
 - **Summary feedback** - High-level themes
 - **Appreciation** - Acknowledgment of good practices
@@ -179,11 +179,10 @@ For each nitpick found, decide on the appropriate output type:
 }
 ```
 
-**Guidelines for PR comments:**
+**Guidelines for review submission:**
 - Provide overview and context
 - Group related nitpicks into themes
 - Acknowledge good practices
-- Maximum 3 PR comments total
 
 #### Use `create-discussion` for:
 - **Daily/weekly summary report** - Comprehensive markdown report

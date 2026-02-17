@@ -354,7 +354,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 		compiler.SetStrictMode(true)
 
 		networkPerms := &NetworkPermissions{
-			Allowed:           []string{"example.com"},
+			Allowed:           []string{"python"}, // Use known ecosystem instead of custom domain
 			ExplicitlyDefined: true,
 			// Firewall is NOT enabled
 			Firewall: nil,
@@ -391,7 +391,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 		compiler.SetStrictMode(true)
 
 		networkPerms := &NetworkPermissions{
-			Allowed:           []string{"example.com"},
+			Allowed:           []string{"python"}, // Use known ecosystem instead of custom domain
 			ExplicitlyDefined: true,
 			Firewall: &FirewallConfig{
 				Enabled: true,
@@ -409,7 +409,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 		compiler.SetStrictMode(true)
 
 		networkPerms := &NetworkPermissions{
-			Allowed:           []string{"example.com"},
+			Allowed:           []string{"python"}, // Use known ecosystem instead of custom domain
 			ExplicitlyDefined: true,
 			Firewall:          nil,
 		}
@@ -440,7 +440,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error when sandbox.agent is false in strict mode for copilot")
 		}
-		expectedMsg := "sandbox: false"
+		expectedMsg := "sandbox.agent: false"
 		if !strings.Contains(err.Error(), expectedMsg) {
 			t.Errorf("Expected error message to contain '%s', got: %v", expectedMsg, err)
 		}
@@ -467,7 +467,7 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error for non-copilot engine with sandbox.agent: false in strict mode")
 		}
-		expectedMsg := "sandbox: false"
+		expectedMsg := "sandbox.agent: false"
 		if !strings.Contains(err.Error(), expectedMsg) {
 			t.Errorf("Expected error message to contain '%s', got: %v", expectedMsg, err)
 		}
@@ -478,13 +478,13 @@ func TestStrictModeFirewallValidation(t *testing.T) {
 		compiler.SetStrictMode(true)
 
 		networkPerms := &NetworkPermissions{
-			Allowed:           []string{"example.com"},
+			Allowed:           []string{"python"}, // Use known ecosystem instead of custom domain
 			ExplicitlyDefined: true,
 			Firewall:          nil,
 		}
 
 		sandboxConfig := &SandboxConfig{
-			Type: SandboxTypeRuntime,
+			Type: SandboxTypeAWF,
 		}
 
 		err := compiler.validateStrictFirewall("copilot", networkPerms, sandboxConfig)

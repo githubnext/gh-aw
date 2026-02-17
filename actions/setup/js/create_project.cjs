@@ -3,6 +3,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { normalizeTemporaryId, isTemporaryId, generateTemporaryId, getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 
 /**
  * Log detailed GraphQL error information
@@ -294,6 +295,9 @@ async function main(config = {}, githubClient = null) {
   const titlePrefix = config.title_prefix || "Project";
   const configuredViews = Array.isArray(config.views) ? config.views : [];
 
+  // Check if we're in staged mode
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+
   // Use the provided github client, or fall back to the global github object
   // The global github object is available when running via github-script action
   // @ts-ignore - global.github is set by setupGlobals() from github-script context
@@ -339,6 +343,46 @@ async function main(config = {}, githubClient = null) {
     try {
       let { title, owner, owner_type, item_url } = message;
 
+      // Get or generate the temporary ID for this project
+      const tempIdResult = getOrGenerateTemporaryId(message, "project");
+      if (tempIdResult.error) {
+        core.warning(`Skipping project: ${tempIdResult.error}`);
+        return {
+          success: false,
+          error: tempIdResult.error,
+        };
+      }
+      // At this point, temporaryId is guaranteed to be a string (not null)
+      const temporaryId = /** @type {string} */ tempIdResult.temporaryId;
+
+      // Resolve temporary ID in item_url if present
+      if (item_url && typeof item_url === "string") {
+        // Check if item_url contains a temporary ID (either as URL or plain ID)
+        // Format: https://github.com/owner/repo/issues/#aw_XXXXXXXXXXXX or #aw_XXXXXXXXXXXX
+        const urlMatch = item_url.match(/issues\/(#?aw_[0-9a-f]{12})\s*$/i);
+        const plainMatch = item_url.match(/^(#?aw_[0-9a-f]{12})\s*$/i);
+
+        if (urlMatch || plainMatch) {
+          const tempIdStr = (urlMatch && urlMatch[1]) || (plainMatch && plainMatch[1]) || "";
+          const tempIdWithoutHash = tempIdStr.startsWith("#") ? tempIdStr.substring(1) : tempIdStr;
+
+          // Check if it's a valid temporary ID
+          if (isTemporaryId(tempIdWithoutHash)) {
+            // Look up in the unified temporaryIdMap
+            const resolved = temporaryIdMap.get(normalizeTemporaryId(tempIdWithoutHash));
+
+            if (resolved && resolved.repo && resolved.number) {
+              // Build the proper GitHub issue URL
+              const resolvedUrl = `https://github.com/${resolved.repo}/issues/${resolved.number}`;
+              core.info(`Resolved temporary ID ${tempIdStr} in item_url to ${resolvedUrl}`);
+              item_url = resolvedUrl;
+            } else {
+              throw new Error(`Temporary ID '${tempIdStr}' in item_url not found. Ensure create_issue was called before create_project.`);
+            }
+          }
+        }
+      }
+
       // Generate a title if not provided by the agent
       if (!title) {
         // Try to generate a project title from the issue context
@@ -368,6 +412,21 @@ async function main(config = {}, githubClient = null) {
       const ownerType = owner_type || "org"; // Default to org if not specified
 
       core.info(`Creating project "${title}" for ${ownerType}/${targetOwner}`);
+
+      // If in staged mode, preview without executing
+      if (isStaged) {
+        core.info(`Staged mode: Would create project "${title}"`);
+        return {
+          success: true,
+          staged: true,
+          previewInfo: {
+            title,
+            ownerType,
+            targetOwner,
+            temporaryId,
+          },
+        };
+      }
 
       // Get owner ID
       const ownerId = await getOwnerId(ownerType, targetOwner);
