@@ -23,7 +23,7 @@ func resolveLatestReleaseViaGit(repo, currentRef string, allowMajor, verbose boo
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching latest release for %s via git ls-remote (current: %s, allow major: %v)", repo, currentRef, allowMajor)))
 	}
 
-	githubHost := getGitHubHost()
+	githubHost := getGitHubHostForRepo(repo)
 	repoURL := fmt.Sprintf("%s/%s.git", githubHost, repo)
 
 	// List all tags
@@ -103,7 +103,7 @@ func resolveLatestReleaseViaGit(repo, currentRef string, allowMajor, verbose boo
 func isBranchRefViaGit(repo, ref string) (bool, error) {
 	downloadLog.Printf("Attempting git ls-remote to check if ref is branch: %s@%s", repo, ref)
 
-	githubHost := getGitHubHost()
+	githubHost := getGitHubHostForRepo(repo)
 	repoURL := fmt.Sprintf("%s/%s.git", githubHost, repo)
 
 	// List all branches and check if ref matches
@@ -169,7 +169,7 @@ func resolveBranchHeadViaGit(repo, branch string, verbose bool) (string, error) 
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching latest commit for branch %s in %s via git ls-remote", branch, repo)))
 	}
 
-	githubHost := getGitHubHost()
+	githubHost := getGitHubHostForRepo(repo)
 	repoURL := fmt.Sprintf("%s/%s.git", githubHost, repo)
 
 	// Get the SHA for the specific branch
@@ -239,7 +239,7 @@ func resolveDefaultBranchHeadViaGit(repo string, verbose bool) (string, error) {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching default branch for %s via git ls-remote", repo)))
 	}
 
-	githubHost := getGitHubHost()
+	githubHost := getGitHubHostForRepo(repo)
 	repoURL := fmt.Sprintf("%s/%s.git", githubHost, repo)
 
 	// Get HEAD to find default branch
@@ -330,7 +330,7 @@ func downloadWorkflowContentViaGit(repo, path, ref string, verbose bool) ([]byte
 	downloadLog.Printf("Attempting git fallback for downloading workflow content: %s/%s@%s", repo, path, ref)
 
 	// Use git archive to get the file content without cloning
-	githubHost := getGitHubHost()
+	githubHost := getGitHubHostForRepo(repo)
 	repoURL := fmt.Sprintf("%s/%s.git", githubHost, repo)
 
 	// git archive command: git archive --remote=<repo> <ref> <path>
@@ -371,7 +371,7 @@ func downloadWorkflowContentViaGitClone(repo, path, ref string, verbose bool) ([
 	}
 	defer os.RemoveAll(tmpDir)
 
-	githubHost := getGitHubHost()
+	githubHost := getGitHubHostForRepo(repo)
 	repoURL := fmt.Sprintf("%s/%s.git", githubHost, repo)
 
 	// Initialize git repository

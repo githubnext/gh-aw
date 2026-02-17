@@ -306,7 +306,7 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 func resolveRefToSHAViaGit(owner, repo, ref string) (string, error) {
 	remoteLog.Printf("Attempting git ls-remote fallback for ref resolution: %s/%s@%s", owner, repo, ref)
 
-	githubHost := GetGitHubHost()
+	githubHost := GetGitHubHostForRepo(owner, repo)
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
 	// Try to resolve the ref using git ls-remote
@@ -398,7 +398,7 @@ func downloadFileViaGit(owner, repo, path, ref string) ([]byte, error) {
 
 	// Use git archive to get the file content without cloning
 	// This works for public repositories without authentication
-	githubHost := GetGitHubHost()
+	githubHost := GetGitHubHostForRepo(owner, repo)
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
 	// git archive command: git archive --remote=<repo> <ref> <path>
@@ -434,7 +434,7 @@ func downloadFileViaGitClone(owner, repo, path, ref string) ([]byte, error) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	githubHost := GetGitHubHost()
+	githubHost := GetGitHubHostForRepo(owner, repo)
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
 	// Check if ref is a SHA (40 hex characters)

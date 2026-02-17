@@ -271,7 +271,7 @@ func getLatestActionReleaseViaGit(repo, currentVersion string, allowMajor, verbo
 	baseRepo := extractBaseRepo(repo)
 	updateLog.Printf("Using base repository: %s for action: %s (git fallback)", baseRepo, repo)
 
-	githubHost := getGitHubHost()
+	githubHost := getGitHubHostForRepo(baseRepo)
 	repoURL := fmt.Sprintf("%s/%s.git", githubHost, baseRepo)
 
 	// List all tags

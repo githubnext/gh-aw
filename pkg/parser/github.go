@@ -50,6 +50,21 @@ func normalizeGitHubHostURL(rawHostURL string) string {
 	return normalized
 }
 
+// GetGitHubHostForRepo returns the GitHub host URL for a specific repository.
+// The gh-aw repository (github/gh-aw) always uses public GitHub (https://github.com)
+// regardless of enterprise GitHub host settings, since gh-aw itself is only available
+// on public GitHub. For all other repositories, it uses GetGitHubHost().
+func GetGitHubHostForRepo(owner, repo string) string {
+	// The gh-aw repository is always on public GitHub
+	if owner == "github" && repo == "gh-aw" {
+		githubLog.Print("Using public GitHub host for github/gh-aw repository")
+		return "https://github.com"
+	}
+
+	// For all other repositories, use the configured GitHub host
+	return GetGitHubHost()
+}
+
 // GetGitHubToken attempts to get GitHub token from environment or gh CLI
 func GetGitHubToken() (string, error) {
 	githubLog.Print("Getting GitHub token")
