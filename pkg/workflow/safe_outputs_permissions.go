@@ -81,7 +81,7 @@ func computePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 	}
 	if safeOutputs.PushToPullRequestBranch != nil {
 		safeOutputsPermissionsLog.Print("Adding permissions for push-to-pull-request-branch")
-		permissions.Merge(NewPermissionsContentsWriteIssuesWritePRWrite())
+		permissions.Merge(NewPermissionsContentsWritePRWrite())
 	}
 	if safeOutputs.UpdatePullRequests != nil {
 		safeOutputsPermissionsLog.Print("Adding permissions for update-pull-request")

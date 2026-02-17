@@ -75,8 +75,8 @@ Please make changes and push them to the feature branch.
 	if !strings.Contains(lockContentStr, "contents: write") {
 		t.Errorf("Generated workflow should have contents: write permission")
 	}
-	if !strings.Contains(lockContentStr, "issues: write") {
-		t.Errorf("Generated workflow should have issues: write permission")
+	if strings.Contains(lockContentStr, "issues: write") {
+		t.Errorf("Generated workflow should NOT have issues: write permission (push-to-pull-request-branch doesn't need it)")
 	}
 	if !strings.Contains(lockContentStr, "pull-requests: write") {
 		t.Errorf("Generated workflow should have pull-requests: write permission")
