@@ -903,18 +903,43 @@ Returns JSON with the following structure:
 		cmdArgs := []string{"audit", args.RunIDOrURL, "-o", "/tmp/gh-aw/aw-mcp/logs", "--json"}
 
 		// Execute the CLI command
+		// Use separate stdout/stderr capture instead of CombinedOutput because:
+		// - Stdout contains JSON output (--json flag)
+		// - Stderr contains console messages and debug logs that shouldn't be mixed with JSON
 		cmd := execCmd(ctx, cmdArgs...)
-		output, err := cmd.CombinedOutput()
+		stdout, err := cmd.Output()
+
+		// The audit command outputs JSON to stdout when --json flag is used.
+		// If the command fails, we need to provide detailed error information.
+		outputStr := string(stdout)
 
 		if err != nil {
+			// Try to get stderr and exit code for detailed error reporting
+			var stderr string
+			var exitCode int
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				stderr = string(exitErr.Stderr)
+				exitCode = exitErr.ExitCode()
+			}
+
+			mcpLog.Printf("Audit command exited with error: %v (stdout length: %d, stderr length: %d, exit_code: %d)",
+				err, len(outputStr), len(stderr), exitCode)
+
+			// Build detailed error data
+			errorData := map[string]any{
+				"error":         err.Error(),
+				"exit_code":     exitCode,
+				"stdout":        outputStr,
+				"stderr":        stderr,
+				"run_id_or_url": args.RunIDOrURL,
+			}
+
 			return nil, nil, &jsonrpc.Error{
 				Code:    jsonrpc.CodeInternalError,
-				Message: "failed to audit workflow run",
-				Data:    mcpErrorData(map[string]any{"error": err.Error(), "output": string(output), "run_id_or_url": args.RunIDOrURL}),
+				Message: fmt.Sprintf("failed to audit workflow run: %s", err.Error()),
+				Data:    mcpErrorData(errorData),
 			}
 		}
-
-		outputStr := string(output)
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
