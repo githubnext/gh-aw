@@ -70,9 +70,7 @@ describe("log_parser_bootstrap.cjs", () => {
             process.env.GH_AW_AGENT_OUTPUT = logFile;
             const mockParseLog = vi.fn().mockReturnValue({ markdown: "## Result\n", mcpFailures: [], maxTurnsHit: false, logEntries: [] });
             runLogParser({ parseLog: mockParseLog, parserName: "Claude" });
-            expect(mockCore.setFailed).toHaveBeenCalledWith(
-              "Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution."
-            );
+            expect(mockCore.setFailed).toHaveBeenCalledWith("Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.");
           } finally {
             fs.unlinkSync(logFile);
             fs.rmdirSync(tmpDir);
