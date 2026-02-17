@@ -309,6 +309,13 @@ For cross-repository operations, implementations MUST:
 - Reject operations when token lacks required permissions
 - Apply same validation rules as same-repository operations
 
+For operations that support separate PR repository selection (e.g., `assign-to-agent`), implementations MUST:
+- Validate `pull-request-repo` format: `owner/repo`
+- Validate against `allowed-pull-request-repos` allowlist when configured
+- Use `target-repo` for the resource location (issue/PR)
+- Use `pull-request-repo` for PR creation location
+- Return E004 error code for unauthorized repositories
+
 ### 3.5 Layer 4: Execution Handlers
 
 #### 3.5.1 Job Isolation
@@ -704,6 +711,13 @@ Operations supporting cross-repository actions MUST:
 - Use target repository for all GitHub API calls
 - Apply same validation rules as same-repository operations
 
+For operations that assign agents to issues/PRs, implementations MAY support:
+- Accept `pull-request-repo: "owner/repo"` configuration to specify where PRs should be created
+- Accept `allowed-pull-request-repos: ["owner/repo1", "owner/repo2"]` for validation
+- Use `agentAssignment.targetRepositoryId` in GraphQL mutations when available
+
+This pattern enables issue tracking in one repository while code changes are created in a different repository.
+
 Exceptions (same-repository only):
 - `push-to-pull-request-branch` - Requires repository write access
 - `upload-asset` - Creates orphaned branches
@@ -951,7 +965,36 @@ safe-outputs:
 - Label `upstream-request` applied
 - Attribution footer references source workflow
 
-#### A.3 Staged Mode Preview
+#### A.3 Cross-Repository Agent Assignment
+
+**Configuration:**
+```yaml
+safe-outputs:
+  assign-to-agent:
+    target-repo: "octocat/issues"
+    pull-request-repo: "octocat/codebase"
+    allowed-pull-request-repos:
+      - "octocat/codebase"
+      - "octocat/codebase-v2"
+```
+
+**Agent Request:**
+```json
+{
+  "type": "assign_to_agent",
+  "issue_number": 42,
+  "agent": "copilot",
+  "pull_request_repo": "octocat/codebase"
+}
+```
+
+**Result:**
+- Issue #42 in `octocat/issues` assigned to Copilot
+- Agent creates PR in `octocat/codebase` (not in `octocat/issues`)
+- GraphQL mutation includes `agentAssignment.targetRepositoryId`
+- Enables issue tracking separate from code repositories
+
+#### A.4 Staged Mode Preview
 
 **Configuration:**
 ```yaml
