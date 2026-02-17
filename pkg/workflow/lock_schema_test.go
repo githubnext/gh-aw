@@ -87,9 +87,9 @@ name: test
 			metadata, isLegacy, err := ExtractMetadataFromLockFile(tt.content)
 
 			if tt.expectError {
-				assert.Error(t, err, "Expected error for malformed metadata")
+				require.Error(t, err, "Expected error for malformed metadata")
 			} else {
-				assert.NoError(t, err, "Should not error on valid or missing metadata")
+				require.NoError(t, err, "Should not error on valid or missing metadata")
 			}
 
 			assert.Equal(t, tt.expectLegacy, isLegacy, "Legacy format detection mismatch")
@@ -228,7 +228,7 @@ func TestGenerateLockMetadataWithoutStopTime(t *testing.T) {
 	assert.NotNil(t, metadata, "Metadata should be created")
 	assert.Equal(t, LockSchemaV1, metadata.SchemaVersion, "Should use current schema version")
 	assert.Equal(t, hash, metadata.FrontmatterHash, "Should preserve frontmatter hash")
-	assert.Equal(t, "", metadata.StopTime, "Stop time should be empty")
+	assert.Empty(t, metadata.StopTime, "Stop time should be empty")
 }
 
 func TestLockMetadataToJSON(t *testing.T) {
@@ -263,7 +263,7 @@ func TestLockMetadataToJSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			json, err := tt.metadata.ToJSON()
-			assert.NoError(t, err, "Should serialize to JSON without error")
+			require.NoError(t, err, "Should serialize to JSON without error")
 
 			for _, expected := range tt.contains {
 				assert.Contains(t, json, expected, "JSON should contain expected field")
@@ -343,7 +343,7 @@ on:
 `
 
 	metadata, isLegacy, err := ExtractMetadataFromLockFile(content)
-	assert.NoError(t, err, "Should parse realistic lock file")
+	require.NoError(t, err, "Should parse realistic lock file")
 	assert.False(t, isLegacy, "Should not detect as legacy")
 	require.NotNil(t, metadata, "Should extract metadata")
 	assert.Equal(t, LockSchemaV1, metadata.SchemaVersion)
@@ -362,7 +362,7 @@ on: push
 `
 
 	metadata, isLegacy, err := ExtractMetadataFromLockFile(content)
-	assert.NoError(t, err, "Should parse legacy lock file")
+	require.NoError(t, err, "Should parse legacy lock file")
 	assert.True(t, isLegacy, "Should detect as legacy")
 	assert.Nil(t, metadata, "Should not extract metadata from legacy")
 
@@ -379,7 +379,7 @@ name: test
 `
 
 	metadata, _, err := ExtractMetadataFromLockFile(content)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, metadata)
 	assert.Equal(t, originalHash, metadata.FrontmatterHash, "Should preserve frontmatter hash exactly")
 }
@@ -398,7 +398,7 @@ func TestLockMetadataJSONCompact(t *testing.T) {
 	}
 
 	json, err := metadata.ToJSON()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotContains(t, json, "\n", "JSON should be compact without newlines")
 	assert.NotContains(t, json, "  ", "JSON should not have extra spaces")
 }
@@ -417,7 +417,7 @@ name: test
 `
 
 	metadata, isLegacy, err := ExtractMetadataFromLockFile(content)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, isLegacy)
 	require.NotNil(t, metadata)
 	assert.Equal(t, LockSchemaV1, metadata.SchemaVersion)
@@ -434,7 +434,7 @@ func TestLockMetadataToJSONWithStopTime(t *testing.T) {
 	}
 
 	json, err := metadata.ToJSON()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Contains(t, json, `"schema_version":"v1"`)
 	assert.Contains(t, json, `"frontmatter_hash":"test123"`)
 	assert.Contains(t, json, `"stop_time":"2026-02-17 20:00:00"`)
@@ -449,7 +449,7 @@ func TestLockMetadataToJSONWithoutStopTime(t *testing.T) {
 	}
 
 	json, err := metadata.ToJSON()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Contains(t, json, `"schema_version":"v1"`)
 	assert.Contains(t, json, `"frontmatter_hash":"test123"`)
 	// Should not contain stop_time field when empty due to omitempty
