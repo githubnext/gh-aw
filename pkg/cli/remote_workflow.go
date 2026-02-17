@@ -153,7 +153,11 @@ func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, er
 // If the includePath is a relative path, it's resolved relative to the baseSpec.
 // Returns: (content, section, error) where section is the #fragment from the path (e.g., "#section-name").
 func FetchIncludeFromSource(includePath string, baseSpec *WorkflowSpec, verbose bool) ([]byte, string, error) {
-	remoteWorkflowLog.Printf("Fetching include from source: path=%s, base=%s", includePath, baseSpec.String())
+	baseSpecStr := "<nil>"
+	if baseSpec != nil {
+		baseSpecStr = baseSpec.String()
+	}
+	remoteWorkflowLog.Printf("Fetching include from source: path=%s, base=%s", includePath, baseSpecStr)
 
 	// Extract section reference (e.g., "#section-name") from the path upfront
 	// This ensures consistent behavior regardless of which code path is taken
