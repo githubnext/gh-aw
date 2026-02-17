@@ -2144,6 +2144,8 @@ jobs:
 
       - name: Add workflows one by one
         id: add-workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           cd /home/runner/work/gh-aw/gh-aw
           
