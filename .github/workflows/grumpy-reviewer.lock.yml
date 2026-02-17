@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 5ca7d98654eda20f8127f62bff3547e10253af296a8ca719f146f41cc44007ad
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"5ca7d98654eda20f8127f62bff3547e10253af296a8ca719f146f41cc44007ad"}
 
 name: "Grumpy Code Reviewer 🔥"
 "on":

@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: cc1c94747da840c74962f07d39790a155b1e5db82cfdf90d68d66a08c88261bd
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"cc1c94747da840c74962f07d39790a155b1e5db82cfdf90d68d66a08c88261bd"}
 
 name: "Dependabot Dependency Checker"
 "on":

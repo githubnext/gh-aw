@@ -679,3 +679,108 @@ func downloadFileFromGitHubWithDepth(owner, repo, path, ref string, symlinkDepth
 
 	return content, nil
 }
+
+// ListWorkflowFiles lists workflow files from a remote GitHub repository
+// Returns a list of .md files in the specified directory (excluding subdirectories)
+func ListWorkflowFiles(owner, repo, ref, workflowPath string) ([]string, error) {
+	remoteLog.Printf("Listing workflow files for %s/%s@%s (path: %s)", owner, repo, ref, workflowPath)
+
+	// Create REST client
+	client, err := api.DefaultRESTClient()
+	if err != nil {
+		remoteLog.Printf("Failed to create REST client, attempting git fallback: %v", err)
+		return listWorkflowFilesViaGit(owner, repo, ref, workflowPath)
+	}
+
+	// Define response struct for GitHub contents API (array of file objects)
+	var contents []struct {
+		Name string `json:"name"`
+		Path string `json:"path"`
+		Type string `json:"type"`
+	}
+
+	// Fetch directory contents from GitHub API
+	endpoint := fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, workflowPath, ref)
+	err = client.Get(endpoint, &contents)
+	if err != nil {
+		errStr := err.Error()
+
+		// Check if this is an authentication error
+		if gitutil.IsAuthError(errStr) {
+			remoteLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s@%s", owner, repo, ref)
+			// Try fallback using git commands for public repositories
+			files, gitErr := listWorkflowFilesViaGit(owner, repo, ref, workflowPath)
+			if gitErr != nil {
+				// If git fallback also fails, return both errors
+				return nil, fmt.Errorf("failed to list workflow files via GitHub API (auth error) and git fallback: API error: %w, Git error: %v", err, gitErr)
+			}
+			return files, nil
+		}
+
+		return nil, fmt.Errorf("failed to list workflow files from %s/%s@%s (path: %s): %w", owner, repo, ref, workflowPath, err)
+	}
+
+	// Filter to only .md files (not in subdirectories)
+	var workflowFiles []string
+	for _, item := range contents {
+		if item.Type == "file" && strings.HasSuffix(strings.ToLower(item.Name), ".md") {
+			workflowFiles = append(workflowFiles, item.Path)
+		}
+	}
+
+	remoteLog.Printf("Found %d workflow files in %s/%s@%s (path: %s)", len(workflowFiles), owner, repo, ref, workflowPath)
+	return workflowFiles, nil
+}
+
+// listWorkflowFilesViaGit lists workflow files using git commands (fallback for auth errors)
+func listWorkflowFilesViaGit(owner, repo, ref, workflowPath string) ([]string, error) {
+	remoteLog.Printf("Attempting git fallback for listing workflow files: %s/%s@%s (path: %s)", owner, repo, ref, workflowPath)
+
+	githubHost := GetGitHubHostForRepo(owner, repo)
+	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
+
+	// Create a temporary directory for minimal clone
+	tmpDir, err := os.MkdirTemp("", "gh-aw-list-*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Do a minimal clone using filter=blob:none for faster cloning (metadata only, no blobs)
+	// Use --depth=1 for shallow clone and --no-checkout to skip checkout initially
+	cloneCmd := exec.Command("git", "clone", "--depth", "1", "--branch", ref, "--single-branch", "--filter=blob:none", "--no-checkout", repoURL, tmpDir)
+	cloneOutput, err := cloneCmd.CombinedOutput()
+	if err != nil {
+		remoteLog.Printf("Failed to clone repository: %s", string(cloneOutput))
+		return nil, fmt.Errorf("failed to clone repository for %s/%s@%s: %w", owner, repo, ref, err)
+	}
+
+	// Use git ls-tree to list files in the specified workflows directory
+	lsTreeCmd := exec.Command("git", "-C", tmpDir, "ls-tree", "-r", "--name-only", "HEAD", workflowPath+"/")
+	lsTreeOutput, err := lsTreeCmd.CombinedOutput()
+	if err != nil {
+		remoteLog.Printf("Failed to list files: %s", string(lsTreeOutput))
+		return nil, fmt.Errorf("failed to list workflow files: %w", err)
+	}
+
+	// Parse output and filter for .md files (not in subdirectories)
+	lines := strings.Split(strings.TrimSpace(string(lsTreeOutput)), "\n")
+	var workflowFiles []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		// Only include .md files directly in the workflow path (not in subdirectories)
+		if strings.HasSuffix(strings.ToLower(line), ".md") {
+			// Check if it's a top-level file (no additional slashes after workflowPath/)
+			afterWorkflowPath := strings.TrimPrefix(line, workflowPath+"/")
+			if !strings.Contains(afterWorkflowPath, "/") {
+				workflowFiles = append(workflowFiles, line)
+			}
+		}
+	}
+
+	remoteLog.Printf("Found %d workflow files via git for %s/%s@%s (path: %s)", len(workflowFiles), owner, repo, ref, workflowPath)
+	return workflowFiles, nil
+}

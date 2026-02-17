@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/trending-charts-simple.md
 #
-# frontmatter-hash: 1163f4663b60a8977df68ac8f5e1f1e52a651fa202f7d075c0cbabd43a292816
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"1163f4663b60a8977df68ac8f5e1f1e52a651fa202f7d075c0cbabd43a292816"}
 
 name: "Daily Firewall Logs Collector and Reporter"
 "on":

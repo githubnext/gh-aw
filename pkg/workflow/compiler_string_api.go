@@ -54,6 +54,10 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	c.contentOverride = content
 	defer func() { c.contentOverride = "" }()
 
+	// Enable inline prompt mode for string-based compilation (Wasm/browser)
+	// since runtime-import macros cannot resolve without filesystem access
+	c.inlinePrompt = true
+
 	// Parse frontmatter directly from content string
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil {

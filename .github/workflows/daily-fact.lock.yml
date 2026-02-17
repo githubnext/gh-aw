@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: e6b7befeee92e59a65fad768672f3717fc7f9824814c87c56f035b11b6c5050c
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e6b7befeee92e59a65fad768672f3717fc7f9824814c87c56f035b11b6c5050c"}
 
 name: "Daily Fact About gh-aw"
 "on":

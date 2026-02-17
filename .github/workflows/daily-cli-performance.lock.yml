@@ -29,7 +29,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 185e8e9fea9c9af8fff8ab7305985b79a14fcf173b44bccb604bb9cef76117b9
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"185e8e9fea9c9af8fff8ab7305985b79a14fcf173b44bccb604bb9cef76117b9"}
 
 name: "Daily CLI Performance Agent"
 "on":

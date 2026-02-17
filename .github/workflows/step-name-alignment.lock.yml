@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: f309fe23c13debe9a3441258ac96fbe446d207aabeb50ecd7e0543a20786d79a
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f309fe23c13debe9a3441258ac96fbe446d207aabeb50ecd7e0543a20786d79a"}
 
 name: "Step Name Alignment"
 "on":

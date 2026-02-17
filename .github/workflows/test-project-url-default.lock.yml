@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 4b8eb1036171f89a3f37409cafdf433cf2dab9a4199718beb62624953b63c1a5
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"4b8eb1036171f89a3f37409cafdf433cf2dab9a4199718beb62624953b63c1a5"}
 
 name: "Test Project URL Explicit Requirement"
 "on":

@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: a050c2eeebe0b225b5e51f8bb7e533314d35f338d1db67669665b1be4b8adfb9
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"a050c2eeebe0b225b5e51f8bb7e533314d35f338d1db67669665b1be4b8adfb9"}
 
 name: "Workflow Generator"
 "on":

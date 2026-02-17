@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 4e6df452f0e9512538c4d63796bee8f915a0e25b266056e9b97c32b699efca07
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"4e6df452f0e9512538c4d63796bee8f915a0e25b266056e9b97c32b699efca07"}
 
 name: "Commit Changes Analyzer"
 "on":

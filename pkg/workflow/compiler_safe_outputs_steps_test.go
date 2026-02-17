@@ -155,7 +155,7 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			checkContains: []string{
 				"name: Checkout repository",
 				"uses: actions/checkout@",
-				"token: ${{ github.token }}",
+				"token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 				"persist-credentials: false",
 				"fetch-depth: 1",
 				"name: Configure Git credentials",
@@ -206,6 +206,81 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			},
 			checkContains: []string{
 				"repository: org/trial-repo",
+			},
+		},
+		{
+			name: "with per-config github-token",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.CROSS_REPO_PAT }}",
+					},
+				},
+			},
+			checkContains: []string{
+				"token: ${{ secrets.CROSS_REPO_PAT }}",
+				"GIT_TOKEN: ${{ secrets.CROSS_REPO_PAT }}",
+			},
+		},
+		{
+			name: "with safe-outputs github-token",
+			safeOutputs: &SafeOutputsConfig{
+				GitHubToken:        "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			checkContains: []string{
+				"token: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+				"GIT_TOKEN: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+			},
+		},
+		{
+			name: "cross-repo with custom token",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.CROSS_REPO_PAT }}",
+					},
+					TargetRepoSlug: "org/target-repo",
+				},
+			},
+			checkContains: []string{
+				"repository: org/target-repo",
+				"token: ${{ secrets.CROSS_REPO_PAT }}",
+				"GIT_TOKEN: ${{ secrets.CROSS_REPO_PAT }}",
+				`REPO_NAME: "org/target-repo"`,
+			},
+		},
+		{
+			name: "push-to-pull-request-branch with per-config token",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.PUSH_BRANCH_PAT }}",
+					},
+				},
+			},
+			checkContains: []string{
+				"token: ${{ secrets.PUSH_BRANCH_PAT }}",
+				"GIT_TOKEN: ${{ secrets.PUSH_BRANCH_PAT }}",
+			},
+		},
+		{
+			name: "both operations with create-pr token takes precedence",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.CREATE_PR_PAT }}",
+					},
+				},
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.PUSH_BRANCH_PAT }}",
+					},
+				},
+			},
+			checkContains: []string{
+				"token: ${{ secrets.CREATE_PR_PAT }}",
+				"GIT_TOKEN: ${{ secrets.CREATE_PR_PAT }}",
 			},
 		},
 	}

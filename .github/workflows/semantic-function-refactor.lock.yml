@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 924435422df46c5a9975adf255f0a3725fe02c8ae3a8cfc5323ee48a3b7c7680
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"924435422df46c5a9975adf255f0a3725fe02c8ae3a8cfc5323ee48a3b7c7680"}
 
 name: "Semantic Function Refactoring"
 "on":

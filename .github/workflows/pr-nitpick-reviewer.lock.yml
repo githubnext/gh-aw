@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 997e53e86e214684b33e8b1740a0c16512c093059ab844db0ccce3e932b2151c
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"997e53e86e214684b33e8b1740a0c16512c093059ab844db0ccce3e932b2151c"}
 
 name: "PR Nitpick Reviewer 🔍"
 "on":

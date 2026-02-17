@@ -28,7 +28,7 @@
 #     - shared/mcp/ast-grep.md
 #     - shared/mood.md
 #
-# frontmatter-hash: 423971fb3b0a7665efe1f8dc67b1370def0ca46f83b64630387f4ce67599cdb8
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"423971fb3b0a7665efe1f8dc67b1370def0ca46f83b64630387f4ce67599cdb8"}
 
 name: "Go Pattern Detector"
 "on":

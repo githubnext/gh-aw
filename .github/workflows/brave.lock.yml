@@ -28,7 +28,7 @@
 #     - shared/mcp/brave.md
 #     - shared/mood.md
 #
-# frontmatter-hash: 683e68dc826ae90ab36845403914608d2ae16919e3d0956152b061c60167576d
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"683e68dc826ae90ab36845403914608d2ae16919e3d0956152b061c60167576d"}
 
 name: "Brave Web Search Agent"
 "on":
