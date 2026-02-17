@@ -138,11 +138,17 @@ func transformActivationOutputs(expr string) string {
 		// We need to ensure we're replacing complete tokens, not substrings
 		// Check for word boundaries: start of string, space, or operator characters
 		// This prevents transforming "needs.activation.outputs.text_custom" incorrectly
+
+		// Start searching from the beginning
+		searchStart := 0
 		for {
-			idx := strings.Index(expr, oldExpr)
+			idx := strings.Index(expr[searchStart:], oldExpr)
 			if idx == -1 {
 				break
 			}
+
+			// Convert relative index to absolute index
+			idx += searchStart
 
 			// Check if this is a complete token (not part of a larger identifier)
 			// Look at the character after the match (if any)
@@ -155,13 +161,17 @@ func transformActivationOutputs(expr string) string {
 					(nextChar >= '0' && nextChar <= '9') ||
 					nextChar == '_' {
 					// This is a partial match like "needs.activation.outputs.text_custom"
-					// Don't transform it - break to avoid infinite loop
-					break
+					// Skip it and continue searching after this match
+					searchStart = endIdx
+					continue
 				}
 			}
 
 			// This is a complete token - replace it
 			expr = expr[:idx] + newExpr + expr[endIdx:]
+
+			// Continue searching after the replacement
+			searchStart = idx + len(newExpr)
 		}
 	}
 

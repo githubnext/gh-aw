@@ -110,6 +110,13 @@ Create a report based on repository analysis.`
 		if !strings.Contains(lockStr, "uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd") {
 			t.Error("Expected sanitized step to use inlined JavaScript")
 		}
+		// Check that it does NOT use the old shared action path
+		if strings.Contains(lockStr, "uses: ./.github/actions/compute-text") {
+			t.Error("Expected sanitized step NOT to use shared compute-text action")
+		}
+		if strings.Contains(lockStr, "uses: ./.github/actions/sanitized") {
+			t.Error("Expected sanitized step NOT to use shared sanitized action")
+		}
 	})
 
 	// Clean up for next test

@@ -39,7 +39,7 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 				Jobs: map[string]any{
 					"custom_job": map[string]any{
 						"runs-on": "ubuntu-latest",
-						// No needs field - runs before activation
+						"needs":   "pre_activation", // Must explicitly depend on pre_activation
 					},
 				},
 			},
@@ -49,6 +49,23 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 			},
 			notExpectedExprs: []string{
 				"needs.agent.outputs.output", // Agent runs AFTER activation
+			},
+		},
+		{
+			name: "with custom job without explicit needs",
+			data: &WorkflowData{
+				Jobs: map[string]any{
+					"custom_job": map[string]any{
+						"runs-on": "ubuntu-latest",
+						// No needs field - will get needs: activation added automatically
+					},
+				},
+			},
+			checkExpressions: []string{
+				"needs.pre_activation.outputs.activated",
+			},
+			notExpectedExprs: []string{
+				"needs.custom_job.outputs.output", // Runs AFTER activation (auto-added dependency)
 			},
 		},
 		{
@@ -224,15 +241,28 @@ func TestGetCustomJobsBeforeActivation(t *testing.T) {
 			expectedJobs: []string{},
 		},
 		{
-			name: "job with no dependencies runs before activation",
+			name: "job with no dependencies runs AFTER activation (auto-added needs)",
 			data: &WorkflowData{
 				Jobs: map[string]any{
 					"custom_job": map[string]any{
 						"runs-on": "ubuntu-latest",
+						// No needs field - will get needs: activation added automatically
 					},
 				},
 			},
-			expectedJobs: []string{"custom_job"},
+			expectedJobs: []string{}, // NOT included - runs after activation
+		},
+		{
+			name: "job depending on pre_activation runs before activation",
+			data: &WorkflowData{
+				Jobs: map[string]any{
+					"custom_job": map[string]any{
+						"runs-on": "ubuntu-latest",
+						"needs":   "pre_activation",
+					},
+				},
+			},
+			expectedJobs: []string{"custom_job"}, // Explicitly depends on pre_activation
 		},
 		{
 			name: "job depending on activation runs after",
@@ -259,23 +289,36 @@ func TestGetCustomJobsBeforeActivation(t *testing.T) {
 			expectedJobs: []string{}, // Filtered out
 		},
 		{
-			name: "mixed jobs - some before, some after",
+			name: "job depending on both pre_activation and activation runs after",
 			data: &WorkflowData{
 				Jobs: map[string]any{
-					"job_before": map[string]any{
+					"custom_job": map[string]any{
 						"runs-on": "ubuntu-latest",
-					},
-					"job_after": map[string]any{
-						"runs-on": "ubuntu-latest",
-						"needs":   "activation",
-					},
-					"another_before": map[string]any{
-						"runs-on": "ubuntu-latest",
-						"needs":   "some_other_job", // Not activation-related
+						"needs":   []string{"pre_activation", "activation"},
 					},
 				},
 			},
-			expectedJobs: []string{"another_before", "job_before"}, // Sorted
+			expectedJobs: []string{}, // Filtered out due to activation dependency
+		},
+		{
+			name: "mixed jobs - only pre_activation dependencies included",
+			data: &WorkflowData{
+				Jobs: map[string]any{
+					"job_no_needs": map[string]any{
+						"runs-on": "ubuntu-latest",
+						// Will get needs: activation added
+					},
+					"job_pre_activation": map[string]any{
+						"runs-on": "ubuntu-latest",
+						"needs":   "pre_activation",
+					},
+					"job_activation": map[string]any{
+						"runs-on": "ubuntu-latest",
+						"needs":   "activation",
+					},
+				},
+			},
+			expectedJobs: []string{"job_pre_activation"}, // Only explicit pre_activation dependency
 		},
 	}
 
@@ -417,6 +460,7 @@ permissions:
 jobs:
   before_job:
     runs-on: ubuntu-latest
+    needs: pre_activation
     steps:
       - run: echo "Before activation"
   after_job:

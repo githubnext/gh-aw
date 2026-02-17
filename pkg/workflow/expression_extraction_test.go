@@ -378,6 +378,11 @@ func TestTransformActivationOutputs(t *testing.T) {
 			input:    "func(needs.activation.outputs.text)",
 			expected: "func(steps.sanitized.outputs.text)",
 		},
+		{
+			name:     "partial match followed by valid match",
+			input:    "needs.activation.outputs.text_custom || needs.activation.outputs.text",
+			expected: "needs.activation.outputs.text_custom || steps.sanitized.outputs.text",
+		},
 	}
 
 	for _, tt := range tests {

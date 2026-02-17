@@ -166,7 +166,9 @@ func hasMultipleSafeOutputTypes(config *SafeOutputsConfig) bool {
 }
 
 // getCustomJobsBeforeActivation returns a list of custom job names that run before the activation job
-// A custom job runs before activation if it doesn't depend on activation, pre_activation, agent, or detection
+// A custom job runs before activation ONLY if it explicitly depends on pre_activation
+// Note: Jobs without explicit 'needs' will automatically get 'needs: activation' added by the compiler,
+// so they run AFTER activation, not before. Only jobs that explicitly depend on pre_activation run before activation.
 func getCustomJobsBeforeActivation(data *WorkflowData) []string {
 	var jobNames []string
 
@@ -174,40 +176,51 @@ func getCustomJobsBeforeActivation(data *WorkflowData) []string {
 		return jobNames
 	}
 
-	// Extract job names from the Jobs map, filtering out jobs that depend on later jobs
+	// Extract job names that explicitly depend on pre_activation
 	for jobName, jobConfig := range data.Jobs {
-		// Check if this job has dependencies that would make it run after activation
 		jobMap, ok := jobConfig.(map[string]any)
 		if !ok {
 			continue
 		}
 
-		// Check if the job has a 'needs' field
+		// Check if the job explicitly depends on pre_activation
+		// Jobs without explicit needs will get 'needs: activation' added automatically,
+		// so they run AFTER activation
 		needsField, hasNeeds := jobMap["needs"]
 		if !hasNeeds {
-			// No dependencies - this job can run before activation
-			jobNames = append(jobNames, jobName)
+			// No explicit dependencies - this will get needs: activation added automatically
+			// So it runs AFTER activation, not before
 			continue
 		}
 
 		// Parse the needs field (can be string or array)
 		needsList := parseNeedsField(needsField)
 
-		// Check if any of the dependencies are activation-related jobs
-		hasActivationDependency := false
+		// Check if it depends on pre_activation
+		dependsOnPreActivation := false
 		for _, dep := range needsList {
-			if dep == string(constants.ActivationJobName) ||
-				dep == string(constants.PreActivationJobName) ||
-				dep == string(constants.AgentJobName) ||
-				dep == string(constants.DetectionJobName) {
-				hasActivationDependency = true
+			if dep == string(constants.PreActivationJobName) {
+				dependsOnPreActivation = true
 				break
 			}
 		}
 
-		// If it doesn't depend on activation-related jobs, it can run before activation
-		if !hasActivationDependency {
-			jobNames = append(jobNames, jobName)
+		// Only include if it depends on pre_activation (and not on activation/agent/detection)
+		if dependsOnPreActivation {
+			// Double-check it doesn't also depend on activation-related jobs
+			hasActivationDependency := false
+			for _, dep := range needsList {
+				if dep == string(constants.ActivationJobName) ||
+					dep == string(constants.AgentJobName) ||
+					dep == string(constants.DetectionJobName) {
+					hasActivationDependency = true
+					break
+				}
+			}
+
+			if !hasActivationDependency {
+				jobNames = append(jobNames, jobName)
+			}
 		}
 	}
 
