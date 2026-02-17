@@ -94,7 +94,7 @@ func TestAddRemoteWorkflowFromURL(t *testing.T) {
 
 	// Add a workflow from a GitHub URL using the non-interactive flag
 	// Using a workflow from the gh-aw repo itself for reliability
-	workflowURL := "https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/github-mcp-tools-report.md"
+	workflowURL := "https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/github-mcp-tools-report.md"
 
 	cmd := exec.Command(setup.binaryPath, "add", workflowURL, "--non-interactive", "--verbose")
 	cmd.Dir = setup.tempDir
@@ -142,6 +142,140 @@ func TestAddRemoteWorkflowFromURL(t *testing.T) {
 
 	assert.Contains(t, lockContentStr, "name:", "lock file should have workflow name")
 	assert.Contains(t, lockContentStr, "jobs:", "lock file should have jobs section")
+}
+
+// TestAddAllBlogSeriesWorkflows tests adding all v0.45.5 workflows from the blog series
+// This comprehensive test verifies that all workflows referenced in the documentation can be added
+// This test requires GitHub authentication
+func TestAddAllBlogSeriesWorkflows(t *testing.T) {
+	// Skip if GitHub authentication is not available
+	authCmd := exec.Command("gh", "auth", "status")
+	if err := authCmd.Run(); err != nil {
+		t.Skip("Skipping test: GitHub authentication not available (gh auth status failed)")
+	}
+
+	// All v0.45.5 workflows from the blog series (58 total)
+	workflows := []string{
+		"agent-performance-analyzer.md",
+		"audit-workflows.md",
+		"blog-auditor.md",
+		"breaking-change-checker.md",
+		"changeset.md",
+		"ci-coach.md",
+		"ci-doctor.md",
+		"cli-consistency-checker.md",
+		"code-simplifier.md",
+		"copilot-agent-analysis.md",
+		"copilot-pr-nlp-analysis.md",
+		"copilot-session-insights.md",
+		"daily-compiler-quality.md",
+		"daily-doc-updater.md",
+		"daily-file-diet.md",
+		"daily-malicious-code-scan.md",
+		"daily-multi-device-docs-tester.md",
+		"daily-news.md",
+		"daily-repo-chronicle.md",
+		"daily-secrets-analysis.md",
+		"daily-team-status.md",
+		"daily-testify-uber-super-expert.md",
+		"daily-workflow-updater.md",
+		"discussion-task-miner.md",
+		"docs-noob-tester.md",
+		"duplicate-code-detector.md",
+		"firewall.md",
+		"github-mcp-tools-report.md",
+		"glossary-maintainer.md",
+		"go-fan.md",
+		"grumpy-reviewer.md",
+		"issue-arborist.md",
+		"issue-monster.md",
+		"issue-triage-agent.md",
+		"mcp-inspector.md",
+		"mergefest.md",
+		"metrics-collector.md",
+		"org-health-report.md",
+		"plan.md",
+		"poem-bot.md",
+		"portfolio-analyst.md",
+		"prompt-clustering-analysis.md",
+		"q.md",
+		"repository-quality-improver.md",
+		"schema-consistency-checker.md",
+		"security-compliance.md",
+		"semantic-function-refactor.md",
+		"slide-deck-maintainer.md",
+		"stale-repo-identifier.md",
+		"static-analysis-report.md",
+		"sub-issue-closer.md",
+		"terminal-stylist.md",
+		"typist.md",
+		"ubuntu-image-analyzer.md",
+		"unbloat-docs.md",
+		"weekly-issue-summary.md",
+		"workflow-generator.md",
+		"workflow-health-manager.md",
+	}
+
+	for _, workflowName := range workflows {
+		workflowName := workflowName // capture for loop variable
+		t.Run(workflowName, func(t *testing.T) {
+			// Note: Cannot use t.Parallel() because setupAddIntegrationTest() uses os.Chdir()
+			// which modifies global process state and would cause races between goroutines
+
+			setup := setupAddIntegrationTest(t)
+			defer setup.cleanup()
+
+			// Construct GitHub URL for the workflow at v0.45.5
+			workflowURL := "https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/" + workflowName
+
+			// Add the workflow
+			cmd := exec.Command(setup.binaryPath, "add", workflowURL, "--non-interactive")
+			cmd.Dir = setup.tempDir
+			output, err := cmd.CombinedOutput()
+			outputStr := string(output)
+
+			// Assert successful addition
+			require.NoError(t, err, "add command should succeed for %s: %s", workflowName, outputStr)
+
+			// Verify .github/workflows directory was created
+			workflowsDir := filepath.Join(setup.tempDir, ".github", "workflows")
+			info, err := os.Stat(workflowsDir)
+			require.NoError(t, err, ".github/workflows directory should exist for %s", workflowName)
+			assert.True(t, info.IsDir(), ".github/workflows should be a directory for %s", workflowName)
+
+			// Verify the workflow file was created
+			workflowFile := filepath.Join(workflowsDir, workflowName)
+			_, err = os.Stat(workflowFile)
+			require.NoError(t, err, "workflow file should exist for %s: %s", workflowName, workflowFile)
+
+			// Read and verify the workflow has basic expected content
+			content, err := os.ReadFile(workflowFile)
+			require.NoError(t, err, "should be able to read workflow file for %s", workflowName)
+			contentStr := string(content)
+
+			// Verify basic frontmatter structure
+			assert.Contains(t, contentStr, "---", "workflow %s should have frontmatter delimiters", workflowName)
+			assert.Contains(t, contentStr, "on:", "workflow %s should have trigger definition", workflowName)
+
+			// Verify source field was added with commit pinning
+			assert.Contains(t, contentStr, "source:", "workflow %s should have source field added", workflowName)
+			assert.Contains(t, contentStr, "github/gh-aw", "workflow %s source should reference the source repo", workflowName)
+
+			// Verify the compiled .lock.yml file was created
+			lockFileName := strings.TrimSuffix(workflowName, ".md") + ".lock.yml"
+			lockFile := filepath.Join(workflowsDir, lockFileName)
+			_, err = os.Stat(lockFile)
+			require.NoError(t, err, "lock file should exist for %s: %s", workflowName, lockFile)
+
+			// Verify the lock file contains expected GitHub Actions content
+			lockContent, err := os.ReadFile(lockFile)
+			require.NoError(t, err, "should be able to read lock file for %s", workflowName)
+			lockContentStr := string(lockContent)
+
+			assert.Contains(t, lockContentStr, "name:", "lock file for %s should have workflow name", workflowName)
+			assert.Contains(t, lockContentStr, "jobs:", "lock file for %s should have jobs section", workflowName)
+		})
+	}
 }
 
 // TestAddLocalWorkflow tests adding a local workflow file
@@ -512,7 +646,7 @@ func TestAddRemoteWorkflowWithVersion(t *testing.T) {
 	// Use a workflow spec with explicit path (owner/repo/path/workflow.md@version format)
 	// The 3-part format (owner/repo/workflow@version) looks in workflows/ directory,
 	// but this workflow is in .github/workflows/, so we need the explicit path
-	workflowSpec := "github/gh-aw/.github/workflows/github-mcp-tools-report.md@v0.42.13"
+	workflowSpec := "github/gh-aw/.github/workflows/github-mcp-tools-report.md@v0.45.5"
 
 	cmd := exec.Command(setup.binaryPath, "add", workflowSpec, "--non-interactive", "--verbose")
 	cmd.Dir = setup.tempDir

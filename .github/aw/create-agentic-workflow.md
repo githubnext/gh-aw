@@ -173,6 +173,7 @@ Before creating workflows, consult these documentation resources:
 
 - **Main documentation site**: https://github.github.com/gh-aw/
 - **Comprehensive reference**: `.github/aw/github-agentic-workflows.md` (local file with complete frontmatter schema)
+- **Campaign playbook**: `.github/aw/campaign.md` (patterns for campaign/KPI workflows; campaigns are not a separate workflow type)
 - **Setup guides**: https://github.github.com/gh-aw/setup/quick-start/
 - **Example workflows**: `.github/workflows/*.md` (actual working examples in this repository)
 
@@ -194,6 +195,7 @@ These resources contain workflow patterns, best practices, safe outputs, and per
 
    - What should trigger the workflow (`on:` — e.g., issues, pull requests, schedule, slash command)?
    - What should the agent do (comment, triage, create PR, fetch API data, etc.)?
+  - If the user says “campaign”, “KPI”, “pacing”, “cadence”, or “stop-after”, consult `.github/aw/campaign.md` (it’s still an agentic workflow; this is just a pattern).
    - ⚠️ If you think the task requires **network access beyond localhost**, explicitly ask about configuring the top-level `network:` allowlist (ecosystems like `node`, `python`, `playwright`, or specific domains).
    - 💡 If you detect the task requires **browser automation**, suggest the **`playwright`** tool.
    - 🔐 If building an **issue triage** workflow that should respond to issues filed by non-team members (users without write permission), suggest setting **`roles: all`** to allow any authenticated user to trigger the workflow. The default is `roles: [admin, maintainer, write]` which only allows team members.

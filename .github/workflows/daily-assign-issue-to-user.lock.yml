@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 16b742b68d92065e06d1612cf35998e5deadcd8b624ab48e2912fd1ca04cefaa
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"16b742b68d92065e06d1612cf35998e5deadcd8b624ab48e2912fd1ca04cefaa"}
 
 name: "Auto-Assign Issue"
 "on":

@@ -77,6 +77,13 @@ func WithGitRoot(gitRoot string) CompilerOption {
 	return func(c *Compiler) { c.gitRoot = gitRoot }
 }
 
+// WithInlinePrompt configures whether to inline markdown content directly in the compiled YAML
+// instead of using runtime-import macros. This is required for Wasm/browser builds where
+// the filesystem is unavailable at runtime.
+func WithInlinePrompt(inline bool) CompilerOption {
+	return func(c *Compiler) { c.inlinePrompt = inline }
+}
+
 // FileTracker interface for tracking files created during compilation
 type FileTracker interface {
 	TrackCreated(filePath string)
@@ -132,6 +139,7 @@ type Compiler struct {
 	scheduleFriendlyFormats map[int]string      // Maps schedule item index to friendly format string for current workflow
 	gitRoot                 string              // Git repository root directory (if set, used for action cache path)
 	contentOverride         string              // If set, use this content instead of reading from disk (for Wasm/in-memory compilation)
+	inlinePrompt            bool                // If true, inline markdown content in YAML instead of using runtime-import macros (for Wasm builds)
 }
 
 // NewCompiler creates a new workflow compiler with functional options.

@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 52a5d98da5b733b46e5cc163ea30944825a3fff0dab605b38d74485d6b61b2a5
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"52a5d98da5b733b46e5cc163ea30944825a3fff0dab605b38d74485d6b61b2a5"}
 
 name: "Daily Syntax Error Quality Check"
 "on":

@@ -29,7 +29,7 @@
 #     - shared/reporting.md
 #     - shared/safe-output-app.md
 #
-# frontmatter-hash: 9cce9d60bf1681ff7870108e3245cc6e2a21ae80066f040554a8e7c1a4007ee5
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"9cce9d60bf1681ff7870108e3245cc6e2a21ae80066f040554a8e7c1a4007ee5"}
 
 name: "Artifacts Summary"
 "on":

@@ -1,8 +1,17 @@
 // @ts-check
 // <reference types="@actions/github-script" />
 
+/**
+ * Expired Entity Cleanup Helpers
+ *
+ * NOTE: This module reads entity.body from GitHub API to extract expiration dates.
+ * No sanitization is needed as this is read-only processing. The body content is
+ * used only for pattern matching, not for writing back to GitHub.
+ */
+
 const { extractExpirationDate } = require("./ephemerals.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+// SEC-004: No sanitize needed - entity.body is read-only (expiration extraction)
 
 const DEFAULT_MAX_UPDATES_PER_RUN = 100;
 const DEFAULT_GRAPHQL_DELAY_MS = 500;

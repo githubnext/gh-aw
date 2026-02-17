@@ -26,7 +26,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 07c26a0fb014466ca768c00f41b46da3610d4a95f012914facf6adfd5775b924
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"07c26a0fb014466ca768c00f41b46da3610d4a95f012914facf6adfd5775b924"}
 
 name: "Test Dispatcher Workflow"
 "on":

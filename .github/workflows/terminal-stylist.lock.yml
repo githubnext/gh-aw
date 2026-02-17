@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: c99a64c4ce143d7bf55240d81d76c63f88ead024ce63d0b64301207de70b1b44
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c99a64c4ce143d7bf55240d81d76c63f88ead024ce63d0b64301207de70b1b44"}
 
 name: "Terminal Stylist"
 "on":
