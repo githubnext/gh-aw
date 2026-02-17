@@ -24,6 +24,37 @@ Agentic workflows restrict expressions in **markdown content** to prevent securi
 - Run metadata: `github.run_id`, `github.run_number`, `github.job`, `github.workflow`
 - Pattern expressions: `needs.*`, `steps.*`, `github.event.inputs.*`
 
+### Automatic Expression Transformations
+
+The compiler automatically transforms certain expressions to ensure they work correctly in the activation job context:
+
+**Activation Output Transformations:**
+- `needs.activation.outputs.text` → `steps.sanitized.outputs.text`
+- `needs.activation.outputs.title` → `steps.sanitized.outputs.title`
+- `needs.activation.outputs.body` → `steps.sanitized.outputs.body`
+
+**Why this transformation occurs:**
+
+The prompt is generated within the activation job, which cannot reference its own `needs.activation.*` outputs (a job cannot reference its own needs outputs in GitHub Actions). Instead, the compiler automatically rewrites these expressions to reference the `sanitized` step within the activation job, which computes sanitized versions of the issue/PR text, title, and body.
+
+**Example:**
+
+```markdown
+Analyze this content: "${{ needs.activation.outputs.text }}"
+```
+
+Is automatically transformed during compilation to:
+
+```markdown
+Analyze this content: "${{ steps.sanitized.outputs.text }}"
+```
+
+This transformation is particularly important for [runtime imports](#runtime-imports), which allow you to edit markdown content without recompilation. The compiler ensures all necessary expressions are available for runtime substitution.
+
+:::note
+Only `text`, `title`, and `body` outputs are transformed. Other activation outputs like `comment_id` and `comment_repo` are not transformed and remain as `needs.activation.outputs.*`.
+:::
+
 ### Prohibited Expressions
 
 All other expressions are disallowed, including `secrets.*`, `env.*`, `vars.*`, and complex functions like `toJson()` or `fromJson()`.

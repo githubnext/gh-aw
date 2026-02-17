@@ -762,6 +762,44 @@ make test        # Includes -race flag
 go test -race ./...
 ```
 
+### Expression Transformations in Workflows
+
+**Automatic Activation Output Transformations:**
+
+The compiler automatically transforms certain `needs.activation.outputs.*` expressions to `steps.sanitized.outputs.*` for compatibility with the activation job context.
+
+**Why this transformation occurs:**
+
+The prompt is generated **within the activation job**, which means it cannot reference its own `needs.activation.*` outputs (a job cannot reference its own needs outputs in GitHub Actions). The compiler automatically rewrites these expressions to reference the `sanitized` step, which computes sanitized versions of the triggering content.
+
+**Transformations:**
+- `needs.activation.outputs.text` → `steps.sanitized.outputs.text`
+- `needs.activation.outputs.title` → `steps.sanitized.outputs.title`
+- `needs.activation.outputs.body` → `steps.sanitized.outputs.body`
+
+**Important notes:**
+- Only `text`, `title`, and `body` outputs are transformed
+- Other activation outputs (`comment_id`, `comment_repo`, `slash_command`) are NOT transformed
+- Transformation uses word boundary checking to prevent incorrect partial matches (e.g., `text_custom` is not transformed)
+- This is particularly important for runtime-import, where markdown can change without recompilation
+
+**Example:**
+
+```markdown
+Analyze this content: "${{ needs.activation.outputs.text }}"
+```
+
+Is automatically transformed to:
+
+```markdown
+Analyze this content: "${{ steps.sanitized.outputs.text }}"
+```
+
+**Implementation:**
+- Transformation happens in `pkg/workflow/expression_extraction.go::transformActivationOutputs()`
+- Applied during expression extraction from markdown
+- Transformations are logged for debugging when `DEBUG=workflow:expression_extraction`
+
 ### YAML Library Usage
 
 **Primary YAML Library**: `goccy/go-yaml` v1.19.1
