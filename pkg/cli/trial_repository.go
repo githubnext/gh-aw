@@ -207,34 +207,36 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 		return fmt.Errorf("failed to change to temp directory: %w", err)
 	}
 
-	// For local workflows, we need to resolve from the original directory
-	// Temporarily change back to original dir for fetch, then back to tempDir
+	// Fetch workflow content - handle local workflows specially since they need
+	// to be resolved from the original directory, not the tempDir
 	specToFetch := parsedSpec
-	if isLocalWorkflowPath(parsedSpec.WorkflowPath) {
-		if err := os.Chdir(originalDir); err != nil {
-			return fmt.Errorf("failed to change to original directory for local fetch: %w", err)
-		}
-	}
+	var fetched *FetchedWorkflow
 
-	// Fetch workflow content - FetchWorkflowFromSource handles both local and remote
-	if opts.Verbose {
-		if isLocalWorkflowPath(parsedSpec.WorkflowPath) {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing local workflow '%s' from '%s' in trial mode", parsedSpec.WorkflowName, parsedSpec.WorkflowPath)))
-		} else {
+	if isLocalWorkflowPath(parsedSpec.WorkflowPath) {
+		// For local workflows, temporarily change to original dir for fetch
+		// Use a closure to ensure directory is restored even on error
+		fetched, err = func() (*FetchedWorkflow, error) {
+			if chErr := os.Chdir(originalDir); chErr != nil {
+				return nil, fmt.Errorf("failed to change to original directory for local fetch: %w", chErr)
+			}
+			// Always restore to tempDir when this closure exits
+			defer os.Chdir(tempDir)
+
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing local workflow '%s' from '%s' in trial mode", parsedSpec.WorkflowName, parsedSpec.WorkflowPath)))
+			}
+			return FetchWorkflowFromSource(specToFetch, opts.Verbose)
+		}()
+	} else {
+		// Remote workflows can be fetched from any directory
+		if opts.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing workflow '%s' from '%s' in trial mode", parsedSpec.WorkflowName, parsedSpec.RepoSlug)))
 		}
+		fetched, err = FetchWorkflowFromSource(specToFetch, opts.Verbose)
 	}
 
-	fetched, err := FetchWorkflowFromSource(specToFetch, opts.Verbose)
 	if err != nil {
 		return fmt.Errorf("failed to fetch workflow: %w", err)
-	}
-
-	// Change back to tempDir for the rest of the operations
-	if isLocalWorkflowPath(parsedSpec.WorkflowPath) {
-		if err := os.Chdir(tempDir); err != nil {
-			return fmt.Errorf("failed to change back to temp directory: %w", err)
-		}
 	}
 
 	content := fetched.Content

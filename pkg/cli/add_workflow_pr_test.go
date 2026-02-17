@@ -109,6 +109,86 @@ func TestSanitizeBranchName(t *testing.T) {
 			input:    "MyWorkflow.md",
 			expected: "MyWorkflow",
 		},
+		{
+			name:     "unicode characters replaced",
+			input:    "workflow-日本語.md",
+			expected: "workflow",
+		},
+		{
+			name:     "emoji replaced",
+			input:    "workflow-🚀-test.md",
+			expected: "workflow-test",
+		},
+		{
+			name:     "only special characters",
+			input:    "!@#$%^&*()+=",
+			expected: "workflow",
+		},
+		{
+			name:     "only dots",
+			input:    "...",
+			expected: "workflow",
+		},
+		{
+			name:     "only hyphens",
+			input:    "---",
+			expected: "workflow",
+		},
+		{
+			name:     "very long string truncation behavior",
+			input:    "this-is-a-very-long-workflow-name-that-exceeds-typical-branch-name-lengths.md",
+			expected: "this-is-a-very-long-workflow-name-that-exceeds-typical-branch-name-lengths",
+		},
+		{
+			name:     "spaces only",
+			input:    "     ",
+			expected: "workflow",
+		},
+		{
+			name:     "control characters",
+			input:    "work\tflow\nname",
+			expected: "work-flow-name",
+		},
+		{
+			name:     "null bytes",
+			input:    "work\x00flow",
+			expected: "work-flow",
+		},
+		{
+			name:     "mixed unicode and ascii",
+			input:    "test-αβγ-workflow.md",
+			expected: "test-workflow",
+		},
+		{
+			name:     "accented characters",
+			input:    "café-workflow.md",
+			expected: "caf-workflow",
+		},
+		{
+			name:     "cyrillic characters",
+			input:    "workflow-работа.md",
+			expected: "workflow",
+		},
+		{
+			name:     "chinese characters only",
+			input:    "工作流程.md",
+			expected: "workflow",
+		},
+		{
+			name:     "path separators extracts basename",
+			input:    "a/b\\c/d.md",
+			expected: "d", // normalizeWorkflowID extracts base name
+		},
+		{
+			name:     "question mark and asterisk",
+			input:    "test?file*.md",
+			expected: "test-file",
+		},
+		{
+			name:     "colon for windows paths",
+			input:    "C:\\Users\\test.md",
+			expected: "C-Users-test",
+		},
 	}
 
 	for _, tt := range tests {

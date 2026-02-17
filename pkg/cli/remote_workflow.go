@@ -151,19 +151,21 @@ func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, er
 // FetchIncludeFromSource fetches an include file from GitHub directly using a workflowspec format path.
 // The includePath should be in the format: owner/repo/path/to/file.md[@ref]
 // If the includePath is a relative path, it's resolved relative to the baseSpec.
+// Returns: (content, section, error) where section is the #fragment from the path (e.g., "#section-name").
 func FetchIncludeFromSource(includePath string, baseSpec *WorkflowSpec, verbose bool) ([]byte, string, error) {
 	remoteWorkflowLog.Printf("Fetching include from source: path=%s, base=%s", includePath, baseSpec.String())
 
-	// Check if this is a workflowspec format (owner/repo/path[@ref])
-	if isWorkflowSpecFormat(includePath) {
-		// Parse the workflowspec
-		cleanPath := includePath
-		var section string
-		if idx := strings.Index(includePath, "#"); idx != -1 {
-			cleanPath = includePath[:idx]
-			section = includePath[idx:]
-		}
+	// Extract section reference (e.g., "#section-name") from the path upfront
+	// This ensures consistent behavior regardless of which code path is taken
+	cleanPath := includePath
+	var section string
+	if idx := strings.Index(includePath, "#"); idx != -1 {
+		cleanPath = includePath[:idx]
+		section = includePath[idx:]
+	}
 
+	// Check if this is a workflowspec format (owner/repo/path[@ref])
+	if isWorkflowSpecFormat(cleanPath) {
 		// Split on @ to get path and ref
 		parts := strings.SplitN(cleanPath, "@", 2)
 		pathPart := parts[0]
@@ -204,12 +206,10 @@ func FetchIncludeFromSource(includePath string, baseSpec *WorkflowSpec, verbose 
 				ref = "main"
 			}
 
-			// Handle section references
-			filePath := includePath
-			var section string
-			if idx := strings.Index(includePath, "#"); idx != -1 {
-				filePath = includePath[:idx]
-				section = includePath[idx:]
+			// Remove @ ref suffix if present in the clean path (for relative paths with explicit refs)
+			filePath := cleanPath
+			if idx := strings.Index(filePath, "@"); idx != -1 {
+				filePath = filePath[:idx]
 			}
 
 			// If it's a relative path starting with shared/, it's relative to .github/
@@ -235,7 +235,7 @@ func FetchIncludeFromSource(includePath string, baseSpec *WorkflowSpec, verbose 
 		}
 	}
 
-	return nil, "", fmt.Errorf("cannot resolve include path: %s (no base spec provided)", includePath)
+	return nil, section, fmt.Errorf("cannot resolve include path: %s (no base spec provided)", includePath)
 }
 
 // fetchAndSaveRemoteIncludes parses the workflow content for @include directives and fetches them from the remote source
