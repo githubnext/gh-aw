@@ -80,7 +80,15 @@ func setupAddIntegrationTest(t *testing.T) *addIntegrationTestSetup {
 }
 
 // TestAddRemoteWorkflowFromURL tests adding a remote workflow via GitHub URL
+// This test requires GitHub authentication
 func TestAddRemoteWorkflowFromURL(t *testing.T) {
+	// Skip if GitHub authentication is not available
+	// Check by running `gh auth status` - if it fails, skip
+	authCmd := exec.Command("gh", "auth", "status")
+	if err := authCmd.Run(); err != nil {
+		t.Skip("Skipping test: GitHub authentication not available (gh auth status failed)")
+	}
+
 	setup := setupAddIntegrationTest(t)
 	defer setup.cleanup()
 
@@ -490,7 +498,14 @@ Content.
 
 // TestAddRemoteWorkflowWithVersion tests adding a remote workflow with a specific version tag
 // Uses the 4+ part format with explicit path since the workflow is in .github/workflows/
+// This test requires GitHub authentication
 func TestAddRemoteWorkflowWithVersion(t *testing.T) {
+	// Skip if GitHub authentication is not available
+	authCmd := exec.Command("gh", "auth", "status")
+	if err := authCmd.Run(); err != nil {
+		t.Skip("Skipping test: GitHub authentication not available (gh auth status failed)")
+	}
+
 	setup := setupAddIntegrationTest(t)
 	defer setup.cleanup()
 
