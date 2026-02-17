@@ -192,7 +192,7 @@ func getCustomJobsBeforeActivation(data *WorkflowData) []string {
 
 		// Parse the needs field (can be string or array)
 		needsList := parseNeedsField(needsField)
-		
+
 		// Check if any of the dependencies are activation-related jobs
 		hasActivationDependency := false
 		for _, dep := range needsList {

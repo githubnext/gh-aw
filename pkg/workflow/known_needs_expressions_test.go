@@ -55,7 +55,7 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 				Jobs: map[string]any{
 					"custom_job": map[string]any{
 						"runs-on": "ubuntu-latest",
-						"needs":    "activation", // Depends on activation - runs AFTER
+						"needs":   "activation", // Depends on activation - runs AFTER
 					},
 				},
 			},
@@ -238,7 +238,7 @@ func TestGetCustomJobsBeforeActivation(t *testing.T) {
 				Jobs: map[string]any{
 					"custom_job": map[string]any{
 						"runs-on": "ubuntu-latest",
-						"needs":    "activation",
+						"needs":   "activation",
 					},
 				},
 			},
@@ -250,7 +250,7 @@ func TestGetCustomJobsBeforeActivation(t *testing.T) {
 				Jobs: map[string]any{
 					"custom_job": map[string]any{
 						"runs-on": "ubuntu-latest",
-						"needs":    "agent",
+						"needs":   "agent",
 					},
 				},
 			},
@@ -265,11 +265,11 @@ func TestGetCustomJobsBeforeActivation(t *testing.T) {
 					},
 					"job_after": map[string]any{
 						"runs-on": "ubuntu-latest",
-						"needs":    "activation",
+						"needs":   "activation",
 					},
 					"another_before": map[string]any{
 						"runs-on": "ubuntu-latest",
-						"needs":    "some_other_job", // Not activation-related
+						"needs":   "some_other_job", // Not activation-related
 					},
 				},
 			},
