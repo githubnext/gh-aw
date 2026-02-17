@@ -5,6 +5,7 @@ package cli
 import (
 	"bytes"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -52,10 +53,10 @@ func TestAddCommandRequiresArguments(t *testing.T) {
 		t.Error("Expected error when calling add without arguments, got nil")
 	}
 
-	// Verify the error message mentions required arguments
+	// Verify the error message mentions workflow specification
 	errMsg := err.Error()
-	if errMsg != "requires at least 1 arg(s), only received 0" {
-		t.Errorf("Expected 'requires at least 1 arg(s)' error, got: %s", errMsg)
+	if !strings.Contains(errMsg, "missing workflow specification") {
+		t.Errorf("Expected error to mention 'missing workflow specification', got: %s", errMsg)
 	}
 }
 

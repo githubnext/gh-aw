@@ -56,10 +56,10 @@ You are analyzing PR #${{ github.event.pull_request.number }} in repository ${{ 
 The PR was created by ${{ github.actor }}.
 {{/if}}
 
-{{#if needs.activation.outputs.text}}
+{{#if steps.sanitized.outputs.text}}
 ## Content
 
-${{ needs.activation.outputs.text }}
+${{ steps.sanitized.outputs.text }}
 {{/if}}
 
 ## Instructions
@@ -110,7 +110,7 @@ ${{ needs.activation.outputs.text }}
 	}
 
 	// Verify that the main workflow content is loaded via runtime-import
-	// Template conditionals in the user's markdown (like needs.activation.outputs.text)
+	// Template conditionals in the user's markdown (like steps.sanitized.outputs.text)
 	// are processed at runtime by the JavaScript runtime_import helper
 	if !strings.Contains(compiledStr, "{{#runtime-import") {
 		t.Error("Compiled workflow should contain runtime-import macro for main workflow content")

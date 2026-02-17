@@ -70,7 +70,7 @@ func TestSecurityTemplateInjectionPrevention(t *testing.T) {
 		},
 		{
 			name:        "allowed_needs_output",
-			content:     "${{ needs.activation.outputs.text }}",
+			content:     "${{ steps.sanitized.outputs.text }}",
 			shouldBlock: false,
 			description: "Needs outputs should be allowed",
 		},

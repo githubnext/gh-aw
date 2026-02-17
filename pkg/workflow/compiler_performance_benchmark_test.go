@@ -32,7 +32,7 @@ timeout-minutes: 5
 
 # Simple Issue Handler
 
-Analyze the issue: ${{ needs.activation.outputs.text }}
+Analyze the issue: ${{ steps.sanitized.outputs.text }}
 `
 
 	testFile := filepath.Join(tmpDir, "simple.md")

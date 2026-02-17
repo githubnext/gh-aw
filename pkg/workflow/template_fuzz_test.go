@@ -24,7 +24,7 @@ func FuzzWrapExpressionsInTemplateConditionals(f *testing.F) {
 	f.Add("{{#if github.event.issue.number}}content{{/if}}")
 	f.Add("{{#if github.actor}}content{{/if}}")
 	f.Add("{{#if github.repository}}content{{/if}}")
-	f.Add("{{#if needs.activation.outputs.text}}content{{/if}}")
+	f.Add("{{#if steps.sanitized.outputs.text}}content{{/if}}")
 	f.Add("{{#if steps.my-step.outputs.result}}content{{/if}}")
 	f.Add("{{#if env.MY_VAR}}content{{/if}}")
 

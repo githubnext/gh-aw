@@ -103,18 +103,6 @@ Examples:
 				}
 			}
 
-			// Check if we should enter interactive mode
-			// Interactive mode: no flags provided at all (only verbose is allowed)
-			if !cmd.Flags().Changed("mcp") && !cmd.Flags().Changed("no-mcp") &&
-				!cmd.Flags().Changed("codespaces") &&
-				!cmd.Flags().Changed("completions") && !cmd.Flags().Changed("push") &&
-				!cmd.Flags().Changed("create-pull-request") && !cmd.Flags().Changed("pr") {
-
-				// Enter default mode (no flags provided)
-				initCommandLog.Print("Entering default mode")
-				return InitRepositoryDefault(verbose, cmd.Root())
-			}
-
 			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, codespaces=%v, codespaceEnabled=%v, completions=%v, push=%v, createPR=%v", verbose, mcp, codespaceRepos, codespaceEnabled, completions, push, createPR)
 			opts := InitOptions{
 				Verbose:          verbose,

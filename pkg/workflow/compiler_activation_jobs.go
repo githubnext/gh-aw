@@ -479,10 +479,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// This step computes sanitized versions of the triggering content (issue/PR/comment text, title, body)
 	// and makes them available as step outputs.
 	//
-	// IMPORTANT: These outputs are referenced as steps.sanitized.outputs.{text|title|body} in the activation job.
-	// The compiler automatically transforms markdown expressions like needs.activation.outputs.text to
-	// steps.sanitized.outputs.text because a job cannot reference its own needs.* outputs in GitHub Actions.
-	// See pkg/workflow/expression_extraction.go::transformActivationOutputs() for the transformation logic.
+	// IMPORTANT: These outputs are referenced as steps.sanitized.outputs.{text|title|body} in workflow markdown.
+	// Users should use ${{ steps.sanitized.outputs.text }} directly in their workflows.
+	// The outputs are also exposed as needs.activation.outputs.* for downstream jobs.
 	if data.NeedsTextOutput {
 		steps = append(steps, "      - name: Compute current body text\n")
 		steps = append(steps, "        id: sanitized\n")
@@ -493,7 +492,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 		// Set up outputs - includes text, title, and body
 		// These are exposed as needs.activation.outputs.* for downstream jobs
-		// but within the activation job itself, they must be referenced as steps.sanitized.outputs.*
+		// and as steps.sanitized.outputs.* within the activation job (where prompts are rendered)
 		outputs["text"] = "${{ steps.sanitized.outputs.text }}"
 		outputs["title"] = "${{ steps.sanitized.outputs.title }}"
 		outputs["body"] = "${{ steps.sanitized.outputs.body }}"
