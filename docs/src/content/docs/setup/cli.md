@@ -315,7 +315,7 @@ gh aw logs "ci failure doctor"             # Case-insensitive display name
 
 #### `audit`
 
-Analyze specific runs with overview, metrics, tool usage, MCP failures, firewall analysis, noops, and artifacts. Accepts run IDs, workflow run URLs, job URLs, and step-level URLs. Auto-detects Copilot agent runs for specialized parsing. Job URLs automatically extract specific job logs; step URLs extract specific steps; without step, extracts first failing step.
+Analyze specific runs with overview, metrics, tool usage, MCP failures, firewall analysis, noops, and artifacts. Accepts run IDs, workflow run URLs, job URLs, and step-level URLs. Auto-detects Copilot coding agent runs for specialized parsing. Job URLs automatically extract specific job logs; step URLs extract specific steps; without step, extracts first failing step.
 
 ```bash wrap
 gh aw audit 12345678                                      # By run ID

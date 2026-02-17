@@ -89,14 +89,14 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 	condition := BuildSafeOutputType("assign_to_agent")
 
 	return SafeOutputStepConfig{
-		StepName:      "Assign To Agent",
-		StepID:        "assign_to_agent",
-		ScriptName:    "assign_to_agent",
-		Script:        getAssignToAgentScript(),
-		CustomEnvVars: customEnvVars,
-		Condition:     condition,
-		Token:         cfg.GitHubToken,
-		UseAgentToken: true,
+		StepName:                   "Assign To Agent",
+		StepID:                     "assign_to_agent",
+		ScriptName:                 "assign_to_agent",
+		Script:                     getAssignToAgentScript(),
+		CustomEnvVars:              customEnvVars,
+		Condition:                  condition,
+		Token:                      cfg.GitHubToken,
+		UseCopilotCodingAgentToken: true,
 	}
 }
 
@@ -111,13 +111,13 @@ func (c *Compiler) buildCreateAgentSessionStepConfig(data *WorkflowData, mainJob
 	condition := BuildSafeOutputType("create_agent_session")
 
 	return SafeOutputStepConfig{
-		StepName:        "Create Agent Session",
-		StepID:          "create_agent_session",
-		Script:          "const { main } = require('/opt/gh-aw/actions/create_agent_session.cjs'); await main();",
-		CustomEnvVars:   customEnvVars,
-		Condition:       condition,
-		Token:           cfg.GitHubToken,
-		UseCopilotToken: true,
+		StepName:                "Create Agent Session",
+		StepID:                  "create_agent_session",
+		Script:                  "const { main } = require('/opt/gh-aw/actions/create_agent_session.cjs'); await main();",
+		CustomEnvVars:           customEnvVars,
+		Condition:               condition,
+		Token:                   cfg.GitHubToken,
+		UseCopilotRequestsToken: true,
 	}
 }
 
@@ -140,9 +140,13 @@ func (c *Compiler) buildCreateProjectStepConfig(data *WorkflowData, mainJobName 
 	}
 
 	// Get the effective token using the Projects-specific precedence chain
-	// This includes fallback to GH_AW_PROJECT_GITHUB_TOKEN if no custom token is configured
+	// Precedence: per-config token > safe-outputs level token > GH_AW_PROJECT_GITHUB_TOKEN
 	// Note: Projects v2 requires a PAT or GitHub App - the default GITHUB_TOKEN cannot work
-	effectiveToken := getEffectiveProjectGitHubToken(cfg.GitHubToken, data.GitHubToken)
+	configToken := cfg.GitHubToken
+	if configToken == "" && data.SafeOutputs.GitHubToken != "" {
+		configToken = data.SafeOutputs.GitHubToken
+	}
+	effectiveToken := getEffectiveProjectGitHubToken(configToken)
 
 	// Always expose the effective token as GH_AW_PROJECT_GITHUB_TOKEN environment variable
 	// The JavaScript code checks process.env.GH_AW_PROJECT_GITHUB_TOKEN to provide helpful error messages

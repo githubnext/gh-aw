@@ -1371,8 +1371,10 @@ tools:
       # (optional)
       owner: "example-value"
 
-      # Optional list of repositories to grant access to (defaults to current repository
-      # if not specified)
+      # Optional list of repositories to grant access to. Supports three modes:
+      # - ["*"] for org-wide access (all repos in the installation)
+      # - ["repo1", "repo2"] for specific repositories only
+      # - Empty/omit for current repository only (default)
       # (optional)
       repositories: []
         # Array of strings
@@ -1899,13 +1901,13 @@ safe-outputs:
   # Option 2: Enable issue creation with default configuration
   create-issue: null
 
-  # Enable creation of GitHub Copilot agent tasks from workflow output. Allows
+  # Enable creation of GitHub Copilot coding agent tasks from workflow output. Allows
   # workflows to spawn new agent sessions for follow-up work.
   # (optional)
   # This field supports multiple formats (oneOf):
 
   # Option 1: DEPRECATED: Use 'create-agent-session' instead. Configuration for
-  # creating GitHub Copilot agent sessions from agentic workflow output using gh
+  # creating GitHub Copilot coding agent sessions from agentic workflow output using gh
   # agent-task CLI. The main job does not need write permissions.
   create-agent-task:
     # Base branch for the agent session pull request. Defaults to the current branch
@@ -1938,12 +1940,12 @@ safe-outputs:
   # Option 2: Enable agent session creation with default configuration
   create-agent-task: null
 
-  # Enable creation of GitHub Copilot agent sessions from workflow output. Allows
+  # Enable creation of GitHub Copilot coding agent sessions from workflow output. Allows
   # workflows to start interactive agent conversations.
   # (optional)
   # This field supports multiple formats (oneOf):
 
-  # Option 1: Configuration for creating GitHub Copilot agent sessions from agentic
+  # Option 1: Configuration for creating GitHub Copilot coding agent sessions from agentic
   # workflow output using gh agent-task CLI. The main job does not need write
   # permissions.
   create-agent-session:
@@ -2969,7 +2971,7 @@ safe-outputs:
   # Option 1: Null configuration uses default agent (copilot)
   assign-to-agent: null
 
-  # Option 2: Configuration for assigning GitHub Copilot agents to issues from
+  # Option 2: Configuration for assigning GitHub Copilot coding agent to issues from
   # agentic workflow output
   assign-to-agent:
     # Default agent name to assign (default: 'copilot')
@@ -3544,10 +3546,10 @@ safe-outputs:
     # (optional)
     owner: "example-value"
 
-    # Optional: Comma or newline-separated list of repositories to grant access to. If
-    # owner is set and repositories is empty, access will be scoped to all
-    # repositories in the provided repository owner's installation. If owner and
-    # repositories are empty, access will be scoped to only the current repository.
+    # Optional: List of repositories to grant access to. Supports three modes:
+    # - ["*"] for org-wide access (all repos in the installation)
+    # - ["repo1", "repo2"] for specific repositories only
+    # - Empty/omit for current repository only (default)
     # (optional)
     repositories: []
       # Array of strings
@@ -3808,15 +3810,6 @@ safe-inputs:
 # (optional)
 runtimes:
   {}
-
-# GitHub token expression to use for all steps that require GitHub authentication.
-# Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{
-# secrets.CUSTOM_PAT }}. If not specified, defaults to ${{
-# secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}. This value can be
-# overridden by safe-outputs github-token or individual safe-output github-token
-# fields.
-# (optional)
-github-token: "${{ secrets.GITHUB_TOKEN }}"
 ---
 ```
 

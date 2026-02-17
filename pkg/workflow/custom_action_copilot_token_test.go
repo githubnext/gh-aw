@@ -26,12 +26,12 @@ func TestCustomActionCopilotTokenFallback(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{},
 	}
 
-	// Test with UseCopilotToken=true and no custom token
+	// Test with UseCopilotRequestsToken=true and no custom token
 	config := GitHubScriptStepConfig{
-		StepName:        "Test Custom Action",
-		StepID:          "test",
-		Token:           "", // No custom token
-		UseCopilotToken: true,
+		StepName:                "Test Custom Action",
+		StepID:                  "test",
+		CustomToken:             "", // No custom token
+		UseCopilotRequestsToken: true,
 	}
 
 	steps := compiler.buildCustomActionStep(workflowData, config, "test_handler")
@@ -39,11 +39,13 @@ func TestCustomActionCopilotTokenFallback(t *testing.T) {
 
 	t.Logf("Generated steps:\n%s", stepsContent)
 
-	// Should use COPILOT_GITHUB_TOKEN fallback, not COPILOT_TOKEN
-	assert.Contains(t, stepsContent, "COPILOT_GITHUB_TOKEN", "Should use COPILOT_GITHUB_TOKEN in fallback")
+	// Should use COPILOT_GITHUB_TOKEN directly (no fallback chain)
+	// Note: COPILOT_GITHUB_TOKEN is the recommended token for Copilot operations
+	// and does NOT have a fallback to GITHUB_TOKEN because GITHUB_TOKEN lacks
+	// permissions for agent sessions and bot assignments
+	assert.Contains(t, stepsContent, "secrets.COPILOT_GITHUB_TOKEN", "Should use COPILOT_GITHUB_TOKEN")
 	assert.NotContains(t, stepsContent, "COPILOT_TOKEN ||", "Should not use deprecated COPILOT_TOKEN")
 
-	// Verify it's using the correct fallback chain
-	assert.Contains(t, stepsContent, "secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN",
-		"Should use correct Copilot token fallback chain")
+	// Verify no fallback chain (COPILOT_GITHUB_TOKEN is used directly)
+	assert.NotContains(t, stepsContent, "||", "Should not have fallback chain for Copilot token")
 }

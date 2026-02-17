@@ -241,7 +241,7 @@ func TestPluginTokenCascading(t *testing.T) {
 			expectedToken: "${{ secrets.GH_AW_PLUGINS_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
 		},
 		{
-			name:          "Frontmatter github-token provided",
+			name:          "Plugins config token provided",
 			customToken:   "${{ secrets.MY_GITHUB_TOKEN }}",
 			expectedToken: "${{ secrets.MY_GITHUB_TOKEN }}",
 		},

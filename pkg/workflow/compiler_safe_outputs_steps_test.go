@@ -87,11 +87,11 @@ func TestBuildConsolidatedSafeOutputStep(t *testing.T) {
 		{
 			name: "step with copilot token",
 			config: SafeOutputStepConfig{
-				StepName:        "Copilot Step",
-				StepID:          "copilot",
-				Script:          "console.log('test');",
-				Token:           "${{ secrets.COPILOT_GITHUB_TOKEN }}",
-				UseCopilotToken: true,
+				StepName:                "Copilot Step",
+				StepID:                  "copilot",
+				Script:                  "console.log('test');",
+				Token:                   "${{ secrets.COPILOT_GITHUB_TOKEN }}",
+				UseCopilotRequestsToken: true,
 			},
 			checkContains: []string{
 				"github-token:",
@@ -100,11 +100,11 @@ func TestBuildConsolidatedSafeOutputStep(t *testing.T) {
 		{
 			name: "step with agent token",
 			config: SafeOutputStepConfig{
-				StepName:      "Agent Step",
-				StepID:        "agent",
-				Script:        "console.log('test');",
-				Token:         "${{ secrets.AGENT_TOKEN }}",
-				UseAgentToken: true,
+				StepName:                   "Agent Step",
+				StepID:                     "agent",
+				Script:                     "console.log('test');",
+				Token:                      "${{ secrets.AGENT_TOKEN }}",
+				UseCopilotCodingAgentToken: true,
 			},
 			checkContains: []string{
 				"github-token:",
@@ -500,32 +500,32 @@ func TestStepWithoutCondition(t *testing.T) {
 // TestGitHubTokenPrecedence tests GitHub token selection logic
 func TestGitHubTokenPrecedence(t *testing.T) {
 	tests := []struct {
-		name              string
-		useAgentToken     bool
-		useCopilotToken   bool
-		token             string
-		expectedInContent string
+		name                       string
+		useCopilotCodingAgentToken bool
+		useCopilotRequestsToken    bool
+		token                      string
+		expectedInContent          string
 	}{
 		{
-			name:              "standard token",
-			useAgentToken:     false,
-			useCopilotToken:   false,
-			token:             "${{ github.token }}",
-			expectedInContent: "github-token:",
+			name:                       "standard token",
+			useCopilotCodingAgentToken: false,
+			useCopilotRequestsToken:    false,
+			token:                      "${{ github.token }}",
+			expectedInContent:          "github-token:",
 		},
 		{
-			name:              "copilot token",
-			useAgentToken:     false,
-			useCopilotToken:   true,
-			token:             "${{ secrets.COPILOT_GITHUB_TOKEN }}",
-			expectedInContent: "github-token:",
+			name:                       "copilot token",
+			useCopilotCodingAgentToken: false,
+			useCopilotRequestsToken:    true,
+			token:                      "${{ secrets.COPILOT_GITHUB_TOKEN }}",
+			expectedInContent:          "github-token:",
 		},
 		{
-			name:              "agent token",
-			useAgentToken:     true,
-			useCopilotToken:   false,
-			token:             "${{ secrets.AGENT_TOKEN }}",
-			expectedInContent: "github-token:",
+			name:                       "agent token",
+			useCopilotCodingAgentToken: true,
+			useCopilotRequestsToken:    false,
+			token:                      "${{ secrets.AGENT_TOKEN }}",
+			expectedInContent:          "github-token:",
 		},
 	}
 
@@ -534,12 +534,12 @@ func TestGitHubTokenPrecedence(t *testing.T) {
 			compiler := NewCompiler()
 
 			config := SafeOutputStepConfig{
-				StepName:        "Test Step",
-				StepID:          "test",
-				Script:          "console.log('test');",
-				Token:           tt.token,
-				UseCopilotToken: tt.useCopilotToken,
-				UseAgentToken:   tt.useAgentToken,
+				StepName:                   "Test Step",
+				StepID:                     "test",
+				Script:                     "console.log('test');",
+				Token:                      tt.token,
+				UseCopilotRequestsToken:    tt.useCopilotRequestsToken,
+				UseCopilotCodingAgentToken: tt.useCopilotCodingAgentToken,
 			}
 
 			workflowData := &WorkflowData{

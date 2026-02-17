@@ -78,6 +78,8 @@ The PAT needs permissions **only on target repositories** where you want to crea
 
 For enhanced security, use GitHub Apps with automatic token revocation:
 
+**Specific repositories:**
+
 ```yaml wrap
 safe-outputs:
   app:
@@ -85,6 +87,19 @@ safe-outputs:
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
     owner: "my-org"
     repositories: ["repo1", "repo2", "repo3"]
+  create-issue:
+    target-repo: "my-org/repo1"
+```
+
+**Org-wide access** (all repos in installation):
+
+```yaml wrap
+safe-outputs:
+  app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    owner: "my-org"
+    repositories: ["*"]  # Access all repos
   create-issue:
     target-repo: "my-org/repo1"
 ```

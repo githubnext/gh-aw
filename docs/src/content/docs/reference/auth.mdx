@@ -27,7 +27,7 @@ Depending on what your workflow needs to do, you may need additional GitHub toke
 
 - **Lockdown mode, cross-repo access, or remote GitHub tools** – Add [`GH_AW_GITHUB_TOKEN`](#gh_aw_github_token)
 - **GitHub Projects v2 operations** – Add [`GH_AW_PROJECT_GITHUB_TOKEN`](#gh_aw_project_github_token)
-- **Assign Copilot agents to issues/PRs** – Add [`GH_AW_AGENT_TOKEN`](#gh_aw_agent_token)
+- **Assign Copilot coding agent to issues/PRs** – Add [`GH_AW_AGENT_TOKEN`](#gh_aw_agent_token)
 - **MCP server with special permissions** – Add [`GH_AW_GITHUB_MCP_SERVER_TOKEN`](#gh_aw_github_mcp_server_token)
 
 ## How do I add a GitHub Actions secret to my repository?
@@ -257,7 +257,7 @@ gh aw secrets set GH_AW_PROJECT_GITHUB_TOKEN --value "YOUR_PROJECT_PAT"
 
 **Token precedence and fallback**:
 
-per-output -> workflow-level -> `GH_AW_PROJECT_GITHUB_TOKEN` -> `GITHUB_TOKEN`.
+per-safe-output -> `GH_AW_PROJECT_GITHUB_TOKEN` -> `GITHUB_TOKEN`.
 
 **Example configuration**:
 
@@ -302,9 +302,9 @@ safe-outputs:
 
 ### `GH_AW_AGENT_TOKEN`
 
-If you want to programmatically assign Copilot agents to issues or pull requests, you need to configure `GH_AW_AGENT_TOKEN` with a Personal Access Token (PAT) that has the appropriate scopes and permissions for issue and PR management.
+If you want to programmatically assign the GitHub platform's asynchronous [Copilot coding agent](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) to issues or pull requests, you need to configure `GH_AW_AGENT_TOKEN` with a Personal Access Token (PAT) that has the appropriate scopes and permissions for issue and PR management.
 
-Is token/secret is used by `assign-to-agent:` safe outputs to programmatically assign Copilot agents to issues or pull requests.
+Is token/secret is used by `assign-to-agent:` safe outputs to programmatically assign Copilot coding agent to issues or pull requests.
 
 **Setup**:
 
@@ -352,22 +352,19 @@ gh aw secrets set GH_AW_AGENT_TOKEN --value "YOUR_AGENT_PAT"
 
 `GH_AW_AGENT_TOKEN` -> `GH_AW_GITHUB_TOKEN` -> `GITHUB_TOKEN`.
 
-**Notes**:
+**Resource owner requirements**: The token's resource owner must match the repository ownership:
+- **User-owned repositories**: Use a token where the resource owner is your user account
+- **Organization-owned repositories**: Use a token where the resource owner is the organization
 
-**Two ways to assign Copilot agents**
+This ensures the token has the appropriate permissions to assign agents to issues and pull requests in the repository.
 
-There are two different methods for assigning GitHub Copilot agents to issues or pull requests. Both methods use the same token (`GH_AW_AGENT_TOKEN`) and GraphQL API to perform the assignment:
+**Note: There are two ways to assign the GitHub platform's asynchronous [Copilot coding agent](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent)** (CCA)
 
-1. **Via `assign-to-agent` safe output**: Use when you need to programmatically assign agents to existing issues or PRs through workflow automation. This is a standalone operation that requires the token documented on this page.
+There are two different methods for assigning issues or pull requests to CCA. Both methods use the same token (`GH_AW_AGENT_TOKEN`) and GraphQL API to perform the assignment:
 
-```yaml
-safe-outputs:
-  assign-to-agent:
-    name: "copilot"
-    allowed: [copilot]
-```
+1. Via [`assign-to-agent` safe output**](/gh-aw/reference/safe-outputs/#assign-to-agent-assign-to-agent)
 
-2. **Via `assignees` field in `create-issue`**: Use when creating new issues through workflows and want to assign the agent immediately. When `copilot` is in the assignees list, it is automatically filtered out and assigned via GraphQL in a separate step after issue creation (using the same token and API as method 1).
+2. Via [`assignees` field in `create-issue` safe output](/gh-aw/reference/safe-outputs/#issue-creation-create-issue): Use when creating new issues through workflows and want to assign the agent immediately. When `copilot` is in the assignees list, it is automatically filtered out and assigned via GraphQL in a separate step after issue creation (using the same token and API as method 1).
 
 ```yaml
 safe-outputs:
@@ -376,16 +373,6 @@ safe-outputs:
 ```
 
 Both methods result in the same outcome as [manually assigning issues to Copilot through the GitHub UI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-a-pr#assigning-an-issue-to-copilot). Method 2 is simpler when creating issues, while method 1 provides fine-grained control for existing issues.
-
-**Technical implementation**: Both methods use the GraphQL `replaceActorsForAssignable` mutation to assign the `copilot-swe-agent` bot to issues or PRs. Both follow the token precedence and fallback behavior documented above.
-
-See [GitHub's official documentation on assigning issues to Copilot](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent) for more details on the Copilot coding agent.
-
-**Resource owner requirements**: The token's resource owner must match the repository ownership:
-- **User-owned repositories**: Use a token where the resource owner is your user account
-- **Organization-owned repositories**: Use a token where the resource owner is the organization
-
-This ensures the token has the appropriate permissions to assign agents to issues and pull requests in the repository.
 
 ---
 

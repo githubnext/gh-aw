@@ -47,7 +47,7 @@ Your mission is to:
    - Clear description of the conformance violation
    - Severity level and check ID
    - Specific files or code locations affected
-   - Actionable remediation steps suitable for Copilot agent assignment
+   - Actionable remediation steps suitable for Copilot coding agent assignment
 4. Close older issues from previous runs (auto-handled by expires: 1d and close-older-issues: true)
 
 ## Phase 1: Run Conformance Checks
@@ -127,7 +127,7 @@ Example: `SEC-001: Agent job in workflow X has write permissions`
 
 ## Remediation Steps
 
-This task can be assigned to a Copilot agent with the following steps:
+This task can be assigned to a Copilot coding agent with the following steps:
 
 1. [Specific action 1]
 2. [Specific action 2]

@@ -18,7 +18,7 @@ func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 		expectedCommand string
 	}{
 		{
-			name:            "Copilot agent uses GH_AW_MODEL_AGENT_COPILOT",
+			name:            "Copilot coding agent uses GH_AW_MODEL_AGENT_COPILOT",
 			engine:          "copilot",
 			expectedEnvVar:  constants.EnvVarModelAgentCopilot,
 			expectedCommand: "${" + constants.EnvVarModelAgentCopilot + ":+ --model",

@@ -74,7 +74,7 @@ steps:
 <!--
 ## Copilot PR Data Fetch
 
-This shared component fetches pull request data for GitHub Copilot agent-created PRs from the last 30 days, with intelligent caching to avoid redundant API calls.
+This shared component fetches pull request data for GitHub Copilot coding agent-created PRs from the last 30 days, with intelligent caching to avoid redundant API calls.
 
 ### What It Does
 

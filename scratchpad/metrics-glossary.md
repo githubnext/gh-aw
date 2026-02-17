@@ -479,7 +479,7 @@ When implementing or updating daily report workflows:
 
 ### agent_prs_total
 
-**Definition**: Total count of pull requests created by Copilot agent
+**Definition**: Total count of pull requests created by Copilot coding agent
 
 **Scope**: PRs created by copilot-swe-agent (user.login == "copilot" or branch starts with "copilot/")
 
@@ -494,7 +494,7 @@ When implementing or updating daily report workflows:
 
 ### agent_prs_merged
 
-**Definition**: Count of Copilot agent PRs that were successfully merged
+**Definition**: Count of Copilot coding agent PRs that were successfully merged
 
 **Scope**: Agent PRs where `merged = true`
 
@@ -509,7 +509,7 @@ When implementing or updating daily report workflows:
 
 ### agent_success_rate
 
-**Definition**: Percentage of Copilot agent PRs that were merged
+**Definition**: Percentage of Copilot coding agent PRs that were merged
 
 **Scope**: (agent_prs_merged / agent_prs_total) * 100
 

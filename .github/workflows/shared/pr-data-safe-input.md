@@ -65,7 +65,7 @@ imports:
 
 The agent can then use the tool to fetch PR data:
 - `fetch-pr-data` with no arguments returns PRs from the last 30 days
-- `fetch-pr-data` with `search: "head:copilot/"` returns Copilot agent PRs
+- `fetch-pr-data` with `search: "head:copilot/"` returns Copilot coding agent PRs
 - `fetch-pr-data` with `state: "merged"` returns only merged PRs
 
 ### Parameters

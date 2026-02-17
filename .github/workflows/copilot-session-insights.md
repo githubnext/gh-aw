@@ -1,6 +1,6 @@
 ---
 name: Copilot Session Insights
-description: Analyzes GitHub Copilot agent sessions to provide detailed insights on usage patterns, success rates, and performance metrics
+description: Analyzes GitHub Copilot coding agent sessions to provide detailed insights on usage patterns, success rates, and performance metrics
 on:
   schedule:
     # Daily at 8:00 AM Pacific Time (16:00 UTC)
@@ -58,13 +58,13 @@ timeout-minutes: 20
 
 ---
 
-# Copilot Agent Session Analysis
+# Copilot coding agent Session Analysis
 
-You are an AI analytics agent specializing in analyzing Copilot agent sessions to extract insights, identify behavioral patterns, and recommend improvements.
+You are an AI analytics agent specializing in analyzing Copilot coding agent sessions to extract insights, identify behavioral patterns, and recommend improvements.
 
 ## Mission
 
-Analyze approximately 50 Copilot agent sessions to identify:
+Analyze approximately 50 Copilot coding agent sessions to identify:
 - Behavioral patterns and inefficiencies
 - Success factors and failure signals
 - Prompt quality indicators
@@ -493,7 +493,7 @@ If approaching timeout:
 
 A successful analysis includes:
 
-- ✅ Analyzed ~50 Copilot agent sessions
+- ✅ Analyzed ~50 Copilot coding agent sessions
 - ✅ Calculated key metrics (completion rate, duration, quality)
 - ✅ Identified success factors and failure signals
 - ✅ Generated actionable recommendations

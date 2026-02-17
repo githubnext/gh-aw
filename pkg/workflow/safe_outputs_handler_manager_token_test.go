@@ -50,18 +50,18 @@ func TestHandlerManagerProjectGitHubTokenEnvVar(t *testing.T) {
 			shouldHaveToken:     true,
 		},
 		{
-			name: "update-project with top-level github-token",
+			name: "update-project with safe-outputs github-token",
 			frontmatter: map[string]any{
-				"name":         "Test Workflow",
-				"github-token": "${{ secrets.CUSTOM_TOKEN }}",
+				"name": "Test Workflow",
 				"safe-outputs": map[string]any{
+					"github-token": "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
 					"update-project": map[string]any{
 						"project": "https://github.com/orgs/myorg/projects/1",
 					},
 				},
 			},
-			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.CUSTOM_TOKEN }}",
-			expectedWithToken:   "github-token: ${{ secrets.CUSTOM_TOKEN }}",
+			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+			expectedWithToken:   "github-token: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
 			shouldHaveToken:     true,
 		},
 		{
@@ -137,11 +137,6 @@ func TestHandlerManagerProjectGitHubTokenEnvVar(t *testing.T) {
 			workflowData := &WorkflowData{
 				Name:        "test-workflow",
 				SafeOutputs: compiler.extractSafeOutputsConfig(tt.frontmatter),
-			}
-
-			// Set top-level github-token if present in frontmatter
-			if githubToken, ok := tt.frontmatter["github-token"].(string); ok {
-				workflowData.GitHubToken = githubToken
 			}
 
 			// Build the handler manager step

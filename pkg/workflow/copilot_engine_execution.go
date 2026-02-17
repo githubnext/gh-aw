@@ -228,16 +228,10 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	}
 
 	// Use COPILOT_GITHUB_TOKEN
-	// If github-token is specified at workflow level, use that instead
-	var copilotGitHubToken string
-	if workflowData.GitHubToken != "" {
-		copilotGitHubToken = workflowData.GitHubToken
-	} else {
-		// #nosec G101 -- This is NOT a hardcoded credential. It's a GitHub Actions expression template
-		// that GitHub Actions runtime replaces with the actual secret value. The string "${{ secrets.COPILOT_GITHUB_TOKEN }}"
-		// is a placeholder, not an actual credential.
-		copilotGitHubToken = "${{ secrets.COPILOT_GITHUB_TOKEN }}"
-	}
+	// #nosec G101 -- This is NOT a hardcoded credential. It's a GitHub Actions expression template
+	// that GitHub Actions runtime replaces with the actual secret value. The string "${{ secrets.COPILOT_GITHUB_TOKEN }}"
+	// is a placeholder, not an actual credential.
+	copilotGitHubToken := "${{ secrets.COPILOT_GITHUB_TOKEN }}"
 
 	env := map[string]string{
 		"XDG_CONFIG_HOME":           "/home/runner",
@@ -259,8 +253,8 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 
 	if hasGitHubTool(workflowData.ParsedTools) {
 		customGitHubToken := getGitHubToken(workflowData.Tools["github"])
-		// Use effective token with precedence: custom > top-level > default
-		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
+		// Use effective token with precedence: custom > default
+		effectiveToken := getEffectiveGitHubToken(customGitHubToken)
 		env["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
 	}
 
