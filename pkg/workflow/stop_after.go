@@ -64,7 +64,10 @@ func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, wor
 		stopAfterLog.Printf("Stop-after value specified: %s", workflowData.StopTime)
 		// Check if there's already a lock file with a stop time (recompilation case)
 		lockFile := stringutil.MarkdownToLockFile(markdownPath)
-		existingStopTime := ExtractStopTimeFromLockFile(lockFile)
+		existingStopTime, err := extractStopTimeFromLockFileWithValidation(lockFile)
+		if err != nil {
+			return err
+		}
 
 		// If refresh flag is set, always regenerate the stop time
 		if c.refreshStopTime {
@@ -140,10 +143,17 @@ func resolveStopTime(stopTime string, compilationTime time.Time) (string, error)
 }
 
 // ExtractStopTimeFromLockFile extracts the STOP_TIME value from a compiled workflow lock file
-func ExtractStopTimeFromLockFile(lockFilePath string) string {
+func extractStopTimeFromLockFileWithValidation(lockFilePath string) (string, error) {
 	content, err := os.ReadFile(lockFilePath)
 	if err != nil {
-		return ""
+		// Missing lock file is expected on first compile.
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", nil
+	}
+	if err := ValidateLockSchemaCompatibility(lockFilePath, content); err != nil {
+		return "", err
 	}
 
 	lines := strings.Split(string(content), "\n")
@@ -153,11 +163,22 @@ func ExtractStopTimeFromLockFile(lockFilePath string) string {
 		if strings.Contains(line, "GH_AW_STOP_TIME:") {
 			prefix := "GH_AW_STOP_TIME:"
 			if idx := strings.Index(line, prefix); idx != -1 {
-				return strings.TrimSpace(line[idx+len(prefix):])
+				return strings.TrimSpace(line[idx+len(prefix):]), nil
 			}
 		}
 	}
-	return ""
+	return "", nil
+}
+
+// ExtractStopTimeFromLockFile extracts the STOP_TIME value from a compiled workflow lock file.
+// It tolerates read/parse failures for caller paths that are informational only.
+func ExtractStopTimeFromLockFile(lockFilePath string) string {
+	stopTime, err := extractStopTimeFromLockFileWithValidation(lockFilePath)
+	if err != nil {
+		stopAfterLog.Printf("Skipping stop-time extraction for incompatible lock file %s: %v", lockFilePath, err)
+		return ""
+	}
+	return stopTime
 }
 
 // extractSkipIfMatchFromOn extracts the skip-if-match value from the on: section

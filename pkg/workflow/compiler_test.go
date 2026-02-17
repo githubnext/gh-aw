@@ -717,7 +717,7 @@ func TestWriteWorkflowOutput(t *testing.T) {
 					// Verify content
 					content, err := os.ReadFile(lockFile)
 					require.NoError(t, err, "Should be able to read lock file")
-					assert.Equal(t, tt.yamlContent, string(content), "File content should match")
+					assert.Equal(t, prependLockSchemaVersionHeader(tt.yamlContent), string(content), "File content should match")
 				} else {
 					// Verify file was NOT created in noEmit mode
 					_, err := os.Stat(lockFile)
@@ -736,8 +736,8 @@ func TestWriteWorkflowOutput_ContentUnchanged(t *testing.T) {
 
 	yamlContent := "name: test\non: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n"
 
-	// Write initial content
-	require.NoError(t, os.WriteFile(lockFile, []byte(yamlContent), 0644))
+	// Write initial content as it would be emitted by writeWorkflowOutput.
+	require.NoError(t, os.WriteFile(lockFile, []byte(prependLockSchemaVersionHeader(yamlContent)), 0644))
 
 	// Get initial modification time
 	initialInfo, err := os.Stat(lockFile)

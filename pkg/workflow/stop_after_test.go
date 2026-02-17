@@ -256,3 +256,49 @@ jobs:
 		}
 	})
 }
+
+func TestProcessStopAfterConfiguration_FailsOnIncompatibleLockSchema(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "stop-after-incompatible-schema")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	mdFile := filepath.Join(tmpDir, "test.md")
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+
+	workflowData := &WorkflowData{}
+	compiler := NewCompiler()
+	compiler.SetRefreshStopTime(false)
+
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"workflow_dispatch": nil,
+			"stop-after":        "+24h",
+		},
+	}
+
+	err = os.WriteFile(lockFile, []byte(`# gh-aw-lock-schema-version: 999
+name: Test Workflow
+on:
+  workflow_dispatch:
+jobs:
+  stop_time_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v8
+        env:
+          GH_AW_STOP_TIME: 2025-12-31 23:59:59
+`), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create lock file: %v", err)
+	}
+
+	err = compiler.processStopAfterConfiguration(frontmatter, workflowData, mdFile)
+	if err == nil {
+		t.Fatal("expected schema compatibility error, got nil")
+	}
+	if !strings.Contains(err.Error(), "incompatible lock schema version 999") {
+		t.Fatalf("expected incompatible schema error, got: %v", err)
+	}
+}

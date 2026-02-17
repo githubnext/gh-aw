@@ -77,6 +77,9 @@ func ResolveWorkflowName(workflowInput string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to read lock file '%s': %w", lockFile, err)
 	}
+	if err := ValidateLockSchemaCompatibility(lockFile, content); err != nil {
+		return "", err
+	}
 
 	// Parse YAML to extract the name field
 	var workflow struct {
@@ -218,6 +221,9 @@ func GetAllWorkflows() ([]WorkflowNameMatch, error) {
 		if err != nil {
 			resolveLog.Printf("Failed to read lock file %s: %v", lockFile, err)
 			continue
+		}
+		if err := ValidateLockSchemaCompatibility(lockFile, content); err != nil {
+			return nil, err
 		}
 
 		var wf struct {

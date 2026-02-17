@@ -231,6 +231,45 @@ func TestResolveWorkflowName_InvalidYAML(t *testing.T) {
 	}
 }
 
+func TestResolveWorkflowName_IncompatibleLockSchema(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
+	err := os.MkdirAll(workflowsDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mdFile := filepath.Join(workflowsDir, "future-schema.md")
+	lockFile := filepath.Join(workflowsDir, "future-schema.lock.yml")
+
+	err = os.WriteFile(mdFile, []byte("# Future Schema\nSome content"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lockContent := `# gh-aw-lock-schema-version: 999
+name: "Future Schema Workflow"
+on: push
+`
+	err = os.WriteFile(lockFile, []byte(lockContent), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Chdir(tempDir)
+
+	_, err = ResolveWorkflowName("future-schema")
+	if err == nil {
+		t.Fatal("expected error for incompatible lock schema version, got nil")
+	}
+	if !contains(err.Error(), "incompatible lock schema version 999") {
+		t.Fatalf("expected schema compatibility error, got: %v", err)
+	}
+	if !contains(err.Error(), "gh aw compile future-schema") {
+		t.Fatalf("expected migration guidance in error, got: %v", err)
+	}
+}
+
 func TestResolveWorkflowName_MissingNameField(t *testing.T) {
 	// Create a temporary directory with workflow files
 	tempDir := testutil.TempDir(t, "test-*")
