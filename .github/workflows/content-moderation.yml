@@ -1,6 +1,29 @@
 name: Content Moderation
 
 # Automated content moderation that removes issues, PRs, discussions, and comments from blocklisted users
+#
+# USAGE:
+# 1. Add usernames to the DEFAULT_BLOCKLIST array in the workflow (line ~50)
+# 2. The workflow automatically triggers on new issues, PRs, discussions, and comments
+# 3. For manual moderation, use workflow_dispatch with a GitHub URL
+#
+# WORKFLOW_DISPATCH INPUTS:
+# - target_url: GitHub URL of the content to moderate (required)
+#   Examples:
+#   - https://github.com/owner/repo/issues/123
+#   - https://github.com/owner/repo/pull/456
+#   - https://github.com/owner/repo/discussions/789
+#   - https://github.com/owner/repo/issues/123#issuecomment-123456
+# - staging: Set to true for a dry run (only logs actions without executing)
+# - blocklist: Additional usernames to block (comma-separated)
+#
+# FEATURES:
+# - Extensive logging with core.info/warning/error
+# - Step summary generation for tracking moderation actions
+# - Staging mode for testing without actual moderation
+# - Support for issues, PRs, discussions, and comments
+# - Configurable blocklist with additional runtime usernames
+#
 on:
   issues:
     types: [opened, edited, reopened]
