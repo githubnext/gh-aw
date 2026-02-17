@@ -1,8 +1,3 @@
----
-description: Shared playbook for designing campaign and KPI workflows (pacing, stop conditions, multi-repo coordination)
-disable-model-invocation: true
----
-
 # Campaign Workflows
 
 Shared reference for **campaign workflows**: coordinated, time-bounded pushes with measurable outcomes, including **KPI workflows** (measure and improve a metric over time).
@@ -51,7 +46,9 @@ concurrency:
   group: "campaign-weekly-ci-kpi"
   cancel-in-progress: false
 
-permissions: read-all
+permissions:
+  content: read
+  issues: read
 tools:
   cache-memory: true
 
