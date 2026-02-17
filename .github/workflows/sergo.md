@@ -28,7 +28,7 @@ imports:
 safe-outputs:
   create-discussion:
     title-prefix: "[sergo] "
-    category: "general"
+    category: "audits"
     max: 1
     close-older-discussions: true
 

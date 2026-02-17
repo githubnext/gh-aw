@@ -18,7 +18,7 @@ tools:
 safe-outputs:
   upload-asset:
   create-discussion:
-    category: "general"
+    category: "audits"
     close-older-discussions: true
 
 network:

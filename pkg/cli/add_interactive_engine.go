@@ -7,7 +7,6 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/stringutil"
 )
 
 // selectAIEngineAndKey prompts the user to select an AI engine and provide API key
@@ -130,144 +129,19 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 	return c.collectAPIKey(selectedEngine)
 }
 
-// collectAPIKey collects the API key for the selected engine
+// collectAPIKey collects the API key for the selected engine using the unified engine secrets functions
 func (c *AddInteractiveConfig) collectAPIKey(engine string) error {
 	addInteractiveLog.Printf("Collecting API key for engine: %s", engine)
 
-	// Copilot requires special handling with PAT creation instructions
-	if engine == "copilot" {
-		return c.collectCopilotPAT()
+	// Use the unified CheckAndCollectEngineSecrets function
+	config := EngineSecretConfig{
+		RepoSlug:             c.RepoOverride,
+		Engine:               engine,
+		Verbose:              c.Verbose,
+		ExistingSecrets:      c.existingSecrets,
+		IncludeSystemSecrets: false, // Don't include system secrets in add-wizard
+		IncludeOptional:      false,
 	}
 
-	// All other engines use the generic API key collection
-	opt := constants.GetEngineOption(engine)
-	if opt == nil {
-		return fmt.Errorf("unknown engine: %s", engine)
-	}
-
-	return c.collectGenericAPIKey(opt)
-}
-
-// collectCopilotPAT walks the user through creating a Copilot PAT
-func (c *AddInteractiveConfig) collectCopilotPAT() error {
-	addInteractiveLog.Print("Collecting Copilot PAT")
-
-	// Check if secret already exists in the repository
-	if c.existingSecrets["COPILOT_GITHUB_TOKEN"] {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Using existing COPILOT_GITHUB_TOKEN secret in repository"))
-		return nil
-	}
-
-	// Check if COPILOT_GITHUB_TOKEN is already in environment
-	existingToken := os.Getenv("COPILOT_GITHUB_TOKEN")
-	if existingToken != "" {
-		// Validate the existing token is a fine-grained PAT
-		if err := stringutil.ValidateCopilotPAT(existingToken); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("COPILOT_GITHUB_TOKEN in environment is not a fine-grained PAT: %s", stringutil.GetPATTypeDescription(existingToken))))
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-			// Continue to prompt for a new token
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Found valid fine-grained COPILOT_GITHUB_TOKEN in environment"))
-			return nil
-		}
-	}
-
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "GitHub Copilot requires a fine-grained Personal Access Token (PAT) with Copilot permissions.")
-	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Classic PATs (ghp_...) are not supported. You must use a fine-grained PAT (github_pat_...)."))
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Please create a token at:")
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  https://github.com/settings/personal-access-tokens/new"))
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Configure the token with:")
-	fmt.Fprintln(os.Stderr, "  • Token name: Agentic Workflows Copilot")
-	fmt.Fprintln(os.Stderr, "  • Expiration: 90 days (recommended for testing)")
-	fmt.Fprintln(os.Stderr, "  • Resource owner: Your personal account")
-	fmt.Fprintln(os.Stderr, "  • Repository access: \"Public repositories\" (you must use this setting even for private repos)")
-	fmt.Fprintln(os.Stderr, "  • Account permissions → Copilot Requests: Read-only")
-	fmt.Fprintln(os.Stderr, "")
-
-	var token string
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("After creating, please paste your fine-grained Copilot PAT:").
-				Description("Must start with 'github_pat_'. Classic PATs (ghp_...) are not supported.").
-				EchoMode(huh.EchoModePassword).
-				Value(&token).
-				Validate(func(s string) error {
-					if len(s) < 10 {
-						return fmt.Errorf("token appears to be too short")
-					}
-					// Validate it's a fine-grained PAT
-					return stringutil.ValidateCopilotPAT(s)
-				}),
-		),
-	).WithAccessible(console.IsAccessibleMode())
-
-	if err := form.Run(); err != nil {
-		return fmt.Errorf("failed to get Copilot token: %w", err)
-	}
-
-	// Store in environment for later use
-	_ = os.Setenv("COPILOT_GITHUB_TOKEN", token)
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Valid fine-grained Copilot token received"))
-
-	return nil
-}
-
-// collectGenericAPIKey collects an API key for engines that use a simple key-based authentication
-func (c *AddInteractiveConfig) collectGenericAPIKey(opt *constants.EngineOption) error {
-	addInteractiveLog.Printf("Collecting API key for %s", opt.Label)
-
-	// Check if secret already exists in the repository
-	if c.existingSecrets[opt.SecretName] {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Using existing %s secret in repository", opt.SecretName)))
-		return nil
-	}
-
-	// Check if key is already in environment
-	envVar := opt.SecretName
-	if opt.EnvVarName != "" {
-		envVar = opt.EnvVarName
-	}
-	existingKey := os.Getenv(envVar)
-	if existingKey != "" {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %s in environment", envVar)))
-		return nil
-	}
-
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintf(os.Stderr, "%s requires an API key.\n", opt.Label)
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "Get your API key from:")
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  %s", opt.KeyURL)))
-	fmt.Fprintln(os.Stderr, "")
-
-	var apiKey string
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title(fmt.Sprintf("Paste your %s API key:", opt.Label)).
-				Description("The key will be stored securely as a repository secret").
-				EchoMode(huh.EchoModePassword).
-				Value(&apiKey).
-				Validate(func(s string) error {
-					if len(s) < 10 {
-						return fmt.Errorf("API key appears to be too short")
-					}
-					return nil
-				}),
-		),
-	).WithAccessible(console.IsAccessibleMode())
-
-	if err := form.Run(); err != nil {
-		return fmt.Errorf("failed to get %s API key: %w", opt.Label, err)
-	}
-
-	// Store in environment for later use
-	_ = os.Setenv(opt.SecretName, apiKey)
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("%s API key received", opt.Label)))
-
-	return nil
+	return CheckAndCollectEngineSecrets(config)
 }

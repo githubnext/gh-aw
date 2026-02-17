@@ -50,7 +50,7 @@ Carefully review pull request changes to identify any modifications that could:
 
 - **Repository**: ${{ github.repository }}
 - **Pull Request**: #${{ github.event.issue.number }}
-- **Comment**: "${{ needs.activation.outputs.text }}"
+- **Comment**: "${{ steps.sanitized.outputs.text }}"
 
 ## Security Review Areas
 

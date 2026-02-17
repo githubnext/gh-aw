@@ -30,7 +30,7 @@ You are an issue classification assistant. Your task is to analyze newly created
 - **Repository**: ${{ github.repository }}
 - **Issue Content**: 
   ```
-  ${{ needs.activation.outputs.text }}
+  ${{ steps.sanitized.outputs.text }}
   ```
 
 ## Classification Guidelines

@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 2dd754991a7089d3f9a6c9fdf8c91a7f67cb480442cb886a66d1a2db790d44b0
+# frontmatter-hash: 658bec814a532760ef7ef68405abfe89dc1288fedc59b11ae7d0610c8e84f3de
 
 name: "Super Linter Report"
 "on":
@@ -1140,7 +1140,7 @@ jobs:
           persist-credentials: false
       - name: Super-linter
         id: super-linter
-        uses: super-linter/super-linter@2bdd90ed3262e023ac84bf8fe35dc480721fc1f2 # v8.2.1
+        uses: super-linter/super-linter@61abc07d755095a68f4987d1c2c3d1d64408f1f9 # v8.5.0
         env:
           CREATE_LOG_FILE: "true"
           DEFAULT_BRANCH: main

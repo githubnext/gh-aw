@@ -693,15 +693,76 @@ type EngineOption struct {
 	SecretName         string   // The name of the secret required for this engine (e.g., "COPILOT_GITHUB_TOKEN")
 	AlternativeSecrets []string // Alternative secret names that can also be used for this engine
 	EnvVarName         string   // Alternative environment variable name if different from SecretName (optional)
-	KeyURL             string   // URL where users can obtain their API key (empty for engines with special setup like Copilot)
+	KeyURL             string   // URL where users can obtain their API key/token (may be empty if not applicable)
+	WhenNeeded         string   // Human-readable description of when this secret is needed
 }
 
 // EngineOptions provides the list of available AI engines for user selection
 var EngineOptions = []EngineOption{
-	{string(CopilotEngine), "GitHub Copilot", "GitHub Copilot CLI with agent support", "COPILOT_GITHUB_TOKEN", nil, "", ""},
-	{string(CopilotSDKEngine), "GitHub Copilot SDK", "GitHub Copilot SDK with headless mode", "COPILOT_GITHUB_TOKEN", nil, "", ""},
-	{string(ClaudeEngine), "Claude", "Anthropic Claude Code coding agent", "ANTHROPIC_API_KEY", []string{"CLAUDE_CODE_OAUTH_TOKEN"}, "", "https://console.anthropic.com/settings/keys"},
-	{string(CodexEngine), "Codex", "OpenAI Codex/GPT engine", "OPENAI_API_KEY", []string{"CODEX_API_KEY"}, "", "https://platform.openai.com/api-keys"},
+	{
+		Value:       string(CopilotEngine),
+		Label:       "GitHub Copilot",
+		Description: "GitHub Copilot CLI with agent support",
+		SecretName:  "COPILOT_GITHUB_TOKEN",
+		KeyURL:      "https://github.com/settings/personal-access-tokens/new",
+		WhenNeeded:  "Copilot workflows (CLI, engine, agent tasks, etc.)",
+	},
+	{
+		Value:       string(CopilotSDKEngine),
+		Label:       "GitHub Copilot SDK",
+		Description: "GitHub Copilot SDK with headless mode",
+		SecretName:  "COPILOT_GITHUB_TOKEN",
+		KeyURL:      "https://github.com/settings/personal-access-tokens/new",
+		WhenNeeded:  "Copilot SDK workflows with headless mode",
+	},
+	{
+		Value:              string(ClaudeEngine),
+		Label:              "Claude",
+		Description:        "Anthropic Claude Code coding agent",
+		SecretName:         "ANTHROPIC_API_KEY",
+		AlternativeSecrets: []string{"CLAUDE_CODE_OAUTH_TOKEN"},
+		KeyURL:             "https://console.anthropic.com/settings/keys",
+		WhenNeeded:         "Claude engine workflows",
+	},
+	{
+		Value:              string(CodexEngine),
+		Label:              "Codex",
+		Description:        "OpenAI Codex/GPT engine",
+		SecretName:         "OPENAI_API_KEY",
+		AlternativeSecrets: []string{"CODEX_API_KEY"},
+		KeyURL:             "https://platform.openai.com/api-keys",
+		WhenNeeded:         "Codex/OpenAI engine workflows",
+	},
+}
+
+// SystemSecretSpec describes a system-level secret that is not engine-specific
+type SystemSecretSpec struct {
+	Name        string
+	WhenNeeded  string
+	Description string
+	Optional    bool
+}
+
+// SystemSecrets defines system-level secrets that are not tied to a specific engine
+var SystemSecrets = []SystemSecretSpec{
+	{
+		Name:        "GH_AW_GITHUB_TOKEN",
+		WhenNeeded:  "Cross-repo Project Ops / remote GitHub tools",
+		Description: "Fine-grained or classic PAT with contents/issues/pull-requests read+write on the repos gh-aw will touch.",
+		Optional:    false,
+	},
+	{
+		Name:        "GH_AW_AGENT_TOKEN",
+		WhenNeeded:  "Assigning agents/bots to issues or pull requests",
+		Description: "PAT for agent assignment with issues and pull-requests write on the repos where agents act.",
+		Optional:    true,
+	},
+	{
+		Name:        "GH_AW_GITHUB_MCP_SERVER_TOKEN",
+		WhenNeeded:  "Isolating MCP server permissions (advanced, optional)",
+		Description: "Optional read-mostly token for the GitHub MCP server when you want different scopes than GH_AW_GITHUB_TOKEN.",
+		Optional:    true,
+	},
 }
 
 // GetEngineOption returns the EngineOption for the given engine value, or nil if not found
@@ -715,7 +776,7 @@ func GetEngineOption(engineValue string) *EngineOption {
 }
 
 // GetAllEngineSecretNames returns all unique secret names across all configured engines.
-// This includes primary secrets, alternative secrets, and system-level secrets like GH_AW_GITHUB_TOKEN.
+// This includes primary secrets, alternative secrets, and system-level secrets.
 // The returned slice contains no duplicates.
 func GetAllEngineSecretNames() []string {
 	seen := make(map[string]bool)
@@ -735,12 +796,11 @@ func GetAllEngineSecretNames() []string {
 		}
 	}
 
-	// Add system-level secrets that aren't engine-specific
-	systemSecrets := []string{"GH_AW_GITHUB_TOKEN"}
-	for _, s := range systemSecrets {
-		if !seen[s] {
-			seen[s] = true
-			secrets = append(secrets, s)
+	// Add system-level secrets from SystemSecrets
+	for _, s := range SystemSecrets {
+		if s.Name != "" && !seen[s.Name] {
+			seen[s.Name] = true
+			secrets = append(secrets, s.Name)
 		}
 	}
 

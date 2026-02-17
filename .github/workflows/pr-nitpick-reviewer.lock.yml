@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: e41706cf3b5f63db3dcae1670aa41148710c3d5d45fe4731e29101b5bc6d198c
+# frontmatter-hash: 997e53e86e214684b33e8b1740a0c16512c093059ab844db0ccce3e932b2151c
 
 name: "PR Nitpick Reviewer 🔍"
 "on":
@@ -442,7 +442,7 @@ jobs:
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
             {
-              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"[nitpick-report] \". Discussions will be created in category \"general\".",
+              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"[nitpick-report] \". Discussions will be created in category \"audits\".",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -1317,7 +1317,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"general\",\"expires\":168,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[nitpick-report] \"},\"create_pull_request_review_comment\":{\"max\":10,\"side\":\"RIGHT\"},\"missing_data\":{},\"missing_tool\":{},\"submit_pull_request_review\":{\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"expires\":168,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[nitpick-report] \"},\"create_pull_request_review_comment\":{\"max\":10,\"side\":\"RIGHT\"},\"missing_data\":{},\"missing_tool\":{},\"submit_pull_request_review\":{\"max\":1}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

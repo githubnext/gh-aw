@@ -41,7 +41,7 @@ When invoked with the `/brave` command in an issue or pull request comment, you 
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
-- **Triggering Content**: "${{ needs.activation.outputs.text }}"
+- **Triggering Content**: "${{ steps.sanitized.outputs.text }}"
 - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
 - **Triggered by**: @${{ github.actor }}
 

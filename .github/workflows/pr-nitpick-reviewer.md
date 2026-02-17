@@ -14,7 +14,7 @@ tools:
 safe-outputs:
   create-discussion:
     title-prefix: "[nitpick-report] "
-    category: "general"
+    category: "audits"
     max: 1
   create-pull-request-review-comment:
     max: 10

@@ -41,11 +41,6 @@ By default (without --no-mcp):
 With --no-mcp flag:
 - Skips creating GitHub Copilot Agent MCP server configuration files
 
-With --tokens flag:
-- Validates which required and optional secrets are configured
-- Provides commands to set up missing secrets for the specified engine
-- Use with --engine flag to check engine-specific tokens (copilot, claude, codex)
-
 With --codespaces flag:
 - Updates existing .devcontainer/devcontainer.json if present, otherwise creates new file at default location
 - Configures permissions for current repo: actions:write, contents:write, discussions:read, issues:read, pull-requests:write, workflows:write
@@ -70,7 +65,6 @@ Examples:
   ` + string(constants.CLIExtensionPrefix) + ` init                                # Interactive mode
   ` + string(constants.CLIExtensionPrefix) + ` init -v                             # Interactive with verbose output
   ` + string(constants.CLIExtensionPrefix) + ` init --no-mcp                       # Skip MCP configuration
-  ` + string(constants.CLIExtensionPrefix) + ` init --tokens --engine copilot      # Check Copilot tokens
   ` + string(constants.CLIExtensionPrefix) + ` init --codespaces                   # Configure Codespaces
   ` + string(constants.CLIExtensionPrefix) + ` init --codespaces repo1,repo2       # Codespaces with additional repos
   ` + string(constants.CLIExtensionPrefix) + ` init --completions                  # Install shell completions
@@ -80,8 +74,6 @@ Examples:
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcpFlag, _ := cmd.Flags().GetBool("mcp")
 			noMcp, _ := cmd.Flags().GetBool("no-mcp")
-			tokens, _ := cmd.Flags().GetBool("tokens")
-			engine, _ := cmd.Flags().GetString("engine")
 			codespaceReposStr, _ := cmd.Flags().GetString("codespaces")
 			codespaceEnabled := cmd.Flags().Changed("codespaces")
 			completions, _ := cmd.Flags().GetBool("completions")
@@ -114,18 +106,27 @@ Examples:
 			// Check if we should enter interactive mode
 			// Interactive mode: no flags provided at all (only verbose is allowed)
 			if !cmd.Flags().Changed("mcp") && !cmd.Flags().Changed("no-mcp") &&
-				!cmd.Flags().Changed("tokens") &&
-				!cmd.Flags().Changed("engine") && !cmd.Flags().Changed("codespaces") &&
+				!cmd.Flags().Changed("codespaces") &&
 				!cmd.Flags().Changed("completions") && !cmd.Flags().Changed("push") &&
 				!cmd.Flags().Changed("create-pull-request") && !cmd.Flags().Changed("pr") {
 
-				// Enter interactive mode
-				initCommandLog.Print("Entering interactive mode")
-				return InitRepositoryInteractive(verbose, cmd.Root())
+				// Enter default mode (no flags provided)
+				initCommandLog.Print("Entering default mode")
+				return InitRepositoryDefault(verbose, cmd.Root())
 			}
 
-			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, tokens=%v, engine=%v, codespaces=%v, codespaceEnabled=%v, completions=%v, push=%v, createPR=%v", verbose, mcp, tokens, engine, codespaceRepos, codespaceEnabled, completions, push, createPR)
-			if err := InitRepository(verbose, mcp, tokens, engine, codespaceRepos, codespaceEnabled, completions, push, createPR, cmd.Root()); err != nil {
+			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, codespaces=%v, codespaceEnabled=%v, completions=%v, push=%v, createPR=%v", verbose, mcp, codespaceRepos, codespaceEnabled, completions, push, createPR)
+			opts := InitOptions{
+				Verbose:          verbose,
+				MCP:              mcp,
+				CodespaceRepos:   codespaceRepos,
+				CodespaceEnabled: codespaceEnabled,
+				Completions:      completions,
+				Push:             push,
+				CreatePR:         createPR,
+				RootCmd:          cmd.Root(),
+			}
+			if err := InitRepository(opts); err != nil {
 				initCommandLog.Printf("Init command failed: %v", err)
 				return err
 			}
@@ -136,8 +137,6 @@ Examples:
 
 	cmd.Flags().Bool("no-mcp", false, "Skip configuring GitHub Copilot Agent MCP server integration")
 	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration (deprecated, MCP is enabled by default)")
-	cmd.Flags().Bool("tokens", false, "Validate required secrets for agentic workflows")
-	cmd.Flags().String("engine", "", "AI engine to check tokens for (copilot, claude, codex) - requires --tokens flag")
 	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use without value for current repo only")
 	// NoOptDefVal allows using --codespaces without a value (returns empty string when no value provided)
 	cmd.Flags().Lookup("codespaces").NoOptDefVal = " "

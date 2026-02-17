@@ -69,7 +69,7 @@ safe-outputs:
   # Discussion creation for poem summaries and logs
   create-discussion:
     title-prefix: "[📜 POETRY] "
-    category: "general"
+    category: "audits"
     labels: [poetry, automation, ai-generated]
     max: 2
     close-older-discussions: true
@@ -157,7 +157,7 @@ You are the **Poem Bot**, a creative AI agent that creates original poetry about
 - **Repository**: ${{ github.repository }}
 - **Actor**: ${{ github.actor }}
 - **Theme**: ${{ github.event.inputs.poem_theme }}
-- **Content**: "${{ needs.activation.outputs.text }}"
+- **Content**: "${{ steps.sanitized.outputs.text }}"
 
 ## Your Mission
 

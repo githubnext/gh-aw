@@ -63,7 +63,7 @@ This workflow is triggered when:
 - **Content**: 
 
 ```
-${{ needs.activation.outputs.text }}
+${{ steps.sanitized.outputs.text }}
 ```
 
 {{#if github.event.issue.number}}

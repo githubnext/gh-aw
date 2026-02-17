@@ -326,20 +326,22 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 	// When no override is specified, the workflow will use its frontmatter engine and handle secrets during compilation
 	if opts.EngineOverride != "" {
 		// Check what secrets already exist in the repository
-		existingSecrets, err := CheckExistingSecrets(hostRepoSlug)
+		existingSecrets, err := CheckExistingSecretsInRepo(hostRepoSlug)
 		if err != nil {
 			trialLog.Printf("Warning: could not check existing secrets: %v", err)
 			existingSecrets = make(map[string]bool)
 		}
 
 		// Ensure the required engine secret is available (prompts interactively if needed)
-		secretConfig := SecretCollectionConfig{
-			RepoSlug:        hostRepoSlug,
-			Engine:          opts.EngineOverride,
-			Verbose:         opts.Verbose,
-			ExistingSecrets: existingSecrets,
+		secretConfig := EngineSecretConfig{
+			RepoSlug:             hostRepoSlug,
+			Engine:               opts.EngineOverride,
+			Verbose:              opts.Verbose,
+			ExistingSecrets:      existingSecrets,
+			IncludeSystemSecrets: false,
+			IncludeOptional:      false,
 		}
-		if err := EnsureEngineSecret(secretConfig); err != nil {
+		if err := CheckAndCollectEngineSecrets(secretConfig); err != nil {
 			return fmt.Errorf("failed to configure engine secret: %w", err)
 		}
 	}
