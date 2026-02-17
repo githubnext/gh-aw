@@ -5,13 +5,15 @@ package workflow
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// Note: This test file verifies that the compiler automatically injects git commands
+// when safe-outputs needs them. The validation that used to reject workflows without
+// explicit git configuration has been removed because the compiler handles this automatically.
 func TestCompilerDetectsGitToolRequirement(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -20,7 +22,7 @@ func TestCompilerDetectsGitToolRequirement(t *testing.T) {
 		errorContains string
 	}{
 		{
-			name: "create-pull-request without bash tool - OK (defaults apply)",
+			name: "create-pull-request without bash tool - OK (git commands auto-injected)",
 			workflow: `---
 name: Test Create PR Without Git
 engine: copilot
@@ -35,7 +37,7 @@ Test workflow that uses create-pull-request without bash tool.
 			expectError: false,
 		},
 		{
-			name: "create-pull-request with bash: false - error",
+			name: "create-pull-request with bash: false - compiles (but may fail at runtime)",
 			workflow: `---
 name: Test Create PR With Bash False
 engine: copilot
@@ -48,12 +50,12 @@ safe-outputs:
 ---
 
 Test workflow that uses create-pull-request with bash explicitly disabled.
+Note: This compiles because validation was removed, but will likely fail at runtime.
 `,
-			expectError:   true,
-			errorContains: "create-pull-request but git tool is not allowed",
+			expectError: false, // Validation removed - compiler allows this
 		},
 		{
-			name: "create-pull-request with bash: [echo] - error",
+			name: "create-pull-request with bash: [echo] - OK (git commands auto-added)",
 			workflow: `---
 name: Test Create PR With Limited Bash
 engine: copilot
@@ -66,9 +68,9 @@ safe-outputs:
 ---
 
 Test workflow that uses create-pull-request without git in allowed commands.
+The compiler will automatically add git commands to the bash allowlist.
 `,
-			expectError:   true,
-			errorContains: "create-pull-request but git tool is not allowed",
+			expectError: false, // Git commands are auto-injected
 		},
 		{
 			name: "create-pull-request with bash: true - valid",
@@ -206,13 +208,6 @@ Test workflow that doesn't use PR features.
 			if tt.expectError {
 				require.Error(t, err, "Expected compilation error")
 				assert.Contains(t, err.Error(), tt.errorContains, "Error should contain expected message")
-
-				// Verify error message includes helpful suggestions
-				assert.True(t,
-					strings.Contains(err.Error(), "bash: true") ||
-						strings.Contains(err.Error(), "bash: [\"git\"]") ||
-						strings.Contains(err.Error(), "bash: [\"*\"]"),
-					"Error message should include helpful suggestions")
 			} else {
 				assert.NoError(t, err, "Expected successful compilation")
 			}
