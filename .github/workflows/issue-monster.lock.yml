@@ -420,7 +420,7 @@ jobs:
               "name": "add_comment"
             },
             {
-              "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") or assign_to_agent(pull_number=456, agent=\"copilot\") CONSTRAINTS: Maximum 3 issue(s) can be assigned to agent.",
+              "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") or assign_to_agent(pull_number=456, agent=\"copilot\", pull_request_repo=\"owner/repo\") CONSTRAINTS: Maximum 3 issue(s) can be assigned to agent.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -441,6 +441,10 @@ jobs:
                       "number",
                       "string"
                     ]
+                  },
+                  "pull_request_repo": {
+                    "description": "Target repository where the pull request should be created, in 'owner/repo' format. If omitted, the PR will be created in the same repository as the issue. This allows issues and code to live in different repositories. The global pull-request-repo configuration (if set) is automatically allowed; additional repositories must be listed in allowed-pull-request-repos.",
+                    "type": "string"
                   }
                 },
                 "type": "object"

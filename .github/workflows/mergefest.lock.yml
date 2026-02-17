@@ -861,7 +861,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: write
-      issues: write
       pull-requests: write
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
@@ -1128,7 +1127,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: write
-      issues: write
       pull-requests: write
     timeout-minutes: 15
     env:
