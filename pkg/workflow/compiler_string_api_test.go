@@ -3,7 +3,6 @@
 package workflow
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -226,7 +225,7 @@ When a new issue is opened, add a welcome comment.
 
 	// Verify the YAML is valid-looking
 	// CompileToYAML skips the ASCII art header (wasm/editor mode), so YAML starts with the name
-	assert.False(t, strings.Contains(yaml, "Agentic"), "compiled YAML should not contain ASCII art header")
+	assert.NotContains(t, yaml, "Agentic", "compiled YAML should not contain ASCII art header")
 	assert.Contains(t, yaml, "e2e-test")
 	assert.Contains(t, yaml, "issues")
 }
