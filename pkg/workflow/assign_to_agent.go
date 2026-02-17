@@ -10,10 +10,10 @@ var assignToAgentLog = logger.New("workflow:assign_to_agent")
 type AssignToAgentConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
-	DefaultAgent           string   `yaml:"name,omitempty"`            // Default agent to assign (e.g., "copilot")
-	Allowed                []string `yaml:"allowed,omitempty"`         // Optional list of allowed agent names. If omitted, any agents are allowed.
-	IgnoreIfError          bool     `yaml:"ignore-if-error,omitempty"` // If true, workflow continues when agent assignment fails
-	PRRepoSlug             string   `yaml:"pr-repo,omitempty"`         // Target repository for PR creation in format "owner/repo" (where the issue lives may differ)
+	DefaultAgent           string   `yaml:"name,omitempty"`             // Default agent to assign (e.g., "copilot")
+	Allowed                []string `yaml:"allowed,omitempty"`          // Optional list of allowed agent names. If omitted, any agents are allowed.
+	IgnoreIfError          bool     `yaml:"ignore-if-error,omitempty"`  // If true, workflow continues when agent assignment fails
+	PRRepoSlug             string   `yaml:"pr-repo,omitempty"`          // Target repository for PR creation in format "owner/repo" (where the issue lives may differ)
 	AllowedPRRepos         []string `yaml:"allowed-pr-repos,omitempty"` // List of additional repositories that PRs can be created in (in addition to pr-repo)
 }
 
