@@ -205,12 +205,26 @@ func (p *Permissions) RenderToYAML() string {
 	// Collect all permissions to render
 	allPerms := make(map[PermissionScope]PermissionLevel)
 
+	permissionsLog.Printf("RenderToYAML: hasAll=%v, allLevel=%v, permissions_count=%d", p.hasAll, p.allLevel, len(p.permissions))
+	
 	if p.hasAll {
 		// Expand all: read/write to individual permissions
+		permissionsLog.Print("Expanding all:read/write to individual permissions")
 		for _, scope := range GetAllPermissionScopes() {
 			// Skip id-token when expanding all: read since id-token doesn't support read level
 			if scope == PermissionIdToken && p.allLevel == PermissionRead {
 				continue
+			}
+			// Skip discussions when expanding all: read unless explicitly set
+			// This prevents issues in GitHub Enterprise where discussions might not be available
+			// Discussions permission should be added explicitly or via safe-outputs that need it
+			if scope == PermissionDiscussions && p.allLevel == PermissionRead {
+				// Only include if explicitly set in permissions map
+				if _, explicitlySet := p.permissions[PermissionDiscussions]; !explicitlySet {
+					permissionsLog.Print("Skipping discussions permission in all:read expansion (not explicitly set)")
+					continue
+				}
+				permissionsLog.Print("Including discussions permission in all:read expansion (explicitly set)")
 			}
 			allPerms[scope] = p.allLevel
 		}

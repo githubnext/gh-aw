@@ -75,9 +75,11 @@ func TestPermissions_AllReadWithIdTokenWrite(t *testing.T) {
 	}
 
 	// Test that all normal scopes have read access
+	// Note: discussions is NOT included in all: read expansion by default
+	// (to support GitHub Enterprise where discussions may not be available)
 	normalScopes := []PermissionScope{
 		PermissionActions, PermissionAttestations, PermissionChecks, PermissionContents,
-		PermissionDeployments, PermissionDiscussions, PermissionIssues, PermissionPackages,
+		PermissionDeployments, PermissionIssues, PermissionPackages,
 		PermissionPages, PermissionPullRequests, PermissionRepositoryProj,
 		PermissionSecurityEvents, PermissionStatuses, PermissionModels,
 	}
@@ -105,13 +107,13 @@ func TestPermissions_AllReadWithIdTokenWrite(t *testing.T) {
 	yaml := perms.RenderToYAML()
 
 	// Should contain all normal scopes with read access
+	// Note: discussions is NOT included in all: read expansion by default
 	expectedLines := []string{
 		"      actions: read",
 		"      attestations: read",
 		"      checks: read",
 		"      contents: read",
 		"      deployments: read",
-		"      discussions: read",
 		"      issues: read",
 		"      packages: read",
 		"      pages: read",
@@ -133,6 +135,11 @@ func TestPermissions_AllReadWithIdTokenWrite(t *testing.T) {
 	if strings.Contains(yaml, "id-token: read") {
 		t.Errorf("YAML should NOT contain 'id-token: read', but got:\n%s", yaml)
 	}
+
+	// Should NOT contain discussions: read (not included in all: read expansion)
+	if strings.Contains(yaml, "discussions: read") {
+		t.Errorf("YAML should NOT contain 'discussions: read' from all:read expansion, but got:\n%s", yaml)
+	}
 }
 
 func TestPermissions_AllReadRenderToYAML(t *testing.T) {
@@ -152,7 +159,6 @@ func TestPermissions_AllReadRenderToYAML(t *testing.T) {
 				"      checks: read",
 				"      contents: read",
 				"      deployments: read",
-				"      discussions: read",
 				"      issues: read",
 				"      models: read",
 				"      packages: read",
@@ -161,6 +167,9 @@ func TestPermissions_AllReadRenderToYAML(t *testing.T) {
 				"      repository-projects: read",
 				"      security-events: read",
 				"      statuses: read",
+			},
+			notContains: []string{
+				"      discussions: read", // Should NOT be included in all: read expansion (GitHub Enterprise compatibility)
 			},
 		},
 		{
@@ -228,7 +237,6 @@ func TestPermissions_AllReadRenderToYAML(t *testing.T) {
 				"      checks: read",
 				"      contents: read",
 				"      deployments: read",
-				"      discussions: read",
 				"      issues: read",
 				"      models: read",
 				"      packages: read",
@@ -239,7 +247,8 @@ func TestPermissions_AllReadRenderToYAML(t *testing.T) {
 				"      statuses: read",
 			},
 			notContains: []string{
-				"      id-token: read", // Should NOT be included since id-token doesn't support read
+				"      id-token: read",    // Should NOT be included since id-token doesn't support read
+				"      discussions: read", // Should NOT be included (GitHub Enterprise compatibility)
 			},
 		},
 	}
