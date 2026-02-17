@@ -1458,10 +1458,16 @@ safe-outputs:
   app:
     app-id: ${{ vars.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
-    owner: "my-org"                # optional: installation owner
-    repositories: ["repo1", "repo2"] # optional: scope to repos
+    owner: "my-org"                    # optional: installation owner
+    repositories: ["repo1", "repo2"]   # optional: scope to specific repos
   create-issue:
 ```
+
+**Repository scoping options**:
+
+- `repositories: ["*"]` - Org-wide access (all repos in the installation)
+- `repositories: ["repo1", "repo2"]` - Specific repositories only
+- Omit `repositories` field - Current repository only (default)
 
 #### How GitHub App Tokens Work
 

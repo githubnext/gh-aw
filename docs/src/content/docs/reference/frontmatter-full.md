@@ -1371,8 +1371,10 @@ tools:
       # (optional)
       owner: "example-value"
 
-      # Optional list of repositories to grant access to (defaults to current repository
-      # if not specified)
+      # Optional list of repositories to grant access to. Supports three modes:
+      # - ["*"] for org-wide access (all repos in the installation)
+      # - ["repo1", "repo2"] for specific repositories only
+      # - Empty/omit for current repository only (default)
       # (optional)
       repositories: []
         # Array of strings
@@ -3544,10 +3546,10 @@ safe-outputs:
     # (optional)
     owner: "example-value"
 
-    # Optional: Comma or newline-separated list of repositories to grant access to. If
-    # owner is set and repositories is empty, access will be scoped to all
-    # repositories in the provided repository owner's installation. If owner and
-    # repositories are empty, access will be scoped to only the current repository.
+    # Optional: List of repositories to grant access to. Supports three modes:
+    # - ["*"] for org-wide access (all repos in the installation)
+    # - ["repo1", "repo2"] for specific repositories only
+    # - Empty/omit for current repository only (default)
     # (optional)
     repositories: []
       # Array of strings
