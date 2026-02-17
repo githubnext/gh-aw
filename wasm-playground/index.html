@@ -692,13 +692,6 @@ Say hello to the world! Check the current date and time, and greet the user warm
       });
     }
 
-    // ── Helpers ─────────────────────────────────────────────
-    function escapeHtml(str) {
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
-    }
-
     // ── Keyboard Shortcut ───────────────────────────────────
     document.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {

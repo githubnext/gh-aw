@@ -47,11 +47,11 @@ build-wasm:
 	GOOS=js GOARCH=wasm go build -ldflags="-w -s" -o gh-aw.wasm ./cmd/gh-aw-wasm
 	@if command -v wasm-opt >/dev/null 2>&1; then \
 		echo "Running wasm-opt -Oz (size optimization)..."; \
-		BEFORE=$$(stat -c%s gh-aw.wasm); \
+		BEFORE=$$(wc -c < gh-aw.wasm); \
 		wasm-opt -Oz --enable-bulk-memory gh-aw.wasm -o gh-aw.opt.wasm && \
 		mv gh-aw.opt.wasm gh-aw.wasm; \
-		AFTER=$$(stat -c%s gh-aw.wasm); \
-		echo "✓ wasm-opt: $$(numfmt --to=iec $$BEFORE) → $$(numfmt --to=iec $$AFTER)"; \
+		AFTER=$$(wc -c < gh-aw.wasm); \
+		echo "✓ wasm-opt: $$BEFORE → $$AFTER bytes"; \
 	else \
 		echo "⚠ wasm-opt not found, skipping optimization (install binaryen for ~8% size reduction)"; \
 	fi

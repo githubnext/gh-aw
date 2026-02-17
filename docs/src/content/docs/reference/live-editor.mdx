@@ -60,40 +60,108 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
 </div>
 
 <style>{`
-  /* ---- Layout ---- */
+  /* ---- Live Editor: Theme-adaptive CSS ---- */
+
+  /* Custom properties scoped to the editor */
   #live-editor-root {
-    margin-top: 1rem;
+    --le-editor-bg: #161b22;
+    --le-editor-text: #e6edf3;
+    --le-editor-text-muted: #6e7681;
+    --le-editor-border: #30363d;
+    --le-editor-gutter-bg: rgba(0, 0, 0, 0.15);
+    --le-error-bg: rgba(248, 113, 113, 0.1);
+    --le-error-text: #f87171;
+    --le-error-border: rgba(248, 113, 113, 0.25);
+    --le-warn-bg: rgba(251, 191, 36, 0.1);
+    --le-warn-text: #fbbf24;
+    --le-warn-border: rgba(251, 191, 36, 0.25);
+    --le-success: #4ade80;
+    --le-shadow: 0 1px 3px rgba(0, 0, 0, 0.24), 0 4px 16px rgba(0, 0, 0, 0.16);
+    --le-shadow-hover: 0 2px 6px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.2);
+    margin-top: 1.5rem;
   }
 
+  :root[data-theme='light'] #live-editor-root {
+    --le-editor-bg: #f6f8fa;
+    --le-editor-text: #1f2328;
+    --le-editor-text-muted: #656d76;
+    --le-editor-border: #d8dee4;
+    --le-editor-gutter-bg: rgba(0, 0, 0, 0.02);
+    --le-error-bg: rgba(207, 34, 46, 0.08);
+    --le-error-text: #cf222e;
+    --le-error-border: rgba(207, 34, 46, 0.2);
+    --le-warn-bg: rgba(191, 135, 0, 0.08);
+    --le-warn-text: #9a6700;
+    --le-warn-border: rgba(191, 135, 0, 0.2);
+    --le-success: #1a7f37;
+    --le-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 3px 12px rgba(0, 0, 0, 0.08);
+    --le-shadow-hover: 0 2px 6px rgba(0, 0, 0, 0.1), 0 6px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  /* ---- Container ---- */
   .le-container {
     border: 1px solid var(--sl-color-gray-5);
-    border-radius: 8px;
+    border-radius: 10px;
     overflow: hidden;
     background: var(--sl-color-bg);
+    box-shadow: var(--le-shadow);
+    transition: box-shadow 0.25s ease;
+    position: relative;
   }
 
+  .le-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--sl-color-accent), var(--sl-color-accent-high));
+    z-index: 1;
+    border-radius: 10px 10px 0 0;
+  }
+
+  .le-container:focus-within {
+    box-shadow: var(--le-shadow-hover);
+    border-color: var(--sl-color-gray-4);
+  }
+
+  /* ---- Toolbar ---- */
   .le-toolbar {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.5rem 0.75rem;
+    gap: 1rem;
+    padding: 0.625rem 1rem;
     background: var(--sl-color-gray-6);
     border-bottom: 1px solid var(--sl-color-gray-5);
     flex-wrap: wrap;
+    position: relative;
+    z-index: 1;
   }
 
+  /* ---- Panels ---- */
   .le-panels {
     display: flex;
-    min-height: 500px;
+    height: 600px;
   }
 
   @media (max-width: 768px) {
     .le-panels {
       flex-direction: column;
+      height: auto;
+    }
+    .le-panel {
+      height: 400px;
     }
     .le-divider {
       height: 1px !important;
       width: 100% !important;
+    }
+  }
+
+  @media (min-width: 769px) and (max-width: 1024px) {
+    .le-panels {
+      height: 540px;
     }
   }
 
@@ -102,89 +170,111 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
     display: flex;
     flex-direction: column;
     min-width: 0;
+    overflow: hidden;
   }
 
+  /* ---- Panel headers ---- */
   .le-panel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.4rem 0.75rem;
-    background: var(--sl-color-gray-6);
-    border-bottom: 1px solid var(--sl-color-gray-5);
-    font-size: 0.8rem;
+    padding: 0.5rem 1rem;
+    background: var(--le-editor-bg);
+    border-bottom: 1px solid var(--le-editor-border);
+    font-size: 0.7rem;
     font-weight: 600;
-    color: var(--sl-color-text);
+    color: var(--le-editor-text-muted);
+    flex-shrink: 0;
   }
 
   .le-panel-title {
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
+  .le-panel-title::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--sl-color-accent);
+    opacity: 0.6;
+  }
+
+  /* ---- Divider ---- */
   .le-divider {
     width: 1px;
     background: var(--sl-color-gray-5);
     flex-shrink: 0;
   }
 
-  /* ---- Editor (left panel) ----
-     Code editor areas use fixed dark backgrounds for readability
-     in both light and dark themes (like VS Code). */
+  /* ---- Editor (left panel) ---- */
   .le-editor-wrap {
     display: flex;
     flex: 1;
     overflow: auto;
-    background: #0d1117;
+    background: var(--le-editor-bg);
     position: relative;
   }
 
   .le-line-numbers {
-    padding: 0.75rem 0.5rem;
+    padding: 0.875rem 0.625rem;
     text-align: right;
-    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
-    font-size: 0.85rem;
-    line-height: 1.5;
-    color: #6e7681;
+    font-family: var(--sl-font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    white-space: pre;
+    color: var(--le-editor-text-muted);
     user-select: none;
-    min-width: 2.5rem;
+    min-width: 3rem;
     flex-shrink: 0;
-    border-right: 1px solid #30363d;
+    border-right: 1px solid var(--le-editor-border);
+    background: var(--le-editor-gutter-bg);
+    overflow: hidden;
   }
 
   .le-textarea {
     flex: 1;
-    padding: 0.75rem;
+    padding: 0.875rem 1rem;
     margin: 0;
     border: none;
     outline: none;
     resize: none;
     background: transparent;
-    color: #e6edf3;
-    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
-    font-size: 0.85rem;
-    line-height: 1.5;
+    color: var(--le-editor-text);
+    font-family: var(--sl-font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.6;
     tab-size: 2;
     white-space: pre;
     overflow-wrap: normal;
     overflow-x: auto;
+    caret-color: var(--sl-color-accent);
   }
 
   .le-textarea::placeholder {
-    color: #6e7681;
+    color: var(--le-editor-text-muted);
   }
 
-  /* ---- Output (right panel) ----
-     Use #id prefix to override .sl-markdown-content pre from custom.css */
+  .le-textarea:focus {
+    outline: none;
+  }
+
+  /* ---- Output (right panel) ---- */
   #live-editor-root .le-output {
     flex: 1;
     margin: 0;
-    padding: 0.75rem;
+    padding: 0.875rem 1rem;
     overflow: auto;
-    background: #0d1117;
-    color: #e6edf3;
-    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
-    font-size: 0.85rem;
-    line-height: 1.5;
+    background: var(--le-editor-bg);
+    color: var(--le-editor-text);
+    font-family: var(--sl-font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.6;
     white-space: pre;
     border-radius: 0;
     border: none;
@@ -199,74 +289,130 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
 
   /* ---- Error and warnings ---- */
   .le-error {
-    padding: 0.6rem 0.75rem;
-    background: #3b1219;
-    color: #f87171;
-    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+    padding: 0.625rem 1rem;
+    background: var(--le-error-bg);
+    color: var(--le-error-text);
+    font-family: var(--sl-font-mono);
     font-size: 0.8rem;
-    border-bottom: 1px solid #7f1d1d;
+    border-bottom: 1px solid var(--le-error-border);
+    border-left: 3px solid var(--le-error-text);
     white-space: pre-wrap;
     word-break: break-word;
+    flex-shrink: 0;
   }
 
   .le-warnings {
-    padding: 0.6rem 0.75rem;
-    background: #3b2e10;
-    color: #fbbf24;
-    font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+    padding: 0.625rem 1rem;
+    background: var(--le-warn-bg);
+    color: var(--le-warn-text);
+    font-family: var(--sl-font-mono);
     font-size: 0.8rem;
-    border-bottom: 1px solid #78530a;
+    border-bottom: 1px solid var(--le-warn-border);
+    border-left: 3px solid var(--le-warn-text);
     white-space: pre-wrap;
     word-break: break-word;
+    flex-shrink: 0;
   }
 
-  /* ---- Buttons ----
-     Use #id prefix to override .sl-markdown-content button from custom.css */
+  /* ---- Buttons ---- */
   #live-editor-root .le-btn {
-    padding: 0.35rem 0.75rem;
-    border: 1px solid var(--sl-color-gray-4);
-    border-radius: 4px;
+    padding: 0.375rem 0.875rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 6px;
     background: var(--sl-color-gray-6);
     color: var(--sl-color-text);
+    font-family: var(--sl-font);
     font-size: 0.8rem;
+    font-weight: 500;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: all 0.15s ease;
+    line-height: 1.4;
   }
 
   #live-editor-root .le-btn:hover {
     background: var(--sl-color-gray-5);
+    border-color: var(--sl-color-gray-4);
+  }
+
+  #live-editor-root .le-btn:active {
+    transform: scale(0.98);
+  }
+
+  #live-editor-root .le-btn:focus-visible {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
   }
 
   #live-editor-root .le-btn-primary {
     background: var(--sl-color-accent);
     border-color: var(--sl-color-accent);
-    color: var(--sl-color-accent-contrast, #fff);
+    color: #fff;
+    font-weight: 600;
+    padding: 0.375rem 1.125rem;
+  }
+
+  :root[data-theme='light'] #live-editor-root .le-btn-primary {
+    color: #fff;
   }
 
   #live-editor-root .le-btn-primary:hover {
-    opacity: 0.9;
+    filter: brightness(1.1);
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
   }
 
-  .le-btn-small {
+  #live-editor-root .le-btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    filter: none;
+    box-shadow: none;
+  }
+
+  #live-editor-root .le-btn-small {
     padding: 0.2rem 0.5rem;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    border-color: var(--le-editor-border);
+    background: var(--le-editor-bg);
+    color: var(--le-editor-text-muted);
+    transition: all 0.15s ease;
+  }
+
+  #live-editor-root .le-btn-small:hover {
+    color: var(--le-editor-text);
+    border-color: var(--sl-color-gray-4);
   }
 
   /* ---- Auto-compile toggle ---- */
   .le-auto-label {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.4rem;
     font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--sl-color-gray-3);
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s ease;
+  }
+
+  .le-auto-label:hover {
     color: var(--sl-color-text);
+  }
+
+  .le-auto-label input[type="checkbox"] {
+    accent-color: var(--sl-color-accent);
+    width: 14px;
+    height: 14px;
     cursor: pointer;
   }
 
   /* ---- Status ---- */
   .le-status {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
+    font-weight: 500;
     color: var(--sl-color-gray-3);
     margin-left: auto;
+    transition: color 0.2s ease;
   }
 
   .le-status.le-status-compiling {
@@ -274,11 +420,11 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
   }
 
   .le-status.le-status-error {
-    color: #f87171;
+    color: var(--le-error-text);
   }
 
   .le-status.le-status-success {
-    color: #4ade80;
+    color: var(--le-success);
   }
 
   /* ---- Loading state ---- */
@@ -287,27 +433,29 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 300px;
+    min-height: 360px;
     gap: 1rem;
     color: var(--sl-color-text);
   }
 
   .le-loading p {
     margin: 0;
+    font-weight: 500;
   }
 
   .le-loading-hint {
     font-size: 0.85rem;
     color: var(--sl-color-gray-3);
+    font-weight: 400;
   }
 
   .le-spinner {
-    width: 36px;
-    height: 36px;
-    border: 3px solid var(--sl-color-gray-5);
+    width: 32px;
+    height: 32px;
+    border: 2.5px solid var(--sl-color-gray-5);
     border-top-color: var(--sl-color-accent);
     border-radius: 50%;
-    animation: le-spin 0.8s linear infinite;
+    animation: le-spin 0.75s linear infinite;
   }
 
   @keyframes le-spin {
@@ -315,8 +463,44 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
   }
 
   .le-loading-error {
-    color: #f87171;
+    color: var(--le-error-text);
     text-align: center;
+  }
+
+  /* ---- Scrollbar styling for editor areas ---- */
+  .le-editor-wrap::-webkit-scrollbar,
+  #live-editor-root .le-output::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .le-editor-wrap::-webkit-scrollbar-track,
+  #live-editor-root .le-output::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .le-editor-wrap::-webkit-scrollbar-thumb,
+  #live-editor-root .le-output::-webkit-scrollbar-thumb {
+    background: var(--le-editor-border);
+    border-radius: 4px;
+  }
+
+  .le-editor-wrap::-webkit-scrollbar-thumb:hover,
+  #live-editor-root .le-output::-webkit-scrollbar-thumb:hover {
+    background: var(--le-editor-text-muted);
+  }
+
+  /* ---- Reduced motion ---- */
+  @media (prefers-reduced-motion: reduce) {
+    .le-container,
+    #live-editor-root .le-btn,
+    .le-auto-label,
+    .le-status {
+      transition: none;
+    }
+    .le-spinner {
+      animation-duration: 1.5s;
+    }
   }
 `}</style>
 
@@ -512,12 +696,18 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
       // Run initial compile
       await compile();
     } catch (err) {
-      loadingEl.innerHTML =
-        '<div class="le-loading-error">' +
-        '<p><strong>Failed to load the WebAssembly compiler</strong></p>' +
-        '<p>' + (err.message || String(err)) + '</p>' +
-        '<p style="margin-top:0.5rem;font-size:0.85rem;color:var(--sl-color-gray-4);">Try refreshing the page. The compiler requires a modern browser with WebAssembly support.</p>' +
-        '</div>';
+      const errDiv = document.createElement('div');
+      errDiv.className = 'le-loading-error';
+      const title = document.createElement('p');
+      title.innerHTML = '<strong>Failed to load the WebAssembly compiler</strong>';
+      const msg = document.createElement('p');
+      msg.textContent = err.message || String(err);
+      const hint = document.createElement('p');
+      hint.style.cssText = 'margin-top:0.5rem;font-size:0.85rem;color:var(--sl-color-gray-4);';
+      hint.textContent = 'Try refreshing the page. The compiler requires a modern browser with WebAssembly support.';
+      errDiv.append(title, msg, hint);
+      loadingEl.textContent = '';
+      loadingEl.appendChild(errDiv);
     }
   }
 

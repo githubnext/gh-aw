@@ -31,10 +31,19 @@
     try {
       var go = new Go();
 
-      var result = await WebAssembly.instantiateStreaming(
-        fetch('./gh-aw.wasm'),
-        go.importObject,
-      );
+      // Try streaming instantiation first; fall back to array buffer
+      // for servers that don't serve .wasm with application/wasm MIME type.
+      var result;
+      try {
+        result = await WebAssembly.instantiateStreaming(
+          fetch('./gh-aw.wasm'),
+          go.importObject,
+        );
+      } catch (streamErr) {
+        var resp = await fetch('./gh-aw.wasm');
+        var buf = await resp.arrayBuffer();
+        result = await WebAssembly.instantiate(buf, go.importObject);
+      }
 
       // Start the Go program. go.run() never resolves because main()
       // does `select{}`, so we intentionally do NOT await it.

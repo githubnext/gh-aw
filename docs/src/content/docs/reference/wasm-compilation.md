@@ -120,7 +120,7 @@ Stubbed validators: `npm_validation`, `pip_validation`, `docker_validation`, `gi
 
 **Remote imports (`pkg/parser`)**
 
-Fetching imports from remote GitHub repositories requires HTTP calls and `gh` CLI authentication. In the Wasm build, remote imports return an error. Local file-based imports and the JavaScript import resolver callback still work.
+Fetching imports from remote GitHub repositories requires HTTP calls and `gh` CLI authentication. In the Wasm build, remote imports return an error. A JavaScript import resolver callback is planned for a future release.
 
 **GitHub token access (`pkg/parser`)**
 
