@@ -144,3 +144,10 @@ func addSourceToWorkflow(content, source string) (string, error) {
 	// Use shared frontmatter logic that preserves formatting
 	return addFieldToFrontmatter(content, "source", source)
 }
+
+// addEngineToWorkflow adds or updates the engine field in the workflow's frontmatter.
+// This function preserves the existing frontmatter formatting while setting the engine field.
+func addEngineToWorkflow(content, engine string) (string, error) {
+	// Use shared frontmatter logic that preserves formatting
+	return addFieldToFrontmatter(content, "engine", engine)
+}

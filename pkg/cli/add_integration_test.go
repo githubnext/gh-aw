@@ -542,3 +542,162 @@ func TestAddRemoteWorkflowWithVersion(t *testing.T) {
 		strings.Contains(contentStr, "@") && strings.Contains(contentStr, "github/gh-aw"),
 		"source should have commit pinning")
 }
+
+// TestAddWorkflowWithEngineOverride tests that --engine flag adds/updates the engine field in the workflow
+func TestAddWorkflowWithEngineOverride(t *testing.T) {
+	setup := setupAddIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Create a local workflow file WITHOUT an engine specified
+	sourceDir := filepath.Join(setup.tempDir, "source-workflows")
+	err := os.MkdirAll(sourceDir, 0755)
+	require.NoError(t, err, "should create source directory")
+
+	localWorkflowPath := filepath.Join(sourceDir, "no-engine-workflow.md")
+	localWorkflowContent := `---
+name: Workflow Without Engine
+on: workflow_dispatch
+permissions:
+  contents: read
+---
+
+# Workflow Without Engine
+
+This workflow does not specify an engine in frontmatter.
+
+Please analyze the repository.
+`
+	err = os.WriteFile(localWorkflowPath, []byte(localWorkflowContent), 0644)
+	require.NoError(t, err, "should write local workflow file")
+
+	// Add the workflow with --engine claude
+	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--non-interactive", "--engine", "claude")
+	cmd.Dir = setup.tempDir
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	t.Logf("Command output:\n%s", outputStr)
+
+	require.NoError(t, err, "add command should succeed: %s", outputStr)
+
+	// Verify the workflow file was created
+	workflowsDir := filepath.Join(setup.tempDir, ".github", "workflows")
+	workflowFile := filepath.Join(workflowsDir, "no-engine-workflow.md")
+	_, err = os.Stat(workflowFile)
+	require.NoError(t, err, "workflow file should exist: %s", workflowFile)
+
+	// Read and verify the engine field was added
+	content, err := os.ReadFile(workflowFile)
+	require.NoError(t, err, "should be able to read workflow file")
+	contentStr := string(content)
+
+	// Should have engine: claude in frontmatter
+	assert.Contains(t, contentStr, "engine: claude", "workflow should have engine field added")
+}
+
+// TestAddWorkflowEngineOverrideReplacesExisting tests that --engine flag replaces existing engine
+func TestAddWorkflowEngineOverrideReplacesExisting(t *testing.T) {
+	setup := setupAddIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Create a local workflow file WITH an existing engine: copilot
+	sourceDir := filepath.Join(setup.tempDir, "source-workflows")
+	err := os.MkdirAll(sourceDir, 0755)
+	require.NoError(t, err, "should create source directory")
+
+	localWorkflowPath := filepath.Join(sourceDir, "copilot-workflow.md")
+	localWorkflowContent := `---
+name: Copilot Workflow
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+---
+
+# Copilot Workflow
+
+This workflow originally specifies copilot engine.
+
+Please analyze the repository.
+`
+	err = os.WriteFile(localWorkflowPath, []byte(localWorkflowContent), 0644)
+	require.NoError(t, err, "should write local workflow file")
+
+	// Add the workflow with --engine claude (should replace copilot)
+	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--non-interactive", "--engine", "claude")
+	cmd.Dir = setup.tempDir
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	t.Logf("Command output:\n%s", outputStr)
+
+	require.NoError(t, err, "add command should succeed: %s", outputStr)
+
+	// Verify the workflow file was created
+	workflowsDir := filepath.Join(setup.tempDir, ".github", "workflows")
+	workflowFile := filepath.Join(workflowsDir, "copilot-workflow.md")
+	_, err = os.Stat(workflowFile)
+	require.NoError(t, err, "workflow file should exist: %s", workflowFile)
+
+	// Read and verify the engine field was updated
+	content, err := os.ReadFile(workflowFile)
+	require.NoError(t, err, "should be able to read workflow file")
+	contentStr := string(content)
+
+	// Should have engine: claude, NOT engine: copilot
+	assert.Contains(t, contentStr, "engine: claude", "workflow should have engine field updated to claude")
+	assert.NotContains(t, contentStr, "engine: copilot", "original copilot engine should be replaced")
+}
+
+// TestAddWorkflowWithoutEngineOverridePreservesOriginal tests that without --engine, original engine is preserved
+func TestAddWorkflowWithoutEngineOverridePreservesOriginal(t *testing.T) {
+	setup := setupAddIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Create a local workflow file WITH an engine specified
+	sourceDir := filepath.Join(setup.tempDir, "source-workflows")
+	err := os.MkdirAll(sourceDir, 0755)
+	require.NoError(t, err, "should create source directory")
+
+	localWorkflowPath := filepath.Join(sourceDir, "claude-workflow.md")
+	localWorkflowContent := `---
+name: Claude Workflow
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: claude
+---
+
+# Claude Workflow
+
+This workflow specifies claude engine.
+
+Please analyze the repository.
+`
+	err = os.WriteFile(localWorkflowPath, []byte(localWorkflowContent), 0644)
+	require.NoError(t, err, "should write local workflow file")
+
+	// Add the workflow WITHOUT --engine flag
+	cmd := exec.Command(setup.binaryPath, "add", localWorkflowPath, "--non-interactive")
+	cmd.Dir = setup.tempDir
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	t.Logf("Command output:\n%s", outputStr)
+
+	require.NoError(t, err, "add command should succeed: %s", outputStr)
+
+	// Verify the workflow file was created
+	workflowsDir := filepath.Join(setup.tempDir, ".github", "workflows")
+	workflowFile := filepath.Join(workflowsDir, "claude-workflow.md")
+	_, err = os.Stat(workflowFile)
+	require.NoError(t, err, "workflow file should exist: %s", workflowFile)
+
+	// Read and verify the original engine is preserved
+	content, err := os.ReadFile(workflowFile)
+	require.NoError(t, err, "should be able to read workflow file")
+	contentStr := string(content)
+
+	// Should still have engine: claude (original)
+	assert.Contains(t, contentStr, "engine: claude", "original engine should be preserved")
+}

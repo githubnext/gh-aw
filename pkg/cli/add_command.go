@@ -570,6 +570,21 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 			}
 		}
 
+		// Handle engine override - add/update the engine field in frontmatter
+		if opts.EngineOverride != "" {
+			updatedContent, err := addEngineToWorkflow(content, opts.EngineOverride)
+			if err != nil {
+				if opts.Verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to set engine field: %v", err)))
+				}
+			} else {
+				content = updatedContent
+				if opts.Verbose {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Set engine field to: %s", opts.EngineOverride)))
+				}
+			}
+		}
+
 		// Append text if provided
 		if opts.AppendText != "" {
 			if !strings.HasSuffix(content, "\n") {
