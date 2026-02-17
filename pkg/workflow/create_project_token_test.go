@@ -78,11 +78,6 @@ func TestCreateProjectGitHubTokenEnvVar(t *testing.T) {
 				SafeOutputs: compiler.extractSafeOutputsConfig(tt.frontmatter),
 			}
 
-			// Set top-level github-token if present in frontmatter
-			if githubToken, ok := tt.frontmatter["github-token"].(string); ok {
-				workflowData.GitHubToken = githubToken
-			}
-
 			// Build the create_project step config
 			stepConfig := compiler.buildCreateProjectStepConfig(workflowData, "main", false)
 

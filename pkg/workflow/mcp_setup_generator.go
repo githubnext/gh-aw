@@ -165,8 +165,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// Only install gh-aw if needed and not already provided by imports
 	if hasAgenticWorkflows && !hasGhAwImport {
-		// Use effective token with precedence: top-level github-token > default
-		effectiveToken := getEffectiveGitHubToken("", workflowData.GitHubToken)
+		// Use effective token with precedence: custom > default
+		effectiveToken := getEffectiveGitHubToken("")
 
 		yaml.WriteString("      - name: Install gh-aw extension\n")
 		yaml.WriteString("        env:\n")

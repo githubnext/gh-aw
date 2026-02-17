@@ -149,7 +149,6 @@ type FrontmatterConfig struct {
 	// Metadata
 	Metadata      map[string]string    `json:"metadata,omitempty"` // Custom metadata key-value pairs
 	SecretMasking *SecretMaskingConfig `json:"secret-masking,omitempty"`
-	GithubToken   string               `json:"github-token,omitempty"`
 
 	// Command/bot configuration
 	Roles     []string         `json:"roles,omitempty"`
@@ -656,9 +655,6 @@ func (fc *FrontmatterConfig) ToMap() map[string]any {
 	}
 	if fc.SecretMasking != nil {
 		result["secret-masking"] = fc.SecretMasking
-	}
-	if fc.GithubToken != "" {
-		result["github-token"] = fc.GithubToken
 	}
 	if fc.Roles != nil {
 		result["roles"] = fc.Roles

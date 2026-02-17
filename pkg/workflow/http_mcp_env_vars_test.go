@@ -26,9 +26,7 @@ func TestCollectMCPEnvironmentVariables_HTTPMCPWithSecrets(t *testing.T) {
 	}
 
 	mcpTools := []string{"github", "tavily"}
-	workflowData := &WorkflowData{
-		GitHubToken: "${{ secrets.GITHUB_TOKEN }}",
-	}
+	workflowData := &WorkflowData{}
 	hasAgenticWorkflows := false
 
 	envVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, hasAgenticWorkflows)

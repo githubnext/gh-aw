@@ -441,7 +441,6 @@ type WorkflowData struct {
 	Runtimes              map[string]any       // runtime version overrides from frontmatter
 	PluginInfo            *PluginInfo          // Consolidated plugin information (plugins, custom token, MCP configs)
 	ToolsTimeout          int                  // timeout in seconds for tool/MCP operations (0 = use engine default)
-	GitHubToken           string               // top-level github-token expression from frontmatter
 	ToolsStartupTimeout   int                  // timeout in seconds for MCP server startup (0 = use engine default)
 	Features              map[string]any       // feature flags and configuration options from frontmatter (supports bool and string values)
 	ActionCache           *ActionCache         // cache for action pin resolutions

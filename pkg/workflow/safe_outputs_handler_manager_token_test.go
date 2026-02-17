@@ -139,11 +139,6 @@ func TestHandlerManagerProjectGitHubTokenEnvVar(t *testing.T) {
 				SafeOutputs: compiler.extractSafeOutputsConfig(tt.frontmatter),
 			}
 
-			// Set top-level github-token if present in frontmatter
-			if githubToken, ok := tt.frontmatter["github-token"].(string); ok {
-				workflowData.GitHubToken = githubToken
-			}
-
 			// Build the handler manager step
 			steps := compiler.buildHandlerManagerStep(workflowData)
 			yamlStr := strings.Join(steps, "")

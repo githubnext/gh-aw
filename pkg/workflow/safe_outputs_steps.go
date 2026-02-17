@@ -63,35 +63,33 @@ func (c *Compiler) buildCustomActionStep(data *WorkflowData, config GitHubScript
 
 // addCustomActionGitHubToken adds a GitHub token as action input.
 // The token precedence depends on the tokenType flags:
-// - UseAgentToken: customToken > SafeOutputs.GitHubToken > data.GitHubToken > GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
-// - UseCopilotToken: customToken > SafeOutputs.GitHubToken > data.GitHubToken > COPILOT_GITHUB_TOKEN || GH_AW_GITHUB_TOKEN
-// - Default: customToken > SafeOutputs.GitHubToken > data.GitHubToken > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+// - UseAgentToken: customToken > SafeOutputs.GitHubToken > GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+// - UseCopilotToken: customToken > SafeOutputs.GitHubToken > COPILOT_GITHUB_TOKEN
+// - Default: customToken > SafeOutputs.GitHubToken > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
 func (c *Compiler) addCustomActionGitHubToken(steps *[]string, data *WorkflowData, customToken string, useAgentToken, useCopilotToken bool) {
 	var token string
 
+	// Get safe-outputs level token
+	var safeOutputsToken string
+	if data.SafeOutputs != nil {
+		safeOutputsToken = data.SafeOutputs.GitHubToken
+	}
+
+	// Choose the first non-empty custom token for precedence
+	effectiveCustomToken := customToken
+	if effectiveCustomToken == "" {
+		effectiveCustomToken = safeOutputsToken
+	}
+
 	// Agent token mode: use full precedence chain for agent assignment
 	if useAgentToken {
-		var safeOutputsToken string
-		if data.SafeOutputs != nil {
-			safeOutputsToken = data.SafeOutputs.GitHubToken
-		}
-		// Precedence: customToken > safeOutputsToken > data.GitHubToken > default Agent fallback chain
-		token = getEffectiveAgentGitHubToken(customToken, getEffectiveAgentGitHubToken(safeOutputsToken, data.GitHubToken))
+		token = getEffectiveAgentGitHubToken(effectiveCustomToken)
 	} else if useCopilotToken {
 		// Copilot mode: use getEffectiveCopilotGitHubToken with safe-outputs token precedence
-		var safeOutputsToken string
-		if data.SafeOutputs != nil {
-			safeOutputsToken = data.SafeOutputs.GitHubToken
-		}
-		// Precedence: customToken > safeOutputsToken > data.GitHubToken > default Copilot fallback
-		token = getEffectiveCopilotGitHubToken(customToken, getEffectiveCopilotGitHubToken(safeOutputsToken, data.GitHubToken))
+		token = getEffectiveCopilotGitHubToken(effectiveCustomToken)
 	} else {
-		// Standard mode: use safe output token chain (data.GitHubToken, then GITHUB_TOKEN)
-		var safeOutputsToken string
-		if data.SafeOutputs != nil {
-			safeOutputsToken = data.SafeOutputs.GitHubToken
-		}
-		token = getEffectiveSafeOutputGitHubToken(customToken, getEffectiveSafeOutputGitHubToken(safeOutputsToken, data.GitHubToken))
+		// Standard mode: use safe output token chain
+		token = getEffectiveSafeOutputGitHubToken(effectiveCustomToken)
 	}
 
 	*steps = append(*steps, fmt.Sprintf("          token: %s\n", token))

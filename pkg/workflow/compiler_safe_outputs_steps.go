@@ -210,12 +210,12 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// Check update-project first (highest priority)
 	if data.SafeOutputs.UpdateProjects != nil && data.SafeOutputs.UpdateProjects.Project != "" {
 		projectURL = data.SafeOutputs.UpdateProjects.Project
-		projectToken = getEffectiveProjectGitHubToken(data.SafeOutputs.UpdateProjects.GitHubToken, data.GitHubToken)
+		projectToken = getEffectiveProjectGitHubToken(data.SafeOutputs.UpdateProjects.GitHubToken)
 		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_URL from update-project config: %s", projectURL)
 		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from update-project config")
 	} else if data.SafeOutputs.CreateProjectStatusUpdates != nil && data.SafeOutputs.CreateProjectStatusUpdates.Project != "" {
 		projectURL = data.SafeOutputs.CreateProjectStatusUpdates.Project
-		projectToken = getEffectiveProjectGitHubToken(data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken, data.GitHubToken)
+		projectToken = getEffectiveProjectGitHubToken(data.SafeOutputs.CreateProjectStatusUpdates.GitHubToken)
 		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_URL from create-project-status-update config: %s", projectURL)
 		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from create-project-status-update config")
 	}
@@ -223,7 +223,7 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) []string {
 	// Check create-project for token even if no URL is set (create-project doesn't have a project URL field)
 	// This ensures GH_AW_PROJECT_GITHUB_TOKEN is set when create-project is configured
 	if projectToken == "" && data.SafeOutputs.CreateProjects != nil {
-		projectToken = getEffectiveProjectGitHubToken(data.SafeOutputs.CreateProjects.GitHubToken, data.GitHubToken)
+		projectToken = getEffectiveProjectGitHubToken(data.SafeOutputs.CreateProjects.GitHubToken)
 		consolidatedSafeOutputsStepsLog.Printf("Setting GH_AW_PROJECT_GITHUB_TOKEN from create-project config")
 	}
 

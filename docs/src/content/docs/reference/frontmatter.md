@@ -84,23 +84,6 @@ metadata:
 
 Metadata provides a flexible way to add descriptive information to workflows without affecting execution.
 
-### GitHub Token (`github-token:`)
-
-Configures the default GitHub token for engine authentication, checkout steps, and safe-output operations.
-
-```yaml wrap
-github-token: ${{ secrets.CUSTOM_PAT }}
-```
-
-**Token precedence** (highest to lowest):
-
-1. Individual safe-output `github-token` (e.g., `create-issue.github-token`)
-2. Safe-outputs global `github-token`
-3. Top-level `github-token`
-4. Default: `${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`
-
-See [Authentication](/gh-aw/reference/auth/) for complete documentation.
-
 ### Plugins (`plugins:`)
 
 :::caution[Experimental Feature]
@@ -127,10 +110,9 @@ plugins:
 
 **Token precedence** for plugin installation (highest to lowest):
 1. Custom `plugins.github-token` from object format
-2. Custom top-level `github-token`
-3. `${{ secrets.GH_AW_PLUGINS_TOKEN }}`
-4. `${{ secrets.GH_AW_GITHUB_TOKEN }}`
-5. `${{ secrets.GITHUB_TOKEN }}` (default)
+2. `${{ secrets.GH_AW_PLUGINS_TOKEN }}`
+3. `${{ secrets.GH_AW_GITHUB_TOKEN }}`
+4. `${{ secrets.GITHUB_TOKEN }}` (default)
 
 Each plugin repository must be specified in `org/repo` format. The compiler generates installation steps that run after the engine CLI is installed but before workflow execution begins.
 

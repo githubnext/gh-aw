@@ -670,7 +670,6 @@ engine: copilot
 name: Test Workflow
 description: Test description
 source: test-source
-github-token: ${{ secrets.GITHUB_TOKEN }}
 ---
 
 # Test Workflow
@@ -690,7 +689,6 @@ Test content
 	assert.Equal(t, "Test Workflow", workflowData.FrontmatterName, "Name should be set")
 	assert.Equal(t, "Test description", workflowData.Description, "Description should be set")
 	assert.Equal(t, "test-source", workflowData.Source, "Source should be set")
-	assert.Equal(t, "${{ secrets.GITHUB_TOKEN }}", workflowData.GitHubToken, "GitHub token should be set")
 	assert.Equal(t, "copilot", workflowData.AI, "AI engine should be set")
 	assert.NotNil(t, workflowData.EngineConfig, "EngineConfig should be set")
 	assert.NotNil(t, workflowData.ParsedTools, "ParsedTools should be initialized")

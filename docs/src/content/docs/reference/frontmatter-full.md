@@ -3777,15 +3777,6 @@ safe-inputs:
 # (optional)
 runtimes:
   {}
-
-# GitHub token expression to use for all steps that require GitHub authentication.
-# Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{
-# secrets.CUSTOM_PAT }}. If not specified, defaults to ${{
-# secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}. This value can be
-# overridden by safe-outputs github-token or individual safe-output github-token
-# fields.
-# (optional)
-github-token: "${{ secrets.GITHUB_TOKEN }}"
 ---
 ```
 

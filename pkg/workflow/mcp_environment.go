@@ -80,7 +80,7 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		} else {
 			// Otherwise, use custom token or default fallback
 			customGitHubToken := getGitHubToken(githubTool)
-			effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
+			effectiveToken := getEffectiveGitHubToken(customGitHubToken)
 			envVars["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
 		}
 

@@ -150,7 +150,6 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 			ParticipantType:    "reviewer",
 			CustomToken:        data.SafeOutputs.CreatePullRequests.GitHubToken,
 			SafeOutputsToken:   safeOutputsToken,
-			WorkflowToken:      data.GitHubToken,
 			ConditionStepID:    "create_pull_request",
 			ConditionOutputKey: "pull_request_url",
 		})

@@ -269,14 +269,13 @@ func TestPluginCompilationTokenPrecedence(t *testing.T) {
 		description   string
 	}{
 		{
-			name: "Object github-token overrides top-level",
+			name: "Plugin-specific github-token used",
 			workflow: `---
 engine: copilot
 on: workflow_dispatch
 permissions:
   issues: read
   pull-requests: read
-github-token: ${{ secrets.TOPLEVEL_TOKEN }}
 plugins:
   repos:
     - github/plugin1
@@ -286,25 +285,7 @@ plugins:
 Test token precedence
 `,
 			expectedToken: "GITHUB_TOKEN: ${{ secrets.PLUGINS_SPECIFIC_TOKEN }}",
-			description:   "plugins.github-token should override top-level github-token",
-		},
-		{
-			name: "Top-level token used when no plugin token",
-			workflow: `---
-engine: copilot
-on: workflow_dispatch
-permissions:
-  issues: read
-  pull-requests: read
-github-token: ${{ secrets.TOPLEVEL_TOKEN }}
-plugins:
-  - github/plugin1
----
-
-Test top-level token
-`,
-			expectedToken: "GITHUB_TOKEN: ${{ secrets.TOPLEVEL_TOKEN }}",
-			description:   "top-level github-token should be used when no plugins.github-token",
+			description:   "plugins.github-token should be used when specified",
 		},
 		{
 			name: "Cascading fallback when no tokens specified",
