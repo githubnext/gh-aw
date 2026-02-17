@@ -20,12 +20,9 @@ var (
 	includePattern = regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
 )
 
-// WorkflowSourceInfo contains information about where a workflow was found
-type WorkflowSourceInfo struct {
-	IsLocal    bool // true if this is a local workflow (from filesystem)
-	SourcePath string
-	CommitSHA  string // The actual commit SHA used when the package was installed
-}
+// WorkflowSourceInfo is an alias for FetchedWorkflow for backward compatibility.
+// Deprecated: Use FetchedWorkflow directly instead.
+type WorkflowSourceInfo = FetchedWorkflow
 
 // isValidWorkflowFile checks if a markdown file is a valid workflow by attempting to parse its frontmatter.
 // It validates that the file has proper YAML frontmatter delimited by "---" and contains the required "on" field.

@@ -17,10 +17,10 @@ var resolutionLog = logger.New("cli:add_workflow_resolution")
 type ResolvedWorkflow struct {
 	// Spec is the parsed workflow specification
 	Spec *WorkflowSpec
-	// Content is the raw workflow content
+	// Content is the raw workflow content (convenience accessor, same as SourceInfo.Content)
 	Content []byte
-	// SourceInfo contains source metadata (package path, commit SHA)
-	SourceInfo *WorkflowSourceInfo
+	// SourceInfo contains fetched workflow data including content, commit SHA, and source path
+	SourceInfo *FetchedWorkflow
 	// Description is the workflow description extracted from frontmatter
 	Description string
 	// Engine is the preferred engine extracted from frontmatter (empty if not specified)
@@ -113,52 +113,28 @@ func ResolveWorkflows(workflows []string, verbose bool) (*ResolvedWorkflows, err
 	hasWorkflowDispatch := false
 
 	for _, spec := range parsedSpecs {
-		var content []byte
-		var sourceInfo *WorkflowSourceInfo
-
-		// Fetch workflow content based on source type
-		if isLocalWorkflowPath(spec.WorkflowPath) {
-			// Local workflow - read from filesystem
-			localContent, err := os.ReadFile(spec.WorkflowPath)
-			if err != nil {
-				return nil, fmt.Errorf("local workflow '%s' not found: %w", spec.WorkflowPath, err)
-			}
-			content = localContent
-			sourceInfo = &WorkflowSourceInfo{
-				IsLocal:    true,
-				SourcePath: spec.WorkflowPath,
-				CommitSHA:  "",
-			}
-		} else {
-			// Remote workflow - fetch directly from GitHub
-			fetched, err := FetchWorkflowFromSource(spec, verbose)
-			if err != nil {
-				return nil, fmt.Errorf("workflow '%s' not found: %w", spec.String(), err)
-			}
-			content = fetched.Content
-			sourceInfo = &WorkflowSourceInfo{
-				IsLocal:    false,
-				SourcePath: spec.WorkflowPath,
-				CommitSHA:  fetched.CommitSHA,
-			}
+		// Fetch workflow content - FetchWorkflowFromSource handles both local and remote
+		fetched, err := FetchWorkflowFromSource(spec, verbose)
+		if err != nil {
+			return nil, fmt.Errorf("workflow '%s' not found: %w", spec.String(), err)
 		}
 
 		// Extract description from content
-		description := ExtractWorkflowDescription(string(content))
+		description := ExtractWorkflowDescription(string(fetched.Content))
 
 		// Extract engine from content (if specified in frontmatter)
-		engine := ExtractWorkflowEngine(string(content))
+		engine := ExtractWorkflowEngine(string(fetched.Content))
 
 		// Check for workflow_dispatch trigger in content
-		workflowHasDispatch := checkWorkflowHasDispatchFromContent(string(content))
+		workflowHasDispatch := checkWorkflowHasDispatchFromContent(string(fetched.Content))
 		if workflowHasDispatch {
 			hasWorkflowDispatch = true
 		}
 
 		resolvedWorkflows = append(resolvedWorkflows, &ResolvedWorkflow{
 			Spec:                spec,
-			Content:             content,
-			SourceInfo:          sourceInfo,
+			Content:             fetched.Content,
+			SourceInfo:          fetched,
 			Description:         description,
 			Engine:              engine,
 			HasWorkflowDispatch: workflowHasDispatch,

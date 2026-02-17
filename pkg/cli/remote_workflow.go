@@ -15,10 +15,13 @@ import (
 
 var remoteWorkflowLog = logger.New("cli:remote_workflow")
 
-// FetchedWorkflow contains content and metadata from a directly fetched workflow file
+// FetchedWorkflow contains content and metadata from a directly fetched workflow file.
+// This is the unified type that combines content with source information.
 type FetchedWorkflow struct {
-	Content   []byte // The raw content of the workflow file
-	CommitSHA string // The resolved commit SHA at the time of fetch
+	Content    []byte // The raw content of the workflow file
+	CommitSHA  string // The resolved commit SHA at the time of fetch (empty for local)
+	IsLocal    bool   // true if this is a local workflow (from filesystem)
+	SourcePath string // The original source path (local path or remote path)
 }
 
 // FetchWorkflowFromSource fetches a workflow file directly from GitHub without cloning.
@@ -51,8 +54,10 @@ func fetchLocalWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, err
 	}
 
 	return &FetchedWorkflow{
-		Content:   content,
-		CommitSHA: "", // Local workflows don't have a commit SHA
+		Content:    content,
+		CommitSHA:  "", // Local workflows don't have a commit SHA
+		IsLocal:    true,
+		SourcePath: spec.WorkflowPath,
 	}, nil
 }
 
@@ -106,8 +111,10 @@ func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, er
 			remoteWorkflowLog.Printf("Direct path failed, trying: %s", altPath)
 			if altContent, altErr := parser.DownloadFileFromGitHub(owner, repo, altPath, ref); altErr == nil {
 				return &FetchedWorkflow{
-					Content:   altContent,
-					CommitSHA: commitSHA,
+					Content:    altContent,
+					CommitSHA:  commitSHA,
+					IsLocal:    false,
+					SourcePath: altPath,
 				}, nil
 			}
 
@@ -119,8 +126,10 @@ func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, er
 			remoteWorkflowLog.Printf("Trying: %s", altPath)
 			if altContent, altErr := parser.DownloadFileFromGitHub(owner, repo, altPath, ref); altErr == nil {
 				return &FetchedWorkflow{
-					Content:   altContent,
-					CommitSHA: commitSHA,
+					Content:    altContent,
+					CommitSHA:  commitSHA,
+					IsLocal:    false,
+					SourcePath: altPath,
 				}, nil
 			}
 		}
@@ -132,8 +141,10 @@ func fetchRemoteWorkflow(spec *WorkflowSpec, verbose bool) (*FetchedWorkflow, er
 	}
 
 	return &FetchedWorkflow{
-		Content:   content,
-		CommitSHA: commitSHA,
+		Content:    content,
+		CommitSHA:  commitSHA,
+		IsLocal:    false,
+		SourcePath: spec.WorkflowPath,
 	}, nil
 }
 

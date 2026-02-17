@@ -75,8 +75,11 @@ This is a test workflow.`
 			WorkflowName: "test",
 		},
 		Content: []byte(workflowContent),
-		SourceInfo: &WorkflowSourceInfo{
-			IsLocal: true,
+		SourceInfo: &FetchedWorkflow{
+			Content:    []byte(workflowContent),
+			IsLocal:    true,
+			SourcePath: "./test.md",
+			CommitSHA:  "",
 		},
 	}
 

@@ -52,7 +52,7 @@ func addWorkflowsWithPR(workflows []*ResolvedWorkflow, opts AddOptions) (int, st
 	addWorkflowPRLog.Print("Adding workflows to repository")
 	prOpts := opts
 	prOpts.DisableSecurityScanner = false
-	if err := addWorkflows(workflows, prOpts); err != nil {
+	if err := addWorkflowsWithTracking(workflows, tracker, prOpts); err != nil {
 		addWorkflowPRLog.Printf("Failed to add workflows: %v", err)
 		// Rollback on error
 		if rollbackErr := tracker.RollbackAllFiles(opts.Verbose); rollbackErr != nil && opts.Verbose {

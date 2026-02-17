@@ -278,7 +278,11 @@ func addWorkflows(workflows []*ResolvedWorkflow, opts AddOptions) error {
 		}
 		tracker = nil
 	}
+	return addWorkflowsWithTracking(workflows, tracker, opts)
+}
 
+// addWorkflows handles workflow addition using pre-fetched content
+func addWorkflowsWithTracking(workflows []*ResolvedWorkflow, tracker *FileTracker, opts AddOptions) error {
 	// Ensure .gitattributes is configured unless flag is set
 	if !opts.NoGitattributes {
 		addLog.Print("Configuring .gitattributes")
@@ -303,7 +307,7 @@ func addWorkflows(workflows []*ResolvedWorkflow, opts AddOptions) error {
 			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Adding workflow %d/%d: %s", i+1, len(workflows), resolved.Spec.WorkflowName)))
 		}
 
-		if err := addWorkflowsWithTracking(resolved, tracker, opts); err != nil {
+		if err := addWorkflowWithTracking(resolved, tracker, opts); err != nil {
 			return fmt.Errorf("failed to add workflow '%s': %w", resolved.Spec.String(), err)
 		}
 	}
@@ -371,8 +375,8 @@ func addWorkflows(workflows []*ResolvedWorkflow, opts AddOptions) error {
 	return nil
 }
 
-// addWorkflowsWithTracking adds a workflow using pre-fetched content with file tracking
-func addWorkflowsWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions) error {
+// addWorkflowWithTracking adds a workflow using pre-fetched content with file tracking
+func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, opts AddOptions) error {
 	workflowSpec := resolved.Spec
 	sourceContent := resolved.Content
 	sourceInfo := resolved.SourceInfo
