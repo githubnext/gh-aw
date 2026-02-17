@@ -232,7 +232,7 @@ func TestActionUsageVersionPopulation(t *testing.T) {
 	lockFile := filepath.Join(tmpDir, "test.lock.yml")
 
 	// Use an action that exists in action_pins.json
-	lockContent := `
+	lockContent := `# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0000000000000000000000000000000000000000000000000000000000000000"}
 name: Test
 on: push
 jobs:
