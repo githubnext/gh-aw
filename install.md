@@ -37,7 +37,7 @@ You should see version information displayed. If you encounter an error, check t
 Run the initialization command with the Copilot engine:
 
 ```bash
-gh aw init --engine copilot
+gh aw init
 ```
 
 **What this does**:
