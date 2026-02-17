@@ -217,9 +217,10 @@ func TestAddAllBlogSeriesWorkflows(t *testing.T) {
 	}
 
 	for _, workflowName := range workflows {
-		workflowName := workflowName // capture for parallel execution
+		workflowName := workflowName // capture for loop variable
 		t.Run(workflowName, func(t *testing.T) {
-			t.Parallel() // Run tests in parallel for speed
+			// Note: Cannot use t.Parallel() because setupAddIntegrationTest() uses os.Chdir()
+			// which modifies global process state and would cause races between goroutines
 
 			setup := setupAddIntegrationTest(t)
 			defer setup.cleanup()
