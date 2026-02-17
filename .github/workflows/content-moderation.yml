@@ -1,0 +1,612 @@
+name: Content Moderation
+
+# Automated content moderation that removes issues, PRs, discussions, and comments from blocklisted users
+on:
+  issues:
+    types: [opened, edited, reopened]
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+  issue_comment:
+    types: [created, edited]
+  discussion:
+    types: [created, edited]
+  discussion_comment:
+    types: [created, edited]
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'GitHub URL of the content to moderate (issue/PR/discussion/comment)'
+        required: true
+        type: string
+      staging:
+        description: 'Staging run (only logs actions without executing)'
+        required: false
+        type: boolean
+        default: false
+      blocklist:
+        description: 'Additional usernames to block (comma-separated)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  issues: write
+  pull-requests: write
+  discussions: write
+
+jobs:
+  moderate-content:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Moderate content from blocklisted users
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            
+            // =================================================
+            // Configuration
+            // =================================================
+            
+            // Default blocklist - add usernames here
+            const DEFAULT_BLOCKLIST = [
+              // Add usernames to block here
+              // 'spammer123',
+              // 'bot-account',
+            ];
+            
+            // Parse additional blocklist from workflow_dispatch input
+            const additionalBlocklist = context.payload.inputs?.blocklist 
+              ? context.payload.inputs.blocklist.split(',').map(u => u.trim()).filter(u => u)
+              : [];
+            
+            // Combine blocklists
+            const BLOCKLIST = new Set([...DEFAULT_BLOCKLIST, ...additionalBlocklist]);
+            
+            // Staging mode (dry run)
+            const STAGING = context.payload.inputs?.staging === 'true' || context.payload.inputs?.staging === true;
+            
+            // =================================================
+            // Logging Utilities
+            // =================================================
+            
+            function logHeader(title) {
+              core.info('='.repeat(60));
+              core.info(title);
+              core.info('='.repeat(60));
+            }
+            
+            function logSection(title) {
+              core.info('');
+              core.info('-'.repeat(60));
+              core.info(title);
+              core.info('-'.repeat(60));
+            }
+            
+            function logAction(action, details) {
+              core.info(`🔧 ${action}`);
+              if (details) {
+                Object.entries(details).forEach(([key, value]) => {
+                  core.info(`   ${key}: ${value}`);
+                });
+              }
+            }
+            
+            function logSuccess(message) {
+              core.info(`✅ ${message}`);
+            }
+            
+            function logWarning(message) {
+              core.warning(`⚠️  ${message}`);
+            }
+            
+            function logError(message, error) {
+              core.error(`❌ ${message}`);
+              if (error?.message) {
+                core.error(`   Error: ${error.message}`);
+              }
+              if (error?.stack) {
+                core.error(`   Stack: ${error.stack}`);
+              }
+            }
+            
+            // =================================================
+            // Summary Tracking
+            // =================================================
+            
+            const summaryData = {
+              blockedUsers: new Set(),
+              actions: [],
+              errors: []
+            };
+            
+            function addSummaryAction(type, details) {
+              summaryData.actions.push({ type, details, timestamp: new Date().toISOString() });
+            }
+            
+            function addSummaryError(error, context) {
+              summaryData.errors.push({ error: error.message, context, timestamp: new Date().toISOString() });
+            }
+            
+            async function writeSummary() {
+              logSection('Writing Step Summary');
+              
+              let summary = '# Content Moderation Report\n\n';
+              
+              if (STAGING) {
+                summary += '> **🧪 STAGING MODE** - No actions were executed (dry run)\n\n';
+              }
+              
+              summary += `**Run Time**: ${new Date().toISOString()}\n\n`;
+              summary += `**Trigger**: ${context.eventName}\n\n`;
+              
+              // Blocklist info
+              summary += '## Blocklist Configuration\n\n';
+              if (BLOCKLIST.size === 0) {
+                summary += '_No users in blocklist_\n\n';
+              } else {
+                summary += `Total users in blocklist: ${BLOCKLIST.size}\n\n`;
+                summary += '<details>\n<summary>View blocklist</summary>\n\n';
+                summary += Array.from(BLOCKLIST).map(u => `- \`${u}\``).join('\n');
+                summary += '\n\n</details>\n\n';
+              }
+              
+              // Blocked users encountered
+              if (summaryData.blockedUsers.size > 0) {
+                summary += '## Blocked Users Detected\n\n';
+                summary += Array.from(summaryData.blockedUsers).map(u => `- \`${u}\``).join('\n');
+                summary += '\n\n';
+              }
+              
+              // Actions taken
+              if (summaryData.actions.length > 0) {
+                summary += '## Actions Taken\n\n';
+                summary += `Total actions: ${summaryData.actions.length}\n\n`;
+                
+                for (const action of summaryData.actions) {
+                  summary += `### ${action.type}\n\n`;
+                  summary += `**Time**: ${action.timestamp}\n\n`;
+                  summary += '**Details**:\n';
+                  Object.entries(action.details).forEach(([key, value]) => {
+                    summary += `- ${key}: ${value}\n`;
+                  });
+                  summary += '\n';
+                }
+              } else {
+                summary += '## Actions Taken\n\n';
+                summary += '_No moderation actions required_\n\n';
+              }
+              
+              // Errors
+              if (summaryData.errors.length > 0) {
+                summary += '## Errors\n\n';
+                for (const error of summaryData.errors) {
+                  summary += `- **${error.context}**: ${error.error} (${error.timestamp})\n`;
+                }
+                summary += '\n';
+              }
+              
+              await core.summary
+                .addRaw(summary)
+                .write();
+              
+              logSuccess('Step summary written');
+            }
+            
+            // =================================================
+            // Content Moderation Functions
+            // =================================================
+            
+            async function closeIssue(issueNumber, username) {
+              logAction('Closing issue from blocked user', {
+                'Issue': `#${issueNumber}`,
+                'User': username,
+                'Staging': STAGING
+              });
+              
+              if (STAGING) {
+                logWarning('STAGING MODE: Would close issue but skipping');
+                addSummaryAction('Close Issue (Staged)', { issue: issueNumber, user: username });
+                return;
+              }
+              
+              try {
+                // Close the issue
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  state: 'closed',
+                  state_reason: 'not_planned'
+                });
+                
+                // Add a comment explaining why
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  body: '🚫 **Content Removed**\n\nThis issue was automatically closed because it was created by a user on the moderation blocklist.'
+                });
+                
+                logSuccess(`Closed issue #${issueNumber}`);
+                addSummaryAction('Close Issue', { issue: issueNumber, user: username });
+              } catch (error) {
+                logError(`Failed to close issue #${issueNumber}`, error);
+                addSummaryError(error, `Close issue #${issueNumber}`);
+              }
+            }
+            
+            async function closePullRequest(prNumber, username) {
+              logAction('Closing pull request from blocked user', {
+                'PR': `#${prNumber}`,
+                'User': username,
+                'Staging': STAGING
+              });
+              
+              if (STAGING) {
+                logWarning('STAGING MODE: Would close PR but skipping');
+                addSummaryAction('Close PR (Staged)', { pr: prNumber, user: username });
+                return;
+              }
+              
+              try {
+                // Close the PR
+                await github.rest.pulls.update({
+                  owner,
+                  repo,
+                  pull_number: prNumber,
+                  state: 'closed'
+                });
+                
+                // Add a comment explaining why
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: prNumber,
+                  body: '🚫 **Content Removed**\n\nThis pull request was automatically closed because it was created by a user on the moderation blocklist.'
+                });
+                
+                logSuccess(`Closed PR #${prNumber}`);
+                addSummaryAction('Close PR', { pr: prNumber, user: username });
+              } catch (error) {
+                logError(`Failed to close PR #${prNumber}`, error);
+                addSummaryError(error, `Close PR #${prNumber}`);
+              }
+            }
+            
+            async function deleteComment(commentId, issueNumber, username) {
+              logAction('Deleting comment from blocked user', {
+                'Comment ID': commentId,
+                'Issue/PR': `#${issueNumber}`,
+                'User': username,
+                'Staging': STAGING
+              });
+              
+              if (STAGING) {
+                logWarning('STAGING MODE: Would delete comment but skipping');
+                addSummaryAction('Delete Comment (Staged)', { comment_id: commentId, issue: issueNumber, user: username });
+                return;
+              }
+              
+              try {
+                // Note: GitHub API doesn't support deleting comments via REST API for security reasons
+                // Instead, we'll minimize/hide the comment
+                await github.rest.issues.updateComment({
+                  owner,
+                  repo,
+                  comment_id: commentId,
+                  body: '_[Content removed - user on moderation blocklist]_'
+                });
+                
+                logSuccess(`Updated comment ${commentId} to hide content`);
+                addSummaryAction('Hide Comment', { comment_id: commentId, issue: issueNumber, user: username });
+              } catch (error) {
+                logError(`Failed to hide comment ${commentId}`, error);
+                addSummaryError(error, `Hide comment ${commentId}`);
+              }
+            }
+            
+            async function closeDiscussion(discussionId, discussionNumber, username) {
+              logAction('Closing discussion from blocked user', {
+                'Discussion': `#${discussionNumber}`,
+                'User': username,
+                'Staging': STAGING
+              });
+              
+              if (STAGING) {
+                logWarning('STAGING MODE: Would close discussion but skipping');
+                addSummaryAction('Close Discussion (Staged)', { discussion: discussionNumber, user: username });
+                return;
+              }
+              
+              try {
+                // Close discussion using GraphQL
+                const mutation = `
+                  mutation($discussionId: ID!) {
+                    closeDiscussion(input: { discussionId: $discussionId, reason: RESOLVED }) {
+                      discussion {
+                        id
+                        number
+                        closed
+                      }
+                    }
+                  }
+                `;
+                
+                await github.graphql(mutation, {
+                  discussionId
+                });
+                
+                logSuccess(`Closed discussion #${discussionNumber}`);
+                addSummaryAction('Close Discussion', { discussion: discussionNumber, user: username });
+              } catch (error) {
+                logError(`Failed to close discussion #${discussionNumber}`, error);
+                addSummaryError(error, `Close discussion #${discussionNumber}`);
+              }
+            }
+            
+            async function deleteDiscussionComment(commentId, discussionNumber, username) {
+              logAction('Deleting discussion comment from blocked user', {
+                'Comment ID': commentId,
+                'Discussion': `#${discussionNumber}`,
+                'User': username,
+                'Staging': STAGING
+              });
+              
+              if (STAGING) {
+                logWarning('STAGING MODE: Would delete discussion comment but skipping');
+                addSummaryAction('Delete Discussion Comment (Staged)', { comment_id: commentId, discussion: discussionNumber, user: username });
+                return;
+              }
+              
+              try {
+                // Delete discussion comment using GraphQL
+                const mutation = `
+                  mutation($commentId: ID!) {
+                    deleteDiscussionComment(input: { id: $commentId }) {
+                      comment {
+                        id
+                      }
+                    }
+                  }
+                `;
+                
+                await github.graphql(mutation, {
+                  commentId
+                });
+                
+                logSuccess(`Deleted discussion comment ${commentId}`);
+                addSummaryAction('Delete Discussion Comment', { comment_id: commentId, discussion: discussionNumber, user: username });
+              } catch (error) {
+                logError(`Failed to delete discussion comment ${commentId}`, error);
+                addSummaryError(error, `Delete discussion comment ${commentId}`);
+              }
+            }
+            
+            // =================================================
+            // URL Parsing for workflow_dispatch
+            // =================================================
+            
+            async function parseTargetUrl(url) {
+              logSection('Parsing Target URL');
+              core.info(`URL: ${url}`);
+              
+              // GitHub URL patterns:
+              // Issues: https://github.com/owner/repo/issues/123
+              // PRs: https://github.com/owner/repo/pull/456
+              // Discussions: https://github.com/owner/repo/discussions/789
+              // Issue comments: https://github.com/owner/repo/issues/123#issuecomment-123456
+              // Discussion comments: https://github.com/owner/repo/discussions/789#discussioncomment-123456
+              
+              const urlRegex = /github\.com\/([^\/]+)\/([^\/]+)\/(issues|pull|discussions)\/(\d+)(?:#(issuecomment|discussioncomment)-(\d+))?/;
+              const match = url.match(urlRegex);
+              
+              if (!match) {
+                throw new Error('Invalid GitHub URL format');
+              }
+              
+              const [, urlOwner, urlRepo, type, number, commentType, commentId] = match;
+              
+              const target = {
+                owner: urlOwner,
+                repo: urlRepo,
+                type,
+                number: parseInt(number, 10),
+                commentType,
+                commentId: commentId ? parseInt(commentId, 10) : null
+              };
+              
+              logSuccess('URL parsed successfully');
+              core.info(`Type: ${target.type}, Number: ${target.number}, Comment: ${target.commentId || 'N/A'}`);
+              
+              return target;
+            }
+            
+            // =================================================
+            // Main Execution
+            // =================================================
+            
+            async function main() {
+              try {
+                logHeader('Content Moderation Workflow');
+                
+                core.info(`Event: ${context.eventName}`);
+                core.info(`Repository: ${owner}/${repo}`);
+                core.info(`Staging Mode: ${STAGING}`);
+                core.info(`Blocklist Size: ${BLOCKLIST.size}`);
+                core.info('');
+                
+                // Check if blocklist is empty
+                if (BLOCKLIST.size === 0) {
+                  logWarning('Blocklist is empty - no moderation will occur');
+                  logWarning('Add usernames to DEFAULT_BLOCKLIST in the workflow file');
+                  await writeSummary();
+                  return;
+                }
+                
+                let user = null;
+                let contentType = null;
+                let contentNumber = null;
+                let commentId = null;
+                let discussionId = null;
+                
+                // Handle workflow_dispatch
+                if (context.eventName === 'workflow_dispatch') {
+                  logSection('Workflow Dispatch Mode');
+                  
+                  const targetUrl = context.payload.inputs.target_url;
+                  core.info(`Target URL: ${targetUrl}`);
+                  
+                  const target = await parseTargetUrl(targetUrl);
+                  
+                  // Fetch the content to get the user
+                  if (target.type === 'issues' || target.type === 'pull') {
+                    if (target.commentId) {
+                      // It's a comment
+                      const { data: comment } = await github.rest.issues.getComment({
+                        owner: target.owner,
+                        repo: target.repo,
+                        comment_id: target.commentId
+                      });
+                      user = comment.user.login;
+                      commentId = target.commentId;
+                      contentNumber = target.number;
+                      contentType = target.type === 'issues' ? 'issue_comment' : 'pr_comment';
+                    } else {
+                      // It's an issue or PR
+                      if (target.type === 'issues') {
+                        const { data: issue } = await github.rest.issues.get({
+                          owner: target.owner,
+                          repo: target.repo,
+                          issue_number: target.number
+                        });
+                        user = issue.user.login;
+                        contentNumber = target.number;
+                        contentType = 'issue';
+                      } else {
+                        const { data: pr } = await github.rest.pulls.get({
+                          owner: target.owner,
+                          repo: target.repo,
+                          pull_number: target.number
+                        });
+                        user = pr.user.login;
+                        contentNumber = target.number;
+                        contentType = 'pull_request';
+                      }
+                    }
+                  } else if (target.type === 'discussions') {
+                    // Fetch discussion using GraphQL
+                    const query = `
+                      query($owner: String!, $repo: String!, $number: Int!) {
+                        repository(owner: $owner, name: $repo) {
+                          discussion(number: $number) {
+                            id
+                            number
+                            author {
+                              login
+                            }
+                          }
+                        }
+                      }
+                    `;
+                    
+                    const result = await github.graphql(query, {
+                      owner: target.owner,
+                      repo: target.repo,
+                      number: target.number
+                    });
+                    
+                    user = result.repository.discussion.author.login;
+                    discussionId = result.repository.discussion.id;
+                    contentNumber = target.number;
+                    contentType = 'discussion';
+                  }
+                } 
+                // Handle automatic triggers
+                else {
+                  logSection('Automatic Trigger Mode');
+                  
+                  if (context.eventName === 'issues') {
+                    user = context.payload.issue.user.login;
+                    contentType = 'issue';
+                    contentNumber = context.payload.issue.number;
+                    core.info(`Issue #${contentNumber} by ${user}`);
+                  } else if (context.eventName === 'pull_request') {
+                    user = context.payload.pull_request.user.login;
+                    contentType = 'pull_request';
+                    contentNumber = context.payload.pull_request.number;
+                    core.info(`PR #${contentNumber} by ${user}`);
+                  } else if (context.eventName === 'issue_comment') {
+                    user = context.payload.comment.user.login;
+                    contentType = 'issue_comment';
+                    contentNumber = context.payload.issue.number;
+                    commentId = context.payload.comment.id;
+                    core.info(`Comment ${commentId} on #${contentNumber} by ${user}`);
+                  } else if (context.eventName === 'discussion') {
+                    user = context.payload.discussion.user.login;
+                    contentType = 'discussion';
+                    contentNumber = context.payload.discussion.number;
+                    discussionId = context.payload.discussion.node_id;
+                    core.info(`Discussion #${contentNumber} by ${user}`);
+                  } else if (context.eventName === 'discussion_comment') {
+                    user = context.payload.comment.user.login;
+                    contentType = 'discussion_comment';
+                    contentNumber = context.payload.discussion.number;
+                    commentId = context.payload.comment.node_id;
+                    core.info(`Discussion comment on #${contentNumber} by ${user}`);
+                  }
+                }
+                
+                // Check if user is on blocklist
+                logSection('Blocklist Check');
+                core.info(`User: ${user}`);
+                
+                if (!BLOCKLIST.has(user)) {
+                  logSuccess(`User '${user}' is not on blocklist - no action needed`);
+                  await writeSummary();
+                  return;
+                }
+                
+                logWarning(`User '${user}' is on blocklist!`);
+                summaryData.blockedUsers.add(user);
+                
+                // Take appropriate action based on content type
+                logSection('Taking Moderation Action');
+                
+                switch (contentType) {
+                  case 'issue':
+                    await closeIssue(contentNumber, user);
+                    break;
+                  case 'pull_request':
+                    await closePullRequest(contentNumber, user);
+                    break;
+                  case 'issue_comment':
+                  case 'pr_comment':
+                    await deleteComment(commentId, contentNumber, user);
+                    break;
+                  case 'discussion':
+                    await closeDiscussion(discussionId, contentNumber, user);
+                    break;
+                  case 'discussion_comment':
+                    await deleteDiscussionComment(commentId, contentNumber, user);
+                    break;
+                  default:
+                    logWarning(`Unknown content type: ${contentType}`);
+                }
+                
+                await writeSummary();
+                
+                logHeader('Content Moderation Complete');
+                logSuccess('Workflow completed successfully');
+                
+              } catch (error) {
+                logHeader('Content Moderation Failed');
+                logError('Workflow failed with error', error);
+                addSummaryError(error, 'Main workflow execution');
+                await writeSummary();
+                throw error;
+              }
+            }
+            
+            // Run main function
+            await main();
