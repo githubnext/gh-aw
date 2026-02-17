@@ -2,7 +2,8 @@
 
 package workflow
 
-func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType string, pipCmd string) {}
+func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType string, pipCmd string) {
+}
 
 func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
 	return nil

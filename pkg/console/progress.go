@@ -157,4 +157,3 @@ func (p *ProgressBar) Update(current int64) string {
 
 	return p.progress.ViewAs(percent)
 }
-

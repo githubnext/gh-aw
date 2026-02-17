@@ -64,8 +64,8 @@ func FormatError(err CompilerError) string {
 	return output.String()
 }
 
-func FormatSuccessMessage(message string) string { return "✓ " + message }
-func FormatInfoMessage(message string) string    { return "ℹ " + message }
+func FormatSuccessMessage(message string) string  { return "✓ " + message }
+func FormatInfoMessage(message string) string     { return "ℹ " + message }
 func FormatWarningMessage(message string) string  { return "⚠ " + message }
 func FormatErrorMessage(message string) string    { return "✗ " + message }
 func FormatLocationMessage(message string) string { return "📁 " + message }

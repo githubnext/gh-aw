@@ -15,8 +15,8 @@ func NewSpinner(message string) *SpinnerWrapper {
 	return &SpinnerWrapper{enabled: false}
 }
 
-func (s *SpinnerWrapper) Start()                       {}
-func (s *SpinnerWrapper) Stop()                        {}
+func (s *SpinnerWrapper) Start() {}
+func (s *SpinnerWrapper) Stop()  {}
 func (s *SpinnerWrapper) StopWithMessage(msg string) {
 	if msg != "" {
 		fmt.Fprintf(os.Stderr, "%s\n", msg)
