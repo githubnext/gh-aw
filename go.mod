@@ -23,7 +23,7 @@ require (
 	golang.org/x/crypto v0.48.0
 	golang.org/x/mod v0.33.0
 	golang.org/x/term v0.40.0
-	golang.org/x/tools/gopls v0.21.0
+	golang.org/x/tools/gopls v0.21.1
 	golang.org/x/vuln v1.1.4
 )
 
