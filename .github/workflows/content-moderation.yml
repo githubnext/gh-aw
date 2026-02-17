@@ -25,7 +25,7 @@ jobs:
             core.info(`Blocklist: ${blocklist.join(', ') || 'empty'}`);
             if (!blocklist.length) return;
             
-            let user, number, isComment;
+            let user, number, commentId;
             
             if (context.eventName === 'issues') {
               user = context.payload.issue.user.login;
@@ -36,7 +36,7 @@ jobs:
             } else if (context.eventName === 'issue_comment') {
               user = context.payload.comment.user.login;
               number = context.payload.issue.number;
-              isComment = context.payload.comment.id;
+              commentId = context.payload.comment.id;
             }
             
             core.info(`Checking user: ${user}`);
@@ -47,14 +47,26 @@ jobs:
             
             core.info(`User ${user} is blocked, taking action`);
             
-            if (isComment) {
-              core.info(`Hiding comment ${isComment}`);
-              await github.rest.issues.updateComment({
+            if (commentId) {
+              core.info(`Minimizing comment ${commentId}`);
+              const comment = await github.rest.issues.getComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                comment_id: isComment,
-                body: '_[Content removed]_'
+                comment_id: commentId
               });
+              const nodeId = comment.data.node_id;
+              await github.graphql(
+                `
+                mutation($commentId: ID!) {
+                  minimizeComment(input: {subjectId: $commentId, classifier: SPAM}) {
+                    minimizedComment {
+                      isMinimized
+                    }
+                  }
+                }
+                `,
+                { commentId: nodeId }
+              );
             } else if (context.eventName === 'issues') {
               core.info(`Closing issue #${number}`);
               await github.rest.issues.update({
