@@ -624,6 +624,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config map[string]any, c *
 	if len(result.Env) == 0 && len(importedConfig.Env) > 0 {
 		result.Env = importedConfig.Env
 	}
+	if result.GitHubToken == "" && importedConfig.GitHubToken != "" {
+		result.GitHubToken = importedConfig.GitHubToken
+	}
 	if result.MaximumPatchSize == 0 && importedConfig.MaximumPatchSize > 0 {
 		result.MaximumPatchSize = importedConfig.MaximumPatchSize
 	}

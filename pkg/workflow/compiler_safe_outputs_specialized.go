@@ -125,9 +125,13 @@ func (c *Compiler) buildCreateProjectStepConfig(data *WorkflowData, mainJobName 
 	}
 
 	// Get the effective token using the Projects-specific precedence chain
-	// This includes fallback to GH_AW_PROJECT_GITHUB_TOKEN if no custom token is configured
+	// Precedence: per-config token > safe-outputs level token > GH_AW_PROJECT_GITHUB_TOKEN
 	// Note: Projects v2 requires a PAT or GitHub App - the default GITHUB_TOKEN cannot work
-	effectiveToken := getEffectiveProjectGitHubToken(cfg.GitHubToken)
+	configToken := cfg.GitHubToken
+	if configToken == "" && data.SafeOutputs.GitHubToken != "" {
+		configToken = data.SafeOutputs.GitHubToken
+	}
+	effectiveToken := getEffectiveProjectGitHubToken(configToken)
 
 	// Always expose the effective token as GH_AW_PROJECT_GITHUB_TOKEN environment variable
 	// The JavaScript code checks process.env.GH_AW_PROJECT_GITHUB_TOKEN to provide helpful error messages

@@ -14,26 +14,26 @@ import (
 func TestTopLevelGitHubTokenPrecedence(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "github-token-precedence-test")
 
-	t.Run("top-level github-token used when no safe-outputs token", func(t *testing.T) {
+	t.Run("tools.github github-token used when specified", func(t *testing.T) {
 		testContent := `---
-name: Test Top-Level GitHub Token
+name: Test GitHub Tool Token
 on:
   issues:
     types: [opened]
 engine: claude
-github-token: ${{ secrets.TOPLEVEL_PAT }}
 tools:
   github:
     mode: remote
+    github-token: ${{ secrets.GITHUB_TOOL_PAT }}
     allowed: [list_issues]
 ---
 
-# Test Top-Level GitHub Token
+# Test GitHub Tool Token
 
-Test that top-level github-token is used in engine configuration.
+Test that tools.github.github-token is used in engine configuration.
 `
 
-		testFile := filepath.Join(tmpDir, "test-toplevel-token.md")
+		testFile := filepath.Join(tmpDir, "test-github-tool-token.md")
 		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -44,7 +44,7 @@ Test that top-level github-token is used in engine configuration.
 			t.Fatalf("Unexpected error compiling workflow: %v", err)
 		}
 
-		outputFile := filepath.Join(tmpDir, "test-toplevel-token.lock.yml")
+		outputFile := filepath.Join(tmpDir, "test-github-tool-token.lock.yml")
 		content, err := os.ReadFile(outputFile)
 		if err != nil {
 			t.Fatal(err)
@@ -52,10 +52,10 @@ Test that top-level github-token is used in engine configuration.
 
 		yamlContent := string(content)
 
-		// Verify that the top-level token is used in the GitHub MCP config
+		// Verify that the github tool token is used in the GitHub MCP config
 		// The token should be set in the env block to prevent template injection
-		if !strings.Contains(yamlContent, "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.TOPLEVEL_PAT }}") {
-			t.Error("Expected top-level github-token to be used in GITHUB_MCP_SERVER_TOKEN env var")
+		if !strings.Contains(yamlContent, "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GITHUB_TOOL_PAT }}") {
+			t.Error("Expected tools.github.github-token to be used in GITHUB_MCP_SERVER_TOKEN env var")
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
 
@@ -66,14 +66,18 @@ Test that top-level github-token is used in engine configuration.
 		}
 	})
 
-	t.Run("safe-outputs github-token overrides top-level", func(t *testing.T) {
+	t.Run("safe-outputs github-token overrides tools.github token", func(t *testing.T) {
 		testContent := `---
 name: Test Safe-Outputs Override
 on:
   issues:
     types: [opened]
 engine: claude
-github-token: ${{ secrets.TOPLEVEL_PAT }}
+tools:
+  github:
+    mode: remote
+    github-token: ${{ secrets.GITHUB_TOOL_PAT }}
+    allowed: [list_issues]
 safe-outputs:
   github-token: ${{ secrets.SAFE_OUTPUTS_PAT }}
   create-issue:
@@ -81,7 +85,7 @@ safe-outputs:
 
 # Test Safe-Outputs Override
 
-Test that safe-outputs github-token overrides top-level.
+Test that safe-outputs github-token overrides tools.github token.
 `
 
 		testFile := filepath.Join(tmpDir, "test-safe-outputs-override.md")
@@ -111,32 +115,31 @@ Test that safe-outputs github-token overrides top-level.
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
 
-		// Verify that top-level token is NOT used in safe-outputs job
-		if strings.Contains(yamlContentNoComments, "github-token: ${{ secrets.TOPLEVEL_PAT }}") {
-			t.Error("Top-level github-token should not be used when safe-outputs token is present")
+		// Verify that tools.github token is NOT used in safe-outputs job
+		if strings.Contains(yamlContentNoComments, "github-token: ${{ secrets.GITHUB_TOOL_PAT }}") {
+			t.Error("tools.github github-token should not be used when safe-outputs token is present")
 		}
 	})
 
-	t.Run("safe-outputs token overrides top-level", func(t *testing.T) {
+	t.Run("safe-outputs token used independently", func(t *testing.T) {
 		testContent := `---
-name: Test Safe Outputs Override
+name: Test Safe Outputs Token
 on:
   issues:
     types: [opened]
 engine: claude
-github-token: ${{ secrets.TOPLEVEL_PAT }}
 safe-outputs:
   github-token: ${{ secrets.SAFE_OUTPUTS_PAT }}
   create-issue:
     title-prefix: "[AUTO] "
 ---
 
-# Test Safe Outputs Override
+# Test Safe Outputs Token
 
-Test that safe-outputs github-token overrides top-level token.
+Test that safe-outputs github-token is used for safe outputs.
 `
 
-		testFile := filepath.Join(tmpDir, "test-individual-override.md")
+		testFile := filepath.Join(tmpDir, "test-safe-outputs-token.md")
 		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -147,7 +150,7 @@ Test that safe-outputs github-token overrides top-level token.
 			t.Fatalf("Unexpected error compiling workflow: %v", err)
 		}
 
-		outputFile := filepath.Join(tmpDir, "test-individual-override.lock.yml")
+		outputFile := filepath.Join(tmpDir, "test-safe-outputs-token.lock.yml")
 		content, err := os.ReadFile(outputFile)
 		if err != nil {
 			t.Fatal(err)
@@ -160,41 +163,23 @@ Test that safe-outputs github-token overrides top-level token.
 			t.Error("Expected safe-outputs github-token to be used in safe_outputs job")
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
-
-		// Verify top-level token is not used in safe_outputs job
-		// (it may appear in other jobs, but not in safe_outputs)
-		lines := strings.Split(yamlContent, "\n")
-		inSafeOutputsJob := false
-		for i, line := range lines {
-			if strings.Contains(line, "safe_outputs:") && !strings.Contains(line, "#") {
-				inSafeOutputsJob = true
-				continue
-			}
-			// Check if we've moved to a new top-level job
-			if inSafeOutputsJob && len(line) > 0 && !strings.HasPrefix(line, " ") && strings.Contains(line, ":") {
-				inSafeOutputsJob = false
-			}
-			if inSafeOutputsJob && strings.Contains(line, "github-token: ${{ secrets.TOPLEVEL_PAT }}") {
-				t.Errorf("Top-level token should not be used in safe_outputs job (found at line %d)", i+1)
-			}
-		}
 	})
 
-	t.Run("top-level token used in codex engine", func(t *testing.T) {
+	t.Run("tools.github token used in codex engine", func(t *testing.T) {
 		testContent := `---
 name: Test Codex Engine Token
 on:
   workflow_dispatch:
 engine: codex
-github-token: ${{ secrets.TOPLEVEL_PAT }}
 tools:
   github:
+    github-token: ${{ secrets.GITHUB_TOOL_PAT }}
     allowed: [list_issues]
 ---
 
 # Test Codex Engine Token
 
-Test that top-level github-token is used in Codex engine.
+Test that tools.github.github-token is used in Codex engine.
 `
 
 		testFile := filepath.Join(tmpDir, "test-codex-token.md")
@@ -216,10 +201,10 @@ Test that top-level github-token is used in Codex engine.
 
 		yamlContent := string(content)
 
-		// Verify that the top-level token is used in GITHUB_MCP_SERVER_TOKEN env var
+		// Verify that the tools.github token is used in GITHUB_MCP_SERVER_TOKEN env var
 		// (Codex now uses GITHUB_MCP_SERVER_TOKEN, same as Copilot, for consistency)
-		if !strings.Contains(yamlContent, "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.TOPLEVEL_PAT }}") {
-			t.Error("Expected top-level github-token to be used in GITHUB_MCP_SERVER_TOKEN env var for Codex")
+		if !strings.Contains(yamlContent, "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GITHUB_TOOL_PAT }}") {
+			t.Error("Expected tools.github.github-token to be used in GITHUB_MCP_SERVER_TOKEN env var for Codex")
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
 
@@ -231,21 +216,21 @@ Test that top-level github-token is used in Codex engine.
 		}
 	})
 
-	t.Run("top-level token used in copilot engine", func(t *testing.T) {
+	t.Run("tools.github token used in copilot engine", func(t *testing.T) {
 		testContent := `---
 name: Test Copilot Engine Token
 on:
   workflow_dispatch:
 engine: copilot
-github-token: ${{ secrets.TOPLEVEL_PAT }}
 tools:
   github:
+    github-token: ${{ secrets.GITHUB_TOOL_PAT }}
     allowed: [list_issues]
 ---
 
 # Test Copilot Engine Token
 
-Test that top-level github-token is used in Copilot engine.
+Test that tools.github.github-token is used in Copilot engine.
 `
 
 		testFile := filepath.Join(tmpDir, "test-copilot-token.md")
@@ -267,9 +252,9 @@ Test that top-level github-token is used in Copilot engine.
 
 		yamlContent := string(content)
 
-		// Verify that the top-level token is used in GITHUB_MCP_SERVER_TOKEN env var
-		if !strings.Contains(yamlContent, "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.TOPLEVEL_PAT }}") {
-			t.Error("Expected top-level github-token to be used in GITHUB_MCP_SERVER_TOKEN env var for Copilot")
+		// Verify that the tools.github token is used in GITHUB_MCP_SERVER_TOKEN env var
+		if !strings.Contains(yamlContent, "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GITHUB_TOOL_PAT }}") {
+			t.Error("Expected tools.github.github-token to be used in GITHUB_MCP_SERVER_TOKEN env var for Copilot")
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
 	})

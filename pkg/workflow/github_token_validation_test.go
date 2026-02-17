@@ -109,14 +109,15 @@ func TestGitHubTokenValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := testutil.TempDir(t, "github-token-validation-test")
 
+			// Test validation in tools.github.github-token
 			testContent := `---
 name: Test GitHub Token Validation
 on:
   workflow_dispatch:
 engine: copilot
-github-token: ` + tt.token + `
 tools:
   github:
+    github-token: ` + tt.token + `
     allowed: [list_issues]
 ---
 
@@ -320,12 +321,16 @@ tools:
 func TestGitHubTokenValidationErrorMessage(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "error-message-test")
 
+	// Test validation in tools.github.github-token with plaintext secret
 	testContent := `---
 name: Test Error Message
 on:
   workflow_dispatch:
 engine: copilot
-github-token: ghp_actualSecretInPlainText
+tools:
+  github:
+    github-token: ghp_actualSecretInPlainText
+    allowed: [list_issues]
 ---
 
 # Test Error Message
@@ -359,7 +364,6 @@ name: Test Multiple Tokens
 on:
   workflow_dispatch:
 engine: copilot
-github-token: ${{ secrets.TOPLEVEL_TOKEN }}
 tools:
   github:
     github-token: plaintext_token_in_github_tool
