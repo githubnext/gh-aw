@@ -7,103 +7,11 @@ import (
 	"path/filepath"
 
 	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var initLog = logger.New("cli:init")
-
-// InitRepositoryDefault initializes the repository for agentic workflows with default settings.
-// This is used when no flags are provided and always configures for Copilot with MCP support.
-func InitRepositoryDefault(verbose bool, rootCmd CommandProvider) error {
-	initLog.Print("Starting repository initialization")
-
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Initializing repository for GitHub Agentic Workflows..."))
-	fmt.Fprintln(os.Stderr, "")
-
-	// Initialize repository with basic settings
-	if err := initializeBasicRepository(verbose); err != nil {
-		return err
-	}
-
-	// Always configure Copilot MCP
-	initLog.Print("Configuring GitHub Copilot Agent MCP integration")
-
-	// Detect action mode for setup steps generation
-	actionMode := workflow.DetectActionMode(GetVersion())
-	initLog.Printf("Using action mode for copilot-setup-steps.yml: %s", actionMode)
-
-	// Create copilot-setup-steps.yml
-	if err := ensureCopilotSetupSteps(verbose, actionMode, GetVersion()); err != nil {
-		initLog.Printf("Failed to create copilot-setup-steps.yml: %v", err)
-		return fmt.Errorf("failed to create copilot-setup-steps.yml: %w", err)
-	}
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .github/workflows/copilot-setup-steps.yml"))
-
-	// Create .vscode/mcp.json
-	if err := ensureMCPConfig(verbose); err != nil {
-		initLog.Printf("Failed to create MCP config: %v", err)
-		return fmt.Errorf("failed to create MCP config: %w", err)
-	}
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .vscode/mcp.json"))
-
-	// Configure VSCode settings
-	initLog.Print("Configuring VSCode settings")
-	if err := ensureVSCodeSettings(verbose); err != nil {
-		initLog.Printf("Failed to update VSCode settings: %v", err)
-		return fmt.Errorf("failed to update VSCode settings: %w", err)
-	}
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .vscode/settings.json"))
-
-	// Display success message
-	initLog.Print("Repository initialization completed successfully")
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Repository initialized for agentic workflows!"))
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Copilot Agent MCP integration configured"))
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To create a workflow, launch Copilot CLI: npx @github/copilot"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then type /agent and select agentic-workflows"))
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or add workflows from the catalog: "+string(constants.CLIExtensionPrefix)+" add <workflow-name>"))
-	fmt.Fprintln(os.Stderr, "")
-
-	return nil
-}
-
-// initializeBasicRepository sets up the basic repository structure
-func initializeBasicRepository(verbose bool) error {
-	// Configure .gitattributes
-	initLog.Print("Configuring .gitattributes")
-	if err := ensureGitAttributes(); err != nil {
-		initLog.Printf("Failed to configure .gitattributes: %v", err)
-		return fmt.Errorf("failed to configure .gitattributes: %w", err)
-	}
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
-	}
-
-	// Write dispatcher agent
-	initLog.Print("Writing agentic workflows dispatcher agent")
-	if err := ensureAgenticWorkflowsDispatcher(verbose, false); err != nil {
-		initLog.Printf("Failed to write dispatcher agent: %v", err)
-		return fmt.Errorf("failed to write dispatcher agent: %w", err)
-	}
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher agent"))
-	}
-
-	// Delete existing setup agentic workflows agent if it exists
-	initLog.Print("Cleaning up setup agentic workflows agent")
-	if err := deleteSetupAgenticWorkflowsAgent(verbose); err != nil {
-		initLog.Printf("Failed to delete setup agentic workflows agent: %v", err)
-		return fmt.Errorf("failed to delete setup agentic workflows agent: %w", err)
-	}
-
-	return nil
-}
 
 // InitOptions contains all configuration options for repository initialization
 type InitOptions struct {
@@ -120,6 +28,12 @@ type InitOptions struct {
 // InitRepository initializes the repository for agentic workflows
 func InitRepository(opts InitOptions) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
+
+	// Show welcome banner for interactive mode
+	console.ShowWelcomeBanner("This tool will initialize your repository for GitHub Agentic Workflows.")
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting up repository..."))
+	fmt.Fprintln(os.Stderr, "")
 
 	// If --push or --create-pull-request is enabled, ensure git status is clean before starting
 	if opts.Push || opts.CreatePR {
@@ -350,18 +264,13 @@ func InitRepository(opts InitOptions) error {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Repository initialized for agentic workflows!"))
 	fmt.Fprintln(os.Stderr, "")
-	if opts.MCP {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Copilot Agent MCP integration configured"))
-		fmt.Fprintln(os.Stderr, "")
-	}
 	if len(opts.CodespaceRepos) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Codespaces devcontainer configured"))
 		fmt.Fprintln(os.Stderr, "")
 	}
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To create a workflow, launch Copilot CLI: npx @github/copilot"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Then type /agent and select agentic-workflows"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To create a workflow, see https://github.github.com/gh-aw/setup/creating-workflows"))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or add workflows from the catalog: "+string(constants.CLIExtensionPrefix)+" add <workflow-name>"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or add an example workflow, see https://github.com/githubnext/agentics"))
 	fmt.Fprintln(os.Stderr, "")
 
 	return nil

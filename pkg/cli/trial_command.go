@@ -113,7 +113,12 @@ Repository modes:
 All workflows must support workflow_dispatch trigger to be used in trial mode.
 The host repository will be created as private and kept by default unless --delete-host-repo-after is specified.
 Trial results are saved both locally (in trials/ directory) and in the host repository for future reference.`,
-		Args: cobra.MinimumNArgs(1),
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return fmt.Errorf("missing workflow specification\n\nUsage:\n  %s <workflow-spec>...\n\nExamples:\n  %[1]s githubnext/agentics/daily-plan             Trial a workflow from a repository\n  %[1]s ./local-workflow.md                         Trial a local workflow\n\nRun '%[1]s --help' for more information", cmd.CommandPath())
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			workflowSpecs := args
 			logicalRepoSpec, _ := cmd.Flags().GetString("logical-repo")
@@ -201,6 +206,9 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 // RunWorkflowTrials executes the main logic for trialing one or more workflows
 func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOptions) error {
 	trialLog.Printf("Starting trial execution: specs=%v, logicalRepo=%s, cloneRepo=%s, hostRepo=%s, repeat=%d", workflowSpecs, opts.Repos.LogicalRepo, opts.Repos.CloneRepo, opts.Repos.HostRepo, opts.RepeatCount)
+
+	// Show welcome banner for interactive mode
+	console.ShowWelcomeBanner("This tool will run a trial of your workflow in a test repository.")
 
 	// Parse all workflow specifications
 	var parsedSpecs []*WorkflowSpec
