@@ -112,7 +112,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 			// Fallback to legacy format if JSON serialization fails
 			fmt.Fprintf(yaml, "# frontmatter-hash: %s\n", frontmatterHash)
 		} else {
-			fmt.Fprintf(yaml, "# lock-metadata: %s\n", metadataJSON)
+			fmt.Fprintf(yaml, "# gh-aw-metadata: %s\n", metadataJSON)
 		}
 	}
 

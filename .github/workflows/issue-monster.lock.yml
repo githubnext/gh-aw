@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# lock-metadata: {"schema_version":"v1","frontmatter_hash":"499084bba53b33d3d6741037f0e2e17178fb144120241576df249aaa6f511842"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"499084bba53b33d3d6741037f0e2e17178fb144120241576df249aaa6f511842"}
 
 name: "Issue Monster"
 "on":

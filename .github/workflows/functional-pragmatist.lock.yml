@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# lock-metadata: {"schema_version":"v1","frontmatter_hash":"ce74c3e032f512ff328c2bc23406066e1a3e88028d8bd201952252c43d45aa61"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ce74c3e032f512ff328c2bc23406066e1a3e88028d8bd201952252c43d45aa61"}
 
 name: "Functional Pragmatist"
 "on":

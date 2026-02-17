@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# lock-metadata: {"schema_version":"v1","frontmatter_hash":"16b65f0e91dbbc230a48657381e9955e83742a9972b9f6a66209b9496390fac3"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"16b65f0e91dbbc230a48657381e9955e83742a9972b9f6a66209b9496390fac3"}
 
 name: "Layout Specification Maintainer"
 "on":

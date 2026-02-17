@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# lock-metadata: {"schema_version":"v1","frontmatter_hash":"705a6dad8951578693e72a9fad0af462c327259f5effc63da94c17442df1a2fd"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"705a6dad8951578693e72a9fad0af462c327259f5effc63da94c17442df1a2fd"}
 
 name: "Code Simplifier"
 "on":

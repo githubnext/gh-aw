@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# lock-metadata: {"schema_version":"v1","frontmatter_hash":"c48c689e901f5b88b8fdce48b4a6c3a9435c122fd21b42bda9d1477e59983be5"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c48c689e901f5b88b8fdce48b4a6c3a9435c122fd21b42bda9d1477e59983be5"}
 
 name: "Dictation Prompt Generator"
 "on":

@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# lock-metadata: {"schema_version":"v1","frontmatter_hash":"bea51591fd002f37dca347dc9f8a310ca504787ad90f32fe81ee688a380028f3"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"bea51591fd002f37dca347dc9f8a310ca504787ad90f32fe81ee688a380028f3"}
 
 name: "Poem Bot - A Creative Agentic Workflow"
 "on":

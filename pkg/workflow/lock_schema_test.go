@@ -19,7 +19,7 @@ func TestExtractMetadataFromLockFile(t *testing.T) {
 	}{
 		{
 			name: "valid v1 metadata",
-			content: `# lock-metadata: {"schema_version":"v1","frontmatter_hash":"abc123"}
+			content: `# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"abc123"}
 name: test
 `,
 			expectMetadata: &LockMetadata{
@@ -31,7 +31,7 @@ name: test
 		},
 		{
 			name: "valid v1 metadata with spaces",
-			content: `#   lock-metadata:   {"schema_version":"v1","frontmatter_hash":"def456"}
+			content: `#   gh-aw-metadata:   {"schema_version":"v1","frontmatter_hash":"def456"}
 name: test
 `,
 			expectMetadata: &LockMetadata{
@@ -61,7 +61,7 @@ on: push
 		},
 		{
 			name: "malformed JSON metadata",
-			content: `# lock-metadata: {invalid json}
+			content: `# gh-aw-metadata: {invalid json}
 name: test
 `,
 			expectMetadata: nil,
@@ -70,7 +70,7 @@ name: test
 		},
 		{
 			name: "future version",
-			content: `# lock-metadata: {"schema_version":"v2","frontmatter_hash":"future"}
+			content: `# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"future"}
 name: test
 `,
 			expectMetadata: &LockMetadata{
@@ -115,7 +115,7 @@ func TestValidateLockSchemaCompatibility(t *testing.T) {
 	}{
 		{
 			name: "valid v1 schema",
-			content: `# lock-metadata: {"schema_version":"v1"}
+			content: `# gh-aw-metadata: {"schema_version":"v1"}
 name: test
 `,
 			lockPath:    "test.lock.yml",
@@ -131,7 +131,7 @@ name: test
 		},
 		{
 			name: "unsupported future version fails",
-			content: `# lock-metadata: {"schema_version":"v2"}
+			content: `# gh-aw-metadata: {"schema_version":"v2"}
 name: test
 `,
 			lockPath:    "future.lock.yml",
@@ -149,7 +149,7 @@ on: push
 		},
 		{
 			name: "malformed metadata fails",
-			content: `# lock-metadata: {bad json}
+			content: `# gh-aw-metadata: {bad json}
 name: test
 `,
 			lockPath:    "malformed.lock.yml",
@@ -269,7 +269,7 @@ func TestValidationErrorMessages(t *testing.T) {
 	}{
 		{
 			name: "future version error has remediation",
-			content: `# lock-metadata: {"schema_version":"v99"}
+			content: `# gh-aw-metadata: {"schema_version":"v99"}
 name: test
 `,
 			lockPath: "future.lock.yml",
@@ -322,7 +322,7 @@ func TestExtractMetadataRealisticLockFile(t *testing.T) {
 #   Imports:
 #     - shared/mood.md
 #
-# lock-metadata: {"schema_version":"v1","frontmatter_hash":"49266e50774d7e6a8b1c50f64b2f790c214dcdcf7b75b6bc8478bb43257b9863"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"49266e50774d7e6a8b1c50f64b2f790c214dcdcf7b75b6bc8478bb43257b9863"}
 
 name: "Dev"
 on:
@@ -362,7 +362,7 @@ on: push
 func TestMetadataPreservesHash(t *testing.T) {
 	// Test that frontmatter hash is preserved in metadata
 	originalHash := "abc123def456"
-	content := `# lock-metadata: {"schema_version":"v1","frontmatter_hash":"` + originalHash + `"}
+	content := `# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"` + originalHash + `"}
 name: test
 `
 

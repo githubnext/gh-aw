@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# lock-metadata: {"schema_version":"v1","frontmatter_hash":"82e16b7b3a0ce0b39dfee5117a7c00bc1872067efe3ea45cd0114ff2165f04d5"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"82e16b7b3a0ce0b39dfee5117a7c00bc1872067efe3ea45cd0114ff2165f04d5"}
 
 name: "jsweep - JavaScript Unbloater"
 "on":

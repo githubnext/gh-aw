@@ -43,8 +43,8 @@ func IsSchemaVersionSupported(version LockSchemaVersion) bool {
 // ExtractMetadataFromLockFile extracts structured metadata from a lock file's comment header
 // Returns metadata and whether legacy format (no metadata) was detected
 func ExtractMetadataFromLockFile(content string) (*LockMetadata, bool, error) {
-	// Look for JSON metadata in comments (format: # lock-metadata: {...})
-	metadataPattern := regexp.MustCompile(`#\s*lock-metadata:\s*(\{[^}]+\})`)
+	// Look for JSON metadata in comments (format: # gh-aw-metadata: {...})
+	metadataPattern := regexp.MustCompile(`#\s*gh-aw-metadata:\s*(\{[^}]+\})`)
 	matches := metadataPattern.FindStringSubmatch(content)
 
 	if len(matches) >= 2 {

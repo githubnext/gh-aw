@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# lock-metadata: {"schema_version":"v1","frontmatter_hash":"1bf8a53ac78955ad6bc31224322cd512e946710820a359cc08613e147865408c"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"1bf8a53ac78955ad6bc31224322cd512e946710820a359cc08613e147865408c"}
 
 name: "Workflow Generator"
 "on":

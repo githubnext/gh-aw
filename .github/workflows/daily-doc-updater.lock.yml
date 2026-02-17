@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# lock-metadata: {"schema_version":"v1","frontmatter_hash":"d1a2d516f7068ad1b5e4e6b7c3ab516b836f4ac88fa9ae382f618ba4a18a8f31"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d1a2d516f7068ad1b5e4e6b7c3ab516b836f4ac88fa9ae382f618ba4a18a8f31"}
 
 name: "Daily Documentation Updater"
 "on":

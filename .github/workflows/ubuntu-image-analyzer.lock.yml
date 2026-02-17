@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# lock-metadata: {"schema_version":"v1","frontmatter_hash":"a18598e41420825190b0f32d9540815f5aa323b433565455ba2843df8a425878"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"a18598e41420825190b0f32d9540815f5aa323b433565455ba2843df8a425878"}
 
 name: "Ubuntu Actions Image Analyzer"
 "on":

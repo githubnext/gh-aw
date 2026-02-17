@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# lock-metadata: {"schema_version":"v1","frontmatter_hash":"52018fcc1971e79d8598808b6fdeab210e06a9d148d2356c2f86e09903365c20"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"52018fcc1971e79d8598808b6fdeab210e06a9d148d2356c2f86e09903365c20"}
 
 name: "Developer Documentation Consolidator"
 "on":
