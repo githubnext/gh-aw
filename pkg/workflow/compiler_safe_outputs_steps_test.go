@@ -276,7 +276,7 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				Name:        "Test Workflow",
 				SafeOutputs: tt.safeOutputs,
 			}
-			
+
 			// Add top-level token if the test needs it
 			if tt.name == "with top-level github-token" {
 				workflowData.GitHubToken = "${{ secrets.TOPLEVEL_TOKEN }}"
