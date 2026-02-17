@@ -478,16 +478,16 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Use inlined compute-text script only if needed (no shared action)
 	if data.NeedsTextOutput {
 		steps = append(steps, "      - name: Compute current body text\n")
-		steps = append(steps, "        id: compute-text\n")
+		steps = append(steps, "        id: sanitized\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 		steps = append(steps, generateGitHubScriptWithRequire("compute_text.cjs"))
 
 		// Set up outputs - includes text, title, and body
-		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
-		outputs["title"] = "${{ steps.compute-text.outputs.title }}"
-		outputs["body"] = "${{ steps.compute-text.outputs.body }}"
+		outputs["text"] = "${{ steps.sanitized.outputs.text }}"
+		outputs["title"] = "${{ steps.sanitized.outputs.title }}"
+		outputs["body"] = "${{ steps.sanitized.outputs.body }}"
 	}
 
 	// Add comment with workflow run link if status comments are explicitly enabled

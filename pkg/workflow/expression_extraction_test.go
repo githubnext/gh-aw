@@ -53,7 +53,7 @@ func TestExpressionExtractor_ExtractExpressions(t *testing.T) {
 			name:            "needs.activation.outputs.text gets transformed",
 			markdown:        "Content: ${{ needs.activation.outputs.text }}",
 			wantCount:       1,
-			wantExpressions: []string{"steps.compute-text.outputs.text"},
+			wantExpressions: []string{"steps.sanitized.outputs.text"},
 		},
 		{
 			name:            "expression with whitespace",
@@ -326,17 +326,17 @@ func TestTransformActivationOutputs(t *testing.T) {
 		{
 			name:     "transform text output",
 			input:    "needs.activation.outputs.text",
-			expected: "steps.compute-text.outputs.text",
+			expected: "steps.sanitized.outputs.text",
 		},
 		{
 			name:     "transform title output",
 			input:    "needs.activation.outputs.title",
-			expected: "steps.compute-text.outputs.title",
+			expected: "steps.sanitized.outputs.title",
 		},
 		{
 			name:     "transform body output",
 			input:    "needs.activation.outputs.body",
-			expected: "steps.compute-text.outputs.body",
+			expected: "steps.sanitized.outputs.body",
 		},
 		{
 			name:     "no transformation for other outputs",
@@ -351,12 +351,12 @@ func TestTransformActivationOutputs(t *testing.T) {
 		{
 			name:     "expression with operators",
 			input:    "needs.activation.outputs.text || 'default'",
-			expected: "steps.compute-text.outputs.text || 'default'",
+			expected: "steps.sanitized.outputs.text || 'default'",
 		},
 		{
 			name:     "multiple transformations in same expression",
 			input:    "needs.activation.outputs.title && needs.activation.outputs.body",
-			expected: "steps.compute-text.outputs.title && steps.compute-text.outputs.body",
+			expected: "steps.sanitized.outputs.title && steps.sanitized.outputs.body",
 		},
 		{
 			name:     "no transformation needed",
@@ -371,12 +371,12 @@ func TestTransformActivationOutputs(t *testing.T) {
 		{
 			name:     "transform with trailing operator",
 			input:    "needs.activation.outputs.text && true",
-			expected: "steps.compute-text.outputs.text && true",
+			expected: "steps.sanitized.outputs.text && true",
 		},
 		{
 			name:     "transform with trailing parenthesis",
 			input:    "func(needs.activation.outputs.text)",
-			expected: "func(steps.compute-text.outputs.text)",
+			expected: "func(steps.sanitized.outputs.text)",
 		},
 	}
 
@@ -421,17 +421,17 @@ Other: ${{ needs.activation.outputs.comment_id }}
 	}{
 		{
 			original:    "needs.activation.outputs.text",
-			transformed: "steps.compute-text.outputs.text",
+			transformed: "steps.sanitized.outputs.text",
 			shouldExist: true,
 		},
 		{
 			original:    "needs.activation.outputs.title",
-			transformed: "steps.compute-text.outputs.title",
+			transformed: "steps.sanitized.outputs.title",
 			shouldExist: true,
 		},
 		{
 			original:    "needs.activation.outputs.body",
-			transformed: "steps.compute-text.outputs.body",
+			transformed: "steps.sanitized.outputs.body",
 			shouldExist: true,
 		},
 		{
