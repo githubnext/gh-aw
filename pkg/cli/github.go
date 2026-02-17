@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -28,7 +29,7 @@ func getGitHubHost() string {
 		}
 	}
 
-	defaultHost := "https://github.com"
+	defaultHost := string(constants.PublicGitHubHost)
 	githubLog.Printf("No GitHub host environment variable set, using default: %s", defaultHost)
 	return defaultHost
 }
@@ -54,7 +55,7 @@ func getGitHubHostForRepo(repo string) string {
 	// The gh-aw repository is always on public GitHub
 	if repo == "github/gh-aw" || strings.HasPrefix(repo, "github/gh-aw/") {
 		githubLog.Print("Using public GitHub host for github/gh-aw repository")
-		return "https://github.com"
+		return string(constants.PublicGitHubHost)
 	}
 
 	// For all other repositories, use the configured GitHub host

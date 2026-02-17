@@ -308,6 +308,11 @@ const (
 // DefaultMCPRegistryURL is the default MCP registry URL.
 const DefaultMCPRegistryURL URL = "https://api.mcp.github.com/v0.1"
 
+// PublicGitHubHost is the public GitHub host URL.
+// This is used as the default GitHub host and for the gh-aw repository itself,
+// which is always hosted on public GitHub regardless of enterprise host settings.
+const PublicGitHubHost URL = "https://github.com"
+
 // GitHubCopilotMCPDomain is the domain for the hosted GitHub MCP server.
 // Used when github tool is configured with mode: remote.
 const GitHubCopilotMCPDomain = "api.githubcopilot.com"
