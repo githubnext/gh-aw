@@ -64,8 +64,6 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	preSteps = append(preSteps, "          path: /tmp/gh-aw/\n")
 
 	// Step 2: Checkout repository
-	preSteps = buildCheckoutRepository(preSteps, c, data.SafeOutputs.CreatePullRequests.TargetRepoSlug)
-
 	// Step 3: Configure Git credentials
 	// Pass the target repo to configure git remote correctly for cross-repo operations
 	// Use token precedence chain instead of hardcoded github.token
@@ -85,6 +83,10 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	}
 	// Get effective token (handles fallback to GH_AW_GITHUB_TOKEN || GITHUB_TOKEN)
 	gitToken := getEffectiveSafeOutputGitHubToken(effectiveCustomToken)
+
+	// Use the resolved token for checkout
+	preSteps = buildCheckoutRepository(preSteps, c, data.SafeOutputs.CreatePullRequests.TargetRepoSlug, gitToken)
+
 	preSteps = append(preSteps, c.generateGitConfigurationStepsWithToken(gitToken, data.SafeOutputs.CreatePullRequests.TargetRepoSlug)...)
 
 	// Build custom environment variables specific to create-pull-request

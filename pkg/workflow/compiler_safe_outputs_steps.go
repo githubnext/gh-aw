@@ -85,17 +85,25 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		gitRemoteToken = "${{ steps.safe-outputs-app-token.outputs.token }}"
 	} else {
 		// Use token precedence chain instead of hardcoded github.token
-		// Precedence: create-pull-request config token > safe-outputs token > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
-		var configToken string
+		// Precedence: create-pull-request config token > push-to-pull-request-branch config token > safe-outputs token > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+		var createPRToken string
 		if data.SafeOutputs.CreatePullRequests != nil {
-			configToken = data.SafeOutputs.CreatePullRequests.GitHubToken
+			createPRToken = data.SafeOutputs.CreatePullRequests.GitHubToken
+		}
+		var pushToPRBranchToken string
+		if data.SafeOutputs.PushToPullRequestBranch != nil {
+			pushToPRBranchToken = data.SafeOutputs.PushToPullRequestBranch.GitHubToken
 		}
 		var safeOutputsToken string
 		if data.SafeOutputs != nil {
 			safeOutputsToken = data.SafeOutputs.GitHubToken
 		}
 		// Choose the first non-empty custom token for precedence
-		effectiveCustomToken := configToken
+		// Priority: create-pull-request token > push-to-pull-request-branch token > safe-outputs token
+		effectiveCustomToken := createPRToken
+		if effectiveCustomToken == "" {
+			effectiveCustomToken = pushToPRBranchToken
+		}
 		if effectiveCustomToken == "" {
 			effectiveCustomToken = safeOutputsToken
 		}

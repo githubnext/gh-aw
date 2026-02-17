@@ -250,6 +250,39 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				`REPO_NAME: "org/target-repo"`,
 			},
 		},
+		{
+			name: "push-to-pull-request-branch with per-config token",
+			safeOutputs: &SafeOutputsConfig{
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.PUSH_BRANCH_PAT }}",
+					},
+				},
+			},
+			checkContains: []string{
+				"token: ${{ secrets.PUSH_BRANCH_PAT }}",
+				"GIT_TOKEN: ${{ secrets.PUSH_BRANCH_PAT }}",
+			},
+		},
+		{
+			name: "both operations with create-pr token takes precedence",
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.CREATE_PR_PAT }}",
+					},
+				},
+				PushToPullRequestBranch: &PushToPullRequestBranchConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubToken: "${{ secrets.PUSH_BRANCH_PAT }}",
+					},
+				},
+			},
+			checkContains: []string{
+				"token: ${{ secrets.CREATE_PR_PAT }}",
+				"GIT_TOKEN: ${{ secrets.CREATE_PR_PAT }}",
+			},
+		},
 	}
 
 	for _, tt := range tests {
