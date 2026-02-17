@@ -34,17 +34,27 @@ type WorkflowSpec struct {
 }
 
 // isLocalWorkflowPath checks if a path refers to a local filesystem workflow.
-// Local paths start with "./", "../", "/" (absolute Unix), or are Windows absolute paths.
+// Local paths include:
+//   - Relative paths starting with "./", "../", ".\", or "..\", or equal to "." / ".."
+//   - Absolute paths as determined by filepath.IsAbs (OS-specific)
+//   - UNC-style paths starting with "\\" or "//" (Windows network paths)
 func isLocalWorkflowPath(path string) bool {
-	if strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../") {
+	// Explicit relative path checks (POSIX and Windows-style)
+	if path == "." || path == ".." {
 		return true
 	}
-	// Absolute Unix paths
-	if strings.HasPrefix(path, "/") {
+	if strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../") ||
+		strings.HasPrefix(path, ".\\") || strings.HasPrefix(path, "..\\") {
 		return true
 	}
-	// Windows absolute paths (e.g., C:\path or D:/path)
-	if len(path) >= 2 && path[1] == ':' {
+
+	// OS-specific absolute paths (e.g., "/foo", "C:\foo", "D:/foo", UNC on Windows)
+	if filepath.IsAbs(path) {
+		return true
+	}
+
+	// UNC paths (e.g., "\\server\share\file.md" or "//server/share/file.md")
+	if strings.HasPrefix(path, `\\`) || strings.HasPrefix(path, "//") {
 		return true
 	}
 	return false
@@ -215,7 +225,23 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 	// Check if this is a local path
 	if isLocalWorkflowPath(spec) {
 		specLog.Print("Detected local path format")
-		return parseLocalWorkflowSpec(spec)
+
+		ws, err := parseLocalWorkflowSpec(spec)
+		if err != nil {
+			return nil, err
+		}
+
+		// Detect local wildcard specs like "./*.md" and mark them so that
+		// downstream expansion (e.g., expandLocalWildcardWorkflows) can run.
+		if strings.ContainsAny(spec, "*?[") {
+			ws.IsWildcard = true
+			// Ensure a stable WorkflowName for wildcard specs.
+			if ws.WorkflowName == "" {
+				ws.WorkflowName = spec
+			}
+		}
+
+		return ws, nil
 	}
 
 	// Handle version first (anything after @)
