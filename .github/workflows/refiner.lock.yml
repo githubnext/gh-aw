@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: dd5b1cf14d889cff1920700e1c5a7e21da34d3a24a65aa868baf56ae3ee545c5
+# lock-metadata: {"schema_version":"v1","frontmatter_hash":"dd5b1cf14d889cff1920700e1c5a7e21da34d3a24a65aa868baf56ae3ee545c5"}
 
 name: "Code Refiner"
 "on":

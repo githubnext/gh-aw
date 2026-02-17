@@ -28,7 +28,7 @@
 #     - shared/go-make.md
 #     - shared/mood.md
 #
-# frontmatter-hash: 1b7a07ffb55ab7777d1b68f610f5787a6c7ec4e6cec45547deb6b87e0e75c5d9
+# lock-metadata: {"schema_version":"v1","frontmatter_hash":"1b7a07ffb55ab7777d1b68f610f5787a6c7ec4e6cec45547deb6b87e0e75c5d9"}
 
 name: "Go Logger Enhancement"
 "on":

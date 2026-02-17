@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 527962da38b97338dbf8aed74bf7eea3ffb9efb28344bcd77c5e41d83fd67a6e
+# lock-metadata: {"schema_version":"v1","frontmatter_hash":"527962da38b97338dbf8aed74bf7eea3ffb9efb28344bcd77c5e41d83fd67a6e"}
 
 name: "Daily Workflow Updater"
 "on":

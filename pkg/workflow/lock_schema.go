@@ -21,8 +21,8 @@ const (
 
 // LockMetadata represents the structured metadata embedded in lock files
 type LockMetadata struct {
-	SchemaVersion LockSchemaVersion `json:"schema_version"`
-	FrontmatterHash string          `json:"frontmatter_hash,omitempty"`
+	SchemaVersion   LockSchemaVersion `json:"schema_version"`
+	FrontmatterHash string            `json:"frontmatter_hash,omitempty"`
 }
 
 // SupportedSchemaVersions lists all schema versions this build can consume
@@ -84,8 +84,8 @@ func ValidateLockSchemaCompatibility(content string, lockFilePath string) error 
 
 	// Missing metadata entirely is suspicious
 	if metadata == nil {
-		return fmt.Errorf("lock file %s is missing required metadata. This file may be corrupted or manually edited.\n\nTo fix this, recompile the workflow:\n  gh aw compile %s", 
-			lockFilePath, 
+		return fmt.Errorf("lock file %s is missing required metadata. This file may be corrupted or manually edited.\n\nTo fix this, recompile the workflow:\n  gh aw compile %s",
+			lockFilePath,
 			strings.TrimSuffix(lockFilePath, ".lock.yml")+".md")
 	}
 

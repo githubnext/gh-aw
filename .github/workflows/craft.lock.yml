@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 7e75f3aac83ff50e722194da093b5563a5dc8b91af9e08d2d3fe49e9a84f6fb9
+# lock-metadata: {"schema_version":"v1","frontmatter_hash":"7e75f3aac83ff50e722194da093b5563a5dc8b91af9e08d2d3fe49e9a84f6fb9"}
 
 name: "Workflow Craft Agent"
 "on":

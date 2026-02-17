@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: df4e5ab4fc5119bf995e3fec24af6c53d2784cc75385acdfc307b209ae05b14f
+# lock-metadata: {"schema_version":"v1","frontmatter_hash":"df4e5ab4fc5119bf995e3fec24af6c53d2784cc75385acdfc307b209ae05b14f"}
 
 name: "Code Scanning Fixer"
 "on":

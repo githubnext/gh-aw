@@ -30,7 +30,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 7ab09aa2c72d1dc010110d7ac8ad24c689601553f85c0c0554d6b7b897e9a090
+# lock-metadata: {"schema_version":"v1","frontmatter_hash":"7ab09aa2c72d1dc010110d7ac8ad24c689601553f85c0c0554d6b7b897e9a090"}
 
 name: "Copilot Agent PR Analysis"
 "on":

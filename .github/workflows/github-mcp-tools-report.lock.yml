@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: a1fef3d7f0da48b305c723f3ea2cf88200b8cab572707fb83ca7afb76a0b36aa
+# lock-metadata: {"schema_version":"v1","frontmatter_hash":"a1fef3d7f0da48b305c723f3ea2cf88200b8cab572707fb83ca7afb76a0b36aa"}
 
 name: "GitHub MCP Remote Server Tools Report Generator"
 "on":

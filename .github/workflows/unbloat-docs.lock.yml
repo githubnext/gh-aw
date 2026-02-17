@@ -29,7 +29,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 3a033f6c1d3cb3b98f326f5cbef7bd65bf5c65496c593df323570deaf055c140
+# lock-metadata: {"schema_version":"v1","frontmatter_hash":"3a033f6c1d3cb3b98f326f5cbef7bd65bf5c65496c593df323570deaf055c140"}
 
 name: "Documentation Unbloat"
 "on":

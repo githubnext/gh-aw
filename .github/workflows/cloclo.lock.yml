@@ -27,7 +27,7 @@
 #     - shared/jqschema.md
 #     - shared/mood.md
 #
-# frontmatter-hash: 927fd739563c18d6d8775a4314032aa403e28eab12e6e688ae1c2c059b27373e
+# lock-metadata: {"schema_version":"v1","frontmatter_hash":"927fd739563c18d6d8775a4314032aa403e28eab12e6e688ae1c2c059b27373e"}
 
 name: "/cloclo"
 "on":

@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 10f5767aeb615529e66a7fb66dd07ef0fee4392bcd3fa804f3684a331544e229
+# lock-metadata: {"schema_version":"v1","frontmatter_hash":"10f5767aeb615529e66a7fb66dd07ef0fee4392bcd3fa804f3684a331544e229"}
 
 name: "Tidy"
 "on":

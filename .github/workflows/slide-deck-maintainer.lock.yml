@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 4614b642fb55e9a1f83d5e81cc452041c394975795ac1d22be4749855e698e45
+# lock-metadata: {"schema_version":"v1","frontmatter_hash":"4614b642fb55e9a1f83d5e81cc452041c394975795ac1d22be4749855e698e45"}
 
 name: "Slide Deck Maintainer"
 "on":

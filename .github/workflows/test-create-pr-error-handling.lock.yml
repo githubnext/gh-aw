@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: ccda8e38ee3a43619d6ab3ce9db317722d6a78804c4f49a1b4a9117d2ff021c7
+# lock-metadata: {"schema_version":"v1","frontmatter_hash":"ccda8e38ee3a43619d6ab3ce9db317722d6a78804c4f49a1b4a9117d2ff021c7"}
 
 name: "Test Create PR Error Handling"
 "on":

@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 946dbc3d5e53e272910bb2afeb49edbe63b3a9afe24498ff1534dbb1cd64fc84
+# lock-metadata: {"schema_version":"v1","frontmatter_hash":"946dbc3d5e53e272910bb2afeb49edbe63b3a9afe24498ff1534dbb1cd64fc84"}
 
 name: "Mergefest"
 "on":
