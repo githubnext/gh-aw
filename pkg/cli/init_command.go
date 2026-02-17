@@ -124,7 +124,6 @@ Examples:
 	}
 
 	cmd.Flags().Bool("no-mcp", false, "Skip configuring GitHub Copilot Agent MCP server integration")
-	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration (deprecated, MCP is enabled by default)")
 	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflows support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use without value for current repo only")
 	// NoOptDefVal allows using --codespaces without a value (returns empty string when no value provided)
 	cmd.Flags().Lookup("codespaces").NoOptDefVal = " "
@@ -133,6 +132,11 @@ Examples:
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the initialization changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
+	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration (deprecated, MCP is enabled by default)")
+	_ = cmd.Flags().MarkHidden("mcp") // Hide the short alias from help output
+	// --copilot with no args hidden
+	cmd.Flags().Bool("copilot", false, "DEPRECATED: Use --mcp to configure GitHub Copilot Agent MCP server integration (deprecated, MCP is enabled by default)")
+	_ = cmd.Flags().MarkHidden("copilot") // Hide the deprecated --copilot flag from help
 
 	// Hide the deprecated --mcp flag from help (kept for backward compatibility)
 	_ = cmd.Flags().MarkHidden("mcp")
