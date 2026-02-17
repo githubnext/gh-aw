@@ -3,7 +3,6 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -74,7 +73,7 @@ func processYAMLWorkflowImport(filePath string) (jobs string, services string, e
 	yamlImportLog.Printf("Processing YAML workflow import: %s", filePath)
 
 	// Read the YAML file
-	content, err := os.ReadFile(filePath)
+	content, err := readFileFunc(filePath)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to read YAML file: %w", err)
 	}

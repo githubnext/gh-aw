@@ -3,7 +3,7 @@
  * the compileWorkflow function via postMessage.
  *
  * Message protocol (inbound):
- *   { type: 'compile', id: <number|string>, markdown: <string> }
+ *   { type: 'compile', id: <number|string>, markdown: <string>, files?: <object> }
  *
  * Message protocol (outbound):
  *   { type: 'ready' }
@@ -113,7 +113,9 @@
 
     try {
       // compileWorkflow returns a Promise (Go side).
-      var result = await compileWorkflow(msg.markdown);
+      // Pass optional files object for import resolution.
+      var files = msg.files || null;
+      var result = await compileWorkflow(msg.markdown, files);
 
       // The Go function returns { yaml: string, warnings: Array, error: null|string }
       var warnings = [];

@@ -8,6 +8,8 @@
  *   const compiler = createWorkerCompiler();
  *   await compiler.ready;
  *   const { yaml, warnings, error } = await compiler.compile(markdownString);
+ *   // With imports:
+ *   const { yaml } = await compiler.compile(markdown, { 'shared/tools.md': '...' });
  *   compiler.terminate();
  */
 
@@ -17,7 +19,7 @@
  * @param {Object} [options]
  * @param {string} [options.workerUrl] - URL to compiler-worker.js
  *        (default: resolves relative to this module)
- * @returns {{ compile: (markdown: string) => Promise<{yaml: string, warnings: string[], error: string|null}>,
+ * @returns {{ compile: (markdown: string, files?: Record<string,string>) => Promise<{yaml: string, warnings: string[], error: string|null}>,
  *             ready: Promise<void>,
  *             terminate: () => void }}
  */
@@ -111,9 +113,11 @@ export function createWorkerCompiler(options = {}) {
    * Compile a markdown workflow string to GitHub Actions YAML.
    *
    * @param {string} markdown
+   * @param {Record<string, string>} [files] - Optional map of file paths to content
+   *        for import resolution (e.g. {"shared/tools.md": "---\ntools:..."})
    * @returns {Promise<{yaml: string, warnings: string[], error: string|null}>}
    */
-  function compile(markdown) {
+  function compile(markdown, files) {
     if (isTerminated) {
       return Promise.reject(new Error('Compiler worker has been terminated.'));
     }
@@ -122,7 +126,11 @@ export function createWorkerCompiler(options = {}) {
 
     return new Promise((resolve, reject) => {
       pending.set(id, { resolve, reject });
-      worker.postMessage({ type: 'compile', id, markdown });
+      const msg = { type: 'compile', id, markdown };
+      if (files && Object.keys(files).length > 0) {
+        msg.files = files;
+      }
+      worker.postMessage(msg);
     });
   }
 

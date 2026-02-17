@@ -789,6 +789,113 @@ body {
 }
 
 /* ============================================================
+   File Tabs
+   ============================================================ */
+.tab-bar {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-secondary);
+  min-height: 36px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  user-select: none;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.tab-bar::-webkit-scrollbar {
+  height: 0;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  border-right: 1px solid var(--border-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  position: relative;
+}
+
+.tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.tab.active {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+
+.tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0;
+  opacity: 0;
+  transition: all var(--transition);
+}
+
+.tab:hover .tab-close {
+  opacity: 0.7;
+}
+
+.tab-close:hover {
+  opacity: 1 !important;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.tab-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  transition: all var(--transition);
+}
+
+.tab-add:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.tab-bar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  padding-right: 12px;
+}
+
+/* ============================================================
    Keyboard hint
    ============================================================ */
 .kbd {
@@ -890,15 +997,15 @@ body {
   <!-- Main Panels -->
   <div class="panels" id="panels">
     <div class="panel panel-editor" id="panelEditor">
-      <div class="panel-header">
-        <span class="panel-header-label">
-          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0114.25 15H1.75A1.75 1.75 0 010 13.25V2.75C0 1.784.784 1 1.75 1zm12.5 1.5H1.75a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V2.75a.25.25 0 00-.25-.25zM3 5.5a.75.75 0 01.75-.75h8.5a.75.75 0 010 1.5h-8.5A.75.75 0 013 5.5zm0 4a.75.75 0 01.75-.75h5.5a.75.75 0 010 1.5h-5.5A.75.75 0 013 9.5z"/></svg>
-          Workflow (.md)
-        </span>
-        <span class="kbd" title="Press to compile">
-          <span class="kbd-hint-mac" style="display:none">&#8984;&#9166;</span>
-          <span class="kbd-hint-other">Ctrl+Enter</span>
-        </span>
+      <div class="tab-bar" id="tabBar">
+        <!-- Tabs rendered by JS -->
+        <button class="tab-add" id="tabAdd" title="Add imported file">+</button>
+        <div class="tab-bar-right">
+          <span class="kbd" title="Press to compile">
+            <span class="kbd-hint-mac" style="display:none">&#8984;&#9166;</span>
+            <span class="kbd-hint-other">Ctrl+Enter</span>
+          </span>
+        </div>
       </div>
       <div class="editor-container">
         <div class="line-numbers" id="lineNumbers">
@@ -988,6 +1095,8 @@ const divider = $('divider');
 const panelEditor = $('panelEditor');
 const panelOutput = $('panelOutput');
 const panels = $('panels');
+const tabBar = $('tabBar');
+const tabAdd = $('tabAdd');
 
 // ---------------------------------------------------------------
 // State
@@ -998,6 +1107,11 @@ let isCompiling = false;
 let autoCompile = true;
 let compileTimer = null;
 let currentYaml = '';
+
+// File tabs state: ordered list of { name, content }
+const MAIN_FILE = 'workflow.md';
+let files = [{ name: MAIN_FILE, content: DEFAULT_CONTENT }];
+let activeTab = MAIN_FILE;
 
 // ---------------------------------------------------------------
 // Theme
@@ -1069,13 +1183,128 @@ function syncLineNumberScroll() {
 }
 
 // ---------------------------------------------------------------
+// File tabs
+// ---------------------------------------------------------------
+function getFile(name) {
+  return files.find(f => f.name === name);
+}
+
+function renderTabs() {
+  // Remove existing tab elements (but keep the add button and right section)
+  tabBar.querySelectorAll('.tab').forEach(el => el.remove());
+
+  // Insert tabs before the add button
+  for (const file of files) {
+    const tab = document.createElement('div');
+    tab.className = 'tab' + (file.name === activeTab ? ' active' : '');
+    tab.dataset.name = file.name;
+
+    const label = document.createElement('span');
+    label.textContent = file.name;
+    tab.appendChild(label);
+
+    // Close button (not for the main workflow file)
+    if (file.name !== MAIN_FILE) {
+      const close = document.createElement('button');
+      close.className = 'tab-close';
+      close.title = 'Remove file';
+      close.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 011.06 0L8 6.94l3.22-3.22a.749.749 0 011.275.326.749.749 0 01-.215.734L9.06 8l3.22 3.22a.749.749 0 01-.326 1.275.749.749 0 01-.734-.215L8 9.06l-3.22 3.22a.751.751 0 01-1.042-.018.751.751 0 01-.018-1.042L6.94 8 3.72 4.78a.75.75 0 010-1.06z"/></svg>';
+      close.addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeTab(file.name);
+      });
+      tab.appendChild(close);
+    }
+
+    tab.addEventListener('click', () => switchTab(file.name));
+    tabBar.insertBefore(tab, tabAdd);
+  }
+}
+
+function switchTab(name) {
+  // Save current editor content to active file
+  const current = getFile(activeTab);
+  if (current) {
+    current.content = editor.value;
+  }
+
+  // Switch to new tab
+  activeTab = name;
+  const file = getFile(name);
+  if (file) {
+    editor.value = file.content;
+    updateLineNumbers();
+  }
+
+  renderTabs();
+}
+
+function addTab() {
+  const name = prompt('File path (e.g. shared/my-tools.md):');
+  if (!name || !name.trim()) return;
+
+  const trimmed = name.trim();
+
+  // Check for duplicates
+  if (getFile(trimmed)) {
+    switchTab(trimmed);
+    return;
+  }
+
+  // Create default content for shared imports
+  const defaultImportContent = [
+    '---',
+    '# Shared workflow component',
+    '# This file can define: tools, steps, engine, mcp-servers, etc.',
+    'tools:',
+    '  - name: example_tool',
+    '    description: An example tool',
+    '---',
+    '',
+    '# Instructions',
+    '',
+    'Add your shared workflow instructions here.',
+    ''
+  ].join('\n');
+
+  files.push({ name: trimmed, content: defaultImportContent });
+  switchTab(trimmed);
+}
+
+function removeTab(name) {
+  if (name === MAIN_FILE) return;
+
+  files = files.filter(f => f.name !== name);
+
+  // If we removed the active tab, switch to main
+  if (activeTab === name) {
+    switchTab(MAIN_FILE);
+  } else {
+    renderTabs();
+  }
+
+  // Trigger recompile since imports changed
+  if (autoCompile && isReady) {
+    scheduleCompile();
+  }
+}
+
+tabAdd.addEventListener('click', addTab);
+
+// ---------------------------------------------------------------
 // Editor setup
 // ---------------------------------------------------------------
 editor.value = DEFAULT_CONTENT;
 updateLineNumbers();
+renderTabs();
 
 editor.addEventListener('input', () => {
   updateLineNumbers();
+  // Save to active file
+  const file = getFile(activeTab);
+  if (file) {
+    file.content = editor.value;
+  }
   if (autoCompile && isReady) {
     scheduleCompile();
   }
@@ -1122,6 +1351,17 @@ function scheduleCompile() {
   compileTimer = setTimeout(doCompile, 400);
 }
 
+function getImportFiles() {
+  // Build a map of all non-main files for import resolution
+  const importFiles = {};
+  for (const file of files) {
+    if (file.name !== MAIN_FILE) {
+      importFiles[file.name] = file.content;
+    }
+  }
+  return Object.keys(importFiles).length > 0 ? importFiles : undefined;
+}
+
 async function doCompile() {
   if (!isReady || isCompiling) return;
   if (compileTimer) {
@@ -1129,7 +1369,16 @@ async function doCompile() {
     compileTimer = null;
   }
 
-  const md = editor.value;
+  // Always save current editor content
+  const currentFile = getFile(activeTab);
+  if (currentFile) {
+    currentFile.content = editor.value;
+  }
+
+  // Get the main workflow content
+  const mainFile = getFile(MAIN_FILE);
+  const md = mainFile ? mainFile.content : '';
+
   if (!md.trim()) {
     outputPre.style.display = 'none';
     outputPlaceholder.style.display = 'flex';
@@ -1148,13 +1397,13 @@ async function doCompile() {
   warningBanner.classList.remove('visible');
 
   try {
-    const result = await compiler.compile(md);
+    const importFiles = getImportFiles();
+    const result = await compiler.compile(md, importFiles);
 
     if (result.error) {
       setStatus('error', 'Error');
       errorText.textContent = result.error;
       errorBanner.classList.add('visible');
-      // Keep previous output visible but dim? No, just keep it.
     } else {
       setStatus('ready', 'Ready');
       currentYaml = result.yaml;

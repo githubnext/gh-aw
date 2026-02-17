@@ -3,7 +3,6 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path"
 	"sort"
 	"strings"
@@ -448,7 +447,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 		}
 
 		// Read the imported file to extract nested imports
-		content, err := os.ReadFile(item.fullPath)
+		content, err := readFileFunc(item.fullPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read imported file '%s': %w", item.fullPath, err)
 		}
@@ -841,7 +840,7 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 		}
 
 		// Read and parse the file to extract its imports
-		content, err := os.ReadFile(fullPath)
+		content, err := readFileFunc(fullPath)
 		if err != nil {
 			importLog.Printf("Failed to read file %s during topological sort: %v", fullPath, err)
 			dependencies[importPath] = []string{}

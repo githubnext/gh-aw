@@ -4,7 +4,6 @@ package parser
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -80,10 +79,12 @@ func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 		return "", fmt.Errorf("security: path %s must be within .github folder (resolves to: %s)", filePath, relativePath)
 	}
 
-	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("file not found: %s", fullPath)
+	// In wasm builds, check the virtual filesystem first
+	if VirtualFileExists(fullPath) {
+		return fullPath, nil
 	}
-	return fullPath, nil
+
+	return "", fmt.Errorf("file not found: %s", fullPath)
 }
 
 func isWorkflowSpec(path string) bool {

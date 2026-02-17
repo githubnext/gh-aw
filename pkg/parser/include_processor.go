@@ -117,7 +117,7 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 // processIncludedFileWithVisited processes a single included file with cycle detection for nested includes
 func processIncludedFileWithVisited(filePath, sectionName string, extractTools bool, visited map[string]bool) (string, error) {
 	includeLog.Printf("Reading included file: %s (extractTools=%t, section=%s)", filePath, extractTools, sectionName)
-	content, err := os.ReadFile(filePath)
+	content, err := readFileFunc(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read included file %s: %w", filePath, err)
 	}

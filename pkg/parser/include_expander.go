@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -163,7 +162,7 @@ func processIncludesForField(content, baseDir string, extractFunc func(string) (
 			}
 
 			// Read the included file
-			fileContent, err := os.ReadFile(fullPath)
+			fileContent, err := readFileFunc(fullPath)
 			if err != nil {
 				// For any processing errors, fail compilation
 				return nil, "", fmt.Errorf("failed to read included file '%s': %w", fullPath, err)

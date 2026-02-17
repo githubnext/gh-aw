@@ -5,6 +5,7 @@ package main
 import (
 	"syscall/js"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -14,20 +15,24 @@ func main() {
 }
 
 // compileWorkflow is the JS-callable function.
-// Usage: compileWorkflow(markdownString) → Promise<{yaml, warnings, error}>
+// Usage: compileWorkflow(markdownString, filesObject?) → Promise<{yaml, warnings, error}>
 //
-// Only a single argument (the markdown string) is accepted.
-// Import resolution is not currently supported in the Wasm build.
+// Arguments:
+//   - markdownString: the main workflow markdown content
+//   - filesObject (optional): a JS object mapping file paths to content strings,
+//     used for import resolution (e.g. {"shared/tools.md": "---\ntools:..."})
 func compileWorkflow(this js.Value, args []js.Value) any {
 	if len(args) < 1 {
-		return newRejectedPromise("compileWorkflow requires exactly 1 argument: markdown string")
-	}
-
-	if len(args) > 1 {
-		return newRejectedPromise("compileWorkflow accepts only 1 argument; importResolver is not supported in the Wasm build")
+		return newRejectedPromise("compileWorkflow requires at least 1 argument: markdown string")
 	}
 
 	markdown := args[0].String()
+
+	// Extract virtual files from optional second argument
+	var files map[string][]byte
+	if len(args) >= 2 && !args[1].IsNull() && !args[1].IsUndefined() {
+		files = jsObjectToFileMap(args[1])
+	}
 
 	var handler js.Func
 	handler = js.FuncOf(func(this js.Value, promiseArgs []js.Value) any {
@@ -37,7 +42,7 @@ func compileWorkflow(this js.Value, args []js.Value) any {
 		go func() {
 			defer handler.Release()
 
-			result, err := doCompile(markdown)
+			result, err := doCompile(markdown, files)
 			if err != nil {
 				reject.Invoke(js.Global().Get("Error").New(err.Error()))
 				return
@@ -51,8 +56,30 @@ func compileWorkflow(this js.Value, args []js.Value) any {
 	return js.Global().Get("Promise").New(handler)
 }
 
-// doCompile performs the actual compilation entirely in memory — no filesystem access.
-func doCompile(markdown string) (js.Value, error) {
+// jsObjectToFileMap converts a JS object {path: content, ...} to map[string][]byte.
+func jsObjectToFileMap(obj js.Value) map[string][]byte {
+	files := make(map[string][]byte)
+
+	// Use Object.keys() to iterate over the JS object
+	keys := js.Global().Get("Object").Call("keys", obj)
+	length := keys.Length()
+	for i := 0; i < length; i++ {
+		key := keys.Index(i).String()
+		value := obj.Get(key).String()
+		files[key] = []byte(value)
+	}
+
+	return files
+}
+
+// doCompile performs the actual compilation entirely in memory.
+func doCompile(markdown string, files map[string][]byte) (js.Value, error) {
+	// Set up virtual filesystem for import resolution
+	if files != nil {
+		parser.SetVirtualFiles(files)
+		defer parser.ClearVirtualFiles()
+	}
+
 	compiler := workflow.NewCompiler(
 		workflow.WithNoEmit(true),
 		workflow.WithSkipValidation(true),
