@@ -35,5 +35,6 @@ func GetAllCodemods() []Codemod {
 		getMCPModeToTypeCodemod(),
 		getInstallScriptURLCodemod(),
 		getBashAnonymousRemovalCodemod(), // Replace bash: with bash: false
+		getActivationOutputsCodemod(),    // Transform needs.activation.outputs.* to steps.sanitized.outputs.*
 	}
 }
