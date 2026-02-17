@@ -18,8 +18,8 @@
   },
   "dependencies": {
     "@astrojs/starlight": "^0.37.6",
-    "@primer/octicons": "^19.21.2",
-    "astro": "^5.17.1",
+    "@primer/octicons": "^19.22.0",
+    "astro": "^5.17.2",
     "astro-mermaid": "^1.2.0",
     "mermaid": "^11.12.2",
     "sharp": "^0.34.5",
@@ -32,7 +32,7 @@
   "devDependencies": {
     "@marp-team/marp-cli": "^4.2.3",
     "@playwright/test": "^1.58.1",
-    "@types/primer__octicons": "^19.11.1",
+    "@types/primer__octicons": "^19.21.0",
     "http-server": "^14.1.1",
     "starlight-github-alerts": "^0.1.1"
   }
