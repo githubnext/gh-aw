@@ -22,6 +22,7 @@ jobs:
         with:
           script: |
             const blocklist = (process.env.BLOCKED_USERS || '').split(',').map(u => u.trim()).filter(u => u);
+            core.info(`Blocklist: ${blocklist.join(', ') || 'empty'}`);
             if (!blocklist.length) return;
             
             let user, number, isComment;
@@ -38,9 +39,16 @@ jobs:
               isComment = context.payload.comment.id;
             }
             
-            if (!blocklist.includes(user)) return;
+            core.info(`Checking user: ${user}`);
+            if (!blocklist.includes(user)) {
+              core.info(`User ${user} not in blocklist, skipping`);
+              return;
+            }
+            
+            core.info(`User ${user} is blocked, taking action`);
             
             if (isComment) {
+              core.info(`Hiding comment ${isComment}`);
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -48,6 +56,7 @@ jobs:
                 body: '_[Content removed]_'
               });
             } else if (context.eventName === 'issues') {
+              core.info(`Closing issue #${number}`);
               await github.rest.issues.update({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -56,6 +65,7 @@ jobs:
                 state_reason: 'not_planned'
               });
             } else if (context.eventName === 'pull_request') {
+              core.info(`Closing PR #${number}`);
               await github.rest.pulls.update({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
