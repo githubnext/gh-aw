@@ -78,7 +78,7 @@ function parseProjectInput(projectUrl) {
     throw new Error(`Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
   }
 
-  const urlMatch = projectUrl.match(/github\.com\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
+  const urlMatch = projectUrl.match(/^https:\/\/[^/]+\/(?:users|orgs)\/[^/]+\/projects\/(\d+)/);
   if (!urlMatch) {
     throw new Error(`Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`);
   }
@@ -96,7 +96,7 @@ function parseProjectUrl(projectUrl) {
     throw new Error(`Invalid project input: expected string, got ${typeof projectUrl}. The "project" field is required and must be a full GitHub project URL.`);
   }
 
-  const match = projectUrl.match(/github\.com\/(users|orgs)\/([^/]+)\/projects\/(\d+)/);
+  const match = projectUrl.match(/^https:\/\/[^/]+\/(users|orgs)\/([^/]+)\/projects\/(\d+)/);
   if (!match) {
     throw new Error(`Invalid project URL: "${projectUrl}". The "project" field must be a full GitHub project URL (e.g., https://github.com/orgs/myorg/projects/123).`);
   }
