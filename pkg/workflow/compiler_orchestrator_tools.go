@@ -309,7 +309,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	hasContext := c.hasContentContext(result.Frontmatter)
 	needsTextOutput := explicitUsage || hasContext
 
-	orchestratorToolsLog.Printf("Text output needed: explicit=%v, context=%v, final=%v", 
+	orchestratorToolsLog.Printf("Text output needed: explicit=%v, context=%v, final=%v",
 		explicitUsage, hasContext, needsTextOutput)
 
 	// Extract and validate tracker-id

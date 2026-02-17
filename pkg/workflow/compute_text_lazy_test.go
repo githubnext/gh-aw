@@ -555,7 +555,7 @@ This workflow explicitly uses text output AND has content context.`,
 			// Check for sanitized step
 			hasSanitizedStep := strings.Contains(lockStr, "id: sanitized")
 			if hasSanitizedStep != tt.expectedSanitized {
-				t.Errorf("Expected sanitized step: %v, got: %v\nWorkflow:\n%s", 
+				t.Errorf("Expected sanitized step: %v, got: %v\nWorkflow:\n%s",
 					tt.expectedSanitized, hasSanitizedStep, lockStr)
 			}
 
