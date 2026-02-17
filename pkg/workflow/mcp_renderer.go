@@ -226,10 +226,16 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 	yaml.WriteString("          container = \"" + playwrightImage + "\"\n")
 
 	// Docker runtime args (goes before container image in docker run command)
+	// Add security-opt and ipc flags for Chromium browser compatibility in GitHub Actions
+	// --security-opt seccomp=unconfined: Required for Chromium sandbox to function properly
+	// --ipc=host: Provides shared memory access required by Chromium
 	yaml.WriteString("          args = [\n")
 	yaml.WriteString("            \"--init\",\n")
 	yaml.WriteString("            \"--network\",\n")
 	yaml.WriteString("            \"host\",\n")
+	yaml.WriteString("            \"--security-opt\",\n")
+	yaml.WriteString("            \"seccomp=unconfined\",\n")
+	yaml.WriteString("            \"--ipc=host\",\n")
 	yaml.WriteString("          ]\n")
 
 	// Entrypoint args for Playwright MCP server (goes after container image)

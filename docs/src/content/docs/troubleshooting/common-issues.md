@@ -209,6 +209,31 @@ await mcp__playwright__browser_run_code({
 
 See the [Playwright Tool documentation](/gh-aw/reference/tools/#playwright-tool-playwright) for complete details.
 
+### Playwright MCP Initialization Failure (EOF Error)
+
+**Error Message:**
+
+```text
+Failed to register tools error="initialize: EOF" name=playwright
+Tool 'browser_navigate' does not exist
+```
+
+**Cause:** The Playwright MCP server starts but fails during initialization because the Chromium browser crashes before tool registration completes. This happens when required Docker security flags are missing, causing the MCP init pipe to close (EOF) before tools are registered.
+
+**Solution:** This issue was fixed in version 0.41.0 and later. The Playwright container now includes the required Docker security flags (`--security-opt seccomp=unconfined` and `--ipc=host`) for Chromium to function properly on GitHub Actions runners.
+
+**If you're on an older version:**
+
+Upgrade to version 0.41.0 or later:
+
+```bash wrap
+gh extension upgrade gh-aw
+```
+
+**Why this happens:**
+
+GitHub Actions runners use security constraints that prevent Chromium from starting without specific Docker flags. The browser tries to initialize during MCP server startup, crashes due to sandbox restrictions, and causes the MCP protocol to fail before any tools are registered. The gateway may still report the server as "connected" because the container started successfully, but no tools are available because initialization never completed.
+
 ## Permission Issues
 
 ### Write Operations Fail
