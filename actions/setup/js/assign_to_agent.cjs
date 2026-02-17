@@ -40,24 +40,23 @@ async function main() {
       description: "The following agent assignments would be made if staged mode was disabled:",
       items: assignItems,
       renderItem: item => {
-        let content = "";
+        const parts = [];
         if (item.issue_number) {
-          content += `**Issue:** #${item.issue_number}\n`;
+          parts.push(`**Issue:** #${item.issue_number}`);
         } else if (item.pull_number) {
-          content += `**Pull Request:** #${item.pull_number}\n`;
+          parts.push(`**Pull Request:** #${item.pull_number}`);
         }
-        content += `**Agent:** ${item.agent || previewDefaultAgent}\n`;
+        parts.push(`**Agent:** ${item.agent || previewDefaultAgent}`);
         if (previewDefaultModel) {
-          content += `**Model:** ${previewDefaultModel}\n`;
+          parts.push(`**Model:** ${previewDefaultModel}`);
         }
         if (previewDefaultCustomAgent) {
-          content += `**Custom Agent:** ${previewDefaultCustomAgent}\n`;
+          parts.push(`**Custom Agent:** ${previewDefaultCustomAgent}`);
         }
         if (previewDefaultCustomInstructions) {
-          content += `**Custom Instructions:** ${previewDefaultCustomInstructions}\n`;
+          parts.push(`**Custom Instructions:** ${previewDefaultCustomInstructions}`);
         }
-        content += "\n";
-        return content;
+        return parts.join("\n") + "\n\n";
       },
     });
     return;

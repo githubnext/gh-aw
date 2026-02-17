@@ -323,7 +323,7 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
     `;
 
     variables = {
-      assignableId: assignableId,
+      assignableId,
       actorIds,
       ...(pullRequestRepoId && { targetRepoId: pullRequestRepoId }),
       ...(model && { model }),
@@ -343,7 +343,7 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
       }
     `;
     variables = {
-      assignableId: assignableId,
+      assignableId,
       actorIds,
     };
   }
