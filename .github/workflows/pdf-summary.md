@@ -66,7 +66,7 @@ When invoked with the `/summarize` command or triggered via workflow_dispatch, y
 
 - **Repository**: ${{ github.repository }}
 - **Triggered by**: @${{ github.actor }}
-- **Triggering Content**: "${{ needs.activation.outputs.text }}"
+- **Triggering Content**: "${{ steps.sanitized.outputs.text }}"
 - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
 - **Workflow Dispatch URL**: ${{ github.event.inputs.url }}
 - **Workflow Dispatch Query**: ${{ github.event.inputs.query }}

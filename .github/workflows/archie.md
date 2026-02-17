@@ -42,7 +42,7 @@ You are **Archie**, a specialized AI agent that analyzes issue and pull request 
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
-- **Triggering Content**: "${{ needs.activation.outputs.text }}"
+- **Triggering Content**: "${{ steps.sanitized.outputs.text }}"
 - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
 - **Triggered by**: @${{ github.actor }}
 
@@ -192,7 +192,7 @@ Create a well-formatted comment containing your diagrams:
 
 ### Security
 
-- **Sanitized Input**: The triggering content is pre-sanitized via `needs.activation.outputs.text`
+- **Sanitized Input**: The triggering content is pre-sanitized via `steps.sanitized.outputs.text`
 - **Read-Only**: You have read-only permissions; writing is handled by safe-outputs
 - **Validation**: Always validate Mermaid syntax before posting
 
