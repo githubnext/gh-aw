@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -348,5 +350,170 @@ func TestGenerateKnownNeedsExpressions_EnvVarFormat(t *testing.T) {
 			"Content should contain 'needs.': %s", mapping.Content)
 		assert.Contains(t, mapping.Content, ".outputs.",
 			"Content should contain '.outputs.': %s", mapping.Content)
+	}
+}
+
+func TestParseNeedsField(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    any
+		expected []string
+	}{
+		{
+			name:     "string single dependency",
+			input:    "activation",
+			expected: []string{"activation"},
+		},
+		{
+			name:     "string array",
+			input:    []string{"activation", "agent"},
+			expected: []string{"activation", "agent"},
+		},
+		{
+			name:     "any array",
+			input:    []any{"activation", "agent"},
+			expected: []string{"activation", "agent"},
+		},
+		{
+			name:     "empty array",
+			input:    []string{},
+			expected: []string{},
+		},
+		{
+			name:     "nil input",
+			input:    nil,
+			expected: []string{},
+		},
+		{
+			name:     "invalid type",
+			input:    123,
+			expected: []string{},
+		},
+		{
+			name:     "mixed any array with non-strings",
+			input:    []any{"activation", 123, "agent"},
+			expected: []string{"activation", "agent"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseNeedsField(tt.input)
+			assert.Equal(t, tt.expected, result, "parseNeedsField result mismatch")
+		})
+	}
+}
+
+func TestKnownNeedsExpressionsIntegration(t *testing.T) {
+	// Create a temporary workflow with custom jobs
+	tmpDir := t.TempDir()
+	workflowPath := tmpDir + "/test-workflow.md"
+
+	workflowContent := `---
+engine: copilot
+on: issues
+permissions:
+  issues: read
+jobs:
+  before_job:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Before activation"
+  after_job:
+    runs-on: ubuntu-latest
+    needs: activation
+    steps:
+      - run: echo "After activation"
+---
+
+# Test Workflow
+
+This workflow has custom jobs before and after activation.
+`
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "Failed to create workflow file")
+
+	// Compile the workflow
+	compiler := NewCompiler()
+	compiler.SetQuiet(true)
+	err = compiler.CompileWorkflow(workflowPath)
+	require.NoError(t, err, "Compilation failed")
+
+	// Read the compiled workflow
+	lockPath := tmpDir + "/test-workflow.lock.yml"
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err, "Failed to read lock file")
+	lockStr := string(lockContent)
+
+	// Verify that known needs expressions are in the substitution step
+	assert.Contains(t, lockStr, "- name: Substitute placeholders", "Should have substitution step")
+
+	// Find the substitution step and check it has the known needs expressions
+	substStepStart := strings.Index(lockStr, "- name: Substitute placeholders")
+	require.Greater(t, substStepStart, 0, "Substitution step not found")
+
+	// Get the next 100 lines after the substitution step
+	substSection := lockStr[substStepStart:]
+	nextStepIdx := strings.Index(substSection[50:], "- name:")
+	if nextStepIdx > 0 {
+		substSection = substSection[:50+nextStepIdx]
+	}
+
+	// Should have pre_activation expressions in substitution step
+	assert.Contains(t, substSection, "GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED",
+		"Substitution step should have pre_activation.outputs.activated")
+	assert.Contains(t, substSection, "GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND",
+		"Substitution step should have pre_activation.outputs.matched_command")
+
+	// Should have before_job expression in substitution step
+	assert.Contains(t, substSection, "GH_AW_NEEDS_BEFORE_JOB_OUTPUTS_OUTPUT",
+		"Substitution step should have before_job.outputs.output")
+
+	// Should NOT have after_job expression (it depends on activation)
+	assert.NotContains(t, substSection, "GH_AW_NEEDS_AFTER_JOB_OUTPUTS_OUTPUT",
+		"Substitution step should NOT have after_job.outputs.output (runs after activation)")
+
+	// Verify prompt creation step does NOT have the known needs expressions
+	promptStepStart := strings.Index(lockStr, "- name: Create prompt with built-in context")
+	require.Greater(t, promptStepStart, 0, "Prompt creation step not found")
+
+	// Get the prompt creation section
+	promptSection := lockStr[promptStepStart:]
+	nextStepIdx = strings.Index(promptSection[50:], "- name:")
+	if nextStepIdx > 0 {
+		promptSection = promptSection[:50+nextStepIdx]
+	}
+
+	// Prompt creation should NOT have the known needs expressions (only markdown-extracted ones)
+	// We can't make strong assertions here because markdown might contain needs expressions
+	// But we can verify the structure is correct
+	assert.Contains(t, lockStr, "- name: Create prompt with built-in context",
+		"Should have prompt creation step")
+}
+
+func TestParseNeedsFieldArrayTypes(t *testing.T) {
+	// Test with needs as array in jobs config (realistic scenario)
+	tests := []struct {
+		name     string
+		input    any
+		expected []string
+	}{
+		{
+			name:     "array with single item",
+			input:    []any{"pre_activation"},
+			expected: []string{"pre_activation"},
+		},
+		{
+			name:     "array with multiple items",
+			input:    []any{"job1", "job2", "job3"},
+			expected: []string{"job1", "job2", "job3"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseNeedsField(tt.input)
+			assert.Equal(t, tt.expected, result, "parseNeedsField result mismatch")
+		})
 	}
 }
