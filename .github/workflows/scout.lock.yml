@@ -34,7 +34,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 5f21df90d95bad88fa40d8a04f659e6cda4363abf33fd54a37fa44884fbb0355
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"5f21df90d95bad88fa40d8a04f659e6cda4363abf33fd54a37fa44884fbb0355"}
 
 name: "Scout"
 "on":

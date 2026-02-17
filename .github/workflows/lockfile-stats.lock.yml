@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: e7c02728269fcba4c4f71c4bfbbc8862e65bca98e381597bf3364acd6bc05399
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"e7c02728269fcba4c4f71c4bfbbc8862e65bca98e381597bf3364acd6bc05399"}
 
 name: "Lockfile Statistics Analysis Agent"
 "on":

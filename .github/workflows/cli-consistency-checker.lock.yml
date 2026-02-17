@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 8a1f53691b774ea3860e020e3178886bf3a66ba36e1f4fba919df4245ccd1187
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"8a1f53691b774ea3860e020e3178886bf3a66ba36e1f4fba919df4245ccd1187"}
 
 name: "CLI Consistency Checker"
 "on":

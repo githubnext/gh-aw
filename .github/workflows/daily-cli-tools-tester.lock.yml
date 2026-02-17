@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 66142a570abd73c9369ad0914b9e623a277d6a57179415f8d89d3c3cedaf5fb5
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"66142a570abd73c9369ad0914b9e623a277d6a57179415f8d89d3c3cedaf5fb5"}
 
 name: "Daily CLI Tools Exploratory Tester"
 "on":

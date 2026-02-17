@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: ea05a2ec77bd0021834069b2684bd9be4e7dc558c53eabb7b6d3f3e5c1ce2ffd
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ea05a2ec77bd0021834069b2684bd9be4e7dc558c53eabb7b6d3f3e5c1ce2ffd"}
 
 name: "Daily Observability Report for AWF Firewall and MCP Gateway"
 "on":

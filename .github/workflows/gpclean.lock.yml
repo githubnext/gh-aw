@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 323dca9e8e64355be221b4a90b7cbe1c0f431a3b02f32eb67ec2d7643e28830e
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"323dca9e8e64355be221b4a90b7cbe1c0f431a3b02f32eb67ec2d7643e28830e"}
 
 name: "GPL Dependency Cleaner (gpclean)"
 "on":

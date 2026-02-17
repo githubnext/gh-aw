@@ -42,7 +42,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 0b3a36033c9a5a9f012dcaaadda443842af75df8d790b2999c8be7eb89bdfae6
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0b3a36033c9a5a9f012dcaaadda443842af75df8d790b2999c8be7eb89bdfae6"}
 
 name: "MCP Inspector Agent"
 "on":

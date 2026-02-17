@@ -28,9 +28,9 @@ When you're running dozens of AI agents, how do you know if they're actually wor
 
 Let's take a look at these three workflows:
 
-- **[Metrics Collector](https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/metrics-collector.md?plain=1)** - Tracks daily performance across the entire agent ecosystem
-- **[Portfolio Analyst](https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/portfolio-analyst.md?plain=1)** - Identifies cost reduction opportunities
-- **[Audit Workflows](https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/audit-workflows.md?plain=1)** - A meta-agent that audits all the other agents' runs
+- **[Metrics Collector](https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/metrics-collector.md?plain=1)** - Tracks daily performance across the entire agent ecosystem
+- **[Portfolio Analyst](https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/portfolio-analyst.md?plain=1)** - Identifies cost reduction opportunities
+- **[Audit Workflows](https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/audit-workflows.md?plain=1)** - A meta-agent that audits all the other agents' runs
 
 The Metrics Collector has created **41 daily metrics discussions** tracking performance across the agent ecosystem - for example, [#6986](https://github.com/github/gh-aw/discussions/6986) with the daily code metrics report. It became our central nervous system, gathering performance data that feeds into higher-level orchestrators.
 
@@ -47,19 +47,19 @@ You can add these workflows to your own repository and remix them. Get going wit
 **Metrics Collector:**
 
 ```bash
-gh aw add-wizard https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/metrics-collector.md
+gh aw add-wizard https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/metrics-collector.md
 ```
 
 **Portfolio Analyst:**
 
 ```bash
-gh aw add-wizard https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/portfolio-analyst.md
+gh aw add-wizard https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/portfolio-analyst.md
 ```
 
 **Audit Workflows:**
 
 ```bash
-gh aw add-wizard https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/audit-workflows.md
+gh aw add-wizard https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/audit-workflows.md
 ```
 
 Then edit and remix the workflow specifications to meet your needs, regenerate the lock file using `gh aw compile`, and push to your repository. See our [Quick Start](https://github.github.com/gh-aw/setup/quick-start/) for further installation and setup instructions.

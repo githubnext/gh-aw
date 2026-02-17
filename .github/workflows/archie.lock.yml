@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 3b036ef86d73babb36b6cd24527393fd6a9d42d517dd1862b814d4c192ab4cbc
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3b036ef86d73babb36b6cd24527393fd6a9d42d517dd1862b814d4c192ab4cbc"}
 
 name: "Archie"
 "on":

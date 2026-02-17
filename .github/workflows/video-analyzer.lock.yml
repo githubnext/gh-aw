@@ -28,7 +28,7 @@
 #     - shared/ffmpeg.md
 #     - shared/mood.md
 #
-# frontmatter-hash: f2304eadcdad1d6d90cedf29453667ccc710f1775b3ffc0adb9684b85740b9c0
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f2304eadcdad1d6d90cedf29453667ccc710f1775b3ffc0adb9684b85740b9c0"}
 
 name: "Video Analysis Agent"
 "on":

@@ -30,7 +30,7 @@
 #     - shared/trends.md
 #     - shared/charts-with-trending.md
 #
-# frontmatter-hash: 86d56c5df1106cf5af7c52d643d1ddeb70dea4f6aec028a1e7324c9f0f3db65c
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"86d56c5df1106cf5af7c52d643d1ddeb70dea4f6aec028a1e7324c9f0f3db65c"}
 
 name: "Python Data Visualization Generator"
 "on":

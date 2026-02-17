@@ -97,12 +97,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 
-	// Validate that git tool is allowed if using create-pull-request or push-to-pull-request-branch
-	// This must happen BEFORE applyDefaults() modifies the tools map
-	// We're checking if user's explicit bash configuration would prevent git from running
-	if err := validateGitToolForSafeOutputs(workflowData.ParsedTools, workflowData.SafeOutputs, workflowData.Name); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
-	}
+	// Note: Git commands are automatically injected when safe-outputs needs them (see compiler_safe_outputs.go)
+	// No validation needed here - the compiler handles adding git to bash allowlist
 
 	// Process on section configuration and apply filters
 	if err := c.processOnSectionAndFilters(result.Frontmatter, workflowData, cleanPath); err != nil {

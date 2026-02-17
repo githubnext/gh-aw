@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 3bf15f7749f2a01de8cc7d76cc31beb24813d2bcf857c5649c630d9dba6a3888
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3bf15f7749f2a01de8cc7d76cc31beb24813d2bcf857c5649c630d9dba6a3888"}
 
 name: "Daily Safe Outputs Conformance Checker"
 "on":

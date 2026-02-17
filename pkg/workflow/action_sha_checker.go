@@ -36,6 +36,11 @@ func ExtractActionsFromLockFile(lockFilePath string) ([]ActionUsage, error) {
 		return nil, fmt.Errorf("failed to read lock file: %w", err)
 	}
 
+	// Validate lock file schema compatibility before parsing
+	if err := ValidateLockSchemaCompatibility(string(content), lockFilePath); err != nil {
+		return nil, err
+	}
+
 	// Parse YAML to extract actions from "uses" fields
 	var workflowData map[string]any
 	if err := yaml.Unmarshal(content, &workflowData); err != nil {

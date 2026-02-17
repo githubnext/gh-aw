@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: f9cef995cc8f830332724217641a080a5063963a70684a8f180332f4adc728c5
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f9cef995cc8f830332724217641a080a5063963a70684a8f180332f4adc728c5"}
 
 name: "Copilot CLI Deep Research Agent"
 "on":
