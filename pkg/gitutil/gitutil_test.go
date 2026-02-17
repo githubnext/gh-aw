@@ -283,3 +283,175 @@ func TestIsHexStringConsistency(t *testing.T) {
 		}
 	}
 }
+
+func TestGetGitHubHost(t *testing.T) {
+	tests := []struct {
+		name           string
+		serverURL      string
+		enterpriseHost string
+		githubHost     string
+		ghHost         string
+		expectedHost   string
+	}{
+		{
+			name:           "defaults to github.com when no env vars set",
+			serverURL:      "",
+			enterpriseHost: "",
+			githubHost:     "",
+			ghHost:         "",
+			expectedHost:   "https://github.com",
+		},
+		{
+			name:           "uses GITHUB_SERVER_URL with full URL",
+			serverURL:      "https://github.enterprise.com",
+			enterpriseHost: "",
+			githubHost:     "",
+			ghHost:         "",
+			expectedHost:   "https://github.enterprise.com",
+		},
+		{
+			name:           "uses GITHUB_ENTERPRISE_HOST with hostname only",
+			serverURL:      "",
+			enterpriseHost: "MYORG.ghe.com",
+			githubHost:     "",
+			ghHost:         "",
+			expectedHost:   "https://MYORG.ghe.com",
+		},
+		{
+			name:           "uses GITHUB_HOST with hostname only",
+			serverURL:      "",
+			enterpriseHost: "",
+			githubHost:     "github.company.com",
+			ghHost:         "",
+			expectedHost:   "https://github.company.com",
+		},
+		{
+			name:           "uses GH_HOST when other vars not set",
+			serverURL:      "",
+			enterpriseHost: "",
+			githubHost:     "",
+			ghHost:         "https://github.company.com",
+			expectedHost:   "https://github.company.com",
+		},
+		{
+			name:           "GITHUB_SERVER_URL takes precedence over all",
+			serverURL:      "https://server.example.com",
+			enterpriseHost: "enterprise.example.com",
+			githubHost:     "github.example.com",
+			ghHost:         "gh.example.com",
+			expectedHost:   "https://server.example.com",
+		},
+		{
+			name:           "GITHUB_ENTERPRISE_HOST takes precedence over GITHUB_HOST and GH_HOST",
+			serverURL:      "",
+			enterpriseHost: "enterprise.example.com",
+			githubHost:     "github.example.com",
+			ghHost:         "gh.example.com",
+			expectedHost:   "https://enterprise.example.com",
+		},
+		{
+			name:           "GITHUB_HOST takes precedence over GH_HOST",
+			serverURL:      "",
+			enterpriseHost: "",
+			githubHost:     "github.example.com",
+			ghHost:         "gh.example.com",
+			expectedHost:   "https://github.example.com",
+		},
+		{
+			name:           "removes trailing slash from GITHUB_SERVER_URL",
+			serverURL:      "https://github.enterprise.com/",
+			enterpriseHost: "",
+			githubHost:     "",
+			ghHost:         "",
+			expectedHost:   "https://github.enterprise.com",
+		},
+		{
+			name:           "removes trailing slash from GITHUB_ENTERPRISE_HOST",
+			serverURL:      "",
+			enterpriseHost: "MYORG.ghe.com/",
+			githubHost:     "",
+			ghHost:         "",
+			expectedHost:   "https://MYORG.ghe.com",
+		},
+		{
+			name:           "removes trailing slash from GITHUB_HOST",
+			serverURL:      "",
+			enterpriseHost: "",
+			githubHost:     "github.company.com/",
+			ghHost:         "",
+			expectedHost:   "https://github.company.com",
+		},
+		{
+			name:           "removes trailing slash from GH_HOST",
+			serverURL:      "",
+			enterpriseHost: "",
+			githubHost:     "",
+			ghHost:         "https://github.company.com/",
+			expectedHost:   "https://github.company.com",
+		},
+		{
+			name:           "adds https:// prefix to GITHUB_ENTERPRISE_HOST",
+			serverURL:      "",
+			enterpriseHost: "MYORG.ghe.com",
+			githubHost:     "",
+			ghHost:         "",
+			expectedHost:   "https://MYORG.ghe.com",
+		},
+		{
+			name:           "adds https:// prefix to GITHUB_HOST",
+			serverURL:      "",
+			enterpriseHost: "",
+			githubHost:     "MYORG.ghe.com",
+			ghHost:         "",
+			expectedHost:   "https://MYORG.ghe.com",
+		},
+		{
+			name:           "adds https:// prefix to GH_HOST",
+			serverURL:      "",
+			enterpriseHost: "",
+			githubHost:     "",
+			ghHost:         "MYORG.ghe.com",
+			expectedHost:   "https://MYORG.ghe.com",
+		},
+		{
+			name:           "preserves http:// scheme if provided",
+			serverURL:      "",
+			enterpriseHost: "",
+			githubHost:     "",
+			ghHost:         "http://insecure.example.com",
+			expectedHost:   "http://insecure.example.com",
+		},
+		{
+			name:           "removes multiple trailing slashes",
+			serverURL:      "",
+			enterpriseHost: "",
+			githubHost:     "",
+			ghHost:         "https://github.company.com///",
+			expectedHost:   "https://github.company.com",
+		},
+		{
+			name:           "handles GITHUB_ENTERPRISE_HOST with https://",
+			serverURL:      "",
+			enterpriseHost: "https://MYORG.ghe.com",
+			githubHost:     "",
+			ghHost:         "",
+			expectedHost:   "https://MYORG.ghe.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set test env vars (always set to ensure clean state)
+			t.Setenv("GITHUB_SERVER_URL", tt.serverURL)
+			t.Setenv("GITHUB_ENTERPRISE_HOST", tt.enterpriseHost)
+			t.Setenv("GITHUB_HOST", tt.githubHost)
+			t.Setenv("GH_HOST", tt.ghHost)
+
+			// Test
+			host := GetGitHubHost()
+			if host != tt.expectedHost {
+				t.Errorf("Expected host '%s', got '%s'", tt.expectedHost, host)
+			}
+		})
+	}
+}
