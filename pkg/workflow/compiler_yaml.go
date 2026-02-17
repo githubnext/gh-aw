@@ -312,6 +312,31 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		}
 	}
 
+	// Step 1.6: Add all known needs.* expressions
+	// Since the markdown may change without recompilation (via runtime-import), we need to
+	// ensure all known needs.* variables are available for interpolation. This allows users
+	// to add new macros using needs.* variables without recompiling the workflow.
+	knownNeedsExpressions := generateKnownNeedsExpressions(data)
+	if len(knownNeedsExpressions) > 0 {
+		compilerYamlLog.Printf("Adding %d known needs.* expressions for runtime interpolation", len(knownNeedsExpressions))
+		// Merge known needs expressions with existing mappings
+		// We use a map to avoid duplicates (expressions from markdown take precedence)
+		expressionMap := make(map[string]*ExpressionMapping)
+		// First add known needs expressions (these have lower priority)
+		for _, mapping := range knownNeedsExpressions {
+			expressionMap[mapping.EnvVar] = mapping
+		}
+		// Then add/override with expressions from markdown (these have higher priority)
+		for _, mapping := range expressionMappings {
+			expressionMap[mapping.EnvVar] = mapping
+		}
+		// Convert back to slice
+		expressionMappings = make([]*ExpressionMapping, 0, len(expressionMap))
+		for _, mapping := range expressionMap {
+			expressionMappings = append(expressionMappings, mapping)
+		}
+	}
+
 	// Step 2: Add runtime-import for main workflow markdown
 	// This allows users to edit the main workflow file without recompilation
 	workflowBasename := filepath.Base(c.markdownPath)
