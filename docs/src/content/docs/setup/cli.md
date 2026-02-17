@@ -128,7 +128,7 @@ gh aw init --completions                # Install shell completions
 gh aw init --push                       # Initialize and automatically commit/push changes
 ```
 
-**Options:** `--engine` (copilot, claude, codex), `--no-mcp`, `--tokens`, `--codespaces`, `--completions`, `--push` (see [--push flag](#the---push-flag))
+**Options:** `--no-mcp`, `--codespaces`, `--completions`, `--push` (see [--push flag](#the---push-flag))
 
 #### `add`
 
