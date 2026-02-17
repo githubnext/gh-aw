@@ -581,6 +581,88 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+  build-wasm:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-build-wasm
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Report Go cache status
+        run: |
+          if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Download dependencies with retry
+        run: |
+          set -e
+          MAX_RETRIES=3
+          RETRY_DELAY=5
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
+            # Use -x for verbose output to see what's being downloaded
+            if go mod download -x; then
+              echo "✅ Successfully downloaded Go modules"
+              break
+            else
+              EXIT_CODE=$?
+              if [ $i -eq $MAX_RETRIES ]; then
+                echo "❌ Failed to download Go modules after $MAX_RETRIES attempts (exit code: $EXIT_CODE)"
+                echo "This indicates that proxy.golang.org is unreachable or returning errors"
+                echo ""
+                echo "Diagnostic information:"
+                echo "- GOPROXY: $(go env GOPROXY)"
+                echo "- GOSUMDB: $(go env GOSUMDB)"
+                echo "- Network connectivity: checking proxy.golang.org..."
+                if curl -s -I --connect-timeout 5 https://proxy.golang.org/golang.org/@v/list >/dev/null 2>&1; then
+                  echo "  ✓ proxy.golang.org is reachable"
+                else
+                  echo "  ✗ proxy.golang.org is NOT reachable"
+                fi
+                exit 1
+              fi
+              echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
+              sleep $RETRY_DELAY
+            fi
+          done
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build WebAssembly binary
+        run: make build-wasm
+
+      - name: Report binary size
+        run: |
+          echo "## WebAssembly Build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if ls gh-aw.wasm 1>/dev/null 2>&1; then
+            SIZE=$(stat --format="%s" gh-aw.wasm)
+            SIZE_MB=$(awk "BEGIN {printf \"%.2f\", $SIZE/1048576}")
+            echo "✅ Build succeeded" >> $GITHUB_STEP_SUMMARY
+            echo "- **Binary:** gh-aw.wasm" >> $GITHUB_STEP_SUMMARY
+            echo "- **Size:** ${SIZE_MB} MB (${SIZE} bytes)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ No .wasm binary found" >> $GITHUB_STEP_SUMMARY
+            ls -la *.wasm 2>/dev/null || echo "No wasm files in working directory" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
   validate-yaml:
     runs-on: ubuntu-latest
     permissions:
