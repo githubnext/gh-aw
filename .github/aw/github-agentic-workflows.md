@@ -84,7 +84,17 @@ The YAML frontmatter supports these fields:
   - **`forks:`** - Fork allowlist for `pull_request` triggers (array or string). By default, workflows block all forks and only allow same-repo PRs. Use `["*"]` to allow all forks, or specify patterns like `["org/*", "user/repo"]`
   - **`stop-after:`** - Can be included in the `on:` object to set a deadline for workflow execution. Supports absolute timestamps ("YYYY-MM-DD HH:MM:SS") or relative time deltas (+25h, +3d, +1d12h). The minimum unit for relative deltas is hours (h). Uses precise date calculations that account for varying month lengths.
   - **`reaction:`** - Add emoji reactions to triggering items
+  - **`status-comment:`** - Post status comments when workflow starts/completes (boolean, default: false)
+    - **⚠️ Breaking Change**: Status comments must now be explicitly enabled with `status-comment: true`
+    - Previously coupled with `reaction`, now independently configured
+    - Example: `status-comment: true` - Post "started" and "completed" comments on triggering items
   - **`manual-approval:`** - Require manual approval using environment protection rules
+  - **`skip-roles:`** - Skip workflow execution for users with specific repository roles (array)
+    - Available roles: `admin`, `maintainer`, `write`, `read`
+    - Example: `skip-roles: [read]` - Skip execution for users with read-only access
+  - **`skip-bots:`** - Skip workflow execution when triggered by specific GitHub actors (array)
+    - Bot name matching is flexible (handles with/without `[bot]` suffix)
+    - Example: `skip-bots: [dependabot, renovate]` - Skip for Dependabot and Renovate
 
 - **`permissions:`** - GitHub token permissions
   - Object with permission levels: `read`, `write`, `none`
@@ -126,6 +136,22 @@ The YAML frontmatter supports these fields:
   - Key names limited to 64 characters
   - Values limited to 1024 characters
   - Example: `metadata: { team: "platform", priority: "high" }`
+- **`plugins:`** - Plugin installation configuration (array or object)
+  - **⚠️ Experimental Feature**: Plugin support is experimental and emits a compilation warning
+  - Array format (simple): `plugins: [github/test-plugin, acme/custom-tools]`
+  - Object format (with custom token):
+    ```yaml
+    plugins:
+      repos: [github/test-plugin, acme/custom-tools]
+      github-token: ${{ secrets.CUSTOM_PLUGIN_TOKEN }}
+    ```
+  - Token precedence (highest to lowest):
+    1. Custom `plugins.github-token`
+    2. `${{ secrets.GH_AW_PLUGINS_TOKEN }}`
+    3. `${{ secrets.GH_AW_GITHUB_TOKEN }}`
+    4. `${{ secrets.GITHUB_TOKEN }}` (default)
+  - Each plugin repo must use `org/repo` format
+  - Plugins install after engine CLI setup but before workflow execution
 - **`github-token:`** - Default GitHub token for workflow (must use `${{ secrets.* }}` syntax)
 - **`roles:`** - Repository access roles that can trigger workflow (array or "all")
   - Default: `[admin, maintainer, write]`
@@ -278,6 +304,7 @@ The YAML frontmatter supports these fields:
   
 - **`sandbox:`** - Sandbox configuration for AI engines (string or object)
   - String format: `"default"` (no sandbox), `"awf"` (Agent Workflow Firewall), `"srt"` or `"sandbox-runtime"` (Anthropic Sandbox Runtime)
+  - **⚠️ Deprecated**: Top-level `sandbox: false` is deprecated. Use `sandbox.agent: false` instead. Run `gh aw fix --write` to automatically migrate.
   - Object format for full configuration:
     ```yaml
     sandbox:
@@ -372,10 +399,10 @@ The YAML frontmatter supports these fields:
     When using `safe-outputs.create-issue`, the main job does **not** need `issues: write` permission since issue creation is handled by a separate job with appropriate permissions.
 
     **Temporary IDs and Sub-Issues:**
-    When creating multiple issues, use `temporary_id` (format: `aw_` + 12 hex chars) to reference parent issues before creation. References like `#aw_abc123def456` in issue bodies are automatically replaced with actual issue numbers. Use the `parent` field to create sub-issue relationships:
+    When creating multiple issues, use `temporary_id` (format: `aw_` + 3-8 alphanumeric chars) to reference parent issues before creation. References like `#aw_abc123` in issue bodies are automatically replaced with actual issue numbers. Use the `parent` field to create sub-issue relationships:
     ```json
-    {"type": "create_issue", "temporary_id": "aw_abc123def456", "title": "Parent", "body": "Parent issue"}
-    {"type": "create_issue", "parent": "aw_abc123def456", "title": "Sub-task", "body": "References #aw_abc123def456"}
+    {"type": "create_issue", "temporary_id": "aw_abc123", "title": "Parent", "body": "Parent issue"}
+    {"type": "create_issue", "parent": "aw_abc123", "title": "Sub-task", "body": "References #aw_abc123"}
     ```
   - `close-issue:` - Close issues with comment (use this to close issues, not update-issue)
     ```yaml
@@ -461,6 +488,27 @@ The YAML frontmatter supports these fields:
     **Footer Control**: The `footer` field on `submit-pull-request-review` controls when AI-generated footers appear in the PR review body. Values: `"always"` (default, always include footer), `"none"` (never include footer), `"if-body"` (only include footer when review body is non-empty). Boolean values are also supported: `true` maps to `"always"`, `false` maps to `"none"`. This is useful for clean approval reviews — with `"if-body"`, approvals without explanatory text appear without a footer.
 
     When using `safe-outputs.create-pull-request-review-comment`, the main job does **not** need `pull-requests: write` permission since review comment creation is handled by a separate job with appropriate permissions.
+  - `reply-to-pull-request-review-comment:` - Reply to existing review comments on PRs
+    ```yaml
+    safe-outputs:
+      reply-to-pull-request-review-comment:
+        max: 10                         # Optional: maximum number of replies (default: 10)
+        target-repo: "owner/repo"       # Optional: cross-repository
+        footer: "always"                # Optional: footer control ("always", "none", "if-body", default: "always")
+    ```
+    **Footer Control**: The `footer` field controls when AI-generated footers appear. Values: `"always"` (default), `"none"`, `"if-body"` (only when body is non-empty). Boolean values supported: `true` → `"always"`, `false` → `"none"`.
+
+    When using `safe-outputs.reply-to-pull-request-review-comment`, the main job does **not** need `pull-requests: write` permission.
+  - `resolve-pull-request-review-thread:` - Resolve PR review threads after addressing feedback
+    ```yaml
+    safe-outputs:
+      resolve-pull-request-review-thread:
+        max: 10                         # Optional: maximum number of threads to resolve (default: 10)
+        target-repo: "owner/repo"       # Optional: cross-repository
+    ```
+    This safe-output type allows agents to programmatically resolve review comment threads after addressing feedback, improving PR review workflows.
+
+    When using `safe-outputs.resolve-pull-request-review-thread`, the main job does **not** need `pull-requests: write` permission.
   - `update-issue:` - Update issue title, body, labels, assignees, or milestone (NOT for closing - use close-issue instead)
     ```yaml
     safe-outputs:
@@ -624,7 +672,7 @@ The YAML frontmatter supports these fields:
     - `content_type`: "draft_issue"
     - `draft_title`: Title of the draft issue (required when creating new)
     - `draft_body`: Description in markdown (optional)
-    - `temporary_id`: Unique ID for this draft (format: `aw_` + 12 hex chars) for referencing in future updates (optional)
+    - `temporary_id`: Unique ID for this draft (format: `aw_` + 3-8 alphanumeric chars) for referencing in future updates (optional)
     - `draft_issue_id`: Reference an existing draft by its temporary_id to update it (optional)
     - `fields`: Custom field values (optional)
 
@@ -765,6 +813,15 @@ The YAML frontmatter supports these fields:
         target-repo: "owner/repo"       # Optional: cross-repository
     ```
     When using `safe-outputs.assign-to-user`, the main job does **not** need `issues: write` or `pull-requests: write` permission since user assignment is handled by a separate job with appropriate permissions.
+  - `unassign-from-user:` - Remove user assignments from issues or PRs
+    ```yaml
+    safe-outputs:
+      unassign-from-user:
+        max: 1                          # Optional: max unassignments (default: 1)
+        target: "*"                     # Optional: "triggering" (default), "*", or number
+        target-repo: "owner/repo"       # Optional: cross-repository
+    ```
+    When using `safe-outputs.unassign-from-user`, the main job does **not** need `issues: write` or `pull-requests: write` permission.
   - `hide-comment:` - Hide comments on issues, PRs, or discussions
     ```yaml
     safe-outputs:
@@ -1882,6 +1939,26 @@ Agentic workflows compile to GitHub Actions YAML:
 - **`gh aw compile --zizmor`** - Run zizmor security scanner on compiled workflows
 - **`gh aw compile --poutine`** - Run poutine security scanner on compiled workflows
 - **`gh aw compile --strict --actionlint --zizmor --poutine`** - Strict mode with all security scanners (fails on findings)
+
+## Breaking Changes and Deprecations
+
+### Deprecated Features
+
+- **`sandbox: false`** (top-level) - Deprecated. Use `sandbox.agent: false` instead. Run `gh aw fix --write` to migrate automatically.
+- **`timeout_minutes`** (underscore) - Breaking change. Must use `timeout-minutes` (with hyphen).
+- **`create-agent-task`** - Deprecated. Use `create-agent-session` instead for Copilot coding agent sessions.
+
+### Breaking Configuration Changes
+
+- **Status Comments**: Status comments must now be explicitly enabled with `status-comment: true`. Previously coupled with `reaction`, now independently configured.
+- **Temporary ID Format**: Changed from `aw_` + 12 hex chars to `aw_` + 3-8 alphanumeric chars. Update references in existing workflows accordingly.
+
+### Migration Tools
+
+Use `gh aw fix --write` to automatically migrate deprecated configurations:
+- Converts `sandbox: false` to `sandbox.agent: false`
+- Updates `create-agent-task` to `create-agent-session`
+- Applies other codemods for deprecated patterns
 
 ## Best Practices
 
