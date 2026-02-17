@@ -143,5 +143,17 @@ func (c *AddInteractiveConfig) collectAPIKey(engine string) error {
 		IncludeOptional:      false,
 	}
 
-	return CheckAndCollectEngineSecrets(config)
+	if err := CheckAndCollectEngineSecrets(config); err != nil {
+		return err
+	}
+
+	// Update existingSecrets to reflect that the secret was uploaded
+	// This prevents duplicate secret uploads in applyChanges later
+	opt := constants.GetEngineOption(engine)
+	if opt != nil {
+		c.existingSecrets[opt.SecretName] = true
+		addInteractiveLog.Printf("Updated existingSecrets to include %s after upload", opt.SecretName)
+	}
+
+	return nil
 }
