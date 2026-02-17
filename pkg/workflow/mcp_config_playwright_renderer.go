@@ -20,8 +20,15 @@
 // MCP image (mcr.microsoft.com/playwright/mcp). The container is configured with:
 //   - --init flag for proper signal handling
 //   - --network host for network access
+//   - --security-opt seccomp=unconfined for Chromium sandbox compatibility
+//   - --ipc=host for shared memory access required by Chromium
 //   - Volume mounts for log storage
 //   - Output directory for screenshots and artifacts
+//
+// GitHub Actions compatibility:
+// The security flags are required for Chromium to function properly on GitHub Actions
+// runners. Without these flags, Playwright initialization fails with "EOF" error because
+// Chromium crashes during startup due to sandbox constraints.
 //
 // Domain restrictions:
 // For security, Playwright is restricted to specific allowed domains configured
@@ -106,7 +113,10 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfi
 
 	// Docker runtime args (goes before container image in docker run command)
 	// These are additional flags for docker run like --init and --network
-	dockerArgs := []string{"--init", "--network", "host"}
+	// Add security-opt and ipc flags for Chromium browser compatibility in GitHub Actions
+	// --security-opt seccomp=unconfined: Required for Chromium sandbox to function properly
+	// --ipc=host: Provides shared memory access required by Chromium
+	dockerArgs := []string{"--init", "--network", "host", "--security-opt", "seccomp=unconfined", "--ipc=host"}
 	if inlineArgs {
 		yaml.WriteString("                \"args\": [")
 		for i, arg := range dockerArgs {
