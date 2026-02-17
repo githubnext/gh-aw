@@ -18,8 +18,8 @@ func TestGenerateKnownNeedsExpressions(t *testing.T) {
 		checkExpressions   []string
 	}{
 		{
-			name: "basic activation and agent jobs",
-			data: &WorkflowData{},
+			name:             "basic activation and agent jobs",
+			data:             &WorkflowData{},
 			expectedMinCount: 10, // At least activation, pre_activation, detection, and agent outputs
 			checkExpressions: []string{
 				"needs.activation.outputs.text",
@@ -134,8 +134,8 @@ func TestGetSafeOutputJobNames(t *testing.T) {
 		expectedJobs []string
 	}{
 		{
-			name: "no safe outputs",
-			data: &WorkflowData{},
+			name:         "no safe outputs",
+			data:         &WorkflowData{},
 			expectedJobs: []string{},
 		},
 		{
@@ -187,8 +187,8 @@ func TestGetCustomJobNames(t *testing.T) {
 		expectedJobs []string
 	}{
 		{
-			name: "no custom jobs",
-			data: &WorkflowData{},
+			name:         "no custom jobs",
+			data:         &WorkflowData{},
 			expectedJobs: []string{},
 		},
 		{
@@ -236,7 +236,7 @@ func TestGenerateKnownNeedsExpressions_EnvVarFormat(t *testing.T) {
 			"EnvVar should start with GH_AW_NEEDS_: %s", mapping.EnvVar)
 		assert.Contains(t, mapping.EnvVar, "_OUTPUTS_",
 			"EnvVar should contain _OUTPUTS_: %s", mapping.EnvVar)
-		
+
 		// Verify the expression content matches the expected format
 		assert.Contains(t, mapping.Content, "needs.",
 			"Content should contain 'needs.': %s", mapping.Content)
