@@ -21,43 +21,6 @@ import (
 
 var remoteLog = logger.New("parser:remote_fetch")
 
-// getGitHubHost returns the GitHub host URL from environment variables.
-// Environment variables are checked in priority order for GitHub Enterprise support:
-// 1. GITHUB_SERVER_URL - GitHub Actions standard (e.g., https://MYORG.ghe.com)
-// 2. GITHUB_ENTERPRISE_HOST - GitHub Enterprise standard (e.g., MYORG.ghe.com)
-// 3. GITHUB_HOST - GitHub Enterprise standard (e.g., MYORG.ghe.com)
-// 4. GH_HOST - GitHub CLI standard (e.g., MYORG.ghe.com)
-// 5. Defaults to https://github.com if none are set
-//
-// The function normalizes the URL by adding https:// if missing and removing trailing slashes.
-func getGitHubHost() string {
-	envVars := []string{"GITHUB_SERVER_URL", "GITHUB_ENTERPRISE_HOST", "GITHUB_HOST", "GH_HOST"}
-
-	for _, envVar := range envVars {
-		if value := os.Getenv(envVar); value != "" {
-			remoteLog.Printf("Resolved GitHub host from %s: %s", envVar, value)
-			return normalizeGitHubHostURL(value)
-		}
-	}
-
-	defaultHost := "https://github.com"
-	remoteLog.Printf("No GitHub host environment variable set, using default: %s", defaultHost)
-	return defaultHost
-}
-
-// normalizeGitHubHostURL ensures the host URL has https:// scheme and no trailing slashes
-func normalizeGitHubHostURL(rawHostURL string) string {
-	// Remove all trailing slashes
-	normalized := strings.TrimRight(rawHostURL, "/")
-
-	// Add https:// scheme if no scheme is present
-	if !strings.HasPrefix(normalized, "https://") && !strings.HasPrefix(normalized, "http://") {
-		normalized = "https://" + normalized
-	}
-
-	return normalized
-}
-
 // isUnderWorkflowsDirectory checks if a file path is a top-level workflow file (not in shared subdirectory)
 func isUnderWorkflowsDirectory(filePath string) bool {
 	// Normalize the path to use forward slashes
@@ -343,7 +306,7 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 func resolveRefToSHAViaGit(owner, repo, ref string) (string, error) {
 	remoteLog.Printf("Attempting git ls-remote fallback for ref resolution: %s/%s@%s", owner, repo, ref)
 
-	githubHost := getGitHubHost()
+	githubHost := GetGitHubHost()
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
 	// Try to resolve the ref using git ls-remote
@@ -435,7 +398,7 @@ func downloadFileViaGit(owner, repo, path, ref string) ([]byte, error) {
 
 	// Use git archive to get the file content without cloning
 	// This works for public repositories without authentication
-	githubHost := getGitHubHost()
+	githubHost := GetGitHubHost()
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
 	// git archive command: git archive --remote=<repo> <ref> <path>
@@ -471,7 +434,7 @@ func downloadFileViaGitClone(owner, repo, path, ref string) ([]byte, error) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	githubHost := getGitHubHost()
+	githubHost := GetGitHubHost()
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
 	// Check if ref is a SHA (40 hex characters)
