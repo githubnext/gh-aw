@@ -193,7 +193,7 @@ Use the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowl
    - Identify common patterns in affected workflows
 
 2. **Create Fix Template**:
-   Generate a prompt template that can be used by a Copilot agent to fix this issue type. The prompt should:
+   Generate a prompt template that can be used by a Copilot coding agent to fix this issue type. The prompt should:
    - Clearly describe the security vulnerability
    - Explain why it's a problem
    - Provide step-by-step fix instructions

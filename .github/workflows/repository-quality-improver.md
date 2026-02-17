@@ -341,11 +341,11 @@ Create a comprehensive report using the **reporting MCP** with the following str
 
 ## 🤖 Tasks for Copilot Agent
 
-**NOTE TO PLANNER AGENT**: The following tasks are designed for GitHub Copilot agent execution. Please split these into individual work items for Claude to process.
+**NOTE TO PLANNER AGENT**: The following tasks are designed for GitHub Copilot coding agent execution. Please split these into individual work items for Claude to process.
 
 ### Improvement Tasks
 
-The following code regions and tasks should be processed by the Copilot agent. Each section is marked for easy identification by the planner agent.
+The following code regions and tasks should be processed by the Copilot coding agent. Each section is marked for easy identification by the planner agent.
 
 #### Task 1: [Short Description]
 
@@ -364,7 +364,7 @@ The following code regions and tasks should be processed by the Copilot agent. E
 **Code Region:** `[file path or pattern]`
 
 ```markdown
-[Copilot agent prompt for this task]
+[Copilot coding agent prompt for this task]
 ```
 
 ---
@@ -385,7 +385,7 @@ The following code regions and tasks should be processed by the Copilot agent. E
 **Code Region:** `[file path or pattern]`
 
 ```markdown
-[Copilot agent prompt for this task]
+[Copilot coding agent prompt for this task]
 ```
 
 ---
@@ -438,7 +438,7 @@ Track these metrics to measure improvement in the **[FOCUS AREA]**:
 ## Next Steps
 
 1. Review and prioritize the tasks above
-2. Assign tasks to Copilot agent via planner agent
+2. Assign tasks to Copilot coding agent via planner agent
 3. Track progress on improvement items
 4. Re-evaluate this focus area in [timeframe]
 
@@ -450,7 +450,7 @@ Track these metrics to measure improvement in the **[FOCUS AREA]**:
 
 ### Important Report Guidelines
 
-1. **Copilot Agent Section**: Always include a clearly marked section for Copilot agent tasks
+1. **Copilot Agent Section**: Always include a clearly marked section for Copilot coding agent tasks
 2. **Planner Note**: Include a note for the planner agent to split tasks
 3. **Code Regions**: Mark specific files or patterns where changes are needed
 4. **Task Format**: Each task should be self-contained with clear acceptance criteria
@@ -496,7 +496,7 @@ A successful quality improvement run:
 - ✅ Conducts thorough analysis of the selected area (using custom analysis for custom areas)
 - ✅ Uses Serena MCP only when static analysis is needed
 - ✅ Generates exactly one discussion with the report
-- ✅ Includes 3-5 actionable tasks for Copilot agent
+- ✅ Includes 3-5 actionable tasks for Copilot coding agent
 - ✅ Clearly marks code regions for planner agent to split
 - ✅ Updates cache memory with run history including custom area tracking
 - ✅ Maintains high diversity rate (aim for 60%+ custom or varied strategies)
@@ -549,7 +549,7 @@ When creating custom focus areas specific to gh-aw:
 
 Your output MUST:
 1. Create exactly one discussion with the quality improvement report
-2. Include a clearly marked section for Copilot agent tasks
+2. Include a clearly marked section for Copilot coding agent tasks
 3. Provide 3-5 actionable tasks with code region markers
 4. Note for planner agent to split tasks for Claude
 5. Update cache memory with run history (including custom area tracking)
@@ -557,4 +557,4 @@ Your output MUST:
 7. Use the reporting MCP for structured content
 8. **For custom focus areas**: Clearly explain the rationale and custom analysis performed
 
-Begin your quality improvement analysis now. Select a focus area (prioritizing custom, repository-specific areas), conduct appropriate analysis, generate actionable tasks for the Copilot agent, and create the discussion report.
+Begin your quality improvement analysis now. Select a focus area (prioritizing custom, repository-specific areas), conduct appropriate analysis, generate actionable tasks for the Copilot coding agent, and create the discussion report.

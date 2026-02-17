@@ -33,13 +33,6 @@ func workflowDataWithAgenticWorkflows(options ...func(*WorkflowData)) *WorkflowD
 	return wd
 }
 
-// withCustomToken is an option for workflowDataWithAgenticWorkflows
-func withCustomToken(token string) func(*WorkflowData) {
-	return func(wd *WorkflowData) {
-		wd.GitHubToken = token
-	}
-}
-
 // withImportedFiles is an option for workflowDataWithAgenticWorkflows
 func withImportedFiles(files ...string) func(*WorkflowData) {
 	return func(wd *WorkflowData) {
@@ -171,35 +164,6 @@ func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
 	// Verify the binary copy command is present for MCP server containerization
 	assert.Contains(t, result, "cp \"$GH_AW_BIN\" /opt/gh-aw/gh-aw",
 		"install step should copy gh-aw binary to /opt/gh-aw for MCP server containerization")
-}
-
-func TestAgenticWorkflowsInstallStepWithCustomToken(t *testing.T) {
-	// Create workflow data using helper with custom token option
-	workflowData := workflowDataWithAgenticWorkflows(
-		withCustomToken("${{ secrets.CUSTOM_PAT }}"),
-	)
-
-	// Create compiler using helper
-	c := testCompiler()
-
-	// Generate MCP setup
-	var yaml strings.Builder
-	engine := NewCopilotEngine()
-
-	c.generateMCPSetup(&yaml, workflowData.Tools, engine, workflowData)
-	result := yaml.String()
-
-	// Verify the install step is present
-	assert.Contains(t, result, "Install gh-aw extension",
-		"MCP setup should include gh-aw installation step even with custom token")
-
-	// Verify GH_TOKEN environment variable is set with the custom token
-	assert.Contains(t, result, "GH_TOKEN: ${{ secrets.CUSTOM_PAT }}",
-		"install step should use custom GitHub token when specified in workflow config")
-
-	// Verify it doesn't use the default token when custom is provided
-	assert.NotContains(t, result, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
-		"install step should not use default token fallback when custom token is specified")
 }
 
 func TestAgenticWorkflowsInstallStepSkippedWithImport(t *testing.T) {

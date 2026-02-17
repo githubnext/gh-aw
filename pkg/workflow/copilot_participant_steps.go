@@ -18,8 +18,6 @@ type CopilotParticipantConfig struct {
 	CustomToken string
 	// SafeOutputsToken is the GitHub token from the safe-outputs config
 	SafeOutputsToken string
-	// WorkflowToken is the top-level GitHub token from the workflow
-	WorkflowToken string
 	// ConditionStepID is the step ID to check for output (e.g., "create_issue", "create_pull_request")
 	ConditionStepID string
 	// ConditionOutputKey is the output key to check (e.g., "issue_number", "pull_request_url")
@@ -54,14 +52,20 @@ func buildCopilotParticipantSteps(config CopilotParticipantConfig) []string {
 		}
 	}
 
+	// Choose the first non-empty custom token for precedence
+	effectiveCustomToken := config.CustomToken
+	if effectiveCustomToken == "" {
+		effectiveCustomToken = config.SafeOutputsToken
+	}
+
 	// Use agent token preference if adding copilot as participant, otherwise use regular token
 	var effectiveToken string
 	if hasCopilotParticipant {
-		copilotParticipantLog.Print("Using agent token preference")
-		effectiveToken = getEffectiveAgentGitHubToken(config.CustomToken, getEffectiveAgentGitHubToken(config.SafeOutputsToken, config.WorkflowToken))
+		copilotParticipantLog.Print("Using Copilot coding agent token preference")
+		effectiveToken = getEffectiveCopilotCodingAgentGitHubToken(effectiveCustomToken)
 	} else {
 		copilotParticipantLog.Print("Using regular GitHub token")
-		effectiveToken = getEffectiveGitHubToken(config.CustomToken, getEffectiveGitHubToken(config.SafeOutputsToken, config.WorkflowToken))
+		effectiveToken = getEffectiveGitHubToken(effectiveCustomToken)
 	}
 
 	// Generate participant-specific steps

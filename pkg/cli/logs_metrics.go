@@ -33,7 +33,7 @@ var logsMetricsLog = logger.New("cli:logs_metrics")
 var extractJSONMetrics = workflow.ExtractJSONMetrics
 
 // extractLogMetrics extracts metrics from downloaded log files
-// workflowPath is optional and can be provided to help detect GitHub Copilot agent runs
+// workflowPath is optional and can be provided to help detect GitHub Copilot coding agent runs
 func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (LogMetrics, error) {
 	logsMetricsLog.Printf("Extracting log metrics from: %s", logDir)
 	var metrics LogMetrics
@@ -41,7 +41,7 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Beginning metric extraction in %s", logDir)))
 	}
 
-	// First check if this is a GitHub Copilot agent run (not Copilot CLI)
+	// First check if this is a GitHub Copilot coding agent run (not Copilot CLI)
 	var detector *CopilotAgentDetector
 	if len(workflowPath) > 0 && workflowPath[0] != "" {
 		detector = NewCopilotAgentDetectorWithPath(logDir, verbose, workflowPath[0])
@@ -49,10 +49,10 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 		detector = NewCopilotAgentDetector(logDir, verbose)
 	}
 	isGitHubCopilotAgent := detector.IsGitHubCopilotAgent()
-	logsMetricsLog.Printf("GitHub Copilot agent detected: %v", isGitHubCopilotAgent)
+	logsMetricsLog.Printf("GitHub Copilot coding agent detected: %v", isGitHubCopilotAgent)
 
 	if isGitHubCopilotAgent && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Detected GitHub Copilot agent run, using specialized parser"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Detected GitHub Copilot coding agent run, using specialized parser"))
 	}
 
 	// First check for aw_info.json to determine the engine

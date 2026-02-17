@@ -11,11 +11,25 @@ on:
   pull_request:
     paths:
       - 'docs/**'
+      - 'cmd/gh-aw-wasm/**'
+      - 'pkg/**'
+      - 'scripts/bundle-wasm-docs.sh'
+      - '.github/workflows/docs.yml'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
   push:
     branches:
       - main
     paths:
       - 'docs/**'
+      - 'cmd/gh-aw-wasm/**'
+      - 'pkg/**'
+      - 'scripts/bundle-wasm-docs.sh'
+      - '.github/workflows/docs.yml'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
 
 # Allow this job to clone the repo and create a page deployment
 permissions:
@@ -42,6 +56,15 @@ jobs:
           node-version: '24'
           cache: 'npm'
           cache-dependency-path: 'docs/package-lock.json'
+
+      - name: Set up Go
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build WebAssembly compiler for docs
+        run: ./scripts/bundle-wasm-docs.sh
 
       - name: Install dependencies
         working-directory: ./docs

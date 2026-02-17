@@ -97,13 +97,19 @@ func filterNonCopilotAssignees(assignees []string) []string {
 	return result
 }
 
-// buildCopilotAssignmentStep generates a post-step for assigning copilot to created issues
+// buildCopilotCodingAgentAssignmentStep generates a post-step for assigning Copilot coding agent to created issues
 // This step uses the agent token with full precedence chain
-func buildCopilotAssignmentStep(configToken, safeOutputsToken, workflowToken string) []string {
+func buildCopilotCodingAgentAssignmentStep(configToken, safeOutputsToken string) []string {
 	var steps []string
 
+	// Choose the first non-empty custom token for precedence
+	effectiveCustomToken := configToken
+	if effectiveCustomToken == "" {
+		effectiveCustomToken = safeOutputsToken
+	}
+
 	// Get the effective agent token with full precedence chain
-	effectiveToken := getEffectiveAgentGitHubToken(configToken, getEffectiveAgentGitHubToken(safeOutputsToken, workflowToken))
+	effectiveToken := getEffectiveCopilotCodingAgentGitHubToken(effectiveCustomToken)
 
 	steps = append(steps, "      - name: Assign Copilot to created issues\n")
 	steps = append(steps, "        if: steps.create_issue.outputs.issues_to_assign_copilot != ''\n")
@@ -188,7 +194,6 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 			ParticipantType:    "assignee",
 			CustomToken:        data.SafeOutputs.CreateIssues.GitHubToken,
 			SafeOutputsToken:   safeOutputsToken,
-			WorkflowToken:      data.GitHubToken,
 			ConditionStepID:    "create_issue",
 			ConditionOutputKey: "issue_number",
 		})
@@ -196,7 +201,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	// Add post-step for copilot assignment using agent token
 	if assignCopilot {
-		postSteps = append(postSteps, buildCopilotAssignmentStep(data.SafeOutputs.CreateIssues.GitHubToken, safeOutputsToken, data.GitHubToken)...)
+		postSteps = append(postSteps, buildCopilotCodingAgentAssignmentStep(data.SafeOutputs.CreateIssues.GitHubToken, safeOutputsToken)...)
 	}
 
 	// Create outputs for the job

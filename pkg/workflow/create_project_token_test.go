@@ -41,23 +41,23 @@ func TestCreateProjectGitHubTokenEnvVar(t *testing.T) {
 			expectedTokenValue:  "github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}",
 		},
 		{
-			name: "create-project with top-level github-token",
+			name: "create-project with safe-outputs github-token",
 			frontmatter: map[string]any{
-				"name":         "Test Workflow",
-				"github-token": "${{ secrets.CUSTOM_TOKEN }}",
+				"name": "Test Workflow",
 				"safe-outputs": map[string]any{
+					"github-token":   "${{ secrets.SAFE_OUTPUTS_TOKEN }}",
 					"create-project": nil,
 				},
 			},
-			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.CUSTOM_TOKEN }}",
-			expectedTokenValue:  "github-token: ${{ secrets.CUSTOM_TOKEN }}",
+			expectedEnvVarValue: "GH_AW_PROJECT_GITHUB_TOKEN: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
+			expectedTokenValue:  "github-token: ${{ secrets.SAFE_OUTPUTS_TOKEN }}",
 		},
 		{
-			name: "create-project with per-config token overrides top-level",
+			name: "create-project with per-config token overrides safe-outputs token",
 			frontmatter: map[string]any{
-				"name":         "Test Workflow",
-				"github-token": "${{ secrets.GLOBAL_TOKEN }}",
+				"name": "Test Workflow",
 				"safe-outputs": map[string]any{
+					"github-token": "${{ secrets.GLOBAL_TOKEN }}",
 					"create-project": map[string]any{
 						"github-token": "${{ secrets.PROJECT_SPECIFIC_TOKEN }}",
 					},
@@ -76,11 +76,6 @@ func TestCreateProjectGitHubTokenEnvVar(t *testing.T) {
 			workflowData := &WorkflowData{
 				Name:        "test-workflow",
 				SafeOutputs: compiler.extractSafeOutputsConfig(tt.frontmatter),
-			}
-
-			// Set top-level github-token if present in frontmatter
-			if githubToken, ok := tt.frontmatter["github-token"].(string); ok {
-				workflowData.GitHubToken = githubToken
 			}
 
 			// Build the create_project step config

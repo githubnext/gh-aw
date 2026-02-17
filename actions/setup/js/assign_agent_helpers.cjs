@@ -489,7 +489,7 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
 function logPermissionError(agentName) {
   core.error(`Failed to assign ${agentName}: Insufficient permissions`);
   core.error("");
-  core.error("Assigning Copilot agents requires:");
+  core.error("Assigning Copilot coding agent requires:");
   core.error("  1. All four workflow permissions:");
   core.error("     - actions: write");
   core.error("     - contents: write");
@@ -519,7 +519,7 @@ function generatePermissionErrorSummary() {
   return `
 ### ⚠️ Permission Requirements
 
-Assigning Copilot agents requires **ALL** of these permissions:
+Assigning Copilot coding agent requires **ALL** of these permissions:
 
 \`\`\`yaml
 permissions:

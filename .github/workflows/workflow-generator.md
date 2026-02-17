@@ -1,5 +1,5 @@
 ---
-description: Workflow generator that updates issue status and assigns to Copilot agent for workflow design
+description: Workflow generator that updates issue status and assigns to Copilot coding agent for workflow design
 on:
   issues:
     types: [opened]
@@ -46,8 +46,8 @@ Your job is to:
    - Set the status to "In progress"
    - Append clear instructions to the issue body for the agent that will pick it up
 
-2. **Assign to the Copilot agent** using the `assign-to-agent` safe output to hand off the workflow design work
-   - The Copilot agent will follow the agentic-workflows instructions from `.github/agents/agentic-workflows.agent.md`
+2. **Assign to the Copilot coding agent** using the `assign-to-agent` safe output to hand off the workflow design work
+   - The Copilot coding agent will follow the agentic-workflows instructions from `.github/agents/agentic-workflows.agent.md`
    - The agent will parse the issue, design the workflow content, and create a PR with the `.md` workflow file
 
 ## Instructions to Append
@@ -103,6 +103,6 @@ This issue has been assigned to an AI agent for workflow design. The agent will:
 1. Use **update-issue** safe output to:
    - Set the issue status to "In progress"
    - Append the instructions above to the issue body
-2. Use **assign-to-agent** safe output to assign the Copilot agent who will design and implement the workflow
+2. Use **assign-to-agent** safe output to assign the Copilot coding agent who will design and implement the workflow
 
 The workflow designer agent will have clear instructions in the issue body about what it needs to do.

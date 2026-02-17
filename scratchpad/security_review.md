@@ -22,7 +22,7 @@ Reviewed 2 zizmor template injection findings in GitHub Actions workflows. Both 
   env:
     GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
   id: download-sessions
-  name: List and download Copilot agent sessions
+  name: List and download Copilot coding agent sessions
   run: |
     ...
     echo "::warning::Extension installation status from previous step: ${{ steps.install-extension.outputs.EXTENSION_INSTALLED }}"

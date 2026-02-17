@@ -4046,7 +4046,7 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "DEPRECATED: Use 'create-agent-session' instead. Configuration for creating GitHub Copilot agent sessions from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
+              "description": "DEPRECATED: Use 'create-agent-session' instead. Configuration for creating GitHub Copilot coding agent sessions from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
               "deprecated": true,
               "properties": {
                 "base": {
@@ -4082,13 +4082,13 @@
               "description": "Enable agent session creation with default configuration"
             }
           ],
-          "description": "Enable creation of GitHub Copilot agent tasks from workflow output. Allows workflows to spawn new agent sessions for follow-up work."
+          "description": "Enable creation of GitHub Copilot coding agent tasks from workflow output. Allows workflows to spawn new agent sessions for follow-up work."
         },
         "create-agent-session": {
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for creating GitHub Copilot agent sessions from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
+              "description": "Configuration for creating GitHub Copilot coding agent sessions from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
               "properties": {
                 "base": {
                   "type": "string",
@@ -4123,7 +4123,7 @@
               "description": "Enable agent session creation with default configuration"
             }
           ],
-          "description": "Enable creation of GitHub Copilot agent sessions from workflow output. Allows workflows to start interactive agent conversations."
+          "description": "Enable creation of GitHub Copilot coding agent sessions from workflow output. Allows workflows to start interactive agent conversations."
         },
         "update-project": {
           "oneOf": [
@@ -5354,7 +5354,7 @@
             },
             {
               "type": "object",
-              "description": "Configuration for assigning GitHub Copilot agents to issues from agentic workflow output",
+              "description": "Configuration for assigning GitHub Copilot coding agent to issues from agentic workflow output",
               "properties": {
                 "name": {
                   "type": "string",
@@ -6678,10 +6678,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "github-token": {
-      "$ref": "#/$defs/github_token",
-      "description": "GitHub token expression to use for all steps that require GitHub authentication. Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }}. If not specified, defaults to ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}. This value can be overridden by safe-outputs github-token or individual safe-output github-token fields."
     }
   },
   "additionalProperties": false,

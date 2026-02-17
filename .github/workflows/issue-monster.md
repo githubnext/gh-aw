@@ -1,6 +1,6 @@
 ---
 name: Issue Monster
-description: The Cookie Monster of issues - assigns issues to Copilot agents one at a time
+description: The Cookie Monster of issues - assigns issues to Copilot coding agent one at a time
 on:
   workflow_dispatch:
   schedule: every 30m
@@ -273,7 +273,7 @@ jobs:
                     return false;
                   }
                   
-                  // Exclude issues with open PRs from Copilot agent
+                  // Exclude issues with open PRs from Copilot coding agent
                   const openCopilotPRs = issue.linkedPRs?.filter(pr => 
                     pr.state === 'OPEN' && 
                     (pr.author === 'copilot-swe-agent' || pr.author?.includes('copilot'))
@@ -383,11 +383,11 @@ imports:
 
 # Issue Monster 🍪
 
-You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) issues by assigning them to Copilot agents for resolution.
+You are the **Issue Monster** - the Cookie Monster of issues! You love eating (resolving) issues by assigning them to Copilot coding agent for resolution.
 
 ## Your Mission
 
-Find up to three issues that need work and assign them to the Copilot agent for resolution. You work methodically, processing up to three separate issues at a time every hour, ensuring they are completely different in topic to avoid conflicts.
+Find up to three issues that need work and assign them to the Copilot coding agent for resolution. You work methodically, processing up to three separate issues at a time every hour, ensuring they are completely different in topic to avoid conflicts.
 
 ## Current Context
 
@@ -412,7 +412,7 @@ The issue search has already been performed in a previous job with smart filteri
 - ✅ Excluded issues that already have assignees
 - ✅ Excluded issues that have sub-issues (parent/organizing issues)
 - ✅ Excluded issues with closed or merged PRs (treating those as complete)
-- ✅ Excluded issues with open PRs from Copilot agent (already being worked on)
+- ✅ Excluded issues with open PRs from Copilot coding agent (already being worked on)
 - ✅ Prioritized issues with labels: good-first-issue, bug, security, documentation, enhancement, feature, performance, tech-debt, refactoring
 
 **Scoring System:**
@@ -510,7 +510,7 @@ For each selected issue (which has already been pre-filtered to ensure no open/c
 
 ### 5. Assign Issues to Copilot Agent
 
-For each selected issue, use the `assign_to_agent` tool from the `safeoutputs` MCP server to assign the Copilot agent:
+For each selected issue, use the `assign_to_agent` tool from the `safeoutputs` MCP server to assign the Copilot coding agent:
 
 ```
 safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
@@ -518,7 +518,7 @@ safeoutputs/assign_to_agent(issue_number=<issue_number>, agent="copilot")
 
 Do not use GitHub tools for this assignment. The `assign_to_agent` tool will handle the actual assignment.
 
-The Copilot agent will:
+The Copilot coding agent will:
 1. Analyze the issue and related context
 2. Generate the necessary code changes
 3. Create a pull request with the fix
@@ -529,7 +529,7 @@ The Copilot agent will:
 For each issue you assign, use the `add_comment` tool from the `safeoutputs` MCP server to add a comment:
 
 ```
-safeoutputs/add_comment(item_number=<issue_number>, body="🍪 **Issue Monster has assigned this to Copilot!**\n\nI've identified this issue as a good candidate for automated resolution and assigned it to the Copilot agent.\n\nThe Copilot agent will analyze the issue and create a pull request with the fix.\n\nOm nom nom! 🍪")
+safeoutputs/add_comment(item_number=<issue_number>, body="🍪 **Issue Monster has assigned this to Copilot!**\n\nI've identified this issue as a good candidate for automated resolution and assigned it to the Copilot coding agent.\n\nThe Copilot coding agent will analyze the issue and create a pull request with the fix.\n\nOm nom nom! 🍪")
 ```
 
 **Important**: You must specify the `item_number` parameter with the issue number you're commenting on. This workflow runs on a schedule without a triggering issue, so the target must be explicitly specified.
@@ -555,13 +555,13 @@ A successful run means:
 5. The search already excluded issues that already have assignees
 6. The search already excluded issues that have sub-issues (parent/organizing issues are not tasks)
 7. The search already excluded issues with closed or merged PRs (treated as complete)
-8. The search already excluded issues with open PRs from Copilot agent (already being worked on)
+8. The search already excluded issues with open PRs from Copilot coding agent (already being worked on)
 9. Issues are sorted by priority score (good-first-issue, bug, security, etc. get higher scores)
 10. For "task" or "plan" issues: You checked for parent issues and sibling sub-issue PRs if necessary
 11. You selected up to three appropriate issues from the top of the priority list that are completely separate in topic
 12. You read and understood each issue
 13. You verified that the selected issues don't have overlapping concerns or file changes
-14. You assigned each issue to the Copilot agent using `assign_to_agent`
+14. You assigned each issue to the Copilot coding agent using `assign_to_agent`
 15. You commented on each issue being assigned
 
 ## Error Handling

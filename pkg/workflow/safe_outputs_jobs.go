@@ -31,16 +31,16 @@ type SafeOutputJobConfig struct {
 	ScriptName string
 
 	// Job configuration
-	Permissions     *Permissions      // Job permissions
-	Outputs         map[string]string // Job outputs
-	Condition       ConditionNode     // Job condition (if clause)
-	Needs           []string          // Job dependencies
-	PreSteps        []string          // Optional steps to run before the GitHub Script step
-	PostSteps       []string          // Optional steps to run after the GitHub Script step
-	Token           string            // GitHub token for this output type
-	UseCopilotToken bool              // Whether to use Copilot token preference chain
-	UseAgentToken   bool              // Whether to use agent token preference chain (config token > GH_AW_AGENT_TOKEN)
-	TargetRepoSlug  string            // Target repository for cross-repo operations
+	Permissions                *Permissions      // Job permissions
+	Outputs                    map[string]string // Job outputs
+	Condition                  ConditionNode     // Job condition (if clause)
+	Needs                      []string          // Job dependencies
+	PreSteps                   []string          // Optional steps to run before the GitHub Script step
+	PostSteps                  []string          // Optional steps to run after the GitHub Script step
+	Token                      string            // GitHub token for this output type
+	UseCopilotRequestsToken    bool              // Whether to use Copilot token preference chain
+	UseCopilotCodingAgentToken bool              // Whether to use agent token preference chain (config token > GH_AW_AGENT_TOKEN)
+	TargetRepoSlug             string            // Target repository for cross-repo operations
 }
 
 // buildSafeOutputJob creates a safe output job with common scaffolding
@@ -71,14 +71,14 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 		// Use custom action mode (dev or release) if enabled and script name is provided
 		safeOutputsJobsLog.Printf("Using custom action mode (%s) for script: %s", c.actionMode, config.ScriptName)
 		scriptSteps = c.buildCustomActionStep(data, GitHubScriptStepConfig{
-			StepName:        config.StepName,
-			StepID:          config.StepID,
-			MainJobName:     config.MainJobName,
-			CustomEnvVars:   config.CustomEnvVars,
-			Script:          config.Script,
-			Token:           config.Token,
-			UseCopilotToken: config.UseCopilotToken,
-			UseAgentToken:   config.UseAgentToken,
+			StepName:                   config.StepName,
+			StepID:                     config.StepID,
+			MainJobName:                config.MainJobName,
+			CustomEnvVars:              config.CustomEnvVars,
+			Script:                     config.Script,
+			CustomToken:                config.Token,
+			UseCopilotRequestsToken:    config.UseCopilotRequestsToken,
+			UseCopilotCodingAgentToken: config.UseCopilotCodingAgentToken,
 		}, config.ScriptName)
 	} else {
 		// Use inline mode (default behavior)
@@ -91,15 +91,15 @@ func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobCo
 			safeOutputsJobsLog.Printf("Using inline mode (actions/github-script)")
 		}
 		scriptSteps = c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-			StepName:        config.StepName,
-			StepID:          config.StepID,
-			MainJobName:     config.MainJobName,
-			CustomEnvVars:   config.CustomEnvVars,
-			Script:          config.Script,
-			ScriptFile:      scriptFile,
-			Token:           config.Token,
-			UseCopilotToken: config.UseCopilotToken,
-			UseAgentToken:   config.UseAgentToken,
+			StepName:                   config.StepName,
+			StepID:                     config.StepID,
+			MainJobName:                config.MainJobName,
+			CustomEnvVars:              config.CustomEnvVars,
+			Script:                     config.Script,
+			ScriptFile:                 scriptFile,
+			CustomToken:                config.Token,
+			UseCopilotRequestsToken:    config.UseCopilotRequestsToken,
+			UseCopilotCodingAgentToken: config.UseCopilotCodingAgentToken,
 		})
 	}
 	steps = append(steps, scriptSteps...)

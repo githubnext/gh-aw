@@ -21,7 +21,7 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Analyzes GitHub Copilot agent usage patterns in pull requests to provide insights on agent effectiveness and behavior
+# Analyzes GitHub Copilot coding agent usage patterns in pull requests to provide insights on agent effectiveness and behavior
 #
 # Resolved workflow manifest:
 #   Imports:
@@ -30,7 +30,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 7ab09aa2c72d1dc010110d7ac8ad24c689601553f85c0c0554d6b7b897e9a090
+# frontmatter-hash: 49e233a6fddc68b01bfb552844d10705384860956cebc90df11ae53e16d11dc9
 
 name: "Copilot Agent PR Analysis"
 "on":
@@ -1119,7 +1119,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           WORKFLOW_NAME: "Copilot Agent PR Analysis"
-          WORKFLOW_DESCRIPTION: "Analyzes GitHub Copilot agent usage patterns in pull requests to provide insights on agent effectiveness and behavior"
+          WORKFLOW_DESCRIPTION: "Analyzes GitHub Copilot coding agent usage patterns in pull requests to provide insights on agent effectiveness and behavior"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |

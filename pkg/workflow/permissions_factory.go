@@ -107,7 +107,7 @@ func NewPermissionsActionsWrite() *Permissions {
 }
 
 // NewPermissionsActionsWriteContentsWriteIssuesWritePRWrite creates permissions with actions: write, contents: write, issues: write, pull-requests: write
-// This is required for the replaceActorsForAssignable GraphQL mutation used to assign GitHub Copilot agents to issues
+// This is required for the replaceActorsForAssignable GraphQL mutation used to assign GitHub Copilot coding agent to issues
 func NewPermissionsActionsWriteContentsWriteIssuesWritePRWrite() *Permissions {
 	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
 		PermissionActions:      PermissionWrite,

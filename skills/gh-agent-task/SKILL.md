@@ -6,7 +6,7 @@ description: GitHub CLI Agent Task Extension
 
 # GitHub CLI Agent Task Extension
 
-The `gh agent-task` CLI extension enables creating GitHub Copilot agent tasks through the command line. An agent task is a specialized GitHub issue that triggers GitHub Copilot to perform automated code changes based on natural language instructions.
+The `gh agent-task` CLI extension enables creating GitHub Copilot coding agent tasks through the command line. An agent task is a specialized GitHub issue that triggers GitHub Copilot to perform automated code changes based on natural language instructions.
 
 **Repository**: https://github.com/github/agent-task (internal GitHub extension)
 
@@ -156,7 +156,7 @@ safe-outputs:
 
 # Code Task Delegator
 
-When an issue is labeled with "code-task", analyze the requirements and create a GitHub Copilot agent task with detailed instructions for implementing the requested changes.
+When an issue is labeled with "code-task", analyze the requirements and create a GitHub Copilot coding agent task with detailed instructions for implementing the requested changes.
 ```
 
 ### Implementation Details

@@ -671,7 +671,7 @@
     },
     "AssignToAgentOutput": {
       "title": "Assign to Agent Output",
-      "description": "Output for assigning a GitHub Copilot agent to an issue or pull request",
+      "description": "Output for assigning a GitHub Copilot coding agent to an issue or pull request",
       "type": "object",
       "oneOf": [
         {

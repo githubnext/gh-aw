@@ -272,7 +272,7 @@ interface AssignMilestoneItem extends BaseSafeOutputItem {
 }
 
 /**
- * JSONL item for assigning a GitHub Copilot agent to an issue or project item
+ * JSONL item for assigning a GitHub Copilot coding agent to an issue or project item
  */
 interface AssignToAgentItem extends BaseSafeOutputItem {
   type: "assign_to_agent";

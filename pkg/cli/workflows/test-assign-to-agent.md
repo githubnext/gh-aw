@@ -17,7 +17,7 @@ permissions:
   issues: read
   pull-requests: read
 
-# NOTE: Assigning Copilot agents requires:
+# NOTE: Assigning Copilot coding agent requires:
 # 1. A Personal Access Token (PAT) or GitHub App token with repo scope
 #    - The standard GITHUB_TOKEN does NOT have permission to assign bot agents
 #    - Create a PAT at: https://github.com/settings/tokens
@@ -48,9 +48,9 @@ This workflow tests the `assign_to_agent` safe output feature with automatic tar
 ## Task
 
 **For issues event:**
-Assign the Copilot agent to the triggering issue using the `assign_to_agent` tool from the `safeoutputs` MCP server. The issue number will be auto-resolved from the workflow context.
+Assign the Copilot coding agent to the triggering issue using the `assign_to_agent` tool from the `safeoutputs` MCP server. The issue number will be auto-resolved from the workflow context.
 
 **For workflow_dispatch:**
-Assign the Copilot agent to issue #${{ github.event.inputs.issue_number }} by providing the explicit issue number.
+Assign the Copilot coding agent to issue #${{ github.event.inputs.issue_number }} by providing the explicit issue number.
 
 The `assign_to_agent` tool will handle the actual assignment using the configured GH_AW_AGENT_TOKEN.
