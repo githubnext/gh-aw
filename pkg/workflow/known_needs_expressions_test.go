@@ -494,7 +494,7 @@ This workflow has custom jobs before and after activation.
 
 	// Find the substitution step and check it has the known needs expressions
 	substStepStart := strings.Index(lockStr, "- name: Substitute placeholders")
-	require.Greater(t, substStepStart, 0, "Substitution step not found")
+	require.Positive(t, substStepStart, "Substitution step not found")
 
 	// Get the next 100 lines after the substitution step
 	substSection := lockStr[substStepStart:]
@@ -519,14 +519,10 @@ This workflow has custom jobs before and after activation.
 
 	// Verify prompt creation step does NOT have the known needs expressions
 	promptStepStart := strings.Index(lockStr, "- name: Create prompt with built-in context")
-	require.Greater(t, promptStepStart, 0, "Prompt creation step not found")
+	require.Positive(t, promptStepStart, "Prompt creation step not found")
 
-	// Get the prompt creation section
-	promptSection := lockStr[promptStepStart:]
-	nextStepIdx = strings.Index(promptSection[50:], "- name:")
-	if nextStepIdx > 0 {
-		promptSection = promptSection[:50+nextStepIdx]
-	}
+	// Get the prompt creation section (not currently used but kept for potential future checks)
+	_ = lockStr[promptStepStart:]
 
 	// Prompt creation should NOT have the known needs expressions (only markdown-extracted ones)
 	// We can't make strong assertions here because markdown might contain needs expressions
