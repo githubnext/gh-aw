@@ -1305,8 +1305,8 @@ safe-outputs:
     max: 1                     # max assignments (default: 1)
     target: "triggering"       # "triggering" (default), "*", or number
     target-repo: "owner/repo"  # where the issue lives (cross-repository)
-    pr-repo: "owner/repo"      # where the PR should be created (may differ from issue repo)
-    allowed-pr-repos: [owner/repo1, owner/repo2]  # additional allowed PR repositories
+    pull-request-repo: "owner/repo"      # where the PR should be created (may differ from issue repo)
+    allowed-pull-request-repos: [owner/repo1, owner/repo2]  # additional allowed PR repositories
 ```
 
 **Behavior:**
@@ -1315,15 +1315,15 @@ safe-outputs:
 - `target: "123"` - Always uses issue/PR #123
 
 **Cross-Repository PR Creation:**
-The `pr-repo` parameter allows you to create pull requests in a different repository than where the issue lives. This is useful when:
+The `pull-request-repo` parameter allows you to create pull requests in a different repository than where the issue lives. This is useful when:
 - Issues are tracked in a central repository but code lives in separate repositories
 - You want to separate issue tracking from code repositories
 
-When `pr-repo` is configured, Copilot will create the pull request in the specified repository instead of the issue's repository. The issue repository is determined by `target-repo` or defaults to the workflow's repository.
+When `pull-request-repo` is configured, Copilot will create the pull request in the specified repository instead of the issue's repository. The issue repository is determined by `target-repo` or defaults to the workflow's repository.
 
-You can also specify `pr_repo` on a per-assignment basis in the agent output using the `assign_to_agent` tool:
+You can also specify `pull_request_repo` on a per-assignment basis in the agent output using the `assign_to_agent` tool:
 ```python
-assign_to_agent(issue_number=123, agent="copilot", pr_repo="owner/codebase-repo")
+assign_to_agent(issue_number=123, agent="copilot", pull_request_repo="owner/codebase-repo")
 ```
 
 **Assignee Filtering:**

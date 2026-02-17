@@ -5380,16 +5380,16 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository agent assignment. Takes precedence over trial target repo settings."
                 },
-                "pr-repo": {
+                "pull-request-repo": {
                   "type": "string",
                   "description": "Target repository where the pull request should be created, in format 'owner/repo'. If omitted, the PR will be created in the same repository as the issue (specified by target-repo or the workflow's repository). This allows issues and code to live in different repositories."
                 },
-                "allowed-pr-repos": {
+                "allowed-pull-request-repos": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   },
-                  "description": "List of additional repositories that pull requests can be created in (in addition to pr-repo). Each entry should be in 'owner/repo' format."
+                  "description": "List of additional repositories that pull requests can be created in (in addition to pull-request-repo). Each entry should be in 'owner/repo' format."
                 },
                 "ignore-if-error": {
                   "type": "boolean",

@@ -8,13 +8,13 @@ var assignToAgentLog = logger.New("workflow:assign_to_agent")
 
 // AssignToAgentConfig holds configuration for assigning agents to issues from agent output
 type AssignToAgentConfig struct {
-	BaseSafeOutputConfig   `yaml:",inline"`
-	SafeOutputTargetConfig `yaml:",inline"`
-	DefaultAgent           string   `yaml:"name,omitempty"`             // Default agent to assign (e.g., "copilot")
-	Allowed                []string `yaml:"allowed,omitempty"`          // Optional list of allowed agent names. If omitted, any agents are allowed.
-	IgnoreIfError          bool     `yaml:"ignore-if-error,omitempty"`  // If true, workflow continues when agent assignment fails
-	PRRepoSlug             string   `yaml:"pr-repo,omitempty"`          // Target repository for PR creation in format "owner/repo" (where the issue lives may differ)
-	AllowedPRRepos         []string `yaml:"allowed-pr-repos,omitempty"` // List of additional repositories that PRs can be created in (in addition to pr-repo)
+	BaseSafeOutputConfig    `yaml:",inline"`
+	SafeOutputTargetConfig  `yaml:",inline"`
+	DefaultAgent            string   `yaml:"name,omitempty"`                       // Default agent to assign (e.g., "copilot")
+	Allowed                 []string `yaml:"allowed,omitempty"`                    // Optional list of allowed agent names. If omitted, any agents are allowed.
+	IgnoreIfError           bool     `yaml:"ignore-if-error,omitempty"`            // If true, workflow continues when agent assignment fails
+	PullRequestRepoSlug     string   `yaml:"pull-request-repo,omitempty"`          // Target repository for PR creation in format "owner/repo" (where the issue lives may differ)
+	AllowedPullRequestRepos []string `yaml:"allowed-pull-request-repos,omitempty"` // List of additional repositories that PRs can be created in (in addition to pull-request-repo)
 }
 
 // parseAssignToAgentConfig handles assign-to-agent configuration
@@ -39,7 +39,7 @@ func (c *Compiler) parseAssignToAgentConfig(outputMap map[string]any) *AssignToA
 		config.Max = 1
 	}
 
-	assignToAgentLog.Printf("Parsed assign-to-agent config: default_agent=%s, allowed_count=%d, target=%s, max=%d, pr_repo=%s", config.DefaultAgent, len(config.Allowed), config.Target, config.Max, config.PRRepoSlug)
+	assignToAgentLog.Printf("Parsed assign-to-agent config: default_agent=%s, allowed_count=%d, target=%s, max=%d, pull_request_repo=%s", config.DefaultAgent, len(config.Allowed), config.Target, config.Max, config.PullRequestRepoSlug)
 
 	return &config
 }

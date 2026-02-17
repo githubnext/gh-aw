@@ -56,8 +56,8 @@ describe("assign_to_agent", () => {
     delete process.env.GH_AW_TARGET_REPO;
     delete process.env.GH_AW_AGENT_IGNORE_IF_ERROR;
     delete process.env.GH_AW_TEMPORARY_ID_MAP;
-    delete process.env.GH_AW_AGENT_PR_REPO;
-    delete process.env.GH_AW_AGENT_ALLOWED_PR_REPOS;
+    delete process.env.GH_AW_AGENT_PULL_REQUEST_REPO;
+    delete process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS;
 
     // Reset context to default
     mockContext.eventName = "issues";
@@ -1147,9 +1147,9 @@ describe("assign_to_agent", () => {
     }, 20000);
   });
 
-  it("should handle pr-repo configuration correctly", async () => {
-    process.env.GH_AW_AGENT_PR_REPO = "test-owner/pr-repo";
-    process.env.GH_AW_AGENT_ALLOWED_PR_REPOS = "test-owner/pr-repo";
+  it("should handle pull-request-repo configuration correctly", async () => {
+    process.env.GH_AW_AGENT_PULL_REQUEST_REPO = "test-owner/pull-request-repo";
+    process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS = "test-owner/pull-request-repo";
     setAgentOutput({
       items: [
         {
@@ -1166,7 +1166,7 @@ describe("assign_to_agent", () => {
       // Get PR repository ID
       .mockResolvedValueOnce({
         repository: {
-          id: "pr-repo-id",
+          id: "pull-request-repo-id",
         },
       })
       // Find agent
@@ -1195,25 +1195,25 @@ describe("assign_to_agent", () => {
 
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using PR repository: test-owner/pr-repo"));
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("PR repository ID: pr-repo-id"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using pull request repository: test-owner/pull-request-repo"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Pull request repository ID: pull-request-repo-id"));
 
     // Verify the mutation was called with agentAssignment
     const lastGraphQLCall = mockGithub.graphql.mock.calls[mockGithub.graphql.mock.calls.length - 1];
     expect(lastGraphQLCall[0]).toContain("agentAssignment");
     expect(lastGraphQLCall[0]).toContain("targetRepositoryId");
-    expect(lastGraphQLCall[1].targetRepoId).toBe("pr-repo-id");
+    expect(lastGraphQLCall[1].targetRepoId).toBe("pull-request-repo-id");
   });
 
-  it("should handle per-item pr_repo parameter", async () => {
-    process.env.GH_AW_AGENT_ALLOWED_PR_REPOS = "test-owner/item-pr-repo";
+  it("should handle per-item pull_request_repo parameter", async () => {
+    process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS = "test-owner/item-pull-request-repo";
     setAgentOutput({
       items: [
         {
           type: "assign_to_agent",
           issue_number: 42,
           agent: "copilot",
-          pr_repo: "test-owner/item-pr-repo",
+          pull_request_repo: "test-owner/item-pull-request-repo",
         },
       ],
       errors: [],
@@ -1224,7 +1224,7 @@ describe("assign_to_agent", () => {
       // Get item PR repository ID
       .mockResolvedValueOnce({
         repository: {
-          id: "item-pr-repo-id",
+          id: "item-pull-request-repo-id",
         },
       })
       // Find agent
@@ -1253,10 +1253,10 @@ describe("assign_to_agent", () => {
 
     await eval(`(async () => { ${assignToAgentScript}; await main(); })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using per-item PR repository: test-owner/item-pr-repo"));
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using per-item pull request repository: test-owner/item-pull-request-repo"));
 
     // Verify the mutation was called with per-item PR repo ID
     const lastGraphQLCall = mockGithub.graphql.mock.calls[mockGithub.graphql.mock.calls.length - 1];
-    expect(lastGraphQLCall[1].targetRepoId).toBe("item-pr-repo-id");
+    expect(lastGraphQLCall[1].targetRepoId).toBe("item-pull-request-repo-id");
   });
 });

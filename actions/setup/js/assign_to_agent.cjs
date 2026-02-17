@@ -121,47 +121,47 @@ async function main() {
   // with the correct token (GH_AW_AGENT_TOKEN by default)
 
   // Get PR repository configuration (where the PR should be created, may differ from issue repo)
-  const prRepoEnv = process.env.GH_AW_AGENT_PR_REPO?.trim();
-  let prOwner = null;
-  let prRepo = null;
-  let prRepoId = null;
+  const pullRequestRepoEnv = process.env.GH_AW_AGENT_PULL_REQUEST_REPO?.trim();
+  let pullRequestOwner = null;
+  let pullRequestRepo = null;
+  let pullRequestRepoId = null;
 
   // Get allowed PR repos configuration for cross-repo validation
-  const allowedPRReposEnv = process.env.GH_AW_AGENT_ALLOWED_PR_REPOS?.trim();
-  const allowedPRRepos = parseAllowedRepos(allowedPRReposEnv);
+  const allowedPullRequestReposEnv = process.env.GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS?.trim();
+  const allowedPullRequestRepos = parseAllowedRepos(allowedPullRequestReposEnv);
 
-  if (prRepoEnv) {
-    const parts = prRepoEnv.split("/");
+  if (pullRequestRepoEnv) {
+    const parts = pullRequestRepoEnv.split("/");
     if (parts.length === 2) {
       // Validate PR repository against allowlist
-      const repoValidation = validateRepo(prRepoEnv, defaultRepo, allowedPRRepos);
+      const repoValidation = validateRepo(pullRequestRepoEnv, defaultRepo, allowedPullRequestRepos);
       if (!repoValidation.valid) {
         core.setFailed(`E004: ${repoValidation.error}`);
         return;
       }
 
-      prOwner = parts[0];
-      prRepo = parts[1];
-      core.info(`Using PR repository: ${prOwner}/${prRepo}`);
+      pullRequestOwner = parts[0];
+      pullRequestRepo = parts[1];
+      core.info(`Using pull request repository: ${pullRequestOwner}/${pullRequestRepo}`);
 
       // Fetch the repository ID for the PR repo (needed for GraphQL agentAssignment)
       try {
-        const prRepoQuery = `
+        const pullRequestRepoQuery = `
           query($owner: String!, $name: String!) {
             repository(owner: $owner, name: $name) {
               id
             }
           }
         `;
-        const prRepoResponse = await github.graphql(prRepoQuery, { owner: prOwner, name: prRepo });
-        prRepoId = prRepoResponse.repository.id;
-        core.info(`PR repository ID: ${prRepoId}`);
+        const pullRequestRepoResponse = await github.graphql(pullRequestRepoQuery, { owner: pullRequestOwner, name: pullRequestRepo });
+        pullRequestRepoId = pullRequestRepoResponse.repository.id;
+        core.info(`Pull request repository ID: ${pullRequestRepoId}`);
       } catch (error) {
-        core.setFailed(`Failed to fetch PR repository ID for ${prOwner}/${prRepo}: ${getErrorMessage(error)}`);
+        core.setFailed(`Failed to fetch pull request repository ID for ${pullRequestOwner}/${pullRequestRepo}: ${getErrorMessage(error)}`);
         return;
       }
     } else {
-      core.warning(`Invalid pr-repo format: ${prRepoEnv}. Expected owner/repo. PRs will be created in issue repository.`);
+      core.warning(`Invalid pull-request-repo format: ${pullRequestRepoEnv}. Expected owner/repo. PRs will be created in issue repository.`);
     }
   }
 
@@ -226,52 +226,52 @@ async function main() {
     const hasExplicitTarget = itemForTarget.issue_number != null || itemForTarget.pull_number != null;
     const effectiveTarget = hasExplicitTarget ? "*" : targetConfig;
 
-    // Handle per-item pr_repo parameter (where the PR should be created)
-    // This overrides the global pr-repo configuration if specified
-    let effectivePRRepoId = prRepoId;
-    if (item.pr_repo) {
-      const itemPRRepo = item.pr_repo.trim();
-      const prRepoParts = itemPRRepo.split("/");
-      if (prRepoParts.length === 2) {
+    // Handle per-item pull_request_repo parameter (where the PR should be created)
+    // This overrides the global pull-request-repo configuration if specified
+    let effectivePullRequestRepoId = pullRequestRepoId;
+    if (item.pull_request_repo) {
+      const itemPullRequestRepo = item.pull_request_repo.trim();
+      const pullRequestRepoParts = itemPullRequestRepo.split("/");
+      if (pullRequestRepoParts.length === 2) {
         // Validate PR repository against allowlist
-        const prRepoValidation = validateRepo(itemPRRepo, defaultRepo, allowedPRRepos);
-        if (!prRepoValidation.valid) {
-          core.error(`E004: ${prRepoValidation.error}`);
+        const pullRequestRepoValidation = validateRepo(itemPullRequestRepo, defaultRepo, allowedPullRequestRepos);
+        if (!pullRequestRepoValidation.valid) {
+          core.error(`E004: ${pullRequestRepoValidation.error}`);
           results.push({
             issue_number: item.issue_number || null,
             pull_number: item.pull_number || null,
             agent: agentName,
             success: false,
-            error: prRepoValidation.error,
+            error: pullRequestRepoValidation.error,
           });
           continue;
         }
 
         // Fetch the repository ID for the item's PR repo
         try {
-          const itemPRRepoQuery = `
+          const itemPullRequestRepoQuery = `
             query($owner: String!, $name: String!) {
               repository(owner: $owner, name: $name) {
                 id
               }
             }
           `;
-          const itemPRRepoResponse = await github.graphql(itemPRRepoQuery, { owner: prRepoParts[0], name: prRepoParts[1] });
-          effectivePRRepoId = itemPRRepoResponse.repository.id;
-          core.info(`Using per-item PR repository: ${itemPRRepo} (ID: ${effectivePRRepoId})`);
+          const itemPullRequestRepoResponse = await github.graphql(itemPullRequestRepoQuery, { owner: pullRequestRepoParts[0], name: pullRequestRepoParts[1] });
+          effectivePullRequestRepoId = itemPullRequestRepoResponse.repository.id;
+          core.info(`Using per-item pull request repository: ${itemPullRequestRepo} (ID: ${effectivePullRequestRepoId})`);
         } catch (error) {
-          core.error(`Failed to fetch PR repository ID for ${itemPRRepo}: ${getErrorMessage(error)}`);
+          core.error(`Failed to fetch pull request repository ID for ${itemPullRequestRepo}: ${getErrorMessage(error)}`);
           results.push({
             issue_number: item.issue_number || null,
             pull_number: item.pull_number || null,
             agent: agentName,
             success: false,
-            error: `Failed to fetch PR repository ID for ${itemPRRepo}`,
+            error: `Failed to fetch pull request repository ID for ${itemPullRequestRepo}`,
           });
           continue;
         }
       } else {
-        core.warning(`Invalid pr_repo format: ${itemPRRepo}. Expected owner/repo. Using global pr-repo if configured.`);
+        core.warning(`Invalid pull_request_repo format: ${itemPullRequestRepo}. Expected owner/repo. Using global pull-request-repo if configured.`);
       }
     }
 
@@ -402,7 +402,7 @@ async function main() {
       // Pass the allowed list so existing assignees are filtered before calling replaceActorsForAssignable
       // Pass the PR repo ID if configured (to specify where the PR should be created)
       core.info(`Assigning ${agentName} coding agent to ${type} #${number}...`);
-      const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents, effectivePRRepoId);
+      const success = await assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents, effectivePullRequestRepoId);
 
       if (!success) {
         throw new Error(`Failed to assign ${agentName} via GraphQL`);

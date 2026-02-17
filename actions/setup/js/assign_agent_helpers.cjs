@@ -246,10 +246,10 @@ async function getPullRequestDetails(owner, repo, pullNumber) {
  * @param {Array<{id: string, login: string}>} currentAssignees - List of current assignees with id and login
  * @param {string} agentName - Agent name for error messages
  * @param {string[]|null} allowedAgents - Optional list of allowed agent names. If provided, filters out non-allowed agents from current assignees.
- * @param {string|null} prRepoId - Optional PR repository ID for specifying where the PR should be created (GitHub agentAssignment.targetRepositoryId)
+ * @param {string|null} pullRequestRepoId - Optional pull request repository ID for specifying where the PR should be created (GitHub agentAssignment.targetRepositoryId)
  * @returns {Promise<boolean>} True if successful
  */
-async function assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents = null, prRepoId = null) {
+async function assignAgentToIssue(assignableId, agentId, currentAssignees, agentName, allowedAgents = null, pullRequestRepoId = null) {
   // Filter current assignees based on allowed list (if configured)
   let filteredAssignees = currentAssignees;
   if (allowedAgents && allowedAgents.length > 0) {
@@ -272,11 +272,11 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
   // Build actor IDs array - include new agent and preserve filtered assignees
   const actorIds = [agentId, ...filteredAssignees.map(a => a.id).filter(id => id !== agentId)];
 
-  // Build the mutation - conditionally include agentAssignment if prRepoId is provided
+  // Build the mutation - conditionally include agentAssignment if pullRequestRepoId is provided
   let mutation;
   let variables;
 
-  if (prRepoId) {
+  if (pullRequestRepoId) {
     // Include agentAssignment with targetRepositoryId for cross-repo PR creation
     mutation = `
       mutation($assignableId: ID!, $actorIds: [ID!]!, $targetRepoId: ID!) {
@@ -294,7 +294,7 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
     variables = {
       assignableId: assignableId,
       actorIds,
-      targetRepoId: prRepoId,
+      targetRepoId: pullRequestRepoId,
     };
   } else {
     // Standard mutation without agentAssignment
@@ -317,7 +317,7 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
   try {
     core.info("Using built-in github object for mutation");
 
-    core.debug(`GraphQL mutation with variables: assignableId=${assignableId}, actorIds=${JSON.stringify(actorIds)}${prRepoId ? `, targetRepoId=${prRepoId}` : ""}`);
+    core.debug(`GraphQL mutation with variables: assignableId=${assignableId}, actorIds=${JSON.stringify(actorIds)}${pullRequestRepoId ? `, targetRepoId=${pullRequestRepoId}` : ""}`);
     const response = await github.graphql(mutation, {
       ...variables,
       headers: {

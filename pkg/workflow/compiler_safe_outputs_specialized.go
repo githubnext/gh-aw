@@ -49,20 +49,20 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 	}
 
 	// Add PR repository configuration environment variable (where the PR should be created)
-	if cfg.PRRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_PR_REPO: %q\n", cfg.PRRepoSlug))
+	if cfg.PullRequestRepoSlug != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_PULL_REQUEST_REPO: %q\n", cfg.PullRequestRepoSlug))
 	}
 
 	// Add allowed PR repos list environment variable (comma-separated)
-	if len(cfg.AllowedPRRepos) > 0 {
-		allowedPRReposStr := ""
-		for i, repo := range cfg.AllowedPRRepos {
+	if len(cfg.AllowedPullRequestRepos) > 0 {
+		allowedPullRequestReposStr := ""
+		for i, repo := range cfg.AllowedPullRequestRepos {
 			if i > 0 {
-				allowedPRReposStr += ","
+				allowedPullRequestReposStr += ","
 			}
-			allowedPRReposStr += repo
+			allowedPullRequestReposStr += repo
 		}
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_ALLOWED_PR_REPOS: %q\n", allowedPRReposStr))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_ALLOWED_PULL_REQUEST_REPOS: %q\n", allowedPullRequestReposStr))
 	}
 
 	// Allow assign_to_agent to reference issues created earlier in the same run via temporary IDs (aw_...)
