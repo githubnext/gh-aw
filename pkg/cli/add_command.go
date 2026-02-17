@@ -18,7 +18,6 @@ var addLog = logger.New("cli:add_command")
 
 // AddOptions contains all configuration options for adding workflows
 type AddOptions struct {
-	Number                 int
 	Verbose                bool
 	Quiet                  bool
 	EngineOverride         string
@@ -92,7 +91,6 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			workflows := args
-			numberFlag, _ := cmd.Flags().GetInt("number")
 			engineOverride, _ := cmd.Flags().GetString("engine")
 			nameFlag, _ := cmd.Flags().GetString("name")
 			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
@@ -115,14 +113,13 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			// Determine if we should use interactive mode
 			// Interactive mode is the default for TTY unless:
 			// - --non-interactive flag is set
-			// - Any of the batch/automation flags are set (--create-pull-request, --force, --name, --number > 1, --append)
+			// - Any of the batch/automation flags are set (--create-pull-request, --force, --name, --append)
 			// - Not a TTY (piped input/output)
 			// - In CI environment
 			useInteractive := !nonInteractive &&
 				!prFlag &&
 				!forceFlag &&
 				nameFlag == "" &&
-				numberFlag == 1 &&
 				appendText == "" &&
 				tty.IsStdoutTerminal() &&
 				os.Getenv("CI") == "" &&
@@ -135,7 +132,6 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 
 			// Handle normal (non-interactive) mode
 			opts := AddOptions{
-				Number:                 numberFlag,
 				Verbose:                verbose,
 				EngineOverride:         engineOverride,
 				Name:                   nameFlag,
@@ -153,9 +149,6 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			return err
 		},
 	}
-
-	// Add number flag to add command
-	cmd.Flags().Int("number", 1, "Create multiple numbered copies")
 
 	// Add name flag to add command
 	cmd.Flags().StringP("name", "n", "", "Specify name for the added workflow (without .md extension)")
@@ -383,15 +376,9 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 
 	if opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding workflow: %s", workflowSpec.String())))
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Number of copies: %d", opts.Number)))
 		if opts.Force {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Force flag enabled: will overwrite existing files"))
 		}
-	}
-
-	// Validate number of copies
-	if opts.Number < 1 {
-		return fmt.Errorf("number of copies must be a positive integer")
 	}
 
 	if opts.Verbose {
@@ -477,156 +464,146 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 		}
 	}
 
-	// Process each copy
-	for i := 1; i <= opts.Number; i++ {
-		var destFile string
-		if opts.Number == 1 {
-			destFile = filepath.Join(githubWorkflowsDir, workflowName+".md")
-		} else {
-			destFile = filepath.Join(githubWorkflowsDir, fmt.Sprintf("%s-%d.md", workflowName, i))
+	// Process the workflow
+	destFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
+
+	fileExists := false
+	if _, err := os.Stat(destFile); err == nil {
+		fileExists = true
+		if !opts.Force {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Destination file '%s' already exists, skipping.", destFile)))
+			return nil
 		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Overwriting existing file: %s", destFile)))
+	}
 
-		fileExists := false
-		if _, err := os.Stat(destFile); err == nil {
-			fileExists = true
-			if !opts.Force {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Destination file '%s' already exists, skipping.", destFile)))
-				continue
-			}
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Overwriting existing file: %s", destFile)))
-		}
+	content := string(sourceContent)
 
-		content := string(sourceContent)
-		if opts.Number > 1 {
-			content = updateWorkflowTitle(content, i)
-		}
-
-		// Add source field to frontmatter
-		commitSHA := ""
-		if sourceInfo != nil {
-			commitSHA = sourceInfo.CommitSHA
-		}
-		sourceString := buildSourceStringWithCommitSHA(workflowSpec, commitSHA)
-		if sourceString != "" {
-			updatedContent, err := addSourceToWorkflow(content, sourceString)
-			if err != nil {
-				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to add source field: %v", err)))
-				}
-			} else {
-				content = updatedContent
-			}
-
-			// Process imports field and replace with workflowspec
-			processedImportsContent, err := processImportsWithWorkflowSpec(content, workflowSpec, commitSHA, opts.Verbose)
-			if err != nil {
-				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process imports: %v", err)))
-				}
-			} else {
-				content = processedImportsContent
-			}
-
-			// Process @include directives and replace with workflowspec
-			// For local workflows, use the workflow's directory as the base path
-			includeSourceDir := ""
-			if sourceInfo != nil && sourceInfo.IsLocal {
-				includeSourceDir = filepath.Dir(workflowSpec.WorkflowPath)
-			}
-			processedContent, err := processIncludesWithWorkflowSpec(content, workflowSpec, commitSHA, includeSourceDir, opts.Verbose)
-			if err != nil {
-				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process includes: %v", err)))
-				}
-			} else {
-				content = processedContent
-			}
-		}
-
-		// Handle stop-after field modifications
-		if opts.NoStopAfter {
-			cleanedContent, err := RemoveFieldFromOnTrigger(content, "stop-after")
-			if err != nil {
-				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove stop-after field: %v", err)))
-				}
-			} else {
-				content = cleanedContent
-				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed stop-after field from workflow"))
-				}
-			}
-		} else if opts.StopAfter != "" {
-			updatedContent, err := SetFieldInOnTrigger(content, "stop-after", opts.StopAfter)
-			if err != nil {
-				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to set stop-after field: %v", err)))
-				}
-			} else {
-				content = updatedContent
-				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Set stop-after field to: %s", opts.StopAfter)))
-				}
-			}
-		}
-
-		// Handle engine override - add/update the engine field in frontmatter
-		if opts.EngineOverride != "" {
-			updatedContent, err := addEngineToWorkflow(content, opts.EngineOverride)
-			if err != nil {
-				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to set engine field: %v", err)))
-				}
-			} else {
-				content = updatedContent
-				if opts.Verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Set engine field to: %s", opts.EngineOverride)))
-				}
-			}
-		}
-
-		// Append text if provided
-		if opts.AppendText != "" {
-			if !strings.HasSuffix(content, "\n") {
-				content += "\n"
-			}
-			content += "\n" + opts.AppendText
-		}
-
-		// Track the file
-		if tracker != nil {
-			if fileExists {
-				tracker.TrackModified(destFile)
-			} else {
-				tracker.TrackCreated(destFile)
-			}
-		}
-
-		// Write the file
-		if err := os.WriteFile(destFile, []byte(content), 0600); err != nil {
-			return fmt.Errorf("failed to write destination file '%s': %w", destFile, err)
-		}
-
-		// Show output
-		if !opts.Quiet {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added workflow: %s", destFile)))
-
-			if description := ExtractWorkflowDescription(content); description != "" {
-				fmt.Fprintln(os.Stderr, "")
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(description))
-				fmt.Fprintln(os.Stderr, "")
-			}
-		}
-
-		// Compile the workflow
-		if tracker != nil {
-			if err := compileWorkflowWithTracking(destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+	// Add source field to frontmatter
+	commitSHA := ""
+	if sourceInfo != nil {
+		commitSHA = sourceInfo.CommitSHA
+	}
+	sourceString := buildSourceStringWithCommitSHA(workflowSpec, commitSHA)
+	if sourceString != "" {
+		updatedContent, err := addSourceToWorkflow(content, sourceString)
+		if err != nil {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to add source field: %v", err)))
 			}
 		} else {
-			if err := compileWorkflow(destFile, opts.Verbose, opts.Quiet, opts.EngineOverride); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+			content = updatedContent
+		}
+
+		// Process imports field and replace with workflowspec
+		processedImportsContent, err := processImportsWithWorkflowSpec(content, workflowSpec, commitSHA, opts.Verbose)
+		if err != nil {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process imports: %v", err)))
 			}
+		} else {
+			content = processedImportsContent
+		}
+
+		// Process @include directives and replace with workflowspec
+		// For local workflows, use the workflow's directory as the base path
+		includeSourceDir := ""
+		if sourceInfo != nil && sourceInfo.IsLocal {
+			includeSourceDir = filepath.Dir(workflowSpec.WorkflowPath)
+		}
+		processedContent, err := processIncludesWithWorkflowSpec(content, workflowSpec, commitSHA, includeSourceDir, opts.Verbose)
+		if err != nil {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process includes: %v", err)))
+			}
+		} else {
+			content = processedContent
+		}
+	}
+
+	// Handle stop-after field modifications
+	if opts.NoStopAfter {
+		cleanedContent, err := RemoveFieldFromOnTrigger(content, "stop-after")
+		if err != nil {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove stop-after field: %v", err)))
+			}
+		} else {
+			content = cleanedContent
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed stop-after field from workflow"))
+			}
+		}
+	} else if opts.StopAfter != "" {
+		updatedContent, err := SetFieldInOnTrigger(content, "stop-after", opts.StopAfter)
+		if err != nil {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to set stop-after field: %v", err)))
+			}
+		} else {
+			content = updatedContent
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Set stop-after field to: %s", opts.StopAfter)))
+			}
+		}
+	}
+
+	// Handle engine override - add/update the engine field in frontmatter
+	if opts.EngineOverride != "" {
+		updatedContent, err := addEngineToWorkflow(content, opts.EngineOverride)
+		if err != nil {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to set engine field: %v", err)))
+			}
+		} else {
+			content = updatedContent
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Set engine field to: %s", opts.EngineOverride)))
+			}
+		}
+	}
+
+	// Append text if provided
+	if opts.AppendText != "" {
+		if !strings.HasSuffix(content, "\n") {
+			content += "\n"
+		}
+		content += "\n" + opts.AppendText
+	}
+
+	// Track the file
+	if tracker != nil {
+		if fileExists {
+			tracker.TrackModified(destFile)
+		} else {
+			tracker.TrackCreated(destFile)
+		}
+	}
+
+	// Write the file
+	if err := os.WriteFile(destFile, []byte(content), 0600); err != nil {
+		return fmt.Errorf("failed to write destination file '%s': %w", destFile, err)
+	}
+
+	// Show output
+	if !opts.Quiet {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added workflow: %s", destFile)))
+
+		if description := ExtractWorkflowDescription(content); description != "" {
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(description))
+			fmt.Fprintln(os.Stderr, "")
+		}
+	}
+
+	// Compile the workflow
+	if tracker != nil {
+		if err := compileWorkflowWithTracking(destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+		}
+	} else {
+		if err := compileWorkflow(destFile, opts.Verbose, opts.Quiet, opts.EngineOverride); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 		}
 	}
 

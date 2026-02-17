@@ -88,7 +88,7 @@ This is a test workflow.`
 		os.Remove(".gitattributes")
 
 		// Call addWorkflows with noGitattributes=false
-		opts := AddOptions{Number: 1}
+		opts := AddOptions{}
 		err := addWorkflows([]*ResolvedWorkflow{resolved}, opts)
 		if err != nil {
 			// Log any error but don't fail - we're testing gitattributes behavior
@@ -117,7 +117,7 @@ This is a test workflow.`
 		// Remove any existing .gitattributes
 		os.Remove(".gitattributes")
 
-		opts := AddOptions{Number: 1, NoGitattributes: true}
+		opts := AddOptions{NoGitattributes: true}
 		// Call addWorkflows with noGitattributes=true
 		err := addWorkflows([]*ResolvedWorkflow{resolved}, opts)
 		if err != nil {
@@ -140,7 +140,7 @@ This is a test workflow.`
 			t.Fatalf("Failed to create .gitattributes: %v", err)
 		}
 
-		opts := AddOptions{Number: 1, NoGitattributes: true}
+		opts := AddOptions{NoGitattributes: true}
 		// Call addWorkflows with noGitattributes=true
 		err := addWorkflows([]*ResolvedWorkflow{resolved}, opts)
 		if err != nil {

@@ -137,12 +137,12 @@ func TestFetchWorkflowFromSource_RemoteRoutingWithInvalidSlug(t *testing.T) {
 
 func TestFetchIncludeFromSource_WorkflowSpecParsing(t *testing.T) {
 	tests := []struct {
-		name            string
-		includePath     string
-		baseSpec        *WorkflowSpec
-		expectSection   string
-		expectError     bool
-		errorContains   string
+		name          string
+		includePath   string
+		baseSpec      *WorkflowSpec
+		expectSection string
+		expectError   bool
+		errorContains string
 	}{
 		{
 			name:          "two parts falls through to cannot resolve",
@@ -169,17 +169,17 @@ func TestFetchIncludeFromSource_WorkflowSpecParsing(t *testing.T) {
 			errorContains: "",
 		},
 		{
-			name:        "relative path without base spec",
-			includePath: "shared/file.md",
-			baseSpec:    nil,
+			name:          "relative path without base spec",
+			includePath:   "shared/file.md",
+			baseSpec:      nil,
 			expectSection: "",
 			expectError:   true,
 			errorContains: "cannot resolve include path",
 		},
 		{
-			name:        "relative path with section but no base spec",
-			includePath: "shared/file.md#my-section",
-			baseSpec:    nil,
+			name:          "relative path with section but no base spec",
+			includePath:   "shared/file.md#my-section",
+			baseSpec:      nil,
 			expectSection: "#my-section",
 			expectError:   true,
 			errorContains: "cannot resolve include path",

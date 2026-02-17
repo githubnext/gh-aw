@@ -113,87 +113,6 @@ func TestExtractWorkflowNameFromFile_NonExistentFile(t *testing.T) {
 	}
 }
 
-func TestUpdateWorkflowTitle(t *testing.T) {
-	tests := []struct {
-		name     string
-		content  string
-		number   int
-		expected string
-	}{
-		{
-			name: "content with H1 header",
-			content: `---
-title: Test
----
-
-# Daily Test Coverage
-
-This is a workflow.`,
-			number: 2,
-			expected: `---
-title: Test
----
-
-# Daily Test Coverage 2
-
-This is a workflow.`,
-		},
-		{
-			name: "content with H1 header with extra spaces",
-			content: `   # Weekly Research   
-
-Content here.`,
-			number: 3,
-			expected: `# # Weekly Research 3
-
-Content here.`,
-		},
-		{
-			name: "content without H1 header",
-			content: `## H2 Header
-
-Content without H1.`,
-			number: 1,
-			expected: `## H2 Header
-
-Content without H1.`,
-		},
-		{
-			name:     "empty content",
-			content:  "",
-			number:   1,
-			expected: "",
-		},
-		{
-			name: "multiple H1 headers - only first is modified",
-			content: `# First Header
-
-Some content.
-
-# Second Header
-
-More content.`,
-			number: 5,
-			expected: `# First Header 5
-
-Some content.
-
-# Second Header
-
-More content.`,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := updateWorkflowTitle(tt.content, tt.number)
-			if result != tt.expected {
-				t.Errorf("Expected:\n%s\n\nGot:\n%s", tt.expected, result)
-			}
-		})
-	}
-}
-
 func TestIsGitRepo(t *testing.T) {
 	// Test in current directory (should be a git repo based on project setup)
 	result := isGitRepo()
@@ -347,21 +266,6 @@ This is a test workflow with some content.`
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = extractWorkflowNameFromFile(filePath)
-	}
-}
-
-func BenchmarkUpdateWorkflowTitle(b *testing.B) {
-	content := `---
-title: Test
----
-
-# Daily Test Coverage
-
-This is a workflow with some content that needs title updating.`
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = updateWorkflowTitle(content, i+1)
 	}
 }
 

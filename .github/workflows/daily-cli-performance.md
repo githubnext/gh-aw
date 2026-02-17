@@ -79,7 +79,7 @@ This will execute `make bench-performance` which runs targeted performance bench
 The targeted benchmarks include:
 - **Workflow compilation**: CompileSimpleWorkflow, CompileComplexWorkflow, CompileMCPWorkflow, CompileMemoryUsage
 - **Workflow phases**: ParseWorkflow, Validation, YAMLGeneration
-- **CLI helpers**: ExtractWorkflowNameFromFile, UpdateWorkflowTitle, FindIncludesInContent
+- **CLI helpers**: ExtractWorkflowNameFromFile, FindIncludesInContent
 
 **Step 3**: Copy results to our tracking directory
 

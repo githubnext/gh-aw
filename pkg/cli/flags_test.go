@@ -157,14 +157,6 @@ func TestShortFlagConsistency(t *testing.T) {
 			shouldExist:  true,
 			description:  "logs should have count short flag",
 		},
-		{
-			name:         "add command does NOT have -c for --number",
-			shortFlag:    "c",
-			longFlag:     "number",
-			commandSetup: func() *cobra.Command { return NewAddCommand(validateEngineStub) },
-			shouldExist:  false,
-			description:  "add should NOT have -c short flag for --number (conflict resolved)",
-		},
 
 		// -r flag (repo)
 		{
