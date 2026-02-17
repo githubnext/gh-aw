@@ -73,6 +73,7 @@ jobs:
             
             // Default blocklist - add usernames here
             const DEFAULT_BLOCKLIST = [
+              'aha8med7788-svg',
               // Add usernames to block here
               // 'spammer123',
               // 'bot-account',
