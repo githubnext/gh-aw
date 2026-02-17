@@ -958,35 +958,35 @@ func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *Workflow
 // runs before the agent job and needs independent access to workflow files for runtime imports during
 // prompt generation.
 func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData) []string {
-// Check if action-tag is specified - if so, skip checkout
-if data != nil && data.Features != nil {
-if actionTagVal, exists := data.Features["action-tag"]; exists {
-if actionTagStr, ok := actionTagVal.(string); ok && actionTagStr != "" {
-// action-tag is set, no checkout needed
-compilerActivationJobsLog.Print("Skipping .github checkout in activation: action-tag specified")
-return nil
-}
-}
-}
+	// Check if action-tag is specified - if so, skip checkout
+	if data != nil && data.Features != nil {
+		if actionTagVal, exists := data.Features["action-tag"]; exists {
+			if actionTagStr, ok := actionTagVal.(string); ok && actionTagStr != "" {
+				// action-tag is set, no checkout needed
+				compilerActivationJobsLog.Print("Skipping .github checkout in activation: action-tag specified")
+				return nil
+			}
+		}
+	}
 
-// Check if we have contents permission - without it, checkout is not possible
-permParser := NewPermissionsParser(data.Permissions)
-if !permParser.HasContentsReadAccess() {
-compilerActivationJobsLog.Print("Skipping .github checkout in activation: no contents read access")
-return nil
-}
+	// Check if we have contents permission - without it, checkout is not possible
+	permParser := NewPermissionsParser(data.Permissions)
+	if !permParser.HasContentsReadAccess() {
+		compilerActivationJobsLog.Print("Skipping .github checkout in activation: no contents read access")
+		return nil
+	}
 
-// For activation job, always add sparse checkout of .github and .agents folders
-// This is needed for runtime imports during prompt generation
-compilerActivationJobsLog.Print("Adding .github and .agents sparse checkout in activation job")
-return []string{
-"      - name: Checkout .github and .agents folders\n",
-fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")),
-"        with:\n",
-"          sparse-checkout: |\n",
-"            .github\n",
-"            .agents\n",
-"          fetch-depth: 1\n",
-"          persist-credentials: false\n",
-}
+	// For activation job, always add sparse checkout of .github and .agents folders
+	// This is needed for runtime imports during prompt generation
+	compilerActivationJobsLog.Print("Adding .github and .agents sparse checkout in activation job")
+	return []string{
+		"      - name: Checkout .github and .agents folders\n",
+		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")),
+		"        with:\n",
+		"          sparse-checkout: |\n",
+		"            .github\n",
+		"            .agents\n",
+		"          fetch-depth: 1\n",
+		"          persist-credentials: false\n",
+	}
 }
