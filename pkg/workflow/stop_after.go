@@ -146,7 +146,15 @@ func ExtractStopTimeFromLockFile(lockFilePath string) string {
 		return ""
 	}
 
-	lines := strings.Split(string(content), "\n")
+	// Validate lock file schema compatibility before parsing
+	// Non-critical operation - continue even if validation fails
+	contentStr := string(content)
+	if err := ValidateLockSchemaCompatibility(contentStr, lockFilePath); err != nil {
+		stopAfterLog.Printf("Warning: Lock file schema validation failed for %s: %v", lockFilePath, err)
+		// Continue anyway for legacy compatibility
+	}
+
+	lines := strings.Split(contentStr, "\n")
 	for _, line := range lines {
 		// Look for GH_AW_STOP_TIME: YYYY-MM-DD HH:MM:SS
 		// This is in the env section of the stop time check job

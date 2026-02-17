@@ -102,11 +102,18 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		}
 	}
 
-	// Add frontmatter hash if computed
-	// Format on a single line to minimize merge conflicts
+	// Add lock metadata (schema version + frontmatter hash) as JSON
+	// Single-line format to minimize merge conflicts and be unaffected by LOC changes
 	if frontmatterHash != "" {
 		yaml.WriteString("#\n")
-		fmt.Fprintf(yaml, "# frontmatter-hash: %s\n", frontmatterHash)
+		metadata := GenerateLockMetadata(frontmatterHash)
+		metadataJSON, err := metadata.ToJSON()
+		if err != nil {
+			// Fallback to legacy format if JSON serialization fails
+			fmt.Fprintf(yaml, "# frontmatter-hash: %s\n", frontmatterHash)
+		} else {
+			fmt.Fprintf(yaml, "# lock-metadata: %s\n", metadataJSON)
+		}
 	}
 
 	// Add stop-time comment if configured
