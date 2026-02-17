@@ -313,38 +313,6 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		}
 	}
 
-	// Step 1.6: Add all known needs.* expressions
-	// Since the markdown may change without recompilation (via runtime-import), we need to
-	// ensure all known needs.* variables are available for interpolation. This allows users
-	// to add new macros using needs.* variables without recompiling the workflow.
-	knownNeedsExpressions := generateKnownNeedsExpressions(data)
-	if len(knownNeedsExpressions) > 0 {
-		compilerYamlLog.Printf("Adding %d known needs.* expressions for runtime interpolation", len(knownNeedsExpressions))
-		// Merge known needs expressions with existing mappings
-		// We use a map to avoid duplicates (expressions from markdown take precedence)
-		expressionMap := make(map[string]*ExpressionMapping)
-		// First add known needs expressions (these have lower priority)
-		for _, mapping := range knownNeedsExpressions {
-			expressionMap[mapping.EnvVar] = mapping
-		}
-		// Then add/override with expressions from markdown (these have higher priority)
-		for _, mapping := range expressionMappings {
-			expressionMap[mapping.EnvVar] = mapping
-		}
-		// Convert back to slice in sorted order (by environment variable name) for deterministic output
-		expressionMappings = make([]*ExpressionMapping, 0, len(expressionMap))
-		// Get all keys and sort them
-		envVarNames := make([]string, 0, len(expressionMap))
-		for envVar := range expressionMap {
-			envVarNames = append(envVarNames, envVar)
-		}
-		sort.Strings(envVarNames)
-		// Add mappings in sorted order
-		for _, envVar := range envVarNames {
-			expressionMappings = append(expressionMappings, expressionMap[envVar])
-		}
-	}
-
 	// Step 2: Add runtime-import for main workflow markdown
 	// This allows users to edit the main workflow file without recompilation
 	workflowBasename := filepath.Base(c.markdownPath)
@@ -380,9 +348,42 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Append runtime-import macro after imported chunks
 	userPromptChunks = append(userPromptChunks, runtimeImportMacro)
 
-	// Generate a single unified prompt creation step
+	// Generate a single unified prompt creation step WITHOUT known needs expressions
+	// Known needs expressions are added later for the substitution step only
 	// This returns the combined expression mappings for use in the substitution step
 	allExpressionMappings := c.generateUnifiedPromptCreationStep(yaml, builtinSections, userPromptChunks, expressionMappings, data)
+
+	// Step 1.6: Add all known needs.* expressions for the substitution step ONLY
+	// Since the markdown may change without recompilation (via runtime-import), we need to
+	// ensure all known needs.* variables are available for interpolation in the substitution step.
+	// These are NOT added to the prompt creation step because they're not needed there.
+	knownNeedsExpressions := generateKnownNeedsExpressions(data)
+	if len(knownNeedsExpressions) > 0 {
+		compilerYamlLog.Printf("Adding %d known needs.* expressions for substitution step only", len(knownNeedsExpressions))
+		// Merge known needs expressions with the returned expression mappings for substitution
+		// We use a map to avoid duplicates (expressions from markdown take precedence)
+		expressionMap := make(map[string]*ExpressionMapping)
+		// First add known needs expressions (these have lower priority)
+		for _, mapping := range knownNeedsExpressions {
+			expressionMap[mapping.EnvVar] = mapping
+		}
+		// Then add/override with expressions from allExpressionMappings (these have higher priority)
+		for _, mapping := range allExpressionMappings {
+			expressionMap[mapping.EnvVar] = mapping
+		}
+		// Convert back to slice in sorted order (by environment variable name) for deterministic output
+		allExpressionMappings = make([]*ExpressionMapping, 0, len(expressionMap))
+		// Get all keys and sort them
+		envVarNames := make([]string, 0, len(expressionMap))
+		for envVar := range expressionMap {
+			envVarNames = append(envVarNames, envVar)
+		}
+		sort.Strings(envVarNames)
+		// Add mappings in sorted order
+		for _, envVar := range envVarNames {
+			allExpressionMappings = append(allExpressionMappings, expressionMap[envVar])
+		}
+	}
 
 	// Add combined interpolation and template rendering step
 	// This step processes runtime-import macros, so it must run BEFORE placeholder substitution
@@ -391,6 +392,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Generate JavaScript-based placeholder substitution step
 	// This MUST run AFTER interpolation because placeholders in runtime-imported files
 	// (like changeset.md) need to be substituted after the file is imported
+	// Now includes the known needs.* expressions
 	if len(allExpressionMappings) > 0 {
 		generatePlaceholderSubstitutionStep(yaml, allExpressionMappings, "      ")
 	}
