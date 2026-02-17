@@ -9,11 +9,8 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
-
-var packagesLog = logger.New("cli:packages")
 
 // Pre-compiled regexes for package processing (performance optimization)
 var (

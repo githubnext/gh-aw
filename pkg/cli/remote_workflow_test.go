@@ -191,12 +191,12 @@ func TestFetchIncludeFromSource_WorkflowSpecParsing(t *testing.T) {
 			_, section, err := FetchIncludeFromSource(tt.includePath, tt.baseSpec, false)
 
 			if tt.expectError {
-				assert.Error(t, err, "expected error")
+				require.Error(t, err, "expected error")
 				if tt.errorContains != "" {
 					assert.Contains(t, err.Error(), tt.errorContains, "error should contain expected text")
 				}
 			} else {
-				assert.NoError(t, err, "should not error")
+				require.NoError(t, err, "should not error")
 			}
 
 			// Section should always be extracted consistently
