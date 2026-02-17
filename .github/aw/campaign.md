@@ -104,10 +104,15 @@ Otherwise:
 
 KPI workflows are campaigns where the first-class output is a **metric** and an **interpretation**.
 
-**Rule:** Make KPI computation deterministic and easy to validate.
+**Strong default:** Make KPI computation deterministic and easy to validate.
 
-- Compute a KPI in `steps:` and write a small JSON payload to `/tmp/gh-aw/agent/kpi.json`.
+- Compute a KPI in `steps:` and write a small JSON payload (e.g., `/tmp/gh-aw/agent/kpi.json`).
 - The agent reads that JSON, decides what to do (report-only vs follow-up), and always ends with a short summary.
+
+**Inputs (when you need knobs):**
+
+- Use `workflow_dispatch` inputs for user-controlled parameters (e.g., target threshold, window size) and have a deterministic `steps:` block normalize those inputs into a JSON config the agent reads.
+- Use `safe-inputs:` when the agent needs a constrained, auditable tool to fetch privileged data (it’s not a human input mechanism).
 
 **Minimum viable KPI spec (keep it explicit):**
 
