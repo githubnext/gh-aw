@@ -111,10 +111,14 @@ func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 		specLog.Printf("Version specified: %s", version)
 	}
 
+	githubHost := getGitHubHost()
+	githubHostPrefix := githubHost + "/"
+	githubHostHTTPPrefix := "http://" + strings.TrimPrefix(githubHost, "https://") + "/"
+
 	// Check if this is a GitHub URL
-	if strings.HasPrefix(repo, "https://github.com/") || strings.HasPrefix(repo, "http://github.com/") {
+	if strings.HasPrefix(repo, githubHostPrefix) || strings.HasPrefix(repo, githubHostHTTPPrefix) {
 		specLog.Print("Detected GitHub URL format")
-		// Parse GitHub URL: https://github.com/owner/repo
+		// Parse GitHub URL: https://github.com/owner/repo or https://enterprise.github.com/owner/repo
 		repoURL, err := url.Parse(repo)
 		if err != nil {
 			specLog.Printf("Failed to parse GitHub URL: %v", err)
@@ -125,7 +129,7 @@ func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 		pathParts := strings.Split(strings.Trim(repoURL.Path, "/"), "/")
 		if len(pathParts) != 2 || pathParts[0] == "" || pathParts[1] == "" {
 			specLog.Printf("Invalid GitHub URL path parts: %v", pathParts)
-			return nil, fmt.Errorf("invalid GitHub URL: must be https://github.com/owner/repo. Example: https://github.com/github/gh-aw")
+			return nil, fmt.Errorf("invalid GitHub URL: must be %s/owner/repo. Example: %s/github/gh-aw", githubHost, githubHost)
 		}
 
 		repo = fmt.Sprintf("%s/%s", pathParts[0], pathParts[1])

@@ -433,7 +433,8 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 
 		// Add fork as remote if not already present
 		remoteName := "fork"
-		forkRepoURL := fmt.Sprintf("https://github.com/%s/%s.git", forkOwner, forkRepo)
+		githubHost := getGitHubHost()
+		forkRepoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, forkOwner, forkRepo)
 
 		// Check if fork remote exists
 		checkRemoteCmd := exec.Command("git", "remote", "get-url", remoteName)

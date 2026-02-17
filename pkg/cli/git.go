@@ -66,22 +66,27 @@ func findGitRootForPath(path string) (string, error) {
 
 // parseGitHubRepoSlugFromURL extracts owner/repo from a GitHub URL
 // Supports both HTTPS (https://github.com/owner/repo) and SSH (git@github.com:owner/repo) formats
+// Also supports GitHub Enterprise URLs
 func parseGitHubRepoSlugFromURL(url string) string {
 	gitLog.Printf("Parsing GitHub repo slug from URL: %s", url)
 
 	// Remove .git suffix if present
 	url = strings.TrimSuffix(url, ".git")
 
-	// Handle HTTPS URLs: https://github.com/owner/repo
-	if strings.HasPrefix(url, "https://github.com/") {
-		slug := strings.TrimPrefix(url, "https://github.com/")
+	githubHost := getGitHubHost()
+	githubHostWithoutScheme := strings.TrimPrefix(strings.TrimPrefix(githubHost, "https://"), "http://")
+
+	// Handle HTTPS URLs: https://github.com/owner/repo or https://enterprise.github.com/owner/repo
+	if strings.HasPrefix(url, githubHost+"/") {
+		slug := strings.TrimPrefix(url, githubHost+"/")
 		gitLog.Printf("Extracted slug from HTTPS URL: %s", slug)
 		return slug
 	}
 
-	// Handle SSH URLs: git@github.com:owner/repo
-	if strings.HasPrefix(url, "git@github.com:") {
-		slug := strings.TrimPrefix(url, "git@github.com:")
+	// Handle SSH URLs: git@github.com:owner/repo or git@enterprise.github.com:owner/repo
+	sshPrefix := "git@" + githubHostWithoutScheme + ":"
+	if strings.HasPrefix(url, sshPrefix) {
+		slug := strings.TrimPrefix(url, sshPrefix)
 		gitLog.Printf("Extracted slug from SSH URL: %s", slug)
 		return slug
 	}

@@ -465,7 +465,8 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 			}
 
 			// Generate workflow run URL
-			workflowRunURL := fmt.Sprintf("https://github.com/%s/actions/runs/%s", hostRepoSlug, runID)
+			githubHost := getGitHubHost()
+			workflowRunURL := fmt.Sprintf("%s/%s/actions/runs/%s", githubHost, hostRepoSlug, runID)
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow run started with ID: %s (%s)", runID, workflowRunURL)))
 
 			// Wait for workflow completion
@@ -571,7 +572,8 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 			if opts.DeleteHostRepo {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Host repository will be cleaned up"))
 			} else {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Host repository preserved: https://github.com/%s", hostRepoSlug)))
+				githubHost := getGitHubHost()
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Host repository preserved: %s/%s", githubHost, hostRepoSlug)))
 			}
 		},
 		UseStderr: true,
@@ -596,7 +598,8 @@ func getCurrentGitHubUsername() (string, error) {
 
 // showTrialConfirmation displays a confirmation prompt to the user using parsed workflow specs
 func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, deleteHostRepo bool, forceDeleteHostRepo bool, autoMergePRs bool, repeatCount int, directTrialMode bool, engineOverride string) error {
-	hostRepoSlugURL := fmt.Sprintf("https://github.com/%s", hostRepoSlug)
+	githubHost := getGitHubHost()
+	hostRepoSlugURL := fmt.Sprintf("%s/%s", githubHost, hostRepoSlug)
 
 	var sections []string
 
