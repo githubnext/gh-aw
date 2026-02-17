@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -330,10 +331,17 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		for _, mapping := range expressionMappings {
 			expressionMap[mapping.EnvVar] = mapping
 		}
-		// Convert back to slice
+		// Convert back to slice in sorted order (by environment variable name) for deterministic output
 		expressionMappings = make([]*ExpressionMapping, 0, len(expressionMap))
-		for _, mapping := range expressionMap {
-			expressionMappings = append(expressionMappings, mapping)
+		// Get all keys and sort them
+		envVarNames := make([]string, 0, len(expressionMap))
+		for envVar := range expressionMap {
+			envVarNames = append(envVarNames, envVar)
+		}
+		sort.Strings(envVarNames)
+		// Add mappings in sorted order
+		for _, envVar := range envVarNames {
+			expressionMappings = append(expressionMappings, expressionMap[envVar])
 		}
 	}
 
