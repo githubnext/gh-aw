@@ -400,12 +400,13 @@ func TestParseLocalWorkflowSpec(t *testing.T) {
 				t.Errorf("parseWorkflowSpec() workflowName = %q, want %q", spec.WorkflowName, tt.wantWorkflowName)
 			}
 
-			// For local workflows, verify repo is current repo and version is empty
+			// For local workflows: version and repo should both be empty
+			// (local workflows don't come from a remote source)
 			if spec.Version != "" {
 				t.Errorf("parseWorkflowSpec() version = %q, want empty string for local workflow", spec.Version)
 			}
-			if spec.RepoSlug == "" {
-				t.Errorf("parseWorkflowSpec() repo should not be empty for local workflow")
+			if spec.RepoSlug != "" {
+				t.Errorf("parseWorkflowSpec() repo = %q, want empty string for local workflow", spec.RepoSlug)
 			}
 		})
 	}

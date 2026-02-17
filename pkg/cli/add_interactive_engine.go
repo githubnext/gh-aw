@@ -19,40 +19,43 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 		return err
 	}
 
-	// Determine default engine based on workflow preference, existing secrets, then environment
+	// Determine default engine based on existing secrets, workflow preference, then environment
+	// Priority order: flag override > existing secrets > workflow frontmatter > environment > default
 	defaultEngine := string(constants.CopilotEngine)
-	existingSecretNote := ""
+	workflowSpecifiedEngine := ""
+
+	// Check if workflow specifies a preferred engine in frontmatter
+	if c.resolvedWorkflows != nil && len(c.resolvedWorkflows.Workflows) > 0 {
+		for _, wf := range c.resolvedWorkflows.Workflows {
+			if wf.Engine != "" {
+				workflowSpecifiedEngine = wf.Engine
+				addInteractiveLog.Printf("Workflow specifies engine in frontmatter: %s", wf.Engine)
+				break
+			}
+		}
+	}
 
 	// If engine is explicitly overridden via flag, use that
 	if c.EngineOverride != "" {
 		defaultEngine = c.EngineOverride
 	} else {
-		// Priority 0: Check if workflow specifies a preferred engine in frontmatter
-		if c.resolvedWorkflows != nil && len(c.resolvedWorkflows.Workflows) > 0 {
-			for _, wf := range c.resolvedWorkflows.Workflows {
-				if wf.Engine != "" {
-					defaultEngine = wf.Engine
-					addInteractiveLog.Printf("Using engine from workflow frontmatter: %s", wf.Engine)
-					break
-				}
-			}
-		}
-	}
-
-	// Only check secrets/environment if we haven't already set a preference
-	workflowHasPreference := c.resolvedWorkflows != nil && len(c.resolvedWorkflows.Workflows) > 0 && c.resolvedWorkflows.Workflows[0].Engine != ""
-	if c.EngineOverride == "" && !workflowHasPreference {
 		// Priority 1: Check existing repository secrets using EngineOptions
+		// This takes precedence over workflow preference since users should use what's already available
 		for _, opt := range constants.EngineOptions {
 			if c.existingSecrets[opt.SecretName] {
 				defaultEngine = opt.Value
-				existingSecretNote = fmt.Sprintf(" (existing %s secret will be used)", opt.SecretName)
+				addInteractiveLog.Printf("Found existing secret %s, recommending engine: %s", opt.SecretName, opt.Value)
 				break
 			}
 		}
 
-		// Priority 2: Check environment variables if no existing secret found
-		if existingSecretNote == "" {
+		// Priority 2: If no existing secret found, use workflow frontmatter preference
+		if defaultEngine == string(constants.CopilotEngine) && workflowSpecifiedEngine != "" {
+			defaultEngine = workflowSpecifiedEngine
+		}
+
+		// Priority 3: Check environment variables if no existing secret or workflow preference found
+		if defaultEngine == string(constants.CopilotEngine) && workflowSpecifiedEngine == "" {
 			for _, opt := range constants.EngineOptions {
 				envVar := opt.SecretName
 				if opt.EnvVarName != "" {
@@ -60,6 +63,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 				}
 				if os.Getenv(envVar) != "" {
 					defaultEngine = opt.Value
+					addInteractiveLog.Printf("Found env var %s, recommending engine: %s", envVar, opt.Value)
 					break
 				}
 			}
@@ -72,12 +76,23 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 		return c.collectAPIKey(c.EngineOverride)
 	}
 
-	// Build engine options with notes about existing secrets
+	// Inform user if workflow specifies an engine
+	if workflowSpecifiedEngine != "" {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow specifies engine: %s", workflowSpecifiedEngine)))
+	}
+
+	// Build engine options with notes about existing secrets and workflow specification
 	var engineOptions []huh.Option[string]
 	for _, opt := range constants.EngineOptions {
 		label := fmt.Sprintf("%s - %s", opt.Label, opt.Description)
+		// Add markers for secret availability and workflow specification
 		if c.existingSecrets[opt.SecretName] {
 			label += " [secret exists]"
+		} else {
+			label += " [no secret]"
+		}
+		if opt.Value == workflowSpecifiedEngine {
+			label += " [specified in workflow]"
 		}
 		engineOptions = append(engineOptions, huh.NewOption(label, opt.Value))
 	}

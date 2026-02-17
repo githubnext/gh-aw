@@ -130,41 +130,25 @@ func TestMCPServer_AddToolInvocation(t *testing.T) {
 	}
 	defer session.Close()
 
-	// Test 1: Call with just repository (should list workflows)
-	t.Run("ListWorkflows", func(t *testing.T) {
-		callResult, err := session.CallTool(ctx, &mcp.CallToolParams{
+	// Test 1: Call with just repository (should fail - repo-only specs no longer supported)
+	t.Run("RepoOnlySpecError", func(t *testing.T) {
+		_, err := session.CallTool(ctx, &mcp.CallToolParams{
 			Name: "add",
 			Arguments: map[string]any{
 				"workflows": []any{"githubnext/agentics"},
 			},
 		})
 
-		if err != nil {
-			t.Fatalf("Failed to call add tool: %v", err)
+		// Should return an error because repo-only specs are invalid
+		if err == nil {
+			t.Fatal("Expected error for repo-only spec, got success")
 		}
 
-		// Verify we got some output
-		if len(callResult.Content) == 0 {
-			t.Fatal("add tool returned no content")
-		}
-
-		// Extract text content
-		var outputText string
-		for _, content := range callResult.Content {
-			if textContent, ok := content.(*mcp.TextContent); ok {
-				outputText += textContent.Text
-			}
-		}
-
-		if outputText == "" {
-			t.Fatal("add tool returned empty text content")
-		}
-
-		t.Logf("add tool output (list workflows):\n%s", outputText)
-
-		// Output should mention available workflows or indicate repository was processed
-		if !strings.Contains(outputText, "workflow") && !strings.Contains(outputText, "Workflow") {
-			t.Logf("Warning: Output doesn't mention 'workflow': %s", outputText)
+		// Error message should indicate the invalid format
+		errStr := err.Error()
+		t.Logf("add tool error (repo-only spec): %s", errStr)
+		if !strings.Contains(errStr, "failed to add workflows") {
+			t.Errorf("Expected error to mention 'failed to add workflows', got: %s", errStr)
 		}
 	})
 

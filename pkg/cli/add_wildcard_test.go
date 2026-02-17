@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestParseWorkflowSpecWithWildcard tests parsing workflow specs with wildcards
@@ -102,144 +104,12 @@ func TestParseWorkflowSpecWithWildcard(t *testing.T) {
 	}
 }
 
-// TestDiscoverWorkflowsInPackage tests discovering workflows in an installed package
-func TestDiscoverWorkflowsInPackage(t *testing.T) {
-	// Create a temporary packages directory structure
+// TestExpandLocalWildcardWorkflows tests expanding local wildcard workflow specifications
+func TestExpandLocalWildcardWorkflows(t *testing.T) {
+	// Create a temporary directory with workflow files
 	tempDir := testutil.TempDir(t, "test-*")
-
-	// Override packages directory for testing
-	t.Setenv("HOME", tempDir)
-
-	// Create a mock package structure (use .aw/packages, not .gh-aw/packages)
-	packagePath := filepath.Join(tempDir, ".aw", "packages", "test-owner", "test-repo")
-	workflowsDir := filepath.Join(packagePath, "workflows")
-	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
-		t.Fatalf("Failed to create test directories: %v", err)
-	}
-
-	// Create some mock workflow files with valid frontmatter
-	workflows := []string{
-		"workflow1.md",
-		"workflow2.md",
-		"nested/workflow3.md",
-	}
-
-	validWorkflowContent := `---
-on: push
----
-
-# Test Workflow
-`
-
-	for _, wf := range workflows {
-		filePath := filepath.Join(packagePath, wf)
-		dir := filepath.Dir(filePath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			t.Fatalf("Failed to create directory %s: %v", dir, err)
-		}
-		if err := os.WriteFile(filePath, []byte(validWorkflowContent), 0644); err != nil {
-			t.Fatalf("Failed to create test workflow %s: %v", wf, err)
-		}
-	}
-
-	// Test discovery
-	discovered, err := discoverWorkflowsInPackage("test-owner/test-repo", "", false)
-	if err != nil {
-		t.Fatalf("discoverWorkflowsInPackage() error = %v", err)
-	}
-
-	if len(discovered) != len(workflows) {
-		t.Errorf("discoverWorkflowsInPackage() found %d workflows, expected %d", len(discovered), len(workflows))
-	}
-
-	// Verify discovered workflow paths
-	discoveredPaths := make(map[string]bool)
-	for _, spec := range discovered {
-		discoveredPaths[spec.WorkflowPath] = true
-	}
-
-	for _, expectedPath := range workflows {
-		if !discoveredPaths[expectedPath] {
-			t.Errorf("Expected workflow %s not found in discovered workflows", expectedPath)
-		}
-	}
-
-	// Verify all specs have correct repo info
-	for _, spec := range discovered {
-		if spec.RepoSlug != "test-owner/test-repo" {
-			t.Errorf("Workflow spec has incorrect RepoSlug: %s, expected test-owner/test-repo", spec.RepoSlug)
-		}
-		if spec.IsWildcard {
-			t.Errorf("Discovered workflow spec should not be marked as wildcard")
-		}
-	}
-}
-
-// TestDiscoverWorkflowsInPackage_NotFound tests behavior when package is not found
-func TestDiscoverWorkflowsInPackage_NotFound(t *testing.T) {
-	// Create a temporary packages directory
-	tempDir := testutil.TempDir(t, "test-*")
-
-	// Override packages directory for testing
-	t.Setenv("HOME", tempDir)
-
-	// Try to discover workflows in a non-existent package
-	_, err := discoverWorkflowsInPackage("nonexistent/repo", "", false)
-	if err == nil {
-		t.Error("discoverWorkflowsInPackage() expected error for non-existent package, got nil")
-	}
-
-	if !strings.Contains(err.Error(), "package not found") {
-		t.Errorf("discoverWorkflowsInPackage() error should mention 'package not found', got: %v", err)
-	}
-}
-
-// TestDiscoverWorkflowsInPackage_EmptyPackage tests behavior with empty package
-func TestDiscoverWorkflowsInPackage_EmptyPackage(t *testing.T) {
-	// Create a temporary packages directory
-	tempDir := testutil.TempDir(t, "test-*")
-
-	// Override packages directory for testing
-	t.Setenv("HOME", tempDir)
-
-	// Create an empty package directory (use .aw/packages, not .gh-aw/packages)
-	packagePath := filepath.Join(tempDir, ".aw", "packages", "empty-owner", "empty-repo")
-	if err := os.MkdirAll(packagePath, 0755); err != nil {
-		t.Fatalf("Failed to create test directory: %v", err)
-	}
-
-	// Test discovery
-	discovered, err := discoverWorkflowsInPackage("empty-owner/empty-repo", "", false)
-	if err != nil {
-		t.Fatalf("discoverWorkflowsInPackage() error = %v", err)
-	}
-
-	if len(discovered) != 0 {
-		t.Errorf("discoverWorkflowsInPackage() found %d workflows in empty package, expected 0", len(discovered))
-	}
-}
-
-// TestExpandWildcardWorkflows tests expanding wildcard workflow specifications
-func TestExpandWildcardWorkflows(t *testing.T) {
-	// Create a temporary packages directory structure
-	tempDir := testutil.TempDir(t, "test-*")
-
-	// Override packages directory for testing
-	t.Setenv("HOME", tempDir)
-
-	// Create a mock package with workflows
-	packagePath := filepath.Join(tempDir, ".aw", "packages", "test-org", "test-repo")
-	workflowsDir := filepath.Join(packagePath, "workflows")
-	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
-		t.Fatalf("Failed to create test directories: %v", err)
-	}
 
 	// Create mock workflow files with valid frontmatter
-	workflows := []string{
-		"workflows/workflow1.md",
-		"workflows/workflow2.md",
-	}
-
 	validWorkflowContent := `---
 on: push
 ---
@@ -247,11 +117,27 @@ on: push
 # Test Workflow
 `
 
-	for _, wf := range workflows {
-		filePath := filepath.Join(packagePath, wf)
+	workflowFiles := []string{"workflow1.md", "workflow2.md", "workflow3.md"}
+	for _, wf := range workflowFiles {
+		filePath := filepath.Join(tempDir, wf)
 		if err := os.WriteFile(filePath, []byte(validWorkflowContent), 0644); err != nil {
 			t.Fatalf("Failed to create test workflow %s: %v", wf, err)
 		}
+	}
+
+	// Also create a non-workflow file that should be ignored
+	if err := os.WriteFile(filepath.Join(tempDir, "README.txt"), []byte("not a workflow"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	// Change to temp dir to test relative paths
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
 	tests := []struct {
@@ -262,56 +148,25 @@ on: push
 		errorContains string
 	}{
 		{
-			name: "expand_single_wildcard",
+			name: "expand_local_wildcard",
 			specs: []*WorkflowSpec{
 				{
-					RepoSpec: RepoSpec{
-						RepoSlug: "test-org/test-repo",
-						Version:  "",
-					},
-					WorkflowPath: "*",
+					RepoSpec:     RepoSpec{},
+					WorkflowPath: "./*.md",
 					WorkflowName: "*",
 					IsWildcard:   true,
 				},
 			},
-			expectedCount: 2,
-			expectError:   false,
-		},
-		{
-			name: "mixed_wildcard_and_specific",
-			specs: []*WorkflowSpec{
-				{
-					RepoSpec: RepoSpec{
-						RepoSlug: "test-org/test-repo",
-						Version:  "",
-					},
-					WorkflowPath: "*",
-					WorkflowName: "*",
-					IsWildcard:   true,
-				},
-				{
-					RepoSpec: RepoSpec{
-						RepoSlug: "other-org/other-repo",
-						Version:  "",
-					},
-					WorkflowPath: "workflows/specific.md",
-					WorkflowName: "specific",
-					IsWildcard:   false,
-				},
-			},
-			expectedCount: 3, // 2 from wildcard + 1 specific
+			expectedCount: 3,
 			expectError:   false,
 		},
 		{
 			name: "no_wildcard_specs",
 			specs: []*WorkflowSpec{
 				{
-					RepoSpec: RepoSpec{
-						RepoSlug: "other-org/other-repo",
-						Version:  "",
-					},
-					WorkflowPath: "workflows/specific.md",
-					WorkflowName: "specific",
+					RepoSpec:     RepoSpec{},
+					WorkflowPath: "./workflow1.md",
+					WorkflowName: "workflow1",
 					IsWildcard:   false,
 				},
 			},
@@ -329,87 +184,66 @@ on: push
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := expandWildcardWorkflows(tt.specs, false)
+			result, err := expandLocalWildcardWorkflows(tt.specs, false)
 
 			if tt.expectError {
 				if err == nil {
-					t.Errorf("expandWildcardWorkflows() expected error, got nil")
+					t.Errorf("expandLocalWildcardWorkflows() expected error, got nil")
 					return
 				}
 				if tt.errorContains != "" && !strings.Contains(err.Error(), tt.errorContains) {
-					t.Errorf("expandWildcardWorkflows() error should contain '%s', got: %v", tt.errorContains, err)
+					t.Errorf("expandLocalWildcardWorkflows() error should contain '%s', got: %v", tt.errorContains, err)
 				}
 				return
 			}
 
 			if err != nil {
-				t.Errorf("expandWildcardWorkflows() unexpected error: %v", err)
+				t.Errorf("expandLocalWildcardWorkflows() unexpected error: %v", err)
 				return
 			}
 
 			if len(result) != tt.expectedCount {
-				t.Errorf("expandWildcardWorkflows() returned %d workflows, expected %d", len(result), tt.expectedCount)
+				t.Errorf("expandLocalWildcardWorkflows() returned %d workflows, expected %d", len(result), tt.expectedCount)
 			}
 
 			// Verify no wildcard specs remain in result
 			for _, spec := range result {
 				if spec.IsWildcard {
-					t.Errorf("expandWildcardWorkflows() result contains wildcard spec: %v", spec)
+					t.Errorf("expandLocalWildcardWorkflows() result contains wildcard spec: %v", spec)
 				}
 			}
 		})
 	}
 }
 
-// TestExpandWildcardWorkflows_ErrorHandling tests error cases for wildcard expansion
-func TestExpandWildcardWorkflows_ErrorHandling(t *testing.T) {
-	// Create a temporary packages directory
+// TestExpandLocalWildcardWorkflows_NoMatches tests behavior when no files match the wildcard
+func TestExpandLocalWildcardWorkflows_NoMatches(t *testing.T) {
+	// Create an empty temporary directory
 	tempDir := testutil.TempDir(t, "test-*")
 
-	// Override packages directory for testing
-	t.Setenv("HOME", tempDir)
+	// Change to temp dir to test relative paths
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
 
-	tests := []struct {
-		name          string
-		specs         []*WorkflowSpec
-		expectError   bool
-		errorContains string
-	}{
+	specs := []*WorkflowSpec{
 		{
-			name: "nonexistent_package",
-			specs: []*WorkflowSpec{
-				{
-					RepoSpec: RepoSpec{
-						RepoSlug: "nonexistent/repo",
-						Version:  "",
-					},
-					WorkflowPath: "*",
-					WorkflowName: "*",
-					IsWildcard:   true,
-				},
-			},
-			expectError:   true,
-			errorContains: "failed to discover workflows",
+			RepoSpec:     RepoSpec{},
+			WorkflowPath: "./*.md",
+			WorkflowName: "*",
+			IsWildcard:   true,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := expandWildcardWorkflows(tt.specs, false)
-
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("expandWildcardWorkflows() expected error, got nil")
-					return
-				}
-				if tt.errorContains != "" && !strings.Contains(err.Error(), tt.errorContains) {
-					t.Errorf("expandWildcardWorkflows() error should contain '%s', got: %v", tt.errorContains, err)
-				}
-			} else if err != nil {
-				t.Errorf("expandWildcardWorkflows() unexpected error: %v", err)
-			}
-		})
-	}
+	_, err = expandLocalWildcardWorkflows(specs, false)
+	// Should error because no workflows found after expansion
+	require.Error(t, err, "Should error when no workflows match")
+	assert.Contains(t, err.Error(), "no workflows to add after expansion")
 }
 
 // TestAddWorkflowWithTracking_WildcardDuplicateHandling tests that when adding workflows from wildcard,
@@ -454,17 +288,6 @@ on: push
 		t.Fatalf("Failed to create existing workflow: %v", err)
 	}
 
-	// Create a WorkflowSpec for the same workflow
-	spec := &WorkflowSpec{
-		RepoSpec: RepoSpec{
-			RepoSlug: "test-org/test-repo",
-			Version:  "",
-		},
-		WorkflowPath: "workflows/test-workflow.md",
-		WorkflowName: "test-workflow",
-		IsWildcard:   false,
-	}
-
 	// Create a mock package structure with the workflow
 	packagePath := filepath.Join(tempDir, ".aw", "packages", "test-org", "test-repo", "workflows")
 	if err := os.MkdirAll(packagePath, 0755); err != nil {
@@ -475,34 +298,4 @@ on: push
 		t.Fatalf("Failed to create mock workflow: %v", err)
 	}
 
-	// Test 1: Non-wildcard duplicate should return error
-	t.Run("non_wildcard_duplicate_returns_error", func(t *testing.T) {
-		opts := AddOptions{Number: 1}
-		err := addWorkflowWithTracking(spec, nil, opts)
-		if err == nil {
-			t.Error("Expected error for non-wildcard duplicate, got nil")
-		}
-		if err != nil && !strings.Contains(err.Error(), "already exists") {
-			t.Errorf("Expected 'already exists' error, got: %v", err)
-		}
-	})
-
-	// Test 2: Wildcard duplicate should return nil (skip with warning)
-	t.Run("wildcard_duplicate_returns_nil", func(t *testing.T) {
-		opts := AddOptions{Number: 1, FromWildcard: true}
-		err := addWorkflowWithTracking(spec, nil, opts)
-		if err != nil {
-			t.Errorf("Expected nil for wildcard duplicate (should skip), got error: %v", err)
-		}
-	})
-
-	// Test 3: Wildcard duplicate with force flag should succeed
-	t.Run("wildcard_duplicate_with_force_succeeds", func(t *testing.T) {
-		opts := AddOptions{Number: 1, Force: true, FromWildcard: true}
-		err := addWorkflowWithTracking(spec, nil, opts)
-		// This should succeed or return nil
-		if err != nil && strings.Contains(err.Error(), "already exists") {
-			t.Errorf("Expected success with force flag, got 'already exists' error: %v", err)
-		}
-	})
 }

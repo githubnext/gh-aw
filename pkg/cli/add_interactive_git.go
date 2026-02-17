@@ -22,7 +22,6 @@ func (c *AddInteractiveConfig) applyChanges(ctx context.Context, workflowFiles, 
 	// Pass Quiet=true to suppress detailed output (already shown earlier in interactive mode)
 	// This returns the result including PR number and HasWorkflowDispatch
 	opts := AddOptions{
-		Number:                 1,
 		Verbose:                c.Verbose,
 		Quiet:                  true,
 		EngineOverride:         c.EngineOverride,

@@ -5,7 +5,6 @@ package cli
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -56,28 +55,33 @@ This is a test workflow.
 	}
 
 	// Verify the spec
-	if !strings.HasPrefix(spec.WorkflowPath, "./") {
-		t.Errorf("Expected WorkflowPath to start with './', got: %s", spec.WorkflowPath)
+	if !isLocalWorkflowPath(spec.WorkflowPath) {
+		t.Errorf("Expected WorkflowPath to be a local path, got: %s", spec.WorkflowPath)
 	}
 
 	if spec.WorkflowName != "test-workflow" {
 		t.Errorf("Expected WorkflowName to be 'test-workflow', got: %s", spec.WorkflowName)
 	}
 
-	// Test the local installation function
-	err = installLocalWorkflowInTrialMode(originalDir, tempDir, spec, &TrialOptions{DisableSecurityScanner: false})
+	// Test the local workflow writing function (writeWorkflowToTrialDir)
+	// First read the workflow content
+	content, err := os.ReadFile(testFile)
 	if err != nil {
-		t.Fatalf("Failed to install local workflow: %v", err)
+		t.Fatalf("Failed to read test workflow file: %v", err)
+	}
+
+	result, err := writeWorkflowToTrialDir(tempDir, spec.WorkflowName, content, &TrialOptions{DisableSecurityScanner: true})
+	if err != nil {
+		t.Fatalf("Failed to write local workflow to trial dir: %v", err)
 	}
 
 	// Verify the file was copied correctly
-	expectedDest := filepath.Join(tempDir, ".github/workflows", "test-workflow.md")
-	if _, err := os.Stat(expectedDest); os.IsNotExist(err) {
-		t.Errorf("Expected workflow file to be copied to %s, but it doesn't exist", expectedDest)
+	if _, err := os.Stat(result.DestPath); os.IsNotExist(err) {
+		t.Errorf("Expected workflow file to be written to %s, but it doesn't exist", result.DestPath)
 	}
 
 	// Verify the content matches
-	copiedContent, err := os.ReadFile(expectedDest)
+	copiedContent, err := os.ReadFile(result.DestPath)
 	if err != nil {
 		t.Fatalf("Failed to read copied workflow file: %v", err)
 	}

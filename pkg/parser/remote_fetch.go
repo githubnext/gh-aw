@@ -594,6 +594,25 @@ func resolveRemoteSymlinks(owner, repo, filePath, ref string) (string, error) {
 	return "", fmt.Errorf("no symlinks found in path: %s", filePath)
 }
 
+// DownloadFileFromGitHub downloads a file from a GitHub repository using the GitHub API.
+// This is the exported wrapper for downloadFileFromGitHub.
+// Parameters:
+// - owner: Repository owner (e.g., "github")
+// - repo: Repository name (e.g., "gh-aw")
+// - path: Path to the file within the repository (e.g., ".github/workflows/workflow.md")
+// - ref: Git reference (branch, tag, or commit SHA)
+// Returns the file content as bytes or an error if the file cannot be retrieved.
+func DownloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
+	return downloadFileFromGitHub(owner, repo, path, ref)
+}
+
+// ResolveRefToSHA resolves a git ref (branch, tag, or short SHA) to its full commit SHA.
+// This is the exported wrapper for resolveRefToSHA.
+// If the ref is already a 40-character hex SHA, it returns it as-is.
+func ResolveRefToSHA(owner, repo, ref string) (string, error) {
+	return resolveRefToSHA(owner, repo, ref)
+}
+
 func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 	return downloadFileFromGitHubWithDepth(owner, repo, path, ref, 0)
 }

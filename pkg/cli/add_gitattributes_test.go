@@ -52,7 +52,7 @@ func TestAddCommandUpdatesGitAttributes(t *testing.T) {
 		t.Fatalf("Failed to create .github/workflows directory: %v", err)
 	}
 
-	// Create a minimal workflow file to simulate a workflow being added
+	// Create a minimal workflow content for testing
 	workflowContent := `---
 on: push
 permissions:
@@ -64,32 +64,35 @@ engine: copilot
 
 This is a test workflow.`
 
-	workflowPath := filepath.Join(workflowsDir, "test.md")
-	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
-		t.Fatalf("Failed to create workflow file: %v", err)
-	}
-
-	// Create a minimal WorkflowSpec for testing
-	spec := &WorkflowSpec{
-		RepoSpec: RepoSpec{
-			RepoSlug: "test/repo",
-			Version:  "",
+	// Create a ResolvedWorkflow for testing
+	resolved := &ResolvedWorkflow{
+		Spec: &WorkflowSpec{
+			RepoSpec: RepoSpec{
+				RepoSlug: "test/repo",
+				Version:  "",
+			},
+			WorkflowPath: "./test.md",
+			WorkflowName: "test",
 		},
-		WorkflowPath: "test.md",
-		WorkflowName: "test",
+		Content: []byte(workflowContent),
+		SourceInfo: &FetchedWorkflow{
+			Content:    []byte(workflowContent),
+			IsLocal:    true,
+			SourcePath: "./test.md",
+			CommitSHA:  "",
+		},
 	}
 
 	t.Run("gitattributes_updated_by_default", func(t *testing.T) {
 		// Remove any existing .gitattributes
 		os.Remove(".gitattributes")
 
-		// Call addWorkflowsNormal with noGitattributes=false
-		opts := AddOptions{Number: 1}
-		err := addWorkflowsNormal([]*WorkflowSpec{spec}, opts)
+		// Call addWorkflows with noGitattributes=false
+		opts := AddOptions{}
+		err := addWorkflows([]*ResolvedWorkflow{resolved}, opts)
 		if err != nil {
-			// We expect this to fail because we don't have a full workflow setup,
-			// but gitattributes should still be updated before the error
-			t.Logf("Expected error during workflow addition: %v", err)
+			// Log any error but don't fail - we're testing gitattributes behavior
+			t.Logf("Note: workflow addition returned: %v", err)
 		}
 
 		// Check that .gitattributes was created
@@ -114,12 +117,12 @@ This is a test workflow.`
 		// Remove any existing .gitattributes
 		os.Remove(".gitattributes")
 
-		opts := AddOptions{Number: 1, NoGitattributes: true}
-		// Call addWorkflowsNormal with noGitattributes=true
-		err := addWorkflowsNormal([]*WorkflowSpec{spec}, opts)
+		opts := AddOptions{NoGitattributes: true}
+		// Call addWorkflows with noGitattributes=true
+		err := addWorkflows([]*ResolvedWorkflow{resolved}, opts)
 		if err != nil {
-			// We expect this to fail because we don't have a full workflow setup
-			t.Logf("Expected error during workflow addition: %v", err)
+			// Log any error but don't fail - we're testing gitattributes behavior
+			t.Logf("Note: workflow addition returned: %v", err)
 		}
 
 		// Check that .gitattributes was NOT created
@@ -137,12 +140,12 @@ This is a test workflow.`
 			t.Fatalf("Failed to create .gitattributes: %v", err)
 		}
 
-		opts := AddOptions{Number: 1, NoGitattributes: true}
-		// Call addWorkflowsNormal with noGitattributes=true
-		err := addWorkflowsNormal([]*WorkflowSpec{spec}, opts)
+		opts := AddOptions{NoGitattributes: true}
+		// Call addWorkflows with noGitattributes=true
+		err := addWorkflows([]*ResolvedWorkflow{resolved}, opts)
 		if err != nil {
-			// We expect this to fail because we don't have a full workflow setup
-			t.Logf("Expected error during workflow addition: %v", err)
+			// Log any error but don't fail - we're testing gitattributes behavior
+			t.Logf("Note: workflow addition returned: %v", err)
 		}
 
 		// Check that .gitattributes was NOT modified

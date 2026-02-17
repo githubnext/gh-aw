@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -13,22 +12,6 @@ import (
 )
 
 var addWorkflowCompilationLog = logger.New("cli:add_workflow_compilation")
-
-// updateWorkflowTitle updates the H1 title in workflow content by appending a number.
-// This is used when creating multiple numbered copies of a workflow.
-func updateWorkflowTitle(content string, number int) string {
-	// Find and update the first H1 header
-	lines := strings.Split(content, "\n")
-	for i, line := range lines {
-		if strings.HasPrefix(strings.TrimSpace(line), "# ") {
-			// Extract the title part and add number
-			title := strings.TrimSpace(line[2:])
-			lines[i] = fmt.Sprintf("# %s %d", title, number)
-			break
-		}
-	}
-	return strings.Join(lines, "\n")
-}
 
 // compileWorkflow compiles a workflow file without refreshing stop time.
 // This is a convenience wrapper around compileWorkflowWithRefresh.
@@ -143,4 +126,11 @@ func compileWorkflowWithTrackingAndRefresh(filePath string, verbose bool, quiet 
 func addSourceToWorkflow(content, source string) (string, error) {
 	// Use shared frontmatter logic that preserves formatting
 	return addFieldToFrontmatter(content, "source", source)
+}
+
+// addEngineToWorkflow adds or updates the engine field in the workflow's frontmatter.
+// This function preserves the existing frontmatter formatting while setting the engine field.
+func addEngineToWorkflow(content, engine string) (string, error) {
+	// Use shared frontmatter logic that preserves formatting
+	return addFieldToFrontmatter(content, "engine", engine)
 }

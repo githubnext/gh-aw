@@ -301,10 +301,12 @@ This workflow tests the workflow overview for Claude engine.
 				}
 			}
 
-			// Verify step runs before "Create prompt"
-			promptIdx := strings.Index(lockContent, "- name: Create prompt")
+			// Verify step runs before "Download prompt artifact" (in the same agent job)
+			// Note: "Create prompt" is in the activation job, so we compare against
+			// "Download prompt artifact" which is in the same agent job
+			promptIdx := strings.Index(lockContent, "- name: Download prompt artifact")
 			if overviewIdx >= promptIdx {
-				t.Error("Expected 'Generate workflow overview' step to run BEFORE 'Create prompt' step")
+				t.Error("Expected 'Generate workflow overview' step to run BEFORE 'Download prompt artifact' step")
 			}
 
 			// Note: HTML details/summary format is now in generate_workflow_overview.cjs

@@ -209,6 +209,12 @@ async function runLogParser(options) {
       core.error(`Failed to parse ${parserName} log`);
     }
 
+    // Claude-specific guardrail: if no structured log entries were parsed, treat as execution failure.
+    // This catches silent startup failures where Claude exits before producing JSON tool activity.
+    if (parserName === "Claude" && (!logEntries || logEntries.length === 0)) {
+      core.setFailed("Claude execution failed: no structured log entries were produced. This usually indicates a startup or configuration error before tool execution.");
+    }
+
     // Handle MCP server failures if present
     if (mcpFailures && mcpFailures.length > 0) {
       const failedServers = mcpFailures.join(", ");

@@ -20,17 +20,6 @@ import (
 
 var workflowsLog = logger.New("cli:workflows")
 
-// getPackagesDir returns the global packages directory path
-func getPackagesDir() (string, error) {
-	// Use global directory under user's home
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get user home directory: %w", err)
-	}
-
-	return filepath.Join(homeDir, ".aw", "packages"), nil
-}
-
 func getWorkflowsDir() string {
 	return ".github/workflows"
 }

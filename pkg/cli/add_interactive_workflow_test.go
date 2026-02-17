@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetWorkflowStatuses(t *testing.T) {
@@ -44,11 +45,16 @@ func TestGetWorkflowStatuses(t *testing.T) {
 			statuses, err := getWorkflowStatuses(tt.pattern, tt.repoOverride, tt.verbose)
 
 			// Either succeeds or fails gracefully, but shouldn't panic
-			if err == nil {
-				assert.NotNil(t, statuses, "Statuses should not be nil on success")
-			} else {
+			// Note: statuses may be nil even when err is nil (no workflows found)
+			if err != nil {
 				// Error is acceptable in test environment without gh CLI setup
-				assert.Error(t, err, "Expected error without gh CLI")
+				require.Error(t, err, "Expected error without gh CLI")
+			}
+			// If no error and statuses exist, verify they have expected structure
+			if err == nil && statuses != nil {
+				for _, status := range statuses {
+					assert.NotEmpty(t, status.Workflow, "Workflow name should not be empty")
+				}
 			}
 		})
 	}

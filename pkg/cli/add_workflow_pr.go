@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -12,9 +13,39 @@ import (
 
 var addWorkflowPRLog = logger.New("cli:add_workflow_pr")
 
-// addWorkflowsWithPR handles workflow addition with PR creation and returns the PR number and URL.
-func addWorkflowsWithPR(workflows []*WorkflowSpec, opts AddOptions) (int, string, error) {
-	addWorkflowPRLog.Printf("Adding %d workflow(s) with PR creation", len(workflows))
+// sanitizeBranchName sanitizes a string for use in a git branch name.
+// Git branch names cannot contain:
+// - spaces, ~, ^, :, \, ?, *, [, @{
+// - consecutive dots (..)
+// - leading/trailing dots or slashes
+// - control characters
+func sanitizeBranchName(name string) string {
+	// Use base name only (no directory path)
+	name = normalizeWorkflowID(name)
+
+	// Replace problematic characters with hyphens
+	// This regex matches any character that's not alphanumeric, hyphen, or underscore
+	invalidChars := regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
+	name = invalidChars.ReplaceAllString(name, "-")
+
+	// Remove consecutive hyphens
+	consecutiveHyphens := regexp.MustCompile(`-{2,}`)
+	name = consecutiveHyphens.ReplaceAllString(name, "-")
+
+	// Trim leading/trailing hyphens
+	name = strings.Trim(name, "-")
+
+	// Ensure non-empty (fallback to "workflow")
+	if name == "" {
+		name = "workflow"
+	}
+
+	return name
+}
+
+// addWorkflowsWithPR handles workflow addition with PR creation using pre-resolved workflows.
+func addWorkflowsWithPR(workflows []*ResolvedWorkflow, opts AddOptions) (int, string, error) {
+	addWorkflowPRLog.Printf("Adding %d workflow(s) with PR creation (resolved)", len(workflows))
 
 	// Get current branch for restoration later
 	currentBranch, err := getCurrentBranch()
@@ -26,8 +57,10 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, opts AddOptions) (int, string
 	addWorkflowPRLog.Printf("Current branch: %s", currentBranch)
 
 	// Create temporary branch with random 4-digit number
+	// Use sanitized workflow name to avoid invalid git ref characters
 	randomNum := rand.Intn(9000) + 1000 // Generate number between 1000-9999
-	branchName := fmt.Sprintf("add-workflow-%s-%04d", strings.ReplaceAll(workflows[0].WorkflowPath, "/", "-"), randomNum)
+	sanitizedName := sanitizeBranchName(workflows[0].Spec.WorkflowPath)
+	branchName := fmt.Sprintf("add-workflow-%s-%04d", sanitizedName, randomNum)
 
 	addWorkflowPRLog.Printf("Creating temporary branch: %s", branchName)
 
@@ -48,12 +81,11 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, opts AddOptions) (int, string
 		}
 	}()
 
-	// Add workflows using the normal function logic
+	// Add workflows using the resolved workflow path
 	addWorkflowPRLog.Print("Adding workflows to repository")
-	// Disable security scanner for PR creation to use workflow settings
 	prOpts := opts
 	prOpts.DisableSecurityScanner = false
-	if err := addWorkflowsNormal(workflows, prOpts); err != nil {
+	if err := addWorkflowsWithTracking(workflows, tracker, prOpts); err != nil {
 		addWorkflowPRLog.Printf("Failed to add workflows: %v", err)
 		// Rollback on error
 		if rollbackErr := tracker.RollbackAllFiles(opts.Verbose); rollbackErr != nil && opts.Verbose {
@@ -79,15 +111,14 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, opts AddOptions) (int, string
 	// Commit changes
 	var commitMessage, prTitle, prBody, joinedNames string
 	if len(workflows) == 1 {
-		joinedNames = workflows[0].WorkflowName
+		joinedNames = workflows[0].Spec.WorkflowName
 		commitMessage = fmt.Sprintf("Add agentic workflow %s", joinedNames)
 		prTitle = fmt.Sprintf("Add agentic workflow %s", joinedNames)
 		prBody = fmt.Sprintf("Add agentic workflow %s", joinedNames)
 	} else {
-		// Get workflow.Workflo
 		workflowNames := make([]string, len(workflows))
 		for i, wf := range workflows {
-			workflowNames[i] = wf.WorkflowName
+			workflowNames[i] = wf.Spec.WorkflowName
 		}
 		joinedNames = strings.Join(workflowNames, ", ")
 		commitMessage = fmt.Sprintf("Add agentic workflows: %s", joinedNames)
@@ -124,8 +155,6 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, opts AddOptions) (int, string
 	}
 
 	addWorkflowPRLog.Printf("Successfully created PR #%d: %s", prNumber, prURL)
-
-	// Success - no rollback needed
 
 	// Switch back to original branch
 	if err := switchBranch(currentBranch, opts.Verbose); err != nil {
