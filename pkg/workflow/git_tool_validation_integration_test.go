@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -256,4 +257,61 @@ Test workflow that imports bash configuration.
 		// Should succeed because bash is imported
 		assert.NoError(t, err, "Expected successful compilation with imported bash tool")
 	})
+}
+
+// TestBashFalseWithPROperationsInjectsGitCommands verifies that git commands are injected
+// even when bash: false is set, as PR operations require them
+func TestBashFalseWithPROperationsInjectsGitCommands(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create workflow with bash: false and create-pull-request
+	workflowPath := filepath.Join(tmpDir, "bash-false-pr.md")
+	workflowContent := `---
+name: Test Bash False With PR
+engine: copilot
+on: workflow_dispatch
+tools:
+  bash: false
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[auto] "
+---
+
+Test workflow with bash: false but PR operations requiring git.
+`
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "Failed to write workflow file")
+
+	// Compile the workflow - this creates the .lock.yml file
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(workflowPath)
+	require.NoError(t, err, "Compilation should succeed")
+
+	// Read the generated lock file
+	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err, "Should be able to read lock file")
+
+	lockContentStr := string(lockContent)
+
+	// Verify git commands are present in the compiled workflow
+	expectedGitCommands := []string{
+		"shell(git checkout:*)",
+		"shell(git add:*)",
+		"shell(git commit:*)",
+		"shell(git branch:*)",
+		"shell(git switch:*)",
+		"shell(git rm:*)",
+		"shell(git merge:*)",
+	}
+
+	for _, gitCmd := range expectedGitCommands {
+		assert.Contains(t, lockContentStr, gitCmd,
+			"Compiled workflow should contain %s even with bash: false", gitCmd)
+	}
+
+	// Also verify that bash: false was overridden (not deleted entirely)
+	// The workflow should have bash tools (git commands), not be completely missing bash
+	assert.Contains(t, lockContentStr, "shell(",
+		"Workflow should have shell tools (bash was overridden, not deleted)")
 }
