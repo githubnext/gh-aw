@@ -21,7 +21,7 @@
     "@primer/octicons": "^19.22.0",
     "astro": "^5.17.2",
     "astro-mermaid": "^1.2.0",
-    "mermaid": "^11.12.2",
+    "mermaid": "^11.12.3",
     "sharp": "^0.34.5",
     "starlight-blog": "^0.25.2",
     "starlight-changelogs": "^0.4.0",
