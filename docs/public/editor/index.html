@@ -1,519 +1,75 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-color-mode="auto" data-light-theme="light" data-dark-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>gh-aw Playground</title>
+<link rel="stylesheet" href="https://unpkg.com/@primer/css@21/dist/primer.css">
 <style>
 /* ============================================================
-   CSS Custom Properties
+   Minimal overrides — only what Primer CSS cannot handle
    ============================================================ */
-:root {
-  /* Light theme (default) */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f6f8fa;
-  --bg-tertiary: #eaeef2;
-  --bg-header: #ffffff;
-  --bg-input: #ffffff;
-  --bg-output: #f6f8fa;
-  --bg-hover: #eaeef2;
-  --bg-loading: rgba(255,255,255,0.92);
-
-  --text-primary: #1f2328;
-  --text-secondary: #656d76;
-  --text-muted: #8b949e;
-  --text-on-accent: #ffffff;
-
-  --border-primary: #d1d9e0;
-  --border-secondary: #eaeef2;
-  --border-focus: #0969da;
-
-  --accent: #0969da;
-  --accent-hover: #0860ca;
-  --accent-subtle: #ddf4ff;
-
-  --error-bg: #ffebe9;
-  --error-border: #ff818266;
-  --error-text: #cf222e;
-
-  --warning-bg: #fff8c5;
-  --warning-border: #d4a72c66;
-  --warning-text: #9a6700;
-
-  --success-bg: #dafbe1;
-  --success-text: #116329;
-
-  --shadow-sm: 0 1px 2px rgba(27,31,36,0.04);
-  --shadow-md: 0 3px 6px rgba(140,149,159,0.15);
-  --shadow-lg: 0 8px 24px rgba(140,149,159,0.2);
-
-  --divider-color: #d1d9e0;
-  --divider-hover: #0969da;
-
-  --line-number-bg: #f6f8fa;
-  --line-number-text: #8b949e;
-  --line-number-border: #d1d9e0;
-
-  --scrollbar-track: #f6f8fa;
-  --scrollbar-thumb: #d1d9e0;
-  --scrollbar-thumb-hover: #afb8c1;
-
-  --toggle-bg: #eaeef2;
-  --toggle-bg-active: #0969da;
-  --toggle-knob: #ffffff;
-
-  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
-
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-
-  --transition: 180ms ease;
-}
-
-[data-theme="dark"] {
-  --bg-primary: #0d1117;
-  --bg-secondary: #161b22;
-  --bg-tertiary: #21262d;
-  --bg-header: #161b22;
-  --bg-input: #0d1117;
-  --bg-output: #0d1117;
-  --bg-hover: #30363d;
-  --bg-loading: rgba(13,17,23,0.92);
-
-  --text-primary: #e6edf3;
-  --text-secondary: #8b949e;
-  --text-muted: #6e7681;
-  --text-on-accent: #ffffff;
-
-  --border-primary: #30363d;
-  --border-secondary: #21262d;
-  --border-focus: #58a6ff;
-
-  --accent: #58a6ff;
-  --accent-hover: #79c0ff;
-  --accent-subtle: #388bfd26;
-
-  --error-bg: #490202;
-  --error-border: #f8514966;
-  --error-text: #f85149;
-
-  --warning-bg: #341a04;
-  --warning-border: #d29922;
-  --warning-text: #e3b341;
-
-  --success-bg: #0d2818;
-  --success-text: #3fb950;
-
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
-  --shadow-md: 0 3px 6px rgba(0,0,0,0.3);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
-
-  --divider-color: #30363d;
-  --divider-hover: #58a6ff;
-
-  --line-number-bg: #161b22;
-  --line-number-text: #6e7681;
-  --line-number-border: #21262d;
-
-  --scrollbar-track: #161b22;
-  --scrollbar-thumb: #30363d;
-  --scrollbar-thumb-hover: #484f58;
-
-  --toggle-bg: #30363d;
-  --toggle-bg-active: #58a6ff;
-  --toggle-knob: #e6edf3;
-}
-
-/* ============================================================
-   Reset & Base
-   ============================================================ */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
 html, body {
   height: 100%;
   overflow: hidden;
 }
 
-body {
-  font-family: var(--font-sans);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  transition: background var(--transition), color var(--transition);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* ============================================================
-   App Layout
-   ============================================================ */
-.app {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  width: 100vw;
-}
-
-/* ============================================================
-   Header
-   ============================================================ */
-.header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 16px;
-  height: 52px;
-  min-height: 52px;
-  background: var(--bg-header);
-  border-bottom: 1px solid var(--border-primary);
-  box-shadow: var(--shadow-sm);
-  z-index: 10;
-  transition: background var(--transition), border-color var(--transition);
-}
-
-.header-logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  font-size: 15px;
-  white-space: nowrap;
-  color: var(--text-primary);
-  text-decoration: none;
-}
-
-.header-logo svg {
-  flex-shrink: 0;
-}
-
-.header-separator {
-  width: 1px;
-  height: 24px;
-  background: var(--border-primary);
-  flex-shrink: 0;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-}
-
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  font-size: 13px;
-  font-weight: 500;
-  font-family: var(--font-sans);
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all var(--transition);
-  white-space: nowrap;
-  line-height: 1.4;
-}
-
-.btn:focus-visible {
-  outline: 2px solid var(--border-focus);
-  outline-offset: 1px;
-}
-
-.btn-primary {
-  background: var(--accent);
-  color: var(--text-on-accent);
-  border-color: var(--accent);
-}
-
-.btn-primary:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
-}
-
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border-color: var(--border-primary);
-}
-
-.btn-secondary:hover {
-  background: var(--bg-hover);
-}
-
-.btn svg {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-
-/* Status badge */
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: 20px;
-  white-space: nowrap;
-  transition: all var(--transition);
-}
-
-.status-badge[data-status="loading"] {
-  background: var(--accent-subtle);
-  color: var(--accent);
-}
-
-.status-badge[data-status="ready"] {
-  background: var(--success-bg);
-  color: var(--success-text);
-}
-
-.status-badge[data-status="compiling"] {
-  background: var(--accent-subtle);
-  color: var(--accent);
-}
-
-.status-badge[data-status="error"] {
-  background: var(--error-bg);
-  color: var(--error-text);
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
-}
-
-.status-badge[data-status="loading"] .status-dot,
-.status-badge[data-status="compiling"] .status-dot {
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
-
-/* Auto-compile toggle */
-.toggle-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  cursor: pointer;
-  user-select: none;
-}
-
-.toggle-track {
-  position: relative;
-  width: 34px;
-  height: 20px;
-  background: var(--toggle-bg);
-  border-radius: 10px;
-  transition: background var(--transition);
-  flex-shrink: 0;
-}
-
-.toggle-track.active {
-  background: var(--toggle-bg-active);
-}
-
-.toggle-knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  background: var(--toggle-knob);
-  border-radius: 50%;
-  transition: transform var(--transition);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-
-.toggle-track.active .toggle-knob {
-  transform: translateX(14px);
-}
-
-/* Theme toggle */
-.theme-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-primary);
-  background: var(--bg-secondary);
-  cursor: pointer;
-  transition: all var(--transition);
-  color: var(--text-secondary);
-}
-
-.theme-toggle:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.theme-toggle:focus-visible {
-  outline: 2px solid var(--border-focus);
-  outline-offset: 1px;
-}
-
-.theme-toggle svg {
-  width: 16px;
-  height: 16px;
-}
-
-/* ============================================================
-   Error/Warning Banner
-   ============================================================ */
-.banner {
-  display: none;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 10px 16px;
-  font-size: 13px;
-  line-height: 1.5;
-  border-bottom: 1px solid;
-  transition: all var(--transition);
-}
-
-.banner.visible {
-  display: flex;
-}
-
-.banner-error {
-  background: var(--error-bg);
-  border-color: var(--error-border);
-  color: var(--error-text);
-}
-
-.banner-warning {
-  background: var(--warning-bg);
-  border-color: var(--warning-border);
-  color: var(--warning-text);
-}
-
-.banner-icon {
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
-.banner-icon svg {
-  width: 16px;
-  height: 16px;
-}
-
-.banner-text {
+/* Editor textarea sizing & behavior */
+.editor-textarea {
   flex: 1;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.banner-close {
-  flex-shrink: 0;
-  background: none;
+  width: 100%;
+  height: 100%;
+  padding: 12px 16px 12px 60px;
+  font-size: 13px;
+  line-height: 1.6;
   border: none;
-  color: inherit;
-  cursor: pointer;
-  padding: 2px;
-  opacity: 0.7;
-  transition: opacity var(--transition);
+  resize: none;
+  outline: none;
+  tab-size: 2;
+  -moz-tab-size: 2;
+  overflow: auto;
+  background: var(--bgColor-default, var(--color-canvas-default));
+  color: var(--fgColor-default, var(--color-fg-default));
+}
+.editor-textarea::placeholder {
+  color: var(--fgColor-muted, var(--color-fg-muted));
 }
 
-.banner-close:hover {
-  opacity: 1;
+/* Line numbers gutter */
+.line-numbers {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 48px;
+  height: 100%;
+  overflow: hidden;
+  z-index: 2;
+  background: var(--bgColor-muted, var(--color-canvas-subtle));
+  border-right: 1px solid var(--borderColor-default, var(--color-border-default));
 }
-
-/* ============================================================
-   Panels
-   ============================================================ */
-.panels {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  position: relative;
-}
-
-.panel {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-}
-
-.panel-editor {
-  flex: 1 1 50%;
-}
-
-.panel-output {
-  flex: 1 1 50%;
-}
-
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 16px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-secondary);
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-secondary);
-  min-height: 36px;
+.line-numbers-inner {
+  padding: 12px 0;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: right;
   user-select: none;
-  transition: background var(--transition), color var(--transition), border-color var(--transition);
+  color: var(--fgColor-muted, var(--color-fg-muted));
+}
+.line-numbers-inner div {
+  padding-right: 12px;
+  height: 20.8px;
 }
 
-.panel-header-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.panel-header-label svg {
-  width: 14px;
-  height: 14px;
-  opacity: 0.6;
-}
-
-/* Divider */
+/* Draggable divider */
 .divider {
   width: 5px;
   cursor: col-resize;
-  background: var(--divider-color);
-  transition: background var(--transition);
   flex-shrink: 0;
   z-index: 5;
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: var(--borderColor-default, var(--color-border-default));
+  transition: background 180ms ease;
 }
-
-/* Larger hit area for easier grabbing */
 .divider::before {
   content: '';
   position: absolute;
@@ -522,390 +78,235 @@ body {
   right: -4px;
   bottom: 0;
 }
-
-/* Grip dots */
 .divider::after {
   content: '';
   width: 3px;
   height: 24px;
   border-radius: 2px;
-  background: var(--text-muted);
+  background: var(--fgColor-muted, var(--color-fg-muted));
   opacity: 0;
-  transition: opacity var(--transition);
+  transition: opacity 180ms ease;
+  position: absolute;
+  top: 50%;
+  left: 1px;
+  transform: translateY(-50%);
 }
-
 .divider:hover::after,
 .divider.dragging::after {
   opacity: 0.5;
 }
-
 .divider:hover,
 .divider.dragging {
-  background: var(--divider-hover);
+  background: var(--fgColor-accent, var(--color-accent-fg));
 }
 
-/* ============================================================
-   Editor (left panel)
-   ============================================================ */
-.editor-container {
-  flex: 1;
-  display: flex;
-  position: relative;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.line-numbers {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 48px;
-  height: 100%;
-  background: var(--line-number-bg);
-  border-right: 1px solid var(--line-number-border);
-  overflow: hidden;
-  z-index: 2;
-  transition: background var(--transition), border-color var(--transition);
-}
-
-.line-numbers-inner {
-  padding: 12px 0;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--line-number-text);
-  text-align: right;
-  user-select: none;
-}
-
-.line-numbers-inner div {
-  padding-right: 12px;
-  height: 20.8px;
-}
-
-.editor-textarea {
-  flex: 1;
-  width: 100%;
-  height: 100%;
-  padding: 12px 16px 12px 60px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--text-primary);
-  background: var(--bg-input);
-  border: none;
-  resize: none;
-  outline: none;
-  tab-size: 2;
-  -moz-tab-size: 2;
-  overflow: auto;
-  transition: background var(--transition), color var(--transition);
-}
-
-.editor-textarea::placeholder {
-  color: var(--text-muted);
-}
-
-.editor-textarea::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.editor-textarea::-webkit-scrollbar-track {
-  background: var(--scrollbar-track);
-}
-
-.editor-textarea::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 4px;
-}
-
-.editor-textarea::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
-}
-
-/* ============================================================
-   Output (right panel)
-   ============================================================ */
-.output-container {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  background: var(--bg-output);
-  transition: background var(--transition);
-}
-
+/* Output pre sizing */
 .output-pre {
   margin: 0;
   padding: 12px 16px;
-  font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.6;
-  color: var(--text-primary);
   white-space: pre;
   min-height: 100%;
-  transition: color var(--transition);
 }
 
-.output-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: var(--text-muted);
-  font-size: 14px;
-  padding: 24px;
-  text-align: center;
-}
-
-.output-container::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.output-container::-webkit-scrollbar-track {
-  background: var(--scrollbar-track);
-}
-
-.output-container::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 4px;
-}
-
-.output-container::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
-}
-
-/* ============================================================
-   Loading Overlay
-   ============================================================ */
+/* Loading overlay & spinner */
 .loading-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--bg-loading);
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 100;
+  background: var(--bgColor-default, var(--color-canvas-default));
   transition: opacity 300ms ease;
 }
-
 .loading-overlay.hidden {
   opacity: 0;
   pointer-events: none;
 }
-
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid var(--border-primary);
-  border-top-color: var(--accent);
+  border: 3px solid var(--borderColor-default, var(--color-border-default));
+  border-top-color: var(--fgColor-accent, var(--color-accent-fg));
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 16px;
 }
-
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-.loading-text {
-  font-size: 15px;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
+/* Status dot pulse */
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 
-.loading-subtext {
-  font-size: 13px;
-  color: var(--text-muted);
+/* Toggle switch (no Primer equivalent in CSS-only) */
+.toggle-track {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--bgColor-neutral-muted, var(--color-neutral-muted, #afb8c1));
+  transition: background 180ms ease;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.toggle-track.active {
+  background: var(--fgColor-accent, var(--color-accent-fg));
+}
+.toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 180ms ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle-track.active .toggle-knob {
+  transform: translateX(14px);
 }
 
-/* ============================================================
-   Copy feedback
-   ============================================================ */
+/* Copy feedback toast */
 .copy-feedback {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-primary);
-  padding: 10px 16px;
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  box-shadow: var(--shadow-lg);
   z-index: 50;
   opacity: 0;
   transform: translateY(8px);
   transition: opacity 200ms ease, transform 200ms ease;
   pointer-events: none;
 }
-
 .copy-feedback.show {
   opacity: 1;
   transform: translateY(0);
 }
 
-/* ============================================================
-   Responsive (<768px)
-   ============================================================ */
+/* Responsive */
 @media (max-width: 767px) {
-  .panels {
-    flex-direction: column;
-  }
-
-  .divider {
-    width: 100%;
-    height: 4px;
-    cursor: row-resize;
-  }
-
-  .panel-editor,
-  .panel-output {
-    flex: 1 1 50%;
-  }
-
-  .header {
-    gap: 8px;
-    padding: 0 12px;
-    flex-wrap: wrap;
-    height: auto;
-    min-height: 48px;
-    padding-top: 8px;
-    padding-bottom: 8px;
-  }
-
-  .header-separator {
-    display: none;
-  }
-
-  .auto-compile-label-text {
-    display: none;
-  }
-}
-
-/* ============================================================
-   Keyboard hint
-   ============================================================ */
-.kbd {
-  display: inline-block;
-  padding: 1px 5px;
-  font-size: 11px;
-  font-family: var(--font-mono);
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-primary);
-  border-radius: 3px;
-  color: var(--text-secondary);
-  line-height: 1.4;
+  .panels-container { flex-direction: column !important; }
+  .divider { width: 100%; height: 4px; cursor: row-resize; }
+  .header-bar { gap: 8px !important; padding: 8px 12px !important; flex-wrap: wrap; height: auto !important; min-height: 48px !important; }
+  .header-separator { display: none !important; }
+  .auto-compile-label-text { display: none; }
 }
 </style>
 </head>
-<body>
-<div class="app" id="app">
+<body class="color-bg-default color-fg-default">
+<div class="d-flex flex-column" style="height: 100vh; width: 100vw;" id="app">
   <!-- Loading Overlay -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="loading-spinner"></div>
-    <div class="loading-text">Loading gh-aw compiler...</div>
-    <div class="loading-subtext">Downloading WebAssembly module (~17 MB)</div>
+    <div class="f4 color-fg-muted mb-1">Loading gh-aw compiler...</div>
+    <div class="f6 color-fg-subtle">Downloading WebAssembly module (~17 MB)</div>
   </div>
 
   <!-- Header -->
-  <header class="header">
-    <a class="header-logo" href="/gh-aw/" title="Back to docs">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <header class="header-bar d-flex flex-items-center gap-2 px-3 color-bg-default border-bottom position-relative" style="height: 52px; min-height: 52px; z-index: 10;">
+    <a class="d-flex flex-items-center gap-2 text-bold f5 color-fg-default no-underline flex-shrink-0" href="/gh-aw/" title="Back to docs">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0">
         <polyline points="4 17 10 11 4 5"></polyline>
         <line x1="12" y1="19" x2="20" y2="19"></line>
       </svg>
       <span>gh-aw Playground</span>
     </a>
 
-    <div class="header-separator"></div>
+    <div class="header-separator flex-shrink-0" style="width: 1px; height: 24px; background: var(--borderColor-default, var(--color-border-default));"></div>
 
-    <div class="status-badge" id="statusBadge" data-status="loading">
-      <span class="status-dot"></span>
+    <span class="Label Label--accent d-inline-flex flex-items-center gap-1" id="statusBadge" data-status="loading">
+      <span class="status-dot" id="statusDot"></span>
       <span id="statusText">Loading...</span>
-    </div>
+    </span>
 
-    <div class="header-actions">
-      <label class="toggle-group" id="autoCompileToggle" title="Auto-compile on change">
+    <div class="d-flex flex-items-center gap-2 ml-auto">
+      <label class="d-flex flex-items-center gap-1 f6 color-fg-muted cursor-pointer" style="white-space: nowrap; user-select: none;" id="autoCompileToggle" title="Auto-compile on change">
         <div class="toggle-track active" id="toggleTrack">
           <div class="toggle-knob"></div>
         </div>
         <span class="auto-compile-label-text">Auto</span>
       </label>
 
-      <button class="btn btn-primary" id="compileBtn" disabled title="Compile workflow">
-        <svg viewBox="0 0 16 16" fill="currentColor">
+      <button class="btn btn-primary btn-sm" id="compileBtn" disabled title="Compile workflow">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="flex-shrink-0">
           <path d="M4 2a1 1 0 011.5-.87l8.5 5a1 1 0 010 1.74l-8.5 5A1 1 0 014 12V2z"/>
         </svg>
         Compile
       </button>
 
-      <button class="btn btn-secondary" id="copyBtn" disabled title="Copy YAML to clipboard">
-        <svg viewBox="0 0 16 16" fill="currentColor">
+      <button class="btn btn-sm" id="copyBtn" disabled title="Copy YAML to clipboard">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="flex-shrink-0">
           <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"/>
           <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z"/>
         </svg>
-        Copy YAML
+        Copy
       </button>
 
-      <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle dark mode">
+      <button class="btn-octicon" id="themeToggle" title="Toggle theme" aria-label="Toggle dark mode">
         <!-- Sun icon (shown in dark mode) -->
-        <svg class="icon-sun" viewBox="0 0 16 16" fill="currentColor" style="display:none">
+        <svg class="icon-sun octicon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="display:none">
           <path d="M8 12a4 4 0 100-8 4 4 0 000 8zm0-1.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5zm5.657-8.157a.75.75 0 010 1.06l-1.061 1.06a.75.75 0 01-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm13 0a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zm-8 8a.75.75 0 01-.75-.75v-1.5a.75.75 0 011.5 0v1.5A.75.75 0 018 16zm-5.657-2.343a.75.75 0 010-1.06l1.06-1.061a.75.75 0 111.06 1.06l-1.06 1.06a.75.75 0 01-1.06 0zm12.728 0l-1.06-1.06a.75.75 0 011.06-1.061l1.06 1.06a.75.75 0 01-1.06 1.06z"/>
         </svg>
         <!-- Moon icon (shown in light mode) -->
-        <svg class="icon-moon" viewBox="0 0 16 16" fill="currentColor">
+        <svg class="icon-moon octicon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
           <path d="M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z"/>
         </svg>
       </button>
     </div>
   </header>
 
-  <!-- Banner (error/warning) -->
-  <div class="banner banner-error" id="errorBanner">
-    <span class="banner-icon">
-      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4.47.22A.749.749 0 015 0h6c.199 0 .389.079.53.22l4.25 4.25c.141.14.22.331.22.53v6a.749.749 0 01-.22.53l-4.25 4.25A.749.749 0 0111 16H5a.749.749 0 01-.53-.22L.22 11.53A.749.749 0 010 11V5c0-.199.079-.389.22-.53Zm.84 1.28L1.5 5.31v5.38l3.81 3.81h5.38l3.81-3.81V5.31L10.69 1.5ZM8 4a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 018 4zm0 8a1 1 0 100-2 1 1 0 000 2z"/></svg>
-    </span>
-    <span class="banner-text" id="errorText"></span>
-    <button class="banner-close" id="errorClose" aria-label="Dismiss">
+  <!-- Error Banner -->
+  <div class="flash flash-error d-none" id="errorBanner">
+    <button class="flash-close" id="errorClose" type="button" aria-label="Dismiss">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 011.06 0L8 6.94l3.22-3.22a.749.749 0 011.275.326.749.749 0 01-.215.734L9.06 8l3.22 3.22a.749.749 0 01-.326 1.275.749.749 0 01-.734-.215L8 9.06l-3.22 3.22a.751.751 0 01-1.042-.018.751.751 0 01-.018-1.042L6.94 8 3.72 4.78a.75.75 0 010-1.06z"/></svg>
     </button>
+    <span class="text-mono f6" id="errorText"></span>
   </div>
 
-  <div class="banner banner-warning" id="warningBanner">
-    <span class="banner-icon">
-      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0114.082 15H1.918a1.75 1.75 0 01-1.543-2.575Zm1.763.707a.25.25 0 00-.44 0L1.698 13.132a.25.25 0 00.22.368h12.164a.25.25 0 00.22-.368Zm.53 3.996v2.5a.75.75 0 01-1.5 0v-2.5a.75.75 0 011.5 0ZM9 11a1 1 0 11-2 0 1 1 0 012 0z"/></svg>
-    </span>
-    <span class="banner-text" id="warningText"></span>
-    <button class="banner-close" id="warningClose" aria-label="Dismiss">
+  <!-- Warning Banner -->
+  <div class="flash flash-warn d-none" id="warningBanner">
+    <button class="flash-close" id="warningClose" type="button" aria-label="Dismiss">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 011.06 0L8 6.94l3.22-3.22a.749.749 0 011.275.326.749.749 0 01-.215.734L9.06 8l3.22 3.22a.749.749 0 01-.326 1.275.749.749 0 01-.734-.215L8 9.06l-3.22 3.22a.751.751 0 01-1.042-.018.751.751 0 01-.018-1.042L6.94 8 3.72 4.78a.75.75 0 010-1.06z"/></svg>
     </button>
+    <span class="text-mono f6" id="warningText"></span>
   </div>
 
   <!-- Main Panels -->
-  <div class="panels" id="panels">
-    <div class="panel panel-editor" id="panelEditor">
-      <div class="panel-header">
-        <span class="panel-header-label">
-          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0114.25 15H1.75A1.75 1.75 0 010 13.25V2.75C0 1.784.784 1 1.75 1zm12.5 1.5H1.75a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V2.75a.25.25 0 00-.25-.25zM3 5.5a.75.75 0 01.75-.75h8.5a.75.75 0 010 1.5h-8.5A.75.75 0 013 5.5zm0 4a.75.75 0 01.75-.75h5.5a.75.75 0 010 1.5h-5.5A.75.75 0 013 9.5z"/></svg>
+  <div class="panels-container d-flex flex-1" style="min-height: 0;" id="panels">
+    <!-- Editor Panel -->
+    <div class="d-flex flex-column" style="flex: 1 1 50%; min-width: 0; min-height: 0;" id="panelEditor">
+      <div class="d-flex flex-items-center flex-justify-between px-3 py-2 color-bg-subtle border-bottom f6 text-bold text-uppercase color-fg-muted" style="letter-spacing: 0.5px; min-height: 36px; user-select: none;">
+        <span class="d-flex flex-items-center gap-1">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="opacity: 0.6;">
+            <path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0114.25 15H1.75A1.75 1.75 0 010 13.25V2.75C0 1.784.784 1 1.75 1zm12.5 1.5H1.75a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V2.75a.25.25 0 00-.25-.25zM3 5.5a.75.75 0 01.75-.75h8.5a.75.75 0 010 1.5h-8.5A.75.75 0 013 5.5zm0 4a.75.75 0 01.75-.75h5.5a.75.75 0 010 1.5h-5.5A.75.75 0 013 9.5z"/>
+          </svg>
           Workflow (.md)
         </span>
-        <span class="kbd" title="Press to compile">
+        <kbd class="color-bg-subtle color-fg-muted text-mono" style="padding: 1px 5px; font-size: 11px; border: 1px solid var(--borderColor-default, var(--color-border-default)); border-radius: 3px; line-height: 1.4;" title="Press to compile">
           <span class="kbd-hint-mac" style="display:none">&#8984;&#9166;</span>
           <span class="kbd-hint-other">Ctrl+Enter</span>
-        </span>
+        </kbd>
       </div>
-      <div class="editor-container">
+      <div class="flex-1 d-flex position-relative" style="min-height: 0; overflow: hidden;">
         <div class="line-numbers" id="lineNumbers">
-          <div class="line-numbers-inner" id="lineNumbersInner"></div>
+          <div class="line-numbers-inner text-mono" id="lineNumbersInner"></div>
         </div>
         <textarea
-          class="editor-textarea"
+          class="editor-textarea text-mono"
           id="editor"
           spellcheck="false"
           autocapitalize="off"
@@ -918,24 +319,27 @@ body {
 
     <div class="divider" id="divider"></div>
 
-    <div class="panel panel-output" id="panelOutput">
-      <div class="panel-header">
-        <span class="panel-header-label">
-          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0114.25 16H1.75A1.75 1.75 0 010 14.25Zm1.75-.25a.25.25 0 00-.25.25v12.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V1.75a.25.25 0 00-.25-.25Zm7.47 3.97a.75.75 0 011.06 0l2 2a.75.75 0 010 1.06l-2 2a.75.75 0 11-1.06-1.06L10.69 8 9.22 6.53a.75.75 0 010-1.06zm-3.44 0a.75.75 0 010 1.06L4.31 8l1.47 1.47a.75.75 0 01-1.06 1.06l-2-2a.75.75 0 010-1.06l2-2a.75.75 0 011.06 0z"/></svg>
+    <!-- Output Panel -->
+    <div class="d-flex flex-column" style="flex: 1 1 50%; min-width: 0; min-height: 0;" id="panelOutput">
+      <div class="d-flex flex-items-center flex-justify-between px-3 py-2 color-bg-subtle border-bottom f6 text-bold text-uppercase color-fg-muted" style="letter-spacing: 0.5px; min-height: 36px; user-select: none;">
+        <span class="d-flex flex-items-center gap-1">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="opacity: 0.6;">
+            <path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0114.25 16H1.75A1.75 1.75 0 010 14.25Zm1.75-.25a.25.25 0 00-.25.25v12.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V1.75a.25.25 0 00-.25-.25Zm7.47 3.97a.75.75 0 011.06 0l2 2a.75.75 0 010 1.06l-2 2a.75.75 0 11-1.06-1.06L10.69 8 9.22 6.53a.75.75 0 010-1.06zm-3.44 0a.75.75 0 010 1.06L4.31 8l1.47 1.47a.75.75 0 01-1.06 1.06l-2-2a.75.75 0 010-1.06l2-2a.75.75 0 011.06 0z"/>
+          </svg>
           Compiled Output (.lock.yml)
         </span>
       </div>
-      <div class="output-container" id="outputContainer">
-        <div class="output-placeholder" id="outputPlaceholder">
+      <div class="flex-1 overflow-auto color-bg-subtle" style="min-height: 0;" id="outputContainer">
+        <div class="d-flex flex-items-center flex-justify-center color-fg-muted f5 p-4 text-center" style="height: 100%;" id="outputPlaceholder">
           Compiled YAML will appear here
         </div>
-        <pre class="output-pre" id="outputPre" style="display:none"></pre>
+        <pre class="output-pre text-mono color-fg-default" id="outputPre" style="display:none"></pre>
       </div>
     </div>
   </div>
 
   <!-- Copy feedback toast -->
-  <div class="copy-feedback" id="copyFeedback">Copied to clipboard!</div>
+  <div class="copy-feedback color-bg-emphasis color-fg-on-emphasis border rounded-2 px-3 py-2 f6 box-shadow-large" id="copyFeedback">Copied to clipboard!</div>
 </div>
 
 <script type="module">
@@ -976,6 +380,7 @@ const compileBtn = $('compileBtn');
 const copyBtn = $('copyBtn');
 const statusBadge = $('statusBadge');
 const statusText = $('statusText');
+const statusDot = $('statusDot');
 const loadingOverlay = $('loadingOverlay');
 const errorBanner = $('errorBanner');
 const errorText = $('errorText');
@@ -1000,7 +405,7 @@ let compileTimer = null;
 let currentYaml = '';
 
 // ---------------------------------------------------------------
-// Theme
+// Theme (uses Primer's data-color-mode)
 // ---------------------------------------------------------------
 function getPreferredTheme() {
   const saved = localStorage.getItem('gh-aw-playground-theme');
@@ -1009,7 +414,7 @@ function getPreferredTheme() {
 }
 
 function setTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
+  document.documentElement.setAttribute('data-color-mode', theme);
   localStorage.setItem('gh-aw-playground-theme', theme);
   const sunIcon = themeToggle.querySelector('.icon-sun');
   const moonIcon = themeToggle.querySelector('.icon-moon');
@@ -1025,7 +430,7 @@ function setTheme(theme) {
 setTheme(getPreferredTheme());
 
 themeToggle.addEventListener('click', () => {
-  const current = document.documentElement.getAttribute('data-theme');
+  const current = document.documentElement.getAttribute('data-color-mode');
   setTheme(current === 'dark' ? 'light' : 'dark');
 });
 
@@ -1044,11 +449,28 @@ document.querySelectorAll('.kbd-hint-mac').forEach(el => el.style.display = isMa
 document.querySelectorAll('.kbd-hint-other').forEach(el => el.style.display = isMac ? 'none' : 'inline');
 
 // ---------------------------------------------------------------
-// Status
+// Status (uses Primer Label component)
 // ---------------------------------------------------------------
+const STATUS_LABEL_MAP = {
+  loading: 'Label--accent',
+  ready: 'Label--success',
+  compiling: 'Label--accent',
+  error: 'Label--danger'
+};
+
 function setStatus(status, text) {
+  // Swap Label modifier class
+  Object.values(STATUS_LABEL_MAP).forEach(cls => statusBadge.classList.remove(cls));
+  statusBadge.classList.add(STATUS_LABEL_MAP[status] || 'Label--secondary');
   statusBadge.setAttribute('data-status', status);
   statusText.textContent = text;
+
+  // Pulse animation for loading/compiling states
+  if (status === 'loading' || status === 'compiling') {
+    statusDot.style.animation = 'pulse 1.2s ease-in-out infinite';
+  } else {
+    statusDot.style.animation = '';
+  }
 }
 
 // ---------------------------------------------------------------
@@ -1144,8 +566,8 @@ async function doCompile() {
   compileBtn.disabled = true;
 
   // Hide old banners
-  errorBanner.classList.remove('visible');
-  warningBanner.classList.remove('visible');
+  errorBanner.classList.add('d-none');
+  warningBanner.classList.add('d-none');
 
   try {
     const result = await compiler.compile(md);
@@ -1153,8 +575,7 @@ async function doCompile() {
     if (result.error) {
       setStatus('error', 'Error');
       errorText.textContent = result.error;
-      errorBanner.classList.add('visible');
-      // Keep previous output visible but dim? No, just keep it.
+      errorBanner.classList.remove('d-none');
     } else {
       setStatus('ready', 'Ready');
       currentYaml = result.yaml;
@@ -1165,13 +586,13 @@ async function doCompile() {
 
       if (result.warnings && result.warnings.length > 0) {
         warningText.textContent = result.warnings.join('\n');
-        warningBanner.classList.add('visible');
+        warningBanner.classList.remove('d-none');
       }
     }
   } catch (err) {
     setStatus('error', 'Error');
     errorText.textContent = err.message || String(err);
-    errorBanner.classList.add('visible');
+    errorBanner.classList.remove('d-none');
   } finally {
     isCompiling = false;
     compileBtn.disabled = !isReady;
@@ -1207,8 +628,8 @@ copyBtn.addEventListener('click', async () => {
 // ---------------------------------------------------------------
 // Banner close
 // ---------------------------------------------------------------
-$('errorClose').addEventListener('click', () => errorBanner.classList.remove('visible'));
-$('warningClose').addEventListener('click', () => warningBanner.classList.remove('visible'));
+$('errorClose').addEventListener('click', () => errorBanner.classList.add('d-none'));
+$('warningClose').addEventListener('click', () => warningBanner.classList.add('d-none'));
 
 // ---------------------------------------------------------------
 // Draggable divider
@@ -1304,8 +725,8 @@ async function init() {
     }
   } catch (err) {
     setStatus('error', 'Failed to load');
-    loadingOverlay.querySelector('.loading-text').textContent = 'Failed to load compiler';
-    loadingOverlay.querySelector('.loading-subtext').textContent = err.message;
+    loadingOverlay.querySelector('.f4').textContent = 'Failed to load compiler';
+    loadingOverlay.querySelector('.f6').textContent = err.message;
     loadingOverlay.querySelector('.loading-spinner').style.display = 'none';
   }
 }
