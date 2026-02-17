@@ -154,27 +154,50 @@ const id = `copy-btn-${Math.random().toString(36).substr(2, 9)}`;
     modal.setAttribute('aria-modal', 'true');
     modal.setAttribute('aria-labelledby', 'error-modal-title');
     
-    modal.innerHTML = `
-      <div class="error-modal-header">
-        <div id="error-modal-title" class="error-modal-title" role="heading" aria-level="3">Error Copying File</div>
-        <button class="error-modal-close" aria-label="Close error dialog">&times;</button>
-      </div>
-      <div class="error-modal-body">
-        <p>An error occurred while trying to copy the file:</p>
-        <pre class="error-modal-details">${escapeHtml(errorMessage)}</pre>
-      </div>
-    `;
+    // Build modal content using safe DOM APIs (no innerHTML)
+    const header = document.createElement('div');
+    header.className = 'error-modal-header';
+
+    const titleEl = document.createElement('div');
+    titleEl.id = 'error-modal-title';
+    titleEl.className = 'error-modal-title';
+    titleEl.setAttribute('role', 'heading');
+    titleEl.setAttribute('aria-level', '3');
+    titleEl.textContent = 'Error Copying File';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'error-modal-close';
+    closeBtn.setAttribute('aria-label', 'Close error dialog');
+    closeBtn.textContent = '\u00D7';
+
+    header.appendChild(titleEl);
+    header.appendChild(closeBtn);
+
+    const body = document.createElement('div');
+    body.className = 'error-modal-body';
+
+    const bodyText = document.createElement('p');
+    bodyText.textContent = 'An error occurred while trying to copy the file:';
+
+    const details = document.createElement('pre');
+    details.className = 'error-modal-details';
+    details.textContent = errorMessage;
+
+    body.appendChild(bodyText);
+    body.appendChild(details);
+
+    modal.appendChild(header);
+    modal.appendChild(body);
     
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
     
     // Close modal on click
-    const closeButton = modal.querySelector('.error-modal-close');
     const closeModal = () => {
       overlay.remove();
     };
-    
-    closeButton?.addEventListener('click', closeModal);
+
+    closeBtn.addEventListener('click', closeModal);
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
         closeModal();
@@ -189,13 +212,6 @@ const id = `copy-btn-${Math.random().toString(36).substr(2, 9)}`;
       }
     };
     document.addEventListener('keydown', handleEscape);
-  }
-  
-  // Escape HTML to prevent XSS
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
   }
 
   // Attach click handlers immediately or wait for DOM

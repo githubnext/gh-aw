@@ -478,11 +478,13 @@ function setStatus(status, text) {
 // ---------------------------------------------------------------
 function updateLineNumbers() {
   const lines = editor.value.split('\n').length;
-  let html = '';
+  const fragment = document.createDocumentFragment();
   for (let i = 1; i <= lines; i++) {
-    html += '<div>' + i + '</div>';
+    const div = document.createElement('div');
+    div.textContent = i;
+    fragment.appendChild(div);
   }
-  lineNumbersInner.innerHTML = html;
+  lineNumbersInner.replaceChildren(fragment);
 }
 
 function syncLineNumberScroll() {

@@ -699,7 +699,9 @@ The compiler runs entirely client-side via WebAssembly (~17 MB download on first
       const errDiv = document.createElement('div');
       errDiv.className = 'le-loading-error';
       const title = document.createElement('p');
-      title.innerHTML = '<strong>Failed to load the WebAssembly compiler</strong>';
+      const titleStrong = document.createElement('strong');
+      titleStrong.textContent = 'Failed to load the WebAssembly compiler';
+      title.appendChild(titleStrong);
       const msg = document.createElement('p');
       msg.textContent = err.message || String(err);
       const hint = document.createElement('p');

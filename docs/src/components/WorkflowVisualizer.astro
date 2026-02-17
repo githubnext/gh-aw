@@ -68,7 +68,14 @@ const initialMermaid = initial.ok ? workflowGraphToMermaid(initial.graph) : '';
       // Use a stable unique ID per render to avoid collisions.
       const id = `mermaid-dynamic-${Date.now()}`;
       const { svg } = await mermaid.render(id, mermaidText);
-      diagram.innerHTML = svg;
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(svg, 'image/svg+xml');
+      const svgEl = svgDoc.documentElement;
+      if (svgEl instanceof SVGElement) {
+        diagram.replaceChildren(svgEl);
+      } else {
+        diagram.textContent = 'Failed to render diagram';
+      }
     }
 
     function showError(message) {
@@ -84,7 +91,7 @@ const initialMermaid = initial.ok ? workflowGraphToMermaid(initial.graph) : '';
     async function update() {
       const result = parseWorkflowGraph(textarea.value);
       if (!result.ok) {
-        diagram.innerHTML = '';
+        diagram.replaceChildren();
         mermaidSource.textContent = '';
         showError(result.error);
         return;
