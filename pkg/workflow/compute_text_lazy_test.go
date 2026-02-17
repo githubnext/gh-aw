@@ -351,6 +351,51 @@ func TestHasContentContext(t *testing.T) {
 			frontmatter:     map[string]any{},
 			expectedContext: false,
 		},
+		{
+			name: "slash_command_trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"slash_command": map[string]any{
+						"name":   "test",
+						"events": []string{"issues", "issue_comment"},
+					},
+				},
+			},
+			expectedContext: true,
+		},
+		{
+			name: "labeled_on_issues",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"issues": map[string]any{
+						"types": []string{"labeled", "unlabeled"},
+					},
+				},
+			},
+			expectedContext: true,
+		},
+		{
+			name: "labeled_on_pull_request",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request": map[string]any{
+						"types": []string{"opened", "labeled"},
+					},
+				},
+			},
+			expectedContext: true,
+		},
+		{
+			name: "labeled_on_discussion",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"discussion": map[string]any{
+						"types": []string{"labeled"},
+					},
+				},
+			},
+			expectedContext: true,
+		},
 	}
 
 	for _, tt := range tests {

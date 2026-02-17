@@ -401,6 +401,22 @@ func (c *Compiler) hasContentContext(frontmatter map[string]any) bool {
 		}
 	}
 
+	// Check for slash_command trigger (works with comment events that have content)
+	if strings.Contains(onStr, "slash_command:") {
+		orchestratorToolsLog.Printf("Detected content context: workflow triggered by slash_command")
+		return true
+	}
+
+	// Check for labeled activity type on issues, pull_request, or discussion
+	// These events provide text content when labeled/unlabeled
+	if strings.Contains(onStr, "labeled") {
+		// Ensure it's in the context of an issue, PR, or discussion event
+		if strings.Contains(onStr, "issues:") || strings.Contains(onStr, "pull_request:") || strings.Contains(onStr, "discussion:") {
+			orchestratorToolsLog.Printf("Detected content context: workflow triggered by labeled activity type")
+			return true
+		}
+	}
+
 	orchestratorToolsLog.Printf("No content context detected in trigger events")
 	return false
 }
