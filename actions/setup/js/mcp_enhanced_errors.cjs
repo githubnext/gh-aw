@@ -5,7 +5,12 @@
  *
  * This module provides enhanced error messages for MCP tool validation errors
  * that include actionable guidance to help agents self-correct.
+ *
+ * NOTE: This module only uses "body" as an example string literal (line 115).
+ * No sanitize needed - no user-provided content is processed.
  */
+
+// SEC-004: No sanitize needed - "body" is only used as example text
 
 /**
  * Generate an enhanced error message with actionable guidance for missing parameters

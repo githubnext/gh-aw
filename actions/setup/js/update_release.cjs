@@ -1,8 +1,16 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+/**
+ * Update Release Handler
+ *
+ * Content sanitization: message.body is sanitized by updateBody helper
+ * (update_pr_description_helpers.cjs line 83) before writing to GitHub.
+ */
+
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { updateBody } = require("./update_pr_description_helpers.cjs");
+// Content sanitization: message.body is sanitized by updateBody() helper
 
 /**
  * Create a handler for update-release messages
