@@ -12,6 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Note: This test file verifies that the compiler automatically injects git commands
+// when safe-outputs needs them. The validation that used to reject workflows without
+// explicit git configuration has been removed because the compiler handles this automatically.
 func TestCompilerDetectsGitToolRequirement(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -20,7 +23,7 @@ func TestCompilerDetectsGitToolRequirement(t *testing.T) {
 		errorContains string
 	}{
 		{
-			name: "create-pull-request without bash tool - OK (defaults apply)",
+			name: "create-pull-request without bash tool - OK (git commands auto-injected)",
 			workflow: `---
 name: Test Create PR Without Git
 engine: copilot
@@ -35,7 +38,7 @@ Test workflow that uses create-pull-request without bash tool.
 			expectError: false,
 		},
 		{
-			name: "create-pull-request with bash: false - error",
+			name: "create-pull-request with bash: false - git commands auto-injected",
 			workflow: `---
 name: Test Create PR With Bash False
 engine: copilot
@@ -48,12 +51,12 @@ safe-outputs:
 ---
 
 Test workflow that uses create-pull-request with bash explicitly disabled.
+Git commands should still be injected because PR operations require them.
 `,
-			expectError:   true,
-			errorContains: "create-pull-request but git tool is not allowed",
+			expectError: false,
 		},
 		{
-			name: "create-pull-request with bash: [echo] - error",
+			name: "create-pull-request with bash: [echo] - OK (git commands auto-added)",
 			workflow: `---
 name: Test Create PR With Limited Bash
 engine: copilot
@@ -66,9 +69,9 @@ safe-outputs:
 ---
 
 Test workflow that uses create-pull-request without git in allowed commands.
+The compiler will automatically add git commands to the bash allowlist.
 `,
-			expectError:   true,
-			errorContains: "create-pull-request but git tool is not allowed",
+			expectError: false, // Git commands are auto-injected
 		},
 		{
 			name: "create-pull-request with bash: true - valid",
@@ -206,13 +209,6 @@ Test workflow that doesn't use PR features.
 			if tt.expectError {
 				require.Error(t, err, "Expected compilation error")
 				assert.Contains(t, err.Error(), tt.errorContains, "Error should contain expected message")
-
-				// Verify error message includes helpful suggestions
-				assert.True(t,
-					strings.Contains(err.Error(), "bash: true") ||
-						strings.Contains(err.Error(), "bash: [\"git\"]") ||
-						strings.Contains(err.Error(), "bash: [\"*\"]"),
-					"Error message should include helpful suggestions")
 			} else {
 				assert.NoError(t, err, "Expected successful compilation")
 			}
@@ -261,4 +257,61 @@ Test workflow that imports bash configuration.
 		// Should succeed because bash is imported
 		assert.NoError(t, err, "Expected successful compilation with imported bash tool")
 	})
+}
+
+// TestBashFalseWithPROperationsInjectsGitCommands verifies that git commands are injected
+// even when bash: false is set, as PR operations require them
+func TestBashFalseWithPROperationsInjectsGitCommands(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create workflow with bash: false and create-pull-request
+	workflowPath := filepath.Join(tmpDir, "bash-false-pr.md")
+	workflowContent := `---
+name: Test Bash False With PR
+engine: copilot
+on: workflow_dispatch
+tools:
+  bash: false
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[auto] "
+---
+
+Test workflow with bash: false but PR operations requiring git.
+`
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "Failed to write workflow file")
+
+	// Compile the workflow - this creates the .lock.yml file
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(workflowPath)
+	require.NoError(t, err, "Compilation should succeed")
+
+	// Read the generated lock file
+	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err, "Should be able to read lock file")
+
+	lockContentStr := string(lockContent)
+
+	// Verify git commands are present in the compiled workflow
+	expectedGitCommands := []string{
+		"shell(git checkout:*)",
+		"shell(git add:*)",
+		"shell(git commit:*)",
+		"shell(git branch:*)",
+		"shell(git switch:*)",
+		"shell(git rm:*)",
+		"shell(git merge:*)",
+	}
+
+	for _, gitCmd := range expectedGitCommands {
+		assert.Contains(t, lockContentStr, gitCmd,
+			"Compiled workflow should contain %s even with bash: false", gitCmd)
+	}
+
+	// Also verify that bash: false was overridden (not deleted entirely)
+	// The workflow should have bash tools (git commands), not be completely missing bash
+	assert.Contains(t, lockContentStr, "shell(",
+		"Workflow should have shell tools (bash was overridden, not deleted)")
 }

@@ -205,7 +205,7 @@ func TestActionSHAValidationSavesCache(t *testing.T) {
 
 	// Create a lock file with an action
 	lockFile := filepath.Join(testDir, "test-workflow.lock.yml")
-	lockContent := `# gh-aw-metadata: {"schema_version":"v1","compiler_version":"test"}
+	lockContent := `# gh-aw-metadata: {"schema_version":"v1"}
 name: Test Workflow
 on: push
 jobs:

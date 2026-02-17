@@ -49,6 +49,11 @@ func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string)
 // for description, source, imports/includes, frontmatter-hash, stop-time, and manual-approval.
 // All ANSI escape codes are stripped from the output.
 func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowData, frontmatterHash string) {
+	// Skip the ASCII art banner in wasm/editor mode — it takes up too much space
+	if c.skipHeader {
+		return
+	}
+
 	// Add workflow header with logo and instructions
 	sourceFile := "the corresponding .md file"
 	if data.Source != "" {

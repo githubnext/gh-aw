@@ -11,9 +11,15 @@
  * It does not perform cross-repository operations directly. Handlers that use these
  * utilities (like create_issue, add_comment, etc.) are responsible for validating
  * target repositories against their configured allowlists (validateTargetRepo/checkAllowedRepo).
+ *
+ * Content sanitization: This module reads body/title/description fields from messages
+ * to extract temporary ID references (read-only). The actual sanitization of these
+ * fields happens in the handlers that create/update content (create_issue, add_comment, etc.).
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+// SEC-004: No sanitize needed - body fields are read-only (temp ID extraction)
+// Actual sanitize happens in create_issue/add_comment handlers that write content
 
 const crypto = require("crypto");
 

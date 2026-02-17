@@ -139,6 +139,7 @@ type Compiler struct {
 	scheduleFriendlyFormats map[int]string      // Maps schedule item index to friendly format string for current workflow
 	gitRoot                 string              // Git repository root directory (if set, used for action cache path)
 	contentOverride         string              // If set, use this content instead of reading from disk (for Wasm/in-memory compilation)
+	skipHeader              bool                // If true, skip ASCII art header in generated YAML (for Wasm/editor mode)
 	inlinePrompt            bool                // If true, inline markdown content in YAML instead of using runtime-import macros (for Wasm builds)
 }
 

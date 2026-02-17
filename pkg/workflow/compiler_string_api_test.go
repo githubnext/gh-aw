@@ -225,7 +225,8 @@ When a new issue is opened, add a welcome comment.
 	require.NoError(t, err)
 
 	// Verify the YAML is valid-looking
-	assert.True(t, strings.HasPrefix(yaml, "#"), "compiled YAML should start with a comment header")
+	// CompileToYAML skips the ASCII art header (wasm/editor mode), so YAML starts with the name
+	assert.False(t, strings.Contains(yaml, "Agentic"), "compiled YAML should not contain ASCII art header")
 	assert.Contains(t, yaml, "e2e-test")
 	assert.Contains(t, yaml, "issues")
 }

@@ -13,6 +13,7 @@ import (
 // without writing to disk. This is useful for Wasm builds and programmatic usage.
 func (c *Compiler) CompileToYAML(workflowData *WorkflowData, markdownPath string) (string, error) {
 	c.markdownPath = markdownPath
+	c.skipHeader = true
 
 	startTime := time.Now()
 	defer func() {

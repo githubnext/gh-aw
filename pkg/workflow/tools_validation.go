@@ -71,36 +71,7 @@ func isGitToolAllowed(tools *Tools) bool {
 	return false
 }
 
-// validateGitToolForSafeOutputs validates that workflows using create-pull-request or
-// push-to-pull-request-branch have git tool allowed in their bash configuration
-func validateGitToolForSafeOutputs(tools *Tools, safeOutputs *SafeOutputsConfig, workflowName string) error {
-	if safeOutputs == nil {
-		return nil
-	}
-
-	// Check if workflow uses create-pull-request or push-to-pull-request-branch
-	usesCreatePR := safeOutputs.CreatePullRequests != nil
-	usesPushToBranch := safeOutputs.PushToPullRequestBranch != nil
-
-	if !usesCreatePR && !usesPushToBranch {
-		// Workflow doesn't use these features, no validation needed
-		return nil
-	}
-
-	// Check if git tool is allowed
-	if !isGitToolAllowed(tools) {
-		var feature string
-		if usesCreatePR && usesPushToBranch {
-			feature = "create-pull-request and push-to-pull-request-branch"
-		} else if usesCreatePR {
-			feature = "create-pull-request"
-		} else {
-			feature = "push-to-pull-request-branch"
-		}
-
-		toolsValidationLog.Printf("Workflow %s uses %s but git tool is not allowed", workflowName, feature)
-		return fmt.Errorf("workflow uses %s but git tool is not allowed in bash configuration. Add 'bash: true' (all commands), 'bash: [\"git\"]' (git only), or 'bash: [\"*\"]' (wildcard) to enable git commands", feature)
-	}
-
-	return nil
-}
+// Note: validateGitToolForSafeOutputs was removed because git commands are automatically
+// injected by the compiler when safe-outputs needs them (see compiler_safe_outputs.go).
+// The validation was misleading - it would fail even though the compiler would add the
+// necessary git commands during compilation.
