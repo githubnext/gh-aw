@@ -28,7 +28,7 @@
 #     - shared/docs-server-lifecycle.md
 #     - shared/mood.md
 #
-# frontmatter-hash: 3aa3ed08915a07cfe487bfab52832ff0909901354b2b4df0d48bff93bba5eea5
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3aa3ed08915a07cfe487bfab52832ff0909901354b2b4df0d48bff93bba5eea5"}
 
 name: "Documentation Noob Tester"
 "on":

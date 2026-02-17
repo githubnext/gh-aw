@@ -1,7 +1,16 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+/**
+ * Expired Entity Search Helpers
+ *
+ * NOTE: This module reads entity.body from GraphQL responses to check for workflow
+ * markers and expiration patterns. No sanitization is needed as this is read-only
+ * processing. The body content is used only for pattern matching, not for writing.
+ */
+
 const { EXPIRATION_PATTERN, LEGACY_EXPIRATION_PATTERN } = require("./ephemerals.cjs");
+// SEC-004: No sanitize needed - entity.body is read-only (marker detection)
 
 /**
  * Configuration for entity-specific GraphQL search

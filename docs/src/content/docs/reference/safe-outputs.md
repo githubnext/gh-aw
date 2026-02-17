@@ -796,7 +796,9 @@ safe-outputs:
     if-no-changes: "warn"       # "warn" (default), "error", or "ignore"
 ```
 
-When `create-pull-request` or `push-to-pull-request-branch` are enabled, file editing tools (Edit, Write, NotebookEdit) and git commands are added.
+:::note
+File editing tools (Edit, Write, NotebookEdit) and git commands are automatically added when `create-pull-request` or `push-to-pull-request-branch` are configured - no explicit `bash` configuration needed.
+:::
 
 ### Release Updates (`update-release:`)
 
@@ -1403,6 +1405,12 @@ safe-outputs:
 ## Automatically Added Tools
 
 When `create-pull-request` or `push-to-pull-request-branch` are configured, file editing tools (Edit, MultiEdit, Write, NotebookEdit) and git commands (`checkout`, `branch`, `switch`, `add`, `rm`, `commit`, `merge`) are automatically enabled.
+
+:::note[No Explicit Configuration Required]
+You do **not** need to add `git` to your `bash` allowlist when using PR-related safe outputs. The compiler automatically injects the necessary git commands during workflow compilation. 
+
+Even `bash: false` will be overridden with the minimum git commands needed for PR operations. Adding `bash: ["git"]` explicitly is allowed but redundant.
+:::
 
 ## Security and Sanitization
 

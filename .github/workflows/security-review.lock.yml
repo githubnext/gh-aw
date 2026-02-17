@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 7ed05f87d4291aa66da0c27f6ecb72eefa9cbe3a4653046c50372a2b1d08693b
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7ed05f87d4291aa66da0c27f6ecb72eefa9cbe3a4653046c50372a2b1d08693b"}
 
 name: "Security Review Agent 🔒"
 "on":

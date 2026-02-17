@@ -225,7 +225,74 @@ When a new issue is opened, add a welcome comment.
 	require.NoError(t, err)
 
 	// Verify the YAML is valid-looking
-	assert.True(t, strings.HasPrefix(yaml, "#"), "compiled YAML should start with a comment header")
+	// CompileToYAML skips the ASCII art header (wasm/editor mode), so YAML starts with the name
+	assert.False(t, strings.Contains(yaml, "Agentic"), "compiled YAML should not contain ASCII art header")
 	assert.Contains(t, yaml, "e2e-test")
 	assert.Contains(t, yaml, "issues")
+}
+
+func TestCompileToYAML_PromptContentInlined(t *testing.T) {
+	// Verify that the markdown prompt content is inlined in the compiled YAML
+	// when using ParseWorkflowString (the Wasm/browser path).
+	// This is the key regression test for the wasm live editor prompt issue.
+	markdown := `---
+name: hello-world
+on:
+  workflow_dispatch:
+engine: copilot
+---
+
+# Mission
+
+Say hello to the world!
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	wd, err := compiler.ParseWorkflowString(markdown, "workflow.md")
+	require.NoError(t, err)
+
+	yamlOutput, err := compiler.CompileToYAML(wd, "workflow.md")
+	require.NoError(t, err)
+
+	// The prompt content should be inlined in the YAML, not behind a runtime-import macro
+	assert.Contains(t, yamlOutput, "# Mission", "compiled YAML should contain the markdown heading")
+	assert.Contains(t, yamlOutput, "Say hello to the world!", "compiled YAML should contain the markdown body")
+	assert.NotContains(t, yamlOutput, "{{#runtime-import", "compiled YAML from string API should not contain runtime-import macros")
+}
+
+func TestCompileToYAML_PromptContentInlinedWithExpressions(t *testing.T) {
+	// Verify that GitHub expressions in the markdown prompt are properly handled
+	// when inlined (expressions should be extracted and replaced with env vars)
+	markdown := `---
+name: expr-test
+on:
+  issues:
+    types: [opened]
+engine: copilot
+---
+
+# Mission
+
+Handle issue ${{ github.event.issue.number }} in repo ${{ github.repository }}.
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	wd, err := compiler.ParseWorkflowString(markdown, "workflow.md")
+	require.NoError(t, err)
+
+	yamlOutput, err := compiler.CompileToYAML(wd, "workflow.md")
+	require.NoError(t, err)
+
+	// The prompt content should be present (with expressions replaced by env var references)
+	assert.Contains(t, yamlOutput, "# Mission", "compiled YAML should contain the markdown heading")
+	assert.Contains(t, yamlOutput, "Handle issue", "compiled YAML should contain the prompt text")
+	assert.NotContains(t, yamlOutput, "{{#runtime-import", "compiled YAML from string API should not contain runtime-import macros")
 }

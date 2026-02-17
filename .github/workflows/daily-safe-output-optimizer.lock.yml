@@ -29,7 +29,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: ee30c910ce1c713101cf700f424b233d4322abfc21dbeb53ef87f6780b7cdb2c
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ee30c910ce1c713101cf700f424b233d4322abfc21dbeb53ef87f6780b7cdb2c"}
 
 name: "Daily Safe Output Tool Optimizer"
 "on":

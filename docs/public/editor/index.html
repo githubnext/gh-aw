@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>gh-aw Playground</title>
+<link rel="icon" type="image/svg+xml" href="/gh-aw/favicon.svg" />
 <link rel="stylesheet" href="https://unpkg.com/@primer/css@21/dist/primer.css">
 <style>
 /* ============================================================
@@ -478,13 +479,11 @@ function setStatus(status, text) {
 // ---------------------------------------------------------------
 function updateLineNumbers() {
   const lines = editor.value.split('\n').length;
-  const fragment = document.createDocumentFragment();
+  let html = '';
   for (let i = 1; i <= lines; i++) {
-    const div = document.createElement('div');
-    div.textContent = i;
-    fragment.appendChild(div);
+    html += '<div>' + i + '</div>';
   }
-  lineNumbersInner.replaceChildren(fragment);
+  lineNumbersInner.innerHTML = html;
 }
 
 function syncLineNumberScroll() {

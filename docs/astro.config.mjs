@@ -56,6 +56,7 @@ export default defineConfig({
 		starlight({
 			title: 'GitHub Agentic Workflows',
 			description: 'Write agentic workflows in natural language using markdown files and run them as GitHub Actions workflows.',
+			favicon: '/favicon.svg',
 			logo: {
 				src: './src/assets/agentic-workflow.svg',
 				replacesTitle: false,
@@ -229,7 +230,6 @@ export default defineConfig({
 						{ label: 'Tools', link: '/reference/tools/' },
 						{ label: 'Triggers', link: '/reference/triggers/' },
 						{ label: 'Workflow Structure', link: '/reference/workflow-structure/' },
-						{ label: 'Live Editor', link: '/reference/live-editor/' },
 					],
 				},
 				{

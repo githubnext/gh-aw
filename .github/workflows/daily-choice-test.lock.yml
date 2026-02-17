@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 539fce339b1d147f6bc4b1027bcaf931b6b380c3328ab9678aec5fe64741e654
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"539fce339b1d147f6bc4b1027bcaf931b6b380c3328ab9678aec5fe64741e654"}
 
 name: "Daily Choice Type Test"
 "on":

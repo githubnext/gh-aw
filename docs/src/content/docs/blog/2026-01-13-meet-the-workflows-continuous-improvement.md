@@ -24,10 +24,10 @@ In our [previous posts](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-sim
 
 ## Continuous Improvement Workflows
 
-- **[Go Module Usage Expert (aka Go Fan)](https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/go-fan.md?plain=1)** - Daily Go module usage reviewer  
-- **[Typist](https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/typist.md?plain=1)** - Analyzes type usage patterns for improved safety  
+- **[Go Module Usage Expert (aka Go Fan)](https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/go-fan.md?plain=1)** - Daily Go module usage reviewer  
+- **[Typist](https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/typist.md?plain=1)** - Analyzes type usage patterns for improved safety  
 - **[Functional Pragmatist](https://github.com/github/gh-aw/blob/main/.github/workflows/functional-programming-enhancer.md?plain=1)** - Applies functional techniques pragmatically  
-- **[Repository Quality Improver](https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/repository-quality-improver.md?plain=1)** - Holistic code quality analysis  
+- **[Repository Quality Improver](https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/repository-quality-improver.md?plain=1)** - Holistic code quality analysis  
 
 ### Go Module Usage Expert: The Dependency Enthusiast 🐹
 
@@ -119,13 +119,13 @@ You can add these workflows to your own repository and remix them. Get going wit
 **Go Module Usage Expert:**
 
 ```bash
-gh aw add-wizard https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/go-fan.md
+gh aw add-wizard https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/go-fan.md
 ```
 
 **Typist:**
 
 ```bash
-gh aw add-wizard https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/typist.md
+gh aw add-wizard https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/typist.md
 ```
 
 **Functional Pragmatist:**
@@ -137,7 +137,7 @@ gh aw add-wizard https://github.com/github/gh-aw/blob/main/.github/workflows/fun
 **Repository Quality Improver:**
 
 ```bash
-gh aw add-wizard https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/repository-quality-improver.md
+gh aw add-wizard https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/repository-quality-improver.md
 ```
 
 Then edit and remix the workflow specifications to meet your needs, regenerate the lock file using `gh aw compile`, and push to your repository. See our [Quick Start](https://github.github.com/gh-aw/setup/quick-start/) for further installation and setup instructions.

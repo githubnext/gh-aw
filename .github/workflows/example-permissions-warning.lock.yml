@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 7885ee82ff0bf979506525a90d1f509fafeac200be62ed4d79552baa077a33ee
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7885ee82ff0bf979506525a90d1f509fafeac200be62ed4d79552baa077a33ee"}
 
 name: "Example: Properly Provisioned Permissions"
 "on":

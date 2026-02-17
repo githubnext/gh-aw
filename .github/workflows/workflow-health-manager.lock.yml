@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 766a0d320d7f42f719cd210f29f2e5a5598c281d919a261a98aa039d8c567b4a
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"766a0d320d7f42f719cd210f29f2e5a5598c281d919a261a98aa039d8c567b4a"}
 
 name: "Workflow Health Manager - Meta-Orchestrator"
 "on":

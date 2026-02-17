@@ -30,7 +30,7 @@
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# frontmatter-hash: 90cdc96a45c8d61adb30503e3d00a4cd026b94d383b6f24c9727afd0a2358d48
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"90cdc96a45c8d61adb30503e3d00a4cd026b94d383b6f24c9727afd0a2358d48"}
 
 name: "Daily Code Metrics and Trend Tracking Agent"
 "on":

@@ -13,6 +13,7 @@ import (
 // without writing to disk. This is useful for Wasm builds and programmatic usage.
 func (c *Compiler) CompileToYAML(workflowData *WorkflowData, markdownPath string) (string, error) {
 	c.markdownPath = markdownPath
+	c.skipHeader = true
 
 	startTime := time.Now()
 	defer func() {
@@ -53,6 +54,10 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	// Store content so downstream code can use it instead of reading from disk
 	c.contentOverride = content
 	defer func() { c.contentOverride = "" }()
+
+	// Enable inline prompt mode for string-based compilation (Wasm/browser)
+	// since runtime-import macros cannot resolve without filesystem access
+	c.inlinePrompt = true
 
 	// Parse frontmatter directly from content string
 	result, err := parser.ExtractFrontmatterFromContent(content)

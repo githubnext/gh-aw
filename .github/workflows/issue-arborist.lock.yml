@@ -28,7 +28,7 @@
 #     - shared/jqschema.md
 #     - shared/mood.md
 #
-# frontmatter-hash: 3e2e9592039edbceb3148d98dbe9956e03d8e43c76aede673d2bdb751af40cf9
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3e2e9592039edbceb3148d98dbe9956e03d8e43c76aede673d2bdb751af40cf9"}
 
 name: "Issue Arborist"
 "on":

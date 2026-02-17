@@ -32,7 +32,7 @@
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# frontmatter-hash: 7765f4f5067a411b0061ff0719af32709f6fb36c4617e0d3fb127b356e1afae9
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7765f4f5067a411b0061ff0719af32709f6fb36c4617e0d3fb127b356e1afae9"}
 
 name: "Daily Issues Report Generator"
 "on":
