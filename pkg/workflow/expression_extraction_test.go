@@ -50,10 +50,10 @@ func TestExpressionExtractor_ExtractExpressions(t *testing.T) {
 			wantExpressions: []string{"github.server_url", "github.repository", "github.run_id"},
 		},
 		{
-			name:            "needs.activation.outputs.text",
+			name:            "needs.activation.outputs.text gets transformed",
 			markdown:        "Content: ${{ needs.activation.outputs.text }}",
 			wantCount:       1,
-			wantExpressions: []string{"needs.activation.outputs.text"},
+			wantExpressions: []string{"steps.compute-text.outputs.text"},
 		},
 		{
 			name:            "expression with whitespace",
@@ -314,5 +314,131 @@ func TestExpressionExtractor_NoCollisions(t *testing.T) {
 	// Verify we have as many unique env vars as expressions
 	if len(envVars) != len(expressions) {
 		t.Errorf("Expected %d unique env vars, got %d", len(expressions), len(envVars))
+	}
+}
+
+func TestTransformActivationOutputs(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "transform text output",
+			input:    "needs.activation.outputs.text",
+			expected: "steps.compute-text.outputs.text",
+		},
+		{
+			name:     "transform title output",
+			input:    "needs.activation.outputs.title",
+			expected: "steps.compute-text.outputs.title",
+		},
+		{
+			name:     "transform body output",
+			input:    "needs.activation.outputs.body",
+			expected: "steps.compute-text.outputs.body",
+		},
+		{
+			name:     "no transformation for other outputs",
+			input:    "needs.activation.outputs.comment_id",
+			expected: "needs.activation.outputs.comment_id",
+		},
+		{
+			name:     "no transformation for other jobs",
+			input:    "needs.pre_activation.outputs.activated",
+			expected: "needs.pre_activation.outputs.activated",
+		},
+		{
+			name:     "expression with operators",
+			input:    "needs.activation.outputs.text || 'default'",
+			expected: "steps.compute-text.outputs.text || 'default'",
+		},
+		{
+			name:     "multiple transformations in same expression",
+			input:    "needs.activation.outputs.title && needs.activation.outputs.body",
+			expected: "steps.compute-text.outputs.title && steps.compute-text.outputs.body",
+		},
+		{
+			name:     "no transformation needed",
+			input:    "github.repository",
+			expected: "github.repository",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := transformActivationOutputs(tt.input)
+			if result != tt.expected {
+				t.Errorf("transformActivationOutputs() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestExpressionExtractor_ActivationOutputTransformation(t *testing.T) {
+	// Test that the extraction process applies the transformation
+	markdown := `# Test
+
+Triggering content: ${{ needs.activation.outputs.text }}
+Title: ${{ needs.activation.outputs.title }}
+Body: ${{ needs.activation.outputs.body }}
+Other: ${{ needs.activation.outputs.comment_id }}
+`
+
+	extractor := NewExpressionExtractor()
+	mappings, err := extractor.ExtractExpressions(markdown)
+
+	if err != nil {
+		t.Fatalf("ExtractExpressions() error = %v", err)
+	}
+
+	// Build a map for lookup
+	contentMap := make(map[string]*ExpressionMapping)
+	for _, mapping := range mappings {
+		contentMap[mapping.Content] = mapping
+	}
+
+	// Verify transformations were applied
+	tests := []struct {
+		original    string
+		transformed string
+		shouldExist bool
+	}{
+		{
+			original:    "needs.activation.outputs.text",
+			transformed: "steps.compute-text.outputs.text",
+			shouldExist: true,
+		},
+		{
+			original:    "needs.activation.outputs.title",
+			transformed: "steps.compute-text.outputs.title",
+			shouldExist: true,
+		},
+		{
+			original:    "needs.activation.outputs.body",
+			transformed: "steps.compute-text.outputs.body",
+			shouldExist: true,
+		},
+		{
+			original:    "needs.activation.outputs.comment_id",
+			transformed: "needs.activation.outputs.comment_id",
+			shouldExist: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.transformed, func(t *testing.T) {
+			// The original expression should NOT be in the content map
+			if _, found := contentMap[tt.original]; found && tt.original != tt.transformed {
+				t.Errorf("Found untransformed expression %q in mappings (should be %q)", tt.original, tt.transformed)
+			}
+
+			// The transformed expression should be in the content map
+			if tt.shouldExist {
+				if _, found := contentMap[tt.transformed]; !found {
+					t.Errorf("Expected transformed expression %q in mappings", tt.transformed)
+				}
+			}
+		})
 	}
 }

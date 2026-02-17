@@ -62,6 +62,17 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 		// Extract the content (without ${{ }})
 		content := strings.TrimSpace(match[1])
 
+		// Apply activation output transformation (codemod)
+		// Replace needs.activation.outputs.{text|title|body} with steps.compute-text.outputs.{text|title|body}
+		// This is needed because the prompt is generated IN the activation job, so it can't reference
+		// needs.activation.outputs.* (a job can't reference its own needs outputs).
+		// Instead, it should reference the compute-text step outputs directly.
+		transformedContent := transformActivationOutputs(content)
+		if transformedContent != content {
+			expressionExtractionLog.Printf("Transformed expression: %s -> %s", content, transformedContent)
+			content = transformedContent
+		}
+
 		// Skip if we've already seen this expression
 		if _, exists := e.mappings[originalExpr]; exists {
 			continue
@@ -94,6 +105,31 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 	expressionExtractionLog.Printf("Extracted %d unique expressions", len(result))
 
 	return result, nil
+}
+
+// transformActivationOutputs transforms needs.activation.outputs.* expressions to steps.compute-text.outputs.*
+// This is a codemod that automatically fixes expressions that reference activation job outputs,
+// which are not accessible within the activation job itself (a job can't reference its own needs outputs).
+//
+// Transformations:
+//
+//	needs.activation.outputs.text -> steps.compute-text.outputs.text
+//	needs.activation.outputs.title -> steps.compute-text.outputs.title
+//	needs.activation.outputs.body -> steps.compute-text.outputs.body
+func transformActivationOutputs(expr string) string {
+	// Define the activation outputs that should be transformed
+	activationOutputs := []string{"text", "title", "body"}
+
+	for _, output := range activationOutputs {
+		// Match needs.activation.outputs.{output}
+		oldExpr := fmt.Sprintf("needs.activation.outputs.%s", output)
+		newExpr := fmt.Sprintf("steps.compute-text.outputs.%s", output)
+
+		// Replace exact matches or matches with surrounding spaces/operators
+		expr = strings.ReplaceAll(expr, oldExpr, newExpr)
+	}
+
+	return expr
 }
 
 // simpleIdentifierRegex matches simple JavaScript property access chains like
