@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: ecdacefedd21b4c7137f4d517cbc6e88cffbcf923d831cf2fdfb11d2c073302a
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ecdacefedd21b4c7137f4d517cbc6e88cffbcf923d831cf2fdfb11d2c073302a"}
 
 name: "Agent Performance Analyzer - Meta-Orchestrator"
 "on":

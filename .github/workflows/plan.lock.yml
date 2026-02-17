@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: c708e2e5820dca7c69da7bdc46db153754c7db5eff5ad659c01dc46a14f311d7
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c708e2e5820dca7c69da7bdc46db153754c7db5eff5ad659c01dc46a14f311d7"}
 
 name: "Plan Command"
 "on":

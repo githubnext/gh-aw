@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 3de50ec6efe98968b7bc298dbedebd374518c1b8252f78473cb211f79df18092
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3de50ec6efe98968b7bc298dbedebd374518c1b8252f78473cb211f79df18092"}
 
 name: "Daily Compiler Quality Check"
 "on":

@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: f3b0bd24cb8b3e173ae390adff62e130c6defb4d3868cb491d97cfb032c7f1ab
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f3b0bd24cb8b3e173ae390adff62e130c6defb4d3868cb491d97cfb032c7f1ab"}
 
 name: "GitHub Remote MCP Authentication Test"
 "on":

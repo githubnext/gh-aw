@@ -30,7 +30,7 @@
 #     - shared/reporting.md
 #     - shared/weekly-issues-data-fetch.md
 #
-# frontmatter-hash: ec5f80ed35d36217ef602a57a7a7c5b79beb42045b888888ddc0d8e9dea1deb9
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"ec5f80ed35d36217ef602a57a7a7c5b79beb42045b888888ddc0d8e9dea1deb9"}
 
 name: "DeepReport - Intelligence Gathering Agent"
 "on":

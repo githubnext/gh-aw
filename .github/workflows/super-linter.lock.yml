@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 658bec814a532760ef7ef68405abfe89dc1288fedc59b11ae7d0610c8e84f3de
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"658bec814a532760ef7ef68405abfe89dc1288fedc59b11ae7d0610c8e84f3de"}
 
 name: "Super Linter Report"
 "on":

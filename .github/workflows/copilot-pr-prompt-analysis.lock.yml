@@ -30,7 +30,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: 4972670408e854d61ea1cef39e96003b6ca7526c2107920ae0c38b000837c6d9
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"4972670408e854d61ea1cef39e96003b6ca7526c2107920ae0c38b000837c6d9"}
 
 name: "Copilot PR Prompt Pattern Analysis"
 "on":

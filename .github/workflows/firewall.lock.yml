@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 92f2186cfc3bb66ef47342e0e23abc1ed566cc0dee63d87b741daf49a91d9041
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"92f2186cfc3bb66ef47342e0e23abc1ed566cc0dee63d87b741daf49a91d9041"}
 
 name: "Firewall Test Agent"
 "on":

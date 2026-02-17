@@ -30,7 +30,7 @@
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# frontmatter-hash: 8fa081d6f6a77d6b13ab6d803c03b43ddb3cedcacc697fe6db5cf6a2726f1cc2
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"8fa081d6f6a77d6b13ab6d803c03b43ddb3cedcacc697fe6db5cf6a2726f1cc2"}
 
 name: "Weekly Issue Summary"
 "on":

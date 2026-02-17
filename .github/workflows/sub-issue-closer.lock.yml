@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 67a1744589def0d89133d581aee4b752753adbdc77f9d76790c1e16ee98b2508
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"67a1744589def0d89133d581aee4b752753adbdc77f9d76790c1e16ee98b2508"}
 
 name: "Sub-Issue Closer"
 "on":

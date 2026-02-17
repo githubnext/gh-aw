@@ -28,7 +28,7 @@
 #     - shared/gh.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: c7ab5b4cc3b6c39a8af11ce223fd48afce3b7abce2985adb52dc59a7a47e256b
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c7ab5b4cc3b6c39a8af11ce223fd48afce3b7abce2985adb52dc59a7a47e256b"}
 
 name: "Smoke Codex"
 "on":

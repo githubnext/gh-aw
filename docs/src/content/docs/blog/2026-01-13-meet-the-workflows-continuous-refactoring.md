@@ -26,8 +26,8 @@ In our [previous post](/gh-aw/blog/2026-01-13-meet-the-workflows-continuous-simp
 
 Our next two agents continuously analyze code structure, suggesting systematic improvements:
 
-- **[Semantic Function Refactor](https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/semantic-function-refactor.md?plain=1)** - Spots refactoring opportunities we might have missed  
-- **[Large File Simplifier](https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/daily-file-diet.md?plain=1)** - Monitors file sizes and proposes splitting oversized files
+- **[Semantic Function Refactor](https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/semantic-function-refactor.md?plain=1)** - Spots refactoring opportunities we might have missed  
+- **[Large File Simplifier](https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/daily-file-diet.md?plain=1)** - Monitors file sizes and proposes splitting oversized files
 
 The **Semantic Function Refactor** workflow combines agentic AI with code analysis tools to analyze and address the structure of the entire codebase. It analyzes all Go source files in the `pkg/` directory to identify functions that might be in the wrong place.
 
@@ -69,13 +69,13 @@ You can add these workflows to your own repository and remix them. Get going wit
 **Semantic Function Refactor:**
 
 ```bash
-gh aw add-wizard https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/semantic-function-refactor.md
+gh aw add-wizard https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/semantic-function-refactor.md
 ```
 
 **Large File Simplifier:**
 
 ```bash
-gh aw add-wizard https://github.com/github/gh-aw/blob/v0.42.13/.github/workflows/daily-file-diet.md
+gh aw add-wizard https://github.com/github/gh-aw/blob/v0.45.5/.github/workflows/daily-file-diet.md
 ```
 
 Then edit and remix the workflow specifications to meet your needs, regenerate the lock file using `gh aw compile`, and push to your repository. See our [Quick Start](https://github.github.com/gh-aw/setup/quick-start/) for further installation and setup instructions.

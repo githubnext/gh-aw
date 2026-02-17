@@ -33,7 +33,7 @@
 #     - shared/session-analysis-charts.md
 #     - shared/session-analysis-strategies.md
 #
-# frontmatter-hash: 750804c6a2a89dc635b4c6e1216950672e3620fb95c1202f3aa34b1d798cfcca
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"750804c6a2a89dc635b4c6e1216950672e3620fb95c1202f3aa34b1d798cfcca"}
 
 name: "Copilot Session Insights"
 "on":

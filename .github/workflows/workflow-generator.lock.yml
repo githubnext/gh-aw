@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: a050c2eeebe0b225b5e51f8bb7e533314d35f338d1db67669665b1be4b8adfb9
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"a050c2eeebe0b225b5e51f8bb7e533314d35f338d1db67669665b1be4b8adfb9"}
 
 name: "Workflow Generator"
 "on":
@@ -400,20 +400,12 @@ jobs:
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
             {
-              "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\", model=\"claude-opus-4.6\") or assign_to_agent(pull_number=456, agent=\"copilot\", pull_request_repo=\"owner/repo\") CONSTRAINTS: Maximum 1 issue(s) can be assigned to agent.",
+              "description": "Assign the GitHub Copilot coding agent to work on an issue or pull request. The agent will analyze the issue/PR and attempt to implement a solution, creating a pull request when complete. Use this to delegate coding tasks to Copilot. Example usage: assign_to_agent(issue_number=123, agent=\"copilot\") or assign_to_agent(pull_number=456, agent=\"copilot\", pull_request_repo=\"owner/repo\") CONSTRAINTS: Maximum 1 issue(s) can be assigned to agent.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
                   "agent": {
                     "description": "Agent identifier to assign. Defaults to 'copilot' (the Copilot coding agent) if not specified.",
-                    "type": "string"
-                  },
-                  "custom_agent": {
-                    "description": "Custom agent ID to use when assigning a custom agent. Optional. This is used for specialized agent configurations beyond the standard Copilot agent.",
-                    "type": "string"
-                  },
-                  "custom_instructions": {
-                    "description": "Custom instructions to provide to the agent. Optional. These instructions will guide the agent's behavior when working on the task.",
                     "type": "string"
                   },
                   "issue_number": {
@@ -422,10 +414,6 @@ jobs:
                       "number",
                       "string"
                     ]
-                  },
-                  "model": {
-                    "description": "AI model to use for the agent. Optional. Examples: 'auto', 'claude-sonnet-4.5', 'claude-opus-4.5', 'claude-opus-4.6', 'gpt-5.1-codex-max', 'gpt-5.2-codex'. If omitted, defaults to 'auto' (currently Claude Sonnet 4.5). This parameter is only supported when assigning the Copilot coding agent.",
-                    "type": "string"
                   },
                   "pull_number": {
                     "description": "Pull request number to assign the Copilot coding agent to. This is the numeric ID from the GitHub URL (e.g., 456 in github.com/owner/repo/pull/456). Either issue_number or pull_number must be provided, but not both.",

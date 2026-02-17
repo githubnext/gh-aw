@@ -27,7 +27,7 @@
 #   Imports:
 #     - shared/mood.md
 #
-# frontmatter-hash: 3eb180640f80ddff447563d5c635ca11913c2cd790726258e0f4f6449c2f6ba1
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3eb180640f80ddff447563d5c635ca11913c2cd790726258e0f4f6449c2f6ba1"}
 
 name: "Draft PR Cleanup"
 "on":

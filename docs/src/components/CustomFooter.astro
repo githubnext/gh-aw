@@ -17,7 +17,11 @@ const heartIcon = octicons.heart.toSVG({ width: 14, height: 14 });
     </span>
     <span class="footer-separator" aria-hidden="true">•</span>
     <span class="footer-terms">
-      <a href="https://github.com/githubnext/githubnext/blob/main/TERMS_AND_CONDITIONS.md" target="_blank" rel="noopener noreferrer">Terms of Service</a>
+      <a href="https://docs.github.com/en/site-policy/github-terms/github-terms-of-service" target="_blank" rel="noopener noreferrer">Terms</a>
+      <span class="legal-separator" aria-hidden="true">·</span>
+      <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener noreferrer">Privacy</a>
+      <span class="legal-separator" aria-hidden="true">·</span>
+      <a href="https://github.com/security" target="_blank" rel="noopener noreferrer">Security</a>
     </span>
   </p>
 </div>
@@ -73,6 +77,15 @@ const heartIcon = octicons.heart.toSVG({ width: 14, height: 14 });
   .footer-terms {
     display: inline-flex;
     align-items: center;
+    gap: 0.5rem;
+  }
+
+  .legal-separator {
+    color: #8d96a0;
+  }
+
+  :global([data-theme='light']) .legal-separator {
+    color: #656d76;
   }
 
   /* Mobile responsive: stack vertically */

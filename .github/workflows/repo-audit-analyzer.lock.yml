@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# frontmatter-hash: c13922bec3785215d9cdbb17ce40255c6e721fa53fa97f16951eb755efedda71
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c13922bec3785215d9cdbb17ce40255c6e721fa53fa97f16951eb755efedda71"}
 
 name: "Repository Audit & Agentic Workflow Opportunity Analyzer"
 "on":

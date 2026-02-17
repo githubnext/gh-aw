@@ -28,7 +28,7 @@
 #     - shared/mcp/semgrep.md
 #     - shared/mood.md
 #
-# frontmatter-hash: bf2dc5ae4b7422012fdb44020461f3632d0c60609a575dce0f43ede2ac85a69f
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"bf2dc5ae4b7422012fdb44020461f3632d0c60609a575dce0f43ede2ac85a69f"}
 
 name: "Daily Semgrep Scan"
 "on":
