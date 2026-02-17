@@ -266,7 +266,7 @@ func (c *Compiler) addSafeOutputCopilotGitHubTokenForConfig(steps *[]string, dat
 	}
 
 	// Get effective token
-	effectiveToken := getEffectiveCopilotGitHubToken(effectiveCustomToken)
+	effectiveToken := getEffectiveCopilotRequestsToken(effectiveCustomToken)
 	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
 }
 
@@ -293,7 +293,7 @@ func (c *Compiler) addSafeOutputAgentGitHubTokenForConfig(steps *[]string, data 
 	}
 
 	// Get effective token
-	effectiveToken := getEffectiveAgentGitHubToken(effectiveCustomToken)
+	effectiveToken := getEffectiveCopilotCodingAgentGitHubToken(effectiveCustomToken)
 	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
 }
 

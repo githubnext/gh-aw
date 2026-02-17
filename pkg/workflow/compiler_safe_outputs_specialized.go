@@ -74,14 +74,14 @@ func (c *Compiler) buildAssignToAgentStepConfig(data *WorkflowData, mainJobName 
 	condition := BuildSafeOutputType("assign_to_agent")
 
 	return SafeOutputStepConfig{
-		StepName:      "Assign To Agent",
-		StepID:        "assign_to_agent",
-		ScriptName:    "assign_to_agent",
-		Script:        getAssignToAgentScript(),
-		CustomEnvVars: customEnvVars,
-		Condition:     condition,
-		Token:         cfg.GitHubToken,
-		UseAgentToken: true,
+		StepName:                   "Assign To Agent",
+		StepID:                     "assign_to_agent",
+		ScriptName:                 "assign_to_agent",
+		Script:                     getAssignToAgentScript(),
+		CustomEnvVars:              customEnvVars,
+		Condition:                  condition,
+		Token:                      cfg.GitHubToken,
+		UseCopilotCodingAgentToken: true,
 	}
 }
 
@@ -96,13 +96,13 @@ func (c *Compiler) buildCreateAgentSessionStepConfig(data *WorkflowData, mainJob
 	condition := BuildSafeOutputType("create_agent_session")
 
 	return SafeOutputStepConfig{
-		StepName:        "Create Agent Session",
-		StepID:          "create_agent_session",
-		Script:          "const { main } = require('/opt/gh-aw/actions/create_agent_session.cjs'); await main();",
-		CustomEnvVars:   customEnvVars,
-		Condition:       condition,
-		Token:           cfg.GitHubToken,
-		UseCopilotToken: true,
+		StepName:                "Create Agent Session",
+		StepID:                  "create_agent_session",
+		Script:                  "const { main } = require('/opt/gh-aw/actions/create_agent_session.cjs'); await main();",
+		CustomEnvVars:           customEnvVars,
+		Condition:               condition,
+		Token:                   cfg.GitHubToken,
+		UseCopilotRequestsToken: true,
 	}
 }
 

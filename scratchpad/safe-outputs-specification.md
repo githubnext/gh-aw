@@ -682,7 +682,7 @@ Operations for metadata and collaboration:
 - `add-labels` - Add labels to issues or PRs
 - `add-reviewer` - Request PR reviews from users
 - `assign-milestone` - Assign issues to milestones
-- `assign-to-agent` - Assign Copilot agents
+- `assign-to-agent` - Assign Copilot coding agent
 - `assign-to-user` - Assign users to issues
 
 #### 6.1.4 Projects, Releases & Assets
@@ -700,7 +700,7 @@ Operations for project management and releases:
 Operations for security and agent orchestration:
 
 - `create-code-scanning-alert` - Generate SARIF security reports
-- `create-agent-session` - Create Copilot agent sessions
+- `create-agent-session` - Create Copilot coding agent sessions
 
 ### 6.2 Common Patterns
 

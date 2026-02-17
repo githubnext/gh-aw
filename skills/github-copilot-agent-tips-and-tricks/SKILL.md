@@ -6,13 +6,13 @@ description: Tips and Tricks for Working with GitHub Copilot Agent PRs
 
 # GitHub Copilot Agent Tips and Tricks
 
-This document provides guidance for discovering, reviewing, and working with pull requests created by the GitHub Copilot agent in the gh-aw repository.
+This document provides guidance for discovering, reviewing, and working with pull requests created by the GitHub Copilot coding agent in the gh-aw repository.
 
 ## Identifying Copilot Agent PRs
 
 ### Branch Naming Convention
 
-The GitHub Copilot agent creates branches with the `copilot/` prefix. This makes them easy to identify and filter.
+The GitHub Copilot coding agent creates branches with the `copilot/` prefix. This makes them easy to identify and filter.
 
 **Examples from this repository:**
 - `copilot/add-cache-for-imported-workflows`
@@ -22,7 +22,7 @@ The GitHub Copilot agent creates branches with the `copilot/` prefix. This makes
 
 ### Author Attribution
 
-Copilot agent PRs are typically authored by:
+Copilot coding agent PRs are typically authored by:
 - `app/github-copilot` - The GitHub Copilot bot account
 - Individual developers using Copilot as an assistant
 
@@ -105,7 +105,7 @@ git log --all --merges --oneline | grep -i copilot
 
 ### Recent Examples from gh-aw Repository
 
-Based on analysis of this repository, Copilot agent PRs typically address:
+Based on analysis of this repository, Copilot coding agent PRs typically address:
 
 1. **Refactoring and Code Organization**
    - Example: "Refactor ALL_TOOLS to separate JSON file with runtime filtering"
@@ -127,7 +127,7 @@ Based on analysis of this repository, Copilot agent PRs typically address:
 
 ### PR Metadata to Check
 
-When reviewing Copilot agent PRs, pay attention to:
+When reviewing Copilot coding agent PRs, pay attention to:
 - **Branch name**: Should follow `copilot/descriptive-name` pattern
 - **Commit messages**: Often include "Initial plan" commits
 - **PR description**: Should explain the problem and solution

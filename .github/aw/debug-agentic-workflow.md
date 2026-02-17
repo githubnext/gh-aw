@@ -66,7 +66,7 @@ Report back with specific findings and actionable fixes.
 > [!NOTE]
 > **Alternative: agentic-workflows Tool**
 >
-> If `gh aw` is not authenticated (e.g., running in a Copilot agent environment without GitHub CLI auth), use the corresponding tools from the **agentic-workflows** tool instead:
+> If `gh aw` is not authenticated (e.g., running in a Copilot coding agent environment without GitHub CLI auth), use the corresponding tools from the **agentic-workflows** tool instead:
 > - `status` tool → equivalent to `gh aw status`
 > - `compile` tool → equivalent to `gh aw compile`
 > - `logs` tool → equivalent to `gh aw logs`

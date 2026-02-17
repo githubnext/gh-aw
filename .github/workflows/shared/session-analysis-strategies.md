@@ -14,7 +14,7 @@
 
 # Session Analysis Strategies
 
-Comprehensive strategies for analyzing Copilot agent sessions to extract insights, identify patterns, and recommend improvements.
+Comprehensive strategies for analyzing Copilot coding agent sessions to extract insights, identify patterns, and recommend improvements.
 
 ## Standard Analysis Strategies
 

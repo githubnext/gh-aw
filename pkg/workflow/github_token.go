@@ -29,7 +29,7 @@ func getEffectiveSafeOutputGitHubToken(customToken string) string {
 	return "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
 }
 
-// getEffectiveCopilotGitHubToken returns the GitHub token to use for Copilot-related operations,
+// getEffectiveCopilotRequestsToken returns the GitHub token to use for Copilot-related operations,
 // with precedence:
 // 1. Custom token passed as parameter (e.g., from safe-outputs config github-token field)
 // 2. secrets.COPILOT_GITHUB_TOKEN (recommended token for Copilot operations)
@@ -39,7 +39,7 @@ func getEffectiveSafeOutputGitHubToken(customToken string) string {
 // - create-agent-session
 // - assigning "copilot" to issues
 // - adding "copilot" as PR reviewer
-func getEffectiveCopilotGitHubToken(customToken string) string {
+func getEffectiveCopilotRequestsToken(customToken string) string {
 	if customToken != "" {
 		tokenLog.Print("Using custom Copilot GitHub token")
 		return customToken
@@ -47,7 +47,7 @@ func getEffectiveCopilotGitHubToken(customToken string) string {
 	return "${{ secrets.COPILOT_GITHUB_TOKEN }}"
 }
 
-// getEffectiveAgentGitHubToken returns the GitHub token to use for agent assignment operations,
+// getEffectiveCopilotCodingAgentGitHubToken returns the GitHub token to use for agent assignment operations,
 // with precedence:
 // 1. Custom token passed as parameter (e.g., from safe-outputs config github-token field)
 // 2. secrets.GH_AW_AGENT_TOKEN (recommended token for agent assignment with elevated permissions)
@@ -55,7 +55,7 @@ func getEffectiveCopilotGitHubToken(customToken string) string {
 // 4. secrets.GITHUB_TOKEN (last resort, may lack permissions for bot assignment)
 // Note: Assigning bots (like copilot-swe-agent) requires permissions that GITHUB_TOKEN may not have.
 // It's recommended to configure GH_AW_AGENT_TOKEN or GH_AW_GITHUB_TOKEN with appropriate permissions.
-func getEffectiveAgentGitHubToken(customToken string) string {
+func getEffectiveCopilotCodingAgentGitHubToken(customToken string) string {
 	if customToken != "" {
 		tokenLog.Print("Using custom agent GitHub token")
 		return customToken

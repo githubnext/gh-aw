@@ -70,8 +70,8 @@ steps:
         DATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')
 
         # Search for workflow runs from copilot/* branches
-        # This fetches GitHub Copilot agent task runs by searching for workflow runs on copilot/* branches
-        echo "Fetching Copilot agent workflow runs from the last 30 days..."
+        # This fetches GitHub Copilot coding agent task runs by searching for workflow runs on copilot/* branches
+        echo "Fetching Copilot coding agent workflow runs from the last 30 days..."
         
         # Get workflow runs from copilot/* branches
         gh api "repos/${{ github.repository }}/actions/runs" \
@@ -154,7 +154,7 @@ steps:
 <!--
 ## Copilot Session Data Fetch
 
-This shared component fetches GitHub Copilot agent session data by analyzing workflow runs from `copilot/*` branches, with intelligent caching to avoid redundant API calls.
+This shared component fetches GitHub Copilot coding agent session data by analyzing workflow runs from `copilot/*` branches, with intelligent caching to avoid redundant API calls.
 
 ### What It Does
 
@@ -245,7 +245,7 @@ cat /tmp/gh-aw/session-data/logs/123-conversation.txt
 
 ### Why Branch-Based Search?
 
-GitHub Copilot creates branches with the `copilot/` prefix, making branch-based workflow run search a reliable way to identify Copilot agent sessions.
+GitHub Copilot creates branches with the `copilot/` prefix, making branch-based workflow run search a reliable way to identify Copilot coding agent sessions.
 
 ### Conversation Log Access
 

@@ -134,7 +134,7 @@ func TestCompile(t *testing.T) {
 
 **ALWAYS USE GITHUB MCP FOR GITHUB API ACCESS WITH COPILOT ENGINE:**
 
-The Copilot agent **cannot directly access api.github.com**. When using the `copilot` engine, you **must** configure the GitHub MCP server to access GitHub information (repositories, issues, pull requests, etc.).
+The Copilot coding agent **cannot directly access api.github.com**. When using the `copilot` engine, you **must** configure the GitHub MCP server to access GitHub information (repositories, issues, pull requests, etc.).
 
 **CORRECT - Using GitHub MCP:**
 ```yaml
@@ -1177,7 +1177,7 @@ Skills provide specialized, detailed knowledge on specific topics. **Use them on
 - **[github-issue-query](skills/github-issue-query/SKILL.md)** - Query GitHub issues with jq filtering
 - **[github-pr-query](skills/github-pr-query/SKILL.md)** - Query GitHub pull requests with jq filtering
 - **[github-discussion-query](skills/github-discussion-query/SKILL.md)** - Query GitHub discussions with jq filtering
-- **[github-copilot-agent-tips-and-tricks](skills/github-copilot-agent-tips-and-tricks/SKILL.md)** - Tips for working with GitHub Copilot agent PRs
+- **[github-copilot-agent-tips-and-tricks](skills/github-copilot-agent-tips-and-tricks/SKILL.md)** - Tips for working with GitHub Copilot coding agent PRs
 
 ### AI Engine & Integration
 - **[copilot-cli](skills/copilot-cli/SKILL.md)** - GitHub Copilot CLI integration for agentic workflows

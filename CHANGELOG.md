@@ -440,7 +440,7 @@ Run `gh aw fix --write` to apply automatic updates across your repository.
 
 #### Terminology Change: "Agent Task" → "Agent Session"
 
-The terminology for creating Copilot agent work items has been updated from "agent task" to "agent session" to better reflect their purpose and avoid confusion with other task concepts.
+The terminology for creating Copilot coding agent work items has been updated from "agent task" to "agent session" to better reflect their purpose and avoid confusion with other task concepts.
 
 **Configuration Changes:**
 - `create-agent-task` → `create-agent-session` in safe-outputs configuration
@@ -2249,7 +2249,7 @@ Users must now configure a Personal Access Token (PAT) as either `COPILOT_GITHUB
 
 #### Add continuation field to logs JSON output when timeout is reached
 
-#### Add create-agent-task safe output for GitHub Copilot agent tasks
+#### Add create-agent-task safe output for GitHub Copilot coding agent tasks
 
 #### Add run summary caching to logs command for faster reprocessing
 
@@ -2769,9 +2769,9 @@ Updated 26 permission and authentication-related patterns across the Codex and C
 
 ### Bug Fixes
 
-#### Add GitHub Copilot agent setup workflow
+#### Add GitHub Copilot coding agent setup workflow
 
-Adds a `.github/workflows/copilot-setup-steps.yml` workflow file to configure the GitHub Copilot coding agent environment with preinstalled tools and dependencies. The workflow mirrors the setup steps from the CI workflow's build job, including Node.js, Go, JavaScript dependencies, development tools, and build step. This provides Copilot agents with a fully configured development environment and speeds up agent workflows.
+Adds a `.github/workflows/copilot-setup-steps.yml` workflow file to configure the GitHub Copilot coding agent environment with preinstalled tools and dependencies. The workflow mirrors the setup steps from the CI workflow's build job, including Node.js, Go, JavaScript dependencies, development tools, and build step. This provides Copilot coding agent with a fully configured development environment and speeds up agent workflows.
 
 #### Add compiler validation for GitHub Actions 21KB expression size limit
 

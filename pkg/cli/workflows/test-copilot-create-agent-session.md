@@ -12,4 +12,4 @@ safe-outputs:
 
 Test workflow for the create-agent-session safe output.
 
-Create a GitHub Copilot agent session to improve code quality in the repository.
+Create a GitHub Copilot coding agent session to improve code quality in the repository.

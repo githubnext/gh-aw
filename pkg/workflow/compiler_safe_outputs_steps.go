@@ -38,9 +38,9 @@ func (c *Compiler) buildConsolidatedSafeOutputStep(data *WorkflowData, config Sa
 
 	// With section for github-token
 	steps = append(steps, "        with:\n")
-	if config.UseAgentToken {
+	if config.UseCopilotCodingAgentToken {
 		c.addSafeOutputAgentGitHubTokenForConfig(&steps, data, config.Token)
-	} else if config.UseCopilotToken {
+	} else if config.UseCopilotRequestsToken {
 		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.Token)
 	} else {
 		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)

@@ -26,12 +26,12 @@ func TestCustomActionCopilotTokenFallback(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{},
 	}
 
-	// Test with UseCopilotToken=true and no custom token
+	// Test with UseCopilotRequestsToken=true and no custom token
 	config := GitHubScriptStepConfig{
-		StepName:        "Test Custom Action",
-		StepID:          "test",
-		Token:           "", // No custom token
-		UseCopilotToken: true,
+		StepName:                "Test Custom Action",
+		StepID:                  "test",
+		CustomToken:             "", // No custom token
+		UseCopilotRequestsToken: true,
 	}
 
 	steps := compiler.buildCustomActionStep(workflowData, config, "test_handler")

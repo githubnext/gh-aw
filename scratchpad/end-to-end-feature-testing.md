@@ -6,7 +6,7 @@ This document describes how human developers can test new features end-to-end us
 
 When developing a new feature, you can test it end-to-end by:
 
-1. Having GitHub Copilot agent modify the `dev.md` agentic workflow to use the new feature
+1. Having GitHub Copilot coding agent modify the `dev.md` agentic workflow to use the new feature
 2. Triggering the Dev workflow in the PR branch via CLI or web UI
 3. Waiting for the Dev workflow to finish and for Dev Hawk to analyze the results
 4. Iterating based on the feedback
@@ -21,7 +21,7 @@ The `dev.md` workflow is located at `.github/workflows/dev.md` and serves as a t
 
 **How to request changes:**
 
-In your pull request, instruct the GitHub Copilot agent to modify the `dev.md` workflow to exercise your new feature. For example:
+In your pull request, instruct the GitHub Copilot coding agent to modify the `dev.md` workflow to exercise your new feature. For example:
 
 ```text
 @copilot please update the dev.md workflow to test the new <feature-name> feature by:
@@ -110,7 +110,7 @@ Based on the results:
 
 - Review Dev Hawk's analysis in the PR comment
 - Examine the specific error messages and recommendations
-- Instruct the GitHub Copilot agent to fix the issues:
+- Instruct the GitHub Copilot coding agent to fix the issues:
   ```
   @copilot the dev workflow failed with [error]. Please fix the dev.md workflow to address this issue.
   ```
