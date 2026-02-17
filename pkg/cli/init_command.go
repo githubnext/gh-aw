@@ -135,8 +135,6 @@ Examples:
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration (deprecated, MCP is enabled by default)")
-	_ = cmd.Flags().MarkHidden("mcp") // Hide the short alias from help output
-
 	// Hide the deprecated --mcp flag from help (kept for backward compatibility)
 	_ = cmd.Flags().MarkHidden("mcp")
 
