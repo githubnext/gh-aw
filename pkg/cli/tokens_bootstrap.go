@@ -15,8 +15,6 @@ var tokensBootstrapLog = logger.New("cli:tokens_bootstrap")
 // newSecretsBootstrapSubcommand creates the `secrets bootstrap` subcommand
 func newSecretsBootstrapSubcommand() *cobra.Command {
 	var engineFlag string
-	var ownerFlag string
-	var repoFlag string
 
 	cmd := &cobra.Command{
 		Use:   "bootstrap",
@@ -32,27 +30,25 @@ available) and prints the exact secrets to add and suggested scopes.
 For full details, including precedence rules, see the GitHub Tokens
 reference in the documentation.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTokensBootstrap(engineFlag, ownerFlag, repoFlag)
+			repo, _ := cmd.Flags().GetString("repo")
+			return runTokensBootstrap(engineFlag, repo)
 		},
 	}
 
 	cmd.Flags().StringVarP(&engineFlag, "engine", "e", "", "Check tokens for specific engine (copilot, claude, codex)")
-	cmd.Flags().StringVar(&ownerFlag, "owner", "", "Repository owner (defaults to current repository)")
-	cmd.Flags().StringVar(&repoFlag, "repo", "", "Repository name (defaults to current repository)")
+	addRepoFlag(cmd)
 
 	return cmd
 }
 
-func runTokensBootstrap(engine, owner, repo string) error {
-	tokensBootstrapLog.Printf("Running tokens bootstrap: engine=%s, owner=%s, repo=%s", engine, owner, repo)
+func runTokensBootstrap(engine, repo string) error {
+	tokensBootstrapLog.Printf("Running tokens bootstrap: engine=%s, repo=%s", engine, repo)
 	var repoSlug string
 	var err error
 
 	// Determine target repository
-	if owner != "" && repo != "" {
-		repoSlug = fmt.Sprintf("%s/%s", owner, repo)
-	} else if owner != "" || repo != "" {
-		return fmt.Errorf("both --owner and --repo must be specified together")
+	if repo != "" {
+		repoSlug = repo
 	} else {
 		repoSlug, err = GetCurrentRepoSlug()
 		if err != nil {
