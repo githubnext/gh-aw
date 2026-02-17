@@ -231,10 +231,6 @@ func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
 	defer file.Close()
 
 	analysis := &FirewallAnalysis{
-		DomainBuckets: DomainBuckets{
-			AllowedDomains: []string{},
-			BlockedDomains: []string{},
-		},
 		RequestsByDomain: make(map[string]DomainRequestStats),
 	}
 
@@ -391,10 +387,6 @@ func analyzeMultipleFirewallLogs(logsDir string, verbose bool) (*FirewallAnalysi
 		parseFirewallLog,
 		func() *FirewallAnalysis {
 			return &FirewallAnalysis{
-				DomainBuckets: DomainBuckets{
-					AllowedDomains: []string{},
-					BlockedDomains: []string{},
-				},
 				RequestsByDomain: make(map[string]DomainRequestStats),
 			}
 		},

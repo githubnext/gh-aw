@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var addWorkflowPRLog = logger.New("cli:add_workflow_pr")
@@ -116,10 +117,9 @@ func addWorkflowsWithPR(workflows []*ResolvedWorkflow, opts AddOptions) (int, st
 		prTitle = fmt.Sprintf("Add agentic workflow %s", joinedNames)
 		prBody = fmt.Sprintf("Add agentic workflow %s", joinedNames)
 	} else {
-		workflowNames := make([]string, len(workflows))
-		for i, wf := range workflows {
-			workflowNames[i] = wf.Spec.WorkflowName
-		}
+		workflowNames := sliceutil.Map(workflows, func(wf *ResolvedWorkflow) string {
+			return wf.Spec.WorkflowName
+		})
 		joinedNames = strings.Join(workflowNames, ", ")
 		commitMessage = fmt.Sprintf("Add agentic workflows: %s", joinedNames)
 		prTitle = fmt.Sprintf("Add agentic workflows: %s", joinedNames)
