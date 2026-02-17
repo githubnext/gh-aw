@@ -150,7 +150,15 @@ func ExtractStopTimeFromLockFile(lockFilePath string) string {
 
 	// Try to extract from metadata first
 	metadata, isLegacy, err := ExtractMetadataFromLockFile(contentStr)
-	if err == nil && metadata != nil && metadata.StopTime != "" {
+
+	// If metadata extraction failed with an error (malformed JSON), log warning but don't fall back
+	// This is different from no metadata (which is intentional for legacy files)
+	if err != nil {
+		stopAfterLog.Printf("Warning: Failed to parse metadata from %s: %v. Falling back to legacy extraction.", lockFilePath, err)
+		// Malformed metadata - fall through to legacy extraction as a safety measure
+		// but this indicates a potential issue with the lock file
+	} else if metadata != nil && metadata.StopTime != "" {
+		// Successfully extracted stop time from metadata
 		stopAfterLog.Printf("Extracted stop time from metadata: %s", metadata.StopTime)
 		return metadata.StopTime
 	}
@@ -163,8 +171,8 @@ func ExtractStopTimeFromLockFile(lockFilePath string) string {
 	}
 
 	// Legacy fallback: Look for GH_AW_STOP_TIME in the workflow body
-	// Use legacy method if: no metadata, legacy format, or metadata exists but stop_time is empty
-	if metadata == nil || isLegacy || metadata.StopTime == "" {
+	// Use legacy method if: no metadata, legacy format, metadata exists but stop_time is empty, or metadata was malformed
+	if err != nil || metadata == nil || isLegacy || metadata.StopTime == "" {
 		lines := strings.Split(contentStr, "\n")
 		for _, line := range lines {
 			// Look for GH_AW_STOP_TIME: YYYY-MM-DD HH:MM:SS
