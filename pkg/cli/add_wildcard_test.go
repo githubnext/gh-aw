@@ -104,48 +104,6 @@ func TestParseWorkflowSpecWithWildcard(t *testing.T) {
 	}
 }
 
-// TestDiscoverWorkflowsInPackage tests discovering workflows in an installed package
-func TestDiscoverWorkflowsInPackage(t *testing.T) {
-	// Create a temporary packages directory structure
-	tempDir := testutil.TempDir(t, "test-*")
-
-	// Override packages directory for testing
-	t.Setenv("HOME", tempDir)
-
-	// Create a mock package structure (use .aw/packages, not .gh-aw/packages)
-	packagePath := filepath.Join(tempDir, ".aw", "packages", "test-owner", "test-repo")
-	workflowsDir := filepath.Join(packagePath, "workflows")
-	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
-		t.Fatalf("Failed to create test directories: %v", err)
-	}
-
-	// Create some mock workflow files with valid frontmatter
-	workflows := []string{
-		"workflow1.md",
-		"workflow2.md",
-		"nested/workflow3.md",
-	}
-
-	validWorkflowContent := `---
-on: push
----
-
-# Test Workflow
-`
-
-	for _, wf := range workflows {
-		filePath := filepath.Join(packagePath, wf)
-		dir := filepath.Dir(filePath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			t.Fatalf("Failed to create directory %s: %v", dir, err)
-		}
-		if err := os.WriteFile(filePath, []byte(validWorkflowContent), 0644); err != nil {
-			t.Fatalf("Failed to create test workflow %s: %v", wf, err)
-		}
-	}
-
-}
-
 // TestExpandLocalWildcardWorkflows tests expanding local wildcard workflow specifications
 func TestExpandLocalWildcardWorkflows(t *testing.T) {
 	// Create a temporary directory with workflow files
