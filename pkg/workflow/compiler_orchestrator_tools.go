@@ -9,6 +9,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/goccy/go-yaml"
 )
 
 var orchestratorToolsLog = logger.New("workflow:compiler_orchestrator_tools")
@@ -301,8 +302,15 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 
 	log.Printf("Extracted workflow name: '%s'", workflowName)
 
-	// Check if the markdown content uses the text output
-	needsTextOutput := c.detectTextOutputUsage(markdownContent)
+	// Check if the markdown content uses the text output OR if the workflow is triggered by
+	// events that have content (issues, discussions, PRs, comments). The sanitized step should
+	// be added in either case to make text/title/body outputs available.
+	explicitUsage := c.detectTextOutputUsage(markdownContent)
+	hasContext := c.hasContentContext(result.Frontmatter)
+	needsTextOutput := explicitUsage || hasContext
+
+	orchestratorToolsLog.Printf("Text output needed: explicit=%v, context=%v, final=%v", 
+		explicitUsage, hasContext, needsTextOutput)
 
 	// Extract and validate tracker-id
 	trackerID, err := c.extractTrackerID(result.Frontmatter)
@@ -352,4 +360,47 @@ func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
 	detectionLog.Printf("Detected usage of activation outputs - text: %v, title: %v, body: %v, any: %v",
 		hasTextUsage, hasTitleUsage, hasBodyUsage, hasUsage)
 	return hasUsage
+}
+
+// hasContentContext checks if the workflow is triggered by events that have text content
+// (issues, discussions, pull requests, or comments). These events can provide sanitized
+// text/title/body outputs via the sanitized step, even if not explicitly referenced.
+func (c *Compiler) hasContentContext(frontmatter map[string]any) bool {
+	// Check if "on" field exists
+	onField, exists := frontmatter["on"]
+	if !exists || onField == nil {
+		return false
+	}
+
+	// Convert the "on" field to YAML string for parsing
+	onYAML, err := yaml.Marshal(onField)
+	if err != nil {
+		orchestratorToolsLog.Printf("Failed to marshal 'on' field: %v", err)
+		return false
+	}
+
+	onStr := string(onYAML)
+
+	// Check for content-related event types that provide text/title/body
+	// These are the same events supported by compute_text.cjs
+	contentEvents := []string{
+		"issues:",
+		"pull_request:",
+		"pull_request_target:",
+		"issue_comment:",
+		"pull_request_review_comment:",
+		"pull_request_review:",
+		"discussion:",
+		"discussion_comment:",
+	}
+
+	for _, event := range contentEvents {
+		if strings.Contains(onStr, event) {
+			orchestratorToolsLog.Printf("Detected content context: workflow triggered by %s", strings.TrimSuffix(event, ":"))
+			return true
+		}
+	}
+
+	orchestratorToolsLog.Printf("No content context detected in trigger events")
+	return false
 }
