@@ -250,16 +250,6 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 				`REPO_NAME: "org/target-repo"`,
 			},
 		},
-		{
-			name: "with top-level github-token",
-			safeOutputs: &SafeOutputsConfig{
-				CreatePullRequests: &CreatePullRequestsConfig{},
-			},
-			checkContains: []string{
-				"token: ${{ secrets.TOPLEVEL_TOKEN }}",
-				"GIT_TOKEN: ${{ secrets.TOPLEVEL_TOKEN }}",
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -275,11 +265,6 @@ func TestBuildSharedPRCheckoutSteps(t *testing.T) {
 			workflowData := &WorkflowData{
 				Name:        "Test Workflow",
 				SafeOutputs: tt.safeOutputs,
-			}
-
-			// Add top-level token if the test needs it
-			if tt.name == "with top-level github-token" {
-				workflowData.GitHubToken = "${{ secrets.TOPLEVEL_TOKEN }}"
 			}
 
 			steps := compiler.buildSharedPRCheckoutSteps(workflowData)

@@ -85,7 +85,7 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		gitRemoteToken = "${{ steps.safe-outputs-app-token.outputs.token }}"
 	} else {
 		// Use token precedence chain instead of hardcoded github.token
-		// Precedence: create-pull-request config token > safe-outputs token > top-level token > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
+		// Precedence: create-pull-request config token > safe-outputs token > GH_AW_GITHUB_TOKEN || GITHUB_TOKEN
 		var configToken string
 		if data.SafeOutputs.CreatePullRequests != nil {
 			configToken = data.SafeOutputs.CreatePullRequests.GitHubToken
@@ -94,8 +94,13 @@ func (c *Compiler) buildSharedPRCheckoutSteps(data *WorkflowData) []string {
 		if data.SafeOutputs != nil {
 			safeOutputsToken = data.SafeOutputs.GitHubToken
 		}
-		effectiveToken := getEffectiveSafeOutputGitHubToken(configToken,
-			getEffectiveSafeOutputGitHubToken(safeOutputsToken, data.GitHubToken))
+		// Choose the first non-empty custom token for precedence
+		effectiveCustomToken := configToken
+		if effectiveCustomToken == "" {
+			effectiveCustomToken = safeOutputsToken
+		}
+		// Get effective token (handles fallback to GH_AW_GITHUB_TOKEN || GITHUB_TOKEN)
+		effectiveToken := getEffectiveSafeOutputGitHubToken(effectiveCustomToken)
 		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
 		checkoutToken = effectiveToken
 		// nolint:gosec // G101: False positive - this is a GitHub Actions expression template placeholder, not a hardcoded credential
