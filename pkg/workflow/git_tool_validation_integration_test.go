@@ -37,7 +37,7 @@ Test workflow that uses create-pull-request without bash tool.
 			expectError: false,
 		},
 		{
-			name: "create-pull-request with bash: false - compiles (but may fail at runtime)",
+			name: "create-pull-request with bash: false - git commands auto-injected",
 			workflow: `---
 name: Test Create PR With Bash False
 engine: copilot
@@ -50,9 +50,9 @@ safe-outputs:
 ---
 
 Test workflow that uses create-pull-request with bash explicitly disabled.
-Note: This compiles because validation was removed, but will likely fail at runtime.
+Git commands should still be injected because PR operations require them.
 `,
-			expectError: false, // Validation removed - compiler allows this
+			expectError: false,
 		},
 		{
 			name: "create-pull-request with bash: [echo] - OK (git commands auto-added)",
