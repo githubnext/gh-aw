@@ -193,7 +193,7 @@ html, body {
 </style>
 </head>
 <body class="color-bg-default color-fg-default">
-<div class="d-flex flex-column" style="min-height: 100vh; width: 100vw;" id="app">
+<div class="d-flex flex-column" style="height: 100vh; width: 100vw;" id="app">
   <!-- Loading Overlay -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="loading-spinner"></div>
@@ -310,7 +310,7 @@ html, body {
         <div class="d-flex flex-items-center flex-justify-center color-fg-muted f5 p-4 text-center" style="height: 100%;" id="outputPlaceholder">
           Compiled YAML will appear here
         </div>
-        <pre class="output-pre text-mono color-fg-default" id="outputPre" style="display:none"></pre>
+        <pre class="output-pre text-mono color-fg-default d-none" id="outputPre"></pre>
       </div>
     </div>
   </div>
@@ -547,8 +547,8 @@ async function doCompile() {
 
   const md = editor.value;
   if (!md.trim()) {
-    outputPre.style.display = 'none';
-    outputPlaceholder.style.display = 'flex';
+    outputPre.classList.add('d-none');
+    outputPlaceholder.classList.remove('d-none');
     outputPlaceholder.textContent = 'Compiled YAML will appear here';
     currentYaml = '';
     return;
@@ -573,8 +573,8 @@ async function doCompile() {
       setStatus('ready', 'Ready');
       currentYaml = result.yaml;
       outputPre.textContent = result.yaml;
-      outputPre.style.display = 'block';
-      outputPlaceholder.style.display = 'none';
+      outputPre.classList.remove('d-none');
+      outputPlaceholder.classList.add('d-none');
 
       if (result.warnings && result.warnings.length > 0) {
         warningText.textContent = result.warnings.join('\n');
