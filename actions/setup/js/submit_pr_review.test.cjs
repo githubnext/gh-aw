@@ -13,7 +13,22 @@ const mockCore = {
   },
 };
 
+const mockContext = {
+  eventName: "pull_request",
+  repo: {
+    owner: "test-owner",
+    repo: "test-repo",
+  },
+  payload: {
+    pull_request: {
+      number: 123,
+      head: { sha: "test-sha" },
+    },
+  },
+};
+
 global.core = mockCore;
+global.context = mockContext;
 
 const { createReviewBuffer } = require("./pr_review_buffer.cjs");
 
@@ -23,6 +38,21 @@ describe("submit_pr_review (Handler Factory Architecture)", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+
+    // Reset context to default for each test
+    global.context = {
+      eventName: "pull_request",
+      repo: {
+        owner: "test-owner",
+        repo: "test-repo",
+      },
+      payload: {
+        pull_request: {
+          number: 123,
+          head: { sha: "test-sha" },
+        },
+      },
+    };
 
     // Create a fresh buffer for each test (factory pattern, no global state)
     buffer = createReviewBuffer();
