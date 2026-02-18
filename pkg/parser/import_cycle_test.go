@@ -48,7 +48,7 @@ imports:
 
 	// Verify error is an ImportCycleError
 	var cycleErr *parser.ImportCycleError
-	assert.ErrorAs(t, err, &cycleErr, "Error should be ImportCycleError")
+	require.ErrorAs(t, err, &cycleErr, "Error should be ImportCycleError")
 
 	// Verify the cycle chain is present
 	if cycleErr != nil {
@@ -117,14 +117,14 @@ imports:
 
 	// Verify error is an ImportCycleError
 	var cycleErr *parser.ImportCycleError
-	assert.ErrorAs(t, err, &cycleErr, "Error should be ImportCycleError")
+	require.ErrorAs(t, err, &cycleErr, "Error should be ImportCycleError")
 
 	if cycleErr != nil {
 		// Verify the full chain is present
 		assert.NotEmpty(t, cycleErr.Chain, "Cycle chain should not be empty")
 
 		// Chain should show: b.md → c.md → d.md → b.md (4 elements)
-		assert.Equal(t, 4, len(cycleErr.Chain), "Cycle chain should have exactly 4 elements for B→C→D→B")
+		assert.Len(t, cycleErr.Chain, 4, "Cycle chain should have exactly 4 elements for B→C→D→B")
 
 		// Verify the cycle pattern
 		assert.Equal(t, "b.md", cycleErr.Chain[0], "Cycle should start with b.md")
