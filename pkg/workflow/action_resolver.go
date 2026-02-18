@@ -13,7 +13,7 @@ var resolverLog = logger.New("workflow:action_resolver")
 
 // ActionResolver handles resolving action SHAs using GitHub CLI
 type ActionResolver struct {
-	cache           *ActionCache
+	cache             *ActionCache
 	failedResolutions map[string]bool // tracks failed resolution attempts in current run (key: "repo@version")
 }
 
