@@ -942,6 +942,59 @@ func TestHandlerConfigAssignToUser(t *testing.T) {
 				allowedReposSlice, ok := allowedRepos.([]any)
 				require.True(t, ok, "Allowed repos should be an array")
 				assert.Len(t, allowedReposSlice, 2, "Should have 2 allowed repos")
+
+				// unassign_first should not be present when false/omitted
+				_, hasUnassignFirst := assignConfig["unassign_first"]
+				assert.False(t, hasUnassignFirst, "Should not have unassign_first field when false")
+			}
+		}
+	}
+}
+
+// TestHandlerConfigAssignToUserWithUnassignFirst tests assign_to_user configuration with unassign_first enabled
+func TestHandlerConfigAssignToUserWithUnassignFirst(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			AssignToUser: &AssignToUserConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: 3,
+				},
+				UnassignFirst: true,
+			},
+		},
+	}
+
+	var steps []string
+	compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+
+	// Extract and validate JSON
+	for _, step := range steps {
+		if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+			parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+			if len(parts) == 2 {
+				jsonStr := strings.TrimSpace(parts[1])
+				jsonStr = strings.Trim(jsonStr, "\"")
+				jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+
+				var config map[string]map[string]any
+				err := json.Unmarshal([]byte(jsonStr), &config)
+				require.NoError(t, err, "Handler config JSON should be valid")
+
+				assignConfig, ok := config["assign_to_user"]
+				require.True(t, ok, "Should have assign_to_user handler")
+
+				// Check max
+				max, ok := assignConfig["max"]
+				require.True(t, ok, "Should have max field")
+				assert.InDelta(t, 3.0, max, 0.001, "Max should be 3")
+
+				// Check unassign_first
+				unassignFirst, ok := assignConfig["unassign_first"]
+				require.True(t, ok, "Should have unassign_first field")
+				assert.Equal(t, true, unassignFirst, "unassign_first should be true")
 			}
 		}
 	}

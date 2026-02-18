@@ -544,6 +544,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
+			AddIfTrue("unassign_first", c.UnassignFirst).
 			Build()
 	},
 	"unassign_from_user": func(cfg *SafeOutputsConfig) map[string]any {

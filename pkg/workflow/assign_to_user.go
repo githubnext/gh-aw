@@ -10,7 +10,8 @@ var assignToUserLog = logger.New("workflow:assign_to_user")
 type AssignToUserConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
-	Allowed                []string `yaml:"allowed,omitempty"` // Optional list of allowed usernames. If omitted, any users are allowed.
+	Allowed                []string `yaml:"allowed,omitempty"`        // Optional list of allowed usernames. If omitted, any users are allowed.
+	UnassignFirst          bool     `yaml:"unassign-first,omitempty"` // If true, unassign all current assignees before assigning new ones
 }
 
 // parseAssignToUserConfig handles assign-to-user configuration

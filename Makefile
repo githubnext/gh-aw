@@ -377,7 +377,10 @@ check-node-version:
 .PHONY: tools
 tools: ## Install build-time tools from tools.go
 	@echo "Installing build tools..."
-	@grep _ tools.go | awk -F'"' '{print $$2}' | xargs -tI % go install %
+	@go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.11
+	@go install github.com/securego/gosec/v2/cmd/gosec@v2.23.0
+	@go install golang.org/x/tools/gopls@v0.21.1
+	@go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 	@echo "✓ Tools installed successfully"
 
 # Install golangci-lint binary (avoiding GPL dependencies in go.mod)

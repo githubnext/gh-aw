@@ -2501,6 +2501,9 @@ This section provides complete definitions for all remaining safe output types. 
 **Cross-Repository Support**: Yes  
 **Mandatory**: No
 
+**Configuration Options**:
+- `unassign-first` (boolean, default: false): If true, unassigns all current assignees before assigning new ones. Useful for reassigning issues from one user to another.
+
 **Required Permissions**:
 
 *GitHub Actions Token*:
@@ -2515,6 +2518,7 @@ This section provides complete definitions for all remaining safe output types. 
 **Notes**:
 - Users must have repository access to be assigned
 - Invalid users generate warnings
+- When `unassign-first` is enabled, the handler fetches current assignees and removes them before adding new ones
 
 ---
 
