@@ -77,38 +77,6 @@ jobs:
           destination: /opt/gh-aw/actions
       - name: Validate context variables
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          GH_AW_CONTEXT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GH_AW_CONTEXT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-          GH_AW_CONTEXT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
-          GH_AW_CONTEXT_MILESTONE_NUMBER: ${{ github.event.milestone.number }}
-          GH_AW_CONTEXT_CHECK_RUN_NUMBER: ${{ github.event.check_run.number }}
-          GH_AW_CONTEXT_CHECK_SUITE_NUMBER: ${{ github.event.check_suite.number }}
-          GH_AW_CONTEXT_WORKFLOW_RUN_NUMBER: ${{ github.event.workflow_run.number }}
-          GH_AW_CONTEXT_CHECK_RUN_ID: ${{ github.event.check_run.id }}
-          GH_AW_CONTEXT_CHECK_SUITE_ID: ${{ github.event.check_suite.id }}
-          GH_AW_CONTEXT_COMMENT_ID: ${{ github.event.comment.id }}
-          GH_AW_CONTEXT_DEPLOYMENT_ID: ${{ github.event.deployment.id }}
-          GH_AW_CONTEXT_DEPLOYMENT_STATUS_ID: ${{ github.event.deployment_status.id }}
-          GH_AW_CONTEXT_HEAD_COMMIT_ID: ${{ github.event.head_commit.id }}
-          GH_AW_CONTEXT_INSTALLATION_ID: ${{ github.event.installation.id }}
-          GH_AW_CONTEXT_WORKFLOW_JOB_RUN_ID: ${{ github.event.workflow_job.run_id }}
-          GH_AW_CONTEXT_LABEL_ID: ${{ github.event.label.id }}
-          GH_AW_CONTEXT_MILESTONE_ID: ${{ github.event.milestone.id }}
-          GH_AW_CONTEXT_ORGANIZATION_ID: ${{ github.event.organization.id }}
-          GH_AW_CONTEXT_PAGE_ID: ${{ github.event.page.id }}
-          GH_AW_CONTEXT_PROJECT_ID: ${{ github.event.project.id }}
-          GH_AW_CONTEXT_PROJECT_CARD_ID: ${{ github.event.project_card.id }}
-          GH_AW_CONTEXT_PROJECT_COLUMN_ID: ${{ github.event.project_column.id }}
-          GH_AW_CONTEXT_RELEASE_ID: ${{ github.event.release.id }}
-          GH_AW_CONTEXT_REPOSITORY_ID: ${{ github.event.repository.id }}
-          GH_AW_CONTEXT_REVIEW_ID: ${{ github.event.review.id }}
-          GH_AW_CONTEXT_REVIEW_COMMENT_ID: ${{ github.event.review_comment.id }}
-          GH_AW_CONTEXT_SENDER_ID: ${{ github.event.sender.id }}
-          GH_AW_CONTEXT_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
-          GH_AW_CONTEXT_WORKFLOW_JOB_ID: ${{ github.event.workflow_job.id }}
-          GH_AW_CONTEXT_RUN_ID: ${{ github.run_id }}
-          GH_AW_CONTEXT_RUN_NUMBER: ${{ github.run_number }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');

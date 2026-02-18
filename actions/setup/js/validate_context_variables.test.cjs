@@ -1,15 +1,13 @@
 // @ts-check
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 describe("validateNumericValue", () => {
   let validateNumericValue;
-  let NUMERIC_CONTEXT_VARS;
 
   beforeEach(async () => {
     const module = await import("./validate_context_variables.cjs");
     validateNumericValue = module.validateNumericValue;
-    NUMERIC_CONTEXT_VARS = module.NUMERIC_CONTEXT_VARS;
   });
 
   it("should accept empty values", () => {
@@ -24,13 +22,20 @@ describe("validateNumericValue", () => {
     expect(result.message).toContain("empty");
   });
 
-  it("should accept whitespace-only values", () => {
-    const result = validateNumericValue("   ", "TEST_VAR");
+  it("should accept null values", () => {
+    const result = validateNumericValue(null, "TEST_VAR");
     expect(result.valid).toBe(true);
     expect(result.message).toContain("empty");
   });
 
-  it("should accept valid positive integers", () => {
+  it("should accept valid positive integers as numbers", () => {
+    const result = validateNumericValue(12345, "ISSUE_NUMBER");
+    expect(result.valid).toBe(true);
+    expect(result.message).toContain("valid");
+    expect(result.message).toContain("12345");
+  });
+
+  it("should accept valid positive integers as strings", () => {
     const result = validateNumericValue("12345", "ISSUE_NUMBER");
     expect(result.valid).toBe(true);
     expect(result.message).toContain("valid");
@@ -150,56 +155,147 @@ describe("validateNumericValue", () => {
   });
 });
 
-describe("NUMERIC_CONTEXT_VARS", () => {
-  let NUMERIC_CONTEXT_VARS;
+describe("getNestedValue", () => {
+  let getNestedValue;
 
   beforeEach(async () => {
     const module = await import("./validate_context_variables.cjs");
-    NUMERIC_CONTEXT_VARS = module.NUMERIC_CONTEXT_VARS;
+    getNestedValue = module.getNestedValue;
+  });
+
+  it("should get nested values from objects", () => {
+    const obj = {
+      payload: {
+        issue: {
+          number: 123,
+        },
+      },
+    };
+
+    const result = getNestedValue(obj, ["payload", "issue", "number"]);
+    expect(result).toBe(123);
+  });
+
+  it("should return undefined for missing paths", () => {
+    const obj = {
+      payload: {},
+    };
+
+    const result = getNestedValue(obj, ["payload", "issue", "number"]);
+    expect(result).toBeUndefined();
+  });
+
+  it("should return undefined for null/undefined intermediate values", () => {
+    const obj = {
+      payload: null,
+    };
+
+    const result = getNestedValue(obj, ["payload", "issue", "number"]);
+    expect(result).toBeUndefined();
+  });
+
+  it("should handle empty path", () => {
+    const obj = { value: 42 };
+    const result = getNestedValue(obj, []);
+    expect(result).toEqual(obj);
+  });
+});
+
+describe("NUMERIC_CONTEXT_PATHS", () => {
+  let NUMERIC_CONTEXT_PATHS;
+
+  beforeEach(async () => {
+    const module = await import("./validate_context_variables.cjs");
+    NUMERIC_CONTEXT_PATHS = module.NUMERIC_CONTEXT_PATHS;
   });
 
   it("should include all expected numeric variables", () => {
-    const expectedVars = [
-      "ISSUE_NUMBER",
-      "PULL_REQUEST_NUMBER",
-      "DISCUSSION_NUMBER",
-      "MILESTONE_NUMBER",
-      "CHECK_RUN_NUMBER",
-      "CHECK_SUITE_NUMBER",
-      "WORKFLOW_RUN_NUMBER",
-      "CHECK_RUN_ID",
-      "CHECK_SUITE_ID",
-      "COMMENT_ID",
-      "DEPLOYMENT_ID",
-      "DEPLOYMENT_STATUS_ID",
-      "HEAD_COMMIT_ID",
-      "INSTALLATION_ID",
-      "WORKFLOW_JOB_RUN_ID",
-      "LABEL_ID",
-      "MILESTONE_ID",
-      "ORGANIZATION_ID",
-      "PAGE_ID",
-      "PROJECT_ID",
-      "PROJECT_CARD_ID",
-      "PROJECT_COLUMN_ID",
-      "RELEASE_ID",
-      "REPOSITORY_ID",
-      "REVIEW_ID",
-      "REVIEW_COMMENT_ID",
-      "SENDER_ID",
-      "WORKFLOW_RUN_ID",
-      "WORKFLOW_JOB_ID",
-      "RUN_ID",
-      "RUN_NUMBER",
+    const expectedPaths = [
+      { path: ["payload", "issue", "number"], name: "github.event.issue.number" },
+      { path: ["payload", "pull_request", "number"], name: "github.event.pull_request.number" },
+      { path: ["payload", "discussion", "number"], name: "github.event.discussion.number" },
+      { path: ["run_id"], name: "github.run_id" },
+      { path: ["run_number"], name: "github.run_number" },
     ];
 
-    expectedVars.forEach(varName => {
-      expect(NUMERIC_CONTEXT_VARS).toContain(varName);
+    expectedPaths.forEach(expected => {
+      const found = NUMERIC_CONTEXT_PATHS.find(p => p.name === expected.name);
+      expect(found).toBeDefined();
+      expect(found.path).toEqual(expected.path);
     });
   });
 
-  it("should not include duplicate entries", () => {
-    const uniqueVars = [...new Set(NUMERIC_CONTEXT_VARS)];
-    expect(uniqueVars.length).toBe(NUMERIC_CONTEXT_VARS.length);
+  it("should have 31 context paths", () => {
+    expect(NUMERIC_CONTEXT_PATHS.length).toBe(31);
+  });
+
+  it("should not include duplicate names", () => {
+    const names = NUMERIC_CONTEXT_PATHS.map(p => p.name);
+    const uniqueNames = [...new Set(names)];
+    expect(uniqueNames.length).toBe(NUMERIC_CONTEXT_PATHS.length);
+  });
+});
+
+describe("main", () => {
+  let main;
+  let mockCore;
+  let mockContext;
+
+  beforeEach(async () => {
+    vi.resetModules();
+
+    mockCore = {
+      info: vi.fn(),
+      error: vi.fn(),
+      setFailed: vi.fn(),
+    };
+
+    mockContext = {
+      payload: {
+        issue: {
+          number: 123,
+        },
+        pull_request: {
+          number: 456,
+        },
+      },
+      run_id: 789,
+      run_number: 10,
+    };
+
+    global.core = mockCore;
+    global.context = mockContext;
+
+    const module = await import("./validate_context_variables.cjs");
+    main = module.main;
+  });
+
+  afterEach(() => {
+    delete global.core;
+    delete global.context;
+  });
+
+  it("should validate all numeric context variables successfully", async () => {
+    await main();
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("✅ All context variables validated successfully"));
+  });
+
+  it("should fail when a numeric field contains non-numeric data", async () => {
+    mockContext.payload.issue.number = "123; DROP TABLE users";
+
+    await expect(main()).rejects.toThrow();
+    expect(mockCore.setFailed).toHaveBeenCalled();
+    expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("non-numeric"));
+  });
+
+  it("should pass when numeric fields are valid integers", async () => {
+    mockContext.payload.issue.number = 42;
+    mockContext.run_id = 12345;
+
+    await main();
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 });
