@@ -193,7 +193,7 @@ html, body {
 </style>
 </head>
 <body class="color-bg-default color-fg-default">
-<div class="d-flex flex-column" style="height: 100vh; width: 100vw;" id="app">
+<div class="d-flex flex-column" style="min-height: 100vh; width: 100vw;" id="app">
   <!-- Loading Overlay -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="loading-spinner"></div>
@@ -314,6 +314,27 @@ html, body {
       </div>
     </div>
   </div>
+
+  <!-- Footer -->
+  <footer class="d-flex flex-column flex-items-center gap-2 px-3 py-3 color-bg-default border-top f6" style="min-height: 60px;">
+    <div class="d-flex flex-items-center gap-2 color-fg-muted flex-wrap flex-justify-center">
+      <span>Made with</span>
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="color: #8b5cf6;">
+        <path d="M7.655 14.916v-.001h-.002l-.006-.003-.018-.01a22.066 22.066 0 0 1-3.744-2.584C2.045 10.731 0 8.35 0 5.5 0 2.836 2.086 1 4.25 1 5.797 1 7.153 1.802 8 3.02 8.847 1.802 10.203 1 11.75 1 13.914 1 16 2.836 16 5.5c0 2.85-2.044 5.231-3.886 6.818a22.094 22.094 0 0 1-3.433 2.414 7.152 7.152 0 0 1-.31.17l-.018.01-.008.004a.75.75 0 0 1-.69 0Z"/>
+      </svg>
+      <span>by</span>
+      <a href="https://githubnext.com/" target="_blank" rel="noopener noreferrer" class="Link--primary">GitHub Next</a>
+      <span>&amp;</span>
+      <a href="https://www.microsoft.com/en-us/research/" target="_blank" rel="noopener noreferrer" class="Link--primary">Microsoft Research</a>
+    </div>
+    <div class="d-flex flex-items-center gap-2 color-fg-subtle flex-wrap flex-justify-center">
+      <a href="https://docs.github.com/en/site-policy/github-terms/github-terms-of-service" target="_blank" rel="noopener noreferrer" class="Link--secondary">Terms</a>
+      <span aria-hidden="true">·</span>
+      <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener noreferrer" class="Link--secondary">Privacy</a>
+      <span aria-hidden="true">·</span>
+      <a href="https://github.com/security" target="_blank" rel="noopener noreferrer" class="Link--secondary">Security</a>
+    </div>
+  </footer>
 </div>
 
 <script type="module">
