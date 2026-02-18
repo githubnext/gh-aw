@@ -145,16 +145,37 @@ func stripFrontmatter(content string) (string, int) {
 }
 
 // FormatSecurityFindings formats a list of findings into a human-readable error message
-func FormatSecurityFindings(findings []SecurityFinding) string {
+// filePath: the workflow file path to include in error messages
+func FormatSecurityFindings(findings []SecurityFinding, filePath string) string {
 	if len(findings) == 0 {
 		return ""
 	}
 
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "Security scan found %d issue(s) in workflow markdown:\n", len(findings))
-	for i, f := range findings {
-		fmt.Fprintf(&sb, "  %d. %s\n", i+1, f.String())
+	fmt.Fprintf(&sb, "Security scan found %d issue(s) in workflow markdown:\n\n", len(findings))
+
+	// Format each finding using formatCompilerErrorWithPosition for consistency
+	for _, f := range findings {
+		line := f.Line
+		if line <= 0 {
+			line = 1 // Default to line 1 if unknown
+		}
+
+		// Create a formatted error for this finding
+		findingErr := formatCompilerErrorWithPosition(
+			filePath,
+			line,
+			1, // Column 1 (we don't have column info)
+			"error",
+			fmt.Sprintf("[%s] %s", f.Category, f.Description),
+			nil,
+		)
+
+		// Append the formatted error to our output
+		sb.WriteString(findingErr.Error())
+		sb.WriteString("\n")
 	}
+
 	sb.WriteString("\nThis workflow contains potentially malicious content and cannot be added.")
 	return sb.String()
 }

@@ -2,7 +2,6 @@ package workflow
 
 import (
 	_ "embed"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -36,31 +35,6 @@ const (
 
 //go:embed schemas/github-workflow.json
 var githubWorkflowSchema string
-
-// formatCompilerError creates a formatted compiler error message with optional error wrapping
-// filePath: the file path to include in the error (typically markdownPath or lockFile)
-// errType: the error type ("error" or "warning")
-// message: the error message text
-// cause: optional underlying error to wrap (use nil for validation errors)
-func formatCompilerError(filePath string, errType string, message string, cause error) error {
-	formattedErr := console.FormatError(console.CompilerError{
-		Position: console.ErrorPosition{
-			File:   filePath,
-			Line:   1,
-			Column: 1,
-		},
-		Type:    errType,
-		Message: message,
-	})
-
-	// Wrap the underlying error if provided (preserves error chain)
-	if cause != nil {
-		return fmt.Errorf("%s: %w", formattedErr, cause)
-	}
-
-	// Create new error for validation errors (no underlying cause)
-	return errors.New(formattedErr)
-}
 
 // formatCompilerMessage creates a formatted compiler message string (for warnings printed to stderr)
 // filePath: the file path to include in the message (typically markdownPath or lockFile)

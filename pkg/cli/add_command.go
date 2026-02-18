@@ -394,7 +394,7 @@ func addWorkflowWithTracking(resolved *ResolvedWorkflow, tracker *FileTracker, o
 	if !opts.DisableSecurityScanner {
 		if findings := workflow.ScanMarkdownSecurity(string(sourceContent)); len(findings) > 0 {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Security scan failed for workflow"))
-			fmt.Fprintln(os.Stderr, workflow.FormatSecurityFindings(findings))
+			fmt.Fprintln(os.Stderr, workflow.FormatSecurityFindings(findings, workflowSpec.WorkflowPath))
 			return fmt.Errorf("workflow '%s' failed security scan: %d issue(s) detected", workflowSpec.WorkflowPath, len(findings))
 		}
 		if opts.Verbose {

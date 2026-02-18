@@ -337,7 +337,7 @@ func writeWorkflowToTrialDir(tempDir string, workflowName string, content []byte
 	if !opts.DisableSecurityScanner {
 		if findings := workflow.ScanMarkdownSecurity(string(content)); len(findings) > 0 {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Security scan failed for workflow"))
-			fmt.Fprintln(os.Stderr, workflow.FormatSecurityFindings(findings))
+			fmt.Fprintln(os.Stderr, workflow.FormatSecurityFindings(findings, workflowName))
 			return nil, fmt.Errorf("workflow '%s' failed security scan: %d issue(s) detected", workflowName, len(findings))
 		}
 		if opts.Verbose {

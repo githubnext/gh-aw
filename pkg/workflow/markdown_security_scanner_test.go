@@ -728,7 +728,7 @@ func TestStripFrontmatter(t *testing.T) {
 }
 
 func TestFormatSecurityFindings_Empty(t *testing.T) {
-	result := FormatSecurityFindings(nil)
+	result := FormatSecurityFindings(nil, "test.md")
 	assert.Empty(t, result, "should return empty string for no findings")
 }
 
@@ -746,12 +746,13 @@ func TestFormatSecurityFindings_Multiple(t *testing.T) {
 		},
 	}
 
-	result := FormatSecurityFindings(findings)
+	result := FormatSecurityFindings(findings, "workflow.md")
 	assert.Contains(t, result, "2 issue(s)", "should mention issue count")
 	assert.Contains(t, result, "unicode-abuse", "should mention first category")
 	assert.Contains(t, result, "html-abuse", "should mention second category")
-	assert.Contains(t, result, "line 5", "should mention first line number")
-	assert.Contains(t, result, "line 10", "should mention second line number")
+	assert.Contains(t, result, "workflow.md", "should mention file path")
+	assert.Contains(t, result, "5:1", "should mention first line number with column")
+	assert.Contains(t, result, "10:1", "should mention second line number with column")
 	assert.Contains(t, result, "cannot be added", "should mention rejection")
 }
 
