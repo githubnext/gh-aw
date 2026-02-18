@@ -34,10 +34,10 @@ You should see version information displayed. If you encounter an error, check t
 
 ## Step 2: Initialize Repository for Agentic Workflows
 
-Run the initialization command with the Copilot engine:
+Run the initialization command:
 
 ```bash
-gh aw init --engine copilot
+gh aw init
 ```
 
 **What this does**:
@@ -47,7 +47,7 @@ gh aw init --engine copilot
 - Creates `.github/agents/agentic-workflows.agent.md` as an AI assistant for workflows
 - Creates workflow management prompts in `.github/aw/` directory
 - Configures VSCode settings in `.vscode/settings.json`
-- Creates MCP server configuration in `.vscode/mcp.json`
+- Creates GH-AW MCP server configuration in `.vscode/mcp.json`
 - Creates `.github/workflows/copilot-setup-steps.yml` with setup instructions
 
 **Note**: The command may prompt for additional configuration or secrets. If secrets are needed, `gh aw init` will provide instructions for setting them up. You don't need to configure secrets as part of this initial setup.

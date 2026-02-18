@@ -31,7 +31,7 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		}
 	})
 
-	t.Run("copilot engine without LLM gateway support rejects custom domains", func(t *testing.T) {
+	t.Run("copilot engine rejects custom domains in strict mode", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -51,7 +51,7 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		}
 	})
 
-	t.Run("copilot engine without LLM gateway support allows defaults", func(t *testing.T) {
+	t.Run("copilot engine allows defaults in strict mode", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -68,7 +68,7 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		}
 	})
 
-	t.Run("copilot engine without LLM gateway support allows known ecosystems", func(t *testing.T) {
+	t.Run("copilot engine allows known ecosystems in strict mode", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -85,7 +85,7 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		}
 	})
 
-	t.Run("copilot engine without LLM gateway support rejects domains from known ecosystems but suggests ecosystem identifier", func(t *testing.T) {
+	t.Run("copilot engine rejects domains from known ecosystems but suggests ecosystem identifier in strict mode", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -152,7 +152,7 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		}
 	})
 
-	t.Run("copilot engine without LLM gateway support rejects mixed ecosystems and custom domains", func(t *testing.T) {
+	t.Run("copilot engine rejects mixed ecosystems and custom domains in strict mode", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -192,7 +192,7 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		}
 	})
 
-	t.Run("copilot engine without LLM gateway requires sandbox.agent to be enabled", func(t *testing.T) {
+	t.Run("copilot engine with LLM gateway support requires sandbox.agent to be enabled in strict mode", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -210,11 +210,13 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error for copilot engine with sandbox.agent: false, got nil")
 		}
-		if err != nil && !strings.Contains(err.Error(), "does not support LLM gateway") {
-			t.Errorf("Expected error about LLM gateway support, got: %v", err)
+		// Since copilot now supports LLM gateway, it should get the general error message
+		// (not the engine-specific "does not support LLM gateway" message)
+		if err != nil && !strings.Contains(err.Error(), "sandbox.agent: false") {
+			t.Errorf("Expected error about sandbox.agent: false, got: %v", err)
 		}
-		if err != nil && !strings.Contains(err.Error(), "sandbox.agent") {
-			t.Errorf("Expected error about sandbox.agent, got: %v", err)
+		if err != nil && !strings.Contains(err.Error(), "disables the agent sandbox firewall") {
+			t.Errorf("Expected error about disabling agent sandbox firewall, got: %v", err)
 		}
 	})
 
@@ -320,8 +322,8 @@ func TestSupportsLLMGateway(t *testing.T) {
 		},
 		{
 			engineID:     "copilot",
-			expectedPort: -1,
-			description:  "Copilot engine does not support LLM gateway",
+			expectedPort: constants.CopilotLLMGatewayPort,
+			description:  "Copilot engine uses dedicated port for LLM gateway",
 		},
 		{
 			engineID:     "custom",

@@ -303,6 +303,9 @@ const (
 
 	// CopilotSDKLLMGatewayPort is the port for the Copilot SDK LLM gateway
 	CopilotSDKLLMGatewayPort = 10002
+
+	// CopilotLLMGatewayPort is the port for the Copilot LLM gateway
+	CopilotLLMGatewayPort = 10002
 )
 
 // DefaultMCPRegistryURL is the default MCP registry URL.
@@ -377,7 +380,7 @@ const DefaultCodexVersion Version = "0.101.0"
 const DefaultGitHubMCPServerVersion Version = "v0.30.3"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion Version = "v0.19.1"
+const DefaultFirewallVersion Version = "v0.20.0"
 
 // AWF (Agentic Workflow Firewall) constants
 

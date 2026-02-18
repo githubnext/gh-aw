@@ -121,16 +121,14 @@ Initialize repository for agentic workflows. Configures `.gitattributes`, Copilo
 
 ```bash wrap
 gh aw init                              # Interactive mode: select engine and configure secrets
-gh aw init --engine copilot             # Non-interactive with specific engine
 gh aw init --no-mcp                     # Skip MCP server integration
-gh aw init --tokens --engine copilot    # Check Copilot token configuration
 gh aw init --codespaces                 # Configure devcontainer for current repo
 gh aw init --codespaces repo1,repo2     # Configure devcontainer for additional repos
 gh aw init --completions                # Install shell completions
 gh aw init --push                       # Initialize and automatically commit/push changes
 ```
 
-**Options:** `--engine` (copilot, claude, codex), `--no-mcp`, `--tokens`, `--codespaces`, `--completions`, `--push` (see [--push flag](#the---push-flag))
+**Options:** `--no-mcp`, `--codespaces`, `--completions`, `--push` (see [--push flag](#the---push-flag))
 
 #### `add`
 

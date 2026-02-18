@@ -44,7 +44,7 @@ func NewCopilotEngine() *CopilotEngine {
 			supportsWebSearch:      false, // Copilot CLI does not have built-in web-search support
 			supportsFirewall:       true,  // Copilot supports network firewalling via AWF
 			supportsPlugins:        true,  // Copilot supports plugin installation
-			supportsLLMGateway:     false, // Copilot does not support LLM gateway
+			supportsLLMGateway:     true,  // Copilot supports LLM gateway on port 10003
 		},
 	}
 }
@@ -53,6 +53,11 @@ func NewCopilotEngine() *CopilotEngine {
 // Uses gpt-5.1-codex-mini as a cost-effective model for detection tasks (replacement for deprecated gpt-5-mini)
 func (e *CopilotEngine) GetDefaultDetectionModel() string {
 	return string(constants.DefaultCopilotDetectionModel)
+}
+
+// SupportsLLMGateway returns the LLM gateway port for Copilot engine
+func (e *CopilotEngine) SupportsLLMGateway() int {
+	return constants.CopilotLLMGatewayPort
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Copilot engine
