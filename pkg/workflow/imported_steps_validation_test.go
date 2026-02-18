@@ -63,10 +63,8 @@ This workflow imports a custom engine with agentic secrets.
 			errMsg := err.Error()
 			assert.Contains(t, errMsg, "strict mode", "Error should mention strict mode")
 			assert.Contains(t, errMsg, "COPILOT_GITHUB_TOKEN", "Error should mention the secret name")
-			// Check for either Copilot CLI or Copilot SDK (both use COPILOT_GITHUB_TOKEN)
-			hasCopilotCLI := strings.Contains(errMsg, "GitHub Copilot CLI")
-			hasCopilotSDK := strings.Contains(errMsg, "GitHub Copilot SDK")
-			assert.True(t, hasCopilotCLI || hasCopilotSDK, "Error should mention the engine (GitHub Copilot CLI or GitHub Copilot SDK)")
+			// Check for Copilot CLI (CopilotSDK removed)
+			assert.Contains(t, errMsg, "GitHub Copilot CLI", "Error should mention the engine (GitHub Copilot CLI)")
 			assert.Contains(t, errMsg, "custom engine steps", "Error should mention custom engine steps")
 		}
 	})
@@ -333,11 +331,10 @@ imports:
 		// Should mention both secrets
 		assert.Contains(t, errMsg, "COPILOT_GITHUB_TOKEN")
 		assert.Contains(t, errMsg, "ANTHROPIC_API_KEY")
-		// Should mention the engines (GitHub Copilot CLI/SDK and/or Claude Code)
+		// Should mention the engines (GitHub Copilot CLI and/or Claude Code)
 		hasCopilotCLI := strings.Contains(errMsg, "GitHub Copilot CLI")
-		hasCopilotSDK := strings.Contains(errMsg, "GitHub Copilot SDK")
 		hasClaude := strings.Contains(errMsg, "Claude Code")
-		assert.True(t, hasCopilotCLI || hasCopilotSDK || hasClaude, "Should mention the engines")
+		assert.True(t, hasCopilotCLI || hasClaude, "Should mention the engines")
 	}
 }
 

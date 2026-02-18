@@ -2,7 +2,7 @@
 
 ## Overview
 
-Completed comprehensive deep review of the agentic engine architecture, interface design, and all implementations (Copilot, Claude, Codex, Custom, CopilotSDK). The architecture is **excellent and ready for extension**.
+Completed comprehensive deep review of the agentic engine architecture, interface design, and all implementations (Copilot, Claude, Codex, Custom). The architecture is **excellent and ready for extension**.
 
 ## What Was Reviewed
 
@@ -17,7 +17,6 @@ Completed comprehensive deep review of the agentic engine architecture, interfac
 - ✅ **Claude** - Full MCP, firewall, max-turns, LLM gateway
 - ✅ **Codex** - TOML config, full MCP, firewall, LLM gateway
 - ✅ **Custom** - User-defined steps, fallback parsing
-- ✅ **CopilotSDK** - Experimental, headless mode
 
 ### 3. Interface Compliance
 - ✅ Validated all engines implement required interfaces
@@ -138,7 +137,6 @@ CodingAgentEngine (composite - backward compatibility)
 | Claude | 1 | ⭐⭐⭐⭐⭐ | Clean, comprehensive |
 | Codex | 3 | ⭐⭐⭐⭐⭐ | TOML config, well-organized |
 | Custom | 1 | ⭐⭐⭐⭐⭐ | Simple, focused |
-| CopilotSDK | 1 | ⭐⭐⭐⭐ | Experimental, good reuse |
 
 All implementations follow established patterns and are thoroughly tested.
 

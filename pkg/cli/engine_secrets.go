@@ -90,7 +90,7 @@ func getSecretRequirementsForEngine(engine string, includeSystemSecrets bool, in
 // getEngineSecretDescription returns a detailed description for an engine secret
 func getEngineSecretDescription(opt *constants.EngineOption) string {
 	switch opt.Value {
-	case string(constants.CopilotEngine), string(constants.CopilotSDKEngine):
+	case string(constants.CopilotEngine):
 		return "Fine-grained PAT with Copilot Requests permission and repo access where Copilot workflows run."
 	case string(constants.ClaudeEngine):
 		return "API key from Anthropic Console for Claude API access."
@@ -189,7 +189,7 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 
 	if envValue != "" {
 		// Validate if it's a Copilot token
-		if req.IsEngineSecret && (req.EngineName == string(constants.CopilotEngine) || req.EngineName == string(constants.CopilotSDKEngine)) {
+		if req.IsEngineSecret && req.EngineName == string(constants.CopilotEngine) {
 			if err := stringutil.ValidateCopilotPAT(envValue); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s in environment is not a valid fine-grained PAT: %s", req.Name, stringutil.GetPATTypeDescription(envValue))))
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -221,7 +221,7 @@ func promptForSecret(req SecretRequirement, config EngineSecretConfig) error {
 	engineSecretsLog.Printf("Prompting for secret: %s", req.Name)
 
 	// Copilot requires special handling with PAT creation instructions
-	if req.IsEngineSecret && (req.EngineName == string(constants.CopilotEngine) || req.EngineName == string(constants.CopilotSDKEngine)) {
+	if req.IsEngineSecret && req.EngineName == string(constants.CopilotEngine) {
 		return promptForCopilotPATUnified(req, config)
 	}
 

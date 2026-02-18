@@ -542,7 +542,6 @@ func NewEngineRegistry() *EngineRegistry {
     registry.Register(NewClaudeEngine())
     registry.Register(NewCodexEngine())
     registry.Register(NewCopilotEngine())
-    registry.Register(NewCopilotSDKEngine())
     registry.Register(NewCustomEngine())
     registry.Register(NewMyEngine()) // Add your engine here
     

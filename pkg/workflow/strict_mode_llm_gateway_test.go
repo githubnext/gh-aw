@@ -316,11 +316,6 @@ func TestSupportsLLMGateway(t *testing.T) {
 			description:  "Claude engine uses dedicated port for LLM gateway",
 		},
 		{
-			engineID:     "copilot-sdk",
-			expectedPort: constants.CopilotSDKLLMGatewayPort,
-			description:  "Copilot SDK engine uses dedicated port for LLM gateway",
-		},
-		{
 			engineID:     "copilot",
 			expectedPort: constants.CopilotLLMGatewayPort,
 			description:  "Copilot engine uses dedicated port for LLM gateway",

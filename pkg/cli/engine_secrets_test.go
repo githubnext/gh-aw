@@ -235,11 +235,6 @@ func TestGetEngineSecretDescription(t *testing.T) {
 			wantContains: "Fine-grained PAT",
 		},
 		{
-			name:         "copilot-sdk engine description",
-			engineValue:  string(constants.CopilotSDKEngine),
-			wantContains: "Fine-grained PAT",
-		},
-		{
 			name:         "claude engine description",
 			engineValue:  string(constants.ClaudeEngine),
 			wantContains: "Anthropic Console",

@@ -245,22 +245,22 @@ func TestCompleteEngineNames(t *testing.T) {
 		{
 			name:       "empty prefix returns all engines",
 			toComplete: "",
-			wantLen:    5, // copilot, copilot-sdk, claude, codex, custom
+			wantLen:    4, // copilot, claude, codex, custom
 		},
 		{
-			name:       "c prefix returns claude, codex, copilot, copilot-sdk, custom",
+			name:       "c prefix returns claude, codex, copilot, custom",
 			toComplete: "c",
-			wantLen:    5,
+			wantLen:    4,
 		},
 		{
-			name:       "co prefix returns copilot, copilot-sdk, codex",
+			name:       "co prefix returns copilot, codex",
 			toComplete: "co",
-			wantLen:    3,
+			wantLen:    2,
 		},
 		{
-			name:       "cop prefix returns copilot, copilot-sdk",
+			name:       "cop prefix returns copilot",
 			toComplete: "cop",
-			wantLen:    2,
+			wantLen:    1,
 		},
 		{
 			name:       "x prefix returns nothing",
@@ -702,9 +702,8 @@ func TestCompleteEngineNamesExactMatch(t *testing.T) {
 	// Test exact match - should still return the matching engine
 	completions, directive := CompleteEngineNames(cmd, nil, "copilot")
 	assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
-	assert.Len(t, completions, 2, "Should return copilot and copilot-sdk")
+	assert.Len(t, completions, 1, "Should return copilot")
 	assert.Contains(t, completions, "copilot")
-	assert.Contains(t, completions, "copilot-sdk")
 }
 
 // TestCompleteEngineNamesCaseSensitivity tests engine name completion is case-sensitive
@@ -719,7 +718,7 @@ func TestCompleteEngineNamesCaseSensitivity(t *testing.T) {
 		{
 			name:       "lowercase copilot",
 			toComplete: "copilot",
-			wantLen:    2, // copilot and copilot-sdk
+			wantLen:    1, // copilot
 		},
 		{
 			name:       "uppercase COPILOT should not match",

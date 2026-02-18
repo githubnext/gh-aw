@@ -47,7 +47,6 @@ CodingAgentEngine (composite)
 | Claude | Production | Medium | Full MCP support, firewall, max-turns |
 | Codex | Production | Medium | TOML config, firewall, LLM gateway |
 | Custom | Production | Low | User-defined steps, minimal features |
-| CopilotSDK | Experimental | Low | Headless mode, limited features |
 
 **Assessment**: ✅ **Good variety**. Implementations range from simple (Custom) to complex (Copilot), providing good examples for new engine authors.
 
@@ -132,19 +131,6 @@ Key helper functions in `engine_helpers.go`:
 - None identified
 
 **Rating**: ⭐⭐⭐⭐⭐ (5/5)
-
-### CopilotSDK Engine
-
-**File**: copilot_sdk_engine.go (259 lines)
-
-**Strengths**:
-- ✅ Experimental status clearly marked
-- ✅ Reuses Copilot installation steps
-
-**Areas for improvement**:
-- None identified (experimental status expected)
-
-**Rating**: ⭐⭐⭐⭐ (4/5) - Experimental
 
 ## Extensibility Assessment
 

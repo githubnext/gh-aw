@@ -7,7 +7,7 @@ name: Dev
 description: Daily status report for gh-aw project
 timeout-minutes: 30
 strict: false
-engine: copilot-sdk
+engine: copilot
 
 permissions:
   contents: read
