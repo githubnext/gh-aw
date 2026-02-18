@@ -116,7 +116,7 @@ This workflow tests recursive imports.
 	}
 }
 
-// TestCyclicImports tests that cyclic imports are detected and handled properly
+// TestCyclicImports tests that cyclic imports are detected and reported as errors
 func TestCyclicImports(t *testing.T) {
 	// Create a temporary directory for test files
 	tempDir := testutil.TempDir(t, "test-*")
@@ -172,28 +172,25 @@ This workflow tests cyclic import detection.
 		t.Fatalf("Failed to write workflow file: %v", err)
 	}
 
-	// Compile the workflow - should handle the cycle gracefully
+	// Compile the workflow - should now detect the cycle and return an error
 	compiler := workflow.NewCompiler()
-	if err := compiler.CompileWorkflow(workflowPath); err != nil {
-		t.Fatalf("CompileWorkflow failed: %v", err)
+	err := compiler.CompileWorkflow(workflowPath)
+	if err == nil {
+		t.Fatal("CompileWorkflow should have failed with import cycle error")
 	}
 
-	// Read the generated lock file
-	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
-	lockFileContent, err := os.ReadFile(lockFilePath)
-	if err != nil {
-		t.Fatalf("Failed to read lock file: %v", err)
+	// Verify the error message mentions the cycle
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "Import cycle detected") && !strings.Contains(errMsg, "circular") {
+		t.Errorf("Error message should mention import cycle, got: %v", errMsg)
 	}
 
-	workflowData := string(lockFileContent)
-
-	// Verify both tools are present (cycle should be handled)
-	if !strings.Contains(workflowData, "tool-a") {
-		t.Error("Expected compiled workflow to contain tool-a")
+	// Verify both files are mentioned in the error
+	if !strings.Contains(errMsg, "file-a.md") {
+		t.Error("Error message should mention file-a.md")
 	}
-
-	if !strings.Contains(workflowData, "tool-b") {
-		t.Error("Expected compiled workflow to contain tool-b")
+	if !strings.Contains(errMsg, "file-b.md") {
+		t.Error("Error message should mention file-b.md")
 	}
 }
 

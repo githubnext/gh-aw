@@ -771,7 +771,11 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	log.Printf("Completed BFS traversal. Processed %d imports in total", len(processedOrder))
 
 	// Sort imports in topological order (roots first, dependencies before dependents)
-	topologicalOrder := topologicalSortImports(processedOrder, baseDir, cache)
+	// Returns an error if a circular import is detected
+	topologicalOrder, err := topologicalSortImports(processedOrder, baseDir, cache, workflowFilePath)
+	if err != nil {
+		return nil, err
+	}
 	log.Printf("Sorted imports in topological order: %v", topologicalOrder)
 
 	return &ImportsResult{
@@ -806,10 +810,76 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	}, nil
 }
 
+// findCyclePath uses DFS to find a complete cycle path in the dependency graph
+// Returns a path showing the full chain including the back-edge (e.g., ["b.md", "c.md", "d.md", "b.md"])
+func findCyclePath(cycleNodes map[string]bool, dependencies map[string][]string) []string {
+	// Pick any node in the cycle as a starting point (use sorted order for determinism)
+	var startNode string
+	sortedNodes := make([]string, 0, len(cycleNodes))
+	for node := range cycleNodes {
+		sortedNodes = append(sortedNodes, node)
+	}
+	sort.Strings(sortedNodes)
+	if len(sortedNodes) > 0 {
+		startNode = sortedNodes[0]
+	} else {
+		return nil
+	}
+
+	// Use DFS to find a path from startNode back to itself
+	visited := make(map[string]bool)
+	path := []string{}
+	if dfsForCycle(startNode, startNode, cycleNodes, dependencies, visited, &path, true) {
+		return path
+	}
+
+	return nil
+}
+
+// dfsForCycle performs DFS to find a cycle path
+// isFirst tracks if this is the first call (starting point)
+func dfsForCycle(current, target string, cycleNodes map[string]bool, dependencies map[string][]string, visited map[string]bool, path *[]string, isFirst bool) bool {
+	// Add current node to path
+	*path = append(*path, current)
+	visited[current] = true
+
+	// Get dependencies of current node, sorted for determinism
+	deps := dependencies[current]
+	sortedDeps := make([]string, 0, len(deps))
+	for _, dep := range deps {
+		// Only follow edges within the cycle subgraph
+		if cycleNodes[dep] {
+			sortedDeps = append(sortedDeps, dep)
+		}
+	}
+	sort.Strings(sortedDeps)
+
+	// Explore each dependency
+	for _, dep := range sortedDeps {
+		// Found the cycle - we've reached the target again
+		if !isFirst && dep == target {
+			*path = append(*path, dep) // Add the back-edge
+			return true
+		}
+
+		// Continue DFS if not visited
+		if !visited[dep] {
+			if dfsForCycle(dep, target, cycleNodes, dependencies, visited, path, false) {
+				return true
+			}
+		}
+	}
+
+	// Backtrack
+	*path = (*path)[:len(*path)-1]
+	return false
+}
+
 // topologicalSortImports sorts imports in topological order using Kahn's algorithm
 // Returns imports sorted such that roots (files with no imports) come first,
-// and each import has all its dependencies listed before it
-func topologicalSortImports(imports []string, baseDir string, cache *ImportCache) []string {
+// and each import has all its dependencies listed before it.
+// Returns an error if a circular import is detected.
+func topologicalSortImports(imports []string, baseDir string, cache *ImportCache, workflowFile string) ([]string, error) {
 	importLog.Printf("Starting topological sort of %d imports", len(imports))
 
 	// Build dependency graph: map each import to its list of nested imports
@@ -932,7 +1002,40 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 	}
 
 	importLog.Printf("Topological sort complete: %v", result)
-	return result
+
+	// If we didn't process all imports, there's a cycle
+	if len(result) < len(imports) {
+		importLog.Printf("Cycle detected: processed %d/%d imports", len(result), len(imports))
+
+		// Find which imports are part of the cycle (those not in result)
+		cycleNodes := make(map[string]bool)
+		for _, imp := range imports {
+			found := false
+			for _, processed := range result {
+				if processed == imp {
+					found = true
+					break
+				}
+			}
+			if !found {
+				cycleNodes[imp] = true
+			}
+		}
+
+		// Use DFS to find a cycle path in the subgraph of cycle nodes
+		cyclePath := findCyclePath(cycleNodes, dependencies)
+		if len(cyclePath) > 0 {
+			return nil, &ImportCycleError{
+				Chain:        cyclePath,
+				WorkflowFile: workflowFile,
+			}
+		}
+
+		// Fallback error if we couldn't construct the path (shouldn't happen)
+		return nil, fmt.Errorf("circular import detected but could not determine cycle path")
+	}
+
+	return result, nil
 }
 
 // extractImportPaths extracts just the import paths from frontmatter

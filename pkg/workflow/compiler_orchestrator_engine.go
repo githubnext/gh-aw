@@ -97,6 +97,10 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 	importsResult, err := parser.ProcessImportsFromFrontmatterWithSource(result.Frontmatter, markdownDir, importCache, cleanPath, string(content))
 	if err != nil {
 		orchestratorEngineLog.Printf("Import processing failed: %v", err)
+		// Format ImportCycleError with detailed chain display
+		if cycleErr, ok := err.(*parser.ImportCycleError); ok {
+			return nil, parser.FormatImportCycleError(cycleErr)
+		}
 		return nil, err // Error is already formatted with source location
 	}
 
