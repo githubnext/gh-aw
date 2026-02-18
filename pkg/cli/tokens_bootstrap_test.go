@@ -143,9 +143,31 @@ func TestCollectRequiredSecretsFromWorkflows_NoWorkflowsDir(t *testing.T) {
 	err = os.Chdir(tmpDir)
 	require.NoError(t, err)
 
-	_, err = collectRequiredSecretsFromWorkflows("")
-	assert.Error(t, err, "Should error when no workflows directory exists")
-	assert.Contains(t, err.Error(), "failed to discover workflows", "Error should indicate workflow discovery failed")
+	t.Run("fails when no engine specified", func(t *testing.T) {
+		_, err = collectRequiredSecretsFromWorkflows("")
+		assert.Error(t, err, "Should error when no workflows directory exists and no engine specified")
+		assert.Contains(t, err.Error(), "failed to discover workflows", "Error should indicate workflow discovery failed")
+	})
+
+	t.Run("succeeds when engine specified", func(t *testing.T) {
+		requirements, err := collectRequiredSecretsFromWorkflows("copilot")
+		require.NoError(t, err, "Should not error when engine is explicitly specified")
+		require.NotEmpty(t, requirements, "Should return secrets for specified engine")
+
+		// Should include system secrets
+		hasSystemSecret := false
+		hasCopilotSecret := false
+		for _, req := range requirements {
+			if req.Name == "GH_AW_GITHUB_TOKEN" {
+				hasSystemSecret = true
+			}
+			if req.Name == "COPILOT_GITHUB_TOKEN" {
+				hasCopilotSecret = true
+			}
+		}
+		assert.True(t, hasSystemSecret, "Should include system secret")
+		assert.True(t, hasCopilotSecret, "Should include Copilot secret when engine=copilot")
+	})
 }
 
 func TestCollectRequiredSecretsFromWorkflows_EmptyWorkflowsDir(t *testing.T) {
@@ -165,9 +187,31 @@ func TestCollectRequiredSecretsFromWorkflows_EmptyWorkflowsDir(t *testing.T) {
 	err = os.Chdir(tmpDir)
 	require.NoError(t, err)
 
-	_, err = collectRequiredSecretsFromWorkflows("")
-	assert.Error(t, err, "Should error when no workflow files found")
-	assert.Contains(t, err.Error(), "no workflow files found", "Error should indicate no workflow files")
+	t.Run("fails when no engine specified", func(t *testing.T) {
+		_, err = collectRequiredSecretsFromWorkflows("")
+		assert.Error(t, err, "Should error when no workflow files found and no engine specified")
+		assert.Contains(t, err.Error(), "no workflow files found", "Error should indicate no workflow files")
+	})
+
+	t.Run("succeeds when engine specified", func(t *testing.T) {
+		requirements, err := collectRequiredSecretsFromWorkflows("claude")
+		require.NoError(t, err, "Should not error when engine is explicitly specified")
+		require.NotEmpty(t, requirements, "Should return secrets for specified engine")
+
+		// Should include system secrets
+		hasSystemSecret := false
+		hasClaudeSecret := false
+		for _, req := range requirements {
+			if req.Name == "GH_AW_GITHUB_TOKEN" {
+				hasSystemSecret = true
+			}
+			if req.Name == "ANTHROPIC_API_KEY" {
+				hasClaudeSecret = true
+			}
+		}
+		assert.True(t, hasSystemSecret, "Should include system secret")
+		assert.True(t, hasClaudeSecret, "Should include Claude API key when engine=claude")
+	})
 }
 
 func TestCollectRequiredSecretsFromWorkflows_Deduplication(t *testing.T) {

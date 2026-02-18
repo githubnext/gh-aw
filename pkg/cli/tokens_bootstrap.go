@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/github/gh-aw/pkg/console"
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
 )
@@ -151,6 +150,12 @@ func runTokensBootstrap(engine, owner, repo string, nonInteractive bool) error {
 func collectRequiredSecretsFromWorkflows(engineFilter string) ([]SecretRequirement, error) {
 	tokensBootstrapLog.Printf("Discovering workflows (engine filter: %s)", engineFilter)
 
+	// If engine is explicitly specified, we can bootstrap without workflows
+	if engineFilter != "" {
+		tokensBootstrapLog.Printf("Engine explicitly specified, bootstrapping for %s regardless of workflows", engineFilter)
+		return CollectSecretsForEngines([]string{engineFilter}), nil
+	}
+
 	// Discover workflow files
 	workflowFiles, err := getMarkdownWorkflowFiles("")
 	if err != nil {
@@ -167,57 +172,16 @@ func collectRequiredSecretsFromWorkflows(engineFilter string) ([]SecretRequireme
 	engineSet := make(map[string]bool)
 	for _, file := range workflowFiles {
 		engine := extractEngineIDFromFile(file)
-		if engineFilter != "" && engine != engineFilter {
-			continue // Skip if not matching filter
-		}
 		engineSet[engine] = true
 	}
 
 	tokensBootstrapLog.Printf("Found %d unique engines: %v", len(engineSet), engineSet)
 
-	// Collect secrets for each engine
-	var allRequirements []SecretRequirement
-	seenSecrets := make(map[string]bool)
-
-	// Always include system secrets
-	for _, sys := range constants.SystemSecrets {
-		if seenSecrets[sys.Name] {
-			continue
-		}
-		seenSecrets[sys.Name] = true
-		allRequirements = append(allRequirements, SecretRequirement{
-			Name:           sys.Name,
-			WhenNeeded:     sys.WhenNeeded,
-			Description:    sys.Description,
-			Optional:       sys.Optional,
-			IsEngineSecret: false,
-		})
-	}
-
-	// Add engine-specific secrets
+	// Convert engine set to slice
+	engines := make([]string, 0, len(engineSet))
 	for engine := range engineSet {
-		opt := constants.GetEngineOption(engine)
-		if opt == nil {
-			tokensBootstrapLog.Printf("Warning: Unknown engine %s, skipping", engine)
-			continue
-		}
-
-		if seenSecrets[opt.SecretName] {
-			continue // Already added
-		}
-		seenSecrets[opt.SecretName] = true
-
-		allRequirements = append(allRequirements, SecretRequirement{
-			Name:               opt.SecretName,
-			WhenNeeded:         opt.WhenNeeded,
-			Description:        getEngineSecretDescription(opt),
-			Optional:           false, // Required since it's used by a workflow
-			AlternativeEnvVars: opt.AlternativeSecrets,
-			KeyURL:             opt.KeyURL,
-			IsEngineSecret:     true,
-			EngineName:         engine,
-		})
+		engines = append(engines, engine)
 	}
 
-	return allRequirements, nil
+	return CollectSecretsForEngines(engines), nil
 }

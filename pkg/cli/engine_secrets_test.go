@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"os"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -303,5 +304,222 @@ func TestEngineSecretConfigStructure(t *testing.T) {
 		assert.True(t, config.ExistingSecrets["SECRET1"])
 		assert.True(t, config.IncludeSystemSecrets)
 		assert.False(t, config.IncludeOptional)
+	})
+}
+func TestCollectSecretsForEngines(t *testing.T) {
+	t.Run("single engine", func(t *testing.T) {
+		requirements := CollectSecretsForEngines([]string{"copilot"})
+
+		require.NotEmpty(t, requirements, "Should return secrets for copilot")
+
+		// Should include system secrets
+		hasSystemSecret := false
+		hasCopilotSecret := false
+		for _, req := range requirements {
+			if req.Name == "GH_AW_GITHUB_TOKEN" {
+				hasSystemSecret = true
+				assert.False(t, req.IsEngineSecret, "System secret should not be marked as engine secret")
+			}
+			if req.Name == "COPILOT_GITHUB_TOKEN" {
+				hasCopilotSecret = true
+				assert.True(t, req.IsEngineSecret, "Copilot secret should be marked as engine secret")
+				assert.Equal(t, "copilot", req.EngineName)
+			}
+		}
+		assert.True(t, hasSystemSecret, "Should include system secret")
+		assert.True(t, hasCopilotSecret, "Should include Copilot secret")
+	})
+
+	t.Run("multiple engines deduplicates secrets", func(t *testing.T) {
+		requirements := CollectSecretsForEngines([]string{"copilot", "claude", "codex"})
+
+		// Count occurrences of each secret
+		secretCounts := make(map[string]int)
+		for _, req := range requirements {
+			secretCounts[req.Name]++
+		}
+
+		// Verify no duplicates
+		for secretName, count := range secretCounts {
+			assert.Equal(t, 1, count, "Secret %s should appear exactly once, found %d times", secretName, count)
+		}
+
+		// Should have system secrets + engine secrets
+		assert.Contains(t, secretCounts, "GH_AW_GITHUB_TOKEN", "Should include system token")
+		assert.Contains(t, secretCounts, "COPILOT_GITHUB_TOKEN", "Should include Copilot token")
+		assert.Contains(t, secretCounts, "ANTHROPIC_API_KEY", "Should include Claude API key")
+		assert.Contains(t, secretCounts, "OPENAI_API_KEY", "Should include OpenAI API key")
+	})
+
+	t.Run("empty engines list returns only system secrets", func(t *testing.T) {
+		requirements := CollectSecretsForEngines([]string{})
+
+		require.NotEmpty(t, requirements, "Should return at least system secrets")
+
+		// All requirements should be system secrets
+		for _, req := range requirements {
+			assert.False(t, req.IsEngineSecret, "All secrets should be system secrets when no engines provided")
+		}
+
+		// Should include GH_AW_GITHUB_TOKEN
+		hasSystemToken := false
+		for _, req := range requirements {
+			if req.Name == "GH_AW_GITHUB_TOKEN" {
+				hasSystemToken = true
+				break
+			}
+		}
+		assert.True(t, hasSystemToken, "Should include GH_AW_GITHUB_TOKEN")
+	})
+
+	t.Run("unknown engine is skipped", func(t *testing.T) {
+		requirements := CollectSecretsForEngines([]string{"unknown-engine"})
+
+		require.NotEmpty(t, requirements, "Should return at least system secrets")
+
+		// Should only have system secrets, no engine secrets
+		for _, req := range requirements {
+			assert.False(t, req.IsEngineSecret, "Should not include engine secrets for unknown engine")
+		}
+	})
+
+	t.Run("mixed known and unknown engines", func(t *testing.T) {
+		requirements := CollectSecretsForEngines([]string{"copilot", "unknown-engine", "claude"})
+
+		// Should include copilot and claude secrets, but not unknown
+		hasCopilot := false
+		hasClaude := false
+		hasUnknown := false
+		for _, req := range requirements {
+			if req.Name == "COPILOT_GITHUB_TOKEN" {
+				hasCopilot = true
+			}
+			if req.Name == "ANTHROPIC_API_KEY" {
+				hasClaude = true
+			}
+			if req.EngineName == "unknown-engine" {
+				hasUnknown = true
+			}
+		}
+
+		assert.True(t, hasCopilot, "Should include Copilot secret")
+		assert.True(t, hasClaude, "Should include Claude secret")
+		assert.False(t, hasUnknown, "Should not include secrets for unknown engine")
+	})
+
+	t.Run("duplicate engines in input are deduplicated", func(t *testing.T) {
+		requirements := CollectSecretsForEngines([]string{"copilot", "copilot", "copilot"})
+
+		// Count Copilot tokens
+		copilotCount := 0
+		for _, req := range requirements {
+			if req.Name == "COPILOT_GITHUB_TOKEN" {
+				copilotCount++
+			}
+		}
+
+		assert.Equal(t, 1, copilotCount, "Should deduplicate repeated engines")
+	})
+}
+func TestGetEngineSecretNameAndValue(t *testing.T) {
+	// Save current env and restore after test
+	oldCopilotToken := os.Getenv("COPILOT_GITHUB_TOKEN")
+	oldAnthropicKey := os.Getenv("ANTHROPIC_API_KEY")
+	oldOpenAIKey := os.Getenv("OPENAI_API_KEY")
+	defer func() {
+		if oldCopilotToken != "" {
+			os.Setenv("COPILOT_GITHUB_TOKEN", oldCopilotToken)
+		} else {
+			os.Unsetenv("COPILOT_GITHUB_TOKEN")
+		}
+		if oldAnthropicKey != "" {
+			os.Setenv("ANTHROPIC_API_KEY", oldAnthropicKey)
+		} else {
+			os.Unsetenv("ANTHROPIC_API_KEY")
+		}
+		if oldOpenAIKey != "" {
+			os.Setenv("OPENAI_API_KEY", oldOpenAIKey)
+		} else {
+			os.Unsetenv("OPENAI_API_KEY")
+		}
+	}()
+
+	t.Run("secret exists in repository", func(t *testing.T) {
+		existingSecrets := map[string]bool{
+			"COPILOT_GITHUB_TOKEN": true,
+		}
+
+		name, value, existsInRepo, err := GetEngineSecretNameAndValue("copilot", existingSecrets)
+
+		require.NoError(t, err, "Should not error when secret exists in repo")
+		assert.Equal(t, "COPILOT_GITHUB_TOKEN", name)
+		assert.Empty(t, value, "Value should be empty when secret exists in repo")
+		assert.True(t, existsInRepo, "Should indicate secret exists in repo")
+	})
+
+	t.Run("secret found in environment", func(t *testing.T) {
+		os.Setenv("ANTHROPIC_API_KEY", "test-api-key-12345")
+		defer os.Unsetenv("ANTHROPIC_API_KEY")
+
+		existingSecrets := map[string]bool{}
+
+		name, value, existsInRepo, err := GetEngineSecretNameAndValue("claude", existingSecrets)
+
+		require.NoError(t, err, "Should not error when secret in environment")
+		assert.Equal(t, "ANTHROPIC_API_KEY", name)
+		assert.Equal(t, "test-api-key-12345", value)
+		assert.False(t, existsInRepo, "Should indicate secret does not exist in repo")
+	})
+
+	t.Run("secret not in repo or environment", func(t *testing.T) {
+		os.Unsetenv("OPENAI_API_KEY")
+
+		existingSecrets := map[string]bool{}
+
+		name, value, existsInRepo, err := GetEngineSecretNameAndValue("codex", existingSecrets)
+
+		require.NoError(t, err, "Should not error even when secret not found")
+		assert.Equal(t, "OPENAI_API_KEY", name)
+		assert.Empty(t, value, "Value should be empty when not found in env")
+		assert.False(t, existsInRepo, "Should indicate secret does not exist in repo")
+	})
+
+	t.Run("unknown engine returns error", func(t *testing.T) {
+		existingSecrets := map[string]bool{}
+
+		_, _, _, err := GetEngineSecretNameAndValue("unknown-engine", existingSecrets)
+
+		assert.Error(t, err, "Should error for unknown engine")
+		assert.Contains(t, err.Error(), "unknown engine", "Error should mention unknown engine")
+	})
+
+	t.Run("alternative secret exists in repo", func(t *testing.T) {
+		// Claude has CLAUDE_CODE_OAUTH_TOKEN as alternative
+		existingSecrets := map[string]bool{
+			"CLAUDE_CODE_OAUTH_TOKEN": true, // Alternative for ANTHROPIC_API_KEY
+		}
+
+		name, value, existsInRepo, err := GetEngineSecretNameAndValue("claude", existingSecrets)
+
+		require.NoError(t, err, "Should not error when alternative exists")
+		assert.Equal(t, "ANTHROPIC_API_KEY", name)
+		assert.Empty(t, value, "Value should be empty when alternative exists in repo")
+		assert.True(t, existsInRepo, "Should indicate secret exists via alternative")
+	})
+
+	t.Run("prefers primary secret over environment", func(t *testing.T) {
+		os.Setenv("COPILOT_GITHUB_TOKEN", "test-token-from-env")
+		defer os.Unsetenv("COPILOT_GITHUB_TOKEN")
+
+		existingSecrets := map[string]bool{
+			"COPILOT_GITHUB_TOKEN": true,
+		}
+
+		name, value, existsInRepo, err := GetEngineSecretNameAndValue("copilot", existingSecrets)
+
+		require.NoError(t, err, "Should not error")
+		assert.Equal(t, "COPILOT_GITHUB_TOKEN", name)
+		assert.Empty(t, value, "Should prefer existing repo secret over environment")
+		assert.True(t, existsInRepo, "Should indicate secret exists in repo")
 	})
 }

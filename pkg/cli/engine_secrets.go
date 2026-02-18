@@ -87,6 +87,58 @@ func GetRequiredSecretsForEngine(engine string, includeSystemSecrets bool, inclu
 	return requirements
 }
 
+// CollectSecretsForEngines collects and deduplicates secrets for multiple engines.
+// It always includes system secrets and deduplicates across all engines.
+func CollectSecretsForEngines(engines []string) []SecretRequirement {
+	engineSecretsLog.Printf("Collecting secrets for %d engines: %v", len(engines), engines)
+
+	var allRequirements []SecretRequirement
+	seenSecrets := make(map[string]bool)
+
+	// Always include system secrets
+	for _, sys := range constants.SystemSecrets {
+		if seenSecrets[sys.Name] {
+			continue
+		}
+		seenSecrets[sys.Name] = true
+		allRequirements = append(allRequirements, SecretRequirement{
+			Name:           sys.Name,
+			WhenNeeded:     sys.WhenNeeded,
+			Description:    sys.Description,
+			Optional:       sys.Optional,
+			IsEngineSecret: false,
+		})
+	}
+
+	// Add engine-specific secrets
+	for _, engine := range engines {
+		opt := constants.GetEngineOption(engine)
+		if opt == nil {
+			engineSecretsLog.Printf("Warning: Unknown engine %s, skipping", engine)
+			continue
+		}
+
+		if seenSecrets[opt.SecretName] {
+			continue // Already added
+		}
+		seenSecrets[opt.SecretName] = true
+
+		allRequirements = append(allRequirements, SecretRequirement{
+			Name:               opt.SecretName,
+			WhenNeeded:         opt.WhenNeeded,
+			Description:        getEngineSecretDescription(opt),
+			Optional:           false, // Required since it's used by a workflow
+			AlternativeEnvVars: opt.AlternativeSecrets,
+			KeyURL:             opt.KeyURL,
+			IsEngineSecret:     true,
+			EngineName:         engine,
+		})
+	}
+
+	engineSecretsLog.Printf("Returning %d deduplicated secret requirements", len(allRequirements))
+	return allRequirements
+}
+
 // getEngineSecretDescription returns a detailed description for an engine secret
 func getEngineSecretDescription(opt *constants.EngineOption) string {
 	switch opt.Value {
@@ -442,6 +494,55 @@ func CheckExistingSecretsInRepo(repoSlug string) (map[string]bool, error) {
 	}
 
 	return existingSecrets, nil
+}
+
+// GetEngineSecretNameAndValue returns the secret name and value for an engine.
+// It checks if the secret exists in the repository and retrieves the value from environment if needed.
+// Returns: secretName, secretValue (empty if exists in repo or not in env), existsInRepo, error
+func GetEngineSecretNameAndValue(engine string, existingSecrets map[string]bool) (string, string, bool, error) {
+	engineSecretsLog.Printf("Getting secret name and value for engine: %s", engine)
+
+	opt := constants.GetEngineOption(engine)
+	if opt == nil {
+		return "", "", false, fmt.Errorf("unknown engine: %s", engine)
+	}
+
+	secretName := opt.SecretName
+
+	// Check if secret already exists in repository
+	if existingSecrets[secretName] {
+		engineSecretsLog.Printf("Secret %s already exists in repository", secretName)
+		return secretName, "", true, nil
+	}
+
+	// Check alternative secret names in repository
+	for _, alt := range opt.AlternativeSecrets {
+		if existingSecrets[alt] {
+			engineSecretsLog.Printf("Alternative secret %s exists in repository", alt)
+			return secretName, "", true, nil
+		}
+	}
+
+	// Get value from environment variable
+	// Use EnvVarName if specified, otherwise use SecretName
+	envVar := opt.SecretName
+	if opt.EnvVarName != "" {
+		envVar = opt.EnvVarName
+	}
+	
+	value := os.Getenv(envVar)
+	if value == "" {
+		// Check alternative environment variables
+		for _, alt := range opt.AlternativeSecrets {
+			value = os.Getenv(alt)
+			if value != "" {
+				engineSecretsLog.Printf("Found secret in alternative env var: %s", alt)
+				break
+			}
+		}
+	}
+
+	return secretName, value, false, nil
 }
 
 // DisplayMissingSecrets shows information about missing secrets with setup instructions

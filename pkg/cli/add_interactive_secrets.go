@@ -5,7 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
@@ -54,29 +53,20 @@ func (c *AddInteractiveConfig) addRepositorySecret(name, value string) error {
 func (c *AddInteractiveConfig) getSecretInfo() (name string, value string, err error) {
 	addInteractiveLog.Printf("Getting secret info for engine: %s", c.EngineOverride)
 
-	opt := constants.GetEngineOption(c.EngineOverride)
-	if opt == nil {
-		return "", "", fmt.Errorf("unknown engine: %s", c.EngineOverride)
+	secretName, secretValue, existsInRepo, err := GetEngineSecretNameAndValue(c.EngineOverride, c.existingSecrets)
+	if err != nil {
+		return "", "", err
 	}
 
-	name = opt.SecretName
-
-	// If secret already exists in repo, we don't need a value
-	if c.existingSecrets[name] {
-		addInteractiveLog.Printf("Secret %s already exists in repository", name)
-		return name, "", nil
+	// If secret exists in repo, return early
+	if existsInRepo {
+		return secretName, "", nil
 	}
 
-	// Get value from environment variable (use EnvVarName if specified, otherwise SecretName)
-	envVar := opt.SecretName
-	if opt.EnvVarName != "" {
-		envVar = opt.EnvVarName
-	}
-	value = os.Getenv(envVar)
-
-	if value == "" {
+	// If value not found in environment, return error
+	if secretValue == "" {
 		return "", "", fmt.Errorf("API key not found for engine %s", c.EngineOverride)
 	}
 
-	return name, value, nil
+	return secretName, secretValue, nil
 }
