@@ -70,7 +70,12 @@ function applyTitlePrefix(sanitizedTitle, titlePrefix) {
   // Only add prefix if title doesn't already start with it
   // The titlePrefix parameter is used as-is (not trimmed) to preserve any trailing space
   if (cleanTitle && !cleanTitle.startsWith(titlePrefix)) {
-    return titlePrefix + cleanTitle;
+    // Ensure space after prefix if it ends with ] or - and doesn't already end with space
+    let prefixToUse = titlePrefix;
+    if (!titlePrefix.endsWith(" ") && (titlePrefix.endsWith("]") || titlePrefix.endsWith("-"))) {
+      prefixToUse = titlePrefix + " ";
+    }
+    return prefixToUse + cleanTitle;
   }
 
   return cleanTitle;
