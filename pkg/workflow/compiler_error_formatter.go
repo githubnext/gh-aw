@@ -58,17 +58,3 @@ func formatCompilerErrorWithPosition(filePath string, line int, column int, errT
 	// Create new error for validation errors (no underlying cause)
 	return errors.New(formattedErr)
 }
-
-// formatCompilerValidationError creates a formatted validation error (convenience wrapper)
-// filePath: the file path to include in the error
-// message: the validation error message
-func formatCompilerValidationError(filePath string, message string) error {
-	return formatCompilerError(filePath, "error", message, nil)
-}
-
-// formatCompilerWarning creates a formatted warning (convenience wrapper)
-// filePath: the file path to include in the error
-// message: the warning message
-func formatCompilerWarning(filePath string, message string) error {
-	return formatCompilerError(filePath, "warning", message, nil)
-}
