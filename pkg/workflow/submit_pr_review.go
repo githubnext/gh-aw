@@ -34,9 +34,8 @@ func (c *Compiler) parseSubmitPullRequestReviewConfig(outputMap map[string]any) 
 
 		// Parse target (same semantics as add-comment / create-pull-request-review-comment)
 		if target, exists := configMap["target"]; exists {
-			if targetStr, ok := target.(string); ok && targetStr != "" {
+			if targetStr, ok := target.(string); ok {
 				config.Target = targetStr
-				submitPRReviewLog.Printf("Target: %s", config.Target)
 			}
 		}
 

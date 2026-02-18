@@ -88,9 +88,6 @@ async function main(config = {}) {
     // If create_pull_request_review_comment already set context, this is a no-op.
     // Use target config as single source of truth (same as add_comment): resolveTarget first, then use payload PR only when it matches.
     if (!buffer.getReviewContext()) {
-      const repo = `${context.repo.owner}/${context.repo.repo}`;
-      const repoParts = { owner: context.repo.owner, repo: context.repo.repo };
-
       const targetResult = resolveTarget({
         targetConfig,
         item: message,
@@ -106,6 +103,8 @@ async function main(config = {}) {
         }
       } else if (targetResult.number) {
         const prNum = targetResult.number;
+        const repo = `${context.repo.owner}/${context.repo.repo}`;
+        const repoParts = { owner: context.repo.owner, repo: context.repo.repo };
         const payloadPR = context.payload?.pull_request;
         const usePayloadPR = payloadPR && payloadPR.number === prNum && payloadPR.head?.sha;
 
