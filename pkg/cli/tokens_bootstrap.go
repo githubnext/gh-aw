@@ -68,7 +68,7 @@ func runTokensBootstrap(engine, owner, repo string, nonInteractive bool) error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Analyzing workflows in %s...", repoSlug)))
 
 	// Discover workflows in the repository
-	requirements, err := getRequiredSecrets(engine)
+	requirements, err := getSecretRequirements(engine)
 	if err != nil {
 		return fmt.Errorf("failed to analyze workflows: %w", err)
 	}
@@ -149,8 +149,8 @@ func runTokensBootstrap(engine, owner, repo string, nonInteractive bool) error {
 	return nil
 }
 
-// getRequiredSecrets discovers all workflows and collects their required secrets
-func getRequiredSecrets(engineFilter string) ([]SecretRequirement, error) {
+// getSecretRequirements discovers all workflows and collects their required secrets
+func getSecretRequirements(engineFilter string) ([]SecretRequirement, error) {
 	tokensBootstrapLog.Printf("Discovering workflows (engine filter: %s)", engineFilter)
 
 	var allRequirements []SecretRequirement
@@ -159,7 +159,7 @@ func getRequiredSecrets(engineFilter string) ([]SecretRequirement, error) {
 	if engineFilter != "" {
 		tokensBootstrapLog.Printf("Engine explicitly specified, bootstrapping for %s regardless of workflows", engineFilter)
 		// Get engine-specific secrets and system secrets (including optional)
-		allRequirements = getRequiredSecretsForEngine(engineFilter, true, true)
+		allRequirements = getSecretRequirementsForEngine(engineFilter, true, true)
 	} else {
 		// Discover workflow files
 		workflowFiles, err := getMarkdownWorkflowFiles("")
@@ -174,7 +174,7 @@ func getRequiredSecrets(engineFilter string) ([]SecretRequirement, error) {
 		tokensBootstrapLog.Printf("Found %d workflow files, extracting secrets", len(workflowFiles))
 
 		// Use getRequiredSecretsForWorkflows to collect and deduplicate secrets
-		allRequirements = getRequiredSecretsForWorkflows(workflowFiles)
+		allRequirements = getSecretsRequirementsForWorkflows(workflowFiles)
 	}
 
 	tokensBootstrapLog.Printf("Returning %d deduplicated secret requirements", len(allRequirements))

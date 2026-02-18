@@ -7,9 +7,9 @@ import (
 
 var workflowSecretsLog = logger.New("cli:workflow_secrets")
 
-// getRequiredSecretsForWorkflows collects secrets from all provided workflow files
+// getSecretsRequirementsForWorkflows collects secrets from all provided workflow files
 // and returns a deduplicated list including system secrets
-func getRequiredSecretsForWorkflows(workflowFiles []string) []SecretRequirement {
+func getSecretsRequirementsForWorkflows(workflowFiles []string) []SecretRequirement {
 	workflowSecretsLog.Printf("Collecting secrets from %d workflow files", len(workflowFiles))
 
 	var allRequirements []SecretRequirement
@@ -17,7 +17,7 @@ func getRequiredSecretsForWorkflows(workflowFiles []string) []SecretRequirement 
 
 	// Map getRequiredSecretsForWorkflow over all workflows and union results
 	for _, workflowFile := range workflowFiles {
-		secrets := getRequiredSecretsForWorkflow(workflowFile)
+		secrets := getSecretRequirementsForWorkflow(workflowFile)
 		for _, req := range secrets {
 			if !seenSecrets[req.Name] {
 				seenSecrets[req.Name] = true
@@ -45,13 +45,13 @@ func getRequiredSecretsForWorkflows(workflowFiles []string) []SecretRequirement 
 	return allRequirements
 }
 
-// getRequiredSecretsForWorkflow extracts the engine from a workflow file and returns its required secrets
+// getSecretRequirementsForWorkflow extracts the engine from a workflow file and returns its required secrets
 //
 // NOTE: In future we will want to analyse more parts of the
 // workflow to work out other secrets required, or detect that the particular
 // authorization being used in a workflow means certain secrets are not required.
 // FOr now we are only looking at the secrets implied by the engine used.
-func getRequiredSecretsForWorkflow(workflowFile string) []SecretRequirement {
+func getSecretRequirementsForWorkflow(workflowFile string) []SecretRequirement {
 	workflowSecretsLog.Printf("Extracting secrets for workflow: %s", workflowFile)
 
 	// Extract engine from workflow file
@@ -65,5 +65,5 @@ func getRequiredSecretsForWorkflow(workflowFile string) []SecretRequirement {
 
 	// Get engine-specific secrets only (no system secrets, no optional)
 	// System secrets will be added separately to avoid duplication
-	return getRequiredSecretsForEngine(engine, false, false)
+	return getSecretRequirementsForEngine(engine, false, false)
 }

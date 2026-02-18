@@ -58,7 +58,7 @@ This workflow uses Codex.`,
 	require.NoError(t, err)
 
 	t.Run("discovers secrets from test workflows", func(t *testing.T) {
-		requirements, err := getRequiredSecrets("")
+		requirements, err := getSecretRequirements("")
 
 		require.NoError(t, err, "Should successfully collect secrets from workflows")
 		require.NotEmpty(t, requirements, "Should find at least one required secret")
@@ -90,7 +90,7 @@ This workflow uses Codex.`,
 	})
 
 	t.Run("filters by engine", func(t *testing.T) {
-		requirements, err := getRequiredSecrets("copilot")
+		requirements, err := getSecretRequirements("copilot")
 
 		require.NoError(t, err, "Should successfully collect secrets for copilot engine")
 		require.NotEmpty(t, requirements, "Should find required secrets")
@@ -107,7 +107,7 @@ This workflow uses Codex.`,
 	})
 
 	t.Run("handles no matching workflows gracefully", func(t *testing.T) {
-		requirements, err := getRequiredSecrets("nonexistent-engine")
+		requirements, err := getSecretRequirements("nonexistent-engine")
 
 		require.NoError(t, err, "Should not error when no workflows match filter")
 
@@ -144,13 +144,13 @@ func TestCollectRequiredSecretsFromWorkflows_NoWorkflowsDir(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("fails when no engine specified", func(t *testing.T) {
-		_, err = getRequiredSecrets("")
+		_, err = getSecretRequirements("")
 		assert.Error(t, err, "Should error when no workflows directory exists and no engine specified")
 		assert.Contains(t, err.Error(), "failed to discover workflows", "Error should indicate workflow discovery failed")
 	})
 
 	t.Run("succeeds when engine specified", func(t *testing.T) {
-		requirements, err := getRequiredSecrets("copilot")
+		requirements, err := getSecretRequirements("copilot")
 		require.NoError(t, err, "Should not error when engine is explicitly specified")
 		require.NotEmpty(t, requirements, "Should return secrets for specified engine")
 
@@ -188,13 +188,13 @@ func TestCollectRequiredSecretsFromWorkflows_EmptyWorkflowsDir(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("fails when no engine specified", func(t *testing.T) {
-		_, err = getRequiredSecrets("")
+		_, err = getSecretRequirements("")
 		assert.Error(t, err, "Should error when no workflow files found and no engine specified")
 		assert.Contains(t, err.Error(), "no workflow files found", "Error should indicate no workflow files")
 	})
 
 	t.Run("succeeds when engine specified", func(t *testing.T) {
-		requirements, err := getRequiredSecrets("claude")
+		requirements, err := getSecretRequirements("claude")
 		require.NoError(t, err, "Should not error when engine is explicitly specified")
 		require.NotEmpty(t, requirements, "Should return secrets for specified engine")
 
@@ -244,7 +244,7 @@ This workflow uses Copilot.`
 	err = os.Chdir(tempDir)
 	require.NoError(t, err)
 
-	requirements, err := getRequiredSecrets("")
+	requirements, err := getSecretRequirements("")
 	require.NoError(t, err)
 
 	// Count occurrences of each secret name

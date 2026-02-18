@@ -143,7 +143,7 @@ func (c *AddInteractiveConfig) collectAPIKey(engine string) error {
 		IncludeOptional:      false,
 	}
 
-	if err := checkAndEnsureEngineSecrets(config); err != nil {
+	if err := checkAndEnsureEngineSecretsForEngine(config); err != nil {
 		return err
 	}
 

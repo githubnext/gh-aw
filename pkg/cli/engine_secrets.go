@@ -45,9 +45,9 @@ type EngineSecretConfig struct {
 	IncludeOptional bool
 }
 
-// getRequiredSecretsForEngine returns all secrets needed for a specific engine.
+// getSecretRequirementsForEngine returns all secrets needed for a specific engine.
 // This combines engine-specific secrets with optional system-level secrets.
-func getRequiredSecretsForEngine(engine string, includeSystemSecrets bool, includeOptional bool) []SecretRequirement {
+func getSecretRequirementsForEngine(engine string, includeSystemSecrets bool, includeOptional bool) []SecretRequirement {
 	engineSecretsLog.Printf("Getting required secrets for engine: %s (system=%v, optional=%v)", engine, includeSystemSecrets, includeOptional)
 
 	var requirements []SecretRequirement
@@ -101,13 +101,13 @@ func getEngineSecretDescription(opt *constants.EngineOption) string {
 	}
 }
 
-// checkAndEnsureEngineSecrets is the unified entry point for checking and collecting engine secrets.
+// checkAndEnsureEngineSecretsForEngine is the unified entry point for checking and collecting engine secrets.
 // It checks existing secrets in the repository and environment, and prompts for missing ones.
-func checkAndEnsureEngineSecrets(config EngineSecretConfig) error {
+func checkAndEnsureEngineSecretsForEngine(config EngineSecretConfig) error {
 	engineSecretsLog.Printf("Checking and collecting secrets for engine: %s in repo: %s", config.Engine, config.RepoSlug)
 
 	// Get required secrets for the engine
-	requirements := getRequiredSecretsForEngine(config.Engine, config.IncludeSystemSecrets, config.IncludeOptional)
+	requirements := getSecretRequirementsForEngine(config.Engine, config.IncludeSystemSecrets, config.IncludeOptional)
 
 	// Check each requirement
 	for _, req := range requirements {

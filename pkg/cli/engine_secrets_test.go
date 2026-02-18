@@ -88,7 +88,7 @@ func TestGetRequiredSecretsForEngine(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			requirements := getRequiredSecretsForEngine(tt.engine, tt.includeSystemSecrets, tt.includeOptional)
+			requirements := getSecretRequirementsForEngine(tt.engine, tt.includeSystemSecrets, tt.includeOptional)
 
 			assert.GreaterOrEqual(t, len(requirements), tt.wantMinCount,
 				"Should have at least %d requirements", tt.wantMinCount)
@@ -110,7 +110,7 @@ func TestGetRequiredSecretsForEngine(t *testing.T) {
 
 func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 	t.Run("copilot secret has correct attributes", func(t *testing.T) {
-		requirements := getRequiredSecretsForEngine(string(constants.CopilotEngine), false, false)
+		requirements := getSecretRequirementsForEngine(string(constants.CopilotEngine), false, false)
 		require.Len(t, requirements, 1, "Should have exactly one requirement")
 
 		req := requirements[0]
@@ -123,7 +123,7 @@ func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 	})
 
 	t.Run("claude secret has alternative env vars", func(t *testing.T) {
-		requirements := getRequiredSecretsForEngine(string(constants.ClaudeEngine), false, false)
+		requirements := getSecretRequirementsForEngine(string(constants.ClaudeEngine), false, false)
 		require.Len(t, requirements, 1, "Should have exactly one requirement")
 
 		req := requirements[0]
@@ -133,7 +133,7 @@ func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 	})
 
 	t.Run("system secrets are not engine secrets", func(t *testing.T) {
-		requirements := getRequiredSecretsForEngine("", true, true)
+		requirements := getSecretRequirementsForEngine("", true, true)
 
 		for _, req := range requirements {
 			if req.Name == "GH_AW_GITHUB_TOKEN" {

@@ -65,7 +65,7 @@ on: push
 			defer os.Remove(workflowPath)
 
 			// Test the function
-			secrets := getRequiredSecretsForWorkflow(workflowPath)
+			secrets := getSecretRequirementsForWorkflow(workflowPath)
 
 			if tt.expectNil {
 				assert.Nil(t, secrets, "Should return nil for workflow without engine")
@@ -124,7 +124,7 @@ on: workflow_dispatch
 		}
 
 		// Test the function
-		secrets := getRequiredSecretsForWorkflows(workflowFiles)
+		secrets := getSecretsRequirementsForWorkflows(workflowFiles)
 
 		require.NotEmpty(t, secrets, "Should return secrets")
 
@@ -149,7 +149,7 @@ on: workflow_dispatch
 	})
 
 	t.Run("handles empty workflow list", func(t *testing.T) {
-		secrets := getRequiredSecretsForWorkflows([]string{})
+		secrets := getSecretsRequirementsForWorkflows([]string{})
 
 		require.NotEmpty(t, secrets, "Should return at least system secrets")
 
@@ -183,7 +183,7 @@ on: push
 			workflowFiles = append(workflowFiles, path)
 		}
 
-		secrets := getRequiredSecretsForWorkflows(workflowFiles)
+		secrets := getSecretsRequirementsForWorkflows(workflowFiles)
 
 		// Count Copilot tokens
 		copilotCount := 0
@@ -219,7 +219,7 @@ on: push
 # Without Engine`), 0644)
 		require.NoError(t, err, "Should write workflow file")
 
-		secrets := getRequiredSecretsForWorkflows([]string{workflowWithEngine, workflowWithoutEngine})
+		secrets := getSecretsRequirementsForWorkflows([]string{workflowWithEngine, workflowWithoutEngine})
 
 		// Count engine secrets (should only have Copilot)
 		engineSecretCount := 0
