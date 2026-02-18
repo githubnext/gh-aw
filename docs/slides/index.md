@@ -233,7 +233,6 @@ Analyze issue and break down into implementation tasks
 * **GitHub Copilot** (default, recommended)
 * **Claude Code** (experimental)
 * **Codex** (experimental)
-* **Custom Engine** (bring your own AI)
 
 ```yaml
 engine: copilot  # sensible defaults
