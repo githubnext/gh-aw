@@ -45,9 +45,9 @@ type EngineSecretConfig struct {
 	IncludeOptional bool
 }
 
-// GetRequiredSecretsForEngine returns all secrets needed for a specific engine.
+// getSecretRequirementsForEngine returns all secrets needed for a specific engine.
 // This combines engine-specific secrets with optional system-level secrets.
-func GetRequiredSecretsForEngine(engine string, includeSystemSecrets bool, includeOptional bool) []SecretRequirement {
+func getSecretRequirementsForEngine(engine string, includeSystemSecrets bool, includeOptional bool) []SecretRequirement {
 	engineSecretsLog.Printf("Getting required secrets for engine: %s (system=%v, optional=%v)", engine, includeSystemSecrets, includeOptional)
 
 	var requirements []SecretRequirement
@@ -101,13 +101,40 @@ func getEngineSecretDescription(opt *constants.EngineOption) string {
 	}
 }
 
-// CheckAndCollectEngineSecrets is the unified entry point for checking and collecting engine secrets.
+// getMissingRequiredSecrets filters requirements to return only missing required secrets.
+// It skips optional secrets and checks both primary and alternative secret names.
+func getMissingRequiredSecrets(requirements []SecretRequirement, existingSecrets map[string]bool) []SecretRequirement {
+	var missing []SecretRequirement
+	for _, req := range requirements {
+		// Skip optional secrets - we only care about required ones
+		if req.Optional {
+			continue
+		}
+
+		exists := existingSecrets[req.Name]
+		if !exists {
+			// Check alternatives
+			for _, alt := range req.AlternativeEnvVars {
+				if existingSecrets[alt] {
+					exists = true
+					break
+				}
+			}
+		}
+		if !exists {
+			missing = append(missing, req)
+		}
+	}
+	return missing
+}
+
+// checkAndEnsureEngineSecretsForEngine is the unified entry point for checking and collecting engine secrets.
 // It checks existing secrets in the repository and environment, and prompts for missing ones.
-func CheckAndCollectEngineSecrets(config EngineSecretConfig) error {
+func checkAndEnsureEngineSecretsForEngine(config EngineSecretConfig) error {
 	engineSecretsLog.Printf("Checking and collecting secrets for engine: %s in repo: %s", config.Engine, config.RepoSlug)
 
 	// Get required secrets for the engine
-	requirements := GetRequiredSecretsForEngine(config.Engine, config.IncludeSystemSecrets, config.IncludeOptional)
+	requirements := getSecretRequirementsForEngine(config.Engine, config.IncludeSystemSecrets, config.IncludeOptional)
 
 	// Check each requirement
 	for _, req := range requirements {
@@ -418,8 +445,8 @@ func stringContainsSecretName(output, secretName string) bool {
 	return false
 }
 
-// CheckExistingSecretsInRepo checks which secrets exist in the repository
-func CheckExistingSecretsInRepo(repoSlug string) (map[string]bool, error) {
+// getExistingSecretsInRepo checks which secrets exist in the repository
+func getExistingSecretsInRepo(repoSlug string) (map[string]bool, error) {
 	engineSecretsLog.Printf("Checking existing secrets for repo: %s", repoSlug)
 
 	existingSecrets := make(map[string]bool)
@@ -444,8 +471,57 @@ func CheckExistingSecretsInRepo(repoSlug string) (map[string]bool, error) {
 	return existingSecrets, nil
 }
 
-// DisplayMissingSecrets shows information about missing secrets with setup instructions
-func DisplayMissingSecrets(requirements []SecretRequirement, repoSlug string, existingSecrets map[string]bool) {
+// GetEngineSecretNameAndValue returns the secret name and value for an engine.
+// It checks if the secret exists in the repository and retrieves the value from environment if needed.
+// Returns: secretName, secretValue (empty if exists in repo or not in env), existsInRepo, error
+func GetEngineSecretNameAndValue(engine string, existingSecrets map[string]bool) (string, string, bool, error) {
+	engineSecretsLog.Printf("Getting secret name and value for engine: %s", engine)
+
+	opt := constants.GetEngineOption(engine)
+	if opt == nil {
+		return "", "", false, fmt.Errorf("unknown engine: %s", engine)
+	}
+
+	secretName := opt.SecretName
+
+	// Check if secret already exists in repository
+	if existingSecrets[secretName] {
+		engineSecretsLog.Printf("Secret %s already exists in repository", secretName)
+		return secretName, "", true, nil
+	}
+
+	// Check alternative secret names in repository
+	for _, alt := range opt.AlternativeSecrets {
+		if existingSecrets[alt] {
+			engineSecretsLog.Printf("Alternative secret %s exists in repository", alt)
+			return secretName, "", true, nil
+		}
+	}
+
+	// Get value from environment variable
+	// Use EnvVarName if specified, otherwise use SecretName
+	envVar := opt.SecretName
+	if opt.EnvVarName != "" {
+		envVar = opt.EnvVarName
+	}
+
+	value := os.Getenv(envVar)
+	if value == "" {
+		// Check alternative environment variables
+		for _, alt := range opt.AlternativeSecrets {
+			value = os.Getenv(alt)
+			if value != "" {
+				engineSecretsLog.Printf("Found secret in alternative env var: %s", alt)
+				break
+			}
+		}
+	}
+
+	return secretName, value, false, nil
+}
+
+// displayMissingSecrets shows information about missing secrets with setup instructions
+func displayMissingSecrets(requirements []SecretRequirement, repoSlug string, existingSecrets map[string]bool) {
 	var requiredMissing, optionalMissing []SecretRequirement
 
 	for _, req := range requirements {
@@ -499,7 +575,71 @@ func DisplayMissingSecrets(requirements []SecretRequirement, repoSlug string, ex
 	}
 
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("For detailed token behavior and precedence, see the GitHub Tokens reference in the documentation."))
+}
+
+// displaySecretsSummaryTable displays a summary table of all required secrets with their status
+func displaySecretsSummaryTable(requirements []SecretRequirement, existingSecrets map[string]bool) {
+	// Filter to only required secrets (not optional)
+	var requiredOnly []SecretRequirement
+	for _, req := range requirements {
+		if !req.Optional {
+			requiredOnly = append(requiredOnly, req)
+		}
+	}
+
+	// If no required secrets, don't show the table
+	if len(requiredOnly) == 0 {
+		return
+	}
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Required secrets summary:"))
+	fmt.Fprintln(os.Stderr, "")
+
+	// Calculate max width for alignment
+	maxNameWidth := 0
+	for _, req := range requiredOnly {
+		if len(req.Name) > maxNameWidth {
+			maxNameWidth = len(req.Name)
+		}
+	}
+
+	// Display each required secret with status
+	for _, req := range requiredOnly {
+		// Check if secret exists
+		exists := existingSecrets[req.Name]
+		var altUsed string
+		if !exists {
+			// Check alternatives
+			for _, alt := range req.AlternativeEnvVars {
+				if existingSecrets[alt] {
+					exists = true
+					altUsed = alt
+					break
+				}
+			}
+		}
+
+		// Format status indicator
+		var statusLine string
+		if exists {
+			if altUsed != "" {
+				statusLine = console.FormatSuccessMessage(fmt.Sprintf("(via %s)", altUsed))
+			} else {
+				statusLine = console.FormatSuccessMessage("")
+			}
+		} else {
+			statusLine = console.FormatErrorMessage("")
+		}
+
+		// Format secret name with padding
+		nameWithPadding := fmt.Sprintf("%-*s", maxNameWidth, req.Name)
+
+		// Display the line
+		fmt.Fprintf(os.Stderr, "  %s %s - %s\n", statusLine, nameWithPadding, req.WhenNeeded)
+	}
+
+	fmt.Fprintln(os.Stderr, "")
 }
 
 // splitRepoSlug splits "owner/repo" into [owner, repo]

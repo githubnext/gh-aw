@@ -133,7 +133,7 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 func (c *AddInteractiveConfig) collectAPIKey(engine string) error {
 	addInteractiveLog.Printf("Collecting API key for engine: %s", engine)
 
-	// Use the unified CheckAndCollectEngineSecrets function
+	// Use the unified checkAndEnsureEngineSecrets function
 	config := EngineSecretConfig{
 		RepoSlug:             c.RepoOverride,
 		Engine:               engine,
@@ -143,7 +143,7 @@ func (c *AddInteractiveConfig) collectAPIKey(engine string) error {
 		IncludeOptional:      false,
 	}
 
-	if err := CheckAndCollectEngineSecrets(config); err != nil {
+	if err := checkAndEnsureEngineSecretsForEngine(config); err != nil {
 		return err
 	}
 

@@ -755,9 +755,9 @@ type SystemSecretSpec struct {
 var SystemSecrets = []SystemSecretSpec{
 	{
 		Name:        "GH_AW_GITHUB_TOKEN",
-		WhenNeeded:  "Cross-repo Project Ops / remote GitHub tools",
-		Description: "Fine-grained or classic PAT with contents/issues/pull-requests read+write on the repos gh-aw will touch.",
-		Optional:    false,
+		WhenNeeded:  "Enables the use of a user identity for GitHub write operations (instead of github-actions identity); may enable cross-repo project ops; may permit use of remote GitHub MCP tools",
+		Description: "Fine-grained or classic PAT with contents/issues/pull-requests read+write and other necessary permissions on the repos gh-aw will read or write.",
+		Optional:    true,
 	},
 	{
 		Name:        "GH_AW_AGENT_TOKEN",

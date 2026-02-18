@@ -334,7 +334,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 	// When no override is specified, the workflow will use its frontmatter engine and handle secrets during compilation
 	if opts.EngineOverride != "" {
 		// Check what secrets already exist in the repository
-		existingSecrets, err := CheckExistingSecretsInRepo(hostRepoSlug)
+		existingSecrets, err := getExistingSecretsInRepo(hostRepoSlug)
 		if err != nil {
 			trialLog.Printf("Warning: could not check existing secrets: %v", err)
 			existingSecrets = make(map[string]bool)
@@ -349,7 +349,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 			IncludeSystemSecrets: false,
 			IncludeOptional:      false,
 		}
-		if err := CheckAndCollectEngineSecrets(secretConfig); err != nil {
+		if err := checkAndEnsureEngineSecretsForEngine(secretConfig); err != nil {
 			return fmt.Errorf("failed to configure engine secret: %w", err)
 		}
 	}

@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"os"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -34,9 +35,9 @@ func TestGetRequiredSecretsForEngine(t *testing.T) {
 			engine:               string(constants.CopilotEngine),
 			includeSystemSecrets: true,
 			includeOptional:      false,
-			wantSecretNames:      []string{"COPILOT_GITHUB_TOKEN", "GH_AW_GITHUB_TOKEN"},
-			wantMinCount:         2,
-			wantMaxCount:         2,
+			wantSecretNames:      []string{"COPILOT_GITHUB_TOKEN"}, // No system secrets since all are optional
+			wantMinCount:         1,
+			wantMaxCount:         1,
 		},
 		{
 			name:                 "copilot engine with optional secrets",
@@ -69,7 +70,7 @@ func TestGetRequiredSecretsForEngine(t *testing.T) {
 			name:                 "empty engine returns only system secrets when requested",
 			engine:               "",
 			includeSystemSecrets: true,
-			includeOptional:      false,
+			includeOptional:      true, // Changed to true to include optional system secrets
 			wantSecretNames:      []string{"GH_AW_GITHUB_TOKEN"},
 			wantMinCount:         1,
 			wantMaxCount:         5,
@@ -87,7 +88,7 @@ func TestGetRequiredSecretsForEngine(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			requirements := GetRequiredSecretsForEngine(tt.engine, tt.includeSystemSecrets, tt.includeOptional)
+			requirements := getSecretRequirementsForEngine(tt.engine, tt.includeSystemSecrets, tt.includeOptional)
 
 			assert.GreaterOrEqual(t, len(requirements), tt.wantMinCount,
 				"Should have at least %d requirements", tt.wantMinCount)
@@ -109,7 +110,7 @@ func TestGetRequiredSecretsForEngine(t *testing.T) {
 
 func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 	t.Run("copilot secret has correct attributes", func(t *testing.T) {
-		requirements := GetRequiredSecretsForEngine(string(constants.CopilotEngine), false, false)
+		requirements := getSecretRequirementsForEngine(string(constants.CopilotEngine), false, false)
 		require.Len(t, requirements, 1, "Should have exactly one requirement")
 
 		req := requirements[0]
@@ -122,7 +123,7 @@ func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 	})
 
 	t.Run("claude secret has alternative env vars", func(t *testing.T) {
-		requirements := GetRequiredSecretsForEngine(string(constants.ClaudeEngine), false, false)
+		requirements := getSecretRequirementsForEngine(string(constants.ClaudeEngine), false, false)
 		require.Len(t, requirements, 1, "Should have exactly one requirement")
 
 		req := requirements[0]
@@ -132,7 +133,7 @@ func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 	})
 
 	t.Run("system secrets are not engine secrets", func(t *testing.T) {
-		requirements := GetRequiredSecretsForEngine("", true, true)
+		requirements := getSecretRequirementsForEngine("", true, true)
 
 		for _, req := range requirements {
 			if req.Name == "GH_AW_GITHUB_TOKEN" {
@@ -303,5 +304,291 @@ func TestEngineSecretConfigStructure(t *testing.T) {
 		assert.True(t, config.ExistingSecrets["SECRET1"])
 		assert.True(t, config.IncludeSystemSecrets)
 		assert.False(t, config.IncludeOptional)
+	})
+}
+
+func TestGetEngineSecretNameAndValue(t *testing.T) {
+	// Save current env and restore after test
+	oldCopilotToken := os.Getenv("COPILOT_GITHUB_TOKEN")
+	oldAnthropicKey := os.Getenv("ANTHROPIC_API_KEY")
+	oldOpenAIKey := os.Getenv("OPENAI_API_KEY")
+	defer func() {
+		if oldCopilotToken != "" {
+			os.Setenv("COPILOT_GITHUB_TOKEN", oldCopilotToken)
+		} else {
+			os.Unsetenv("COPILOT_GITHUB_TOKEN")
+		}
+		if oldAnthropicKey != "" {
+			os.Setenv("ANTHROPIC_API_KEY", oldAnthropicKey)
+		} else {
+			os.Unsetenv("ANTHROPIC_API_KEY")
+		}
+		if oldOpenAIKey != "" {
+			os.Setenv("OPENAI_API_KEY", oldOpenAIKey)
+		} else {
+			os.Unsetenv("OPENAI_API_KEY")
+		}
+	}()
+
+	t.Run("secret exists in repository", func(t *testing.T) {
+		existingSecrets := map[string]bool{
+			"COPILOT_GITHUB_TOKEN": true,
+		}
+
+		name, value, existsInRepo, err := GetEngineSecretNameAndValue("copilot", existingSecrets)
+
+		require.NoError(t, err, "Should not error when secret exists in repo")
+		assert.Equal(t, "COPILOT_GITHUB_TOKEN", name)
+		assert.Empty(t, value, "Value should be empty when secret exists in repo")
+		assert.True(t, existsInRepo, "Should indicate secret exists in repo")
+	})
+
+	t.Run("secret found in environment", func(t *testing.T) {
+		os.Setenv("ANTHROPIC_API_KEY", "test-api-key-12345")
+		defer os.Unsetenv("ANTHROPIC_API_KEY")
+
+		existingSecrets := map[string]bool{}
+
+		name, value, existsInRepo, err := GetEngineSecretNameAndValue("claude", existingSecrets)
+
+		require.NoError(t, err, "Should not error when secret in environment")
+		assert.Equal(t, "ANTHROPIC_API_KEY", name)
+		assert.Equal(t, "test-api-key-12345", value)
+		assert.False(t, existsInRepo, "Should indicate secret does not exist in repo")
+	})
+
+	t.Run("secret not in repo or environment", func(t *testing.T) {
+		os.Unsetenv("OPENAI_API_KEY")
+
+		existingSecrets := map[string]bool{}
+
+		name, value, existsInRepo, err := GetEngineSecretNameAndValue("codex", existingSecrets)
+
+		require.NoError(t, err, "Should not error even when secret not found")
+		assert.Equal(t, "OPENAI_API_KEY", name)
+		assert.Empty(t, value, "Value should be empty when not found in env")
+		assert.False(t, existsInRepo, "Should indicate secret does not exist in repo")
+	})
+
+	t.Run("unknown engine returns error", func(t *testing.T) {
+		existingSecrets := map[string]bool{}
+
+		_, _, _, err := GetEngineSecretNameAndValue("unknown-engine", existingSecrets)
+
+		require.Error(t, err, "Should error for unknown engine")
+		assert.Contains(t, err.Error(), "unknown engine", "Error should mention unknown engine")
+	})
+
+	t.Run("alternative secret exists in repo", func(t *testing.T) {
+		// Claude has CLAUDE_CODE_OAUTH_TOKEN as alternative
+		existingSecrets := map[string]bool{
+			"CLAUDE_CODE_OAUTH_TOKEN": true, // Alternative for ANTHROPIC_API_KEY
+		}
+
+		name, value, existsInRepo, err := GetEngineSecretNameAndValue("claude", existingSecrets)
+
+		require.NoError(t, err, "Should not error when alternative exists")
+		assert.Equal(t, "ANTHROPIC_API_KEY", name)
+		assert.Empty(t, value, "Value should be empty when alternative exists in repo")
+		assert.True(t, existsInRepo, "Should indicate secret exists via alternative")
+	})
+
+	t.Run("prefers primary secret over environment", func(t *testing.T) {
+		os.Setenv("COPILOT_GITHUB_TOKEN", "test-token-from-env")
+		defer os.Unsetenv("COPILOT_GITHUB_TOKEN")
+
+		existingSecrets := map[string]bool{
+			"COPILOT_GITHUB_TOKEN": true,
+		}
+
+		name, value, existsInRepo, err := GetEngineSecretNameAndValue("copilot", existingSecrets)
+
+		require.NoError(t, err, "Should not error")
+		assert.Equal(t, "COPILOT_GITHUB_TOKEN", name)
+		assert.Empty(t, value, "Should prefer existing repo secret over environment")
+		assert.True(t, existsInRepo, "Should indicate secret exists in repo")
+	})
+}
+
+func TestGetMissingRequiredSecrets(t *testing.T) {
+	t.Run("all secrets missing", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{Name: "SECRET1", Optional: false},
+			{Name: "SECRET2", Optional: false},
+			{Name: "SECRET3", Optional: false},
+		}
+		existingSecrets := map[string]bool{}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Len(t, missing, 3, "Should have 3 missing secrets")
+		assert.Equal(t, "SECRET1", missing[0].Name)
+		assert.Equal(t, "SECRET2", missing[1].Name)
+		assert.Equal(t, "SECRET3", missing[2].Name)
+	})
+
+	t.Run("all secrets exist", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{Name: "SECRET1", Optional: false},
+			{Name: "SECRET2", Optional: false},
+		}
+		existingSecrets := map[string]bool{
+			"SECRET1": true,
+			"SECRET2": true,
+		}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Empty(t, missing, "Should have no missing secrets")
+	})
+
+	t.Run("some secrets missing", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{Name: "SECRET1", Optional: false},
+			{Name: "SECRET2", Optional: false},
+			{Name: "SECRET3", Optional: false},
+		}
+		existingSecrets := map[string]bool{
+			"SECRET1": true,
+		}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Len(t, missing, 2, "Should have 2 missing secrets")
+		assert.Equal(t, "SECRET2", missing[0].Name)
+		assert.Equal(t, "SECRET3", missing[1].Name)
+	})
+
+	t.Run("optional secrets are skipped", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{Name: "REQUIRED1", Optional: false},
+			{Name: "OPTIONAL1", Optional: true},
+			{Name: "REQUIRED2", Optional: false},
+			{Name: "OPTIONAL2", Optional: true},
+		}
+		existingSecrets := map[string]bool{}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Len(t, missing, 2, "Should only include required secrets")
+		assert.Equal(t, "REQUIRED1", missing[0].Name)
+		assert.Equal(t, "REQUIRED2", missing[1].Name)
+	})
+
+	t.Run("alternative secret names work", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{
+				Name:               "PRIMARY_SECRET",
+				Optional:           false,
+				AlternativeEnvVars: []string{"ALT_SECRET1", "ALT_SECRET2"},
+			},
+			{Name: "OTHER_SECRET", Optional: false},
+		}
+		existingSecrets := map[string]bool{
+			"ALT_SECRET1": true, // Alternative exists
+		}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Len(t, missing, 1, "Should have 1 missing secret")
+		assert.Equal(t, "OTHER_SECRET", missing[0].Name, "Should not include PRIMARY_SECRET since alternative exists")
+	})
+
+	t.Run("alternative secret names - second alternative", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{
+				Name:               "PRIMARY_SECRET",
+				Optional:           false,
+				AlternativeEnvVars: []string{"ALT_SECRET1", "ALT_SECRET2"},
+			},
+		}
+		existingSecrets := map[string]bool{
+			"ALT_SECRET2": true, // Second alternative exists
+		}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Empty(t, missing, "Should find second alternative")
+	})
+
+	t.Run("primary secret takes precedence over alternatives", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{
+				Name:               "PRIMARY_SECRET",
+				Optional:           false,
+				AlternativeEnvVars: []string{"ALT_SECRET"},
+			},
+		}
+		existingSecrets := map[string]bool{
+			"PRIMARY_SECRET": true,
+			"ALT_SECRET":     true,
+		}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Empty(t, missing, "Should not include secret when primary exists")
+	})
+
+	t.Run("empty requirements list", func(t *testing.T) {
+		requirements := []SecretRequirement{}
+		existingSecrets := map[string]bool{
+			"SECRET1": true,
+		}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Empty(t, missing, "Should return empty list for empty requirements")
+	})
+
+	t.Run("empty existing secrets map", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{Name: "SECRET1", Optional: false},
+			{Name: "SECRET2", Optional: false},
+		}
+		existingSecrets := map[string]bool{}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Len(t, missing, 2, "Should return all required secrets as missing")
+	})
+
+	t.Run("nil existing secrets map", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{Name: "SECRET1", Optional: false},
+		}
+		var existingSecrets map[string]bool // nil map
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Len(t, missing, 1, "Should handle nil map and return all as missing")
+	})
+
+	t.Run("mixed required and optional with alternatives", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{
+				Name:               "COPILOT_GITHUB_TOKEN",
+				Optional:           false,
+				IsEngineSecret:     true,
+				AlternativeEnvVars: []string{"GITHUB_TOKEN"},
+			},
+			{
+				Name:     "GH_AW_GITHUB_TOKEN",
+				Optional: true,
+			},
+			{
+				Name:               "ANTHROPIC_API_KEY",
+				Optional:           false,
+				IsEngineSecret:     true,
+				AlternativeEnvVars: []string{"CLAUDE_API_KEY"},
+			},
+		}
+		existingSecrets := map[string]bool{
+			"GITHUB_TOKEN": true, // Alternative for COPILOT_GITHUB_TOKEN
+		}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Len(t, missing, 1, "Should have 1 missing required secret")
+		assert.Equal(t, "ANTHROPIC_API_KEY", missing[0].Name, "Should only include ANTHROPIC_API_KEY")
 	})
 }
