@@ -417,3 +417,49 @@ tools:
 	assert.Equal(t, "m-root.md", result.ImportedFiles[1])
 	assert.Equal(t, "z-root.md", result.ImportedFiles[2])
 }
+
+func TestImportTopologicalSortReportsFullCycleChain(t *testing.T) {
+	tempDir := testutil.TempDir(t, "import-topo-cycle-*")
+
+	files := map[string]string{
+		"a.md": `---
+imports:
+  - b.md
+tools:
+  tool-a: {}
+---`,
+		"b.md": `---
+imports:
+  - c.md
+tools:
+  tool-b: {}
+---`,
+		"c.md": `---
+imports:
+  - d.md
+tools:
+  tool-c: {}
+---`,
+		"d.md": `---
+imports:
+  - b.md
+tools:
+  tool-d: {}
+---`,
+	}
+
+	for filename, content := range files {
+		filePath := filepath.Join(tempDir, filename)
+		err := os.WriteFile(filePath, []byte(content), 0644)
+		require.NoError(t, err)
+	}
+
+	frontmatter := map[string]any{
+		"imports": []string{"a.md"},
+	}
+
+	_, err := parser.ProcessImportsFromFrontmatterWithManifest(frontmatter, tempDir, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "import cycle detected")
+	assert.Contains(t, err.Error(), "b.md -> c.md -> d.md -> b.md")
+}

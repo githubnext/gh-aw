@@ -771,7 +771,10 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	log.Printf("Completed BFS traversal. Processed %d imports in total", len(processedOrder))
 
 	// Sort imports in topological order (roots first, dependencies before dependents)
-	topologicalOrder := topologicalSortImports(processedOrder, baseDir, cache)
+	topologicalOrder, err := topologicalSortImports(processedOrder, baseDir, cache)
+	if err != nil {
+		return nil, err
+	}
 	log.Printf("Sorted imports in topological order: %v", topologicalOrder)
 
 	return &ImportsResult{
@@ -809,7 +812,7 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 // topologicalSortImports sorts imports in topological order using Kahn's algorithm
 // Returns imports sorted such that roots (files with no imports) come first,
 // and each import has all its dependencies listed before it
-func topologicalSortImports(imports []string, baseDir string, cache *ImportCache) []string {
+func topologicalSortImports(imports []string, baseDir string, cache *ImportCache) ([]string, error) {
 	importLog.Printf("Starting topological sort of %d imports", len(imports))
 
 	// Build dependency graph: map each import to its list of nested imports
@@ -932,7 +935,72 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 	}
 
 	importLog.Printf("Topological sort complete: %v", result)
-	return result
+	if len(result) != len(imports) {
+		if cycle := detectImportCycleChain(dependencies, allImportsSet); len(cycle) > 0 {
+			return nil, fmt.Errorf("import cycle detected: %s", strings.Join(cycle, " -> "))
+		}
+		return nil, fmt.Errorf("import cycle detected")
+	}
+	return result, nil
+}
+
+// detectImportCycleChain returns a deterministic cycle chain where the last
+// node points back to the first back-edge target. Example:
+// A -> B -> C -> D -> B
+func detectImportCycleChain(dependencies map[string][]string, allImportsSet map[string]bool) []string {
+	visited := make(map[string]bool)
+	inStack := make(map[string]bool)
+	path := []string{}
+	pathIndex := make(map[string]int)
+
+	nodes := make([]string, 0, len(dependencies))
+	for node := range dependencies {
+		nodes = append(nodes, node)
+	}
+	sort.Strings(nodes)
+
+	var visit func(string) []string
+	visit = func(node string) []string {
+		visited[node] = true
+		inStack[node] = true
+		pathIndex[node] = len(path)
+		path = append(path, node)
+
+		deps := append([]string{}, dependencies[node]...)
+		sort.Strings(deps)
+		for _, dep := range deps {
+			if !allImportsSet[dep] {
+				continue
+			}
+			if !visited[dep] {
+				if cycle := visit(dep); len(cycle) > 0 {
+					return cycle
+				}
+				continue
+			}
+			if inStack[dep] {
+				start := pathIndex[dep]
+				cycle := append([]string{}, path[start:]...)
+				cycle = append(cycle, dep)
+				return cycle
+			}
+		}
+
+		delete(inStack, node)
+		delete(pathIndex, node)
+		path = path[:len(path)-1]
+		return nil
+	}
+
+	for _, node := range nodes {
+		if visited[node] {
+			continue
+		}
+		if cycle := visit(node); len(cycle) > 0 {
+			return cycle
+		}
+	}
+	return nil
 }
 
 // extractImportPaths extracts just the import paths from frontmatter
