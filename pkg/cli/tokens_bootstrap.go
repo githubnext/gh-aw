@@ -17,34 +17,40 @@ func newSecretsBootstrapSubcommand() *cobra.Command {
 	var engineFlag string
 	var ownerFlag string
 	var repoFlag string
+	var nonInteractiveFlag bool
 
 	cmd := &cobra.Command{
 		Use:   "bootstrap",
-		Short: "Check and suggest setup for gh aw GitHub token secrets",
-		Long: `Check which recommended GitHub token secrets (like GH_AW_GITHUB_TOKEN)
-are configured for the current repository, and print least-privilege setup
-instructions for any that are missing.
+		Short: "Analyze workflows and set up required secrets",
+		Long: `Analyzes all workflows in the repository to determine which secrets
+are required, checks which ones are already configured, and interactively
+prompts for any missing required secrets.
 
-This command is read-only: it does not create tokens or secrets for you.
-Instead, it inspects repository secrets (using the GitHub CLI where
-available) and prints the exact secrets to add and suggested scopes.
+This command:
+- Discovers all workflow files in .github/workflows/
+- Analyzes required secrets for each workflow's engine
+- Checks which secrets already exist in the repository
+- Interactively prompts for missing required secrets (unless --non-interactive)
+
+Only required secrets are prompted for. Optional secrets are not shown.
 
 For full details, including precedence rules, see the GitHub Tokens
 reference in the documentation.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTokensBootstrap(engineFlag, ownerFlag, repoFlag)
+			return runTokensBootstrap(engineFlag, ownerFlag, repoFlag, nonInteractiveFlag)
 		},
 	}
 
-	cmd.Flags().StringVarP(&engineFlag, "engine", "e", "", "Check tokens for specific engine (copilot, claude, codex)")
+	cmd.Flags().StringVarP(&engineFlag, "engine", "e", "", "Check tokens for specific engine only (copilot, claude, codex)")
 	cmd.Flags().StringVar(&ownerFlag, "owner", "", "Repository owner (defaults to current repository)")
 	cmd.Flags().StringVar(&repoFlag, "repo", "", "Repository name (defaults to current repository)")
+	cmd.Flags().BoolVar(&nonInteractiveFlag, "non-interactive", false, "Check secrets without prompting (display-only mode)")
 
 	return cmd
 }
 
-func runTokensBootstrap(engine, owner, repo string) error {
-	tokensBootstrapLog.Printf("Running tokens bootstrap: engine=%s, owner=%s, repo=%s", engine, owner, repo)
+func runTokensBootstrap(engine, owner, repo string, nonInteractive bool) error {
+	tokensBootstrapLog.Printf("Running tokens bootstrap: engine=%s, owner=%s, repo=%s, nonInteractive=%v", engine, owner, repo, nonInteractive)
 	var repoSlug string
 	var err error
 
@@ -60,51 +66,34 @@ func runTokensBootstrap(engine, owner, repo string) error {
 		}
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Checking recommended gh-aw token secrets in %s...", repoSlug)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Analyzing workflows in %s...", repoSlug)))
 
-	// Use the unified GetRequiredSecretsForEngine function
-	var requirements []SecretRequirement
-	if engine != "" {
-		requirements = GetRequiredSecretsForEngine(engine, true, true)
-		tokensBootstrapLog.Printf("Checking tokens for specific engine: %s (%d tokens)", engine, len(requirements))
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Checking tokens for engine: %s", engine)))
-	} else {
-		// When no engine specified, get all engine secrets plus system secrets
-		requirements = GetRequiredSecretsForEngine("", true, true)
-		// Add all engine-specific secrets as optional, deduplicating by secret name
-		// (e.g., CopilotEngine and CopilotSDKEngine both use COPILOT_GITHUB_TOKEN)
-		seenSecrets := make(map[string]bool)
-		for _, req := range requirements {
-			seenSecrets[req.Name] = true
-		}
-		for _, opt := range constants.EngineOptions {
-			if seenSecrets[opt.SecretName] {
-				continue // Skip duplicate secret names
-			}
-			seenSecrets[opt.SecretName] = true
-			requirements = append(requirements, SecretRequirement{
-				Name:               opt.SecretName,
-				WhenNeeded:         opt.WhenNeeded,
-				Description:        getEngineSecretDescription(&opt),
-				Optional:           true, // All engines are optional when no specific engine is selected
-				AlternativeEnvVars: opt.AlternativeSecrets,
-				KeyURL:             opt.KeyURL,
-				IsEngineSecret:     true,
-				EngineName:         opt.Value,
-			})
-		}
-		tokensBootstrapLog.Printf("Checking all recommended tokens: count=%d", len(requirements))
+	// Discover workflows in the repository
+	requirements, err := collectRequiredSecretsFromWorkflows(engine)
+	if err != nil {
+		return fmt.Errorf("failed to analyze workflows: %w", err)
 	}
+
+	tokensBootstrapLog.Printf("Collected %d required secrets from workflows", len(requirements))
 
 	// Check existing secrets in repository
 	existingSecrets, err := CheckExistingSecretsInRepo(repoSlug)
 	if err != nil {
-		return fmt.Errorf("unable to inspect repository secrets: %w", err)
+		// If we can't check existing secrets (e.g., no gh auth), continue with empty map
+		tokensBootstrapLog.Printf("Could not check existing secrets: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Unable to check existing repository secrets. Will assume all secrets need to be configured."))
+		existingSecrets = make(map[string]bool)
 	}
 
+	// Filter to only required secrets (not optional)
 	// Check which secrets are missing
 	var missing []SecretRequirement
 	for _, req := range requirements {
+		// Skip optional secrets - we only care about required ones
+		if req.Optional {
+			continue
+		}
+
 		exists := existingSecrets[req.Name]
 		if !exists {
 			// Check alternatives
@@ -121,15 +110,114 @@ func runTokensBootstrap(engine, owner, repo string) error {
 	}
 
 	if len(missing) == 0 {
-		tokensBootstrapLog.Print("All required tokens present")
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All recommended gh-aw token secrets are present in this repository."))
+		tokensBootstrapLog.Print("All required secrets present")
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All required secrets for workflows in this repository are present."))
 		return nil
 	}
 
-	tokensBootstrapLog.Printf("Found missing tokens: count=%d", len(missing))
+	tokensBootstrapLog.Printf("Found %d missing required secrets", len(missing))
 
-	// Display missing secrets using the unified helper
-	DisplayMissingSecrets(missing, repoSlug, existingSecrets)
+	// In non-interactive mode, just display what's missing
+	if nonInteractive {
+		DisplayMissingSecrets(missing, repoSlug, existingSecrets)
+		return nil
+	}
+
+	// Interactive mode: prompt for missing secrets
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d missing required secret(s). You will be prompted to provide them.", len(missing))))
+	fmt.Fprintln(os.Stderr, "")
+
+	config := EngineSecretConfig{
+		RepoSlug:             repoSlug,
+		ExistingSecrets:      existingSecrets,
+		IncludeSystemSecrets: true,
+		IncludeOptional:      false,
+	}
+
+	// Prompt for each missing secret
+	for _, req := range missing {
+		if err := promptForSecret(req, config); err != nil {
+			return fmt.Errorf("failed to collect secret %s: %w", req.Name, err)
+		}
+	}
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All required secrets have been configured."))
 
 	return nil
+}
+
+// collectRequiredSecretsFromWorkflows discovers all workflows and collects their required secrets
+func collectRequiredSecretsFromWorkflows(engineFilter string) ([]SecretRequirement, error) {
+	tokensBootstrapLog.Printf("Discovering workflows (engine filter: %s)", engineFilter)
+
+	// Discover workflow files
+	workflowFiles, err := getMarkdownWorkflowFiles("")
+	if err != nil {
+		return nil, fmt.Errorf("failed to discover workflows: %w", err)
+	}
+
+	if len(workflowFiles) == 0 {
+		return nil, fmt.Errorf("no workflow files found in .github/workflows/")
+	}
+
+	tokensBootstrapLog.Printf("Found %d workflow files", len(workflowFiles))
+
+	// Collect unique engines used across workflows
+	engineSet := make(map[string]bool)
+	for _, file := range workflowFiles {
+		engine := extractEngineIDFromFile(file)
+		if engineFilter != "" && engine != engineFilter {
+			continue // Skip if not matching filter
+		}
+		engineSet[engine] = true
+	}
+
+	tokensBootstrapLog.Printf("Found %d unique engines: %v", len(engineSet), engineSet)
+
+	// Collect secrets for each engine
+	var allRequirements []SecretRequirement
+	seenSecrets := make(map[string]bool)
+
+	// Always include system secrets
+	for _, sys := range constants.SystemSecrets {
+		if seenSecrets[sys.Name] {
+			continue
+		}
+		seenSecrets[sys.Name] = true
+		allRequirements = append(allRequirements, SecretRequirement{
+			Name:           sys.Name,
+			WhenNeeded:     sys.WhenNeeded,
+			Description:    sys.Description,
+			Optional:       sys.Optional,
+			IsEngineSecret: false,
+		})
+	}
+
+	// Add engine-specific secrets
+	for engine := range engineSet {
+		opt := constants.GetEngineOption(engine)
+		if opt == nil {
+			tokensBootstrapLog.Printf("Warning: Unknown engine %s, skipping", engine)
+			continue
+		}
+
+		if seenSecrets[opt.SecretName] {
+			continue // Already added
+		}
+		seenSecrets[opt.SecretName] = true
+
+		allRequirements = append(allRequirements, SecretRequirement{
+			Name:               opt.SecretName,
+			WhenNeeded:         opt.WhenNeeded,
+			Description:        getEngineSecretDescription(opt),
+			Optional:           false, // Required since it's used by a workflow
+			AlternativeEnvVars: opt.AlternativeSecrets,
+			KeyURL:             opt.KeyURL,
+			IsEngineSecret:     true,
+			EngineName:         engine,
+		})
+	}
+
+	return allRequirements, nil
 }
