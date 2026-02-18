@@ -22,7 +22,7 @@ tools:
 
 ## Frontmatter Elements
 
-The frontmatter combines standard GitHub Actions properties (`on`, `permissions`, `run-name`, `runs-on`, `timeout-minutes`, `concurrency`, `env`, `environment`, `container`, `services`, `if`, `steps`, `cache`) with GitHub Agentic Workflows-specific elements (`description`, `source`, `imports`, `engine`, `strict`, `roles`, `features`, `plugins`, `runtimes`, `safe-inputs`, `safe-outputs`, `network`, `tools`).
+The frontmatter combines standard GitHub Actions properties (`on`, `permissions`, `run-name`, `runs-on`, `timeout-minutes`, `concurrency`, `env`, `environment`, `container`, `services`, `if`, `steps`, `cache`) with GitHub Agentic Workflows-specific elements (`description`, `source`, `imports`, `engine`, `strict`, `features`, `plugins`, `runtimes`, `safe-inputs`, `safe-outputs`, `network`, `tools`).
 
 Tool configurations (such as `bash`, `edit`, `github`, `web-fetch`, `web-search`, `playwright`, `cache-memory`, and custom [Model Context Protocol](/gh-aw/reference/glossary/#mcp-model-context-protocol) (MCP) [servers](/gh-aw/reference/glossary/#mcp-server)) are specified under the `tools:` key. Custom inline tools can be defined with the [`safe-inputs:`](/gh-aw/reference/safe-inputs/) (custom tools defined inline) key. See [Tools](/gh-aw/reference/tools/) and [Safe Inputs](/gh-aw/reference/safe-inputs/) for complete documentation.
 
@@ -35,6 +35,7 @@ The `on:` section uses standard GitHub Actions syntax to define workflow trigger
 - `stop-after:` - Automatically disable triggers after a deadline
 - `manual-approval:` - Require manual approval using environment protection rules
 - `forks:` - Configure fork filtering for pull_request triggers
+- `roles:` - Control who can trigger the workflow based on repository permission level
 - `skip-roles:` - Skip workflow execution for specific repository roles
 - `skip-bots:` - Skip workflow execution for specific GitHub actors
 
@@ -211,16 +212,29 @@ The compiler validates workflows have sufficient permissions for their configure
 
 **Strict mode** (`gh aw compile --strict`): Treats under-provisioned permissions as compilation errors. Use for production workflows requiring enhanced security validation.
 
-### Repository Access Roles (`roles:`)
+### Repository Access Roles (`on.roles`)
 
 Controls who can trigger agentic workflows based on repository permission level. Defaults to `[admin, maintainer, write]`.
 
 ```yaml wrap
-roles: [admin, maintainer, write]  # Default
-roles: all                         # Allow any user (⚠️ use with caution)
+on:
+  issues:
+    types: [opened]
+  roles: [admin, maintainer, write]  # Default
+```
+
+```yaml wrap
+on:
+  issues:
+    types: [opened]
+  roles: all  # Allow any user (⚠️ use with caution)
 ```
 
 Available roles: `admin`, `maintainer`, `write`, `read`, `all`. Workflows with unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce permission checks. Failed checks cancel the workflow with a warning.
+
+:::note[Migration from top-level roles]
+The `roles` field was previously a top-level frontmatter field. It has been moved to `on.roles` and top-level `roles` is no longer supported. Use `gh aw fix` to automatically migrate existing workflows.
+:::
 
 ### Bot Filtering (`bots:`)
 
@@ -236,9 +250,9 @@ bots:
 **Behavior**:
 - When specified, only the listed bot accounts can trigger the workflow
 - The bot must be active (installed) on the repository to trigger the workflow
-- Combine with `roles:` for comprehensive access control
+- Combine with `on.roles` for comprehensive access control
 - Applies to all workflow triggers (`pull_request`, `issues`, etc.)
-- When `roles: all` is set, bot filtering is not enforced
+- When `on.roles: all` is set, bot filtering is not enforced
 
 **Common bot names**:
 - `dependabot[bot]` - GitHub Dependabot for dependency updates

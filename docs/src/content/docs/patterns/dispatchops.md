@@ -95,12 +95,12 @@ Deploy to the ${{ github.event.inputs.target_env }} environment.
 Manual workflow execution respects the same security model as other triggers:
 
 - **Repository permissions** - User must have write access or higher to trigger workflows
-- **Role-based access** - Use the `roles:` field to restrict who can run workflows:
+- **Role-based access** - Use the `on.roles` field to restrict who can run workflows:
 
 ```yaml
 on:
   workflow_dispatch:
-roles: [admin, maintainer]
+  roles: [admin, maintainer]
 ```
 
 - **Bot authorization** - Use the `bots:` field to allow specific bot accounts:

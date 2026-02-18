@@ -1380,6 +1380,27 @@
               ],
               "description": "Skip workflow execution for specific GitHub users. Useful for preventing workflows from running for specific accounts (e.g., bots, specific team members)."
             },
+            "roles": {
+              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": ["all"],
+                  "description": "Allow any authenticated user to trigger the workflow (⚠️ disables permission checking entirely - use with caution)"
+                },
+                {
+                  "type": "array",
+                  "description": "List of repository permission levels that can trigger the workflow. Permission checks are automatically applied to potentially unsafe triggers.",
+                  "items": {
+                    "type": "string",
+                    "enum": ["admin", "maintainer", "maintain", "write", "triage"],
+                    "description": "Repository permission level: 'admin' (full access), 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage' (issue management)"
+                  },
+                  "minItems": 1,
+                  "maxItems": 50
+                }
+              ]
+            },
             "manual-approval": {
               "type": "string",
               "description": "Environment name that requires manual approval before the workflow can run. Must match a valid environment configured in the repository settings."
@@ -6388,27 +6409,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "roles": {
-      "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
-      "oneOf": [
-        {
-          "type": "string",
-          "enum": ["all"],
-          "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
-        },
-        {
-          "type": "array",
-          "description": "List of repository permission levels that can trigger the workflow. Permission checks are automatically applied to potentially unsafe triggers.",
-          "items": {
-            "type": "string",
-            "enum": ["admin", "maintainer", "maintain", "write", "triage"],
-            "description": "Repository permission level: 'admin' (full access), 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage' (issue management)"
-          },
-          "minItems": 1,
-          "maxItems": 50
-        }
-      ]
     },
     "bots": {
       "type": "array",

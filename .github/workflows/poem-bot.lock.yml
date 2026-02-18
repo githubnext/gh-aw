@@ -28,7 +28,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"bea51591fd002f37dca347dc9f8a310ca504787ad90f32fe81ee688a380028f3"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"81547dd4016c398ec096fdae259f7510c7cedd738270ca04908bfbed2afa1434"}
 
 name: "Poem Bot - A Creative Agentic Workflow"
 "on":
@@ -37,6 +37,9 @@ name: "Poem Bot - A Creative Agentic Workflow"
     - opened
     - edited
     - reopened
+  roles:
+  - admin
+  - maintainer
   workflow_dispatch:
     inputs:
       poem_theme:

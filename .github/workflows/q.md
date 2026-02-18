@@ -2,6 +2,7 @@
 name: Q
 description: Intelligent assistant that answers questions, analyzes repositories, and can create PRs for workflow optimizations
 on:
+  roles: [admin, maintainer, write]
   slash_command:
     name: q
   reaction: rocket
@@ -11,7 +12,6 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
-roles: [admin, maintainer, write]
 engine: copilot
 tools:
   agentic-workflows:

@@ -36,5 +36,6 @@ func GetAllCodemods() []Codemod {
 		getInstallScriptURLCodemod(),
 		getBashAnonymousRemovalCodemod(), // Replace bash: with bash: false
 		getActivationOutputsCodemod(),    // Transform needs.activation.outputs.* to steps.sanitized.outputs.*
+		getRolesToOnRolesCodemod(),       // Move top-level roles to on.roles
 	}
 }

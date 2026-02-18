@@ -34,7 +34,7 @@
 #     - shared/mood.md
 #     - shared/reporting.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"5f21df90d95bad88fa40d8a04f659e6cda4363abf33fd54a37fa44884fbb0355"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"f4dcca3eea6547e9841ec07c4248de1cf7d8c54ad12cf47c63edca5a5fd3b472"}
 
 name: "Scout"
 "on":
@@ -64,6 +64,10 @@ name: "Scout"
     types:
     - created
     - edited
+  roles:
+  - admin
+  - maintainer
+  - write
   workflow_dispatch:
     inputs:
       topic:

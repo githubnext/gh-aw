@@ -27,10 +27,13 @@
 #   Imports:
 #     - shared/mood.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"cc2b8c6b51e275896e8102fe283fdb0e690e468cd8e5693425a35d14bb622645"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"babf32bc0f17f143da2d3cc6c7216050da644b62975734638fce5fb7b16f3994"}
 
 name: "Release"
 "on":
+  roles:
+  - admin
+  - maintainer
   workflow_dispatch:
     inputs:
       release_type:

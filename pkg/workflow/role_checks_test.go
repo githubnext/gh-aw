@@ -23,7 +23,7 @@ func TestRoleMembershipUsesGitHubToken(t *testing.T) {
 on:
   issues:
     types: [opened]
-roles: [admin, maintainer]
+  roles: [admin, maintainer]
 ---
 
 # Test Workflow
@@ -114,7 +114,7 @@ func TestRoleMembershipTokenWithBots(t *testing.T) {
 on:
   pull_request:
     types: [opened]
-roles: [write]
+  roles: [write]
 bots: ["dependabot[bot]"]
 ---
 

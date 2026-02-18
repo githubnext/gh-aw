@@ -2,6 +2,7 @@
 name: Scout
 description: Performs deep research investigations using web search to gather and synthesize comprehensive information on any topic
 on:
+  roles: [admin, maintainer, write]
   slash_command:
     name: scout
   workflow_dispatch:
@@ -13,7 +14,6 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-roles: [admin, maintainer, write]
 engine: claude
 imports:
   - shared/mood.md

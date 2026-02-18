@@ -1,7 +1,7 @@
 ---
 timeout-minutes: 5
-roles: all
 on:
+  roles: all
   issues:
     types: [opened]
     lock-for-agent: true
@@ -38,6 +38,7 @@ safe-outputs:
     allowed-reasons: [spam]
   threat-detection: false
 ---
+
 # AI Moderator
 
 You are an AI-powered moderation system that automatically detects spam, link spam, and AI-generated content in GitHub issues and comments.

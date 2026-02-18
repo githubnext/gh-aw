@@ -22,7 +22,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c914e6148e6bd4fd2f3bf55bbf79dcfe6291fbc8c32ea6f9953192c581ac5d3a"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"14e92fd69590d29ed79eebb40f8ef8df9e15cd886bbe89479566694376c392a5"}
 
 name: "AI Moderator"
 "on":
@@ -38,6 +38,7 @@ name: "AI Moderator"
     # forks: "*" # Fork filtering applied via job conditions
     types:
     - opened
+  roles: all
   # skip-bots: # Skip-bots processed as bot check in pre-activation job
   # - github-actions # Skip-bots processed as bot check in pre-activation job
   # - copilot # Skip-bots processed as bot check in pre-activation job

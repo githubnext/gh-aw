@@ -89,37 +89,52 @@ func (c *Compiler) generateRateLimitCheck(data *WorkflowData, steps []string) []
 
 // extractRoles extracts the 'roles' field from frontmatter to determine permission requirements
 func (c *Compiler) extractRoles(frontmatter map[string]any) []string {
-	if rolesValue, exists := frontmatter["roles"]; exists {
-		switch v := rolesValue.(type) {
-		case string:
-			if v == "all" {
-				// Special case: "all" means no restrictions
-				roleLog.Print("Roles set to 'all' - no permission restrictions")
-				return []string{"all"}
-			}
-			// Single permission level as string
-			roleLog.Printf("Extracted single role: %s", v)
-			return []string{v}
-		case []any:
-			// Array of permission levels
-			var permissions []string
-			for _, item := range v {
-				if str, ok := item.(string); ok {
-					permissions = append(permissions, str)
+	// Check on.roles
+	if onValue, exists := frontmatter["on"]; exists {
+		if onMap, ok := onValue.(map[string]any); ok {
+			if rolesValue, hasRoles := onMap["roles"]; hasRoles {
+				roles := parseRolesValue(rolesValue, "on.roles")
+				if roles != nil {
+					return roles
 				}
 			}
-			roleLog.Printf("Extracted %d roles from array: %v", len(permissions), permissions)
-			return permissions
-		case []string:
-			// Already a string slice
-			roleLog.Printf("Extracted %d roles: %v", len(v), v)
-			return v
 		}
 	}
+
 	// Default: require admin, maintainer, or write permissions
 	defaultRoles := []string{"admin", "maintainer", "write"}
 	roleLog.Printf("No roles specified, using defaults: %v", defaultRoles)
 	return defaultRoles
+}
+
+// parseRolesValue parses a roles value from frontmatter (supports string, []any, []string)
+func parseRolesValue(rolesValue any, fieldName string) []string {
+	switch v := rolesValue.(type) {
+	case string:
+		if v == "all" {
+			// Special case: "all" means no restrictions
+			roleLog.Printf("Roles in '%s' set to 'all' - no permission restrictions", fieldName)
+			return []string{"all"}
+		}
+		// Single permission level as string
+		roleLog.Printf("Extracted single role from '%s': %s", fieldName, v)
+		return []string{v}
+	case []any:
+		// Array of permission levels
+		var permissions []string
+		for _, item := range v {
+			if str, ok := item.(string); ok {
+				permissions = append(permissions, str)
+			}
+		}
+		roleLog.Printf("Extracted %d roles from '%s' array: %v", len(permissions), fieldName, permissions)
+		return permissions
+	case []string:
+		// Already a string slice
+		roleLog.Printf("Extracted %d roles from '%s': %v", len(v), fieldName, v)
+		return v
+	}
+	return nil
 }
 
 // extractBots extracts the 'bots' field from frontmatter to determine allowed bot identifiers

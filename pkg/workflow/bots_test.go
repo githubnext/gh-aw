@@ -206,7 +206,7 @@ func TestBotsWithRolesAll(t *testing.T) {
 on:
   issues:
     types: [opened]
-roles: all
+  roles: all
 bots: ["dependabot[bot]"]
 ---
 
