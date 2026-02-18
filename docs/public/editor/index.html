@@ -182,22 +182,6 @@ html, body {
   transform: translateX(14px);
 }
 
-/* Copy feedback toast */
-.copy-feedback {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 50;
-  opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 200ms ease, transform 200ms ease;
-  pointer-events: none;
-}
-.copy-feedback.show {
-  opacity: 1;
-  transform: translateY(0);
-}
-
 /* Responsive */
 @media (max-width: 767px) {
   .panels-container { flex-direction: column !important; }
@@ -247,14 +231,6 @@ html, body {
           <path d="M4 2a1 1 0 011.5-.87l8.5 5a1 1 0 010 1.74l-8.5 5A1 1 0 014 12V2z"/>
         </svg>
         Compile
-      </button>
-
-      <button class="btn btn-sm" id="copyBtn" disabled title="Copy YAML to clipboard">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="flex-shrink-0">
-          <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"/>
-          <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z"/>
-        </svg>
-        Copy
       </button>
 
       <button class="btn-octicon" id="themeToggle" title="Toggle theme" aria-label="Toggle dark mode">
@@ -338,9 +314,6 @@ html, body {
       </div>
     </div>
   </div>
-
-  <!-- Copy feedback toast -->
-  <div class="copy-feedback color-bg-emphasis color-fg-on-emphasis border rounded-2 px-3 py-2 f6 box-shadow-large" id="copyFeedback">Copied to clipboard!</div>
 </div>
 
 <script type="module">
@@ -378,7 +351,6 @@ const outputPre = $('outputPre');
 const outputPlaceholder = $('outputPlaceholder');
 const outputContainer = $('outputContainer');
 const compileBtn = $('compileBtn');
-const copyBtn = $('copyBtn');
 const statusBadge = $('statusBadge');
 const statusText = $('statusText');
 const statusDot = $('statusDot');
@@ -558,7 +530,6 @@ async function doCompile() {
     outputPlaceholder.style.display = 'flex';
     outputPlaceholder.textContent = 'Compiled YAML will appear here';
     currentYaml = '';
-    copyBtn.disabled = true;
     return;
   }
 
@@ -583,7 +554,6 @@ async function doCompile() {
       outputPre.textContent = result.yaml;
       outputPre.style.display = 'block';
       outputPlaceholder.style.display = 'none';
-      copyBtn.disabled = false;
 
       if (result.warnings && result.warnings.length > 0) {
         warningText.textContent = result.warnings.join('\n');
@@ -601,30 +571,6 @@ async function doCompile() {
 }
 
 compileBtn.addEventListener('click', doCompile);
-
-// ---------------------------------------------------------------
-// Copy YAML
-// ---------------------------------------------------------------
-copyBtn.addEventListener('click', async () => {
-  if (!currentYaml) return;
-  try {
-    await navigator.clipboard.writeText(currentYaml);
-    const feedback = $('copyFeedback');
-    feedback.classList.add('show');
-    setTimeout(() => feedback.classList.remove('show'), 2000);
-  } catch (err) {
-    // Fallback
-    const ta = document.createElement('textarea');
-    ta.value = currentYaml;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    const feedback = $('copyFeedback');
-    feedback.classList.add('show');
-    setTimeout(() => feedback.classList.remove('show'), 2000);
-  }
-});
 
 // ---------------------------------------------------------------
 // Banner close
