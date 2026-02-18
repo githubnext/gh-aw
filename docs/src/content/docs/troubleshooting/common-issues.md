@@ -11,29 +11,19 @@ This reference documents frequently encountered issues when working with GitHub 
 
 ### Extension Installation Fails
 
-If `gh extension install github/gh-aw` fails with authentication or permission errors, use the standalone installer:
+If `gh extension install github/gh-aw` fails, use the standalone installer (works in Codespaces and restricted networks):
 
 ```bash wrap
 curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash
 ```
 
-The installer works in restricted networks (Codespaces, MITM proxies) and installs to `~/.local/share/gh/extensions/gh-aw/gh-aw`.
-
-### Install Specific Version
-
-Install specific versions by passing the version tag as an argument. Find available versions at the [releases page](https://github.com/github/gh-aw/releases).
+For specific versions, pass the tag as an argument ([see releases](https://github.com/github/gh-aw/releases)):
 
 ```bash wrap
 curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash -s -- v0.40.0
 ```
 
-### Extension Not Found After Installation
-
-Verify installation with `gh extension list`. If not listed, reinstall with `gh extension install github/gh-aw` or use the standalone installer.
-
-### Codespace Authentication Issues
-
-GitHub Codespaces may have limited permissions for installing extensions. Try the standalone installer (recommended) or grant additional permissions to your Codespace token.
+Verify with `gh extension list`.
 
 ## Organization Policy Issues
 
@@ -84,64 +74,62 @@ Wait a few minutes for policy propagation, then re-run your workflow. If issues 
 
 ### Actions Restrictions Reported During Init
 
-The CLI validates three permission layers when running `gh aw init` or `gh aw add-wizard`:
+The CLI validates three permission layers. Fix restrictions in Repository Settings → Actions → General:
 
-**Actions disabled:** Enable in Repository Settings → Actions → General. [Docs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository).
-
-**Local-only restriction:** Switch to "Allow all actions" or "Allow select actions" with GitHub-created actions enabled. Workflows need `actions/checkout`, `actions/setup-node`, etc. [Docs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#managing-github-actions-permissions-for-your-repository).
-
-**Selective allowlist:** Enable "Allow actions created by GitHub" checkbox in Settings → Actions → General. [Docs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#allowing-select-actions-and-reusable-workflows-to-run).
+1. **Actions disabled**: Enable Actions ([docs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository))
+2. **Local-only**: Switch to "Allow all actions" or enable GitHub-created actions ([docs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#managing-github-actions-permissions-for-your-repository))
+3. **Selective allowlist**: Enable "Allow actions created by GitHub" checkbox ([docs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository#allowing-select-actions-and-reusable-workflows-to-run))
 
 > [!NOTE]
-> Organization-level policies override repository settings. Request changes from org admins if settings are grayed out.
+> Organization policies override repository settings. Contact admins if settings are grayed out.
 
 ## Workflow Compilation Issues
 
 ### Workflow Won't Compile
 
-If `gh aw compile` fails, check YAML frontmatter syntax (proper indentation with spaces, colons with spaces after them), verify required fields like `on:` are present, and ensure field types match the schema. Use `gh aw compile --verbose` for detailed error messages.
+Check YAML frontmatter syntax (indentation, colons with spaces), verify required fields (`on:`), and ensure types match the schema. Use `gh aw compile --verbose` for details.
 
 ### Lock File Not Generated
 
-If `.lock.yml` isn't created, fix compilation errors first (`gh aw compile 2>&1 | grep -i error`) and verify write permissions on `.github/workflows/`.
+Fix compilation errors (`gh aw compile 2>&1 | grep -i error`) and verify write permissions on `.github/workflows/`.
 
 ### Orphaned Lock Files
 
-Remove old `.lock.yml` files after deleting `.md` files with `gh aw compile --purge`.
+Remove old `.lock.yml` files with `gh aw compile --purge` after deleting `.md` workflow files.
 
 ## Import and Include Issues
 
 ### Import File Not Found
 
-Import paths are relative to repository root. Verify the file exists with `git status`. Examples: `.github/workflows/shared/tools.md` or `shared/security-notice.md`.
+Import paths are relative to repository root. Verify with `git status` (e.g., `.github/workflows/shared/tools.md`).
 
 ### Multiple Agent Files Error
 
-Import only one `.github/agents/` file per workflow. Use other imports for shared content.
+Import only one `.github/agents/` file per workflow.
 
 ### Circular Import Dependencies
 
-If compilation hangs, check for circular import references and remove them.
+Compilation hangs indicate circular imports. Remove circular references.
 
 ## Tool Configuration Issues
 
 ### GitHub Tools Not Available
 
-Configure GitHub tools using `toolsets:` (recommended) or verify tool names from the [tools reference](/gh-aw/reference/tools/):
+Configure using `toolsets:` ([tools reference](/gh-aw/reference/tools/)):
 
 ```yaml wrap
 tools:
   github:
-    toolsets: [repos, issues]  # Recommended: use toolsets
+    toolsets: [repos, issues]
 ```
 
 ### Toolset Missing Expected Tools
 
-Check [toolset contents](/gh-aw/reference/tools/#toolset-contents) to find your tool, combine toolsets as needed (e.g., `toolsets: [default, actions]`), or run `gh aw mcp inspect <workflow>` to see available tools.
+Check [toolset contents](/gh-aw/reference/tools/#toolset-contents), combine toolsets (`toolsets: [default, actions]`), or inspect with `gh aw mcp inspect <workflow>`.
 
 ### MCP Server Connection Failures
 
-Verify package installation, configuration syntax, and required environment variables:
+Verify package installation, syntax, and environment variables:
 
 ```yaml
 mcp-servers:
@@ -154,7 +142,7 @@ mcp-servers:
 
 ### Playwright Network Access Denied
 
-Add blocked domains to the `allowed_domains` list:
+Add domains to `allowed_domains`:
 
 ```yaml wrap
 tools:
@@ -164,17 +152,15 @@ tools:
 
 ### Cannot Find Module 'playwright'
 
-**Error Message:**
+**Error:**
 
 ```text
 Error: Cannot find module 'playwright'
-Require stack:
-- /tmp/gh-aw/agent/script.js
 ```
 
-**Cause:** The AI agent tried to use `require('playwright')` or created a standalone Node.js script expecting the playwright npm package to be installed. In gh-aw workflows, Playwright is provided through an MCP server interface, not as an npm package.
+**Cause:** The agent tried to `require('playwright')` but Playwright is provided through MCP tools, not as an npm package.
 
-**Solution:** Use Playwright through MCP tools instead of trying to require the module:
+**Solution:** Use MCP Playwright tools:
 
 ```javascript
 // ❌ INCORRECT - This won't work
@@ -199,50 +185,33 @@ await mcp__playwright__browser_run_code({
 });
 ```
 
-**Available MCP Playwright Tools:**
-- `mcp__playwright__browser_navigate` - Navigate to URL
-- `mcp__playwright__browser_snapshot` - Take screenshot
-- `mcp__playwright__browser_run_code` - Execute custom Playwright code
-- `mcp__playwright__browser_click` - Click elements
-- `mcp__playwright__browser_type` - Type text
-- `mcp__playwright__browser_close` - Close browser
-
-See the [Playwright Tool documentation](/gh-aw/reference/tools/#playwright-tool-playwright) for complete details.
+See [Playwright Tool documentation](/gh-aw/reference/tools/#playwright-tool-playwright) for all available tools.
 
 ### Playwright MCP Initialization Failure (EOF Error)
 
-**Error Message:**
+**Error:**
 
 ```text
 Failed to register tools error="initialize: EOF" name=playwright
-Tool 'browser_navigate' does not exist
 ```
 
-**Cause:** The Playwright MCP server starts but fails during initialization because the Chromium browser crashes before tool registration completes. This happens when required Docker security flags are missing, causing the MCP init pipe to close (EOF) before tools are registered.
+**Cause:** Chromium crashes before tool registration completes due to missing Docker security flags.
 
-**Solution:** This issue was fixed in version 0.41.0 and later. The Playwright container now includes the required Docker security flags (`--security-opt seccomp=unconfined` and `--ipc=host`) for Chromium to function properly on GitHub Actions runners.
-
-**If you're on an older version:**
-
-Upgrade to version 0.41.0 or later:
+**Solution:** Upgrade to version 0.41.0+ which includes required Docker flags:
 
 ```bash wrap
 gh extension upgrade gh-aw
 ```
 
-**Why this happens:**
-
-GitHub Actions runners use security constraints that prevent Chromium from starting without specific Docker flags. The browser tries to initialize during MCP server startup, crashes due to sandbox restrictions, and causes the MCP protocol to fail before any tools are registered. The gateway may still report the server as "connected" because the container started successfully, but no tools are available because initialization never completed.
-
 ## Permission Issues
 
 ### Write Operations Fail
 
-Use safe outputs, or ask for new safe output types if needed.
+Use safe outputs or request new safe output types.
 
 ### Safe Outputs Not Creating Issues
 
-Disable staged mode to create issues (not just preview):
+Disable staged mode:
 
 ```yaml wrap
 safe-outputs:
@@ -254,67 +223,58 @@ safe-outputs:
 
 ### Token Permission Errors
 
-Add permissions to `GITHUB_TOKEN` or use a custom token:
+Grant permissions or use a custom token:
 
 ```yaml wrap
-# Increase GITHUB_TOKEN permissions
 permissions:
   contents: write
   issues: write
 
-# Or use custom token
+# Alternative: custom token
 safe-outputs:
   github-token: ${{ secrets.CUSTOM_PAT }}
-  create-issue:
 ```
 
 ### Project Field Type Errors
 
-**Problem**: GitHub Projects reserves field types like `REPOSITORY` that cannot be updated via API.
-
-**Solution**: Use alternative field names (`repo`, `source_repository`, `linked_repo`) instead of `repository`:
+GitHub Projects reserves field names like `REPOSITORY`. Use alternatives (`repo`, `source_repository`, `linked_repo`):
 
 ```yaml wrap
-# ❌ Wrong
-safe-outputs:
-  update-project:
-    fields:
-      repository: "myorg/myrepo"
-
-# ✅ Correct
+# ❌ Wrong: repository
+# ✅ Correct: repo
 safe-outputs:
   update-project:
     fields:
       repo: "myorg/myrepo"
 ```
 
-Delete conflicting fields in GitHub Projects UI and recreate with different names.
+Delete conflicting fields in Projects UI and recreate.
 
 ## Engine-Specific Issues
 
 ### Copilot CLI Not Found
 
-Verify compilation succeeded. The compiled workflow should include CLI installation steps.
+Verify compilation succeeded. Compiled workflows include CLI installation steps.
 
 ### Model Not Available
 
-Use the default model (`engine: copilot`) or specify an available one (`engine: {id: copilot, model: gpt-4}`).
+Use default (`engine: copilot`) or specify available model (`engine: {id: copilot, model: gpt-4}`).
 
 ## Context Expression Issues
 
 ### Unauthorized Expression
 
-Use only [allowed expressions](/gh-aw/reference/templating/) like `github.event.issue.number`, `github.repository`, or `needs.activation.outputs.text`. Expressions like `secrets.GITHUB_TOKEN` or `env.MY_VAR` are not allowed.
+Use only [allowed expressions](/gh-aw/reference/templating/) (`github.event.issue.number`, `github.repository`, `needs.activation.outputs.text`). Disallowed: `secrets.*`, `env.*`.
 
 ### Sanitized Context Empty
 
-`needs.activation.outputs.text` is only populated for issue, PR, or comment events (e.g., `on: issues:`) but not for other triggers like `push:`.
+`needs.activation.outputs.text` requires issue/PR/comment events (`on: issues:`), not `push:` or similar triggers.
 
 ## Build and Test Issues
 
 ### Documentation Build Fails
 
-Install dependencies, check for malformed frontmatter or MDX syntax, and fix broken links:
+Clean install and rebuild:
 
 ```bash wrap
 cd docs
@@ -323,9 +283,11 @@ npm install
 npm run build
 ```
 
+Check for malformed frontmatter, MDX syntax errors, or broken links.
+
 ### Tests Failing After Changes
 
-Format code and check for issues before running tests:
+Format and lint before testing:
 
 ```bash wrap
 make fmt
@@ -337,23 +299,21 @@ make test-unit
 
 ### Firewall Denials for Package Registries
 
-Add ecosystem identifiers to allow package installations:
+Add ecosystem identifiers ([Network Configuration Guide](/gh-aw/guides/network-configuration/)):
 
 ```yaml wrap
 network:
   allowed:
-    - defaults    # Basic infrastructure
-    - python      # PyPI, pip
-    - node        # npm, yarn, pnpm
-    - containers  # Docker Hub, GHCR
+    - defaults    # Infrastructure
+    - python      # PyPI
+    - node        # npm
+    - containers  # Docker
     - go          # Go modules
 ```
 
-See [Network Configuration Guide](/gh-aw/guides/network-configuration/) for details.
-
 ### URLs Appearing as "(redacted)"
 
-URLs are filtered when domains aren't in the allowed list. Add domains to your `network:` configuration:
+Add domains to allowed list ([Network Permissions](/gh-aw/reference/network/)):
 
 ```yaml wrap
 network:
@@ -362,21 +322,19 @@ network:
     - "api.example.com"
 ```
 
-See [Network Permissions](/gh-aw/reference/network/) for details.
-
 ### Cannot Download Remote Imports
 
-Verify network access with `curl -I https://raw.githubusercontent.com/github/gh-aw/main/README.md` and GitHub authentication with `gh auth status`.
+Verify network (`curl -I https://raw.githubusercontent.com/github/gh-aw/main/README.md`) and auth (`gh auth status`).
 
 ### MCP Server Connection Timeout
 
-Use local MCP servers if HTTP connections timeout (`command: "node"`, `args: ["./server.js"]`).
+Use local servers (`command: "node"`, `args: ["./server.js"]`).
 
 ## Cache Issues
 
 ### Cache Not Restoring
 
-Verify cache key patterns match. Caches expire after 7 days.
+Verify key patterns match (caches expire after 7 days):
 
 ```yaml wrap
 cache:
@@ -386,7 +344,7 @@ cache:
 
 ### Cache Memory Not Persisting
 
-Configure cache for the memory MCP server:
+Configure cache for memory MCP server:
 
 ```yaml wrap
 tools:
@@ -396,36 +354,25 @@ tools:
 
 ## GitHub Lockdown Mode Blocking Expected Content
 
-**GitHub lockdown mode** filters public repository content to only show items from users with push access. This protects workflows from untrusted input but can block legitimate use cases.
+Lockdown mode filters public repository content to show only items from users with push access.
 
 ### Symptoms
 
-- Workflow cannot see newly created issues or pull requests
-- Comments from external contributors are invisible
-- Status reports missing recent activity
-- Triage workflows not processing community contributions
+Workflows can't see issues/PRs/comments from external contributors, status reports miss activity, triage workflows don't process community contributions.
 
 ### Cause
 
-GitHub lockdown mode is automatically enabled by default for public repositories. The workflow only sees content from users with push, maintain, or admin access.
-
-This means that, by default, your workflow will not see issues, PRs, or comments from external contributors in a public repository. This is a security measure to prevent untrusted input from influencing the workflow, but it can interfere with workflows that need to process community contributions.
+Lockdown is enabled by default for public repositories to protect against untrusted input.
 
 ### Solution
 
-Evaluate if your workflow needs to process content from all users:
+**Option 1: Keep Lockdown Enabled (Recommended)**
 
-**Option 1: Keep Lockdown Enabled (Recommended for most workflows)**
+For sensitive operations (code generation, repository updates, web access), use separate workflows, manual triggers, or approval stages.
 
-If your workflow performs sensitive operations (code generation, repository updates, web access), keep lockdown enabled. Consider alternative approaches:
+**Option 2: Disable Lockdown (Safe Public Workflows Only)**
 
-- Use separate workflows: One with lockdown for sensitive operations, another without for public processing
-- Manual triggers: Let maintainers trigger workflows after reviewing external content
-- Approval workflows: Create a two-stage workflow where maintainers approve content before processing
-
-**Option 2: Disable Lockdown (For Safe Public Workflows)**
-
-If your workflow is **specifically designed** to handle untrusted input safely, disable lockdown:
+Disable only if your workflow validates input, uses restrictive safe outputs, and doesn't access secrets:
 
 ```yaml wrap
 tools:
@@ -433,35 +380,28 @@ tools:
     lockdown: false
 ```
 
-**Only use `lockdown: false` if your workflow**:
+Safe use cases: issue triage, spam detection, public dashboards with permission verification.
 
-- Uses restrictive safe outputs with specific allowed values
-- Doesn't generate code or create pull requests
-- Validates/sanitizes all input before processing
-- Does not access secrets or perform sensitive operations
-
-**Safe use cases**: Issue triage/labeling, spam detection, public dashboards, command workflows that verify permissions.
-
-See [Lockdown Mode](/gh-aw/reference/lockdown-mode/) for complete configuration guidance and security considerations.
+See [Lockdown Mode](/gh-aw/reference/lockdown-mode/) for details.
 
 ## Workflow Failures and Debugging
 
 ### Why Did My Workflow Fail?
 
-Common causes: missing tokens (`COPILOT_GITHUB_TOKEN`), permission mismatches (`permissions:`), network restrictions (`network.allowed`), disabled tools (`tools:`), or AI API rate limits. Use `gh aw audit <run-id>` to investigate.
+Common causes: missing tokens, permission mismatches, network restrictions, disabled tools, or rate limits. Use `gh aw audit <run-id>` to investigate.
 
 ### How Do I Debug a Failing Workflow?
 
-Check workflow logs (`gh aw logs`), audit the run (`gh aw audit <run-id>`), inspect `.lock.yml`, use Copilot Chat (`/agent agentic-workflows debug`), or watch compilation (`gh aw compile --watch`).
+Check logs (`gh aw logs`), audit run (`gh aw audit <run-id>`), inspect `.lock.yml`, use Copilot Chat (`/agent agentic-workflows debug`), or watch compilation (`gh aw compile --watch`).
 
 ### Debugging Strategies
 
-Enable verbose compilation (`--verbose`), set `ACTIONS_STEP_DEBUG = true`, inspect lock files, check MCP config (`gh aw mcp inspect`), and review logs.
+Enable verbose mode (`--verbose`), set `ACTIONS_STEP_DEBUG = true`, check MCP config (`gh aw mcp inspect`), and review logs.
 
 ## Operational Runbooks
 
-See [Workflow Health Monitoring Runbook](https://github.com/github/gh-aw/blob/main/.github/aw/runbooks/workflow-health.md) for diagnosing missing-tool errors, authentication failures, and configuration issues.
+See [Workflow Health Monitoring Runbook](https://github.com/github/gh-aw/blob/main/.github/aw/runbooks/workflow-health.md) for diagnosing errors.
 
 ## Getting Help
 
-Review [reference docs](/gh-aw/reference/workflow-structure/), search [existing issues](https://github.com/github/gh-aw/issues), enable verbose flags, or create an issue. See [Error Reference](/gh-aw/troubleshooting/errors/) and [Frontmatter Reference](/gh-aw/reference/frontmatter/).
+Review [reference docs](/gh-aw/reference/workflow-structure/), search [existing issues](https://github.com/github/gh-aw/issues), or create an issue. See [Error Reference](/gh-aw/troubleshooting/errors/) and [Frontmatter Reference](/gh-aw/reference/frontmatter/).
