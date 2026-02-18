@@ -13,13 +13,15 @@ var resolverLog = logger.New("workflow:action_resolver")
 
 // ActionResolver handles resolving action SHAs using GitHub CLI
 type ActionResolver struct {
-	cache *ActionCache
+	cache           *ActionCache
+	failedResolutions map[string]bool // tracks failed resolution attempts in current run (key: "repo@version")
 }
 
 // NewActionResolver creates a new action resolver
 func NewActionResolver(cache *ActionCache) *ActionResolver {
 	return &ActionResolver{
-		cache: cache,
+		cache:             cache,
+		failedResolutions: make(map[string]bool),
 	}
 }
 
@@ -27,6 +29,15 @@ func NewActionResolver(cache *ActionCache) *ActionResolver {
 // Returns the SHA and an error if resolution fails
 func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
 	resolverLog.Printf("Resolving SHA for action: %s@%s", repo, version)
+
+	// Create a cache key for tracking failed resolutions
+	cacheKey := formatActionCacheKey(repo, version)
+
+	// Check if we've already failed to resolve this action in this run
+	if r.failedResolutions[cacheKey] {
+		resolverLog.Printf("Skipping resolution for %s@%s: already failed in this run", repo, version)
+		return "", fmt.Errorf("previously failed to resolve %s@%s in this compilation run", repo, version)
+	}
 
 	// Check cache first
 	if sha, found := r.cache.Get(repo, version); found {
@@ -41,6 +52,9 @@ func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
 	sha, err := r.resolveFromGitHub(repo, version)
 	if err != nil {
 		resolverLog.Printf("Failed to resolve %s@%s: %v", repo, version, err)
+		// Mark this resolution as failed for this compilation run
+		r.failedResolutions[cacheKey] = true
+		resolverLog.Printf("Marked %s as failed, will not retry in this run", cacheKey)
 		return "", err
 	}
 

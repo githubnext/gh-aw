@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -62,6 +63,42 @@ func TestActionResolverCache(t *testing.T) {
 	}
 	if sha != "test-sha-123" {
 		t.Errorf("Expected SHA 'test-sha-123', got '%s'", sha)
+	}
+}
+
+func TestActionResolverFailedResolutionCache(t *testing.T) {
+	// Create a cache and resolver
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := NewActionCache(tmpDir)
+	resolver := NewActionResolver(cache)
+
+	// Attempt to resolve a non-existent action
+	// This will fail since we don't have a valid GitHub API connection in tests
+	repo := "nonexistent/action"
+	version := "v999.999.999"
+
+	// First attempt should try to resolve
+	_, err1 := resolver.ResolveSHA(repo, version)
+	if err1 == nil {
+		t.Error("Expected error for non-existent action on first attempt")
+	}
+
+	// Verify the failed resolution was tracked
+	cacheKey := formatActionCacheKey(repo, version)
+	if !resolver.failedResolutions[cacheKey] {
+		t.Errorf("Expected failed resolution to be tracked for %s", cacheKey)
+	}
+
+	// Second attempt should be skipped and return error immediately
+	_, err2 := resolver.ResolveSHA(repo, version)
+	if err2 == nil {
+		t.Error("Expected error for non-existent action on second attempt")
+	}
+
+	// Verify the error message indicates it was skipped
+	expectedErrMsg := "previously failed to resolve"
+	if !strings.Contains(err2.Error(), expectedErrMsg) {
+		t.Errorf("Expected error message to contain %q, got: %v", expectedErrMsg, err2)
 	}
 }
 
