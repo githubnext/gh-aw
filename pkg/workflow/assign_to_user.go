@@ -11,6 +11,7 @@ type AssignToUserConfig struct {
 	BaseSafeOutputConfig   `yaml:",inline"`
 	SafeOutputTargetConfig `yaml:",inline"`
 	Allowed                []string `yaml:"allowed,omitempty"`        // Optional list of allowed usernames. If omitted, any users are allowed.
+	Blocked                []string `yaml:"blocked,omitempty"`        // Optional list of blocked usernames or patterns (e.g., "copilot", "*[bot]")
 	UnassignFirst          bool     `yaml:"unassign-first,omitempty"` // If true, unassign all current assignees before assigning new ones
 }
 

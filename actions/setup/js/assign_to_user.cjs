@@ -21,6 +21,7 @@ const HANDLER_TYPE = "assign_to_user";
 async function main(config = {}) {
   // Extract configuration
   const allowedAssignees = config.allowed || [];
+  const blockedAssignees = config.blocked || [];
   const maxCount = config.max || 10;
   const unassignFirst = config.unassign_first || false;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
@@ -31,6 +32,9 @@ async function main(config = {}) {
   core.info(`Assign to user configuration: max=${maxCount}, unassign_first=${unassignFirst}`);
   if (allowedAssignees.length > 0) {
     core.info(`Allowed assignees: ${allowedAssignees.join(", ")}`);
+  }
+  if (blockedAssignees.length > 0) {
+    core.info(`Blocked assignees: ${blockedAssignees.join(", ")}`);
   }
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {
@@ -89,7 +93,7 @@ async function main(config = {}) {
     core.info(`Requested assignees: ${JSON.stringify(requestedAssignees)}`);
 
     // Use shared helper to filter, sanitize, dedupe, and limit
-    const uniqueAssignees = processItems(requestedAssignees, allowedAssignees, maxCount);
+    const uniqueAssignees = processItems(requestedAssignees, allowedAssignees, maxCount, blockedAssignees);
 
     if (uniqueAssignees.length === 0) {
       core.info("No assignees to add");

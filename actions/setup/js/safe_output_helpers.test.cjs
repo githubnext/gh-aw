@@ -502,4 +502,83 @@ describe("safe_output_helpers", () => {
       expect(result.size).toBe(0);
     });
   });
+
+  describe("matchesBlockedPattern", () => {
+    it("should match exact username", () => {
+      expect(helpers.matchesBlockedPattern("copilot", "copilot")).toBe(true);
+    });
+
+    it("should be case-insensitive for exact match", () => {
+      expect(helpers.matchesBlockedPattern("Copilot", "copilot")).toBe(true);
+      expect(helpers.matchesBlockedPattern("COPILOT", "copilot")).toBe(true);
+    });
+
+    it("should not match different usernames", () => {
+      expect(helpers.matchesBlockedPattern("alice", "copilot")).toBe(false);
+    });
+
+    it("should match wildcard pattern *[bot]", () => {
+      expect(helpers.matchesBlockedPattern("dependabot[bot]", "*[bot]")).toBe(true);
+      expect(helpers.matchesBlockedPattern("github-actions[bot]", "*[bot]")).toBe(true);
+      expect(helpers.matchesBlockedPattern("renovate[bot]", "*[bot]")).toBe(true);
+    });
+
+    it("should not match non-bot usernames with *[bot] pattern", () => {
+      expect(helpers.matchesBlockedPattern("alice", "*[bot]")).toBe(false);
+      expect(helpers.matchesBlockedPattern("bot-user", "*[bot]")).toBe(false);
+    });
+
+    it("should match wildcard at end", () => {
+      expect(helpers.matchesBlockedPattern("github-actions-bot", "github-*")).toBe(true);
+      expect(helpers.matchesBlockedPattern("github-bot", "github-*")).toBe(true);
+    });
+
+    it("should match wildcard at start", () => {
+      expect(helpers.matchesBlockedPattern("my-bot", "*-bot")).toBe(true);
+      expect(helpers.matchesBlockedPattern("github-bot", "*-bot")).toBe(true);
+    });
+
+    it("should handle empty or null inputs", () => {
+      expect(helpers.matchesBlockedPattern("", "copilot")).toBe(false);
+      expect(helpers.matchesBlockedPattern("copilot", "")).toBe(false);
+      expect(helpers.matchesBlockedPattern(null, "copilot")).toBe(false);
+      expect(helpers.matchesBlockedPattern("copilot", null)).toBe(false);
+    });
+
+    it("should escape special regex characters", () => {
+      expect(helpers.matchesBlockedPattern("user.name", "user.name")).toBe(true);
+      expect(helpers.matchesBlockedPattern("user+test", "user+test")).toBe(true);
+    });
+  });
+
+  describe("isUsernameBlocked", () => {
+    it("should return false for empty blocked list", () => {
+      expect(helpers.isUsernameBlocked("copilot", [])).toBe(false);
+    });
+
+    it("should return false for undefined blocked list", () => {
+      expect(helpers.isUsernameBlocked("copilot", undefined)).toBe(false);
+    });
+
+    it("should return true if username matches any pattern", () => {
+      const blocked = ["copilot", "*[bot]"];
+      expect(helpers.isUsernameBlocked("copilot", blocked)).toBe(true);
+      expect(helpers.isUsernameBlocked("dependabot[bot]", blocked)).toBe(true);
+    });
+
+    it("should return false if username matches no patterns", () => {
+      const blocked = ["copilot", "*[bot]"];
+      expect(helpers.isUsernameBlocked("alice", blocked)).toBe(false);
+      expect(helpers.isUsernameBlocked("bob", blocked)).toBe(false);
+    });
+
+    it("should handle multiple patterns", () => {
+      const blocked = ["admin", "copilot", "*[bot]", "test-*"];
+      expect(helpers.isUsernameBlocked("admin", blocked)).toBe(true);
+      expect(helpers.isUsernameBlocked("copilot", blocked)).toBe(true);
+      expect(helpers.isUsernameBlocked("github-actions[bot]", blocked)).toBe(true);
+      expect(helpers.isUsernameBlocked("test-user", blocked)).toBe(true);
+      expect(helpers.isUsernameBlocked("alice", blocked)).toBe(false);
+    });
+  });
 });

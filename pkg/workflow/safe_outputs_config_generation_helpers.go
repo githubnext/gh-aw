@@ -60,6 +60,18 @@ func generateMaxWithAllowedConfig(max int, defaultMax int, allowed []string) map
 	return config
 }
 
+// generateMaxWithAllowedAndBlockedConfig creates a config with max, optional allowed list, and optional blocked list
+func generateMaxWithAllowedAndBlockedConfig(max int, defaultMax int, allowed []string, blocked []string) map[string]any {
+	config := generateMaxConfig(max, defaultMax)
+	if len(allowed) > 0 {
+		config["allowed"] = allowed
+	}
+	if len(blocked) > 0 {
+		config["blocked"] = blocked
+	}
+	return config
+}
+
 // generateMaxWithDiscussionFieldsConfig creates a config with discussion-specific filter fields
 func generateMaxWithDiscussionFieldsConfig(max int, defaultMax int, requiredCategory string, requiredLabels []string, requiredTitlePrefix string) map[string]any {
 	config := generateMaxConfig(max, defaultMax)

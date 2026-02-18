@@ -307,6 +307,47 @@ function extractAssignees(message) {
   return requestedAssignees;
 }
 
+/**
+ * Check if a username matches a blocked pattern
+ * Supports exact matching and glob-style patterns (e.g., "*[bot]")
+ * @param {string} username - The username to check
+ * @param {string} pattern - The pattern to match against (e.g., "copilot", "*[bot]")
+ * @returns {boolean} True if username matches the blocked pattern
+ */
+function matchesBlockedPattern(username, pattern) {
+  if (!username || !pattern) {
+    return false;
+  }
+
+  // Exact match
+  if (username === pattern) {
+    return true;
+  }
+
+  // Simple glob pattern matching
+  // Convert glob pattern to regex: "*[bot]" -> "^.*\[bot\]$"
+  const regexPattern = pattern
+    .replace(/[.+?^${}()|[\]\\]/g, "\\$&") // Escape special regex chars except *
+    .replace(/\*/g, ".*"); // Convert * to .*
+  
+  const regex = new RegExp(`^${regexPattern}$`, "i"); // Case-insensitive
+  return regex.test(username);
+}
+
+/**
+ * Check if a username is blocked by any pattern in the blocked list
+ * @param {string} username - The username to check
+ * @param {string[]|undefined} blockedPatterns - Array of blocked patterns (e.g., ["copilot", "*[bot]"])
+ * @returns {boolean} True if username is blocked
+ */
+function isUsernameBlocked(username, blockedPatterns) {
+  if (!blockedPatterns || blockedPatterns.length === 0) {
+    return false;
+  }
+
+  return blockedPatterns.some(pattern => matchesBlockedPattern(username, pattern));
+}
+
 module.exports = {
   parseAllowedItems,
   parseMaxCount,
@@ -314,4 +355,6 @@ module.exports = {
   loadCustomSafeOutputJobTypes,
   resolveIssueNumber,
   extractAssignees,
+  matchesBlockedPattern,
+  isUsernameBlocked,
 };

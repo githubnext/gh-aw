@@ -1370,26 +1370,30 @@ When `allowed` list is configured, existing agent assignees not in the list are 
 
 ### Assign to User (`assign-to-user:`)
 
-Assigns users to issues. Restrict with `allowed` list. Target: `"triggering"` (issue event), `"*"` (any), or number. Supports single or multiple assignees.
+Assigns users to issues. Restrict with `allowed` list or deny with `blocked` patterns. Target: `"triggering"` (issue event), `"*"` (any), or number. Supports single or multiple assignees.
 
 ```yaml wrap
 safe-outputs:
   assign-to-user:
-    allowed: [user1, user2]    # restrict to specific users
+    allowed: [user1, user2]    # restrict to specific users (optional)
+    blocked: [copilot, "*[bot]"]  # deny specific users or patterns (optional)
     max: 3                     # max assignments (default: 1)
     target: "*"                # "triggering" (default), "*", or number
     target-repo: "owner/repo"  # cross-repository
     unassign-first: true       # unassign all current assignees before assigning (default: false)
 ```
 
+**Blocked Patterns**: Supports exact matches (e.g., `copilot`) and glob patterns (e.g., `*[bot]` to block all bot accounts). Blocked filtering is applied after allowed filtering, providing defense-in-depth against prompt injection attacks.
+
 ### Unassign from User (`unassign-from-user:`)
 
-Removes user assignments from issues or pull requests. Restrict with `allowed` list to control which users can be unassigned. Target: `"triggering"` (issue/PR event), `"*"` (any), or number.
+Removes user assignments from issues or pull requests. Restrict with `allowed` list or deny with `blocked` patterns to control which users can be unassigned. Target: `"triggering"` (issue/PR event), `"*"` (any), or number.
 
 ```yaml wrap
 safe-outputs:
   unassign-from-user:
-    allowed: [user1, user2]    # restrict to specific users
+    allowed: [user1, user2]    # restrict to specific users (optional)
+    blocked: [copilot, "*[bot]"]  # deny specific users or patterns (optional)
     max: 1                     # max unassignments (default: 1)
     target: "*"                # "triggering" (default), "*", or number
     target-repo: "owner/repo"  # cross-repository

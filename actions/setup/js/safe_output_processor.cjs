@@ -246,6 +246,29 @@ function filterByAllowed(items, allowed) {
 }
 
 /**
+ * Filter out items matching blocked patterns
+ * @param {string[]} items - Items to filter
+ * @param {string[]|undefined} blockedPatterns - Blocked patterns list (undefined means no blocking)
+ * @returns {string[]} Filtered items with blocked items removed
+ */
+function filterByBlocked(items, blockedPatterns) {
+  if (!blockedPatterns || blockedPatterns.length === 0) {
+    return items;
+  }
+
+  // Import the pattern matching function
+  const { isUsernameBlocked } = require("./safe_output_helpers.cjs");
+
+  return items.filter(item => {
+    const blocked = isUsernameBlocked(item, blockedPatterns);
+    if (blocked) {
+      core.info(`Filtering out blocked item: ${item}`);
+    }
+    return !blocked;
+  });
+}
+
+/**
  * Limit items to max count
  * @param {string[]} items - Items to limit
  * @param {number} maxCount - Maximum number of items
@@ -260,18 +283,22 @@ function limitToMaxCount(items, maxCount) {
 }
 
 /**
- * Process items through the standard pipeline: filter by allowed, sanitize, dedupe, limit
+ * Process items through the standard pipeline: filter by allowed, filter blocked, sanitize, dedupe, limit
  * @param {any[]} rawItems - Raw items array from agent output
  * @param {string[]|undefined} allowed - Allowed items list
  * @param {number} maxCount - Maximum number of items
+ * @param {string[]|undefined} blocked - Blocked patterns list (optional)
  * @returns {string[]} Processed items
  */
-function processItems(rawItems, allowed, maxCount) {
+function processItems(rawItems, allowed, maxCount, blocked = undefined) {
   // Filter by allowed list first
   const filtered = filterByAllowed(rawItems, allowed);
 
+  // Filter out blocked items
+  const notBlocked = filterByBlocked(filtered, blocked);
+
   // Sanitize and deduplicate
-  const sanitized = sanitizeItems(filtered);
+  const sanitized = sanitizeItems(notBlocked);
 
   // Limit to max count
   return limitToMaxCount(sanitized, maxCount);
@@ -281,6 +308,7 @@ module.exports = {
   processSafeOutput,
   sanitizeItems,
   filterByAllowed,
+  filterByBlocked,
   limitToMaxCount,
   processItems,
 };

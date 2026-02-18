@@ -222,17 +222,19 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			)
 		}
 		if data.SafeOutputs.AssignToUser != nil {
-			safeOutputsConfig["assign_to_user"] = generateMaxWithAllowedConfig(
+			safeOutputsConfig["assign_to_user"] = generateMaxWithAllowedAndBlockedConfig(
 				data.SafeOutputs.AssignToUser.Max,
 				1, // default max
 				data.SafeOutputs.AssignToUser.Allowed,
+				data.SafeOutputs.AssignToUser.Blocked,
 			)
 		}
 		if data.SafeOutputs.UnassignFromUser != nil {
-			safeOutputsConfig["unassign_from_user"] = generateMaxWithAllowedConfig(
+			safeOutputsConfig["unassign_from_user"] = generateMaxWithAllowedAndBlockedConfig(
 				data.SafeOutputs.UnassignFromUser.Max,
 				1, // default max
 				data.SafeOutputs.UnassignFromUser.Allowed,
+				data.SafeOutputs.UnassignFromUser.Blocked,
 			)
 		}
 		if data.SafeOutputs.UpdateIssues != nil {

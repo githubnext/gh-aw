@@ -483,4 +483,106 @@ describe("assign_to_user (Handler Factory Architecture)", () => {
       assignees: ["new-user1"],
     });
   });
+
+  describe("blocked patterns", () => {
+    it("should filter out blocked users by exact match", async () => {
+      const { main } = require("./assign_to_user.cjs");
+      const handler = await main({
+        max: 10,
+        blocked: ["copilot", "admin"],
+      });
+
+      mockGithub.rest.issues.addAssignees.mockResolvedValue({});
+
+      const message = {
+        type: "assign_to_user",
+        assignees: ["user1", "copilot", "admin", "user2"],
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.assigneesAdded).toEqual(["user1", "user2"]);
+      expect(mockGithub.rest.issues.addAssignees).toHaveBeenCalledWith({
+        owner: "test-owner",
+        repo: "test-repo",
+        issue_number: 123,
+        assignees: ["user1", "user2"],
+      });
+    });
+
+    it("should filter out blocked users by pattern", async () => {
+      const { main } = require("./assign_to_user.cjs");
+      const handler = await main({
+        max: 10,
+        blocked: ["*[bot]"],
+      });
+
+      mockGithub.rest.issues.addAssignees.mockResolvedValue({});
+
+      const message = {
+        type: "assign_to_user",
+        assignees: ["user1", "dependabot[bot]", "github-actions[bot]", "user2"],
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.assigneesAdded).toEqual(["user1", "user2"]);
+      expect(mockGithub.rest.issues.addAssignees).toHaveBeenCalledWith({
+        owner: "test-owner",
+        repo: "test-repo",
+        issue_number: 123,
+        assignees: ["user1", "user2"],
+      });
+    });
+
+    it("should combine allowed and blocked filters", async () => {
+      const { main } = require("./assign_to_user.cjs");
+      const handler = await main({
+        max: 10,
+        allowed: ["user1", "user2", "copilot", "github-actions[bot]"],
+        blocked: ["copilot", "*[bot]"],
+      });
+
+      mockGithub.rest.issues.addAssignees.mockResolvedValue({});
+
+      const message = {
+        type: "assign_to_user",
+        assignees: ["user1", "user2", "copilot", "github-actions[bot]", "unauthorized"],
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      // Should only include user1 and user2 (allowed and not blocked)
+      expect(result.assigneesAdded).toEqual(["user1", "user2"]);
+      expect(mockGithub.rest.issues.addAssignees).toHaveBeenCalledWith({
+        owner: "test-owner",
+        repo: "test-repo",
+        issue_number: 123,
+        assignees: ["user1", "user2"],
+      });
+    });
+
+    it("should return success with empty array when all assignees are blocked", async () => {
+      const { main } = require("./assign_to_user.cjs");
+      const handler = await main({
+        max: 10,
+        blocked: ["*[bot]"],
+      });
+
+      const message = {
+        type: "assign_to_user",
+        assignees: ["dependabot[bot]", "github-actions[bot]"],
+      };
+
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.assigneesAdded).toEqual([]);
+      expect(result.message).toContain("No valid assignees found");
+      expect(mockGithub.rest.issues.addAssignees).not.toHaveBeenCalled();
+    });
+  });
 });
