@@ -329,7 +329,7 @@ function matchesBlockedPattern(username, pattern) {
   const regexPattern = pattern
     .replace(/[.+?^${}()|[\]\\]/g, "\\$&") // Escape special regex chars except *
     .replace(/\*/g, ".*"); // Convert * to .*
-  
+
   const regex = new RegExp(`^${regexPattern}$`, "i"); // Case-insensitive
   return regex.test(username);
 }

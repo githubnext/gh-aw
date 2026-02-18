@@ -5443,6 +5443,13 @@
                   },
                   "description": "Optional list of allowed usernames. If specified, only these users can be assigned."
                 },
+                "blocked": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Optional list of blocked usernames or patterns (e.g., 'copilot', '*[bot]'). Users matching these patterns cannot be assigned. Supports exact matches and glob patterns."
+                },
                 "max": {
                   "type": "integer",
                   "description": "Optional maximum number of user assignments (default: 1)",
@@ -5487,6 +5494,13 @@
                     "type": "string"
                   },
                   "description": "Optional list of allowed usernames. If specified, only these users can be unassigned."
+                },
+                "blocked": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Optional list of blocked usernames or patterns (e.g., 'copilot', '*[bot]'). Users matching these patterns cannot be unassigned. Supports exact matches and glob patterns."
                 },
                 "max": {
                   "type": "integer",
