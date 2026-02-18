@@ -221,26 +221,9 @@ bundle-js:
 	@echo "✓ bundle-js tool built"
 	@echo "To bundle a JavaScript file: ./bundle-js <input-file> [output-file]"
 
-# Install copilot-client dependencies
-.PHONY: deps-copilot-client
-deps-copilot-client: check-node-version
-	cd copilot-client && npm ci
-
-# Build copilot-client TypeScript project
-.PHONY: copilot-client
-copilot-client: deps-copilot-client
-	@echo "Building copilot-client..."
-	cd copilot-client && npm run build
-	@echo "✓ Copilot client built"
-
-# Test copilot-client
-.PHONY: test-copilot-client
-test-copilot-client: copilot-client
-	cd copilot-client && npm test
-
-# Test all code (Go, JavaScript, and copilot-client)
+# Test all code (Go and JavaScript)
 .PHONY: test-all
-test-all: test test-js test-copilot-client
+test-all: test test-js
 
 # Run tests with coverage
 .PHONY: test-coverage
@@ -669,7 +652,7 @@ sync-action-scripts:
 
 # Recompile all workflow files
 .PHONY: recompile
-recompile: build copilot-client
+recompile: build
 	./$(BINARY_NAME) init --codespaces
 	./$(BINARY_NAME) compile --validate --verbose --purge --stats
 #	./$(BINARY_NAME) compile --dir pkg/cli/workflows --validate --verbose --purge

@@ -227,7 +227,6 @@ The project has several test targets optimized for different scenarios:
 | `test-integration-workflow` | Varies | Workflow package integration | Testing workflow compilation end-to-end |
 | `test-all` | ~30s | Go + JavaScript tests | Complete test coverage |
 | `test-js` | Varies | JavaScript-only tests | Testing JS action code |
-| `test-copilot-client` | Varies | Copilot SDK client tests | Testing TypeScript copilot client |
 | `test-security` | Varies | Security regression tests | Validating security fixes |
 | `test-coverage` | Varies | Tests with coverage report | Analyzing test coverage |
 | `test-perf` | Varies | All tests + timing analysis | Finding slow tests |
@@ -237,7 +236,6 @@ The project has several test targets optimized for different scenarios:
 - **Ready to commit?** → `make test` or `make agent-finish`
 - **Changed compiler code?** → `make test-integration-compile`
 - **Working on JavaScript?** → `make test-js`
-- **Working on copilot-client?** → `make test-copilot-client`
 - **Security-sensitive change?** → `make test-security`
 
 ### Expected Output and Timing
