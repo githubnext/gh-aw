@@ -146,7 +146,7 @@ on: workflow_dispatch
 		}
 
 		// Verify no duplicates
-		assert.Equal(t, len(secretMap), len(secrets), "Should not have duplicate secrets")
+		assert.Len(t, secrets, len(secretMap), "Should not have duplicate secrets")
 	})
 
 	t.Run("handles empty workflow list", func(t *testing.T) {
@@ -155,7 +155,7 @@ on: workflow_dispatch
 		require.NotEmpty(t, secrets, "Should return at least system secrets")
 
 		// Should only have system secrets
-		assert.Equal(t, len(constants.SystemSecrets), len(secrets), "Should only have system secrets")
+		assert.Len(t, secrets, len(constants.SystemSecrets), "Should only have system secrets")
 
 		// Verify all are system secrets
 		for _, secret := range secrets {

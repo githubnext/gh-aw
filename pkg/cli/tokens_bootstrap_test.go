@@ -145,7 +145,7 @@ func TestCollectRequiredSecretsFromWorkflows_NoWorkflowsDir(t *testing.T) {
 
 	t.Run("fails when no engine specified", func(t *testing.T) {
 		_, err = getSecretRequirements("")
-		assert.Error(t, err, "Should error when no workflows directory exists and no engine specified")
+		require.Error(t, err, "Should error when no workflows directory exists and no engine specified")
 		assert.Contains(t, err.Error(), "failed to discover workflows", "Error should indicate workflow discovery failed")
 	})
 
@@ -189,7 +189,7 @@ func TestCollectRequiredSecretsFromWorkflows_EmptyWorkflowsDir(t *testing.T) {
 
 	t.Run("fails when no engine specified", func(t *testing.T) {
 		_, err = getSecretRequirements("")
-		assert.Error(t, err, "Should error when no workflow files found and no engine specified")
+		require.Error(t, err, "Should error when no workflow files found and no engine specified")
 		assert.Contains(t, err.Error(), "no workflow files found", "Error should indicate no workflow files")
 	})
 
