@@ -387,7 +387,7 @@ func TestThreatDetectionCustomPrompt(t *testing.T) {
 	}
 }
 
-func TestThreatDetectionWithCustomEngine(t *testing.T) {
+func TestThreatDetectionWithEngineConfig(t *testing.T) {
 	compiler := NewCompiler()
 
 	tests := []struct {

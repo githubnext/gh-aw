@@ -59,7 +59,7 @@ func TestSafeInputsStepCodeGenerationStability(t *testing.T) {
 	compiler := &Compiler{}
 
 	// Create a mock engine that does nothing for MCP config
-	mockEngine := &CustomEngine{}
+	mockEngine := NewClaudeEngine()
 
 	for i := 0; i < iterations; i++ {
 		var yaml strings.Builder
@@ -217,7 +217,7 @@ func TestMCPGatewayVersionFromFrontmatter(t *testing.T) {
 			// Test 2: Verify MCP gateway setup command uses the correct version
 			compiler := &Compiler{}
 			var yaml strings.Builder
-			mockEngine := &CustomEngine{}
+			mockEngine := NewClaudeEngine()
 
 			compiler.generateMCPSetup(&yaml, workflowData.Tools, mockEngine, workflowData)
 			setupOutput := yaml.String()
