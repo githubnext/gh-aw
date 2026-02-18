@@ -358,10 +358,7 @@ describe("assign_to_user (Handler Factory Architecture)", () => {
     // Mock getting current assignees
     mockGithub.rest.issues.get = vi.fn().mockResolvedValue({
       data: {
-        assignees: [
-          { login: "old-user1" },
-          { login: "old-user2" },
-        ],
+        assignees: [{ login: "old-user1" }, { login: "old-user2" }],
       },
     });
 
