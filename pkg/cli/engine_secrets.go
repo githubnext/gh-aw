@@ -45,9 +45,9 @@ type EngineSecretConfig struct {
 	IncludeOptional bool
 }
 
-// GetRequiredSecretsForEngine returns all secrets needed for a specific engine.
+// getRequiredSecretsForEngine returns all secrets needed for a specific engine.
 // This combines engine-specific secrets with optional system-level secrets.
-func GetRequiredSecretsForEngine(engine string, includeSystemSecrets bool, includeOptional bool) []SecretRequirement {
+func getRequiredSecretsForEngine(engine string, includeSystemSecrets bool, includeOptional bool) []SecretRequirement {
 	engineSecretsLog.Printf("Getting required secrets for engine: %s (system=%v, optional=%v)", engine, includeSystemSecrets, includeOptional)
 
 	var requirements []SecretRequirement
@@ -87,58 +87,6 @@ func GetRequiredSecretsForEngine(engine string, includeSystemSecrets bool, inclu
 	return requirements
 }
 
-// getRequiredSecretsForEngines collects and deduplicates secrets for multiple engines.
-// It always includes system secrets and deduplicates across all engines.
-func getRequiredSecretsForEngines(engines []string) []SecretRequirement {
-	engineSecretsLog.Printf("Collecting secrets for %d engines: %v", len(engines), engines)
-
-	var allRequirements []SecretRequirement
-	seenSecrets := make(map[string]bool)
-
-	// Always include system secrets
-	for _, sys := range constants.SystemSecrets {
-		if seenSecrets[sys.Name] {
-			continue
-		}
-		seenSecrets[sys.Name] = true
-		allRequirements = append(allRequirements, SecretRequirement{
-			Name:           sys.Name,
-			WhenNeeded:     sys.WhenNeeded,
-			Description:    sys.Description,
-			Optional:       sys.Optional,
-			IsEngineSecret: false,
-		})
-	}
-
-	// Add engine-specific secrets
-	for _, engine := range engines {
-		opt := constants.GetEngineOption(engine)
-		if opt == nil {
-			engineSecretsLog.Printf("Warning: Unknown engine %s, skipping", engine)
-			continue
-		}
-
-		if seenSecrets[opt.SecretName] {
-			continue // Already added
-		}
-		seenSecrets[opt.SecretName] = true
-
-		allRequirements = append(allRequirements, SecretRequirement{
-			Name:               opt.SecretName,
-			WhenNeeded:         opt.WhenNeeded,
-			Description:        getEngineSecretDescription(opt),
-			Optional:           false, // Required since it's used by a workflow
-			AlternativeEnvVars: opt.AlternativeSecrets,
-			KeyURL:             opt.KeyURL,
-			IsEngineSecret:     true,
-			EngineName:         engine,
-		})
-	}
-
-	engineSecretsLog.Printf("Returning %d deduplicated secret requirements", len(allRequirements))
-	return allRequirements
-}
-
 // getEngineSecretDescription returns a detailed description for an engine secret
 func getEngineSecretDescription(opt *constants.EngineOption) string {
 	switch opt.Value {
@@ -153,13 +101,13 @@ func getEngineSecretDescription(opt *constants.EngineOption) string {
 	}
 }
 
-// CheckAndCollectEngineSecrets is the unified entry point for checking and collecting engine secrets.
+// checkAndEnsureEngineSecrets is the unified entry point for checking and collecting engine secrets.
 // It checks existing secrets in the repository and environment, and prompts for missing ones.
-func CheckAndCollectEngineSecrets(config EngineSecretConfig) error {
+func checkAndEnsureEngineSecrets(config EngineSecretConfig) error {
 	engineSecretsLog.Printf("Checking and collecting secrets for engine: %s in repo: %s", config.Engine, config.RepoSlug)
 
 	// Get required secrets for the engine
-	requirements := GetRequiredSecretsForEngine(config.Engine, config.IncludeSystemSecrets, config.IncludeOptional)
+	requirements := getRequiredSecretsForEngine(config.Engine, config.IncludeSystemSecrets, config.IncludeOptional)
 
 	// Check each requirement
 	for _, req := range requirements {
@@ -659,7 +607,7 @@ func displaySecretsSummaryTable(requirements []SecretRequirement, existingSecret
 
 		// Format secret name with padding
 		nameWithPadding := fmt.Sprintf("%-*s", maxNameWidth, req.Name)
-		
+
 		// Display the line
 		fmt.Fprintf(os.Stderr, "  %s %s - %s\n", statusLine, nameWithPadding, req.WhenNeeded)
 	}

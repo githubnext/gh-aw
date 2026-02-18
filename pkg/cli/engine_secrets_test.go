@@ -35,9 +35,9 @@ func TestGetRequiredSecretsForEngine(t *testing.T) {
 			engine:               string(constants.CopilotEngine),
 			includeSystemSecrets: true,
 			includeOptional:      false,
-			wantSecretNames:      []string{"COPILOT_GITHUB_TOKEN", "GH_AW_GITHUB_TOKEN"},
-			wantMinCount:         2,
-			wantMaxCount:         2,
+			wantSecretNames:      []string{"COPILOT_GITHUB_TOKEN"}, // No system secrets since all are optional
+			wantMinCount:         1,
+			wantMaxCount:         1,
 		},
 		{
 			name:                 "copilot engine with optional secrets",
@@ -70,7 +70,7 @@ func TestGetRequiredSecretsForEngine(t *testing.T) {
 			name:                 "empty engine returns only system secrets when requested",
 			engine:               "",
 			includeSystemSecrets: true,
-			includeOptional:      false,
+			includeOptional:      true, // Changed to true to include optional system secrets
 			wantSecretNames:      []string{"GH_AW_GITHUB_TOKEN"},
 			wantMinCount:         1,
 			wantMaxCount:         5,
@@ -88,7 +88,7 @@ func TestGetRequiredSecretsForEngine(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			requirements := GetRequiredSecretsForEngine(tt.engine, tt.includeSystemSecrets, tt.includeOptional)
+			requirements := getRequiredSecretsForEngine(tt.engine, tt.includeSystemSecrets, tt.includeOptional)
 
 			assert.GreaterOrEqual(t, len(requirements), tt.wantMinCount,
 				"Should have at least %d requirements", tt.wantMinCount)
@@ -110,7 +110,7 @@ func TestGetRequiredSecretsForEngine(t *testing.T) {
 
 func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 	t.Run("copilot secret has correct attributes", func(t *testing.T) {
-		requirements := GetRequiredSecretsForEngine(string(constants.CopilotEngine), false, false)
+		requirements := getRequiredSecretsForEngine(string(constants.CopilotEngine), false, false)
 		require.Len(t, requirements, 1, "Should have exactly one requirement")
 
 		req := requirements[0]
@@ -123,7 +123,7 @@ func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 	})
 
 	t.Run("claude secret has alternative env vars", func(t *testing.T) {
-		requirements := GetRequiredSecretsForEngine(string(constants.ClaudeEngine), false, false)
+		requirements := getRequiredSecretsForEngine(string(constants.ClaudeEngine), false, false)
 		require.Len(t, requirements, 1, "Should have exactly one requirement")
 
 		req := requirements[0]
@@ -133,7 +133,7 @@ func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 	})
 
 	t.Run("system secrets are not engine secrets", func(t *testing.T) {
-		requirements := GetRequiredSecretsForEngine("", true, true)
+		requirements := getRequiredSecretsForEngine("", true, true)
 
 		for _, req := range requirements {
 			if req.Name == "GH_AW_GITHUB_TOKEN" {
@@ -306,121 +306,7 @@ func TestEngineSecretConfigStructure(t *testing.T) {
 		assert.False(t, config.IncludeOptional)
 	})
 }
-func TestCollectSecretsForEngines(t *testing.T) {
-	t.Run("single engine", func(t *testing.T) {
-		requirements := getRequiredSecretsForEngines([]string{"copilot"})
 
-		require.NotEmpty(t, requirements, "Should return secrets for copilot")
-
-		// Should include system secrets
-		hasSystemSecret := false
-		hasCopilotSecret := false
-		for _, req := range requirements {
-			if req.Name == "GH_AW_GITHUB_TOKEN" {
-				hasSystemSecret = true
-				assert.False(t, req.IsEngineSecret, "System secret should not be marked as engine secret")
-			}
-			if req.Name == "COPILOT_GITHUB_TOKEN" {
-				hasCopilotSecret = true
-				assert.True(t, req.IsEngineSecret, "Copilot secret should be marked as engine secret")
-				assert.Equal(t, "copilot", req.EngineName)
-			}
-		}
-		assert.True(t, hasSystemSecret, "Should include system secret")
-		assert.True(t, hasCopilotSecret, "Should include Copilot secret")
-	})
-
-	t.Run("multiple engines deduplicates secrets", func(t *testing.T) {
-		requirements := getRequiredSecretsForEngines([]string{"copilot", "claude", "codex"})
-
-		// Count occurrences of each secret
-		secretCounts := make(map[string]int)
-		for _, req := range requirements {
-			secretCounts[req.Name]++
-		}
-
-		// Verify no duplicates
-		for secretName, count := range secretCounts {
-			assert.Equal(t, 1, count, "Secret %s should appear exactly once, found %d times", secretName, count)
-		}
-
-		// Should have system secrets + engine secrets
-		assert.Contains(t, secretCounts, "GH_AW_GITHUB_TOKEN", "Should include system token")
-		assert.Contains(t, secretCounts, "COPILOT_GITHUB_TOKEN", "Should include Copilot token")
-		assert.Contains(t, secretCounts, "ANTHROPIC_API_KEY", "Should include Claude API key")
-		assert.Contains(t, secretCounts, "OPENAI_API_KEY", "Should include OpenAI API key")
-	})
-
-	t.Run("empty engines list returns only system secrets", func(t *testing.T) {
-		requirements := getRequiredSecretsForEngines([]string{})
-
-		require.NotEmpty(t, requirements, "Should return at least system secrets")
-
-		// All requirements should be system secrets
-		for _, req := range requirements {
-			assert.False(t, req.IsEngineSecret, "All secrets should be system secrets when no engines provided")
-		}
-
-		// Should include GH_AW_GITHUB_TOKEN
-		hasSystemToken := false
-		for _, req := range requirements {
-			if req.Name == "GH_AW_GITHUB_TOKEN" {
-				hasSystemToken = true
-				break
-			}
-		}
-		assert.True(t, hasSystemToken, "Should include GH_AW_GITHUB_TOKEN")
-	})
-
-	t.Run("unknown engine is skipped", func(t *testing.T) {
-		requirements := getRequiredSecretsForEngines([]string{"unknown-engine"})
-
-		require.NotEmpty(t, requirements, "Should return at least system secrets")
-
-		// Should only have system secrets, no engine secrets
-		for _, req := range requirements {
-			assert.False(t, req.IsEngineSecret, "Should not include engine secrets for unknown engine")
-		}
-	})
-
-	t.Run("mixed known and unknown engines", func(t *testing.T) {
-		requirements := getRequiredSecretsForEngines([]string{"copilot", "unknown-engine", "claude"})
-
-		// Should include copilot and claude secrets, but not unknown
-		hasCopilot := false
-		hasClaude := false
-		hasUnknown := false
-		for _, req := range requirements {
-			if req.Name == "COPILOT_GITHUB_TOKEN" {
-				hasCopilot = true
-			}
-			if req.Name == "ANTHROPIC_API_KEY" {
-				hasClaude = true
-			}
-			if req.EngineName == "unknown-engine" {
-				hasUnknown = true
-			}
-		}
-
-		assert.True(t, hasCopilot, "Should include Copilot secret")
-		assert.True(t, hasClaude, "Should include Claude secret")
-		assert.False(t, hasUnknown, "Should not include secrets for unknown engine")
-	})
-
-	t.Run("duplicate engines in input are deduplicated", func(t *testing.T) {
-		requirements := getRequiredSecretsForEngines([]string{"copilot", "copilot", "copilot"})
-
-		// Count Copilot tokens
-		copilotCount := 0
-		for _, req := range requirements {
-			if req.Name == "COPILOT_GITHUB_TOKEN" {
-				copilotCount++
-			}
-		}
-
-		assert.Equal(t, 1, copilotCount, "Should deduplicate repeated engines")
-	})
-}
 func TestGetEngineSecretNameAndValue(t *testing.T) {
 	// Save current env and restore after test
 	oldCopilotToken := os.Getenv("COPILOT_GITHUB_TOKEN")

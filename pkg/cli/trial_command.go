@@ -349,7 +349,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 			IncludeSystemSecrets: false,
 			IncludeOptional:      false,
 		}
-		if err := CheckAndCollectEngineSecrets(secretConfig); err != nil {
+		if err := checkAndEnsureEngineSecrets(secretConfig); err != nil {
 			return fmt.Errorf("failed to configure engine secret: %w", err)
 		}
 	}

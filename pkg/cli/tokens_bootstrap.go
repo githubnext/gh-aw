@@ -68,7 +68,7 @@ func runTokensBootstrap(engine, owner, repo string, nonInteractive bool) error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Analyzing workflows in %s...", repoSlug)))
 
 	// Discover workflows in the repository
-	requirements, err := collectRequiredSecretsFromWorkflows(engine)
+	requirements, err := getRequiredSecrets(engine)
 	if err != nil {
 		return fmt.Errorf("failed to analyze workflows: %w", err)
 	}
@@ -149,40 +149,34 @@ func runTokensBootstrap(engine, owner, repo string, nonInteractive bool) error {
 	return nil
 }
 
-// collectRequiredSecretsFromWorkflows discovers all workflows and collects their required secrets
-func collectRequiredSecretsFromWorkflows(engineFilter string) ([]SecretRequirement, error) {
+// getRequiredSecrets discovers all workflows and collects their required secrets
+func getRequiredSecrets(engineFilter string) ([]SecretRequirement, error) {
 	tokensBootstrapLog.Printf("Discovering workflows (engine filter: %s)", engineFilter)
+
+	var allRequirements []SecretRequirement
 
 	// If engine is explicitly specified, we can bootstrap without workflows
 	if engineFilter != "" {
 		tokensBootstrapLog.Printf("Engine explicitly specified, bootstrapping for %s regardless of workflows", engineFilter)
-		return getRequiredSecretsForEngines([]string{engineFilter}), nil
+		// Get engine-specific secrets and system secrets (including optional)
+		allRequirements = getRequiredSecretsForEngine(engineFilter, true, true)
+	} else {
+		// Discover workflow files
+		workflowFiles, err := getMarkdownWorkflowFiles("")
+		if err != nil {
+			return nil, fmt.Errorf("failed to discover workflows: %w", err)
+		}
+
+		if len(workflowFiles) == 0 {
+			return nil, fmt.Errorf("no workflow files found in .github/workflows/")
+		}
+
+		tokensBootstrapLog.Printf("Found %d workflow files, extracting secrets", len(workflowFiles))
+
+		// Use getRequiredSecretsForWorkflows to collect and deduplicate secrets
+		allRequirements = getRequiredSecretsForWorkflows(workflowFiles)
 	}
 
-	// Get engines from discovered workflows
-	engines, err := getRequiredEnginesForWorkflows()
-	if err != nil {
-		return nil, err
-	}
-
-	return getRequiredSecretsForEngines(engines), nil
-}
-
-// getRequiredEnginesForWorkflows discovers workflow files and returns unique engines used
-func getRequiredEnginesForWorkflows() ([]string, error) {
-	tokensBootstrapLog.Print("Discovering workflow files to extract engines")
-
-	// Discover workflow files
-	workflowFiles, err := getMarkdownWorkflowFiles("")
-	if err != nil {
-		return nil, fmt.Errorf("failed to discover workflows: %w", err)
-	}
-
-	if len(workflowFiles) == 0 {
-		return nil, fmt.Errorf("no workflow files found in .github/workflows/")
-	}
-
-	tokensBootstrapLog.Printf("Found %d workflow files", len(workflowFiles))
-
-	return extractEnginesFromWorkflows(workflowFiles), nil
+	tokensBootstrapLog.Printf("Returning %d deduplicated secret requirements", len(allRequirements))
+	return allRequirements, nil
 }
