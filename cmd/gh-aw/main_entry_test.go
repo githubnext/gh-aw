@@ -41,11 +41,6 @@ func TestValidateEngine(t *testing.T) {
 			expectErr: false,
 		},
 		{
-			name:      "valid custom engine",
-			engine:    "custom",
-			expectErr: false,
-		},
-		{
 			name:       "invalid engine",
 			engine:     "gpt4",
 			expectErr:  true,
@@ -89,7 +84,7 @@ func TestValidateEngine(t *testing.T) {
 
 				// Check that error message contains the expected format
 				// Error may include "Did you mean" suggestions, so we check if it starts with the base message
-				expectedMsg := fmt.Sprintf("invalid engine value '%s'. Must be 'claude', 'codex', 'copilot', or 'custom'", tt.engine)
+				expectedMsg := fmt.Sprintf("invalid engine value '%s'. Must be 'claude', 'codex', or 'copilot'", tt.engine)
 				if tt.errMessage != "" && !strings.HasPrefix(err.Error(), expectedMsg) {
 					t.Errorf("validateEngine(%q) error message = %v, want to start with %v", tt.engine, err.Error(), expectedMsg)
 				}
