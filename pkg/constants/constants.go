@@ -305,7 +305,7 @@ const (
 	CopilotSDKLLMGatewayPort = 10002
 
 	// CopilotLLMGatewayPort is the port for the Copilot LLM gateway
-	CopilotLLMGatewayPort = 10003
+	CopilotLLMGatewayPort = 10002
 )
 
 // DefaultMCPRegistryURL is the default MCP registry URL.
