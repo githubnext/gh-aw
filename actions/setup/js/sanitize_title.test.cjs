@@ -157,12 +157,36 @@ describe("sanitize_title", () => {
 
     it("should trim inputs", () => {
       // applyTitlePrefix should use titlePrefix as-is, but the title is trimmed
+      // When prefix ends with ], space is added automatically
       expect(applyTitlePrefix("  Fix bug  ", "  [Agent]  ")).toBe("  [Agent]  Fix bug");
+      // When prefix ends with ], space is added even if prefix has leading spaces
+      expect(applyTitlePrefix("  Fix bug  ", "  [Agent]")).toBe("  [Agent] Fix bug");
     });
 
     it("should handle empty title", () => {
       expect(applyTitlePrefix("", "[Agent] ")).toBe("");
       expect(applyTitlePrefix("   ", "[Agent] ")).toBe("");
+    });
+
+    it("should add space after prefix ending with ]", () => {
+      expect(applyTitlePrefix("Fix bug", "[Agent]")).toBe("[Agent] Fix bug");
+      expect(applyTitlePrefix("Update docs", "[WIP]")).toBe("[WIP] Update docs");
+      expect(applyTitlePrefix("Contribution Check", "[Contribution Check Report]")).toBe("[Contribution Check Report] Contribution Check");
+    });
+
+    it("should add space after prefix ending with -", () => {
+      expect(applyTitlePrefix("Fix bug", "Agent-")).toBe("Agent- Fix bug");
+      expect(applyTitlePrefix("Update docs", "WIP-")).toBe("WIP- Update docs");
+    });
+
+    it("should not add extra space if prefix already has trailing space", () => {
+      expect(applyTitlePrefix("Fix bug", "[Agent] ")).toBe("[Agent] Fix bug");
+      expect(applyTitlePrefix("Update docs", "Agent- ")).toBe("Agent- Update docs");
+    });
+
+    it("should not add space if prefix ends with other characters", () => {
+      expect(applyTitlePrefix("Fix bug", "Agent:")).toBe("Agent:Fix bug");
+      expect(applyTitlePrefix("Update docs", "🤖")).toBe("🤖Update docs");
     });
   });
 

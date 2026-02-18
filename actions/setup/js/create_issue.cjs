@@ -167,7 +167,8 @@ async function findOrCreateParentIssue({ groupId, owner, repo, titlePrefix, labe
  * @returns {object} - Template with title and body
  */
 function createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowSourceURL, expiresHours = 0) {
-  const title = `${titlePrefix}${groupId} - Issue Group`;
+  // Use applyTitlePrefix to ensure proper spacing after prefix
+  const title = applyTitlePrefix(`${groupId} - Issue Group`, titlePrefix);
 
   // Load issue template
   const issueTemplatePath = "/opt/gh-aw/prompts/issue_group_parent.md";
