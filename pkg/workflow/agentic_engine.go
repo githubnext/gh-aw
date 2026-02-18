@@ -279,6 +279,24 @@ func (e *BaseEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string
 	return []string{}
 }
 
+// ParseLogMetrics provides a default no-op implementation for log parsing
+// Engines can override this to provide detailed log parsing and metrics extraction
+func (e *BaseEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
+	return LogMetrics{}
+}
+
+// GetLogParserScriptId returns empty string by default (no JavaScript parser)
+// Engines can override this to provide a JavaScript parser for log analysis
+func (e *BaseEngine) GetLogParserScriptId() string {
+	return ""
+}
+
+// RenderMCPConfig provides a default no-op implementation for MCP configuration
+// Engines can override this to provide custom MCP server configuration
+func (e *BaseEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
+	// Default implementation does nothing - engines that support MCP should override this
+}
+
 // convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
 // This is a shared implementation inherited by all engines that embed BaseEngine
 func (e *BaseEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
@@ -307,6 +325,7 @@ func NewEngineRegistry() *EngineRegistry {
 	registry.Register(NewClaudeEngine())
 	registry.Register(NewCodexEngine())
 	registry.Register(NewCopilotEngine())
+	registry.Register(NewCustomEngine())
 
 	agenticEngineLog.Printf("Registered %d engines", len(registry.engines))
 	return registry
