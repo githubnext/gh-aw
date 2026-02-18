@@ -171,14 +171,19 @@ gh aw secrets set MY_SECRET --value-from-env MY_TOKEN          # From env var
 
 ##### `secrets bootstrap`
 
-Check token configuration and print setup instructions for missing secrets (read-only).
+Analyze workflows to determine required secrets and interactively prompt for missing ones. Auto-detects engines in use and validates tokens before uploading to the repository.
 
 ```bash wrap
-gh aw secrets bootstrap --engine copilot   # Check Copilot tokens
-gh aw secrets bootstrap --engine claude    # Check Claude tokens
+gh aw secrets bootstrap                                  # Analyze all workflows and prompt for missing secrets
+gh aw secrets bootstrap --engine copilot                 # Check only Copilot secrets
+gh aw secrets bootstrap --non-interactive                # Display missing secrets without prompting
 ```
 
-**Options:** `--engine` (copilot, claude, codex), `--owner`, `--repo`
+**Workflow-based discovery**: Scans `.github/workflows/*.md` to identify engines in use, collects the union of required secrets across all workflows, and filters out optional secrets. Only shows secrets that are actually needed based on your workflow configuration.
+
+**Interactive prompting**: For each missing required secret, prompts for the value, validates the token, and uploads it to the repository. Use `--non-interactive` to display missing secrets without prompting (display-only mode).
+
+**Options:** `--engine` (copilot, claude, codex), `--non-interactive`, `--owner`, `--repo`
 
 See [Authentication](/gh-aw/reference/auth/) for details.
 
