@@ -108,9 +108,12 @@ func runTokensBootstrap(engine, owner, repo string, nonInteractive bool) error {
 		}
 	}
 
+	// Always display summary table of all required secrets with their status
+	displaySecretsSummaryTable(requirements, existingSecrets)
+
 	if len(missing) == 0 {
 		tokensBootstrapLog.Print("All required secrets present")
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All required secrets for workflows in this repository are present."))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All required secrets are configured."))
 		return nil
 	}
 
@@ -118,7 +121,7 @@ func runTokensBootstrap(engine, owner, repo string, nonInteractive bool) error {
 
 	// In non-interactive mode, just display what's missing
 	if nonInteractive {
-		DisplayMissingSecrets(missing, repoSlug, existingSecrets)
+		displayMissingSecrets(missing, repoSlug, existingSecrets)
 		return nil
 	}
 

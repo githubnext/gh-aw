@@ -754,7 +754,7 @@ var SystemSecrets = []SystemSecretSpec{
 		Name:        "GH_AW_GITHUB_TOKEN",
 		WhenNeeded:  "Cross-repo Project Ops / remote GitHub tools",
 		Description: "Fine-grained or classic PAT with contents/issues/pull-requests read+write on the repos gh-aw will touch.",
-		Optional:    false,
+		Optional:    true,
 	},
 	{
 		Name:        "GH_AW_AGENT_TOKEN",

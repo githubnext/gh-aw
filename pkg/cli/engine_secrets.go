@@ -545,8 +545,8 @@ func GetEngineSecretNameAndValue(engine string, existingSecrets map[string]bool)
 	return secretName, value, false, nil
 }
 
-// DisplayMissingSecrets shows information about missing secrets with setup instructions
-func DisplayMissingSecrets(requirements []SecretRequirement, repoSlug string, existingSecrets map[string]bool) {
+// displayMissingSecrets shows information about missing secrets with setup instructions
+func displayMissingSecrets(requirements []SecretRequirement, repoSlug string, existingSecrets map[string]bool) {
 	var requiredMissing, optionalMissing []SecretRequirement
 
 	for _, req := range requirements {
@@ -600,7 +600,71 @@ func DisplayMissingSecrets(requirements []SecretRequirement, repoSlug string, ex
 	}
 
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("For detailed token behavior and precedence, see the GitHub Tokens reference in the documentation."))
+}
+
+// displaySecretsSummaryTable displays a summary table of all required secrets with their status
+func displaySecretsSummaryTable(requirements []SecretRequirement, existingSecrets map[string]bool) {
+	// Filter to only required secrets (not optional)
+	var requiredOnly []SecretRequirement
+	for _, req := range requirements {
+		if !req.Optional {
+			requiredOnly = append(requiredOnly, req)
+		}
+	}
+
+	// If no required secrets, don't show the table
+	if len(requiredOnly) == 0 {
+		return
+	}
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Required secrets summary:"))
+	fmt.Fprintln(os.Stderr, "")
+
+	// Calculate max width for alignment
+	maxNameWidth := 0
+	for _, req := range requiredOnly {
+		if len(req.Name) > maxNameWidth {
+			maxNameWidth = len(req.Name)
+		}
+	}
+
+	// Display each required secret with status
+	for _, req := range requiredOnly {
+		// Check if secret exists
+		exists := existingSecrets[req.Name]
+		var altUsed string
+		if !exists {
+			// Check alternatives
+			for _, alt := range req.AlternativeEnvVars {
+				if existingSecrets[alt] {
+					exists = true
+					altUsed = alt
+					break
+				}
+			}
+		}
+
+		// Format status indicator
+		var statusLine string
+		if exists {
+			if altUsed != "" {
+				statusLine = console.FormatSuccessMessage(fmt.Sprintf("(via %s)", altUsed))
+			} else {
+				statusLine = console.FormatSuccessMessage("")
+			}
+		} else {
+			statusLine = console.FormatErrorMessage("")
+		}
+
+		// Format secret name with padding
+		nameWithPadding := fmt.Sprintf("%-*s", maxNameWidth, req.Name)
+		
+		// Display the line
+		fmt.Fprintf(os.Stderr, "  %s %s - %s\n", statusLine, nameWithPadding, req.WhenNeeded)
+	}
+
+	fmt.Fprintln(os.Stderr, "")
 }
 
 // splitRepoSlug splits "owner/repo" into [owner, repo]
