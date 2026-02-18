@@ -409,3 +409,186 @@ func TestGetEngineSecretNameAndValue(t *testing.T) {
 		assert.True(t, existsInRepo, "Should indicate secret exists in repo")
 	})
 }
+
+func TestGetMissingRequiredSecrets(t *testing.T) {
+	t.Run("all secrets missing", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{Name: "SECRET1", Optional: false},
+			{Name: "SECRET2", Optional: false},
+			{Name: "SECRET3", Optional: false},
+		}
+		existingSecrets := map[string]bool{}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Len(t, missing, 3, "Should have 3 missing secrets")
+		assert.Equal(t, "SECRET1", missing[0].Name)
+		assert.Equal(t, "SECRET2", missing[1].Name)
+		assert.Equal(t, "SECRET3", missing[2].Name)
+	})
+
+	t.Run("all secrets exist", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{Name: "SECRET1", Optional: false},
+			{Name: "SECRET2", Optional: false},
+		}
+		existingSecrets := map[string]bool{
+			"SECRET1": true,
+			"SECRET2": true,
+		}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Empty(t, missing, "Should have no missing secrets")
+	})
+
+	t.Run("some secrets missing", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{Name: "SECRET1", Optional: false},
+			{Name: "SECRET2", Optional: false},
+			{Name: "SECRET3", Optional: false},
+		}
+		existingSecrets := map[string]bool{
+			"SECRET1": true,
+		}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Len(t, missing, 2, "Should have 2 missing secrets")
+		assert.Equal(t, "SECRET2", missing[0].Name)
+		assert.Equal(t, "SECRET3", missing[1].Name)
+	})
+
+	t.Run("optional secrets are skipped", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{Name: "REQUIRED1", Optional: false},
+			{Name: "OPTIONAL1", Optional: true},
+			{Name: "REQUIRED2", Optional: false},
+			{Name: "OPTIONAL2", Optional: true},
+		}
+		existingSecrets := map[string]bool{}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Len(t, missing, 2, "Should only include required secrets")
+		assert.Equal(t, "REQUIRED1", missing[0].Name)
+		assert.Equal(t, "REQUIRED2", missing[1].Name)
+	})
+
+	t.Run("alternative secret names work", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{
+				Name:               "PRIMARY_SECRET",
+				Optional:           false,
+				AlternativeEnvVars: []string{"ALT_SECRET1", "ALT_SECRET2"},
+			},
+			{Name: "OTHER_SECRET", Optional: false},
+		}
+		existingSecrets := map[string]bool{
+			"ALT_SECRET1": true, // Alternative exists
+		}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Len(t, missing, 1, "Should have 1 missing secret")
+		assert.Equal(t, "OTHER_SECRET", missing[0].Name, "Should not include PRIMARY_SECRET since alternative exists")
+	})
+
+	t.Run("alternative secret names - second alternative", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{
+				Name:               "PRIMARY_SECRET",
+				Optional:           false,
+				AlternativeEnvVars: []string{"ALT_SECRET1", "ALT_SECRET2"},
+			},
+		}
+		existingSecrets := map[string]bool{
+			"ALT_SECRET2": true, // Second alternative exists
+		}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Empty(t, missing, "Should find second alternative")
+	})
+
+	t.Run("primary secret takes precedence over alternatives", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{
+				Name:               "PRIMARY_SECRET",
+				Optional:           false,
+				AlternativeEnvVars: []string{"ALT_SECRET"},
+			},
+		}
+		existingSecrets := map[string]bool{
+			"PRIMARY_SECRET": true,
+			"ALT_SECRET":     true,
+		}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Empty(t, missing, "Should not include secret when primary exists")
+	})
+
+	t.Run("empty requirements list", func(t *testing.T) {
+		requirements := []SecretRequirement{}
+		existingSecrets := map[string]bool{
+			"SECRET1": true,
+		}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Empty(t, missing, "Should return empty list for empty requirements")
+	})
+
+	t.Run("empty existing secrets map", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{Name: "SECRET1", Optional: false},
+			{Name: "SECRET2", Optional: false},
+		}
+		existingSecrets := map[string]bool{}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Len(t, missing, 2, "Should return all required secrets as missing")
+	})
+
+	t.Run("nil existing secrets map", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{Name: "SECRET1", Optional: false},
+		}
+		var existingSecrets map[string]bool // nil map
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Len(t, missing, 1, "Should handle nil map and return all as missing")
+	})
+
+	t.Run("mixed required and optional with alternatives", func(t *testing.T) {
+		requirements := []SecretRequirement{
+			{
+				Name:               "COPILOT_GITHUB_TOKEN",
+				Optional:           false,
+				IsEngineSecret:     true,
+				AlternativeEnvVars: []string{"GITHUB_TOKEN"},
+			},
+			{
+				Name:     "GH_AW_GITHUB_TOKEN",
+				Optional: true,
+			},
+			{
+				Name:               "ANTHROPIC_API_KEY",
+				Optional:           false,
+				IsEngineSecret:     true,
+				AlternativeEnvVars: []string{"CLAUDE_API_KEY"},
+			},
+		}
+		existingSecrets := map[string]bool{
+			"GITHUB_TOKEN": true, // Alternative for COPILOT_GITHUB_TOKEN
+		}
+
+		missing := getMissingRequiredSecrets(requirements, existingSecrets)
+
+		assert.Len(t, missing, 1, "Should have 1 missing required secret")
+		assert.Equal(t, "ANTHROPIC_API_KEY", missing[0].Name, "Should only include ANTHROPIC_API_KEY")
+	})
+}

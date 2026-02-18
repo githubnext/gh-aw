@@ -101,6 +101,33 @@ func getEngineSecretDescription(opt *constants.EngineOption) string {
 	}
 }
 
+// getMissingRequiredSecrets filters requirements to return only missing required secrets.
+// It skips optional secrets and checks both primary and alternative secret names.
+func getMissingRequiredSecrets(requirements []SecretRequirement, existingSecrets map[string]bool) []SecretRequirement {
+	var missing []SecretRequirement
+	for _, req := range requirements {
+		// Skip optional secrets - we only care about required ones
+		if req.Optional {
+			continue
+		}
+
+		exists := existingSecrets[req.Name]
+		if !exists {
+			// Check alternatives
+			for _, alt := range req.AlternativeEnvVars {
+				if existingSecrets[alt] {
+					exists = true
+					break
+				}
+			}
+		}
+		if !exists {
+			missing = append(missing, req)
+		}
+	}
+	return missing
+}
+
 // checkAndEnsureEngineSecretsForEngine is the unified entry point for checking and collecting engine secrets.
 // It checks existing secrets in the repository and environment, and prompts for missing ones.
 func checkAndEnsureEngineSecretsForEngine(config EngineSecretConfig) error {
@@ -418,8 +445,8 @@ func stringContainsSecretName(output, secretName string) bool {
 	return false
 }
 
-// CheckExistingSecretsInRepo checks which secrets exist in the repository
-func CheckExistingSecretsInRepo(repoSlug string) (map[string]bool, error) {
+// getExistingSecretsInRepo checks which secrets exist in the repository
+func getExistingSecretsInRepo(repoSlug string) (map[string]bool, error) {
 	engineSecretsLog.Printf("Checking existing secrets for repo: %s", repoSlug)
 
 	existingSecrets := make(map[string]bool)

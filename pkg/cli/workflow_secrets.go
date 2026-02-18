@@ -50,7 +50,7 @@ func getSecretsRequirementsForWorkflows(workflowFiles []string) []SecretRequirem
 // NOTE: In future we will want to analyse more parts of the
 // workflow to work out other secrets required, or detect that the particular
 // authorization being used in a workflow means certain secrets are not required.
-// FOr now we are only looking at the secrets implied by the engine used.
+// For now we are only looking at the secrets implied by the engine used.
 func getSecretRequirementsForWorkflow(workflowFile string) []SecretRequirement {
 	workflowSecretsLog.Printf("Extracting secrets for workflow: %s", workflowFile)
 
@@ -65,5 +65,5 @@ func getSecretRequirementsForWorkflow(workflowFile string) []SecretRequirement {
 
 	// Get engine-specific secrets only (no system secrets, no optional)
 	// System secrets will be added separately to avoid duplication
-	return getSecretRequirementsForEngine(engine, false, false)
+	return getSecretRequirementsForEngine(engine, true, true)
 }

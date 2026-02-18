@@ -72,7 +72,7 @@ func runTokensBootstrap(engine, repo string, nonInteractive bool) error {
 	tokensBootstrapLog.Printf("Collected %d required secrets from workflows", len(requirements))
 
 	// Check existing secrets in repository
-	existingSecrets, err := CheckExistingSecretsInRepo(repoSlug)
+	existingSecrets, err := getExistingSecretsInRepo(repoSlug)
 	if err != nil {
 		// If we can't check existing secrets (e.g., no gh auth), continue with empty map
 		tokensBootstrapLog.Printf("Could not check existing secrets: %v", err)
@@ -80,29 +80,8 @@ func runTokensBootstrap(engine, repo string, nonInteractive bool) error {
 		existingSecrets = make(map[string]bool)
 	}
 
-	// Filter to only required secrets (not optional)
-	// Check which secrets are missing
-	var missing []SecretRequirement
-	for _, req := range requirements {
-		// Skip optional secrets - we only care about required ones
-		if req.Optional {
-			continue
-		}
-
-		exists := existingSecrets[req.Name]
-		if !exists {
-			// Check alternatives
-			for _, alt := range req.AlternativeEnvVars {
-				if existingSecrets[alt] {
-					exists = true
-					break
-				}
-			}
-		}
-		if !exists {
-			missing = append(missing, req)
-		}
-	}
+	// Filter to only required secrets that are missing
+	missing := getMissingRequiredSecrets(requirements, existingSecrets)
 
 	// Always display summary table of all required secrets with their status
 	displaySecretsSummaryTable(requirements, existingSecrets)
