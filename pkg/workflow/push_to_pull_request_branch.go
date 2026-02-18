@@ -29,6 +29,8 @@ type PushToPullRequestBranchConfig struct {
 //   - customToken: optional custom GitHub token for authentication
 //     If empty, uses default GH_AW_GITHUB_TOKEN || GITHUB_TOKEN fallback
 func buildCheckoutRepository(steps []string, c *Compiler, targetRepoSlug string, customToken string) []string {
+	pushToPullRequestBranchLog.Printf("Building checkout repository step: targetRepo=%s, trialMode=%t", targetRepoSlug, c.trialMode)
+
 	steps = append(steps, "      - name: Checkout repository\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 	steps = append(steps, "        with:\n")
@@ -38,10 +40,12 @@ func buildCheckoutRepository(steps []string, c *Compiler, targetRepoSlug string,
 	effectiveTargetRepo := targetRepoSlug
 	if c.trialMode && c.trialLogicalRepoSlug != "" {
 		effectiveTargetRepo = c.trialLogicalRepoSlug
+		pushToPullRequestBranchLog.Printf("Trial mode: using logical repo slug: %s", effectiveTargetRepo)
 	}
 
 	// Set repository parameter if we're checking out a different repo
 	if effectiveTargetRepo != "" {
+		pushToPullRequestBranchLog.Printf("Checking out non-default repository: %s", effectiveTargetRepo)
 		steps = append(steps, fmt.Sprintf("          repository: %s\n", effectiveTargetRepo))
 	}
 
@@ -55,6 +59,7 @@ func buildCheckoutRepository(steps []string, c *Compiler, targetRepoSlug string,
 		if token == "" {
 			token = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
 		}
+		pushToPullRequestBranchLog.Printf("Adding authentication token to checkout step (customToken=%t)", customToken != "")
 		steps = append(steps, fmt.Sprintf("          token: %s\n", token))
 	}
 

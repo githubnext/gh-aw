@@ -82,6 +82,8 @@ func parseLabelTriggerShorthand(input string) (entityType string, labelNames []s
 // Note: GitHub Actions doesn't support native label filtering for any event type,
 // so all labels are filtered via job conditions using the internal `names` field.
 func expandLabelTriggerShorthand(entityType string, labelNames []string) map[string]any {
+	labelTriggerParserLog.Printf("Expanding label trigger shorthand: entity=%s, labels=%v", entityType, labelNames)
+
 	// Create the trigger configuration based on entity type
 	var triggerKey string
 	switch entityType {
@@ -92,6 +94,7 @@ func expandLabelTriggerShorthand(entityType string, labelNames []string) map[str
 	case "discussion":
 		triggerKey = "discussion"
 	default:
+		labelTriggerParserLog.Printf("Unknown entity type %q, defaulting to issues trigger key", entityType)
 		triggerKey = "issues" // Default to issues (though this shouldn't happen with our parser)
 	}
 
@@ -119,6 +122,7 @@ func expandLabelTriggerShorthand(entityType string, labelNames []string) map[str
 		},
 	}
 
+	labelTriggerParserLog.Printf("Expanded to trigger key=%s with %d label(s) and workflow_dispatch", triggerKey, len(labelNames))
 	return map[string]any{
 		triggerKey:          triggerConfig,
 		"workflow_dispatch": workflowDispatchConfig,

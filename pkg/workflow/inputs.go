@@ -69,6 +69,7 @@ func ParseInputDefinition(inputConfig map[string]any) *InputDefinition {
 		}
 	}
 
+	inputsLog.Printf("Parsed input definition: type=%s, required=%t, options=%d", input.Type, input.Required, len(input.Options))
 	return input
 }
 

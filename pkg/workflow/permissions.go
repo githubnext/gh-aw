@@ -10,44 +10,50 @@ var permissionsLog = logger.New("workflow:permissions")
 
 // convertStringToPermissionScope converts a string key to a PermissionScope
 func convertStringToPermissionScope(key string) PermissionScope {
-	switch key {
-	case "actions":
-		return PermissionActions
-	case "attestations":
-		return PermissionAttestations
-	case "checks":
-		return PermissionChecks
-	case "contents":
-		return PermissionContents
-	case "deployments":
-		return PermissionDeployments
-	case "discussions":
-		return PermissionDiscussions
-	case "id-token":
-		return PermissionIdToken
-	case "issues":
-		return PermissionIssues
-	case "metadata":
-		return PermissionMetadata
-	case "models":
-		return PermissionModels
-	case "packages":
-		return PermissionPackages
-	case "pages":
-		return PermissionPages
-	case "pull-requests":
-		return PermissionPullRequests
-	case "repository-projects":
-		return PermissionRepositoryProj
-	case "organization-projects":
-		return PermissionOrganizationProj
-	case "security-events":
-		return PermissionSecurityEvents
-	case "statuses":
-		return PermissionStatuses
-	default:
-		return ""
+	scope := func() PermissionScope {
+		switch key {
+		case "actions":
+			return PermissionActions
+		case "attestations":
+			return PermissionAttestations
+		case "checks":
+			return PermissionChecks
+		case "contents":
+			return PermissionContents
+		case "deployments":
+			return PermissionDeployments
+		case "discussions":
+			return PermissionDiscussions
+		case "id-token":
+			return PermissionIdToken
+		case "issues":
+			return PermissionIssues
+		case "metadata":
+			return PermissionMetadata
+		case "models":
+			return PermissionModels
+		case "packages":
+			return PermissionPackages
+		case "pages":
+			return PermissionPages
+		case "pull-requests":
+			return PermissionPullRequests
+		case "repository-projects":
+			return PermissionRepositoryProj
+		case "organization-projects":
+			return PermissionOrganizationProj
+		case "security-events":
+			return PermissionSecurityEvents
+		case "statuses":
+			return PermissionStatuses
+		default:
+			return ""
+		}
+	}()
+	if scope == "" {
+		permissionsLog.Printf("Unknown permission scope key: %s", key)
 	}
+	return scope
 }
 
 // ContainsCheckout returns true if the given custom steps contain an actions/checkout step

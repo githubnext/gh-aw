@@ -24,6 +24,8 @@ func UnfenceMarkdown(content string) string {
 		return content
 	}
 
+	markdownUnfencingLog.Printf("Checking content for outer markdown fence (%d bytes)", len(content))
+
 	// Trim leading/trailing whitespace for analysis
 	trimmed := strings.TrimSpace(content)
 
@@ -81,8 +83,11 @@ func UnfenceMarkdown(content string) string {
 
 	if !isMarkdownFence {
 		// Not a markdown fence, return original content
+		markdownUnfencingLog.Print("No outer markdown fence detected, returning content unchanged")
 		return content
 	}
+
+	markdownUnfencingLog.Printf("Detected opening markdown fence: char=%q, length=%d", fenceChar, fenceLength)
 
 	// Check if last line is a matching closing fence
 	// Must have at least as many fence characters as the opening fence
@@ -119,6 +124,7 @@ func UnfenceMarkdown(content string) string {
 
 	if !isClosingFence {
 		// No matching closing fence, return original content
+		markdownUnfencingLog.Print("No matching closing fence found, returning content unchanged")
 		return content
 	}
 
