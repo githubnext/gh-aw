@@ -381,7 +381,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "gpt-5",
               version: "",
-              agent_version: "0.0.410",
+              agent_version: "0.0.411",
               workflow_name: "Poem Bot - A Creative Agentic Workflow",
               experimental: false,
               supports_tools_allowlist: true,
@@ -418,7 +418,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.410
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.411
       - name: Install awf binary
         run: bash /opt/gh-aw/actions/install_awf_binary.sh v0.20.0
       - name: Determine automatic lockdown mode for GitHub MCP Server
@@ -1637,7 +1637,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       - name: Install GitHub Copilot CLI
-        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.410
+        run: /opt/gh-aw/actions/install_copilot_cli.sh 0.0.411
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
