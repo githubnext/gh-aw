@@ -35,7 +35,7 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 		}
 	})
 
-	t.Run("Copilot AWF command does not include enable-api-proxy flag (returns -1)", func(t *testing.T) {
+	t.Run("Copilot AWF command includes enable-api-proxy flag (supports LLM gateway)", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
@@ -57,8 +57,8 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		if strings.Contains(stepContent, "--enable-api-proxy") {
-			t.Error("Expected Copilot AWF command to NOT contain '--enable-api-proxy' flag")
+		if !strings.Contains(stepContent, "--enable-api-proxy") {
+			t.Error("Expected Copilot AWF command to contain '--enable-api-proxy' flag")
 		}
 	})
 
