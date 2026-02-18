@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -177,7 +178,7 @@ engine: copilot
 on: push
 ---
 # Copilot Workflow`
-			path := filepath.Join(workflowsDir, filepath.Base(tempDir)+"-workflow.md")
+			path := filepath.Join(workflowsDir, fmt.Sprintf("copilot-workflow-%d.md", i))
 			err := os.WriteFile(path, []byte(content), 0644)
 			require.NoError(t, err, "Should write workflow file")
 			workflowFiles = append(workflowFiles, path)
