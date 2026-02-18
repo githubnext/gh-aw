@@ -264,3 +264,238 @@ This workflow uses Copilot.`
 	assert.Contains(t, secretCounts, "GH_AW_GITHUB_TOKEN", "Should include system token")
 	assert.Contains(t, secretCounts, "COPILOT_GITHUB_TOKEN", "Should include Copilot token")
 }
+func TestGetRequiredEnginesForWorkflows(t *testing.T) {
+	t.Run("discovers engines from multiple workflows", func(t *testing.T) {
+		// Create a temporary directory with test workflow files
+		tempDir := t.TempDir()
+		workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+		err := os.MkdirAll(workflowsDir, 0755)
+		require.NoError(t, err)
+
+		// Create test workflow files with different engines
+		testWorkflows := map[string]string{
+			"copilot-workflow.md": `---
+engine: copilot
+on: push
+---
+# Copilot Workflow`,
+			"claude-workflow.md": `---
+engine: claude
+on: pull_request
+---
+# Claude Workflow`,
+			"codex-workflow.md": `---
+engine: codex
+on: workflow_dispatch
+---
+# Codex Workflow`,
+		}
+
+		for filename, content := range testWorkflows {
+			path := filepath.Join(workflowsDir, filename)
+			err := os.WriteFile(path, []byte(content), 0644)
+			require.NoError(t, err)
+		}
+
+		// Save original directory and change to temp directory
+		originalDir, err := os.Getwd()
+		require.NoError(t, err)
+		defer func() {
+			_ = os.Chdir(originalDir)
+		}()
+
+		err = os.Chdir(tempDir)
+		require.NoError(t, err)
+
+		engines, err := getRequiredEnginesForWorkflows()
+
+		require.NoError(t, err, "Should successfully discover engines")
+		require.Len(t, engines, 3, "Should find 3 unique engines")
+
+		// Convert to map for easy checking
+		engineMap := make(map[string]bool)
+		for _, engine := range engines {
+			engineMap[engine] = true
+		}
+
+		assert.True(t, engineMap["copilot"], "Should include copilot engine")
+		assert.True(t, engineMap["claude"], "Should include claude engine")
+		assert.True(t, engineMap["codex"], "Should include codex engine")
+	})
+
+	t.Run("deduplicates duplicate engines", func(t *testing.T) {
+		tempDir := t.TempDir()
+		workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+		err := os.MkdirAll(workflowsDir, 0755)
+		require.NoError(t, err)
+
+		// Create multiple workflows using the same engine
+		for i := 1; i <= 3; i++ {
+			content := `---
+engine: copilot
+on: push
+---
+# Copilot Workflow`
+			path := filepath.Join(workflowsDir, fmt.Sprintf("workflow-%d.md", i))
+			err := os.WriteFile(path, []byte(content), 0644)
+			require.NoError(t, err)
+		}
+
+		originalDir, err := os.Getwd()
+		require.NoError(t, err)
+		defer func() { _ = os.Chdir(originalDir) }()
+
+		err = os.Chdir(tempDir)
+		require.NoError(t, err)
+
+		engines, err := getRequiredEnginesForWorkflows()
+
+		require.NoError(t, err, "Should successfully discover engines")
+		assert.Len(t, engines, 1, "Should deduplicate to 1 unique engine")
+		assert.Equal(t, "copilot", engines[0], "Should be copilot engine")
+	})
+
+	t.Run("fails when no workflows directory", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		originalDir, err := os.Getwd()
+		require.NoError(t, err)
+		defer func() { _ = os.Chdir(originalDir) }()
+
+		err = os.Chdir(tempDir)
+		require.NoError(t, err)
+
+		_, err = getRequiredEnginesForWorkflows()
+
+		assert.Error(t, err, "Should error when no workflows directory")
+		assert.Contains(t, err.Error(), "failed to discover workflows", "Error should mention workflow discovery")
+	})
+
+	t.Run("fails when workflows directory is empty", func(t *testing.T) {
+		tempDir := t.TempDir()
+		workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+		err := os.MkdirAll(workflowsDir, 0755)
+		require.NoError(t, err)
+
+		originalDir, err := os.Getwd()
+		require.NoError(t, err)
+		defer func() { _ = os.Chdir(originalDir) }()
+
+		err = os.Chdir(tempDir)
+		require.NoError(t, err)
+
+		_, err = getRequiredEnginesForWorkflows()
+
+		assert.Error(t, err, "Should error when no workflow files found")
+		assert.Contains(t, err.Error(), "no workflow files found", "Error should mention no workflow files")
+	})
+}
+
+func TestExtractEnginesFromWorkflows(t *testing.T) {
+	// Create a temporary directory for test workflow files
+	tempDir := t.TempDir()
+	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	err := os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err)
+
+	t.Run("extracts multiple unique engines", func(t *testing.T) {
+		// Create test workflow files
+		testWorkflows := map[string]string{
+			"copilot-workflow.md": `---
+engine: copilot
+on: push
+---
+# Copilot Workflow`,
+			"claude-workflow.md": `---
+engine: claude
+on: pull_request
+---
+# Claude Workflow`,
+			"codex-workflow.md": `---
+engine: codex
+on: workflow_dispatch
+---
+# Codex Workflow`,
+		}
+
+		var workflowFiles []string
+		for filename, content := range testWorkflows {
+			path := filepath.Join(workflowsDir, filename)
+			err := os.WriteFile(path, []byte(content), 0644)
+			require.NoError(t, err)
+			workflowFiles = append(workflowFiles, path)
+		}
+
+		engines := extractEnginesFromWorkflows(workflowFiles)
+
+		require.Len(t, engines, 3, "Should extract 3 unique engines")
+
+		// Convert to map for easy checking
+		engineMap := make(map[string]bool)
+		for _, engine := range engines {
+			engineMap[engine] = true
+		}
+
+		assert.True(t, engineMap["copilot"], "Should include copilot engine")
+		assert.True(t, engineMap["claude"], "Should include claude engine")
+		assert.True(t, engineMap["codex"], "Should include codex engine")
+	})
+
+	t.Run("deduplicates duplicate engines", func(t *testing.T) {
+		// Create multiple workflows with the same engine
+		var workflowFiles []string
+		for i := 1; i <= 3; i++ {
+			path := filepath.Join(workflowsDir, fmt.Sprintf("copilot-%d.md", i))
+			content := `---
+engine: copilot
+on: push
+---
+# Copilot Workflow`
+			err := os.WriteFile(path, []byte(content), 0644)
+			require.NoError(t, err)
+			workflowFiles = append(workflowFiles, path)
+		}
+
+		engines := extractEnginesFromWorkflows(workflowFiles)
+
+		assert.Len(t, engines, 1, "Should deduplicate to 1 unique engine")
+		assert.Equal(t, "copilot", engines[0], "Should be copilot engine")
+	})
+
+	t.Run("handles empty workflow list", func(t *testing.T) {
+		engines := extractEnginesFromWorkflows([]string{})
+
+		assert.Empty(t, engines, "Should return empty slice for empty input")
+	})
+
+	t.Run("filters subset of workflows", func(t *testing.T) {
+		// Create workflows with different engines
+		copilotPath := filepath.Join(workflowsDir, "copilot-only.md")
+		err := os.WriteFile(copilotPath, []byte(`---
+engine: copilot
+on: push
+---
+# Copilot`), 0644)
+		require.NoError(t, err)
+
+		claudePath := filepath.Join(workflowsDir, "claude-only.md")
+		err = os.WriteFile(claudePath, []byte(`---
+engine: claude
+on: push
+---
+# Claude`), 0644)
+		require.NoError(t, err)
+
+		// Extract engines from only the copilot workflow
+		engines := extractEnginesFromWorkflows([]string{copilotPath})
+
+		assert.Len(t, engines, 1, "Should extract only 1 engine")
+		assert.Equal(t, "copilot", engines[0], "Should be copilot engine")
+
+		// Extract engines from only the claude workflow
+		engines = extractEnginesFromWorkflows([]string{claudePath})
+
+		assert.Len(t, engines, 1, "Should extract only 1 engine")
+		assert.Equal(t, "claude", engines[0], "Should be claude engine")
+	})
+}

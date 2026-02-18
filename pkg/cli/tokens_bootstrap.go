@@ -153,8 +153,21 @@ func collectRequiredSecretsFromWorkflows(engineFilter string) ([]SecretRequireme
 	// If engine is explicitly specified, we can bootstrap without workflows
 	if engineFilter != "" {
 		tokensBootstrapLog.Printf("Engine explicitly specified, bootstrapping for %s regardless of workflows", engineFilter)
-		return CollectSecretsForEngines([]string{engineFilter}), nil
+		return getRequiredSecretsForEngines([]string{engineFilter}), nil
 	}
+
+	// Get engines from discovered workflows
+	engines, err := getRequiredEnginesForWorkflows()
+	if err != nil {
+		return nil, err
+	}
+
+	return getRequiredSecretsForEngines(engines), nil
+}
+
+// getRequiredEnginesForWorkflows discovers workflow files and returns unique engines used
+func getRequiredEnginesForWorkflows() ([]string, error) {
+	tokensBootstrapLog.Print("Discovering workflow files to extract engines")
 
 	// Discover workflow files
 	workflowFiles, err := getMarkdownWorkflowFiles("")
@@ -168,20 +181,5 @@ func collectRequiredSecretsFromWorkflows(engineFilter string) ([]SecretRequireme
 
 	tokensBootstrapLog.Printf("Found %d workflow files", len(workflowFiles))
 
-	// Collect unique engines used across workflows
-	engineSet := make(map[string]bool)
-	for _, file := range workflowFiles {
-		engine := extractEngineIDFromFile(file)
-		engineSet[engine] = true
-	}
-
-	tokensBootstrapLog.Printf("Found %d unique engines: %v", len(engineSet), engineSet)
-
-	// Convert engine set to slice
-	engines := make([]string, 0, len(engineSet))
-	for engine := range engineSet {
-		engines = append(engines, engine)
-	}
-
-	return CollectSecretsForEngines(engines), nil
+	return extractEnginesFromWorkflows(workflowFiles), nil
 }

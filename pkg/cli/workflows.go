@@ -254,3 +254,115 @@ func isWorkflowFile(filename string) bool {
 func filterWorkflowFiles(files []string) []string {
 	return sliceutil.Filter(files, isWorkflowFile)
 }
+
+// getMarkdownWorkflowFiles discovers markdown workflow files in the specified directory
+func getMarkdownWorkflowFiles(workflowDir string) ([]string, error) {
+	// Use provided directory or default
+	workflowsDir := workflowDir
+	if workflowsDir == "" {
+		workflowsDir = getWorkflowsDir()
+	}
+
+	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
+		return nil, fmt.Errorf("no %s directory found", workflowsDir)
+	}
+
+	// Find all markdown files in workflow directory
+	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to find workflow files: %w", err)
+	}
+
+	// Filter out README.md files
+	mdFiles = filterWorkflowFiles(mdFiles)
+
+	return mdFiles, nil
+}
+
+// extractWorkflowNameFromFile extracts the workflow name from a file's H1 header
+func extractWorkflowNameFromFile(filePath string) (string, error) {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	// Extract markdown content (excluding frontmatter)
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return "", err
+	}
+
+	// Look for first H1 header
+	lines := strings.Split(result.Markdown, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "# ") {
+			return strings.TrimSpace(line[2:]), nil
+		}
+	}
+
+	// No H1 header found, generate default name from filename
+	baseName := filepath.Base(filePath)
+	baseName = strings.TrimSuffix(baseName, filepath.Ext(baseName))
+	baseName = strings.ReplaceAll(baseName, "-", " ")
+
+	// Capitalize first letter of each word
+	words := strings.Fields(baseName)
+	for i, word := range words {
+		if len(word) > 0 {
+			words[i] = strings.ToUpper(word[:1]) + word[1:]
+		}
+	}
+
+	return strings.Join(words, " "), nil
+}
+
+// extractEngineIDFromFile extracts the engine ID from a workflow file's frontmatter
+func extractEngineIDFromFile(filePath string) string {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "" // Return empty string if file cannot be read
+	}
+
+	// Parse frontmatter
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return "" // Return empty string if frontmatter cannot be parsed
+	}
+
+	// Use the workflow package's extractEngineConfig to handle both string and object formats
+	compiler := &workflow.Compiler{}
+	engineSetting, engineConfig := compiler.ExtractEngineConfig(result.Frontmatter)
+
+	// If engine is specified, return the ID from the config
+	if engineConfig != nil && engineConfig.ID != "" {
+		return engineConfig.ID
+	}
+
+	// If we have an engine setting string, return it
+	if engineSetting != "" {
+		return engineSetting
+	}
+
+	return "copilot" // Default engine
+}
+
+// extractEnginesFromWorkflows extracts unique engines from a list of workflow files
+func extractEnginesFromWorkflows(workflowFiles []string) []string {
+	// Collect unique engines used across workflows
+	engineSet := make(map[string]bool)
+	for _, file := range workflowFiles {
+		engine := extractEngineIDFromFile(file)
+		engineSet[engine] = true
+	}
+
+	workflowsLog.Printf("Found %d unique engines: %v", len(engineSet), engineSet)
+
+	// Convert engine set to slice
+	engines := make([]string, 0, len(engineSet))
+	for engine := range engineSet {
+		engines = append(engines, engine)
+	}
+
+	return engines
+}

@@ -87,9 +87,9 @@ func GetRequiredSecretsForEngine(engine string, includeSystemSecrets bool, inclu
 	return requirements
 }
 
-// CollectSecretsForEngines collects and deduplicates secrets for multiple engines.
+// getRequiredSecretsForEngines collects and deduplicates secrets for multiple engines.
 // It always includes system secrets and deduplicates across all engines.
-func CollectSecretsForEngines(engines []string) []SecretRequirement {
+func getRequiredSecretsForEngines(engines []string) []SecretRequirement {
 	engineSecretsLog.Printf("Collecting secrets for %d engines: %v", len(engines), engines)
 
 	var allRequirements []SecretRequirement
@@ -529,7 +529,7 @@ func GetEngineSecretNameAndValue(engine string, existingSecrets map[string]bool)
 	if opt.EnvVarName != "" {
 		envVar = opt.EnvVarName
 	}
-	
+
 	value := os.Getenv(envVar)
 	if value == "" {
 		// Check alternative environment variables

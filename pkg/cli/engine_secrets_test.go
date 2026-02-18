@@ -308,7 +308,7 @@ func TestEngineSecretConfigStructure(t *testing.T) {
 }
 func TestCollectSecretsForEngines(t *testing.T) {
 	t.Run("single engine", func(t *testing.T) {
-		requirements := CollectSecretsForEngines([]string{"copilot"})
+		requirements := getRequiredSecretsForEngines([]string{"copilot"})
 
 		require.NotEmpty(t, requirements, "Should return secrets for copilot")
 
@@ -331,7 +331,7 @@ func TestCollectSecretsForEngines(t *testing.T) {
 	})
 
 	t.Run("multiple engines deduplicates secrets", func(t *testing.T) {
-		requirements := CollectSecretsForEngines([]string{"copilot", "claude", "codex"})
+		requirements := getRequiredSecretsForEngines([]string{"copilot", "claude", "codex"})
 
 		// Count occurrences of each secret
 		secretCounts := make(map[string]int)
@@ -352,7 +352,7 @@ func TestCollectSecretsForEngines(t *testing.T) {
 	})
 
 	t.Run("empty engines list returns only system secrets", func(t *testing.T) {
-		requirements := CollectSecretsForEngines([]string{})
+		requirements := getRequiredSecretsForEngines([]string{})
 
 		require.NotEmpty(t, requirements, "Should return at least system secrets")
 
@@ -373,7 +373,7 @@ func TestCollectSecretsForEngines(t *testing.T) {
 	})
 
 	t.Run("unknown engine is skipped", func(t *testing.T) {
-		requirements := CollectSecretsForEngines([]string{"unknown-engine"})
+		requirements := getRequiredSecretsForEngines([]string{"unknown-engine"})
 
 		require.NotEmpty(t, requirements, "Should return at least system secrets")
 
@@ -384,7 +384,7 @@ func TestCollectSecretsForEngines(t *testing.T) {
 	})
 
 	t.Run("mixed known and unknown engines", func(t *testing.T) {
-		requirements := CollectSecretsForEngines([]string{"copilot", "unknown-engine", "claude"})
+		requirements := getRequiredSecretsForEngines([]string{"copilot", "unknown-engine", "claude"})
 
 		// Should include copilot and claude secrets, but not unknown
 		hasCopilot := false
@@ -408,7 +408,7 @@ func TestCollectSecretsForEngines(t *testing.T) {
 	})
 
 	t.Run("duplicate engines in input are deduplicated", func(t *testing.T) {
-		requirements := CollectSecretsForEngines([]string{"copilot", "copilot", "copilot"})
+		requirements := getRequiredSecretsForEngines([]string{"copilot", "copilot", "copilot"})
 
 		// Count Copilot tokens
 		copilotCount := 0
