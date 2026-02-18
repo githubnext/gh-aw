@@ -24,6 +24,7 @@ type LockMetadata struct {
 	SchemaVersion   LockSchemaVersion `json:"schema_version"`
 	FrontmatterHash string            `json:"frontmatter_hash,omitempty"`
 	StopTime        string            `json:"stop_time,omitempty"`
+	CompilerVersion string            `json:"compiler_version,omitempty"`
 }
 
 // SupportedSchemaVersions lists all schema versions this build can consume
@@ -115,12 +116,20 @@ func formatSupportedVersions() string {
 }
 
 // GenerateLockMetadata creates a LockMetadata struct for embedding in lock files
+// For release builds, the compiler version is included in the metadata
 func GenerateLockMetadata(frontmatterHash string, stopTime string) *LockMetadata {
-	return &LockMetadata{
+	metadata := &LockMetadata{
 		SchemaVersion:   LockSchemaV1,
 		FrontmatterHash: frontmatterHash,
 		StopTime:        stopTime,
 	}
+
+	// Include compiler version only for release builds
+	if IsRelease() {
+		metadata.CompilerVersion = GetVersion()
+	}
+
+	return metadata
 }
 
 // ToJSON converts LockMetadata to a compact JSON string for embedding in comments

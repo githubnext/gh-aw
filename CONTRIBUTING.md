@@ -4,13 +4,16 @@ Thank you for your interest in contributing to GitHub Agentic Workflows! We welc
 
 **⚠️ IMPORTANT: This project requires agentic development using GitHub Copilot Agent. No local development environment is needed or expected.**
 
+**🚫 Traditional Pull Requests Are Not Enabled**: You cannot create pull requests directly. Instead, you create detailed agentic plans in issues, and GitHub Copilot Agent will create and implement the PR for you after maintainer approval.
+
 ## 🤖 Agentic Development Workflow
 
 GitHub Agentic Workflows is developed **exclusively through GitHub Copilot Agent**. This means:
 
-- ✅ **All development happens in pull requests** created by GitHub Copilot Agent
+- ✅ **All development happens through Copilot Agent** - agent creates and manages pull requests
 - ✅ **No local setup required** - agents handle building, testing, and validation
 - ✅ **Automated quality assurance** - CI runs all checks on agent-created PRs
+- ❌ **Traditional pull requests are not enabled** - contributors craft agentic plans instead
 - ❌ **Local development is not supported** - all work is done through the agent
 
 ### Why Agentic Development?
@@ -24,55 +27,84 @@ This project practices what it preaches: agentic workflows are used to build age
 
 ## 🚀 Quick Start for Contributors
 
-### Step 1: Fork the Repository
+⚠️ **IMPORTANT: Traditional pull requests are not enabled for this repository.** Instead of creating a PR yourself, you craft a complete agentic plan that GitHub Copilot Agent will execute.
 
-Fork <https://github.com/github/gh-aw/> to your GitHub account
+### Step 1: Analyze with an Agent (for bug reports)
 
-### Step 2: Analyze with an Agent (for bug reports)
+**Before filing a contribution request**, use an agent to:
 
-**Before filing a bug report**, use an agent to:
-
-- Scan the source code to identify root causes
+- Scan the source code to identify root causes (for bugs)
 - Analyze execution patterns and trace the issue
 - Research similar issues and solutions
 - Propose specific fixes with code examples
+- Create a comprehensive plan for the changes needed
 
-**Then open an issue** with your analysis:
+### Step 2: Open an Issue with Your Agentic Plan
+
+**Create an issue** with your detailed agentic plan:
 
 - Describe what you want to contribute
 - Include your agent's analysis and findings (for bugs)
 - Explain the use case and expected behavior
-- Provide examples if applicable
+- Provide a **complete, step-by-step plan** for the agent to follow
+- Include specific implementation details and examples
 - Tag with appropriate labels (see [Label Guidelines](scratchpad/labels.md))
 
 See [Reporting Issues and Feature Requests](#reporting-issues-and-feature-requests) for complete guidelines.
 
-### Step 3: Create a Pull Request with GitHub Copilot Agent
-
-Use GitHub Copilot Agent to implement your contribution:
-
-1. **Start from the issue**: Reference the issue number in your PR description
-2. **Provide clear instructions**: Tell the agent what changes you want
-3. **Let the agent work**: The agent will read guidelines, make changes, run tests
-4. **Review and iterate**: The agent will respond to feedback and update the PR
-
-**Example PR description:**
+**Example agentic plan in an issue:**
 
 ```markdown
-Fix #123 - Add support for custom MCP server timeout configuration
+## Add support for custom MCP server timeout configuration
 
-@github-copilot agent, please:
-- Add a `timeout` field to MCP server configuration schema
-- Update validation to accept timeout values between 5-300 seconds
-- Add tests for timeout validation
-- Update documentation with timeout examples
-- Follow error message style guide for validation messages
+### Analysis
+The current MCP server configuration lacks a timeout field, which can cause workflows to hang indefinitely when servers don't respond.
+
+### Implementation Plan
+Please implement the following changes:
+
+1. **Update Schema** (`pkg/parser/schemas/frontmatter.json`):
+   - Add a `timeout` field to MCP server configuration schema
+   - Type: integer
+   - Range: 5-300 seconds
+   - Default: 30 seconds
+
+2. **Update Validation** (`pkg/workflow/mcp_validation.go`):
+   - Add validation for timeout values between 5-300 seconds
+   - Use error message format: "[what's wrong]. [what's expected]. [example]"
+   - Example error: "timeout value 400 exceeds maximum. Expected value between 5-300 seconds. Example: timeout: 60"
+
+3. **Add Tests** (`pkg/workflow/mcp_validation_test.go`):
+   - Test valid timeout values (5, 30, 300)
+   - Test invalid timeout values (0, 4, 301, 1000)
+   - Test missing timeout (should use default)
+
+4. **Update Documentation** (`docs/src/content/docs/reference/frontmatter.md`):
+   - Add timeout field to MCP server configuration examples
+   - Explain timeout behavior and defaults
+   - Show example with custom timeout value
+
+5. **Follow Guidelines**:
+   - Use console formatting from `pkg/console` for CLI output
+   - Follow error message style guide
+   - Run `make agent-finish` before completing
 ```
+
+### Step 3: Copilot Agent Will Be Assigned
+
+Once your issue is reviewed and approved by a maintainer:
+
+1. **Issue is assigned to Copilot Agent**: A maintainer will assign the issue to GitHub Copilot Agent
+2. **Agent creates a PR**: The agent will create a pull request implementing your plan
+3. **Agent executes your plan**: The agent will follow your step-by-step instructions
+4. **Agent handles validation**: The agent will read guidelines, make changes, run tests
+5. **Review and iterate**: The agent will respond to feedback and update the PR
 
 ### Step 4: Agent Handles Everything
 
 The GitHub Copilot Agent will:
 
+- Read your agentic plan from the issue
 - Read relevant documentation and specifications
 - Make code changes following established patterns
 - Run `make agent-finish` to validate changes
@@ -82,11 +114,23 @@ The GitHub Copilot Agent will:
 
 ### No Local Setup Needed
 
-You don't need to install Go, Node.js, or any dependencies. The agent runs in GitHub's infrastructure with all tools pre-configured.
+You don't need to install Go, Node.js, or any dependencies. The agent runs in GitHub's infrastructure with all tools pre-configured. **You don't create a PR yourself** - instead, you create a detailed plan that the agent will execute.
 
 ## 📝 How to Contribute via GitHub Copilot Agent
 
-All contributions are made through GitHub Copilot Agent in pull requests. The agent has access to comprehensive documentation and follows established patterns automatically.
+All contributions are made through **agentic plans in GitHub issues**, which GitHub Copilot Agent then implements in pull requests. The agent has access to comprehensive documentation and follows established patterns automatically.
+
+### How the Process Works
+
+1. **You create an issue** with a detailed agentic plan describing what needs to be done
+2. **Maintainer assigns the issue** to GitHub Copilot Agent after review
+3. **Agent creates a PR** and implements your plan
+4. **Agent follows your instructions** and handles all the technical details
+5. **Maintainers review** and provide feedback
+6. **Agent iterates** based on review comments until approved
+7. **PR is merged** when all checks pass and reviews are satisfied
+
+**You do not create pull requests yourself.** Instead, you craft comprehensive plans that the agent executes.
 
 ### What the Agent Handles
 
@@ -131,13 +175,17 @@ The agent will use `gh aw` or the mcp server to analyze the failure. See [`.gith
 
 #### 📝 Issue Guidelines
 
-When filing issues:
+When filing issues with agentic plans:
 
-- **Bugs**: Include thorough agent analysis, root cause, and proposed fix
-- **Features**: Explain the use case, provide examples, suggest implementation approach
-- **Workflow failures**: Debug with agents first, then report with analysis
+- **Bugs**: Include thorough agent analysis, root cause, proposed fix, and detailed implementation plan
+- **Features**: Explain the use case, provide examples, suggest implementation approach with step-by-step instructions
+- **Workflow failures**: Debug with agents first, then report with analysis and remediation plan
+- **Implementation details**: Be specific about file changes, function names, validation rules, test cases
+- **Complete plans**: The more detailed your plan, the better the agent can execute it
 - Follow [Label Guidelines](scratchpad/labels.md)
-- The agent will read the issue and implement fixes in a PR
+- The agent will read the issue and implement your plan in a PR
+
+**Quality of the agentic plan directly impacts implementation success.** Provide comprehensive, step-by-step instructions with specific details.
 
 ### Code Quality Standards
 
@@ -256,29 +304,37 @@ See [Breaking CLI Rules](scratchpad/breaking-cli-rules.md) for details.
 
 ## 🔄 Pull Request Process via GitHub Copilot Agent
 
-All pull requests are created and managed by GitHub Copilot Agent:
+All pull requests are created and managed by GitHub Copilot Agent based on agentic plans in issues:
 
-1. **Issue or discussion first:**
-   - Open an issue describing what needs to be done
-   - Provide clear context and examples
+1. **Create an issue with your agentic plan:**
+   - Open an issue describing what needs to be done in detail
+   - Provide a complete, step-by-step implementation plan
+   - Include clear context, examples, and specific technical details
    - Tag appropriately using [Label Guidelines](scratchpad/labels.md)
 
-2. **Agent creates the PR:**
-   - Mention `@github-copilot agent` with instructions
+2. **Maintainer reviews and assigns:**
+   - Maintainer reviews your agentic plan
+   - If approved, maintainer assigns the issue to GitHub Copilot Agent
+   - Agent automatically creates a PR to implement your plan
+
+3. **Agent creates and implements the PR:**
+   - Agent reads your plan from the issue
    - Agent reads specifications and guidelines
    - Agent makes changes following established patterns
    - Agent runs `make agent-finish` automatically
 
-3. **Automated quality checks:**
+4. **Automated quality checks:**
    - CI runs on agent-created PRs
    - All checks must pass (build, test, lint, recompile)
    - Agent responds to CI failures and fixes them
 
-4. **Review and iterate:**
+5. **Review and iterate:**
    - Maintainers review the PR
    - Provide feedback as comments
    - Agent responds to feedback and makes adjustments
    - Once approved, PR is merged
+
+**Remember: You don't create the PR yourself.** You create an issue with a detailed plan, and after approval, the agent creates the PR and implements your plan.
 
 ### What Gets Validated
 
@@ -446,19 +502,23 @@ This project follows the GitHub Community Guidelines. Please be respectful and i
 
 ## ❓ Getting Help
 
-- **For bugs or features**: Open a GitHub issue and work with the agent
+- **For bugs or features**: Open a GitHub issue with a detailed agentic plan
 - **For questions**: Ask in issues, discussions, or Discord
-- **For examples**: Look at existing agent-created PRs
+- **For examples**: Look at existing issues and agent-created PRs
+- **Remember**: You don't create PRs - you create issues with plans that agents implement
 
-## 🎯 Why No Local Development?
+## 🎯 Why No Traditional Pull Requests?
 
 This project is built using agentic workflows to demonstrate their capabilities:
 
 - **Dogfooding**: We use our own tools to build our tools
-- **Accessibility**: No need for complex local setup
+- **Accessibility**: No need for complex local setup or Git workflows
 - **Consistency**: All changes go through the same automated process
 - **Best practices**: Agents follow guidelines automatically
 - **Focus on outcomes**: Describe what you want, not how to build it
+- **Quality plans**: Forces contributors to think through the entire implementation before starting
+
+**Traditional PRs would bypass the agentic workflow**, defeating the purpose of this project. By crafting detailed agentic plans in issues, you're participating in the future of software development.
 
 The [Development Guide](DEVGUIDE.md) exists as reference for the agent, not for local setup.
 

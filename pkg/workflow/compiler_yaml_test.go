@@ -1237,3 +1237,107 @@ This is a test workflow.`
 		})
 	}
 }
+
+func TestLockMetadataVersionInReleaseBuilds(t *testing.T) {
+	// Save and restore original values
+	originalIsRelease := isReleaseBuild
+	originalVersion := compilerVersion
+	defer func() {
+		isReleaseBuild = originalIsRelease
+		compilerVersion = originalVersion
+	}()
+
+	tmpDir := testutil.TempDir(t, "lock-metadata-version")
+
+	// Test both dev and release modes
+	tests := []struct {
+		name          string
+		isRelease     bool
+		version       string
+		expectVersion bool
+	}{
+		{
+			name:          "dev build should not include version",
+			isRelease:     false,
+			version:       "dev",
+			expectVersion: false,
+		},
+		{
+			name:          "release build should include version",
+			isRelease:     true,
+			version:       "v0.1.2",
+			expectVersion: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set version and release flag
+			SetIsRelease(tt.isRelease)
+			SetVersion(tt.version)
+
+			// Create a simple workflow
+			workflowContent := `---
+engine: copilot
+on: issues
+---
+# Test Workflow
+
+Test prompt.
+`
+			workflowPath := filepath.Join(tmpDir, tt.name+".md")
+			if err := os.WriteFile(workflowPath, []byte(workflowContent), 0o644); err != nil {
+				t.Fatalf("Failed to write workflow file: %v", err)
+			}
+
+			// Compile the workflow
+			compiler := NewCompiler()
+			err := compiler.CompileWorkflow(workflowPath)
+			if err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			// Read the lock file
+			lockFile := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+			lockContent, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+
+			lockContentStr := string(lockContent)
+
+			// Extract metadata line
+			metadataLine := ""
+			lines := strings.Split(lockContentStr, "\n")
+			for _, line := range lines {
+				if strings.Contains(line, "gh-aw-metadata:") {
+					metadataLine = line
+					break
+				}
+			}
+
+			if metadataLine == "" {
+				t.Fatal("Could not find gh-aw-metadata in lock file")
+			}
+
+			// Check if version is present
+			hasVersion := strings.Contains(metadataLine, `"compiler_version"`)
+
+			if tt.expectVersion && !hasVersion {
+				t.Errorf("Expected version to be included in metadata for release build, but it was not found.\nMetadata: %s", metadataLine)
+			}
+
+			if !tt.expectVersion && hasVersion {
+				t.Errorf("Expected version to NOT be included in metadata for dev build, but it was found.\nMetadata: %s", metadataLine)
+			}
+
+			// If version is expected, verify it matches
+			if tt.expectVersion && hasVersion {
+				expectedVersionStr := fmt.Sprintf(`"compiler_version":"%s"`, tt.version)
+				if !strings.Contains(metadataLine, expectedVersionStr) {
+					t.Errorf("Expected version '%s' to be in metadata, but got:\n%s", tt.version, metadataLine)
+				}
+			}
+		})
+	}
+}

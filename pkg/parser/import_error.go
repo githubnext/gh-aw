@@ -19,6 +19,12 @@ type ImportError struct {
 	Cause      error  // The underlying error
 }
 
+// ImportCycleError represents a circular import dependency
+type ImportCycleError struct {
+	Chain        []string // Full import chain showing the cycle (e.g., ["a.md", "b.md", "c.md", "d.md", "b.md"])
+	WorkflowFile string   // The main workflow file being compiled
+}
+
 // Error returns the error message
 func (e *ImportError) Error() string {
 	return fmt.Sprintf("failed to resolve import '%s': %v", e.ImportPath, e.Cause)
@@ -27,6 +33,48 @@ func (e *ImportError) Error() string {
 // Unwrap returns the underlying error
 func (e *ImportError) Unwrap() error {
 	return e.Cause
+}
+
+// Error returns the error message for ImportCycleError
+func (e *ImportCycleError) Error() string {
+	if len(e.Chain) == 0 {
+		return "circular import detected"
+	}
+	return fmt.Sprintf("circular import detected: %s", strings.Join(e.Chain, " → "))
+}
+
+// FormatImportCycleError formats an import cycle error with a delightful multiline indented display
+func FormatImportCycleError(err *ImportCycleError) error {
+	importErrorLog.Printf("Formatting import cycle error: chain=%v, workflow=%s", err.Chain, err.WorkflowFile)
+
+	if len(err.Chain) < 2 {
+		return fmt.Errorf("circular import detected (invalid chain)")
+	}
+
+	// Build a multiline, indented representation of the import chain
+	var messageBuilder strings.Builder
+	messageBuilder.WriteString("Import cycle detected\n\n")
+	messageBuilder.WriteString("The following import chain creates a circular dependency:\n\n")
+
+	// Show each step in the chain with indentation to emphasize the flow
+	for i, file := range err.Chain {
+		indent := strings.Repeat("  ", i)
+		if i == 0 {
+			messageBuilder.WriteString(fmt.Sprintf("%s%s (starting point)\n", indent, file))
+		} else if i == len(err.Chain)-1 {
+			// Last item is the back-edge - highlight it
+			messageBuilder.WriteString(fmt.Sprintf("%s↳ %s ⚠️  cycles back to %s\n", indent, file, err.Chain[0]))
+		} else {
+			messageBuilder.WriteString(fmt.Sprintf("%s↳ imports %s\n", indent, file))
+		}
+	}
+
+	messageBuilder.WriteString("\nTo fix this issue:\n")
+	messageBuilder.WriteString("1. Review the import dependencies in the files listed above\n")
+	messageBuilder.WriteString("2. Remove one of the imports to break the cycle\n")
+	messageBuilder.WriteString("3. Consider restructuring your workflow imports to avoid circular dependencies\n")
+
+	return fmt.Errorf("%s", messageBuilder.String())
 }
 
 // FormatImportError formats an import error as a compilation error with source location

@@ -89,9 +89,10 @@ func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (
 // When a file is fetched from a remote GitHub repository via workflowspec,
 // its nested relative imports must be resolved against the same remote repo.
 type remoteImportOrigin struct {
-	Owner string // Repository owner (e.g., "elastic")
-	Repo  string // Repository name (e.g., "ai-github-actions")
-	Ref   string // Git ref - branch, tag, or SHA (e.g., "main", "v1.0.0", "abc123...")
+	Owner    string // Repository owner (e.g., "elastic")
+	Repo     string // Repository name (e.g., "ai-github-actions")
+	Ref      string // Git ref - branch, tag, or SHA (e.g., "main", "v1.0.0", "abc123...")
+	BasePath string // Base directory path within the repo (e.g., "gh-agent-workflows" for gh-agent-workflows/gh-aw-workflows/file.md)
 }
 
 // importQueueItem represents a file to be imported with its context
@@ -104,9 +105,12 @@ type importQueueItem struct {
 	remoteOrigin *remoteImportOrigin // Remote origin context (non-nil when imported from a remote repo)
 }
 
-// parseRemoteOrigin extracts the remote origin (owner, repo, ref) from a workflowspec path.
+// parseRemoteOrigin extracts the remote origin (owner, repo, ref, basePath) from a workflowspec path.
 // Returns nil if the path is not a valid workflowspec.
 // Format: owner/repo/path[@ref] where ref defaults to "main" if not specified.
+// BasePath is derived from the parent workflowspec path and used for resolving nested relative imports.
+// For example, "elastic/ai-github-actions/gh-agent-workflows/gh-aw-workflows/file.md@main"
+// produces BasePath="gh-agent-workflows" so nested imports resolve relative to that directory.
 func parseRemoteOrigin(spec string) *remoteImportOrigin {
 	// Remove section reference if present
 	cleanSpec := spec
@@ -128,10 +132,33 @@ func parseRemoteOrigin(spec string) *remoteImportOrigin {
 		return nil
 	}
 
+	// Derive BasePath: everything between owner/repo and the last component (filename)
+	// Since imports are always 2-level (dir/file.md), the base is everything before the filename
+	// Examples:
+	// - "owner/repo/.github/workflows/file.md" -> BasePath = ".github/workflows"
+	// - "owner/repo/gh-agent-workflows/gh-aw-workflows/file.md" -> BasePath = "gh-agent-workflows/gh-aw-workflows"
+	// - "owner/repo/a/b/c/d/file.md" -> BasePath = "a/b/c/d"
+	var basePath string
+	repoRelativeParts := slashParts[2:] // Everything after owner/repo
+	if len(repoRelativeParts) >= 2 {
+		// Take everything except the last component (the file itself)
+		// For nested imports, we want the directory containing the file
+		baseDirParts := repoRelativeParts[:len(repoRelativeParts)-1]
+		if len(baseDirParts) > 0 {
+			// Clean the path to normalize it (remove ./ and resolve ..)
+			basePath = path.Clean(strings.Join(baseDirParts, "/"))
+			importLog.Printf("Derived BasePath=%q from spec=%q (owner=%s, repo=%s, ref=%s)",
+				basePath, spec, slashParts[0], slashParts[1], ref)
+		}
+	} else {
+		importLog.Printf("No BasePath derived from spec=%q (file at repo root)", spec)
+	}
+
 	return &remoteImportOrigin{
-		Owner: slashParts[0],
-		Repo:  slashParts[1],
-		Ref:   ref,
+		Owner:    slashParts[0],
+		Repo:     slashParts[1],
+		Ref:      ref,
+		BasePath: basePath,
 	}
 }
 
@@ -492,19 +519,27 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 
 					if item.remoteOrigin != nil && !isWorkflowSpec(nestedFilePath) {
 						// Parent was fetched from a remote repo and nested path is relative.
-						// Convert to a workflowspec that resolves against the remote repo's
-						// .github/workflows/ directory (mirrors local compilation behavior).
+						// Convert to a workflowspec that resolves against the parent workflowspec's
+						// base directory (e.g., gh-agent-workflows for gh-agent-workflows/gh-aw-workflows/file.md).
 						cleanPath := path.Clean(strings.TrimPrefix(nestedFilePath, "./"))
 
-						// Reject paths that escape .github/workflows/ (e.g., ../../../etc/passwd)
+						// Reject paths that escape the base directory (e.g., ../../../etc/passwd)
 						if cleanPath == ".." || strings.HasPrefix(cleanPath, "../") || path.IsAbs(cleanPath) {
-							return nil, fmt.Errorf("nested import '%s' from remote file '%s' escapes .github/workflows/ base directory", nestedFilePath, item.importPath)
+							return nil, fmt.Errorf("nested import '%s' from remote file '%s' escapes base directory", nestedFilePath, item.importPath)
 						}
 
-						resolvedPath = fmt.Sprintf("%s/%s/.github/workflows/%s@%s",
-							item.remoteOrigin.Owner, item.remoteOrigin.Repo, cleanPath, item.remoteOrigin.Ref)
+						// Use the parent's BasePath if available, otherwise default to .github/workflows
+						basePath := item.remoteOrigin.BasePath
+						if basePath == "" {
+							basePath = ".github/workflows"
+						}
+						// Clean the basePath to ensure it's normalized
+						basePath = path.Clean(basePath)
+
+						resolvedPath = fmt.Sprintf("%s/%s/%s/%s@%s",
+							item.remoteOrigin.Owner, item.remoteOrigin.Repo, basePath, cleanPath, item.remoteOrigin.Ref)
 						nestedRemoteOrigin = item.remoteOrigin
-						importLog.Printf("Resolving nested import as remote workflowspec: %s -> %s", nestedFilePath, resolvedPath)
+						importLog.Printf("Resolving nested import as remote workflowspec: %s -> %s (basePath=%s)", nestedFilePath, resolvedPath, basePath)
 					} else if isWorkflowSpec(nestedFilePath) {
 						// Nested import is itself a workflowspec - parse its remote origin
 						nestedRemoteOrigin = parseRemoteOrigin(nestedFilePath)
@@ -771,7 +806,11 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	log.Printf("Completed BFS traversal. Processed %d imports in total", len(processedOrder))
 
 	// Sort imports in topological order (roots first, dependencies before dependents)
-	topologicalOrder := topologicalSortImports(processedOrder, baseDir, cache)
+	// Returns an error if a circular import is detected
+	topologicalOrder, err := topologicalSortImports(processedOrder, baseDir, cache, workflowFilePath)
+	if err != nil {
+		return nil, err
+	}
 	log.Printf("Sorted imports in topological order: %v", topologicalOrder)
 
 	return &ImportsResult{
@@ -806,10 +845,76 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	}, nil
 }
 
+// findCyclePath uses DFS to find a complete cycle path in the dependency graph
+// Returns a path showing the full chain including the back-edge (e.g., ["b.md", "c.md", "d.md", "b.md"])
+func findCyclePath(cycleNodes map[string]bool, dependencies map[string][]string) []string {
+	// Pick any node in the cycle as a starting point (use sorted order for determinism)
+	var startNode string
+	sortedNodes := make([]string, 0, len(cycleNodes))
+	for node := range cycleNodes {
+		sortedNodes = append(sortedNodes, node)
+	}
+	sort.Strings(sortedNodes)
+	if len(sortedNodes) > 0 {
+		startNode = sortedNodes[0]
+	} else {
+		return nil
+	}
+
+	// Use DFS to find a path from startNode back to itself
+	visited := make(map[string]bool)
+	path := []string{}
+	if dfsForCycle(startNode, startNode, cycleNodes, dependencies, visited, &path, true) {
+		return path
+	}
+
+	return nil
+}
+
+// dfsForCycle performs DFS to find a cycle path
+// isFirst tracks if this is the first call (starting point)
+func dfsForCycle(current, target string, cycleNodes map[string]bool, dependencies map[string][]string, visited map[string]bool, path *[]string, isFirst bool) bool {
+	// Add current node to path
+	*path = append(*path, current)
+	visited[current] = true
+
+	// Get dependencies of current node, sorted for determinism
+	deps := dependencies[current]
+	sortedDeps := make([]string, 0, len(deps))
+	for _, dep := range deps {
+		// Only follow edges within the cycle subgraph
+		if cycleNodes[dep] {
+			sortedDeps = append(sortedDeps, dep)
+		}
+	}
+	sort.Strings(sortedDeps)
+
+	// Explore each dependency
+	for _, dep := range sortedDeps {
+		// Found the cycle - we've reached the target again
+		if !isFirst && dep == target {
+			*path = append(*path, dep) // Add the back-edge
+			return true
+		}
+
+		// Continue DFS if not visited
+		if !visited[dep] {
+			if dfsForCycle(dep, target, cycleNodes, dependencies, visited, path, false) {
+				return true
+			}
+		}
+	}
+
+	// Backtrack
+	*path = (*path)[:len(*path)-1]
+	return false
+}
+
 // topologicalSortImports sorts imports in topological order using Kahn's algorithm
 // Returns imports sorted such that roots (files with no imports) come first,
-// and each import has all its dependencies listed before it
-func topologicalSortImports(imports []string, baseDir string, cache *ImportCache) []string {
+// and each import has all its dependencies listed before it.
+// Returns an error if a circular import is detected.
+func topologicalSortImports(imports []string, baseDir string, cache *ImportCache, workflowFile string) ([]string, error) {
 	importLog.Printf("Starting topological sort of %d imports", len(imports))
 
 	// Build dependency graph: map each import to its list of nested imports
@@ -932,7 +1037,40 @@ func topologicalSortImports(imports []string, baseDir string, cache *ImportCache
 	}
 
 	importLog.Printf("Topological sort complete: %v", result)
-	return result
+
+	// If we didn't process all imports, there's a cycle
+	if len(result) < len(imports) {
+		importLog.Printf("Cycle detected: processed %d/%d imports", len(result), len(imports))
+
+		// Find which imports are part of the cycle (those not in result)
+		cycleNodes := make(map[string]bool)
+		for _, imp := range imports {
+			found := false
+			for _, processed := range result {
+				if processed == imp {
+					found = true
+					break
+				}
+			}
+			if !found {
+				cycleNodes[imp] = true
+			}
+		}
+
+		// Use DFS to find a cycle path in the subgraph of cycle nodes
+		cyclePath := findCyclePath(cycleNodes, dependencies)
+		if len(cyclePath) > 0 {
+			return nil, &ImportCycleError{
+				Chain:        cyclePath,
+				WorkflowFile: workflowFile,
+			}
+		}
+
+		// Fallback error if we couldn't construct the path (shouldn't happen)
+		return nil, fmt.Errorf("circular import detected but could not determine cycle path")
+	}
+
+	return result, nil
 }
 
 // extractImportPaths extracts just the import paths from frontmatter

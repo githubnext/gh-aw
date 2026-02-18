@@ -24,36 +24,90 @@ func TestParseRemoteOrigin(t *testing.T) {
 			name: "basic workflowspec with ref",
 			spec: "elastic/ai-github-actions/gh-agent-workflows/mention-in-pr/rwxp.md@main",
 			expected: &remoteImportOrigin{
-				Owner: "elastic",
-				Repo:  "ai-github-actions",
-				Ref:   "main",
+				Owner:    "elastic",
+				Repo:     "ai-github-actions",
+				Ref:      "main",
+				BasePath: "gh-agent-workflows/mention-in-pr",
 			},
 		},
 		{
 			name: "workflowspec with SHA ref",
 			spec: "elastic/ai-github-actions/gh-agent-workflows/mention-in-pr/rwxp.md@160c33700227b5472dc3a08aeea1e774389a1a84",
 			expected: &remoteImportOrigin{
-				Owner: "elastic",
-				Repo:  "ai-github-actions",
-				Ref:   "160c33700227b5472dc3a08aeea1e774389a1a84",
+				Owner:    "elastic",
+				Repo:     "ai-github-actions",
+				Ref:      "160c33700227b5472dc3a08aeea1e774389a1a84",
+				BasePath: "gh-agent-workflows/mention-in-pr",
 			},
 		},
 		{
 			name: "workflowspec without ref defaults to main",
 			spec: "elastic/ai-github-actions/gh-agent-workflows/file.md",
 			expected: &remoteImportOrigin{
-				Owner: "elastic",
-				Repo:  "ai-github-actions",
-				Ref:   "main",
+				Owner:    "elastic",
+				Repo:     "ai-github-actions",
+				Ref:      "main",
+				BasePath: "gh-agent-workflows",
 			},
 		},
 		{
 			name: "workflowspec with section reference",
 			spec: "owner/repo/path/file.md@v1.0#SectionName",
 			expected: &remoteImportOrigin{
-				Owner: "owner",
-				Repo:  "repo",
-				Ref:   "v1.0",
+				Owner:    "owner",
+				Repo:     "repo",
+				Ref:      "v1.0",
+				BasePath: "path",
+			},
+		},
+		{
+			name: "workflowspec under .github/workflows",
+			spec: "owner/repo/.github/workflows/test.md@main",
+			expected: &remoteImportOrigin{
+				Owner:    "owner",
+				Repo:     "repo",
+				Ref:      "main",
+				BasePath: ".github/workflows",
+			},
+		},
+		{
+			name: "workflowspec with deep path",
+			spec: "owner/repo/a/b/c/d/e/file.md@main",
+			expected: &remoteImportOrigin{
+				Owner:    "owner",
+				Repo:     "repo",
+				Ref:      "main",
+				BasePath: "a/b/c/d/e",
+			},
+		},
+		{
+			name: "workflowspec directly in repo root (minimal path)",
+			spec: "owner/repo/file.md@main",
+			expected: &remoteImportOrigin{
+				Owner:    "owner",
+				Repo:     "repo",
+				Ref:      "main",
+				BasePath: "",
+			},
+		},
+		{
+			name: "path with ./ should be cleaned",
+			spec: "owner/repo/./path/./file.md@main",
+			expected: &remoteImportOrigin{
+				Owner:    "owner",
+				Repo:     "repo",
+				Ref:      "main",
+				BasePath: "path",
+			},
+		},
+		{
+			name: "path with redundant slashes should be cleaned",
+			spec: "owner/repo/path//to///file.md@main",
+			expected: &remoteImportOrigin{
+				Owner:    "owner",
+				Repo:     "repo",
+				Ref:      "main",
+				BasePath: "path/to",
 			},
 		},
 		{
@@ -78,6 +132,7 @@ func TestParseRemoteOrigin(t *testing.T) {
 				assert.Equal(t, tt.expected.Owner, result.Owner, "Owner mismatch")
 				assert.Equal(t, tt.expected.Repo, result.Repo, "Repo mismatch")
 				assert.Equal(t, tt.expected.Ref, result.Ref, "Ref mismatch")
+				assert.Equal(t, tt.expected.BasePath, result.BasePath, "BasePath mismatch")
 			}
 		})
 	}
@@ -126,6 +181,7 @@ func TestRemoteOriginPropagation(t *testing.T) {
 		assert.Equal(t, "elastic", origin.Owner, "Owner should be elastic")
 		assert.Equal(t, "ai-github-actions", origin.Repo, "Repo should be ai-github-actions")
 		assert.Equal(t, "main", origin.Ref, "Ref should be main")
+		assert.Equal(t, "gh-agent-workflows/mention-in-pr", origin.BasePath, "BasePath should be gh-agent-workflows/mention-in-pr")
 	})
 
 	t.Run("local import does not get remote origin", func(t *testing.T) {
@@ -136,24 +192,55 @@ func TestRemoteOriginPropagation(t *testing.T) {
 		assert.Nil(t, origin, "Local paths should not produce remote origin")
 	})
 
-	t.Run("nested relative path from remote parent produces correct workflowspec", func(t *testing.T) {
+	t.Run("nested relative path from remote parent with BasePath produces correct workflowspec", func(t *testing.T) {
 		origin := &remoteImportOrigin{
-			Owner: "elastic",
-			Repo:  "ai-github-actions",
-			Ref:   "main",
+			Owner:    "elastic",
+			Repo:     "ai-github-actions",
+			Ref:      "main",
+			BasePath: "gh-agent-workflows",
+		}
+		nestedPath := "gh-aw-fragments/elastic-tools.md"
+
+		// This is the NEW logic from the import processor:
+		// When parent is remote and has a BasePath, use that BasePath instead of .github/workflows/
+		basePath := origin.BasePath
+		if basePath == "" {
+			basePath = ".github/workflows"
+		}
+		expectedSpec := fmt.Sprintf("%s/%s/%s/%s@%s",
+			origin.Owner, origin.Repo, basePath, nestedPath, origin.Ref)
+
+		assert.Equal(t,
+			"elastic/ai-github-actions/gh-agent-workflows/gh-aw-fragments/elastic-tools.md@main",
+			expectedSpec,
+			"Nested relative import should resolve to parent's BasePath",
+		)
+
+		// The constructed spec should be recognized as a workflowspec
+		assert.True(t, isWorkflowSpec(expectedSpec), "Constructed path should be a valid workflowspec")
+	})
+
+	t.Run("nested relative path from remote parent without BasePath uses .github/workflows", func(t *testing.T) {
+		origin := &remoteImportOrigin{
+			Owner:    "elastic",
+			Repo:     "ai-github-actions",
+			Ref:      "main",
+			BasePath: "", // Empty BasePath - should fall back to .github/workflows
 		}
 		nestedPath := "shared/elastic-tools.md"
 
-		// This is the logic from the import processor:
-		// When parent is remote and nested path is not a workflowspec,
-		// construct a workflowspec resolving against .github/workflows/
-		expectedSpec := fmt.Sprintf("%s/%s/.github/workflows/%s@%s",
-			origin.Owner, origin.Repo, nestedPath, origin.Ref)
+		// When BasePath is empty, fall back to .github/workflows/
+		basePath := origin.BasePath
+		if basePath == "" {
+			basePath = ".github/workflows"
+		}
+		expectedSpec := fmt.Sprintf("%s/%s/%s/%s@%s",
+			origin.Owner, origin.Repo, basePath, nestedPath, origin.Ref)
 
 		assert.Equal(t,
 			"elastic/ai-github-actions/.github/workflows/shared/elastic-tools.md@main",
 			expectedSpec,
-			"Nested relative import should resolve to remote .github/workflows/ path",
+			"Nested relative import with empty BasePath should fall back to .github/workflows/",
 		)
 
 		// The constructed spec should be recognized as a workflowspec
@@ -162,9 +249,10 @@ func TestRemoteOriginPropagation(t *testing.T) {
 
 	t.Run("nested relative path with ./ prefix is cleaned", func(t *testing.T) {
 		origin := &remoteImportOrigin{
-			Owner: "org",
-			Repo:  "repo",
-			Ref:   "v1.0",
+			Owner:    "org",
+			Repo:     "repo",
+			Ref:      "v1.0",
+			BasePath: "custom-path",
 		}
 		nestedPath := "./shared/tools.md"
 
@@ -174,11 +262,15 @@ func TestRemoteOriginPropagation(t *testing.T) {
 			cleanPath = cleanPath[2:]
 		}
 
-		expectedSpec := fmt.Sprintf("%s/%s/.github/workflows/%s@%s",
-			origin.Owner, origin.Repo, cleanPath, origin.Ref)
+		basePath := origin.BasePath
+		if basePath == "" {
+			basePath = ".github/workflows"
+		}
+		expectedSpec := fmt.Sprintf("%s/%s/%s/%s@%s",
+			origin.Owner, origin.Repo, basePath, cleanPath, origin.Ref)
 
 		assert.Equal(t,
-			"org/repo/.github/workflows/shared/tools.md@v1.0",
+			"org/repo/custom-path/shared/tools.md@v1.0",
 			expectedSpec,
 			"Dot-prefix should be stripped when constructing remote spec",
 		)
@@ -195,6 +287,7 @@ func TestRemoteOriginPropagation(t *testing.T) {
 		assert.Equal(t, "other-org", origin.Owner, "Should use nested spec's owner")
 		assert.Equal(t, "other-repo", origin.Repo, "Should use nested spec's repo")
 		assert.Equal(t, "v2.0", origin.Ref, "Should use nested spec's ref")
+		assert.Equal(t, "path", origin.BasePath, "Should use nested spec's base path")
 	})
 
 	t.Run("path traversal in nested import is rejected", func(t *testing.T) {
@@ -207,22 +300,27 @@ func TestRemoteOriginPropagation(t *testing.T) {
 			"Cleaned path should start with .. and be rejected by the import processor")
 	})
 
-	t.Run("SHA ref is preserved in nested resolution", func(t *testing.T) {
+	t.Run("SHA ref is preserved in nested resolution with BasePath", func(t *testing.T) {
 		sha := "160c33700227b5472dc3a08aeea1e774389a1a84"
 		origin := &remoteImportOrigin{
-			Owner: "elastic",
-			Repo:  "ai-github-actions",
-			Ref:   sha,
+			Owner:    "elastic",
+			Repo:     "ai-github-actions",
+			Ref:      sha,
+			BasePath: "gh-agent-workflows",
 		}
 		nestedPath := "shared/formatting.md"
 
-		resolvedSpec := fmt.Sprintf("%s/%s/.github/workflows/%s@%s",
-			origin.Owner, origin.Repo, nestedPath, origin.Ref)
+		basePath := origin.BasePath
+		if basePath == "" {
+			basePath = ".github/workflows"
+		}
+		resolvedSpec := fmt.Sprintf("%s/%s/%s/%s@%s",
+			origin.Owner, origin.Repo, basePath, nestedPath, origin.Ref)
 
 		assert.Equal(t,
-			"elastic/ai-github-actions/.github/workflows/shared/formatting.md@"+sha,
+			"elastic/ai-github-actions/gh-agent-workflows/shared/formatting.md@"+sha,
 			resolvedSpec,
-			"SHA ref should be preserved for nested imports",
+			"SHA ref should be preserved for nested imports with BasePath",
 		)
 	})
 }
@@ -243,9 +341,10 @@ func TestImportQueueItemRemoteOriginField(t *testing.T) {
 
 	t.Run("queue item with remote origin", func(t *testing.T) {
 		origin := &remoteImportOrigin{
-			Owner: "elastic",
-			Repo:  "ai-github-actions",
-			Ref:   "main",
+			Owner:    "elastic",
+			Repo:     "ai-github-actions",
+			Ref:      "main",
+			BasePath: "path",
 		}
 		item := importQueueItem{
 			importPath:   "elastic/ai-github-actions/path/file.md@main",
@@ -258,6 +357,7 @@ func TestImportQueueItemRemoteOriginField(t *testing.T) {
 		assert.Equal(t, "elastic", item.remoteOrigin.Owner, "Owner should match")
 		assert.Equal(t, "ai-github-actions", item.remoteOrigin.Repo, "Repo should match")
 		assert.Equal(t, "main", item.remoteOrigin.Ref, "Ref should match")
+		assert.Equal(t, "path", item.remoteOrigin.BasePath, "BasePath should match")
 	})
 }
 
@@ -369,5 +469,97 @@ func TestResolveRemoteSymlinksPathConstruction(t *testing.T) {
 
 		assert.Equal(t, ".github/workflows/gh-aw-workflows/file.md", resolvedPath,
 			"Nested symlink with ../ target should resolve correctly")
+	})
+}
+
+func TestParseRemoteOriginWithCleanedPaths(t *testing.T) {
+	tests := []struct {
+		name     string
+		spec     string
+		expected *remoteImportOrigin
+	}{
+		{
+			name: "path with ./ components should be cleaned",
+			spec: "owner/repo/./workflows/./test.md@main",
+			expected: &remoteImportOrigin{
+				Owner:    "owner",
+				Repo:     "repo",
+				Ref:      "main",
+				BasePath: "workflows",
+			},
+		},
+		{
+			name: "path with redundant slashes should be cleaned",
+			spec: "owner/repo/workflows//subdir///test.md@main",
+			expected: &remoteImportOrigin{
+				Owner:    "owner",
+				Repo:     "repo",
+				Ref:      "main",
+				BasePath: "workflows/subdir",
+			},
+		},
+		{
+			name: "complex path cleaning",
+			spec: "owner/repo/./a//b/./c///test.md@main",
+			expected: &remoteImportOrigin{
+				Owner:    "owner",
+				Repo:     "repo",
+				Ref:      "main",
+				BasePath: "a/b/c",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseRemoteOrigin(tt.spec)
+			require.NotNil(t, result, "Should parse remote origin for spec: %s", tt.spec)
+			assert.Equal(t, tt.expected.Owner, result.Owner, "Owner mismatch")
+			assert.Equal(t, tt.expected.Repo, result.Repo, "Repo mismatch")
+			assert.Equal(t, tt.expected.Ref, result.Ref, "Ref mismatch")
+			assert.Equal(t, tt.expected.BasePath, result.BasePath, "BasePath mismatch")
+		})
+	}
+}
+
+func TestParseRemoteOriginWithURLFormats(t *testing.T) {
+	t.Run("URL-like paths are currently accepted by isWorkflowSpec", func(t *testing.T) {
+		// URLs are currently accepted by isWorkflowSpec because they have >3 parts when split by /
+		// This documents the current behavior - URLs might need special handling in the future
+		urlPaths := []string{
+			"https://github.com/owner/repo/path/file.md",
+			"http://github.com/owner/repo/path/file.md",
+			"https://github.enterprise.com/owner/repo/path/file.md",
+		}
+
+		for _, urlPath := range urlPaths {
+			// Currently, isWorkflowSpec accepts URLs (they have >3 slash-separated parts)
+			isSpec := isWorkflowSpec(urlPath)
+			assert.True(t, isSpec, "URL is currently accepted as workflowspec: %s", urlPath)
+
+			// parseRemoteOrigin will parse the URL parts literally
+			// For "https://github.com/owner/repo/path/file.md":
+			// - Parts: ["https:", "", "github.com", "owner", "repo", "path", "file.md"]
+			// - Owner would be "https:" (first part after splitting by /)
+			// This test documents the current behavior for future reference
+			origin := parseRemoteOrigin(urlPath)
+			if origin != nil {
+				t.Logf("URL %s parsed as: owner=%s, repo=%s, basePath=%s",
+					urlPath, origin.Owner, origin.Repo, origin.BasePath)
+			}
+		}
+	})
+
+	t.Run("enterprise domain workflowspec format", func(t *testing.T) {
+		// Enterprise GitHub uses the same owner/repo/path format
+		// The domain is handled by GH_HOST environment variable, not in the workflowspec
+		spec := "enterprise-org/enterprise-repo/workflows/test.md@main"
+
+		result := parseRemoteOrigin(spec)
+		require.NotNil(t, result, "Should parse enterprise workflowspec")
+		assert.Equal(t, "enterprise-org", result.Owner)
+		assert.Equal(t, "enterprise-repo", result.Repo)
+		assert.Equal(t, "main", result.Ref)
+		assert.Equal(t, "workflows", result.BasePath)
 	})
 }
