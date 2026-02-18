@@ -22,12 +22,13 @@ async function main(config = {}) {
   // Extract configuration
   const allowedAssignees = config.allowed || [];
   const maxCount = config.max || 10;
+  const unassignFirst = config.unassign_first || false;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
-  core.info(`Assign to user configuration: max=${maxCount}`);
+  core.info(`Assign to user configuration: max=${maxCount}, unassign_first=${unassignFirst}`);
   if (allowedAssignees.length > 0) {
     core.info(`Allowed assignees: ${allowedAssignees.join(", ")}`);
   }
@@ -105,6 +106,9 @@ async function main(config = {}) {
     // If in staged mode, preview without executing
     if (isStaged) {
       core.info(`Staged mode: Would assign users to issue #${issueNumber} in ${itemRepo}`);
+      if (unassignFirst) {
+        core.info(`Staged mode: Would unassign all current assignees first`);
+      }
       return {
         success: true,
         staged: true,
@@ -112,11 +116,36 @@ async function main(config = {}) {
           issueNumber,
           repo: itemRepo,
           assignees: uniqueAssignees,
+          unassignFirst,
         },
       };
     }
 
     try {
+      // If unassign_first is enabled, get current assignees and remove them first
+      if (unassignFirst) {
+        core.info(`Fetching current assignees for issue #${issueNumber} to unassign them first`);
+        const issue = await github.rest.issues.get({
+          owner: repoParts.owner,
+          repo: repoParts.repo,
+          issue_number: issueNumber,
+        });
+
+        const currentAssignees = issue.data.assignees?.map(a => a.login) || [];
+        if (currentAssignees.length > 0) {
+          core.info(`Unassigning ${currentAssignees.length} current assignee(s): ${JSON.stringify(currentAssignees)}`);
+          await github.rest.issues.removeAssignees({
+            owner: repoParts.owner,
+            repo: repoParts.repo,
+            issue_number: issueNumber,
+            assignees: currentAssignees,
+          });
+          core.info(`Successfully unassigned current assignees`);
+        } else {
+          core.info(`No current assignees to unassign`);
+        }
+      }
+
       // Add assignees to the issue
       await github.rest.issues.addAssignees({
         owner: repoParts.owner,

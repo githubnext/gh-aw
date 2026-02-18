@@ -1376,6 +1376,7 @@ safe-outputs:
     max: 3                     # max assignments (default: 1)
     target: "*"                # "triggering" (default), "*", or number
     target-repo: "owner/repo"  # cross-repository
+    unassign-first: true       # unassign all current assignees before assigning (default: false)
 ```
 
 ### Unassign from User (`unassign-from-user:`)

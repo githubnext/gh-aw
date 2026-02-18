@@ -5452,6 +5452,11 @@
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository user assignment. Takes precedence over trial target repo settings."
                 },
+                "unassign-first": {
+                  "type": "boolean",
+                  "description": "If true, unassign all current assignees before assigning new ones. Useful for reassigning issues from one user to another (default: false).",
+                  "default": false
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
