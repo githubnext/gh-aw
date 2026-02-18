@@ -102,7 +102,7 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
 		// Create playwright as an MCP tool with the same tools available as copilot agent
 		playwrightMCP := map[string]any{
-			"allowed": GetCopilotAgentPlaywrightTools(),
+			"allowed": GetPlaywrightTools(),
 		}
 		result["playwright"] = playwrightMCP
 	}

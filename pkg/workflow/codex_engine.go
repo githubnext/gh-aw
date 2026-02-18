@@ -413,7 +413,7 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(toolsConfig *ToolsConfig) *
 
 		// Also update the Custom map entry for playwright with allowed tools list
 		playwrightMCP := map[string]any{
-			"allowed": GetCopilotAgentPlaywrightTools(),
+			"allowed": GetPlaywrightTools(),
 		}
 		if playwrightConfig.Version != "" {
 			playwrightMCP["version"] = playwrightConfig.Version

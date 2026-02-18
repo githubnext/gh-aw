@@ -42,16 +42,16 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 	}
 
 	// First check if this is a GitHub Copilot coding agent run (not Copilot CLI)
-	var detector *CopilotAgentDetector
+	var detector *CopilotCodingAgentDetector
 	if len(workflowPath) > 0 && workflowPath[0] != "" {
-		detector = NewCopilotAgentDetectorWithPath(logDir, verbose, workflowPath[0])
+		detector = NewCopilotCodingAgentDetectorWithPath(logDir, verbose, workflowPath[0])
 	} else {
-		detector = NewCopilotAgentDetector(logDir, verbose)
+		detector = NewCopilotCodingAgentDetector(logDir, verbose)
 	}
-	isGitHubCopilotAgent := detector.IsGitHubCopilotAgent()
-	logsMetricsLog.Printf("GitHub Copilot coding agent detected: %v", isGitHubCopilotAgent)
+	isGitHubCopilotCodingAgent := detector.IsGitHubCopilotCodingAgent()
+	logsMetricsLog.Printf("GitHub Copilot coding agent detected: %v", isGitHubCopilotCodingAgent)
 
-	if isGitHubCopilotAgent && verbose {
+	if isGitHubCopilotCodingAgent && verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Detected GitHub Copilot coding agent run, using specialized parser"))
 	}
 
@@ -143,7 +143,7 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 			!strings.Contains(fileName, "aw_output") &&
 			fileName != constants.AgentOutputFilename {
 
-			fileMetrics, err := parseLogFileWithEngine(path, detectedEngine, isGitHubCopilotAgent, verbose)
+			fileMetrics, err := parseLogFileWithEngine(path, detectedEngine, isGitHubCopilotCodingAgent, verbose)
 			if err != nil && verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log file %s: %v", path, err)))
 				return nil // Continue processing other files
