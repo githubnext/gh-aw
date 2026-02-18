@@ -786,3 +786,133 @@ func TestDeduplicatePreservesUserNodeVersion(t *testing.T) {
 		t.Error("Expected deduplicated steps to contain user's version '16'")
 	}
 }
+
+func TestGenerateRuntimeSetupStepsWithIfCondition(t *testing.T) {
+tests := []struct {
+name         string
+requirements []RuntimeRequirement
+expectSteps  int
+checkContent []string
+}{
+{
+name: "generates go setup with if condition",
+requirements: []RuntimeRequirement{
+{
+Runtime:     findRuntimeByID("go"),
+Version:     "1.25",
+IfCondition: "hashFiles('go.mod') != ''",
+},
+},
+expectSteps: 2, // setup + GOROOT capture
+checkContent: []string{
+"Setup Go",
+"actions/setup-go@",
+"go-version: '1.25'",
+"if: hashFiles('go.mod') != ''",
+},
+},
+{
+name: "generates uv setup with if condition",
+requirements: []RuntimeRequirement{
+{
+Runtime:     findRuntimeByID("uv"),
+Version:     "",
+IfCondition: "hashFiles('uv.lock') != ''",
+},
+},
+expectSteps: 1,
+checkContent: []string{
+"Setup uv",
+"astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86",
+"if: hashFiles('uv.lock') != ''",
+},
+},
+{
+name: "generates python setup with if condition",
+requirements: []RuntimeRequirement{
+{
+Runtime:     findRuntimeByID("python"),
+Version:     "3.11",
+IfCondition: "hashFiles('requirements.txt') != '' || hashFiles('pyproject.toml') != ''",
+},
+},
+expectSteps: 1,
+checkContent: []string{
+"Setup Python",
+"actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
+"python-version: '3.11'",
+"if: hashFiles('requirements.txt') != '' || hashFiles('pyproject.toml') != ''",
+},
+},
+{
+name: "generates node setup with if condition",
+requirements: []RuntimeRequirement{
+{
+Runtime:     findRuntimeByID("node"),
+Version:     "20",
+IfCondition: "hashFiles('package.json') != ''",
+},
+},
+expectSteps: 1,
+checkContent: []string{
+"Setup Node.js",
+"actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238",
+"node-version: '20'",
+"if: hashFiles('package.json') != ''",
+},
+},
+{
+name: "generates multiple runtimes with different if conditions",
+requirements: []RuntimeRequirement{
+{
+Runtime:     findRuntimeByID("go"),
+Version:     "1.25",
+IfCondition: "hashFiles('go.mod') != ''",
+},
+{
+Runtime:     findRuntimeByID("python"),
+Version:     "3.11",
+IfCondition: "hashFiles('requirements.txt') != ''",
+},
+{
+Runtime:     findRuntimeByID("node"),
+Version:     "20",
+IfCondition: "hashFiles('package.json') != ''",
+},
+},
+expectSteps: 4, // go setup + GOROOT capture + python setup + node setup
+checkContent: []string{
+"Setup Go",
+"if: hashFiles('go.mod') != ''",
+"Setup Python",
+"if: hashFiles('requirements.txt') != ''",
+"Setup Node.js",
+"if: hashFiles('package.json') != ''",
+},
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+steps := GenerateRuntimeSetupSteps(tt.requirements)
+
+if len(steps) != tt.expectSteps {
+t.Errorf("Expected %d steps, got %d", tt.expectSteps, len(steps))
+}
+
+// Join all steps into a single string for content checking
+allSteps := ""
+for _, step := range steps {
+for _, line := range step {
+allSteps += line + "\n"
+}
+}
+
+for _, content := range tt.checkContent {
+if !strings.Contains(allSteps, content) {
+t.Errorf("Expected steps to contain %q\nGot:\n%s", content, allSteps)
+}
+}
+})
+}
+}

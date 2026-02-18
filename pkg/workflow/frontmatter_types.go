@@ -12,6 +12,7 @@ var frontmatterTypesLog = logger.New("workflow:frontmatter_types")
 // RuntimeConfig represents the configuration for a single runtime
 type RuntimeConfig struct {
 	Version string `json:"version,omitempty"` // Version of the runtime (e.g., "20" for Node, "3.11" for Python)
+	If      string `json:"if,omitempty"`      // Optional GitHub Actions if condition (e.g., "hashFiles('go.mod') != ''")
 }
 
 // RuntimesConfig represents the configuration for all runtime environments
@@ -261,29 +262,39 @@ func parseRuntimesConfig(runtimes map[string]any) (*RuntimesConfig, error) {
 			continue
 		}
 
-		versionAny, hasVersion := configMap["version"]
-		if !hasVersion {
-			continue
-		}
-
-		// Convert version to string
+		// Extract version (optional)
 		var version string
-		switch v := versionAny.(type) {
-		case string:
-			version = v
-		case int:
-			version = fmt.Sprintf("%d", v)
-		case float64:
-			if v == float64(int(v)) {
-				version = fmt.Sprintf("%d", int(v))
-			} else {
-				version = fmt.Sprintf("%g", v)
+		if versionAny, hasVersion := configMap["version"]; hasVersion {
+			// Convert version to string
+			switch v := versionAny.(type) {
+			case string:
+				version = v
+			case int:
+				version = fmt.Sprintf("%d", v)
+			case float64:
+				if v == float64(int(v)) {
+					version = fmt.Sprintf("%d", int(v))
+				} else {
+					version = fmt.Sprintf("%g", v)
+				}
+			default:
+				continue
 			}
-		default:
-			continue
 		}
 
-		runtimeConfig := &RuntimeConfig{Version: version}
+		// Extract if condition (optional)
+		var ifCondition string
+		if ifAny, hasIf := configMap["if"]; hasIf {
+			if ifStr, ok := ifAny.(string); ok {
+				ifCondition = ifStr
+			}
+		}
+
+		// Create runtime config with both version and if condition
+		runtimeConfig := &RuntimeConfig{
+			Version: version,
+			If:      ifCondition,
+		}
 
 		// Map to specific runtime field
 		switch runtimeID {
@@ -675,22 +686,76 @@ func runtimesConfigToMap(config *RuntimesConfig) map[string]any {
 	result := make(map[string]any)
 
 	if config.Node != nil {
-		result["node"] = map[string]any{"version": config.Node.Version}
+		nodeMap := map[string]any{}
+		if config.Node.Version != "" {
+			nodeMap["version"] = config.Node.Version
+		}
+		if config.Node.If != "" {
+			nodeMap["if"] = config.Node.If
+		}
+		if len(nodeMap) > 0 {
+			result["node"] = nodeMap
+		}
 	}
 	if config.Python != nil {
-		result["python"] = map[string]any{"version": config.Python.Version}
+		pythonMap := map[string]any{}
+		if config.Python.Version != "" {
+			pythonMap["version"] = config.Python.Version
+		}
+		if config.Python.If != "" {
+			pythonMap["if"] = config.Python.If
+		}
+		if len(pythonMap) > 0 {
+			result["python"] = pythonMap
+		}
 	}
 	if config.Go != nil {
-		result["go"] = map[string]any{"version": config.Go.Version}
+		goMap := map[string]any{}
+		if config.Go.Version != "" {
+			goMap["version"] = config.Go.Version
+		}
+		if config.Go.If != "" {
+			goMap["if"] = config.Go.If
+		}
+		if len(goMap) > 0 {
+			result["go"] = goMap
+		}
 	}
 	if config.UV != nil {
-		result["uv"] = map[string]any{"version": config.UV.Version}
+		uvMap := map[string]any{}
+		if config.UV.Version != "" {
+			uvMap["version"] = config.UV.Version
+		}
+		if config.UV.If != "" {
+			uvMap["if"] = config.UV.If
+		}
+		if len(uvMap) > 0 {
+			result["uv"] = uvMap
+		}
 	}
 	if config.Bun != nil {
-		result["bun"] = map[string]any{"version": config.Bun.Version}
+		bunMap := map[string]any{}
+		if config.Bun.Version != "" {
+			bunMap["version"] = config.Bun.Version
+		}
+		if config.Bun.If != "" {
+			bunMap["if"] = config.Bun.If
+		}
+		if len(bunMap) > 0 {
+			result["bun"] = bunMap
+		}
 	}
 	if config.Deno != nil {
-		result["deno"] = map[string]any{"version": config.Deno.Version}
+		denoMap := map[string]any{}
+		if config.Deno.Version != "" {
+			denoMap["version"] = config.Deno.Version
+		}
+		if config.Deno.If != "" {
+			denoMap["if"] = config.Deno.If
+		}
+		if len(denoMap) > 0 {
+			result["deno"] = denoMap
+		}
 	}
 
 	if len(result) == 0 {

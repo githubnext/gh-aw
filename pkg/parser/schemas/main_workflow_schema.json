@@ -6689,6 +6689,17 @@
             "action-version": {
               "type": "string",
               "description": "Version of the setup action to use (e.g., 'v4', 'v5'). Overrides the default action version."
+            },
+            "if": {
+              "type": "string",
+              "description": "Optional GitHub Actions if condition to control when the runtime setup step runs. Supports standard GitHub Actions expression syntax. Useful for conditionally installing runtimes based on file presence (e.g., \"hashFiles('go.mod') != ''\" to install Go only when go.mod exists).",
+              "examples": [
+                "hashFiles('go.mod') != ''",
+                "hashFiles('package.json') != ''",
+                "hashFiles('requirements.txt') != '' || hashFiles('pyproject.toml') != ''",
+                "hashFiles('uv.lock') != ''",
+                "github.event_name == 'workflow_dispatch'"
+              ]
             }
           },
           "additionalProperties": false

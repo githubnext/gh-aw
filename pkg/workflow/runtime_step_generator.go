@@ -65,8 +65,8 @@ func GenerateSerenaLanguageServiceSteps(tools *ToolsConfig) []GitHubActionStep {
 func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	runtime := req.Runtime
 	version := req.Version
-	runtimeStepGeneratorLog.Printf("Generating setup step for runtime: %s, version=%s", runtime.ID, version)
-	runtimeSetupLog.Printf("Generating setup step for runtime: %s, version=%s", runtime.ID, version)
+	runtimeStepGeneratorLog.Printf("Generating setup step for runtime: %s, version=%s, if=%s", runtime.ID, version, req.IfCondition)
+	runtimeSetupLog.Printf("Generating setup step for runtime: %s, version=%s, if=%s", runtime.ID, version, req.IfCondition)
 	// Use default version if none specified
 	if version == "" {
 		version = runtime.DefaultVersion
@@ -88,6 +88,11 @@ func generateSetupStep(req *RuntimeRequirement) GitHubActionStep {
 	step := GitHubActionStep{
 		fmt.Sprintf("      - name: Setup %s", runtime.Name),
 		fmt.Sprintf("        uses: %s", actionRef),
+	}
+
+	// Add if condition if specified
+	if req.IfCondition != "" {
+		step = append(step, fmt.Sprintf("        if: %s", req.IfCondition))
 	}
 
 	// Special handling for Go when go-mod-file is explicitly specified

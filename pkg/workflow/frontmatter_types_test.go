@@ -1332,3 +1332,180 @@ func TestTypedConfigsBackwardCompatibility(t *testing.T) {
 		}
 	})
 }
+
+func TestParseRuntimesConfigWithIfCondition(t *testing.T) {
+tests := []struct {
+name     string
+runtimes map[string]any
+expected map[string]RuntimeConfig
+}{
+{
+name: "runtime with if condition",
+runtimes: map[string]any{
+"go": map[string]any{
+"version": "1.25",
+"if":      "hashFiles('go.mod') != ''",
+},
+},
+expected: map[string]RuntimeConfig{
+"go": {
+Version: "1.25",
+If:      "hashFiles('go.mod') != ''",
+},
+},
+},
+{
+name: "runtime with only if condition",
+runtimes: map[string]any{
+"uv": map[string]any{
+"if": "hashFiles('uv.lock') != ''",
+},
+},
+expected: map[string]RuntimeConfig{
+"uv": {
+Version: "",
+If:      "hashFiles('uv.lock') != ''",
+},
+},
+},
+{
+name: "multiple runtimes with if conditions",
+runtimes: map[string]any{
+"go": map[string]any{
+"version": "1.25",
+"if":      "hashFiles('go.mod') != ''",
+},
+"python": map[string]any{
+"version": "3.11",
+"if":      "hashFiles('requirements.txt') != ''",
+},
+"node": map[string]any{
+"version": "20",
+"if":      "hashFiles('package.json') != ''",
+},
+},
+expected: map[string]RuntimeConfig{
+"go": {
+Version: "1.25",
+If:      "hashFiles('go.mod') != ''",
+},
+"python": {
+Version: "3.11",
+If:      "hashFiles('requirements.txt') != ''",
+},
+"node": {
+Version: "20",
+If:      "hashFiles('package.json') != ''",
+},
+},
+},
+{
+name: "runtime without if condition",
+runtimes: map[string]any{
+"node": map[string]any{
+"version": "20",
+},
+},
+expected: map[string]RuntimeConfig{
+"node": {
+Version: "20",
+If:      "",
+},
+},
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+config, err := parseRuntimesConfig(tt.runtimes)
+if err != nil {
+t.Fatalf("parseRuntimesConfig failed: %v", err)
+}
+
+for runtimeID, expectedConfig := range tt.expected {
+var actualConfig *RuntimeConfig
+switch runtimeID {
+case "node":
+actualConfig = config.Node
+case "python":
+actualConfig = config.Python
+case "go":
+actualConfig = config.Go
+case "uv":
+actualConfig = config.UV
+case "bun":
+actualConfig = config.Bun
+case "deno":
+actualConfig = config.Deno
+}
+
+if actualConfig == nil {
+t.Errorf("Runtime %s not found in config", runtimeID)
+continue
+}
+
+if actualConfig.Version != expectedConfig.Version {
+t.Errorf("Runtime %s version: got %q, want %q", runtimeID, actualConfig.Version, expectedConfig.Version)
+}
+
+if actualConfig.If != expectedConfig.If {
+t.Errorf("Runtime %s if condition: got %q, want %q", runtimeID, actualConfig.If, expectedConfig.If)
+}
+}
+})
+}
+}
+
+func TestRuntimesConfigToMapWithIfCondition(t *testing.T) {
+config := &RuntimesConfig{
+Go: &RuntimeConfig{
+Version: "1.25",
+If:      "hashFiles('go.mod') != ''",
+},
+Python: &RuntimeConfig{
+Version: "3.11",
+If:      "hashFiles('requirements.txt') != ''",
+},
+Node: &RuntimeConfig{
+Version: "20",
+},
+}
+
+result := runtimesConfigToMap(config)
+
+// Check Go runtime
+goMap, ok := result["go"].(map[string]any)
+if !ok {
+t.Fatal("go runtime not found in result")
+}
+if goMap["version"] != "1.25" {
+t.Errorf("go version: got %v, want 1.25", goMap["version"])
+}
+if goMap["if"] != "hashFiles('go.mod') != ''" {
+t.Errorf("go if condition: got %v, want hashFiles('go.mod') != ''", goMap["if"])
+}
+
+// Check Python runtime
+pythonMap, ok := result["python"].(map[string]any)
+if !ok {
+t.Fatal("python runtime not found in result")
+}
+if pythonMap["version"] != "3.11" {
+t.Errorf("python version: got %v, want 3.11", pythonMap["version"])
+}
+if pythonMap["if"] != "hashFiles('requirements.txt') != ''" {
+t.Errorf("python if condition: got %v, want hashFiles('requirements.txt') != ''", pythonMap["if"])
+}
+
+// Check Node runtime (no if condition)
+nodeMap, ok := result["node"].(map[string]any)
+if !ok {
+t.Fatal("node runtime not found in result")
+}
+if nodeMap["version"] != "20" {
+t.Errorf("node version: got %v, want 20", nodeMap["version"])
+}
+if _, hasIf := nodeMap["if"]; hasIf {
+t.Error("node should not have if condition in map")
+}
+}

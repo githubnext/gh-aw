@@ -38,12 +38,21 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 		actionRepo, _ := configMap["action-repo"].(string)
 		actionVersion, _ := configMap["action-version"].(string)
 
+		// Extract if condition from config
+		ifCondition, _ := configMap["if"].(string)
+
 		// Find or create runtime requirement
 		if existing, exists := requirements[runtimeID]; exists {
 			// Override version for existing requirement
 			if hasVersion {
 				runtimeSetupLog.Printf("Overriding version for runtime %s: %s", runtimeID, version)
 				existing.Version = version
+			}
+
+			// Override if condition if specified
+			if ifCondition != "" {
+				runtimeSetupLog.Printf("Setting if condition for runtime %s: %s", runtimeID, ifCondition)
+				existing.IfCondition = ifCondition
 			}
 
 			// If action-repo or action-version is specified, create a custom Runtime
@@ -106,8 +115,9 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 			// If runtime is known or we have custom action configuration, create a new requirement
 			if runtime != nil {
 				requirements[runtimeID] = &RuntimeRequirement{
-					Runtime: runtime,
-					Version: version,
+					Runtime:     runtime,
+					Version:     version,
+					IfCondition: ifCondition,
 				}
 			}
 			// If runtime is unknown and no action-repo specified, skip it (user might have typo)
