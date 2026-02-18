@@ -30,7 +30,7 @@ func computePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 	}
 	if safeOutputs.AddComments != nil {
 		safeOutputsPermissionsLog.Print("Adding permissions for add-comment")
-		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite())
+		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
 	}
 	if safeOutputs.CloseIssues != nil {
 		safeOutputsPermissionsLog.Print("Adding permissions for close-issue")
@@ -97,7 +97,7 @@ func computePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 	}
 	if safeOutputs.HideComment != nil {
 		safeOutputsPermissionsLog.Print("Adding permissions for hide-comment")
-		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite())
+		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
 	}
 	if safeOutputs.DispatchWorkflow != nil {
 		safeOutputsPermissionsLog.Print("Adding permissions for dispatch-workflow")

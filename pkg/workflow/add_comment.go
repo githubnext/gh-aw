@@ -121,7 +121,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		MainJobName:    mainJobName,
 		CustomEnvVars:  customEnvVars,
 		Script:         getAddCommentScript(),
-		Permissions:    NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite(),
+		Permissions:    NewPermissionsContentsReadIssuesWritePRWrite(),
 		Outputs:        outputs,
 		Condition:      jobCondition,
 		Needs:          needs,
