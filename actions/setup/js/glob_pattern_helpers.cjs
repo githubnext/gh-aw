@@ -63,8 +63,69 @@ function matchesGlobPattern(filePath, fileGlobFilter) {
   return patterns.some(pattern => pattern.test(filePath));
 }
 
+/**
+ * Convert a simple glob pattern to a RegExp (for non-path matching)
+ * @param {string} pattern - Glob pattern (e.g., "copilot", "*[bot]")
+ * @param {boolean} caseSensitive - Whether matching should be case-sensitive (default: false)
+ * @returns {RegExp} - Regular expression that matches the pattern
+ *
+ * Supports:
+ * - * matches any characters (not limited to non-slash like globPatternToRegex)
+ * - Escapes special regex characters except *
+ * - Case-insensitive by default
+ *
+ * @example
+ * const regex = simpleGlobToRegex("*[bot]");
+ * regex.test("dependabot[bot]"); // true
+ * regex.test("github-actions[bot]"); // true
+ *
+ * @example
+ * const regex = simpleGlobToRegex("copilot");
+ * regex.test("copilot"); // true
+ * regex.test("Copilot"); // true (case-insensitive)
+ */
+function simpleGlobToRegex(pattern, caseSensitive = false) {
+  // Escape special regex characters except *
+  const regexPattern = pattern
+    .replace(/[.+?^${}()|[\]\\]/g, "\\$&") // Escape special regex chars
+    .replace(/\*/g, ".*"); // Convert * to .*
+
+  return new RegExp(`^${regexPattern}$`, caseSensitive ? "" : "i");
+}
+
+/**
+ * Check if a string matches a simple glob pattern
+ * @param {string} str - String to test (e.g., "copilot", "dependabot[bot]")
+ * @param {string} pattern - Glob pattern (e.g., "copilot", "*[bot]")
+ * @param {boolean} caseSensitive - Whether matching should be case-sensitive (default: false)
+ * @returns {boolean} - True if the string matches the pattern
+ *
+ * @example
+ * matchesSimpleGlob("dependabot[bot]", "*[bot]"); // true
+ * matchesSimpleGlob("copilot", "copilot"); // true
+ * matchesSimpleGlob("Copilot", "copilot"); // true (case-insensitive by default)
+ * matchesSimpleGlob("alice", "*[bot]"); // false
+ */
+function matchesSimpleGlob(str, pattern, caseSensitive = false) {
+  if (!str || !pattern) {
+    return false;
+  }
+
+  // Exact match check (case-insensitive by default)
+  if (!caseSensitive && str.toLowerCase() === pattern.toLowerCase()) {
+    return true;
+  } else if (caseSensitive && str === pattern) {
+    return true;
+  }
+
+  const regex = simpleGlobToRegex(pattern, caseSensitive);
+  return regex.test(str);
+}
+
 module.exports = {
   globPatternToRegex,
   parseGlobPatterns,
   matchesGlobPattern,
+  simpleGlobToRegex,
+  matchesSimpleGlob,
 };

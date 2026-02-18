@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { globPatternToRegex, parseGlobPatterns, matchesGlobPattern } from "./glob_pattern_helpers.cjs";
+import { globPatternToRegex, parseGlobPatterns, matchesGlobPattern, simpleGlobToRegex, matchesSimpleGlob } from "./glob_pattern_helpers.cjs";
 
 describe("glob_pattern_helpers.cjs", () => {
   describe("globPatternToRegex", () => {
@@ -356,6 +356,93 @@ describe("glob_pattern_helpers.cjs", () => {
 
       // Should not match files in subdirectories
       expect(patterns.some(p => p.test("dir/history.jsonl"))).toBe(false);
+    });
+  });
+
+  describe("simpleGlobToRegex", () => {
+    it("should match exact patterns without wildcards", () => {
+      const regex = simpleGlobToRegex("copilot");
+
+      expect(regex.test("copilot")).toBe(true);
+      expect(regex.test("Copilot")).toBe(true); // Case-insensitive by default
+      expect(regex.test("alice")).toBe(false);
+    });
+
+    it("should match wildcard patterns", () => {
+      const regex = simpleGlobToRegex("*[bot]");
+
+      expect(regex.test("dependabot[bot]")).toBe(true);
+      expect(regex.test("github-actions[bot]")).toBe(true);
+      expect(regex.test("renovate[bot]")).toBe(true);
+      expect(regex.test("alice")).toBe(false);
+      expect(regex.test("bot-user")).toBe(false);
+    });
+
+    it("should handle wildcards at different positions", () => {
+      const prefixRegex = simpleGlobToRegex("github-*");
+      const suffixRegex = simpleGlobToRegex("*-bot");
+
+      expect(prefixRegex.test("github-actions")).toBe(true);
+      expect(prefixRegex.test("github-bot")).toBe(true);
+      expect(prefixRegex.test("gitlab-actions")).toBe(false);
+
+      expect(suffixRegex.test("my-bot")).toBe(true);
+      expect(suffixRegex.test("github-bot")).toBe(true);
+      expect(suffixRegex.test("bot-user")).toBe(false);
+    });
+
+    it("should respect case sensitivity flag", () => {
+      const caseSensitiveRegex = simpleGlobToRegex("Copilot", true);
+      const caseInsensitiveRegex = simpleGlobToRegex("Copilot", false);
+
+      expect(caseSensitiveRegex.test("Copilot")).toBe(true);
+      expect(caseSensitiveRegex.test("copilot")).toBe(false);
+
+      expect(caseInsensitiveRegex.test("Copilot")).toBe(true);
+      expect(caseInsensitiveRegex.test("copilot")).toBe(true);
+      expect(caseInsensitiveRegex.test("COPILOT")).toBe(true);
+    });
+
+    it("should escape special regex characters", () => {
+      const regex = simpleGlobToRegex("user.name");
+
+      expect(regex.test("user.name")).toBe(true);
+      expect(regex.test("user_name")).toBe(false);
+      expect(regex.test("username")).toBe(false);
+    });
+  });
+
+  describe("matchesSimpleGlob", () => {
+    it("should match exact usernames", () => {
+      expect(matchesSimpleGlob("copilot", "copilot")).toBe(true);
+      expect(matchesSimpleGlob("Copilot", "copilot")).toBe(true); // Case-insensitive
+      expect(matchesSimpleGlob("alice", "copilot")).toBe(false);
+    });
+
+    it("should match wildcard patterns for bot accounts", () => {
+      expect(matchesSimpleGlob("dependabot[bot]", "*[bot]")).toBe(true);
+      expect(matchesSimpleGlob("github-actions[bot]", "*[bot]")).toBe(true);
+      expect(matchesSimpleGlob("renovate[bot]", "*[bot]")).toBe(true);
+      expect(matchesSimpleGlob("alice", "*[bot]")).toBe(false);
+    });
+
+    it("should handle empty or null inputs", () => {
+      expect(matchesSimpleGlob("", "copilot")).toBe(false);
+      expect(matchesSimpleGlob("copilot", "")).toBe(false);
+      expect(matchesSimpleGlob(null, "copilot")).toBe(false);
+      expect(matchesSimpleGlob("copilot", null)).toBe(false);
+    });
+
+    it("should respect case sensitivity flag", () => {
+      expect(matchesSimpleGlob("Copilot", "copilot", false)).toBe(true);
+      expect(matchesSimpleGlob("Copilot", "copilot", true)).toBe(false);
+      expect(matchesSimpleGlob("copilot", "copilot", true)).toBe(true);
+    });
+
+    it("should match wildcards at various positions", () => {
+      expect(matchesSimpleGlob("github-actions-bot", "github-*")).toBe(true);
+      expect(matchesSimpleGlob("my-bot", "*-bot")).toBe(true);
+      expect(matchesSimpleGlob("test-user-123", "test-*-123")).toBe(true);
     });
   });
 });

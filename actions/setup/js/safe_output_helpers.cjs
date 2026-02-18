@@ -315,23 +315,8 @@ function extractAssignees(message) {
  * @returns {boolean} True if username matches the blocked pattern
  */
 function matchesBlockedPattern(username, pattern) {
-  if (!username || !pattern) {
-    return false;
-  }
-
-  // Exact match
-  if (username === pattern) {
-    return true;
-  }
-
-  // Simple glob pattern matching
-  // Convert glob pattern to regex: "*[bot]" -> "^.*\[bot\]$"
-  const regexPattern = pattern
-    .replace(/[.+?^${}()|[\]\\]/g, "\\$&") // Escape special regex chars except *
-    .replace(/\*/g, ".*"); // Convert * to .*
-
-  const regex = new RegExp(`^${regexPattern}$`, "i"); // Case-insensitive
-  return regex.test(username);
+  const { matchesSimpleGlob } = require("./glob_pattern_helpers.cjs");
+  return matchesSimpleGlob(username, pattern);
 }
 
 /**
