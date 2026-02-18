@@ -80,6 +80,19 @@ name: test
 			expectLegacy: false,
 			expectError:  false,
 		},
+		{
+			name: "metadata with compiler version",
+			content: `# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"abc123","compiler_version":"v0.1.2"}
+name: test
+`,
+			expectMetadata: &LockMetadata{
+				SchemaVersion:   LockSchemaV1,
+				FrontmatterHash: "abc123",
+				CompilerVersion: "v0.1.2",
+			},
+			expectLegacy: false,
+			expectError:  false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -98,6 +111,7 @@ name: test
 				require.NotNil(t, metadata, "Expected metadata to be parsed")
 				assert.Equal(t, tt.expectMetadata.SchemaVersion, metadata.SchemaVersion, "Schema version mismatch")
 				assert.Equal(t, tt.expectMetadata.FrontmatterHash, metadata.FrontmatterHash, "Frontmatter hash mismatch")
+				assert.Equal(t, tt.expectMetadata.CompilerVersion, metadata.CompilerVersion, "Compiler version mismatch")
 			} else if !tt.expectError {
 				assert.Nil(t, metadata, "Expected nil metadata")
 			}
@@ -211,6 +225,17 @@ func TestIsSchemaVersionSupported(t *testing.T) {
 }
 
 func TestGenerateLockMetadata(t *testing.T) {
+	// Save and restore original values
+	originalIsRelease := isReleaseBuild
+	originalVersion := compilerVersion
+	defer func() {
+		isReleaseBuild = originalIsRelease
+		compilerVersion = originalVersion
+	}()
+
+	// Test dev build (default)
+	SetIsRelease(false)
+	SetVersion("dev")
 	hash := "abcd1234"
 	stopTime := "2026-02-17 20:00:00"
 	metadata := GenerateLockMetadata(hash, stopTime)
@@ -219,6 +244,30 @@ func TestGenerateLockMetadata(t *testing.T) {
 	assert.Equal(t, LockSchemaV1, metadata.SchemaVersion, "Should use current schema version")
 	assert.Equal(t, hash, metadata.FrontmatterHash, "Should preserve frontmatter hash")
 	assert.Equal(t, stopTime, metadata.StopTime, "Should preserve stop time")
+	assert.Empty(t, metadata.CompilerVersion, "Dev builds should not include version")
+}
+
+func TestGenerateLockMetadataReleaseBuild(t *testing.T) {
+	// Save and restore original values
+	originalIsRelease := isReleaseBuild
+	originalVersion := compilerVersion
+	defer func() {
+		isReleaseBuild = originalIsRelease
+		compilerVersion = originalVersion
+	}()
+
+	// Test release build
+	SetIsRelease(true)
+	SetVersion("v0.1.2")
+	hash := "abcd1234"
+	stopTime := "2026-02-17 20:00:00"
+	metadata := GenerateLockMetadata(hash, stopTime)
+
+	assert.NotNil(t, metadata, "Metadata should be created")
+	assert.Equal(t, LockSchemaV1, metadata.SchemaVersion, "Should use current schema version")
+	assert.Equal(t, hash, metadata.FrontmatterHash, "Should preserve frontmatter hash")
+	assert.Equal(t, stopTime, metadata.StopTime, "Should preserve stop time")
+	assert.Equal(t, "v0.1.2", metadata.CompilerVersion, "Release builds should include version")
 }
 
 func TestGenerateLockMetadataWithoutStopTime(t *testing.T) {
@@ -256,6 +305,19 @@ func TestLockMetadataToJSON(t *testing.T) {
 			},
 			contains: []string{
 				`"schema_version":"v1"`,
+			},
+		},
+		{
+			name: "metadata with compiler version",
+			metadata: &LockMetadata{
+				SchemaVersion:   LockSchemaV1,
+				FrontmatterHash: "test123",
+				CompilerVersion: "v0.1.2",
+			},
+			contains: []string{
+				`"schema_version":"v1"`,
+				`"frontmatter_hash":"test123"`,
+				`"compiler_version":"v0.1.2"`,
 			},
 		},
 	}
