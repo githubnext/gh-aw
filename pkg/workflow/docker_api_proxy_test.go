@@ -20,9 +20,9 @@ func TestCollectDockerImages_APIProxyForEnginesWithLLMGateway(t *testing.T) {
 			expectAPIProxy: true,
 		},
 		{
-			name:           "Copilot engine does not include api-proxy image (no LLM gateway support)",
+			name:           "Copilot engine includes api-proxy image (supports LLM gateway)",
 			engine:         "copilot",
-			expectAPIProxy: false,
+			expectAPIProxy: true,
 		},
 		{
 			name:           "Codex engine includes api-proxy image (supports LLM gateway)",
