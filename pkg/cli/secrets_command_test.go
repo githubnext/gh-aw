@@ -14,7 +14,7 @@ func TestNewSecretsCommand(t *testing.T) {
 
 	require.NotNil(t, cmd, "NewSecretsCommand should not return nil")
 	assert.Equal(t, "secrets", cmd.Use, "Command use should be 'secrets'")
-	assert.Equal(t, "Manage repository secrets and GitHub tokens", cmd.Short, "Command short description should match")
+	assert.Equal(t, "Manage repository secrets", cmd.Short, "Command short description should match")
 	assert.Contains(t, cmd.Long, "Manage GitHub Actions secrets", "Command long description should contain expected text")
 
 	// Verify subcommands are added
