@@ -459,6 +459,47 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Activation job doesn't need project support (no safe outputs processed here)
 	steps = append(steps, c.generateSetupStep(setupActionRef, SetupActionDestination, false)...)
 
+	// Add context variable validation step to ensure numeric fields contain only integers
+	// This prevents malicious payloads from hiding special text or code in numeric fields
+	steps = append(steps, "      - name: Validate context variables\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	steps = append(steps, "        env:\n")
+	// Pass all numeric context variables as environment variables for validation
+	steps = append(steps, "          GH_AW_CONTEXT_ISSUE_NUMBER: ${{ github.event.issue.number }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_MILESTONE_NUMBER: ${{ github.event.milestone.number }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_CHECK_RUN_NUMBER: ${{ github.event.check_run.number }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_CHECK_SUITE_NUMBER: ${{ github.event.check_suite.number }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_WORKFLOW_RUN_NUMBER: ${{ github.event.workflow_run.number }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_CHECK_RUN_ID: ${{ github.event.check_run.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_CHECK_SUITE_ID: ${{ github.event.check_suite.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_COMMENT_ID: ${{ github.event.comment.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_DEPLOYMENT_ID: ${{ github.event.deployment.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_DEPLOYMENT_STATUS_ID: ${{ github.event.deployment_status.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_HEAD_COMMIT_ID: ${{ github.event.head_commit.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_INSTALLATION_ID: ${{ github.event.installation.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_WORKFLOW_JOB_RUN_ID: ${{ github.event.workflow_job.run_id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_LABEL_ID: ${{ github.event.label.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_MILESTONE_ID: ${{ github.event.milestone.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_ORGANIZATION_ID: ${{ github.event.organization.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_PAGE_ID: ${{ github.event.page.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_PROJECT_ID: ${{ github.event.project.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_PROJECT_CARD_ID: ${{ github.event.project_card.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_PROJECT_COLUMN_ID: ${{ github.event.project_column.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_RELEASE_ID: ${{ github.event.release.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_REPOSITORY_ID: ${{ github.event.repository.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_REVIEW_ID: ${{ github.event.review.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_REVIEW_COMMENT_ID: ${{ github.event.review_comment.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_SENDER_ID: ${{ github.event.sender.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_WORKFLOW_JOB_ID: ${{ github.event.workflow_job.id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_RUN_ID: ${{ github.run_id }}\n")
+	steps = append(steps, "          GH_AW_CONTEXT_RUN_NUMBER: ${{ github.run_number }}\n")
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+	steps = append(steps, generateGitHubScriptWithRequire("validate_context_variables.cjs"))
+
 	// Checkout .github and .agents folders for accessing workflow configurations and runtime imports
 	// This is needed for prompt generation which may reference runtime imports from .github folder
 	// Always add this checkout in activation job since it needs access to workflow files for runtime imports
