@@ -91,6 +91,26 @@ func TestParseRemoteOrigin(t *testing.T) {
 			},
 		},
 		{
+			name: "path with ./ should be cleaned",
+			spec: "owner/repo/./path/./file.md@main",
+			expected: &remoteImportOrigin{
+				Owner:    "owner",
+				Repo:     "repo",
+				Ref:      "main",
+				BasePath: "path",
+			},
+		},
+		{
+			name: "path with redundant slashes should be cleaned",
+			spec: "owner/repo/path//to///file.md@main",
+			expected: &remoteImportOrigin{
+				Owner:    "owner",
+				Repo:     "repo",
+				Ref:      "main",
+				BasePath: "path/to",
+			},
+		},
+		{
 			name:     "too few parts returns nil",
 			spec:     "owner/repo",
 			expected: nil,
@@ -449,5 +469,97 @@ func TestResolveRemoteSymlinksPathConstruction(t *testing.T) {
 
 		assert.Equal(t, ".github/workflows/gh-aw-workflows/file.md", resolvedPath,
 			"Nested symlink with ../ target should resolve correctly")
+	})
+}
+
+func TestParseRemoteOriginWithCleanedPaths(t *testing.T) {
+	tests := []struct {
+		name     string
+		spec     string
+		expected *remoteImportOrigin
+	}{
+		{
+			name: "path with ./ components should be cleaned",
+			spec: "owner/repo/./workflows/./test.md@main",
+			expected: &remoteImportOrigin{
+				Owner:    "owner",
+				Repo:     "repo",
+				Ref:      "main",
+				BasePath: "workflows",
+			},
+		},
+		{
+			name: "path with redundant slashes should be cleaned",
+			spec: "owner/repo/workflows//subdir///test.md@main",
+			expected: &remoteImportOrigin{
+				Owner:    "owner",
+				Repo:     "repo",
+				Ref:      "main",
+				BasePath: "workflows/subdir",
+			},
+		},
+		{
+			name: "complex path cleaning",
+			spec: "owner/repo/./a//b/./c///test.md@main",
+			expected: &remoteImportOrigin{
+				Owner:    "owner",
+				Repo:     "repo",
+				Ref:      "main",
+				BasePath: "a/b/c",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseRemoteOrigin(tt.spec)
+			require.NotNil(t, result, "Should parse remote origin for spec: %s", tt.spec)
+			assert.Equal(t, tt.expected.Owner, result.Owner, "Owner mismatch")
+			assert.Equal(t, tt.expected.Repo, result.Repo, "Repo mismatch")
+			assert.Equal(t, tt.expected.Ref, result.Ref, "Ref mismatch")
+			assert.Equal(t, tt.expected.BasePath, result.BasePath, "BasePath mismatch")
+		})
+	}
+}
+
+func TestParseRemoteOriginWithURLFormats(t *testing.T) {
+	t.Run("URL-like paths are currently accepted by isWorkflowSpec", func(t *testing.T) {
+		// URLs are currently accepted by isWorkflowSpec because they have >3 parts when split by /
+		// This documents the current behavior - URLs might need special handling in the future
+		urlPaths := []string{
+			"https://github.com/owner/repo/path/file.md",
+			"http://github.com/owner/repo/path/file.md",
+			"https://github.enterprise.com/owner/repo/path/file.md",
+		}
+
+		for _, urlPath := range urlPaths {
+			// Currently, isWorkflowSpec accepts URLs (they have >3 slash-separated parts)
+			isSpec := isWorkflowSpec(urlPath)
+			assert.True(t, isSpec, "URL is currently accepted as workflowspec: %s", urlPath)
+
+			// parseRemoteOrigin will parse the URL parts literally
+			// For "https://github.com/owner/repo/path/file.md":
+			// - Parts: ["https:", "", "github.com", "owner", "repo", "path", "file.md"]
+			// - Owner would be "https:" (first part after splitting by /)
+			// This test documents the current behavior for future reference
+			origin := parseRemoteOrigin(urlPath)
+			if origin != nil {
+				t.Logf("URL %s parsed as: owner=%s, repo=%s, basePath=%s",
+					urlPath, origin.Owner, origin.Repo, origin.BasePath)
+			}
+		}
+	})
+
+	t.Run("enterprise domain workflowspec format", func(t *testing.T) {
+		// Enterprise GitHub uses the same owner/repo/path format
+		// The domain is handled by GH_HOST environment variable, not in the workflowspec
+		spec := "enterprise-org/enterprise-repo/workflows/test.md@main"
+
+		result := parseRemoteOrigin(spec)
+		require.NotNil(t, result, "Should parse enterprise workflowspec")
+		assert.Equal(t, "enterprise-org", result.Owner)
+		assert.Equal(t, "enterprise-repo", result.Repo)
+		assert.Equal(t, "main", result.Ref)
+		assert.Equal(t, "workflows", result.BasePath)
 	})
 }

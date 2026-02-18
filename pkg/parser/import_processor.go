@@ -132,12 +132,12 @@ func parseRemoteOrigin(spec string) *remoteImportOrigin {
 		return nil
 	}
 
-	// Derive BasePath: everything between owner/repo and the last two path components
-	// Since imports are always 2-level (dir/file.md), the base is everything before the last 2 parts
+	// Derive BasePath: everything between owner/repo and the last component (filename)
+	// Since imports are always 2-level (dir/file.md), the base is everything before the filename
 	// Examples:
 	// - "owner/repo/.github/workflows/file.md" -> BasePath = ".github/workflows"
-	// - "owner/repo/gh-agent-workflows/gh-aw-workflows/file.md" -> BasePath = "gh-agent-workflows"
-	// - "owner/repo/a/b/c/d/file.md" -> BasePath = "a/b/c"
+	// - "owner/repo/gh-agent-workflows/gh-aw-workflows/file.md" -> BasePath = "gh-agent-workflows/gh-aw-workflows"
+	// - "owner/repo/a/b/c/d/file.md" -> BasePath = "a/b/c/d"
 	var basePath string
 	repoRelativeParts := slashParts[2:] // Everything after owner/repo
 	if len(repoRelativeParts) >= 2 {
@@ -145,8 +145,13 @@ func parseRemoteOrigin(spec string) *remoteImportOrigin {
 		// For nested imports, we want the directory containing the file
 		baseDirParts := repoRelativeParts[:len(repoRelativeParts)-1]
 		if len(baseDirParts) > 0 {
-			basePath = strings.Join(baseDirParts, "/")
+			// Clean the path to normalize it (remove ./ and resolve ..)
+			basePath = path.Clean(strings.Join(baseDirParts, "/"))
+			importLog.Printf("Derived BasePath=%q from spec=%q (owner=%s, repo=%s, ref=%s)",
+				basePath, spec, slashParts[0], slashParts[1], ref)
 		}
+	} else {
+		importLog.Printf("No BasePath derived from spec=%q (file at repo root)", spec)
 	}
 
 	return &remoteImportOrigin{
@@ -528,6 +533,8 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 						if basePath == "" {
 							basePath = ".github/workflows"
 						}
+						// Clean the basePath to ensure it's normalized
+						basePath = path.Clean(basePath)
 
 						resolvedPath = fmt.Sprintf("%s/%s/%s/%s@%s",
 							item.remoteOrigin.Owner, item.remoteOrigin.Repo, basePath, cleanPath, item.remoteOrigin.Ref)
