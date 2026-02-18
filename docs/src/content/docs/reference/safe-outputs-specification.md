@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.12.0  
+**Version**: 1.13.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-02-16  
+**Publication Date**: 2026-02-18  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/reference/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -1417,6 +1417,7 @@ create-issue:
 add-comment:
   target: "issue" | "pull_request" | "discussion" | "*"
   hide-older-comments: true      # Hide previous workflow comments
+  discussions: false             # Exclude discussions:write permission (optional)
   target-repo: owner/repo
   allowed-repos: [...]
 ```
@@ -1817,7 +1818,7 @@ This section provides complete normative definitions for all safe output types. 
 ```json
 {
   "name": "add_comment",
-  "description": "Add a comment to an existing issue, pull request, or discussion. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance.",
+  "description": "Add a comment to an existing issue, pull request, or discussion. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and 50 links. Exceeding these limits will result in an immediate error with specific guidance. NOTE: By default, this tool requires discussions:write permission. If your GitHub App lacks Discussions permission, set 'discussions: false' in the workflow's safe-outputs.add-comment configuration to exclude this permission.",
   "inputSchema": {
     "type": "object",
     "required": ["body"],
@@ -1858,6 +1859,7 @@ This section provides complete normative definitions for all safe output types. 
 - `max`: Operation limit (default: 1)
 - `target`: Filter by type ("issue", "pull_request", "discussion", "*")
 - `hide-older-comments`: Hide previous workflow comments
+- `discussions`: Control `discussions:write` permission (default: true)
 - `target-repo`: Cross-repository target
 - `allowed-repos`: Cross-repo allowlist
 
@@ -1867,16 +1869,40 @@ This section provides complete normative definitions for all safe output types. 
 - `contents: read` - Repository metadata and file access
 - `issues: write` - Comment creation on issues
 - `pull-requests: write` - Comment creation on pull requests
-- `discussions: write` - Comment creation on discussions
+- `discussions: write` - Comment creation on discussions (when `discussions: true` or omitted)
 
 *GitHub App* (if using `safe-outputs.app` configuration):
 - `issues: write` - Comment creation on issues
 - `pull-requests: write` - Comment creation on pull requests
-- `discussions: write` - Comment creation on discussions
+- `discussions: write` - Comment creation on discussions (when `discussions: true` or omitted)
 - `metadata: read` - Repository metadata (automatically granted)
 
+**Permission Control via `discussions` Field**:
+
+The optional `discussions` boolean field controls whether `discussions:write` permission is requested:
+
+- **Default behavior** (`discussions: true` or omitted): Includes `discussions:write` permission for maximum compatibility. Use this when the GitHub App has Discussions permission granted.
+- **Opt-out** (`discussions: false`): Excludes `discussions:write` permission. Use this when the GitHub App lacks Discussions permission to prevent 422 errors during token generation.
+
+**Example Configuration**:
+
+```yaml
+safe-outputs:
+  app:
+    app-id: ${{ secrets.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    owner: 'myorg'
+    repositories: ['myrepo']
+  add-comment:
+    target: "*"
+    max: 1
+    discussions: false  # Exclude discussions:write permission
+```
+
 **Notes**:
-- Requires write permissions for all three entity types (issues, PRs, discussions) since comments can be added to any type
+- By default, requires write permissions for all three entity types (issues, PRs, discussions) since comments can be added to any type
+- When `discussions: false`, the workflow only requests `issues:write` and `pull-requests:write` permissions
+- Discussion-related safe outputs (`create-discussion`, `close-discussion`, `update-discussion`) independently add `discussions:write` permission when configured
 - Cross-repository commenting requires appropriate permissions in target repository
 - The `contents: read` permission is always included for repository context access
 
@@ -2520,22 +2546,53 @@ This section provides complete definitions for all remaining safe output types. 
 **Cross-Repository Support**: Yes  
 **Mandatory**: No
 
+**Configuration Parameters**:
+- `max`: Operation limit (default: 5)
+- `discussions`: Control `discussions:write` permission (default: true)
+- `target-repo`: Cross-repository target
+- `allowed-repos`: Cross-repo allowlist
+- `allowed-reasons`: Allowed reasons for hiding comments
+
 **Required Permissions**:
 
 *GitHub Actions Token*:
 - `contents: read` - Repository metadata and context
 - `issues: write` - Comment hiding on issues
 - `pull-requests: write` - Comment hiding on pull requests
-- `discussions: write` - Comment hiding on discussions
+- `discussions: write` - Comment hiding on discussions (when `discussions: true` or omitted)
 
 *GitHub App*:
 - `issues: write` - Comment hiding on issues
 - `pull-requests: write` - Comment hiding on pull requests
-- `discussions: write` - Comment hiding on discussions
+- `discussions: write` - Comment hiding on discussions (when `discussions: true` or omitted)
 - `metadata: read` - Repository metadata (automatically granted)
 
+**Permission Control via `discussions` Field**:
+
+The optional `discussions` boolean field controls whether `discussions:write` permission is requested:
+
+- **Default behavior** (`discussions: true` or omitted): Includes `discussions:write` permission for maximum compatibility. Use this when the GitHub App has Discussions permission granted.
+- **Opt-out** (`discussions: false`): Excludes `discussions:write` permission. Use this when the GitHub App lacks Discussions permission to prevent 422 errors during token generation.
+
+**Example Configuration**:
+
+```yaml
+safe-outputs:
+  app:
+    app-id: ${{ secrets.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    owner: 'myorg'
+    repositories: ['myrepo']
+  hide-comment:
+    max: 5
+    discussions: false  # Exclude discussions:write permission
+    allowed-reasons: [spam, abuse, off_topic]
+```
+
 **Notes**:
-- Requires all three write permissions to support hiding comments across all entity types
+- By default, requires all three write permissions to support hiding comments across all entity types
+- When `discussions: false`, the workflow only requests `issues:write` and `pull-requests:write` permissions
+- Discussion-related safe outputs independently add `discussions:write` permission when configured
 - Comments are minimized, not deleted - reversible by moderators
 
 ---
@@ -3634,6 +3691,14 @@ safe-outputs:
 ---
 
 ## Appendix F: Document History
+
+**Version 1.13.0** (2026-02-18):
+- **Added**: Optional `discussions` field for `add-comment` and `hide-comment` safe output types to control `discussions:write` permission
+- **Enhanced**: Permission documentation for `add-comment` and `hide-comment` to explain conditional `discussions:write` inclusion
+- **Added**: Configuration examples demonstrating `discussions: false` usage for GitHub Apps without Discussions permission
+- **Fixed**: Issue where `add-comment` and `hide-comment` unconditionally requested `discussions:write` permission, causing 422 errors for GitHub Apps lacking Discussions permission
+- **Default behavior**: `discussions: true` (or omitted) includes `discussions:write` for backward compatibility
+- **Opt-out behavior**: `discussions: false` excludes `discussions:write` permission for GitHub Apps without Discussions permission
 
 **Version 1.12.0** (2026-02-16):
 - **Implemented**: MCE1 (Early Validation) for add_comment tool with MCP server constraint enforcement
