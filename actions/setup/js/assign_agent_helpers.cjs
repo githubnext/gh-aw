@@ -359,10 +359,13 @@ async function assignAgentToIssue(assignableId, agentId, currentAssignees, agent
     if (customInstructions) debugMsg += `, customInstructions=${customInstructions.substring(0, 50)}...`;
     core.debug(debugMsg);
 
+    // Build GraphQL-Features header - include coding_agent_model_selection when model is provided
+    const graphqlFeatures = model ? "issues_copilot_assignment_api_support,coding_agent_model_selection" : "issues_copilot_assignment_api_support";
+
     const response = await github.graphql(mutation, {
       ...variables,
       headers: {
-        "GraphQL-Features": "issues_copilot_assignment_api_support",
+        "GraphQL-Features": graphqlFeatures,
       },
     });
 
