@@ -111,7 +111,7 @@ describe("glob_pattern_helpers.cjs", () => {
       });
 
       it("should match multiple file extensions", () => {
-        const patterns = ["*.json", "*.jsonl", "*.csv", "*.md"].map(globPatternToRegex);
+        const patterns = ["*.json", "*.jsonl", "*.csv", "*.md"].map(p => globPatternToRegex(p));
 
         const testCases = [
           { file: "data.json", shouldMatch: true },

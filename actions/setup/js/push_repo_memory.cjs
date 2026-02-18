@@ -192,7 +192,11 @@ async function main() {
 
         // Validate file name patterns if filter is set
         if (fileGlobFilter) {
-          const patterns = fileGlobFilter.trim().split(/\s+/).filter(Boolean).map(globPatternToRegex);
+          const patterns = fileGlobFilter
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .map(pattern => globPatternToRegex(pattern));
 
           // Test patterns against the relative file path within the memory directory
           // Patterns are specified relative to the memory artifact directory, not the branch path

@@ -1,13 +1,30 @@
 // @ts-check
 
 /**
+ * Internal helper to escape special regex characters in a pattern
+ * @param {string} pattern - Pattern to escape
+ * @returns {string} - Pattern with special characters escaped
+ * @private
+ */
+function escapeRegexChars(pattern) {
+  // Escape backslashes first, then dots, then other special chars
+  return pattern
+    .replace(/\\/g, "\\\\") // Escape backslashes
+    .replace(/\./g, "\\.") // Escape dots
+    .replace(/[+?^${}()|[\]]/g, "\\$&"); // Escape other special regex chars (except * which is handled separately)
+}
+
+/**
  * Convert a glob pattern to a RegExp
  * @param {string} pattern - Glob pattern (e.g., "*.json", "metrics/**", "data/**\/*.csv")
+ * @param {Object} [options] - Options for pattern conversion
+ * @param {boolean} [options.pathMode=true] - If true, * matches non-slash chars; if false, * matches any char
+ * @param {boolean} [options.caseSensitive=true] - Whether matching should be case-sensitive
  * @returns {RegExp} - Regular expression that matches the pattern
  *
  * Supports:
- * - * matches any characters except /
- * - ** matches any characters including /
+ * - * matches any characters except / (in path mode) or any characters (in simple mode)
+ * - ** matches any characters including / (only in path mode)
  * - . is escaped to match literal dots
  * - \ is escaped properly
  *
@@ -21,17 +38,23 @@
  * regex.test("metrics/data.json"); // true
  * regex.test("metrics/daily/data.json"); // true
  */
-function globPatternToRegex(pattern) {
-  // Convert glob pattern to regex that supports directory wildcards
-  // ** matches any path segment (including /)
-  // * matches any characters except /
-  let regexPattern = pattern
-    .replace(/\\/g, "\\\\") // Escape backslashes
-    .replace(/\./g, "\\.") // Escape dots
-    .replace(/\*\*/g, "<!DOUBLESTAR>") // Temporarily replace **
-    .replace(/\*/g, "[^/]*") // Single * matches non-slash chars
-    .replace(/<!DOUBLESTAR>/g, ".*"); // ** matches everything including /
-  return new RegExp(`^${regexPattern}$`);
+function globPatternToRegex(pattern, options) {
+  const { pathMode = true, caseSensitive = true } = options || {};
+
+  let regexPattern = escapeRegexChars(pattern);
+
+  if (pathMode) {
+    // Path mode: handle ** and * differently
+    regexPattern = regexPattern
+      .replace(/\*\*/g, "<!DOUBLESTAR>") // Temporarily replace **
+      .replace(/\*/g, "[^/]*") // Single * matches non-slash chars
+      .replace(/<!DOUBLESTAR>/g, ".*"); // ** matches everything including /
+  } else {
+    // Simple mode: * matches any character
+    regexPattern = regexPattern.replace(/\*/g, ".*");
+  }
+
+  return new RegExp(`^${regexPattern}$`, caseSensitive ? "" : "i");
 }
 
 /**
@@ -45,7 +68,11 @@ function globPatternToRegex(pattern) {
  * patterns[1].test("file.jsonl"); // true
  */
 function parseGlobPatterns(fileGlobFilter) {
-  return fileGlobFilter.trim().split(/\s+/).filter(Boolean).map(globPatternToRegex);
+  return fileGlobFilter
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(pattern => globPatternToRegex(pattern));
 }
 
 /**
@@ -70,7 +97,7 @@ function matchesGlobPattern(filePath, fileGlobFilter) {
  * @returns {RegExp} - Regular expression that matches the pattern
  *
  * Supports:
- * - * matches any characters (not limited to non-slash like globPatternToRegex)
+ * - * matches any characters (not limited to non-slash like path mode)
  * - Escapes special regex characters except *
  * - Case-insensitive by default
  *
@@ -85,12 +112,7 @@ function matchesGlobPattern(filePath, fileGlobFilter) {
  * regex.test("Copilot"); // true (case-insensitive)
  */
 function simpleGlobToRegex(pattern, caseSensitive = false) {
-  // Escape special regex characters except *
-  const regexPattern = pattern
-    .replace(/[.+?^${}()|[\]\\]/g, "\\$&") // Escape special regex chars
-    .replace(/\*/g, ".*"); // Convert * to .*
-
-  return new RegExp(`^${regexPattern}$`, caseSensitive ? "" : "i");
+  return globPatternToRegex(pattern, { pathMode: false, caseSensitive });
 }
 
 /**
