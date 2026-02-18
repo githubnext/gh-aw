@@ -355,11 +355,11 @@ func (c *Compiler) processSkipIfMatchConfiguration(frontmatter map[string]any, w
 	}
 	workflowData.SkipIfMatch = skipIfMatchConfig
 
-	if c.verbose && workflowData.SkipIfMatch != nil {
+	if workflowData.SkipIfMatch != nil {
 		if workflowData.SkipIfMatch.Max == 1 {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skip-if-match query configured: %s (max: 1 match)", workflowData.SkipIfMatch.Query)))
+			stopAfterLog.Printf("Skip-if-match query configured: %s (max: 1 match)", workflowData.SkipIfMatch.Query)
 		} else {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skip-if-match query configured: %s (max: %d matches)", workflowData.SkipIfMatch.Query, workflowData.SkipIfMatch.Max)))
+			stopAfterLog.Printf("Skip-if-match query configured: %s (max: %d matches)", workflowData.SkipIfMatch.Query, workflowData.SkipIfMatch.Max)
 		}
 	}
 
@@ -375,11 +375,11 @@ func (c *Compiler) processSkipIfNoMatchConfiguration(frontmatter map[string]any,
 	}
 	workflowData.SkipIfNoMatch = skipIfNoMatchConfig
 
-	if c.verbose && workflowData.SkipIfNoMatch != nil {
+	if workflowData.SkipIfNoMatch != nil {
 		if workflowData.SkipIfNoMatch.Min == 1 {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skip-if-no-match query configured: %s (min: 1 match)", workflowData.SkipIfNoMatch.Query)))
+			stopAfterLog.Printf("Skip-if-no-match query configured: %s (min: 1 match)", workflowData.SkipIfNoMatch.Query)
 		} else {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skip-if-no-match query configured: %s (min: %d matches)", workflowData.SkipIfNoMatch.Query, workflowData.SkipIfNoMatch.Min)))
+			stopAfterLog.Printf("Skip-if-no-match query configured: %s (min: %d matches)", workflowData.SkipIfNoMatch.Query, workflowData.SkipIfNoMatch.Min)
 		}
 	}
 
