@@ -61,7 +61,7 @@ export default defineConfig({
 				src: './src/assets/agentic-workflow.svg',
 				replacesTitle: false,
 			},
-		components: {
+			components: {
 				Head: './src/components/CustomHead.astro',
 				SocialIcons: './src/components/CustomHeader.astro',
 				ThemeSelect: './src/components/ThemeToggle.astro',
@@ -74,21 +74,21 @@ export default defineConfig({
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/github/gh-aw' },
 			],
-			tableOfContents: { 
-			minHeadingLevel: 2, 
-			maxHeadingLevel: 4 
-		},
+			tableOfContents: {
+				minHeadingLevel: 2,
+				maxHeadingLevel: 4
+			},
 			pagination: true,
 			expressiveCode: {
 				frames: {
 					showCopyToClipboardButton: true,
 				},
 				shiki: {
-						langs: /** @type {any[]} */ ([
-							"markdown",
-							"yaml"
-						]),
-						langAlias: { aw: "markdown" }
+					langs: /** @type {any[]} */ ([
+						"markdown",
+						"yaml"
+					]),
+					langAlias: { aw: "markdown" }
 				},
 			},
 			plugins: [
@@ -236,6 +236,7 @@ export default defineConfig({
 					label: 'Troubleshooting',
 					autogenerate: { directory: 'troubleshooting' },
 				},
+				{ label: 'Editor (Experimental)', link: '/editor/' },
 			],
 		}),
 	],
