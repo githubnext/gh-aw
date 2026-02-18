@@ -1401,6 +1401,15 @@
                 }
               ]
             },
+            "bots": {
+              "type": "array",
+              "description": "Allow list of bot identifiers that can trigger the workflow even if they don't meet the required role permissions. When the actor is in this list, the bot must be active (installed) on the repository to trigger the workflow.",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Bot identifier/name (e.g., 'dependabot[bot]', 'renovate[bot]', 'github-actions[bot]')"
+              }
+            },
             "manual-approval": {
               "type": "string",
               "description": "Environment name that requires manual approval before the workflow can run. Must match a valid environment configured in the repository settings."

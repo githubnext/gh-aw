@@ -139,31 +139,46 @@ func parseRolesValue(rolesValue any, fieldName string) []string {
 
 // extractBots extracts the 'bots' field from frontmatter to determine allowed bot identifiers
 func (c *Compiler) extractBots(frontmatter map[string]any) []string {
-	if botsValue, exists := frontmatter["bots"]; exists {
-		switch v := botsValue.(type) {
-		case []any:
-			// Array of bot identifiers
-			var bots []string
-			for _, item := range v {
-				if str, ok := item.(string); ok {
-					bots = append(bots, str)
+	// Check on.bots
+	if onValue, exists := frontmatter["on"]; exists {
+		if onMap, ok := onValue.(map[string]any); ok {
+			if botsValue, hasBots := onMap["bots"]; hasBots {
+				bots := parseBotsValue(botsValue, "on.bots")
+				if bots != nil {
+					return bots
 				}
 			}
-			roleLog.Printf("Extracted %d bot identifiers from array: %v", len(bots), bots)
-			return bots
-		case []string:
-			// Already a string slice
-			roleLog.Printf("Extracted %d bot identifiers: %v", len(v), v)
-			return v
-		case string:
-			// Single bot identifier as string
-			roleLog.Printf("Extracted single bot identifier: %s", v)
-			return []string{v}
 		}
 	}
+
 	// No bots specified, return empty array
 	roleLog.Print("No bots specified")
 	return []string{}
+}
+
+// parseBotsValue parses a bots value from frontmatter (supports string, []any, []string)
+func parseBotsValue(botsValue any, fieldName string) []string {
+	switch v := botsValue.(type) {
+	case []any:
+		// Array of bot identifiers
+		var bots []string
+		for _, item := range v {
+			if str, ok := item.(string); ok {
+				bots = append(bots, str)
+			}
+		}
+		roleLog.Printf("Extracted %d bot identifiers from '%s' array: %v", len(bots), fieldName, bots)
+		return bots
+	case []string:
+		// Already a string slice
+		roleLog.Printf("Extracted %d bot identifiers from '%s': %v", len(v), fieldName, v)
+		return v
+	case string:
+		// Single bot identifier as string
+		roleLog.Printf("Extracted single bot identifier from '%s': %s", fieldName, v)
+		return []string{v}
+	}
+	return nil
 }
 
 // extractRateLimitConfig extracts the 'rate-limit' field from frontmatter
