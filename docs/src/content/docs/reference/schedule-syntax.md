@@ -14,9 +14,10 @@ GitHub Agentic Workflows supports human-friendly schedule expressions that are a
 - **Fuzzy schedules** (recommended) - Automatically scatter execution times across workflows to prevent load spikes
 - **Fixed schedules** - Run at specific times, but create server load when many workflows use the same time
 
-> [!TIP]
-> Use Fuzzy Schedules
-> Fuzzy schedules distribute workflow execution times deterministically across all workflows in your repository. Each workflow gets a unique, consistent execution time that never changes across recompiles, preventing server load spikes.
+Fuzzy schedules distribute workflow execution times deterministically across all workflows in your repository. Each workflow gets a unique, consistent execution time that never changes across recompiles, preventing server load spikes.
+
+> [!NOTE]
+> GitHub Actions enforces a minimum schedule interval of 5 minutes.
 
 ## Quick Reference
 
@@ -41,7 +42,7 @@ GitHub Agentic Workflows supports human-friendly schedule expressions that are a
 | | `every 2 days` | Every 2 days | Fixed |
 | **Cron** | `0 9 * * 1` | Standard cron | Fixed |
 
-## Fuzzy Schedules (Recommended)
+## Fuzzy Schedules
 
 Fuzzy schedules automatically distribute workflow execution times to prevent server load spikes. The scattering is deterministic based on the workflow file path, so each workflow consistently gets the same execution time.
 
@@ -99,9 +100,6 @@ on:
 
 Supported intervals: `1h`, `2h`, `3h`, `4h`, `6h`, `8h`, `12h`
 
-> [!NOTE]
-> Minute intervals (e.g., `every 10 minutes`) do not support `on weekdays` suffix as they would run continuously during the specified days.
-
 ### Weekly Schedules
 
 ```yaml
@@ -157,9 +155,6 @@ on:
     - cron: "0 9 15 * *"   # 15th of month at 9:00 AM UTC
 ```
 
-> [!TIP]
-> Fixed schedules create load spikes. Use fuzzy schedules like `daily` or `daily around 14:00` to distribute execution times.
-
 ## Interval Schedules
 
 Use `every N [unit]` syntax for various intervals:
@@ -189,9 +184,6 @@ on:
 
 Valid minute intervals: `5m`, `10m`, `15m`, `20m`, `30m`
 Valid hour intervals: `1h`, `2h`, `3h`, `4h`, `6h`, `8h`, `12h`
-
-> [!NOTE]
-> GitHub Actions enforces a minimum schedule interval of 5 minutes.
 
 ## Time Formats
 
@@ -247,41 +239,6 @@ on:
     - cron: "FUZZY:DAILY * * *"
   workflow_dispatch:
 ```
-
-## Best Practices
-
-**Recommended:** Use fuzzy schedules to prevent load spikes
-```yaml
-on: daily                                   # ✅ Scattered time
-on: daily on weekdays                       # ✅ Mon-Fri scattered time
-on: daily between 9:00 and 17:00            # ✅ Business hours
-on: daily between 9am and 5pm on weekdays   # ✅ Mon-Fri business hours
-on: daily between 9am utc-5 and 5pm utc-5 on weekdays   # ✅ Regional weekday times
-on: weekly on monday                        # ✅ Scattered time
-on: every 2h                                # ✅ Scattered minute
-on: every 2h on weekdays                    # ✅ Mon-Fri scattered minute
-```
-
-**Avoid:** Fixed times that create load spikes
-```yaml
-on:
-  schedule:
-    - cron: "0 0 * * *"     # ❌ All workflows run at same time
-    - cron: "0 */2 * * *"   # ❌ All workflows run at minute 0
-```
-
-## How Scattering Works
-
-Fuzzy schedules use a deterministic FNV-1a hash of the workflow identifier (repository slug + file path) to assign unique execution times. The same workflow always gets the same time across recompiles.
-
-```yaml
-# Example: on: daily
-Workflow A: 43 5 * * *   (5:43 AM)
-Workflow B: 17 14 * * *  (2:17 PM)
-Workflow C: 8 20 * * *   (8:08 PM)
-```
-
-The algorithm includes the repository slug, so workflows with the same name in different repositories get different execution times, distributing load across an entire organization.
 
 ## Validation & Warnings
 

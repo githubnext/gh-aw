@@ -30,6 +30,7 @@ GitHub Agentic Workflows supports environment variables in 13 distinct contexts:
 ### Example Configurations
 
 **Workflow-level shared configuration:**
+
 ```yaml wrap
 ---
 env:
@@ -39,6 +40,7 @@ env:
 ```
 
 **Job-specific overrides:**
+
 ```yaml wrap
 ---
 jobs:
@@ -53,6 +55,7 @@ jobs:
 ```
 
 **AWF-specific contexts:**
+
 ```yaml wrap
 ---
 # Engine configuration
@@ -115,117 +118,6 @@ jobs:
           # API_KEY = "test-key" (job-level override)
           # DEBUG = "false" (workflow-level inherited)
           # EXTRA = "value" (job-level)
----
-```
-
-## Common Patterns
-
-**Shared configuration with job overrides:**
-```yaml wrap
----
-env:
-  NODE_ENV: production
-jobs:
-  test:
-    env:
-      NODE_ENV: test  # Override for testing
----
-```
-
-**Safe outputs with custom PAT:**
-```yaml wrap
----
-safe-outputs:
-  create-issue:
-  env:
-    GITHUB_TOKEN: ${{ secrets.CUSTOM_PAT }}
----
-```
-
-**Engine and MCP configuration:**
-```yaml wrap
----
-engine:
-  env:
-    OPENAI_API_KEY: ${{ secrets.OPENAI_KEY }}
-
-tools:
-  database:
-    command: npx
-    args: ["-y", "mcp-server-postgres"]
-    env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
----
-```
-
-## Best Practices
-
-**Always use secrets for sensitive data:**
-```yaml wrap
-# ✅ Correct
-env:
-  API_KEY: ${{ secrets.API_KEY }}
-
-# ❌ Never hardcode secrets
-env:
-  API_KEY: "sk-1234567890abcdef"
-```
-
-**Define variables at the narrowest scope needed:**
-```yaml wrap
-# ✅ Job-specific variable
-jobs:
-  build:
-    env:
-      BUILD_MODE: production
-```
-
-**Use consistent naming conventions:**
-- `SCREAMING_SNAKE_CASE` format
-- Descriptive names: `API_KEY` not `KEY`
-- Service prefixes: `POSTGRES_PASSWORD`, `REDIS_PORT`
-
-## GitHub Actions Integration
-
-During compilation, AWF extracts environment variables from frontmatter, preserves GitHub Actions expressions (`${{ ... }}`), and renders them to the appropriate scope in `.lock.yml` files. Secret syntax is validated to ensure `${{ secrets.NAME }}` format.
-
-**Generated lock file structure:**
-```yaml
-env:
-  SHARED_VAR: value
-
-jobs:
-  agent:
-    env:
-      GH_AW_SAFE_OUTPUTS: /opt/gh-aw/safeoutputs/outputs.jsonl
-      CUSTOM_VAR: ${{ secrets.CUSTOM_SECRET }}
-    steps:
-      - name: Execute
-        env:
-          STEP_VAR: value
-```
-
-## Debugging Environment Variables
-
-**View all available variables:**
-```yaml wrap
-jobs:
-  debug:
-    steps:
-      - run: env | sort
-```
-
-**Test precedence:**
-```yaml wrap
----
-env:
-  TEST_VAR: workflow
-jobs:
-  test:
-    env:
-      TEST_VAR: job
-    steps:
-      - run: echo "TEST_VAR is $TEST_VAR"  # Outputs: "job"
 ---
 ```
 

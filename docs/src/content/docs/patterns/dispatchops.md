@@ -95,12 +95,12 @@ Deploy to the ${{ github.event.inputs.target_env }} environment.
 Manual workflow execution respects the same security model as other triggers:
 
 - **Repository permissions** - User must have write access or higher to trigger workflows
-- **Role-based access** - Use the `on.roles` field to restrict who can run workflows:
+- **Role-based access** - Use the `roles:` field to restrict who can run workflows:
 
 ```yaml
 on:
   workflow_dispatch:
-  roles: [admin, maintainer]
+roles: [admin, maintainer]
 ```
 
 - **Bot authorization** - Use the `bots:` field to allow specific bot accounts:
@@ -250,12 +250,6 @@ on:
         default: '10'
 ```
 
-**Best practices:**
-- Use descriptive `description` text to guide users
-- Set sensible `default` values for optional inputs
-- Use `choice` type to constrain options and prevent invalid values
-- Mark truly required inputs with `required: true`
-
 ### Referencing Inputs in Markdown
 
 Access input values using GitHub Actions expression syntax:
@@ -364,24 +358,6 @@ The workflow runs with your branch's code and state. Safe outputs (issues, PRs, 
 **Inputs not appearing:** Check YAML syntax and indentation (2 spaces) in `workflow_dispatch.inputs`. Ensure input types are valid (`string`, `boolean`, `choice`, `environment`), then recompile and push.
 
 **Wrong branch context:** Specify the branch explicitly with `--ref branch-name` in CLI or select the correct branch in the GitHub UI dropdown before running.
-
-## Best Practices
-
-### Input Design
-
-Use descriptive input names (`analysis_depth` not `depth`) and provide helpful descriptions to guide users. Set sensible defaults for optional inputs and use `choice` type to constrain options. Avoid creating more than 5 inputs as this becomes overwhelming. Keep truly required inputs minimal-if a default works, make it optional.
-
-### Development and Testing
-
-Include `workflow_dispatch:` in all workflows during development. Test with trial mode first (`gh aw trial workflow.md`), then verify in-repo behavior with manual dispatch. Clean up test branches after merging and remove debugging inputs before production deployment.
-
-### Security
-
-Use `roles:` to restrict sensitive operations and `manual-approval:` for production workflows. Validate and sanitize all string inputs in workflow logic. Never pass secrets or credentials via inputs-trust input values only after validation. Document who should run which workflows and review run history regularly.
-
-### Combining Triggers
-
-Add `workflow_dispatch` to event-triggered workflows for testing without creating real issues or PRs. This enables automated execution on real events while allowing manual testing and debugging with specific examples.
 
 ## Related Documentation
 

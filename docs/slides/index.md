@@ -8,13 +8,12 @@ mermaid.initialize({ startOnLoad: true });
 </script>
 
 # GitHub Agentic Workflows
+
 ## Write AI Automation in Natural Language
+
 ### Research Preview
 
-
-https://github.com/github/gh-aw
-
-
+<https://github.com/github/gh-aw>
 
 ---
 
@@ -32,7 +31,7 @@ https://github.com/github/gh-aw
 
 - **Issue triage** - Automated labeling and prioritization
 
-> https://githubnext.com/projects/continuous-ai/
+> <https://githubnext.com/projects/continuous-ai/>
 
 <!--
 https://github.com/github/gh-aw/issues/1920
@@ -41,6 +40,7 @@ https://github.com/github/gh-aw/issues/1920
 ---
 
 # Evolution: LLMs to SWE Agents
+
 ## From code completion to autonomous workflows
 
 **2021: GitHub Copilot** - AI-powered code completion
@@ -83,11 +83,11 @@ AI agents become risky when they combine **three capabilities** at once:
 
 - **External communication**
 
-> https://simonw.substack.com/p/the-lethal-trifecta-for-ai-agents
+> <https://simonw.substack.com/p/the-lethal-trifecta-for-ai-agents>
 
 ---
 
-# Combine GitHub Actions and SWE Agents **SAFELY**.
+# Combine GitHub Actions and SWE Agents **SAFELY**
 
 ---
 
@@ -111,6 +111,7 @@ Summarize issue and respond in a comment.
 ---
 
 # Trusted by Enterprises
+
 ## Safe by default
 
 - **Containers**: Isolated GitHub Actions Jobs
@@ -205,7 +206,7 @@ npx --yes @github/copilot -i "activate https://raw.githubusercontent.com/github/
 
 > Built with AI agents in mind from day 0
 
-> Quick Start: https://github.github.com/gh-aw/setup/quick-start/
+> Quick Start: <https://github.github.com/gh-aw/setup/quick-start/>
 
 ---
 
@@ -228,11 +229,12 @@ Analyze issue and break down into implementation tasks
 ---
 
 # AI Engines
+
 ## Multiple AI providers supported
 
-* **GitHub Copilot** (default, recommended)
-* **Claude Code** (experimental)
-* **Codex** (experimental)
+- **GitHub Copilot** (default, recommended)
+- **Claude Code** (experimental)
+- **Codex** (experimental)
 
 ```yaml
 engine: copilot  # sensible defaults
@@ -297,6 +299,7 @@ gh aw compile
 ---
 
 # Cache & Persistent Memory
+
 ## Speed up workflows and maintain context
 
 ```yaml
@@ -318,6 +321,7 @@ Review this PR with context from previous reviews:
 ---
 
 # Playwright + Upload Assets
+
 ## Browser automation for web app testing
 
 ```yaml
@@ -344,6 +348,7 @@ Test the web application:
 ---
 
 # Sanitized Context & Security
+
 ## Protect against prompt injection
 
 ```yaml
@@ -372,11 +377,13 @@ Metadata:
 ---
 
 # Security Architecture
+
 ## Multi-layered defense in depth
 
 GitHub Agentic Workflows implements a comprehensive security architecture with multiple isolation layers to protect against threats.
 
 **Key Security Principles:**
+
 - Container isolation for all components
 - Network firewall controls at every layer
 - Minimal permissions by default
@@ -427,15 +434,18 @@ flowchart TB
 ---
 
 # Security Layer 1: Coding Agent Sandbox
+
 ## Isolated agent process
 
 **Coding Agent Sandbox:**
+
 - Agent process runs in isolated container
 - Read-only permissions by default
 - No direct write access to repository
 - Limited system access
 
 **Primary Proxy/Firewall:**
+
 - Filters outbound traffic from agent
 - Controls access to MCP Gateway
 - Enforces network allowlists
@@ -443,15 +453,18 @@ flowchart TB
 ---
 
 # Security Layer 2: MCP Gateway
+
 ## Central routing with access controls
 
 **MCP Gateway (mcpg):**
+
 - Central routing component
 - Manages communication between agents and services
 - Validates tool invocations
 - Enforces permission boundaries
 
 **Benefits:**
+
 - Single point of control
 - Auditable tool access
 - Prevents direct agent-to-service communication
@@ -459,15 +472,18 @@ flowchart TB
 ---
 
 # Security Layer 3: Tool Sandboxes
+
 ## Isolated MCP servers and skills
 
 **MCP Server & Skill Sandboxes:**
+
 - Each MCP server runs in own container
 - Each skill runs in separate sandbox
 - Non-root user IDs
 - Dropped capabilities
 
 **Secondary Proxy/Firewalls:**
+
 - Additional proxy layers for egress traffic
 - Domain-specific allowlists
 - Defense against data exfiltration
@@ -475,9 +491,11 @@ flowchart TB
 ---
 
 # Security Layer 4: Service Access
+
 ## Controlled external communication
 
 **Service Layer:**
+
 - External services accessed through proxies
 - Multiple security controls before reaching services
 - Comprehensive audit trail
@@ -491,47 +509,27 @@ Even if one layer is compromised, multiple additional security controls remain i
 # Security Features Summary
 
 **Container Isolation:**
+
 - GitHub Actions Jobs in VMs
 - Separate sandboxes for agent, MCP servers, skills
 
 **Network Controls:**
+
 - Proxy/firewall at every layer
 - Domain allowlisting
 - Ecosystem-based controls (node, python, containers)
 
 **Permissions:**
+
 - Read-only by default
 - Safe outputs for write operations
 - Explicit permission grants
 
 **Monitoring:**
+
 - Threat detection
 - Audit logs
 - Workflow run analysis
-
----
-
-# Best Practices: Strict Mode
-
-Enable strict mode for production workflows:
-
-```yaml
----
-strict: true
-permissions:
-  contents: read
-network:
-  allowed: [defaults, python]
-safe-outputs:
-  create-issue:
----
-```
-
-**Strict mode enforces:**
-- No write permissions (use safe-outputs)
-- Secure network defaults
-- No wildcard domains
-- Action pinning to commit SHAs
 
 ---
 
@@ -553,6 +551,7 @@ Analyze issue and create implementation PR
 ```
 
 **Plan / Check / Act Pattern:**
+
 - AI generates plan (read-only)
 - Human reviews and approves
 - Automated execution with safe outputs
@@ -562,11 +561,12 @@ Analyze issue and create implementation PR
 # Learn More About Security
 
 **Documentation:**
+
 - Security Best Practices Guide
 - Threat Detection Configuration
 - Network Configuration Reference
 - Safe Outputs Reference
 
-**Visit:** https://github.github.com/gh-aw/introduction/architecture/
+**Visit:** <https://github.github.com/gh-aw/introduction/architecture/>
 
 Security is foundational to GitHub Agentic Workflows. We continuously evolve our security controls and welcome community feedback.

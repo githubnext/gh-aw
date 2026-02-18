@@ -93,16 +93,6 @@ All follow the phased approach with discussions for tracking and draft pull requ
 4. **Config Phase** - Create config files, test, submit PR, wait for approval
 5. **Execute Daily** - Make small improvements, verify, create draft PRs, update discussion
 
-## Best Practices
-
-- Keep changes reviewable in 5-10 minutes
-- Use draft PRs to signal review needed
-- Track progress and issues in discussions
-- Handle failures by creating issues and exiting cleanly
-- Enable `workflow_dispatch` for manual testing
-- Schedule weekdays only to avoid weekend buildup
-
-
 ## Related Patterns
 
 - **IssueOps** - Trigger workflows from issue creation or comments

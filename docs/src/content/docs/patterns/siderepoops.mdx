@@ -7,10 +7,6 @@ sidebar:
 
 import { FileTree } from '@astrojs/starlight/components';
 
-> [!TIP]
-> Recommended for Beginners
-> **SideRepoOps is the easiest way to get started with reporting agents.** It requires minimal setup, keeps your main repository clean, and lets you experiment safely without affecting production code. Perfect for trying out agentic workflows before integrating them directly into your main repository.
-
 SideRepoOps is a development pattern where you run agentic workflows from a separate "side" repository that targets your main codebase. This keeps AI-generated issues, comments, and workflow runs isolated from your main repository, providing cleaner separation between automation infrastructure and your production code.
 
 ## When to Use SideRepoOps
@@ -301,30 +297,6 @@ tools:
 Review documentation in {{inputs.docs_path}} of my-org/main-repo.
 Create a PR with suggested improvements.
 ```
-
-## Best Practices
-
-**Security**: Rotate PATs quarterly with expiration dates, minimize token scope to required permissions, use GitHub Apps for automatic token revocation, audit workflow runs regularly, and restrict who can trigger workflows.
-
-**Workflow Design**: Mark AI-generated items with distinctive labels and `[automation]` prefixes, set appropriate rate limits with `max:` values, handle permission failures gracefully, and document cross-repo relationships.
-
-**Issue Management**: Schedule regular reviews of automation-generated issues, document the review → approve → transfer process, track false positive rates, deduplicate before creating issues, and preserve context by linking to triggering events.
-
-**Repository Organization**:
-
-<FileTree>
-- side-repo/
-  - .github/
-    - workflows/
-      - triage-main.md Scheduled triage
-      - quality-check.md Code quality monitoring
-      - doc-sync.md Documentation sync
-      - manual-task.md Manual dispatch tasks
-  - docs/
-    - README.md Side repo documentation
-    - workflow-guide.md How to use workflows
-  - .env.example Required secrets documentation
-</FileTree>
 
 ## Troubleshooting
 

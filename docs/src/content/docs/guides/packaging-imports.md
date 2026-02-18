@@ -60,6 +60,7 @@ The compiler uses a **breadth-first search (BFS)** algorithm to process imports:
 6. **Validation**: Final merged configuration is validated for conflicts
 
 **Processing order** follows BFS traversal:
+
 ```
 Main Workflow
 ├── shared/tools.md        (1st - direct import)
@@ -84,6 +85,7 @@ Main Workflow
 | `jobs:` | Not importable | ✅ Main only (ignored in imports) |
 
 **Example: Tool merging**
+
 ```yaml wrap
 # shared/tools.md
 tools:
@@ -100,6 +102,7 @@ tools:
 ```
 
 **Example: Safe output overriding**
+
 ```yaml wrap
 # shared/outputs.md
 safe-outputs:
@@ -280,6 +283,7 @@ Automated code review with security policy enforcement using shared agent.
 ```
 
 **Benefits**:
+
 - **Consistency**: All workflows use same tool configurations and agent behavior
 - **Maintainability**: Update imports once, affects all workflows
 - **Versioning**: Pin to stable versions with semantic tags
@@ -292,6 +296,7 @@ Automated code review with security policy enforcement using shared agent.
 Workflow and import specifications require minimum 3 parts (owner/repo/path) for remote imports. Explicit paths must end with `.md`. Versions can be semantic tags (`@v1.0.0`), branches (`@develop`), or commit SHAs. Identifiers use alphanumeric characters with hyphens/underscores (cannot start/end with hyphen).
 
 **Examples:**
+
 - Repository: `owner/repo[@version]`
 - Short workflow: `owner/repo/workflow[@version]` (adds `workflows/` prefix and `.md`)
 - Explicit workflow: `owner/repo/path/to/workflow.md[@version]`
@@ -305,6 +310,7 @@ Workflow and import specifications require minimum 3 parts (owner/repo/path) for
 Use semantic versioning for stable workflows and agents, branches for development, and commit SHAs for immutability. Organize reusable components in `shared/` directories and agent files in `.github/agents/` with descriptive names. Review updates with `--verbose` before applying, test on branches, and keep local modifications minimal to reduce merge conflicts.
 
 When sharing agents across teams:
+
 - Use semantic versioning for production agents (`@v1.0.0`)
 - Document agent capabilities and requirements in frontmatter
 - Test agent updates in non-production workflows first
