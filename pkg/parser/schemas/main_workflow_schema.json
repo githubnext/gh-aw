@@ -4817,6 +4817,10 @@
                     "type": "string",
                     "enum": ["spam", "abuse", "off_topic", "outdated", "resolved"]
                   }
+                },
+                "discussions": {
+                  "type": "boolean",
+                  "description": "Controls whether the workflow requests discussions:write permission for add-comment. Default: true (includes discussions:write). Set to false if your GitHub App lacks Discussions permission to prevent 422 errors during token generation."
                 }
               },
               "additionalProperties": false,
@@ -5736,6 +5740,10 @@
                     "type": "string",
                     "enum": ["spam", "abuse", "off_topic", "outdated", "resolved"]
                   }
+                },
+                "discussions": {
+                  "type": "boolean",
+                  "description": "Controls whether the workflow requests discussions:write permission for hide-comment. Default: true (includes discussions:write). Set to false if your GitHub App lacks Discussions permission to prevent 422 errors during token generation."
                 }
               },
               "additionalProperties": false

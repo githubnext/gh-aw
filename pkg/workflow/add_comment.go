@@ -23,6 +23,7 @@ type AddCommentsConfig struct {
 	Discussion           *bool    `yaml:"discussion,omitempty"`          // Target discussion comments instead of issue/PR comments. Must be true if present.
 	HideOlderComments    bool     `yaml:"hide-older-comments,omitempty"` // When true, minimizes/hides all previous comments from the same workflow before creating the new comment
 	AllowedReasons       []string `yaml:"allowed-reasons,omitempty"`     // List of allowed reasons for hiding older comments (default: all reasons allowed)
+	Discussions          *bool    `yaml:"discussions,omitempty"`         // When false, excludes discussions:write permission. Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission.
 }
 
 // buildCreateOutputAddCommentJob creates the add_comment job
@@ -113,6 +114,15 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		needs = append(needs, createPullRequestJobName)
 	}
 
+	// Determine permissions based on discussions field
+	// Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission
+	var permissions *Permissions
+	if data.SafeOutputs.AddComments.Discussions != nil && !*data.SafeOutputs.AddComments.Discussions {
+		permissions = NewPermissionsContentsReadIssuesWritePRWrite()
+	} else {
+		permissions = NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite()
+	}
+
 	// Use the shared builder function to create the job
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
 		JobName:        "add_comment",
@@ -121,7 +131,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		MainJobName:    mainJobName,
 		CustomEnvVars:  customEnvVars,
 		Script:         getAddCommentScript(),
-		Permissions:    NewPermissionsContentsReadIssuesWritePRWrite(),
+		Permissions:    permissions,
 		Outputs:        outputs,
 		Condition:      jobCondition,
 		Needs:          needs,

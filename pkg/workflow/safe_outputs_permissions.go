@@ -30,7 +30,13 @@ func computePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 	}
 	if safeOutputs.AddComments != nil {
 		safeOutputsPermissionsLog.Print("Adding permissions for add-comment")
-		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
+		// Check if discussions permission should be excluded (discussions: false)
+		// Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission
+		if safeOutputs.AddComments.Discussions != nil && !*safeOutputs.AddComments.Discussions {
+			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
+		} else {
+			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite())
+		}
 	}
 	if safeOutputs.CloseIssues != nil {
 		safeOutputsPermissionsLog.Print("Adding permissions for close-issue")
@@ -97,7 +103,13 @@ func computePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 	}
 	if safeOutputs.HideComment != nil {
 		safeOutputsPermissionsLog.Print("Adding permissions for hide-comment")
-		permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
+		// Check if discussions permission should be excluded (discussions: false)
+		// Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission
+		if safeOutputs.HideComment.Discussions != nil && !*safeOutputs.HideComment.Discussions {
+			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
+		} else {
+			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite())
+		}
 	}
 	if safeOutputs.DispatchWorkflow != nil {
 		safeOutputsPermissionsLog.Print("Adding permissions for dispatch-workflow")

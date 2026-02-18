@@ -72,7 +72,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
-			name: "add-comment only - no discussions permission",
+			name: "add-comment default - includes discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				AddComments: &AddCommentsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
@@ -82,13 +82,43 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				PermissionContents:     PermissionRead,
 				PermissionIssues:       PermissionWrite,
 				PermissionPullRequests: PermissionWrite,
+				PermissionDiscussions:  PermissionWrite,
 			},
 		},
 		{
-			name: "hide-comment only - no discussions permission",
+			name: "add-comment with discussions:false - no discussions permission",
+			safeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					Discussions:          ptrBool(false),
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionRead,
+				PermissionIssues:       PermissionWrite,
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
+			name: "hide-comment default - includes discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				HideComment: &HideCommentConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionRead,
+				PermissionIssues:       PermissionWrite,
+				PermissionPullRequests: PermissionWrite,
+				PermissionDiscussions:  PermissionWrite,
+			},
+		},
+		{
+			name: "hide-comment with discussions:false - no discussions permission",
+			safeOutputs: &SafeOutputsConfig{
+				HideComment: &HideCommentConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+					Discussions:          ptrBool(false),
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
@@ -215,23 +245,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 				AddLabels: &AddLabelsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5},
-				},
-			},
-			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
-				PermissionIssues:       PermissionWrite,
-				PermissionPullRequests: PermissionWrite,
-				PermissionDiscussions:  PermissionWrite,
-			},
-		},
-		{
-			name: "add-comment with create-discussion - includes discussions permission",
-			safeOutputs: &SafeOutputsConfig{
-				AddComments: &AddCommentsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
-				},
-				CreateDiscussions: &CreateDiscussionsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
