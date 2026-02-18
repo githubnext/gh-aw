@@ -78,7 +78,6 @@ func TestCompletionEngineNamesIntegration(t *testing.T) {
 	assert.Contains(t, outputStr, "copilot")
 	assert.Contains(t, outputStr, "claude")
 	assert.Contains(t, outputStr, "codex")
-	assert.Contains(t, outputStr, "custom")
 }
 
 // TestCompletionEngineNamesPrefixIntegration tests the engine flag completion with prefix filtering

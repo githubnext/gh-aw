@@ -443,7 +443,7 @@ Environment variables can be defined at multiple scopes (workflow, job, step, en
 
 ## Secrets (`secrets:`)
 
-Defines secret values passed to workflow execution. Secrets are typically used to provide sensitive configuration to MCP servers, custom engines, or workflow components. Values must be GitHub Actions expressions that reference secrets (e.g., `${{ secrets.API_KEY }}`).
+Defines secret values passed to workflow execution. Secrets are typically used to provide sensitive configuration to MCP servers or workflow components. Values must be GitHub Actions expressions that reference secrets (e.g., `${{ secrets.API_KEY }}`).
 
 ```yaml wrap
 secrets:

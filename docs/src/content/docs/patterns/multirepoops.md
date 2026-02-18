@@ -185,12 +185,12 @@ Compare code structure between this repo and org/reference-repo.
 
 ## Deterministic Multi-Repo Workflows
 
-For direct repository access without agent involvement, use custom engine with multiple checkouts:
+For direct repository access without agent involvement, use an AI engine with custom steps:
 
 ```aw wrap
 ---
 engine:
-  id: custom
+  id: claude
   steps:
     - name: Checkout main repo
       uses: actions/checkout@v5
@@ -216,7 +216,7 @@ engine:
 
 # Deterministic Feature Sync
 
-Custom workflow that directly checks out multiple repos and synchronizes files.
+Workflow that directly checks out multiple repos and synchronizes files.
 ```
 
 ## Example Workflows

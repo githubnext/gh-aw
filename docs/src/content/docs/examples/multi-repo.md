@@ -137,11 +137,11 @@ When working with private repositories, ensure the PAT owner has repository acce
 
 ### Deterministic Workflows
 
-For direct repository access, use custom engine with `actions/checkout`:
+For direct repository access, use an AI engine with custom steps via `actions/checkout`:
 
 ```yaml wrap
 engine:
-  id: custom
+  id: claude
   steps:
     - name: Checkout main repo
       uses: actions/checkout@v5

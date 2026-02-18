@@ -214,7 +214,7 @@ The executing agentic workflow uses your nominated coding agent (defaulting to G
 
 ### I'm not using a supported AI Engine (coding agent). What should I do?
 
-If you want to use a coding agent that isn't currently supported (Copilot, Claude, or Codex), you can use the custom engine to define your own GitHub Actions steps, contribute support to the [gh-aw repository](https://github.com/github/gh-aw), or open an issue describing your use case. See [AI Engines](/gh-aw/reference/engines/).
+If you want to use a coding agent that isn't currently supported (Copilot, Claude, or Codex), you can contribute support to the [gh-aw repository](https://github.com/github/gh-aw), or open an issue describing your use case. See [AI Engines](/gh-aw/reference/engines/).
 
 ### Can I test workflows without affecting my repository?
 

@@ -807,7 +807,7 @@ features:
 
 # Secret values passed to workflow execution. Secrets can be defined as simple
 # strings (GitHub Actions expressions) or objects with 'value' and 'description'
-# properties. Typically used to provide secrets to MCP servers or custom engines.
+# properties. Typically used to provide secrets to MCP servers or workflow components.
 # Note: For passing secrets to reusable workflows, use the jobs.<job_id>.secrets
 # field instead.
 # (optional)
@@ -1229,8 +1229,8 @@ engine:
   env:
     {}
 
-  # Custom GitHub Actions steps for 'custom' engine. Define your own deterministic
-  # workflow steps instead of using AI processing.
+  # Custom GitHub Actions steps for extended engine configuration. Define additional
+  # workflow steps to run alongside AI processing.
   # (optional)
   steps: []
     # Array items:

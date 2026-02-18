@@ -1,6 +1,6 @@
 ---
 title: AI Engines (aka Coding Agents)
-description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot and custom engines with their specific configuration options.
+description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Copilot, Claude, and Codex with their specific configuration options.
 sidebar:
   order: 600
 ---

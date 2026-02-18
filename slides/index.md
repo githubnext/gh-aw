@@ -102,7 +102,6 @@ Multiple engine options:
 - **Copilot** - GitHub's AI pair programmer
 - **Claude** - Anthropic's Claude models
 - **Codex** - OpenAI's code model
-- **Custom** - Bring your own AI
 
 ---
 
