@@ -133,7 +133,7 @@ on:
   issues:
     types: [opened]
   skip-bots: [user1, user2]
-roles: [maintainer]
+  roles: [maintainer]
 engine: copilot
 ---
 

@@ -115,7 +115,7 @@ on:
   pull_request:
     types: [opened]
   roles: [write]
-bots: ["dependabot[bot]"]
+  bots: ["dependabot[bot]"]
 ---
 
 # Test Workflow

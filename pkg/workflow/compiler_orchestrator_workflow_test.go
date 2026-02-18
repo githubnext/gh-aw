@@ -1098,46 +1098,13 @@ on:
   pull_request:
     types: [opened, synchronize]
     draft: false
+  roles:
+    - admin
+    - maintainer
+  bots:
+    - copilot
+    - dependabot
 engine: copilot
-name: Complete Workflow
-description: Test all sections
-source: complete-test
-timeout-minutes: 60
-strict: false
-features:
-  dangerous-permissions-write: true
-permissions:
-  contents: read
-  issues: write
-  pull-requests: write
-network:
-  allowed:
-    - github.com
-    - api.example.com
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-run-name: Test Run ${{ github.run_id }}
-env:
-  NODE_ENV: production
-  DEBUG: "true"
-if: github.event_name == 'push'
-runs-on: ubuntu-latest
-environment: production
-container: node:18
-cache:
-  - key: ${{ runner.os }}-node
-    path: node_modules
-tools:
-  bash: ["echo", "ls", "cat"]
-  github:
-    allowed: [list_issues, create_issue]
-roles:
-  - admin
-  - maintainer
-bots:
-  - copilot
-  - dependabot
 steps:
   - name: Custom step
     run: echo "test"

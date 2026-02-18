@@ -26,8 +26,8 @@ func TestTaskJobGenerationFix(t *testing.T) {
 		// 2. Even with safe events and roles: all, we still want the timestamp check
 		workflowContent := `---
 on:
-  workflow_dispatch:
-roles: all
+  workflow_dispatch: null
+  roles: all
 ---
 
 # Simple Workflow
