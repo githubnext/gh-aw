@@ -675,8 +675,10 @@ func TestExtractAdditionalConfigurations_BasicConfig(t *testing.T) {
 	compiler := NewCompiler()
 
 	frontmatter := map[string]any{
-		"roles": []any{"admin", "contributor"},
-		"bots":  []any{"copilot", "dependabot"},
+		"on": map[string]any{
+			"roles": []any{"admin", "contributor"},
+			"bots":  []any{"copilot", "dependabot"},
+		},
 	}
 
 	tools := map[string]any{
@@ -1092,6 +1094,9 @@ func TestParseWorkflowFile_CompleteWorkflowWithAllSections(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "complete-workflow")
 
 	testContent := `---
+name: Complete Workflow
+description: Test all sections
+source: complete-test
 on:
   push:
     branches: [main]
@@ -1104,6 +1109,32 @@ on:
   bots:
     - copilot
     - dependabot
+permissions:
+  contents: read
+  issues: read
+network:
+  allowed:
+    - defaults
+concurrency: test-concurrency
+run-name: Test Run
+env:
+  TEST_VAR: value
+features:
+  test-feature: true
+if: github.actor != 'bot'
+timeout-minutes: 30
+runs-on: ubuntu-latest
+environment: production
+container:
+  image: node:18
+cache:
+  key: test-cache
+  path: ~/.npm
+services:
+  postgres:
+    image: postgres:14
+    env:
+      POSTGRES_PASSWORD: postgres
 engine: copilot
 steps:
   - name: Custom step
@@ -1111,11 +1142,6 @@ steps:
 post-steps:
   - name: Cleanup
     run: echo "cleanup"
-services:
-  postgres:
-    image: postgres:14
-    env:
-      POSTGRES_PASSWORD: postgres
 jobs:
   custom-job:
     runs-on: ubuntu-latest

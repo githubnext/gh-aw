@@ -43,7 +43,7 @@ func TestGetAllCodemods_ReturnsAllCodemods(t *testing.T) {
 	codemods := GetAllCodemods()
 
 	// Verify we have the expected number of codemods
-	expectedCount := 19
+	expectedCount := 20
 	assert.Len(t, codemods, expectedCount, "Should return all %d codemods", expectedCount)
 
 	// Verify all codemods have required fields
@@ -123,6 +123,7 @@ func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
 		"bash-anonymous-removal",
 		"activation-outputs-to-sanitized-step",
 		"roles-to-on-roles",
+		"bots-to-on-bots",
 	}
 
 	require.Len(t, codemods, len(expectedOrder), "Should have expected number of codemods")

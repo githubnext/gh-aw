@@ -354,7 +354,8 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 			for eventName := range onMap {
 				// Skip command events as they are handled separately
 				// Skip stop-after and reaction as they are not event types
-				if eventName == "command" || eventName == "stop-after" || eventName == "reaction" {
+				// Skip roles and bots as they are configuration, not event types
+				if eventName == "command" || eventName == "stop-after" || eventName == "reaction" || eventName == "roles" || eventName == "bots" {
 					continue
 				}
 
@@ -390,6 +391,12 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 				eventCount--
 			}
 			if _, hasReaction := onMap["reaction"]; hasReaction {
+				eventCount--
+			}
+			if _, hasRoles := onMap["roles"]; hasRoles {
+				eventCount--
+			}
+			if _, hasBots := onMap["bots"]; hasBots {
 				eventCount--
 			}
 
