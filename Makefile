@@ -56,7 +56,7 @@ build-wasm:
 		echo "⚠ wasm-opt not found, skipping optimization (install binaryen for ~8% size reduction)"; \
 	fi
 	@echo "✓ Built gh-aw.wasm ($$(du -h gh-aw.wasm | cut -f1))"
-	@echo "  Copy wasm_exec.js from: $$(go env GOROOT)/misc/wasm/wasm_exec.js"
+	@echo "  Copy wasm_exec.js from: $$(go env GOROOT)/lib/wasm/wasm_exec.js (or misc/wasm/ for Go <1.24)"
 
 # Test the code (runs both unlabelled unit tests and integration tests and long tests)
 .PHONY: test
@@ -76,6 +76,24 @@ test-integration:
 update-golden:
 	@echo "Updating golden test files..."
 	go test -v ./pkg/console -run='^TestGolden_' -update
+
+# Wasm golden tests — compare wasm (string API) compiler output against golden files
+.PHONY: test-wasm-golden
+test-wasm-golden:
+	@echo "Running wasm golden tests (Go string API path)..."
+	go test -v -timeout=5m -run='^TestWasmGolden_' ./pkg/workflow
+
+# Update wasm golden files from current string API output
+.PHONY: update-wasm-golden
+update-wasm-golden:
+	@echo "Updating wasm golden test files..."
+	go test -v -timeout=5m -run='^TestWasmGolden_' ./pkg/workflow -update
+
+# Build wasm and run Node.js golden comparison test
+.PHONY: test-wasm
+test-wasm: build-wasm
+	@echo "Running wasm binary golden tests (Node.js)..."
+	node scripts/test-wasm-golden.mjs
 
 # Test specific integration test groups (matching CI workflow)
 .PHONY: test-integration-compile
@@ -221,9 +239,9 @@ bundle-js:
 	@echo "✓ bundle-js tool built"
 	@echo "To bundle a JavaScript file: ./bundle-js <input-file> [output-file]"
 
-# Test all code (Go and JavaScript)
+# Test all code (Go, JavaScript, and wasm golden)
 .PHONY: test-all
-test-all: test test-js
+test-all: test test-js test-wasm-golden
 
 # Run tests with coverage
 .PHONY: test-coverage
@@ -729,7 +747,10 @@ help:
 	@echo "  test-unit        - Run Go unit tests only (faster)"
 	@echo "  test-security    - Run security regression tests"
 	@echo "  test-js          - Run JavaScript tests"
-	@echo "  test-all         - Run all tests (Go and JavaScript)"
+	@echo "  test-all         - Run all tests (Go, JavaScript, and wasm golden)"
+	@echo "  test-wasm-golden - Run wasm golden tests (Go string API path)"
+	@echo "  test-wasm        - Build wasm and run Node.js golden comparison test"
+	@echo "  update-wasm-golden - Regenerate wasm golden files from current compiler output"
 	@echo "  test-coverage    - Run tests with coverage report"
 	@echo "  bench            - Run benchmarks for performance testing"
 	@echo "  bench-compare    - Run benchmarks with more iterations (for benchstat comparison)"

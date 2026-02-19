@@ -84,9 +84,10 @@ function validateBody(body, fieldName = "body", required = false) {
  * @param {any} labels - The labels to validate
  * @param {string[]|undefined} allowedLabels - Optional list of allowed labels
  * @param {number} maxCount - Maximum number of labels allowed
+ * @param {string[]|undefined} blockedPatterns - Optional list of blocked label patterns (supports glob patterns like "~*", "*[bot]")
  * @returns {{valid: boolean, value?: string[], error?: string}} Validation result
  */
-function validateLabels(labels, allowedLabels = undefined, maxCount = 3) {
+function validateLabels(labels, allowedLabels = undefined, maxCount = 3, blockedPatterns = undefined) {
   if (!labels || !Array.isArray(labels)) {
     return { valid: false, error: "labels must be an array" };
   }
@@ -98,10 +99,27 @@ function validateLabels(labels, allowedLabels = undefined, maxCount = 3) {
     }
   }
 
-  // Filter labels based on allowed list if provided
+  // Filter out blocked labels first (security boundary)
   let validLabels = labels;
+  if (blockedPatterns && blockedPatterns.length > 0) {
+    const { matchesSimpleGlob } = require("./glob_pattern_helpers.cjs");
+    const blockedLabels = [];
+    validLabels = labels.filter(label => {
+      const labelStr = String(label).trim();
+      const isBlocked = blockedPatterns.some(pattern => matchesSimpleGlob(labelStr, pattern));
+      if (isBlocked) {
+        blockedLabels.push(labelStr);
+      }
+      return !isBlocked;
+    });
+    if (blockedLabels.length > 0) {
+      core.info(`Filtered out ${blockedLabels.length} blocked labels: ${blockedLabels.join(", ")}`);
+    }
+  }
+
+  // Filter labels based on allowed list if provided
   if (allowedLabels && allowedLabels.length > 0) {
-    validLabels = labels.filter(label => allowedLabels.includes(label));
+    validLabels = validLabels.filter(label => allowedLabels.includes(label));
   }
 
   // Sanitize and deduplicate labels

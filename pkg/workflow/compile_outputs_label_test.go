@@ -751,3 +751,164 @@ This workflow tests that missing allowed field is now optional.
 		t.Fatal("Expected lock file to be created")
 	}
 }
+
+func TestOutputLabelBlockedPatternsConfig(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "output-label-blocked-test")
+
+	// Test case with blocked patterns configuration
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+engine: claude
+features:
+  dangerous-permissions-write: true
+strict: false
+safe-outputs:
+  add-labels:
+    blocked: ["~*", "*\\**"]
+    allowed: [triage, bug, enhancement, needs-review]
+---
+
+# Test Blocked Label Patterns
+
+This workflow tests blocked label pattern filtering.
+`
+
+	testFile := filepath.Join(tmpDir, "test-blocked-labels.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+
+	// Parse the workflow data
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow with blocked labels config: %v", err)
+	}
+
+	// Verify output configuration is parsed correctly
+	if workflowData.SafeOutputs == nil {
+		t.Fatal("Expected output configuration to be parsed")
+	}
+
+	if workflowData.SafeOutputs.AddLabels == nil {
+		t.Fatal("Expected labels configuration to be parsed")
+	}
+
+	// Verify blocked patterns
+	expectedBlocked := []string{"~*", "*\\**"}
+	if len(workflowData.SafeOutputs.AddLabels.Blocked) != len(expectedBlocked) {
+		t.Errorf("Expected %d blocked patterns, got %d", len(expectedBlocked), len(workflowData.SafeOutputs.AddLabels.Blocked))
+	}
+
+	for i, expectedPattern := range expectedBlocked {
+		if i >= len(workflowData.SafeOutputs.AddLabels.Blocked) || workflowData.SafeOutputs.AddLabels.Blocked[i] != expectedPattern {
+			t.Errorf("Expected blocked[%d] to be '%s', got '%s'", i, expectedPattern, workflowData.SafeOutputs.AddLabels.Blocked[i])
+		}
+	}
+
+	// Verify allowed labels
+	expectedLabels := []string{"triage", "bug", "enhancement", "needs-review"}
+	if len(workflowData.SafeOutputs.AddLabels.Allowed) != len(expectedLabels) {
+		t.Errorf("Expected %d allowed labels, got %d", len(expectedLabels), len(workflowData.SafeOutputs.AddLabels.Allowed))
+	}
+
+	// Compile to verify env vars are generated
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockBytes, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockContent := string(lockBytes)
+
+	// Verify blocked patterns are in handler config
+	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+		t.Error("Expected handler config to be passed as environment variable")
+	}
+	if !strings.Contains(lockContent, `\"blocked\"`) {
+		t.Error("Expected blocked field in handler config")
+	}
+}
+
+func TestOutputLabelRemoveBlockedPatternsConfig(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := testutil.TempDir(t, "remove-label-blocked-test")
+
+	// Test case with blocked patterns for remove-labels
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+engine: claude
+features:
+  dangerous-permissions-write: true
+strict: false
+safe-outputs:
+  remove-labels:
+    blocked: ["~*", "*\\**"]
+    max: 3
+---
+
+# Test Remove Labels with Blocked Patterns
+
+This workflow tests blocked patterns for remove-labels.
+`
+
+	testFile := filepath.Join(tmpDir, "test-remove-blocked.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+
+	// Parse the workflow data
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing workflow: %v", err)
+	}
+
+	// Verify output configuration
+	if workflowData.SafeOutputs == nil || workflowData.SafeOutputs.RemoveLabels == nil {
+		t.Fatal("Expected remove-labels configuration to be parsed")
+	}
+
+	// Verify blocked patterns
+	expectedBlocked := []string{"~*", "*\\**"}
+	if len(workflowData.SafeOutputs.RemoveLabels.Blocked) != len(expectedBlocked) {
+		t.Errorf("Expected %d blocked patterns, got %d", len(expectedBlocked), len(workflowData.SafeOutputs.RemoveLabels.Blocked))
+	}
+
+	// Compile to verify env vars
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read lock file
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	lockBytes, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockContent := string(lockBytes)
+
+	// Verify blocked patterns in handler config
+	if !strings.Contains(lockContent, `\"blocked\"`) {
+		t.Error("Expected blocked field in remove-labels handler config")
+	}
+}

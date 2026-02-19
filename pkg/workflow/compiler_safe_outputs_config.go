@@ -212,6 +212,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		config := newHandlerConfigBuilder().
 			AddIfPositive("max", c.Max).
 			AddStringSlice("allowed", c.Allowed).
+			AddStringSlice("blocked", c.Blocked).
 			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
@@ -233,6 +234,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		return newHandlerConfigBuilder().
 			AddIfPositive("max", c.Max).
 			AddStringSlice("allowed", c.Allowed).
+			AddStringSlice("blocked", c.Blocked).
 			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
