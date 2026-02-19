@@ -97,14 +97,13 @@ func TestGenerateMultiSecretValidationStep(t *testing.T) {
 			},
 		},
 		{
-			name:        "Claude Code with multi-word engine name and dual secrets",
-			secretNames: []string{"CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"},
+			name:        "Claude Code with single secret",
+			secretNames: []string{"ANTHROPIC_API_KEY"},
 			engineName:  "Claude Code",
 			docsURL:     "https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
 			wantStrings: []string{
-				"Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret",
-				"run: /opt/gh-aw/actions/validate_multi_secret.sh CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY 'Claude Code' https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
-				"CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+				"Validate ANTHROPIC_API_KEY secret",
+				"run: /opt/gh-aw/actions/validate_multi_secret.sh ANTHROPIC_API_KEY 'Claude Code' https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
 				"ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}",
 			},
 		},

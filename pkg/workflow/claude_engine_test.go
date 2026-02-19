@@ -40,13 +40,10 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected 3 installation steps for Claude (secret validation + Node.js setup + install), got %d", len(installSteps))
 	}
 
-	// Check for secret validation step (now supports both CLAUDE_CODE_OAUTH_TOKEN and ANTHROPIC_API_KEY)
+	// Check for secret validation step (only ANTHROPIC_API_KEY)
 	secretValidationStep := strings.Join([]string(installSteps[0]), "\n")
-	if !strings.Contains(secretValidationStep, "Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret") {
-		t.Errorf("Expected 'Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret' in first installation step, got: %s", secretValidationStep)
-	}
-	if !strings.Contains(secretValidationStep, "CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}") {
-		t.Errorf("Expected 'CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}' in secret validation step, got: %s", secretValidationStep)
+	if !strings.Contains(secretValidationStep, "Validate ANTHROPIC_API_KEY secret") {
+		t.Errorf("Expected 'Validate ANTHROPIC_API_KEY secret' in first installation step, got: %s", secretValidationStep)
 	}
 	if !strings.Contains(secretValidationStep, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}") {
 		t.Errorf("Expected 'ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}' in secret validation step, got: %s", secretValidationStep)
@@ -128,10 +125,6 @@ func TestClaudeEngine(t *testing.T) {
 
 	if !strings.Contains(stepContent, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}") {
 		t.Errorf("Expected ANTHROPIC_API_KEY environment variable in step: %s", stepContent)
-	}
-
-	if !strings.Contains(stepContent, "CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}") {
-		t.Errorf("Expected CLAUDE_CODE_OAUTH_TOKEN environment variable in step: %s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
