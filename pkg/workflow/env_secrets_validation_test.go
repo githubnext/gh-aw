@@ -150,6 +150,68 @@ func TestValidateEnvSecrets(t *testing.T) {
 			strictMode:  true,
 			expectError: false,
 		},
+		{
+			name: "env with sub-expression: github.workflow && secrets.TOKEN fails in strict mode",
+			frontmatter: map[string]any{
+				"on": "push",
+				"env": map[string]any{
+					"TOKEN": "${{ github.workflow && secrets.TOKEN }}",
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode: secrets detected in 'env' section will be leaked to the agent container",
+		},
+		{
+			name: "env with sub-expression: secrets in OR with env fails in strict mode",
+			frontmatter: map[string]any{
+				"on": "push",
+				"env": map[string]any{
+					"DB_PASS": "${{ secrets.DB_PASSWORD || env.DEFAULT_PASS }}",
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode: secrets detected in 'env' section will be leaked to the agent container",
+		},
+		{
+			name: "env with sub-expression: secrets in parentheses fails in strict mode",
+			frontmatter: map[string]any{
+				"on": "push",
+				"env": map[string]any{
+					"AUTH": "${{ (github.actor || secrets.HIDDEN_KEY) }}",
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode: secrets detected in 'env' section will be leaked to the agent container",
+		},
+		{
+			name: "env with sub-expression: NOT operator with secrets fails in strict mode",
+			frontmatter: map[string]any{
+				"on": "push",
+				"env": map[string]any{
+					"CHECK": "${{ !secrets.PRIVATE_KEY && github.workflow }}",
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode: secrets detected in 'env' section will be leaked to the agent container",
+		},
+		{
+			name: "env with multiple sub-expressions fails in strict mode",
+			frontmatter: map[string]any{
+				"on": "push",
+				"env": map[string]any{
+					"SIMPLE":    "${{ secrets.SIMPLE_KEY }}",
+					"SUB_EXPR1": "${{ github.workflow && secrets.TOKEN }}",
+					"SUB_EXPR2": "${{ (github.actor || secrets.HIDDEN) }}",
+				},
+			},
+			strictMode:  true,
+			expectError: true,
+			errorMsg:    "strict mode: secrets detected in 'env' section will be leaked to the agent container",
+		},
 	}
 
 	for _, tt := range tests {
