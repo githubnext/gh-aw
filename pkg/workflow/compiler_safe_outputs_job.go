@@ -282,10 +282,14 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 		steps = append(steps, c.buildGitHubAppTokenInvalidationStep()...)
 	}
 
-	// Always upload the safe output items manifest as an artifact.
+	// Upload the safe output items manifest as an artifact (non-staged mode only).
 	// This step runs even if previous steps fail, ensuring the audit trail
 	// is always available for the audit command to display.
-	steps = append(steps, buildSafeOutputItemsManifestUploadStep()...)
+	// In staged mode, no items are actually created in GitHub so there is nothing to record.
+	isStaged := c.trialMode || data.SafeOutputs.Staged
+	if !isStaged {
+		steps = append(steps, buildSafeOutputItemsManifestUploadStep()...)
+	}
 
 	// Build the job condition
 	// The job should run if agent job completed (not skipped) AND detection passed (if enabled)
