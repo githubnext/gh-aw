@@ -139,7 +139,6 @@
     "*.jsr.io",
     "registry.bower.io",
     "esm.sh",
-    "cdn.jsdelivr.net",
     "googleapis.deno.dev",
     "googlechromelabs.github.io"
   ],

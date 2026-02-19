@@ -225,7 +225,6 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 			"jsr.io",
 			"*.jsr.io",
 			"esm.sh",
-			"cdn.jsdelivr.net",
 			"googleapis.deno.dev",
 			"googlechromelabs.github.io",
 		}
