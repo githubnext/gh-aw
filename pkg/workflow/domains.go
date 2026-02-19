@@ -99,6 +99,13 @@ var ClaudeDefaultDomains = []string{
 	"ts-ocsp.ws.symantec.com",
 }
 
+// PlaywrightDomains are the domains required for Playwright browser downloads
+// These domains are needed when Playwright MCP server initializes in the Docker container
+var PlaywrightDomains = []string{
+	"cdn.playwright.dev",
+	"playwright.download.prss.microsoft.com",
+}
+
 // init loads the ecosystem domains from the embedded JSON
 func init() {
 	domainsLog.Print("Loading ecosystem domains from embedded JSON")
@@ -349,7 +356,7 @@ func extractHTTPMCPDomains(tools map[string]any) []string {
 	return domains
 }
 
-// extractPlaywrightDomains extracts ecosystem domains needed for Playwright tool to download browsers
+// extractPlaywrightDomains returns Playwright domains when Playwright tool is configured
 // Returns a slice of domain names required for Playwright browser downloads
 // These domains are needed when Playwright MCP server initializes in the Docker container
 func extractPlaywrightDomains(tools map[string]any) []string {
@@ -359,12 +366,8 @@ func extractPlaywrightDomains(tools map[string]any) []string {
 
 	// Check if Playwright tool is configured
 	if _, hasPlaywright := tools["playwright"]; hasPlaywright {
-		// Get domains from the playwright ecosystem
-		playwrightDomains := getEcosystemDomains("playwright")
-		if len(playwrightDomains) > 0 {
-			domainsLog.Printf("Detected Playwright tool, adding %d ecosystem domains for browser downloads", len(playwrightDomains))
-			return playwrightDomains
-		}
+		domainsLog.Printf("Detected Playwright tool, adding %d domains for browser downloads", len(PlaywrightDomains))
+		return PlaywrightDomains
 	}
 
 	return []string{}
