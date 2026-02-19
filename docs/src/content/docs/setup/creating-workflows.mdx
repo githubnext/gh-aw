@@ -68,11 +68,11 @@ After merging the pull request, you can run the workflow to see it in action. Ei
 > [!TIP]
 > If you plan to keep using this way of editing workflows, run our `init` command to configure your repository
 > to make the agent more effective.
-> ```
+> ```bash wrap
 > gh aw init
 > ```
 > or run this prompt
-> ```
+> ```text wrap
 > Initialize this repository for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/install.md
 > ```
 
@@ -97,7 +97,7 @@ If you prefer to create workflows manually, you can
 
 4. Add, commit and push the workflow file and its lock file to your repository.
 
-   ```bash
+   ```bash wrap
    git add .github/workflows/<workflow-name>.md
    git add .github/workflows/<workflow-name>.lock.yml
    git commit -m "Add <workflow-name> workflow"
