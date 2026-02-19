@@ -2,4 +2,4 @@
 "gh-aw": patch
 ---
 
-Log every safe output GitHub item to a JSONL manifest and surface the created-item artifact in the audit output for easier review.
+Log safe output creations to the new manifest artifact and surface the created-items table when rendering audit reports.
