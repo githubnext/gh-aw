@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -82,6 +83,20 @@ func downloadAgentFileFromGitHub(verbose bool) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		// Fall back to gh CLI for authenticated access (e.g., private repos in codespaces)
+		if resp.StatusCode == http.StatusNotFound && isGHCLIAvailable() {
+			commandsLog.Print("Unauthenticated download returned 404, trying gh CLI for authenticated access")
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Retrying download with gh CLI authentication..."))
+			}
+			if content, ghErr := downloadAgentFileViaGHCLI(ref); ghErr == nil {
+				patchedContent := patchAgentFileURLs(content, ref)
+				commandsLog.Printf("Successfully downloaded agent file via gh CLI (%d bytes)", len(patchedContent))
+				return patchedContent, nil
+			} else {
+				commandsLog.Printf("gh CLI fallback failed: %v", ghErr)
+			}
+		}
 		return "", fmt.Errorf("failed to download agent file: HTTP %d", resp.StatusCode)
 	}
 
@@ -116,6 +131,19 @@ func patchAgentFileURLs(content, ref string) string {
 	}
 
 	return content
+}
+
+// downloadAgentFileViaGHCLI downloads the agent file using the gh CLI with authentication.
+// This is used as a fallback when the unauthenticated raw.githubusercontent.com download fails
+// (e.g., for private repositories accessed from codespaces).
+func downloadAgentFileViaGHCLI(ref string) (string, error) {
+	output, err := workflow.RunGH("Downloading agent file...", "api",
+		fmt.Sprintf("/repos/github/gh-aw/contents/.github/agents/agentic-workflows.agent.md?ref=%s", url.QueryEscape(ref)),
+		"--header", "Accept: application/vnd.github.raw")
+	if err != nil {
+		return "", fmt.Errorf("gh api download failed: %w", err)
+	}
+	return string(output), nil
 }
 
 func isGHCLIAvailable() bool {
