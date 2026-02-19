@@ -176,6 +176,10 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// The conversion script (convert_gateway_config_gemini.sh) writes settings.json
 	// during the MCP setup step, so no --mcp-config flag is needed here.
 
+	// Auto-approve all tool executions (equivalent to Codex's --dangerously-bypass-approvals-and-sandbox)
+	// Without this, Gemini CLI's default approval mode rejects tool calls with "Tool execution denied by policy"
+	geminiArgs = append(geminiArgs, "--yolo")
+
 	// Add headless mode with JSON output
 	geminiArgs = append(geminiArgs, "--output-format", "json")
 

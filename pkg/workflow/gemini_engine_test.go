@@ -151,6 +151,7 @@ func TestGeminiEngineExecution(t *testing.T) {
 		assert.Contains(t, stepContent, "name: Run Gemini", "Should have correct step name")
 		assert.Contains(t, stepContent, "id: agentic_execution", "Should have agentic_execution ID")
 		assert.Contains(t, stepContent, "gemini", "Should invoke gemini command")
+		assert.Contains(t, stepContent, "--yolo", "Should include --yolo flag for auto-approving tool executions")
 		assert.Contains(t, stepContent, "--output-format json", "Should use JSON output format")
 		assert.Contains(t, stepContent, `--prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, "Should include prompt argument with correct shell quoting")
 		assert.Contains(t, stepContent, "/tmp/test.log", "Should include log file")
