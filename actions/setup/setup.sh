@@ -14,6 +14,16 @@
 
 set -e
 
+# Helper: create directories with sudo on macOS where /opt is root-owned
+create_dir() {
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    sudo mkdir -p "$1"
+    sudo chown -R "$(whoami)" "$1"
+  else
+    mkdir -p "$1"
+  fi
+}
+
 # Get destination from input or use default
 DESTINATION="${INPUT_DESTINATION:-/opt/gh-aw/actions}"
 
@@ -24,7 +34,7 @@ echo "Copying activation files to ${DESTINATION}"
 echo "Safe-output-projects support: ${SAFE_OUTPUT_PROJECTS_ENABLED}"
 
 # Create destination directory if it doesn't exist
-mkdir -p "${DESTINATION}"
+create_dir "${DESTINATION}"
 echo "Created directory: ${DESTINATION}"
 
 # Get the directory where this script is located
@@ -105,7 +115,7 @@ echo "Successfully copied ${FILE_COUNT} files to ${DESTINATION}"
 # Copy prompt markdown files to their expected directory
 PROMPTS_DEST="/opt/gh-aw/prompts"
 echo "Copying prompt markdown files to ${PROMPTS_DEST}"
-mkdir -p "${PROMPTS_DEST}"
+create_dir "${PROMPTS_DEST}"
 
 MD_SOURCE_DIR="${SCRIPT_DIR}/md"
 PROMPT_COUNT=0
@@ -127,7 +137,7 @@ fi
 # Copy safe-inputs files to their expected directory
 SAFE_INPUTS_DEST="/opt/gh-aw/safe-inputs"
 echo "Copying safe-inputs files to ${SAFE_INPUTS_DEST}"
-mkdir -p "${SAFE_INPUTS_DEST}"
+create_dir "${SAFE_INPUTS_DEST}"
 
 SAFE_INPUTS_FILES=(
   "safe_inputs_bootstrap.cjs"
@@ -178,7 +188,7 @@ echo "Successfully copied ${SAFE_INPUTS_COUNT} safe-inputs files to ${SAFE_INPUT
 # Copy safe-outputs files to their expected directory
 SAFE_OUTPUTS_DEST="/opt/gh-aw/safeoutputs"
 echo "Copying safe-outputs files to ${SAFE_OUTPUTS_DEST}"
-mkdir -p "${SAFE_OUTPUTS_DEST}"
+create_dir "${SAFE_OUTPUTS_DEST}"
 
 SAFE_OUTPUTS_FILES=(
   "safe_outputs_mcp_server.cjs"
