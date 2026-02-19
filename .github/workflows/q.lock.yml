@@ -57,10 +57,10 @@ name: "Q"
     types:
     - created
     - edited
-  roles:
-  - admin
-  - maintainer
-  - write
+  # roles: # Roles processed as role check in pre-activation job
+  # - admin # Roles processed as role check in pre-activation job
+  # - maintainer # Roles processed as role check in pre-activation job
+  # - write # Roles processed as role check in pre-activation job
 
 permissions: {}
 

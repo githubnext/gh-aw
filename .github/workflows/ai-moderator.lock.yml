@@ -38,7 +38,7 @@ name: "AI Moderator"
     # forks: "*" # Fork filtering applied via job conditions
     types:
     - opened
-  roles: all
+  # roles: all # Roles processed as role check in pre-activation job
   # skip-bots: # Skip-bots processed as bot check in pre-activation job
   # - github-actions # Skip-bots processed as bot check in pre-activation job
   # - copilot # Skip-bots processed as bot check in pre-activation job

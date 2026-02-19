@@ -31,9 +31,9 @@
 
 name: "Release"
 "on":
-  roles:
-  - admin
-  - maintainer
+  # roles: # Roles processed as role check in pre-activation job
+  # - admin # Roles processed as role check in pre-activation job
+  # - maintainer # Roles processed as role check in pre-activation job
   workflow_dispatch:
     inputs:
       release_type:
