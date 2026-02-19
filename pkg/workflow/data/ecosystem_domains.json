@@ -140,7 +140,8 @@
     "registry.bower.io",
     "esm.sh",
     "googleapis.deno.dev",
-    "googlechromelabs.github.io"
+    "googlechromelabs.github.io",
+    "cdn.jsdelivr.net"
   ],
   "node-cdns": ["cdn.jsdelivr.net"],
   "perl": ["cpan.org", "www.cpan.org", "metacpan.org", "cpan.metacpan.org"],

@@ -227,6 +227,7 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 			"esm.sh",
 			"googleapis.deno.dev",
 			"googlechromelabs.github.io",
+			"cdn.jsdelivr.net",
 		}
 
 		for _, expectedDomain := range expectedDomains {
