@@ -248,7 +248,7 @@ jobs:
 `,
 			// Schema validation correctly rejects steps without 'uses' or 'run'
 			shouldError: true,
-			errorMsg:    "oneOf",
+			errorMsg:    "missing property",
 		},
 		{
 			name: "step with both uses and run should be invalid",
