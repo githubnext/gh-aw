@@ -426,27 +426,15 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
     });
 
     it("should add a comment to existing issue when found", async () => {
-      // Mock searches: PR search, parent search, and existing failure issue search
+      // Don't enable parent issues - test focuses on comment creation
+      // Mock searches: PR search and existing failure issue search
       mockGithub.rest.search.issuesAndPullRequests
         .mockResolvedValueOnce({
           // First search: PR search (no PR found)
           data: { total_count: 0, items: [] },
         })
         .mockResolvedValueOnce({
-          // Second search: parent issue (exists)
-          data: {
-            total_count: 1,
-            items: [
-              {
-                number: 1,
-                html_url: "https://github.com/test-owner/test-repo/issues/1",
-                node_id: "I_parent_1",
-              },
-            ],
-          },
-        })
-        .mockResolvedValueOnce({
-          // Third search: existing failure issue
+          // Second search: existing failure issue
           data: {
             total_count: 1,
             items: [
@@ -457,18 +445,6 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
             ],
           },
         });
-
-      // Mock GraphQL sub-issue count check (parent exists with < 64 sub-issues)
-      // When an existing failure issue is found, only the count check happens (no new issue created/linked)
-      mockGithub.graphql = vi.fn().mockResolvedValue({
-        repository: {
-          issue: {
-            subIssues: {
-              totalCount: 20,
-            },
-          },
-        },
-      });
 
       mockGithub.rest.issues.createComment.mockResolvedValue({});
 
@@ -501,33 +477,17 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
           data: { total_count: 0, items: [] },
         })
         .mockResolvedValueOnce({
-          // Second search: parent issue
-          data: { total_count: 0, items: [] },
-        })
-        .mockResolvedValueOnce({
-          // Third search: failure issue
+          // Second search: failure issue
           data: { total_count: 0, items: [] },
         });
 
-      mockGithub.rest.issues.create
-        .mockResolvedValueOnce({
-          data: { number: 1, html_url: "https://example.com/1", node_id: "I_1" },
-        })
-        .mockResolvedValueOnce({
-          data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
-        });
-
-      // Mock GraphQL - new parent created, so just addSubIssue
-      mockGithub.graphql = vi.fn().mockResolvedValue({
-        addSubIssue: {
-          issue: { id: "I_1", number: 1 },
-          subIssue: { id: "I_2", number: 2 },
-        },
+      mockGithub.rest.issues.create.mockResolvedValueOnce({
+        data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
       });
 
       await main();
 
-      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
+      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[0][0];
       // Verify sanitization occurred - script tags are removed/escaped
       expect(failureIssueCreateCall.title).not.toContain("<script>");
       // Verify mentions are escaped
