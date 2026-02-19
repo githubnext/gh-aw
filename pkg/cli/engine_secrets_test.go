@@ -122,14 +122,13 @@ func TestGetRequiredSecretsForEngineAttributes(t *testing.T) {
 		assert.NotEmpty(t, req.Description, "Should have a description")
 	})
 
-	t.Run("claude secret has alternative env vars", func(t *testing.T) {
+	t.Run("claude secret has no alternative env vars", func(t *testing.T) {
 		requirements := getSecretRequirementsForEngine(string(constants.ClaudeEngine), false, false)
 		require.Len(t, requirements, 1, "Should have exactly one requirement")
 
 		req := requirements[0]
 		assert.Equal(t, "ANTHROPIC_API_KEY", req.Name, "Secret name should match")
-		assert.Contains(t, req.AlternativeEnvVars, "CLAUDE_CODE_OAUTH_TOKEN",
-			"Should include alternative env var")
+		assert.Empty(t, req.AlternativeEnvVars, "Should have no alternative env vars")
 	})
 
 	t.Run("system secrets are not engine secrets", func(t *testing.T) {
@@ -374,18 +373,15 @@ func TestGetEngineSecretNameAndValue(t *testing.T) {
 		assert.Contains(t, err.Error(), "unknown engine", "Error should mention unknown engine")
 	})
 
-	t.Run("alternative secret exists in repo", func(t *testing.T) {
-		// Claude has CLAUDE_CODE_OAUTH_TOKEN as alternative
-		existingSecrets := map[string]bool{
-			"CLAUDE_CODE_OAUTH_TOKEN": true, // Alternative for ANTHROPIC_API_KEY
-		}
+	t.Run("no alternative secret in repo", func(t *testing.T) {
+		existingSecrets := map[string]bool{}
 
 		name, value, existsInRepo, err := GetEngineSecretNameAndValue("claude", existingSecrets)
 
-		require.NoError(t, err, "Should not error when alternative exists")
+		require.NoError(t, err, "Should not error")
 		assert.Equal(t, "ANTHROPIC_API_KEY", name)
-		assert.Empty(t, value, "Value should be empty when alternative exists in repo")
-		assert.True(t, existsInRepo, "Should indicate secret exists via alternative")
+		assert.Empty(t, value, "Value should be empty when not found")
+		assert.False(t, existsInRepo, "Should indicate secret does not exist")
 	})
 
 	t.Run("prefers primary secret over environment", func(t *testing.T) {

@@ -713,7 +713,7 @@ var EngineOptions = []EngineOption{
 		Label:              "Claude",
 		Description:        "Anthropic Claude Code coding agent",
 		SecretName:         "ANTHROPIC_API_KEY",
-		AlternativeSecrets: []string{"CLAUDE_CODE_OAUTH_TOKEN"},
+		AlternativeSecrets: []string{},
 		KeyURL:             "https://console.anthropic.com/settings/keys",
 		WhenNeeded:         "Claude engine workflows",
 	},

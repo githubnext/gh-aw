@@ -713,7 +713,6 @@ func TestGetAllEngineSecretNames(t *testing.T) {
 
 	// Verify alternative secrets are included
 	alternativeSecrets := []string{
-		"CLAUDE_CODE_OAUTH_TOKEN",
 		"CODEX_API_KEY",
 	}
 

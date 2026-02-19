@@ -97,14 +97,13 @@ func TestGenerateMultiSecretValidationStep(t *testing.T) {
 			},
 		},
 		{
-			name:        "Claude Code with multi-word engine name and dual secrets",
-			secretNames: []string{"CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"},
+			name:        "Claude Code with single secret",
+			secretNames: []string{"ANTHROPIC_API_KEY"},
 			engineName:  "Claude Code",
 			docsURL:     "https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
 			wantStrings: []string{
-				"Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret",
-				"run: /opt/gh-aw/actions/validate_multi_secret.sh CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY 'Claude Code' https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
-				"CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+				"Validate ANTHROPIC_API_KEY secret",
+				"run: /opt/gh-aw/actions/validate_multi_secret.sh ANTHROPIC_API_KEY 'Claude Code' https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
 				"ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}",
 			},
 		},
@@ -156,13 +155,10 @@ func TestClaudeEngineHasSecretValidation(t *testing.T) {
 		t.Fatal("Expected at least one installation step")
 	}
 
-	// First step should be secret validation (now supports both CLAUDE_CODE_OAUTH_TOKEN and ANTHROPIC_API_KEY)
+	// First step should be secret validation (only ANTHROPIC_API_KEY)
 	firstStep := strings.Join(steps[0], "\n")
-	if !strings.Contains(firstStep, "Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret") {
-		t.Error("First installation step should validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret")
-	}
-	if !strings.Contains(firstStep, "CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}") {
-		t.Error("Secret validation step should reference secrets.CLAUDE_CODE_OAUTH_TOKEN")
+	if !strings.Contains(firstStep, "Validate ANTHROPIC_API_KEY secret") {
+		t.Error("First installation step should validate ANTHROPIC_API_KEY secret")
 	}
 	if !strings.Contains(firstStep, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}") {
 		t.Error("Secret validation step should reference secrets.ANTHROPIC_API_KEY")

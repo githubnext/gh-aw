@@ -39,9 +39,9 @@ func (e *ClaudeEngine) SupportsLLMGateway() int {
 }
 
 // GetRequiredSecretNames returns the list of secrets required by the Claude engine
-// This includes ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, and optionally MCP_GATEWAY_API_KEY
+// This includes ANTHROPIC_API_KEY and optionally MCP_GATEWAY_API_KEY
 func (e *ClaudeEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
-	secrets := []string{"ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"}
+	secrets := []string{"ANTHROPIC_API_KEY"}
 
 	// Add MCP gateway API key if MCP servers are present (gateway is always started with MCP servers)
 	if HasMCPServers(workflowData) {
@@ -72,7 +72,7 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 
 	// Define engine configuration for shared validation
 	config := EngineInstallConfig{
-		Secrets:         []string{"CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"},
+		Secrets:         []string{"ANTHROPIC_API_KEY"},
 		DocsURL:         "https://github.github.com/gh-aw/reference/engines/#anthropic-claude-code",
 		NpmPackage:      "@anthropic-ai/claude-code",
 		Version:         string(constants.DefaultClaudeCodeVersion),
@@ -314,7 +314,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Build environment variables map
 	env := map[string]string{
 		"ANTHROPIC_API_KEY":       "${{ secrets.ANTHROPIC_API_KEY }}",
-		"CLAUDE_CODE_OAUTH_TOKEN": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
 		"DISABLE_TELEMETRY":       "1",
 		"DISABLE_ERROR_REPORTING": "1",
 		"DISABLE_BUG_COMMAND":     "1",

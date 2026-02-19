@@ -10,7 +10,7 @@ const HANDLER_TYPE = "update_pull_request";
 
 const { updateBody } = require("./update_pr_description_helpers.cjs");
 const { resolveTarget } = require("./safe_output_helpers.cjs");
-const { createUpdateHandlerFactory } = require("./update_handler_factory.cjs");
+const { createUpdateHandlerFactory, createStandardResolveNumber, createStandardFormatResult } = require("./update_handler_factory.cjs");
 const { sanitizeTitle } = require("./sanitize_title.cjs");
 
 /**
@@ -69,27 +69,14 @@ async function executePRUpdate(github, context, prNumber, updateData) {
 
 /**
  * Resolve PR number from message and configuration
- * @param {Object} item - The message item
- * @param {string} updateTarget - Target configuration
- * @param {Object} context - GitHub Actions context
- * @returns {{success: true, number: number} | {success: false, error: string}} Resolution result
+ * Uses the standard resolve helper for consistency with update_issue
  */
-function resolvePRNumber(item, updateTarget, context) {
-  const targetResult = resolveTarget({
-    targetConfig: updateTarget,
-    item: { ...item, item_number: item.pull_request_number },
-    context: context,
-    itemType: "update_pull_request",
-    supportsPR: false, // update_pull_request only supports PRs, not issues
-    supportsIssue: false,
-  });
-
-  if (!targetResult.success) {
-    return { success: false, error: targetResult.error };
-  }
-
-  return { success: true, number: targetResult.number };
-}
+const resolvePRNumber = createStandardResolveNumber({
+  itemType: "update_pull_request",
+  itemNumberField: "pull_request_number",
+  supportsPR: false, // update_pull_request only supports PRs, not issues
+  supportsIssue: false,
+});
 
 /**
  * Build update data from message
@@ -147,18 +134,13 @@ function buildPRUpdateData(item, config) {
 
 /**
  * Format success result for PR update
- * @param {number} prNumber - PR number
- * @param {Object} updatedPR - Updated PR object
- * @returns {Object} Formatted success result
+ * Uses the standard format helper for consistency across update handlers
  */
-function formatPRSuccessResult(prNumber, updatedPR) {
-  return {
-    success: true,
-    pull_request_number: prNumber,
-    pull_request_url: updatedPR.html_url,
-    title: updatedPR.title,
-  };
-}
+const formatPRSuccessResult = createStandardFormatResult({
+  numberField: "pull_request_number",
+  urlField: "pull_request_url",
+  urlSource: "html_url",
+});
 
 /**
  * Main handler factory for update_pull_request

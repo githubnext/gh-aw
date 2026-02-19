@@ -9,7 +9,7 @@
 const HANDLER_TYPE = "update_issue";
 
 const { resolveTarget } = require("./safe_output_helpers.cjs");
-const { createUpdateHandlerFactory } = require("./update_handler_factory.cjs");
+const { createUpdateHandlerFactory, createStandardResolveNumber, createStandardFormatResult } = require("./update_handler_factory.cjs");
 const { updateBody } = require("./update_pr_description_helpers.cjs");
 const { loadTemporaryProjectMap, replaceTemporaryProjectReferences } = require("./temporary_id.cjs");
 const { sanitizeTitle } = require("./sanitize_title.cjs");
@@ -92,27 +92,14 @@ async function executeIssueUpdate(github, context, issueNumber, updateData) {
 
 /**
  * Resolve issue number from message and configuration
- * @param {Object} item - The message item
- * @param {string} updateTarget - Target configuration
- * @param {Object} context - GitHub Actions context
- * @returns {{success: true, number: number} | {success: false, error: string}} Resolution result
+ * Uses the standard resolve helper for consistency with update_pull_request
  */
-function resolveIssueNumber(item, updateTarget, context) {
-  const targetResult = resolveTarget({
-    targetConfig: updateTarget,
-    item: { ...item, item_number: item.issue_number },
-    context: context,
-    itemType: "update_issue",
-    supportsPR: false, // Not used when supportsIssue is true
-    supportsIssue: true, // update_issue only supports issues, not PRs
-  });
-
-  if (!targetResult.success) {
-    return { success: false, error: targetResult.error };
-  }
-
-  return { success: true, number: targetResult.number };
-}
+const resolveIssueNumber = createStandardResolveNumber({
+  itemType: "update_issue",
+  itemNumberField: "issue_number",
+  supportsPR: false, // Not used when supportsIssue is true
+  supportsIssue: true, // update_issue only supports issues, not PRs
+});
 
 /**
  * Build update data from message
@@ -176,18 +163,13 @@ function buildIssueUpdateData(item, config) {
 
 /**
  * Format success result for issue update
- * @param {number} issueNumber - Issue number
- * @param {Object} updatedIssue - Updated issue object
- * @returns {Object} Formatted success result
+ * Uses the standard format helper for consistency across update handlers
  */
-function formatIssueSuccessResult(issueNumber, updatedIssue) {
-  return {
-    success: true,
-    number: issueNumber,
-    url: updatedIssue.html_url,
-    title: updatedIssue.title,
-  };
-}
+const formatIssueSuccessResult = createStandardFormatResult({
+  numberField: "number",
+  urlField: "url",
+  urlSource: "html_url",
+});
 
 /**
  * Main handler factory for update_issue

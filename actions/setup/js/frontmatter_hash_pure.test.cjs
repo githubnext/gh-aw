@@ -173,7 +173,7 @@ engine: copilot`;
   });
 
   describe("extractHashFromLockFile", () => {
-    it("should extract hash from lock file", () => {
+    it("should extract hash from old format lock file", () => {
       const content = `# frontmatter-hash: abc123def456
 
 name: "Test Workflow"
@@ -184,10 +184,70 @@ on:
       expect(result).toBe("abc123def456");
     });
 
+    it("should extract hash from new JSON metadata format", () => {
+      const content = `# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"abc123def456789"}
+
+name: "Test Workflow"
+on:
+  push:`;
+
+      const result = extractHashFromLockFile(content);
+      expect(result).toBe("abc123def456789");
+    });
+
+    it("should extract hash from new JSON metadata format with additional fields", () => {
+      const content = `# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"xyz789abc123","stop_time":"2025-01-01T00:00:00Z","compiler_version":"0.1.0"}
+
+name: "Test Workflow"
+on:
+  push:`;
+
+      const result = extractHashFromLockFile(content);
+      expect(result).toBe("xyz789abc123");
+    });
+
+    it("should handle new format with whitespace variations", () => {
+      const content = `#  gh-aw-metadata:  {"schema_version":"v1","frontmatter_hash":"whitespace123"}
+
+name: "Test Workflow"`;
+
+      const result = extractHashFromLockFile(content);
+      expect(result).toBe("whitespace123");
+    });
+
+    it("should fall back to old format if JSON parsing fails", () => {
+      const content = `# gh-aw-metadata: {invalid json}
+# frontmatter-hash: fallback123
+
+name: "Test Workflow"`;
+
+      const result = extractHashFromLockFile(content);
+      expect(result).toBe("fallback123");
+    });
+
+    it("should prefer new format over old format when both present", () => {
+      const content = `# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"new123"}
+# frontmatter-hash: old123
+
+name: "Test Workflow"`;
+
+      const result = extractHashFromLockFile(content);
+      expect(result).toBe("new123");
+    });
+
     it("should return empty string if no hash found", () => {
       const content = `name: "Test Workflow"
 on:
   push:`;
+
+      const result = extractHashFromLockFile(content);
+      expect(result).toBe("");
+    });
+
+    it("should return empty string if metadata has no frontmatter_hash field", () => {
+      const content = `# gh-aw-metadata: {"schema_version":"v1"}
+
+name: "Test Workflow"`;
 
       const result = extractHashFromLockFile(content);
       expect(result).toBe("");

@@ -135,6 +135,7 @@ let isReady = false;
 let isCompiling = false;
 let compileTimer = null;
 let currentYaml = '';
+let pendingCompile = false;
 
 // ---------------------------------------------------------------
 // Theme (uses Primer's data-color-mode)
@@ -187,8 +188,12 @@ const editorView = new EditorView({
       run: () => { doCompile(); return true; }
     }]),
     EditorView.updateListener.of(update => {
-      if (update.docChanged && isReady) {
-        scheduleCompile();
+      if (update.docChanged) {
+        if (isReady) {
+          scheduleCompile();
+        } else {
+          pendingCompile = true;
+        }
       }
     }),
   ],
@@ -488,6 +493,18 @@ document.addEventListener('touchend', () => {
 // Initialize compiler
 // ---------------------------------------------------------------
 async function init() {
+  // Hide the loading overlay immediately — the editor is already visible
+  loadingOverlay.classList.add('hidden');
+
+  // Show compiler-loading status in the header badge
+  setStatus('loading', 'Loading compiler...');
+
+  // Show a helpful placeholder in the output panel while WASM downloads
+  outputPlaceholder.textContent = 'Compiler loading... You can start editing!';
+
+  // Kick off deep-link / sample loading (works before WASM is ready)
+  loadFromHash();
+
   try {
     compiler = createWorkerCompiler({
       workerUrl: '/gh-aw/wasm/compiler-worker.js'
@@ -496,18 +513,12 @@ async function init() {
     await compiler.ready;
     isReady = true;
     setStatus('ready', 'Ready');
-    loadingOverlay.classList.add('hidden');
 
-    // Load from hash deep-link, or compile default content
-    const loaded = await loadFromHash();
-    if (!loaded) {
-      doCompile();
-    }
+    // Compile whatever the user has typed (or the default/deep-linked content)
+    doCompile();
   } catch (err) {
     setStatus('error', 'Failed to load');
-    loadingOverlay.querySelector('.f4').textContent = 'Failed to load compiler';
-    loadingOverlay.querySelector('.f6').textContent = err.message;
-    loadingOverlay.querySelector('.loading-spinner').style.display = 'none';
+    outputPlaceholder.textContent = `Failed to load compiler: ${err.message}`;
   }
 }
 

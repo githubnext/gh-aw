@@ -49,6 +49,8 @@ Thumbs.db
 *.wasm
 /wasm_exec.js
 docs/public/wasm/gh-aw.wasm
+docs/public/wasm/gh-aw.wasm.br
+docs/public/wasm/gh-aw.wasm.gz
 docs/public/wasm/wasm_exec.js
 
 # Go binary for this project

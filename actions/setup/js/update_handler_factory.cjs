@@ -21,6 +21,62 @@ const { resolveTarget } = require("./safe_output_helpers.cjs");
  */
 
 /**
+ * Creates a standard resolve number function for issue/PR handlers that use resolveTarget helper
+ * This factory eliminates duplication between update_issue and update_pull_request
+ *
+ * @param {Object} config - Configuration for the resolve function
+ * @param {string} config.itemType - Type of item (e.g., "update_issue", "update_pull_request")
+ * @param {string} config.itemNumberField - Field name in item object (e.g., "issue_number", "pull_request_number")
+ * @param {boolean} config.supportsPR - Whether this handler supports PR context
+ * @param {boolean} config.supportsIssue - Whether this handler supports issue context
+ * @returns {Function} Resolve number function
+ */
+function createStandardResolveNumber(config) {
+  const { itemType, itemNumberField, supportsPR, supportsIssue } = config;
+
+  return function resolveNumber(item, updateTarget, context) {
+    const targetResult = resolveTarget({
+      targetConfig: updateTarget,
+      item: { ...item, item_number: item[itemNumberField] },
+      context: context,
+      itemType: itemType,
+      supportsPR: supportsPR,
+      supportsIssue: supportsIssue,
+    });
+
+    if (!targetResult.success) {
+      return { success: false, error: targetResult.error };
+    }
+
+    return { success: true, number: targetResult.number };
+  };
+}
+
+/**
+ * Creates a standard format success result function
+ * This factory eliminates duplication across all update handlers
+ *
+ * @param {Object} fieldMapping - Mapping of result fields
+ * @param {string} fieldMapping.numberField - Field name for number (e.g., "number", "pull_request_number")
+ * @param {string} fieldMapping.urlField - Field name for URL (e.g., "url", "pull_request_url")
+ * @param {string} fieldMapping.urlSource - Source field in updated item (e.g., "html_url", "url")
+ * @returns {Function} Format success result function
+ */
+function createStandardFormatResult(fieldMapping) {
+  const { numberField, urlField, urlSource } = fieldMapping;
+
+  return function formatSuccessResult(itemNumber, updatedItem) {
+    const result = {
+      success: true,
+      [numberField]: itemNumber,
+      [urlField]: updatedItem[urlSource],
+      title: updatedItem.title,
+    };
+    return result;
+  };
+}
+
+/**
  * Creates a handler factory function with common update logic
  * This factory encapsulates the shared control flow:
  * - Configuration defaults (target, max count)
@@ -169,4 +225,8 @@ function createUpdateHandlerFactory(handlerConfig) {
   };
 }
 
-module.exports = { createUpdateHandlerFactory };
+module.exports = {
+  createUpdateHandlerFactory,
+  createStandardResolveNumber,
+  createStandardFormatResult,
+};
