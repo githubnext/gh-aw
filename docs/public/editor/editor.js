@@ -121,7 +121,6 @@ const errorBanner = $('errorBanner');
 const errorText = $('errorText');
 const warningBanner = $('warningBanner');
 const warningText = $('warningText');
-const themeToggle = $('themeToggle');
 const divider = $('divider');
 const panelEditor = $('panelEditor');
 const panelOutput = $('panelOutput');
@@ -130,6 +129,7 @@ const panels = $('panels');
 // ---------------------------------------------------------------
 // State
 // ---------------------------------------------------------------
+const STORAGE_KEY = 'gh-aw-playground-content';
 let compiler = null;
 let isReady = false;
 let isCompiling = false;
@@ -138,57 +138,50 @@ let currentYaml = '';
 let pendingCompile = false;
 
 // ---------------------------------------------------------------
-// Theme (uses Primer's data-color-mode)
+// Theme — follows browser's prefers-color-scheme automatically.
+// Primer CSS handles the page via data-color-mode="auto".
+// We only need to toggle the CodeMirror theme (oneDark vs default).
 // ---------------------------------------------------------------
 const editorThemeConfig = new Compartment();
 const outputThemeConfig = new Compartment();
+const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
 
-function getPreferredTheme() {
-  const saved = localStorage.getItem('gh-aw-playground-theme');
-  if (saved) return saved;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+function isDark() {
+  return darkMq.matches;
 }
 
-function cmThemeFor(theme) {
-  return theme === 'dark' ? oneDark : [];
+function cmThemeFor(dark) {
+  return dark ? oneDark : [];
 }
 
-function setTheme(theme) {
-  document.documentElement.setAttribute('data-color-mode', theme);
-  localStorage.setItem('gh-aw-playground-theme', theme);
-  const sunIcon = themeToggle.querySelector('.icon-sun');
-  const moonIcon = themeToggle.querySelector('.icon-moon');
-  if (theme === 'dark') {
-    sunIcon.style.display = 'block';
-    moonIcon.style.display = 'none';
-  } else {
-    sunIcon.style.display = 'none';
-    moonIcon.style.display = 'block';
-  }
-
-  // Update CodeMirror themes
-  const cmTheme = cmThemeFor(theme);
-  editorView.dispatch({ effects: editorThemeConfig.reconfigure(cmTheme) });
-  outputView.dispatch({ effects: outputThemeConfig.reconfigure(cmTheme) });
+function applyCmTheme() {
+  const theme = cmThemeFor(isDark());
+  editorView.dispatch({ effects: editorThemeConfig.reconfigure(theme) });
+  outputView.dispatch({ effects: outputThemeConfig.reconfigure(theme) });
 }
 
 // ---------------------------------------------------------------
 // CodeMirror: Input Editor (Markdown with YAML frontmatter)
 // ---------------------------------------------------------------
+const savedContent = localStorage.getItem(STORAGE_KEY);
+const initialContent = savedContent || DEFAULT_CONTENT;
+
 const editorView = new EditorView({
-  doc: DEFAULT_CONTENT,
+  doc: initialContent,
   extensions: [
     basicSetup,
     markdown(),
     EditorState.tabSize.of(2),
     indentUnit.of('  '),
-    editorThemeConfig.of(cmThemeFor(getPreferredTheme())),
+    editorThemeConfig.of(cmThemeFor(isDark())),
     keymap.of([{
       key: 'Mod-Enter',
       run: () => { doCompile(); return true; }
     }]),
     EditorView.updateListener.of(update => {
       if (update.docChanged) {
+        try { localStorage.setItem(STORAGE_KEY, update.state.doc.toString()); }
+        catch (_) { /* localStorage full or unavailable */ }
         if (isReady) {
           scheduleCompile();
         } else {
@@ -200,6 +193,11 @@ const editorView = new EditorView({
   parent: editorMount,
 });
 
+// If restoring saved content, clear the dropdown since it may not match any sample
+if (savedContent) {
+  sampleSelect.value = '';
+}
+
 // ---------------------------------------------------------------
 // CodeMirror: Output View (YAML, read-only)
 // ---------------------------------------------------------------
@@ -210,27 +208,13 @@ const outputView = new EditorView({
     yaml(),
     EditorState.readOnly.of(true),
     EditorView.editable.of(false),
-    outputThemeConfig.of(cmThemeFor(getPreferredTheme())),
+    outputThemeConfig.of(cmThemeFor(isDark())),
   ],
   parent: outputMount,
 });
 
-// ---------------------------------------------------------------
-// Apply initial theme + listen for changes
-// ---------------------------------------------------------------
-setTheme(getPreferredTheme());
-
-themeToggle.addEventListener('click', () => {
-  const current = document.documentElement.getAttribute('data-color-mode');
-  setTheme(current === 'dark' ? 'light' : 'dark');
-});
-
-// Listen for OS theme changes
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-  if (!localStorage.getItem('gh-aw-playground-theme')) {
-    setTheme(e.matches ? 'dark' : 'light');
-  }
-});
+// Listen for OS theme changes and update CodeMirror accordingly
+darkMq.addEventListener('change', () => applyCmTheme());
 
 // ---------------------------------------------------------------
 // Sample selector + deep-link loading

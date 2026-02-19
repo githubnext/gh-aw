@@ -57,6 +57,38 @@ for p in "${platforms[@]}"; do
   
 done
 
+# Build WebAssembly binary
+echo ""
+echo "Building gh-aw WebAssembly binary..."
+GOOS=js GOARCH=wasm go build \
+  -trimpath \
+  -ldflags="-s -w" \
+  -o "dist/gh-aw.wasm" \
+  ./cmd/gh-aw-wasm
+
+# Run wasm-opt if available
+if command -v wasm-opt &> /dev/null; then
+  echo "Running wasm-opt -Oz (size optimization)..."
+  BEFORE=$(wc -c < dist/gh-aw.wasm)
+  wasm-opt -Oz --enable-bulk-memory dist/gh-aw.wasm -o dist/gh-aw.opt.wasm && \
+    mv dist/gh-aw.opt.wasm dist/gh-aw.wasm
+  AFTER=$(wc -c < dist/gh-aw.wasm)
+  echo "wasm-opt: $BEFORE -> $AFTER bytes"
+fi
+
+# Bundle wasm_exec.js (required Go runtime for loading the wasm binary)
+WASM_EXEC_SRC="$(go env GOROOT)/lib/wasm/wasm_exec.js"
+if [ ! -f "$WASM_EXEC_SRC" ]; then
+  WASM_EXEC_SRC="$(go env GOROOT)/misc/wasm/wasm_exec.js"
+fi
+if [ ! -f "$WASM_EXEC_SRC" ]; then
+  echo "error: wasm_exec.js not found in Go installation" >&2
+  exit 1
+fi
+cp "$WASM_EXEC_SRC" dist/wasm_exec.js
+echo "Bundled wasm_exec.js from $WASM_EXEC_SRC"
+
+echo ""
 echo "Build complete. Binaries:"
 ls -lh dist/
 
