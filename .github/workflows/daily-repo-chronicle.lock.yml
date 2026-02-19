@@ -30,7 +30,7 @@
 #     - shared/reporting.md
 #     - shared/trends.md
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"24c95e05db9b5423bcdcb99e38fa604774d272c1647b66dd4ab4fcf2f5d1feb1"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d21247582c90694ba02e48d0848e944097f89cee7bb36bbae2ab756246b38218"}
 
 name: "The Daily Repository Chronicle"
 "on":
@@ -434,7 +434,7 @@ jobs:
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
             {
-              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"📰 \".",
+              "description": "Create a GitHub discussion for announcements, Q\u0026A, reports, status updates, or community conversations. Use this for content that benefits from threaded replies, doesn't require task tracking, or serves as documentation. For actionable work items that need assignment and status tracking, use create_issue instead. CONSTRAINTS: Maximum 1 discussion(s) can be created. Title will be prefixed with \"📰 \". Discussions will be created in category \"announcements\".",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
@@ -1170,7 +1170,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"close_older_discussions\":true,\"expires\":72,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"📰 \"},\"missing_data\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"announcements\",\"close_older_discussions\":true,\"expires\":72,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"📰 \"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
