@@ -115,12 +115,103 @@ html, body {
   50% { opacity: 0.35; }
 }
 
+/* Mobile tab bar */
+.tab-bar {
+  border-bottom: 1px solid var(--borderColor-default, var(--color-border-default));
+  background: var(--bgColor-default, var(--color-canvas-default));
+  z-index: 9;
+}
+.tab-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fgColor-muted, var(--color-fg-muted));
+  cursor: pointer;
+  position: relative;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: color 150ms ease;
+}
+.tab-btn.active {
+  color: var(--fgColor-accent, var(--color-accent-fg));
+}
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  background: var(--fgColor-accent, var(--color-accent-fg));
+  border-radius: 2px 2px 0 0;
+}
+
+/* Tab status dot (on Output tab) */
+.tab-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-left: 6px;
+  vertical-align: middle;
+  background: var(--fgColor-success, #1a7f37);
+  transition: background 200ms ease;
+}
+.tab-status-dot[data-stale="true"] {
+  background: var(--fgColor-attention, #9a6700);
+}
+.tab-status-dot[data-stale="error"] {
+  background: var(--fgColor-danger, #cf222e);
+}
+
+/* Floating Action Button for compile */
+.fab-compile {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bgColor-accent-emphasis, var(--color-accent-emphasis, #0969da));
+  color: var(--fgColor-onEmphasis, #ffffff);
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.28);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.fab-compile:active {
+  transform: scale(0.92);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.25);
+}
+.fab-compile.compiling {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 /* Responsive */
 @media (max-width: 767px) {
   .panels-container { flex-direction: column !important; }
-  .divider { width: 100%; height: 4px; cursor: row-resize; }
+  .divider { display: none !important; }
   .header-bar { gap: 8px !important; padding: 8px 12px !important; flex-wrap: wrap; height: auto !important; min-height: 48px !important; }
   .header-separator { display: none !important; }
+  .tab-bar { display: flex !important; }
+  .fab-compile { display: flex !important; }
+  footer { display: none !important; }
+  /* Panel headers are redundant when tabs are visible */
+  .mobile-hidden-header { display: none !important; }
+}
+@media (min-width: 768px) {
+  .tab-bar { display: none !important; }
+  .fab-compile { display: none !important; }
 }
 </style>
 </head>
@@ -178,11 +269,20 @@ html, body {
     <span class="text-mono f6" id="warningText"></span>
   </div>
 
+  <!-- Mobile Tab Bar (hidden on desktop via CSS) -->
+  <div class="tab-bar d-none" id="tabBar">
+    <button class="tab-btn active" data-panel="editor">Editor</button>
+    <button class="tab-btn" data-panel="output">
+      Output
+      <span class="tab-status-dot" id="tabStatusDot"></span>
+    </button>
+  </div>
+
   <!-- Main Panels -->
   <div class="panels-container d-flex flex-1" style="min-height: 0;" id="panels">
     <!-- Editor Panel -->
     <div class="d-flex flex-column" style="flex: 1 1 50%; min-width: 0; min-height: 0;" id="panelEditor">
-      <div class="d-flex flex-items-center flex-justify-between px-3 py-2 color-bg-subtle border-bottom f6 text-bold text-uppercase color-fg-muted" style="letter-spacing: 0.5px; min-height: 36px; user-select: none;">
+      <div class="mobile-hidden-header d-flex flex-items-center flex-justify-between px-3 py-2 color-bg-subtle border-bottom f6 text-bold text-uppercase color-fg-muted" style="letter-spacing: 0.5px; min-height: 36px; user-select: none;">
         <span class="d-flex flex-items-center gap-1">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="opacity: 0.6;">
             <path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0114.25 15H1.75A1.75 1.75 0 010 13.25V2.75C0 1.784.784 1 1.75 1zm12.5 1.5H1.75a.25.25 0 00-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V2.75a.25.25 0 00-.25-.25zM3 5.5a.75.75 0 01.75-.75h8.5a.75.75 0 010 1.5h-8.5A.75.75 0 013 5.5zm0 4a.75.75 0 01.75-.75h5.5a.75.75 0 010 1.5h-5.5A.75.75 0 013 9.5z"/>
@@ -197,7 +297,7 @@ html, body {
 
     <!-- Output Panel -->
     <div class="d-flex flex-column" style="flex: 1 1 50%; min-width: 0; min-height: 0;" id="panelOutput">
-      <div class="d-flex flex-items-center flex-justify-between px-3 py-2 color-bg-subtle border-bottom f6 text-bold text-uppercase color-fg-muted" style="letter-spacing: 0.5px; min-height: 36px; user-select: none;">
+      <div class="mobile-hidden-header d-flex flex-items-center flex-justify-between px-3 py-2 color-bg-subtle border-bottom f6 text-bold text-uppercase color-fg-muted" style="letter-spacing: 0.5px; min-height: 36px; user-select: none;">
         <span class="d-flex flex-items-center gap-1">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="opacity: 0.6;">
             <path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0114.25 16H1.75A1.75 1.75 0 010 14.25Zm1.75-.25a.25.25 0 00-.25.25v12.5c0 .138.112.25.25.25h12.5a.25.25 0 00.25-.25V1.75a.25.25 0 00-.25-.25Zm7.47 3.97a.75.75 0 011.06 0l2 2a.75.75 0 010 1.06l-2 2a.75.75 0 11-1.06-1.06L10.69 8 9.22 6.53a.75.75 0 010-1.06zm-3.44 0a.75.75 0 010 1.06L4.31 8l1.47 1.47a.75.75 0 01-1.06 1.06l-2-2a.75.75 0 010-1.06l2-2a.75.75 0 011.06 0z"/>
@@ -234,6 +334,11 @@ html, body {
       <a href="https://github.com/security" target="_blank" rel="noopener noreferrer" class="Link--secondary">Security</a>
     </div>
   </footer>
+
+  <!-- Mobile Floating Action Button for compile (hidden on desktop via CSS) -->
+  <button class="fab-compile d-none" id="fabCompile" title="Compile" aria-label="Compile workflow">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+  </button>
 </div>
 
 <script type="module" src="./editor.js"></script>
