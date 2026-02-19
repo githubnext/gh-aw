@@ -5,8 +5,8 @@
  * Usage:
  *   node docs/scripts/generate-autocomplete-data.js
  *
- * Input:  pkg/parser/schemas/main_workflow_schema.json  (~322KB, 7200 lines)
- * Output: docs/public/editor/autocomplete-data.json     (~20KB compact)
+ * Input:  pkg/parser/schemas/main_workflow_schema.json
+ * Output: docs/public/editor/autocomplete-data.json
  */
 
 import fs from 'fs';
@@ -122,7 +122,7 @@ function canBeLeaf(node) {
   const resolved = resolveRef(node);
   const type = resolved.type;
   if (type === 'string' || type === 'integer' || type === 'number' || type === 'boolean') return true;
-  if (Array.isArray(type) && type.some(t => t === 'string' || t === 'integer' || t === 'number')) return true;
+  if (Array.isArray(type) && type.some(t => t === 'string' || t === 'integer' || t === 'number' || t === 'boolean')) return true;
   if (resolved.oneOf) {
     return resolved.oneOf.some(v => {
       const r = resolveRef(v);
@@ -158,7 +158,10 @@ function buildEntry(propSchema, depth) {
   if (desc) entry.desc = desc;
 
   const enumVals = getEnum(resolved);
-  if (enumVals) entry.enum = enumVals.filter(v => v != null);
+  if (enumVals) {
+    const filtered = enumVals.filter(v => v != null);
+    if (filtered.length > 0) entry.enum = filtered;
+  }
 
   if (type === 'boolean' && !entry.enum) {
     entry.enum = [true, false];

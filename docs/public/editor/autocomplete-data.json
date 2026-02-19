@@ -1366,7 +1366,6 @@
         "create-project": {
           "type": "object|null",
           "desc": "Enable AI agents to create new GitHub Projects for organizing and tracking work across issues and pull requests.",
-          "enum": [],
           "leaf": true
         },
         "create-project-status-update": {

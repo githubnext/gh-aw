@@ -30,20 +30,30 @@ fetch('./autocomplete-data.json')
  * valid frontmatter is found.
  */
 function findFrontmatterRegion(doc) {
-  const text = doc.toString();
-  // Frontmatter must start at the very beginning of the document
-  if (!text.startsWith('---')) return null;
+  // Frontmatter must start at the very beginning of the document.
+  // We check the first line rather than converting the entire
+  // document to a string for performance reasons.
+  if (doc.lines === 0) return null;
 
-  // Find the closing --- on its own line
-  // Search for \n--- followed by end-of-string, newline, or whitespace
-  const match = text.match(/\n---[ \t]*(\n|$)/);
-  if (!match || match.index <= 2) return null;
+  const firstLine = doc.line(1);
+  if (!firstLine.text.startsWith('---')) return null;
 
-  // The frontmatter region spans from character 0 to the end of the closing ---
-  return {
-    start: 0,
-    end: match.index + match[0].length,
-  };
+  // Scan forward line-by-line to find the closing --- on its own line.
+  // A closing line looks like: "---" followed by optional spaces/tabs.
+  for (let lineNumber = 2; lineNumber <= doc.lines; lineNumber++) {
+    const line = doc.line(lineNumber);
+    if (/^---[ \t]*$/.test(line.text)) {
+      // The frontmatter region spans from character 0 to the end of
+      // the closing --- line.
+      return {
+        start: 0,
+        end: line.to,
+      };
+    }
+  }
+
+  // No valid closing delimiter found.
+  return null;
 }
 
 // ---------------------------------------------------------------
@@ -67,7 +77,7 @@ function extractKeyFromLine(lineText, posInLine) {
   const keyEnd = indent + key.length;
 
   // Only trigger if the hover position is within the key text
-  if (posInLine < keyStart || posInLine > keyEnd) return null;
+  if (posInLine < keyStart || posInLine >= keyEnd) return null;
 
   return { key, keyStart, keyEnd };
 }
