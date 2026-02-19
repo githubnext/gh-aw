@@ -20,6 +20,7 @@ const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_help
 async function main(config = {}) {
   // Extract configuration
   const allowedLabels = config.allowed || [];
+  const blockedPatterns = config.blocked || [];
   const maxCount = config.max || 10;
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
 
@@ -29,6 +30,9 @@ async function main(config = {}) {
   core.info(`Remove labels configuration: max=${maxCount}`);
   if (allowedLabels.length > 0) {
     core.info(`Allowed labels to remove: ${allowedLabels.join(", ")}`);
+  }
+  if (blockedPatterns.length > 0) {
+    core.info(`Blocked patterns: ${blockedPatterns.join(", ")}`);
   }
   core.info(`Default target repo: ${defaultTargetRepo}`);
   if (allowedRepos.size > 0) {
@@ -100,7 +104,7 @@ async function main(config = {}) {
     }
 
     // Use validation helper to sanitize and validate labels
-    const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount);
+    const labelsResult = validateLabels(requestedLabels, allowedLabels, maxCount, blockedPatterns);
     if (!labelsResult.valid) {
       // If no valid labels, log info and return gracefully
       if (labelsResult.error?.includes("No valid labels")) {
