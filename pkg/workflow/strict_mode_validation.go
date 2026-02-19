@@ -344,18 +344,19 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 		return fmt.Errorf("strict mode: 'sandbox.agent: false' is not allowed because it disables the agent sandbox firewall. This removes important security protections. Remove 'sandbox.agent: false' or set 'strict: false' to disable strict mode. See: https://github.github.com/gh-aw/reference/sandbox/")
 	}
 
-	// In strict mode, ALL engines must use network domains from known ecosystems (not custom domains)
+	// In strict mode, ALL engines must use ecosystem identifiers for domains that belong to known ecosystems
 	// This applies regardless of LLM gateway support
+	// Truly custom domains (domains not part of any known ecosystem) are allowed
 	if networkPermissions != nil && len(networkPermissions.Allowed) > 0 {
 		strictModeValidationLog.Printf("Validating network domains in strict mode for all engines")
 
-		// Check if allowed domains contain only known ecosystem identifiers
-		// Track domains that are not ecosystem identifiers (both individual ecosystem domains and truly custom domains)
+		// Check if allowed domains contain only known ecosystem identifiers or truly custom domains
+		// Track domains that belong to known ecosystems but are not specified as ecosystem identifiers
 		type domainSuggestion struct {
 			domain    string
 			ecosystem string // empty if no ecosystem found, non-empty if domain belongs to known ecosystem
 		}
-		var invalidDomains []domainSuggestion
+		var ecosystemDomainsNotAsIdentifiers []domainSuggestion
 
 		for _, domain := range networkPermissions.Allowed {
 			// Skip wildcards (handled below)
@@ -373,30 +374,35 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 
 			// Not an ecosystem identifier - check if it belongs to any ecosystem
 			ecosystem := GetDomainEcosystem(domain)
-			// Add to invalid domains (with or without ecosystem suggestion)
 			strictModeValidationLog.Printf("Domain '%s' ecosystem: '%s'", domain, ecosystem)
-			invalidDomains = append(invalidDomains, domainSuggestion{domain: domain, ecosystem: ecosystem})
+
+			if ecosystem != "" {
+				// This domain belongs to a known ecosystem but was not specified as an ecosystem identifier
+				// In strict mode, we require ecosystem identifiers for ecosystem domains
+				ecosystemDomainsNotAsIdentifiers = append(ecosystemDomainsNotAsIdentifiers, domainSuggestion{domain: domain, ecosystem: ecosystem})
+			} else {
+				// This is a truly custom domain (not part of any known ecosystem) - allowed in strict mode
+				strictModeValidationLog.Printf("Domain '%s' is a truly custom domain, allowed in strict mode", domain)
+			}
 		}
 
-		if len(invalidDomains) > 0 {
-			strictModeValidationLog.Printf("Engine '%s' has invalid domains in strict mode, failing validation", engineID)
+		if len(ecosystemDomainsNotAsIdentifiers) > 0 {
+			strictModeValidationLog.Printf("Engine '%s' has ecosystem domains not specified as identifiers in strict mode, failing validation", engineID)
 
 			// Build error message with ecosystem suggestions
-			errorMsg := "strict mode: network domains must be from known ecosystems (e.g., 'defaults', 'python', 'node') for all engines in strict mode. Custom domains are not allowed for security."
+			errorMsg := "strict mode: domains that belong to known ecosystems must be specified using ecosystem identifiers (e.g., 'python', 'node') instead of individual domain names for security and maintainability."
 
 			// Add suggestions for domains that belong to known ecosystems
 			var suggestions []string
-			for _, ds := range invalidDomains {
-				if ds.ecosystem != "" {
-					suggestions = append(suggestions, fmt.Sprintf("'%s' belongs to ecosystem '%s'", ds.domain, ds.ecosystem))
-				}
+			for _, ds := range ecosystemDomainsNotAsIdentifiers {
+				suggestions = append(suggestions, fmt.Sprintf("'%s' belongs to ecosystem '%s'", ds.domain, ds.ecosystem))
 			}
 
 			if len(suggestions) > 0 {
 				errorMsg += " Did you mean: " + strings.Join(suggestions, ", ") + "?"
 			}
 
-			errorMsg += " Set 'strict: false' to use custom domains. See: https://github.github.com/gh-aw/reference/network/"
+			errorMsg += " Truly custom domains (not part of known ecosystems) are allowed. See: https://github.github.com/gh-aw/reference/network/"
 
 			return fmt.Errorf("%s", errorMsg)
 		}
