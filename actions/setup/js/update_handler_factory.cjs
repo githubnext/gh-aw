@@ -7,6 +7,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTarget } = require("./safe_output_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * @typedef {Object} UpdateHandlerConfig
@@ -194,7 +195,7 @@ function createUpdateHandlerFactory(handlerConfig) {
 
       // If in staged mode, preview the update without applying it
       if (isStaged) {
-        core.info(`Staged mode: Would update ${itemTypeName} #${itemNumber} with fields: ${JSON.stringify(updateFields)}`);
+        logStagedPreviewInfo(`Would update ${itemTypeName} #${itemNumber} with fields: ${JSON.stringify(updateFields)}`);
         return {
           success: true,
           staged: true,

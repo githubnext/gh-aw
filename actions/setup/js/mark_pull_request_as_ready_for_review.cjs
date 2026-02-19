@@ -8,6 +8,7 @@
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "mark_pull_request_as_ready_for_review";
@@ -161,7 +162,7 @@ async function main(config = {}) {
 
       // If in staged mode, preview without executing
       if (isStaged) {
-        core.info(`Staged mode: Would mark PR #${prNumber} as ready for review`);
+        logStagedPreviewInfo(`Would mark PR #${prNumber} as ready for review`);
         return {
           success: true,
           staged: true,

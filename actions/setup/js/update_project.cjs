@@ -4,6 +4,7 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { loadTemporaryIdMapFromResolved, resolveIssueNumber, isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * Normalize agent output keys for update_project.
@@ -1302,7 +1303,7 @@ async function main(config = {}, githubClient = null) {
       // If in staged mode, preview without executing
       if (isStaged) {
         const operation = effectiveMessage?.operation || "update";
-        core.info(`Staged mode: Would ${operation} project ${effectiveProjectUrl}`);
+        logStagedPreviewInfo(`Would ${operation} project ${effectiveProjectUrl}`);
         return {
           success: true,
           staged: true,

@@ -16,6 +16,7 @@ const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 const { getMessages } = require("./messages_core.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { MAX_COMMENT_LENGTH, MAX_MENTIONS, MAX_LINKS, enforceCommentLimits } = require("./comment_limit_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "add_comment";
@@ -478,7 +479,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview the comment without creating it
     if (isStaged) {
-      core.info(`Staged mode: Would add comment to ${isDiscussion ? "discussion" : "issue/PR"} #${itemNumber} in ${itemRepo}`);
+      logStagedPreviewInfo(`Would add comment to ${isDiscussion ? "discussion" : "issue/PR"} #${itemNumber} in ${itemRepo}`);
       return {
         success: true,
         staged: true,

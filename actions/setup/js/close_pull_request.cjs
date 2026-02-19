@@ -5,6 +5,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { getTrackerID } = require("./get_tracker_id.cjs");
 const { generateFooterWithMessages } = require("./messages_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -226,7 +227,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview the close without executing it
     if (isStaged) {
-      core.info(`Staged mode: Would close PR #${prNumber}`);
+      logStagedPreviewInfo(`Would close PR #${prNumber}`);
       return {
         success: true,
         staged: true,

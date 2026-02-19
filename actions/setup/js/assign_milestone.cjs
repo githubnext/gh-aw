@@ -6,6 +6,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "assign_milestone";
@@ -121,7 +122,7 @@ async function main(config = {}) {
     try {
       // If in staged mode, preview without executing
       if (isStaged) {
-        core.info(`Staged mode: Would assign milestone #${milestoneNumber} to issue #${issueNumber}`);
+        logStagedPreviewInfo(`Would assign milestone #${milestoneNumber} to issue #${issueNumber}`);
         return {
           success: true,
           staged: true,

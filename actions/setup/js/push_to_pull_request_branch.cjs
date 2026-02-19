@@ -134,7 +134,7 @@ async function main(config = {}) {
     core.info("Patch content validation passed");
     core.info(`Target configuration: ${target}`);
 
-    // If in staged mode, emit preview
+    // If in staged mode, emit 🎭 Staged Mode Preview via generateStagedPreview
     if (isStaged) {
       await generateStagedPreview({
         title: "Push to PR Branch",

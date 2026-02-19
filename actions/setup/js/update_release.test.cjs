@@ -25,7 +25,7 @@ const mockCore = { debug: vi.fn(), info: vi.fn(), warning: vi.fn(), error: vi.fn
       it("should handle empty message in staged mode", async () => {
         ((process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true"),
           await eval(`(async () => { ${updateReleaseScript}; const handler = await main(); const result = await handler({}); return result; })()`),
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Staged mode:")),
+          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("🎭 Staged Mode Preview")),
           expect(mockGithub.rest.repos.getReleaseByTag).not.toHaveBeenCalled());
       }),
       it("should handle replace operation", async () => {

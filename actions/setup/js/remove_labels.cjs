@@ -11,6 +11,7 @@ const HANDLER_TYPE = "remove_labels";
 const { validateLabels } = require("./safe_output_validator.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * Main handler factory for remove_labels
@@ -140,7 +141,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview the label removal without actually removing
     if (isStaged) {
-      core.info(`Staged mode: Would remove ${uniqueLabels.length} labels from ${contextType} #${itemNumber} in ${itemRepo}`);
+      logStagedPreviewInfo(`Would remove ${uniqueLabels.length} labels from ${contextType} #${itemNumber} in ${itemRepo}`);
       return {
         success: true,
         staged: true,
