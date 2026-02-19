@@ -7,7 +7,7 @@ sidebar:
 
 The `gh aw` CLI extension enables developers to create, manage, and execute AI-powered workflows directly from the command line. It transforms natural language markdown files into GitHub Actions.
 
-## 🚀 Most Common Commands
+## Most Common Commands
 
 Most users only need these 6 commands:
 
