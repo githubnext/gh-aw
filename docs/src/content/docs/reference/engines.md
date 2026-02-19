@@ -134,46 +134,16 @@ Arguments are added in order and placed before the `--prompt` flag. Common uses 
 
 ### Custom Engine Command
 
-All engines support specifying a custom executable path through the `command` field. When specified, the workflow will skip the standard installation steps and use the provided command instead:
+Override the default engine executable using the `command` field. Useful for testing pre-release versions, custom builds, or non-standard installations. Installation steps are automatically skipped.
 
 ```yaml wrap
 engine:
   id: copilot
-  command: /usr/local/bin/custom-copilot
-```
-
-The `command` field can be:
-
-- **Absolute path**: Full path to a custom engine executable (e.g., `/usr/local/bin/copilot`)
-- **Relative path**: Path relative to the workflow directory (e.g., `./bin/claude-cli`)
-- **Command with environment variable**: Use environment variable expansion (e.g., `$HOME/.local/bin/codex`)
-- **Command in PATH**: Any executable available in the system PATH (e.g., `copilot-dev`)
-
-**Use cases:**
-
-- Testing pre-release versions of an engine
-- Using a custom build or fork of an engine
-- Running engines installed in non-standard locations
-- Using engine binaries built from source
-
-**Example with custom Copilot build:**
-
-```yaml wrap
-engine:
-  id: copilot
-  command: /workspace/copilot-dev/bin/copilot
+  command: /usr/local/bin/copilot-dev  # absolute path
   args: ["--verbose"]
 ```
 
-**Example with environment variable:**
-
-```yaml wrap
-engine:
-  id: codex
-  command: $HOME/.local/bin/codex-experimental
-```
-
-When a custom `command` is specified, the workflow assumes the engine is already installed and available at the specified path. Installation steps will be skipped.
+The command supports absolute paths (`/usr/local/bin/copilot`), relative paths (`./bin/claude`), environment variables (`$HOME/.local/bin/codex`), or commands in PATH.
 
 ## Related Documentation
 
