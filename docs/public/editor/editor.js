@@ -10,6 +10,7 @@ import { markdown } from 'https://esm.sh/@codemirror/lang-markdown@6.5.0';
 import { indentUnit } from 'https://esm.sh/@codemirror/language@6.12.1';
 import { oneDark } from 'https://esm.sh/@codemirror/theme-one-dark@6.1.3';
 import { createWorkerCompiler } from '/gh-aw/wasm/compiler-loader.js';
+import { frontmatterHoverTooltip } from './hover-tooltips.js';
 
 // ---------------------------------------------------------------
 // Sample workflow registry (fetched from GitHub on demand)
@@ -178,6 +179,7 @@ const editorView = new EditorView({
       key: 'Mod-Enter',
       run: () => { doCompile(); return true; }
     }]),
+    frontmatterHoverTooltip,
     EditorView.updateListener.of(update => {
       if (update.docChanged) {
         try { localStorage.setItem(STORAGE_KEY, update.state.doc.toString()); }

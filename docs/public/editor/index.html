@@ -115,6 +115,63 @@ html, body {
   50% { opacity: 0.35; }
 }
 
+/* Hover tooltip for frontmatter keys */
+.cm-tooltip-docs {
+  padding: 8px 12px;
+  max-width: 320px;
+  font-size: 12px;
+  line-height: 1.5;
+  border-radius: 6px;
+  background: var(--bgColor-emphasis, var(--color-canvas-inset, #24292f));
+  color: var(--fgColor-onEmphasis, var(--color-fg-on-emphasis, #fff));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--borderColor-default, rgba(255, 255, 255, 0.1));
+}
+.cm-tooltip-docs-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.cm-tooltip-docs-header strong {
+  font-size: 13px;
+}
+.cm-tooltip-docs-type {
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  white-space: nowrap;
+}
+.cm-tooltip-docs-desc {
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.85);
+  word-wrap: break-word;
+}
+.cm-tooltip-docs-enum,
+.cm-tooltip-docs-children {
+  margin-top: 6px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+.cm-tooltip-docs-enum-label {
+  font-weight: 600;
+}
+.cm-tooltip-docs-enum code,
+.cm-tooltip-docs-children code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.85);
+}
+/* Override CodeMirror tooltip container styling to avoid clashing backgrounds */
+.cm-tooltip:has(.cm-tooltip-docs) {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
 /* Responsive */
 @media (max-width: 767px) {
   .panels-container { flex-direction: column !important; }
