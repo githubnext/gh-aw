@@ -955,7 +955,6 @@ jobs:
       contents: read
       discussions: write
       issues: write
-      pull-requests: write
     outputs:
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
@@ -1026,6 +1025,7 @@ jobs:
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🔍 *Task mining by [{workflow_name}]({run_url})*\",\"runStarted\":\"🔍 Discussion Task Miner starting! [{workflow_name}]({run_url}) is scanning discussions for code quality improvements...\",\"runSuccess\":\"✅ Task mining complete! [{workflow_name}]({run_url}) has identified actionable code quality tasks. 📊\",\"runFailure\":\"⚠️ Task mining interrupted! [{workflow_name}]({run_url}) {status}. Please review the logs...\"}"
           GH_AW_REPO_MEMORY_VALIDATION_FAILED_default: ${{ needs.push_repo_memory.outputs.validation_failed_default }}
           GH_AW_REPO_MEMORY_VALIDATION_ERROR_default: ${{ needs.push_repo_memory.outputs.validation_error_default }}
+          GH_AW_GROUP_REPORTS: "false"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1237,7 +1237,6 @@ jobs:
       contents: read
       discussions: write
       issues: write
-      pull-requests: write
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"

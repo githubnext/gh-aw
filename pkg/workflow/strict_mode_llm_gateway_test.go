@@ -11,7 +11,7 @@ import (
 
 // TestValidateStrictFirewall_LLMGatewaySupport tests the LLM gateway validation in strict mode
 func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
-	t.Run("codex engine rejects custom domains in strict mode", func(t *testing.T) {
+	t.Run("codex engine allows truly custom domains in strict mode", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -23,15 +23,12 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		}
 
 		err := compiler.validateStrictFirewall("codex", networkPerms, nil)
-		if err == nil {
-			t.Error("Expected error for codex engine with custom domains in strict mode, got nil")
-		}
-		if err != nil && !strings.Contains(err.Error(), "network domains must be from known ecosystems") {
-			t.Errorf("Expected error about known ecosystems, got: %v", err)
+		if err != nil {
+			t.Errorf("Expected no error for codex engine with truly custom domains in strict mode, got: %v", err)
 		}
 	})
 
-	t.Run("copilot engine rejects custom domains in strict mode", func(t *testing.T) {
+	t.Run("copilot engine allows truly custom domains in strict mode", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -43,11 +40,8 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		}
 
 		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
-		if err == nil {
-			t.Error("Expected error for copilot engine with custom domains, got nil")
-		}
-		if err != nil && !strings.Contains(err.Error(), "network domains must be from known ecosystems") {
-			t.Errorf("Expected error about known ecosystems, got: %v", err)
+		if err != nil {
+			t.Errorf("Expected no error for copilot engine with truly custom domains in strict mode, got: %v", err)
 		}
 	})
 
@@ -85,11 +79,11 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		}
 	})
 
-	t.Run("copilot engine rejects domains from known ecosystems but suggests ecosystem identifier in strict mode", func(t *testing.T) {
+	t.Run("copilot engine allows domains from known ecosystems with warning suggesting ecosystem identifier in strict mode", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
-		// These domains are from known ecosystems (python, node) but users should use ecosystem identifiers instead
+		// These domains are from known ecosystems (python, node) and will emit warnings suggesting ecosystem identifiers
 		networkPerms := &NetworkPermissions{
 			Allowed: []string{"pypi.org", "registry.npmjs.org"},
 			Firewall: &FirewallConfig{
@@ -97,16 +91,14 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 			},
 		}
 
+		initialWarnings := compiler.GetWarningCount()
 		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
-		if err == nil {
-			t.Fatal("Expected error for individual ecosystem domains in strict mode, got nil")
+		if err != nil {
+			t.Errorf("Expected no error for individual ecosystem domains in strict mode, got: %v", err)
 		}
-		// Should suggest using ecosystem identifiers instead
-		if !strings.Contains(err.Error(), "python") {
-			t.Errorf("Error should suggest 'python' ecosystem, got: %v", err)
-		}
-		if !strings.Contains(err.Error(), "node") {
-			t.Errorf("Error should suggest 'node' ecosystem, got: %v", err)
+		// Should have incremented warning count
+		if compiler.GetWarningCount() != initialWarnings+1 {
+			t.Errorf("Expected warning count to increase by 1, got %d warnings", compiler.GetWarningCount()-initialWarnings)
 		}
 	})
 
@@ -127,11 +119,11 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		}
 	})
 
-	t.Run("codex engine rejects domains from known ecosystems but suggests ecosystem identifier", func(t *testing.T) {
+	t.Run("codex engine allows domains from known ecosystems with warning suggesting ecosystem identifier", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
-		// These domains are from known ecosystems (python, node) but users should use ecosystem identifiers instead
+		// These domains are from known ecosystems (python, node) and will emit warnings suggesting ecosystem identifiers
 		networkPerms := &NetworkPermissions{
 			Allowed: []string{"pypi.org", "registry.npmjs.org"},
 			Firewall: &FirewallConfig{
@@ -139,20 +131,18 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 			},
 		}
 
+		initialWarnings := compiler.GetWarningCount()
 		err := compiler.validateStrictFirewall("codex", networkPerms, nil)
-		if err == nil {
-			t.Fatal("Expected error for individual ecosystem domains in strict mode, got nil")
+		if err != nil {
+			t.Errorf("Expected no error for individual ecosystem domains in strict mode, got: %v", err)
 		}
-		// Should suggest using ecosystem identifiers instead
-		if !strings.Contains(err.Error(), "python") {
-			t.Errorf("Error should suggest 'python' ecosystem, got: %v", err)
-		}
-		if !strings.Contains(err.Error(), "node") {
-			t.Errorf("Error should suggest 'node' ecosystem, got: %v", err)
+		// Should have incremented warning count
+		if compiler.GetWarningCount() != initialWarnings+1 {
+			t.Errorf("Expected warning count to increase by 1, got %d warnings", compiler.GetWarningCount()-initialWarnings)
 		}
 	})
 
-	t.Run("copilot engine rejects mixed ecosystems and custom domains in strict mode", func(t *testing.T) {
+	t.Run("copilot engine allows mixed ecosystems and truly custom domains in strict mode", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -164,15 +154,12 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		}
 
 		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
-		if err == nil {
-			t.Error("Expected error for copilot engine with mixed ecosystems and custom domains, got nil")
-		}
-		if err != nil && !strings.Contains(err.Error(), "network domains must be from known ecosystems") {
-			t.Errorf("Expected error about known ecosystems, got: %v", err)
+		if err != nil {
+			t.Errorf("Expected no error for copilot engine with mixed ecosystems and truly custom domains in strict mode, got: %v", err)
 		}
 	})
 
-	t.Run("claude engine without LLM gateway support rejects custom domains", func(t *testing.T) {
+	t.Run("claude engine allows truly custom domains in strict mode", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -184,11 +171,8 @@ func TestValidateStrictFirewall_LLMGatewaySupport(t *testing.T) {
 		}
 
 		err := compiler.validateStrictFirewall("claude", networkPerms, nil)
-		if err == nil {
-			t.Error("Expected error for claude engine with custom domains, got nil")
-		}
-		if err != nil && !strings.Contains(err.Error(), "network domains must be from known ecosystems") {
-			t.Errorf("Expected error about known ecosystems, got: %v", err)
+		if err != nil {
+			t.Errorf("Expected no error for claude engine with truly custom domains in strict mode, got: %v", err)
 		}
 	})
 
@@ -321,9 +305,9 @@ func TestSupportsLLMGateway(t *testing.T) {
 	}
 }
 
-// TestValidateStrictFirewall_EcosystemSuggestions tests ecosystem suggestions in error messages
+// TestValidateStrictFirewall_EcosystemSuggestions tests ecosystem suggestions in warning messages
 func TestValidateStrictFirewall_EcosystemSuggestions(t *testing.T) {
-	t.Run("suggests ecosystem when individual domain from ecosystem is used", func(t *testing.T) {
+	t.Run("warns with ecosystem suggestion when individual domain from ecosystem is used", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -334,24 +318,18 @@ func TestValidateStrictFirewall_EcosystemSuggestions(t *testing.T) {
 			},
 		}
 
+		initialWarnings := compiler.GetWarningCount()
 		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
-		if err == nil {
-			t.Fatal("Expected error for individual ecosystem domain in strict mode, got nil")
+		if err != nil {
+			t.Errorf("Expected no error for individual ecosystem domain in strict mode, got: %v", err)
 		}
-
-		// Should suggest using 'python' ecosystem identifier
-		if !strings.Contains(err.Error(), "pypi.org") {
-			t.Errorf("Error should mention domain 'pypi.org', got: %v", err)
-		}
-		if !strings.Contains(err.Error(), "python") {
-			t.Errorf("Error should suggest 'python' ecosystem, got: %v", err)
-		}
-		if !strings.Contains(err.Error(), "Did you mean") {
-			t.Errorf("Error should include 'Did you mean' suggestion, got: %v", err)
+		// Should have emitted a warning
+		if compiler.GetWarningCount() != initialWarnings+1 {
+			t.Errorf("Expected warning count to increase by 1, got %d warnings", compiler.GetWarningCount()-initialWarnings)
 		}
 	})
 
-	t.Run("suggests ecosystem for multiple domains from same ecosystem", func(t *testing.T) {
+	t.Run("warns with ecosystem suggestion for multiple domains from same ecosystem", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -362,24 +340,18 @@ func TestValidateStrictFirewall_EcosystemSuggestions(t *testing.T) {
 			},
 		}
 
+		initialWarnings := compiler.GetWarningCount()
 		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
-		if err == nil {
-			t.Fatal("Expected error for individual ecosystem domains in strict mode, got nil")
+		if err != nil {
+			t.Errorf("Expected no error for individual ecosystem domains in strict mode, got: %v", err)
 		}
-
-		// Should suggest using 'node' ecosystem identifier for both
-		if !strings.Contains(err.Error(), "npmjs.org") {
-			t.Errorf("Error should mention domain 'npmjs.org', got: %v", err)
-		}
-		if !strings.Contains(err.Error(), "node") {
-			t.Errorf("Error should suggest 'node' ecosystem, got: %v", err)
-		}
-		if !strings.Contains(err.Error(), "Did you mean") {
-			t.Errorf("Error should include 'Did you mean' suggestion, got: %v", err)
+		// Should have emitted a warning
+		if compiler.GetWarningCount() != initialWarnings+1 {
+			t.Errorf("Expected warning count to increase by 1, got %d warnings", compiler.GetWarningCount()-initialWarnings)
 		}
 	})
 
-	t.Run("suggests ecosystem for domains from different ecosystems", func(t *testing.T) {
+	t.Run("warns with ecosystem suggestion for domains from different ecosystems", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -390,30 +362,18 @@ func TestValidateStrictFirewall_EcosystemSuggestions(t *testing.T) {
 			},
 		}
 
+		initialWarnings := compiler.GetWarningCount()
 		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
-		if err == nil {
-			t.Fatal("Expected error for individual ecosystem domains in strict mode, got nil")
+		if err != nil {
+			t.Errorf("Expected no error for individual ecosystem domains in strict mode, got: %v", err)
 		}
-
-		// Should suggest both 'python' and 'node' ecosystems
-		if !strings.Contains(err.Error(), "pypi.org") {
-			t.Errorf("Error should mention domain 'pypi.org', got: %v", err)
-		}
-		if !strings.Contains(err.Error(), "python") {
-			t.Errorf("Error should suggest 'python' ecosystem, got: %v", err)
-		}
-		if !strings.Contains(err.Error(), "npmjs.org") {
-			t.Errorf("Error should mention domain 'npmjs.org', got: %v", err)
-		}
-		if !strings.Contains(err.Error(), "node") {
-			t.Errorf("Error should suggest 'node' ecosystem, got: %v", err)
-		}
-		if !strings.Contains(err.Error(), "Did you mean") {
-			t.Errorf("Error should include 'Did you mean' suggestion, got: %v", err)
+		// Should have emitted a warning
+		if compiler.GetWarningCount() != initialWarnings+1 {
+			t.Errorf("Expected warning count to increase by 1, got %d warnings", compiler.GetWarningCount()-initialWarnings)
 		}
 	})
 
-	t.Run("no suggestion for truly custom domains", func(t *testing.T) {
+	t.Run("truly custom domains are allowed without errors or warnings", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -424,18 +384,18 @@ func TestValidateStrictFirewall_EcosystemSuggestions(t *testing.T) {
 			},
 		}
 
+		initialWarnings := compiler.GetWarningCount()
 		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
-		if err == nil {
-			t.Fatal("Expected error for custom domain in strict mode, got nil")
+		if err != nil {
+			t.Errorf("Expected no error for truly custom domain in strict mode, got: %v", err)
 		}
-
-		// Should NOT include "Did you mean" since this is a truly custom domain
-		if strings.Contains(err.Error(), "Did you mean") {
-			t.Errorf("Error should not include 'Did you mean' suggestion for truly custom domain, got: %v", err)
+		// Should NOT have emitted a warning
+		if compiler.GetWarningCount() != initialWarnings {
+			t.Errorf("Expected no warnings for truly custom domain, got %d warnings", compiler.GetWarningCount()-initialWarnings)
 		}
 	})
 
-	t.Run("mixed custom and ecosystem domains shows suggestions only for ecosystem domains", func(t *testing.T) {
+	t.Run("mixed custom and ecosystem domains shows warnings only for ecosystem domains", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -446,33 +406,18 @@ func TestValidateStrictFirewall_EcosystemSuggestions(t *testing.T) {
 			},
 		}
 
+		initialWarnings := compiler.GetWarningCount()
 		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
-		if err == nil {
-			t.Fatal("Expected error for mixed domains in strict mode, got nil")
+		if err != nil {
+			t.Errorf("Expected no error for mixed domains in strict mode, got: %v", err)
 		}
-
-		// Should suggest 'python' for pypi.org but not mention custom-domain.com in suggestions
-		if !strings.Contains(err.Error(), "pypi.org") {
-			t.Errorf("Error should mention domain 'pypi.org', got: %v", err)
-		}
-		if !strings.Contains(err.Error(), "python") {
-			t.Errorf("Error should suggest 'python' ecosystem, got: %v", err)
-		}
-		if !strings.Contains(err.Error(), "Did you mean") {
-			t.Errorf("Error should include 'Did you mean' suggestion, got: %v", err)
-		}
-		// custom-domain.com should NOT appear in the "Did you mean" part
-		errMsg := err.Error()
-		didYouMeanIdx := strings.Index(errMsg, "Did you mean")
-		if didYouMeanIdx != -1 {
-			didYouMeanPart := errMsg[didYouMeanIdx:]
-			if strings.Contains(didYouMeanPart, "custom-domain.com") {
-				t.Errorf("Error should not suggest ecosystem for custom-domain.com, got: %v", err)
-			}
+		// Should have emitted a warning for pypi.org only
+		if compiler.GetWarningCount() != initialWarnings+1 {
+			t.Errorf("Expected warning count to increase by 1, got %d warnings", compiler.GetWarningCount()-initialWarnings)
 		}
 	})
 
-	t.Run("allows ecosystem identifiers without suggestions", func(t *testing.T) {
+	t.Run("allows ecosystem identifiers without warnings", func(t *testing.T) {
 		compiler := NewCompiler()
 		compiler.strictMode = true
 
@@ -483,9 +428,112 @@ func TestValidateStrictFirewall_EcosystemSuggestions(t *testing.T) {
 			},
 		}
 
+		initialWarnings := compiler.GetWarningCount()
 		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
 		if err != nil {
 			t.Errorf("Expected no error for ecosystem identifiers in strict mode, got: %v", err)
+		}
+		// Should NOT have emitted any warnings
+		if compiler.GetWarningCount() != initialWarnings {
+			t.Errorf("Expected no warnings for ecosystem identifiers, got %d warnings", compiler.GetWarningCount()-initialWarnings)
+		}
+	})
+}
+
+// TestValidateStrictFirewall_CustomDomainBehavior tests the new behavior where truly custom domains are allowed
+func TestValidateStrictFirewall_CustomDomainBehavior(t *testing.T) {
+	t.Run("truly custom domain is allowed in strict mode", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.strictMode = true
+
+		networkPerms := &NetworkPermissions{
+			Allowed: []string{"api.example.com"},
+			Firewall: &FirewallConfig{
+				Enabled: true,
+			},
+		}
+
+		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
+		if err != nil {
+			t.Errorf("Expected no error for truly custom domain, got: %v", err)
+		}
+	})
+
+	t.Run("multiple truly custom domains are allowed in strict mode", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.strictMode = true
+
+		networkPerms := &NetworkPermissions{
+			Allowed: []string{"api.example.com", "cdn.myservice.io", "*.assets.example.org"},
+			Firewall: &FirewallConfig{
+				Enabled: true,
+			},
+		}
+
+		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
+		if err != nil {
+			t.Errorf("Expected no error for multiple truly custom domains, got: %v", err)
+		}
+	})
+
+	t.Run("ecosystem identifier with custom domains are allowed", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.strictMode = true
+
+		networkPerms := &NetworkPermissions{
+			Allowed: []string{"python", "node", "api.example.com", "cdn.example.com"},
+			Firewall: &FirewallConfig{
+				Enabled: true,
+			},
+		}
+
+		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
+		if err != nil {
+			t.Errorf("Expected no error for ecosystem identifiers with custom domains, got: %v", err)
+		}
+	})
+
+	t.Run("ecosystem domain with custom domains emits warning for ecosystem domain only", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.strictMode = true
+
+		networkPerms := &NetworkPermissions{
+			Allowed: []string{"pypi.org", "api.example.com"},
+			Firewall: &FirewallConfig{
+				Enabled: true,
+			},
+		}
+
+		initialWarnings := compiler.GetWarningCount()
+		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
+		if err != nil {
+			t.Errorf("Expected no error for ecosystem domain with custom domain, got: %v", err)
+		}
+		// Should have emitted a warning for pypi.org
+		if compiler.GetWarningCount() != initialWarnings+1 {
+			t.Errorf("Expected warning count to increase by 1, got %d warnings", compiler.GetWarningCount()-initialWarnings)
+		}
+	})
+
+	t.Run("defaults with custom domains are allowed without warnings", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.strictMode = true
+
+		networkPerms := &NetworkPermissions{
+			Allowed: []string{"defaults", "api.example.com"},
+			Firewall: &FirewallConfig{
+				Enabled: true,
+			},
+		}
+
+		initialWarnings := compiler.GetWarningCount()
+		err := compiler.validateStrictFirewall("copilot", networkPerms, nil)
+		if err != nil {
+			t.Errorf("Expected no error for defaults with custom domains, got: %v", err)
+		}
+		// Should NOT have emitted any warnings
+		if compiler.GetWarningCount() != initialWarnings {
+			t.Errorf("Expected no warnings for defaults with custom domains, got %d warnings", compiler.GetWarningCount()-initialWarnings)
 		}
 	})
 }

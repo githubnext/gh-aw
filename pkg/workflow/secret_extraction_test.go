@@ -118,6 +118,49 @@ func TestSharedExtractSecretsFromValue(t *testing.T) {
 				"CONFIG": "${{ secrets.CONFIG || 'default-config-value' }}",
 			},
 		},
+		{
+			name:  "sub-expression: github.workflow && secrets.TOKEN",
+			value: "${{ github.workflow && secrets.TOKEN }}",
+			expected: map[string]string{
+				"TOKEN": "${{ github.workflow && secrets.TOKEN }}",
+			},
+		},
+		{
+			name:  "sub-expression: secrets in OR expression with env",
+			value: "${{ secrets.DB_PASS || env.FALLBACK }}",
+			expected: map[string]string{
+				"DB_PASS": "${{ secrets.DB_PASS || env.FALLBACK }}",
+			},
+		},
+		{
+			name:  "sub-expression: secrets in parentheses",
+			value: "${{ (github.actor || secrets.HIDDEN) }}",
+			expected: map[string]string{
+				"HIDDEN": "${{ (github.actor || secrets.HIDDEN) }}",
+			},
+		},
+		{
+			name:  "sub-expression: complex boolean with secrets",
+			value: "${{ (github.workflow || secrets.TOKEN) && github.repository }}",
+			expected: map[string]string{
+				"TOKEN": "${{ (github.workflow || secrets.TOKEN) && github.repository }}",
+			},
+		},
+		{
+			name:  "sub-expression: NOT operator with secrets",
+			value: "${{ !secrets.PRIVATE_KEY && github.workflow }}",
+			expected: map[string]string{
+				"PRIVATE_KEY": "${{ !secrets.PRIVATE_KEY && github.workflow }}",
+			},
+		},
+		{
+			name:  "sub-expression: multiple secrets in same expression",
+			value: "${{ secrets.KEY1 && secrets.KEY2 }}",
+			expected: map[string]string{
+				"KEY1": "${{ secrets.KEY1 && secrets.KEY2 }}",
+				"KEY2": "${{ secrets.KEY1 && secrets.KEY2 }}",
+			},
+		},
 	}
 
 	for _, tt := range tests {

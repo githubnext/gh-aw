@@ -177,6 +177,13 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		}
 	}
 
+	// Pass group-reports configuration flag (defaults to false if not specified)
+	if data.SafeOutputs != nil && data.SafeOutputs.GroupReports {
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_GROUP_REPORTS: \"true\"\n")
+	} else {
+		agentFailureEnvVars = append(agentFailureEnvVars, "          GH_AW_GROUP_REPORTS: \"false\"\n")
+	}
+
 	// Build the agent failure handling step
 	agentFailureSteps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
 		StepName:      "Handle Agent Failure",

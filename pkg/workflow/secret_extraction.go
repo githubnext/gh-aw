@@ -34,52 +34,35 @@ func ExtractSecretName(value string) string {
 
 // ExtractSecretsFromValue extracts all GitHub Actions secret expressions from a string value
 // Returns a map of environment variable names to their full secret expressions
+// This function detects secrets in both simple expressions and sub-expressions:
 // Examples:
 //   - "${{ secrets.DD_API_KEY }}" -> {"DD_API_KEY": "${{ secrets.DD_API_KEY }}"}
 //   - "${{ secrets.DD_SITE || 'datadoghq.com' }}" -> {"DD_SITE": "${{ secrets.DD_SITE || 'datadoghq.com' }}"}
 //   - "Bearer ${{ secrets.TOKEN }}" -> {"TOKEN": "${{ secrets.TOKEN }}"}
+//   - "${{ github.workflow && secrets.TOKEN }}" -> {"TOKEN": "${{ github.workflow && secrets.TOKEN }}"}
+//   - "${{ (github.actor || secrets.HIDDEN) }}" -> {"HIDDEN": "${{ (github.actor || secrets.HIDDEN) }}"}
 func ExtractSecretsFromValue(value string) map[string]string {
 	secrets := make(map[string]string)
 
-	// Pattern to match ${{ secrets.VARIABLE_NAME }} or ${{ secrets.VARIABLE_NAME || 'default' }}
-	// We need to extract the variable name and the full expression
-	start := 0
-	for {
-		// Find the start of an expression
-		startIdx := strings.Index(value[start:], "${{ secrets.")
-		if startIdx == -1 {
-			break
+	// Find all ${{ ... }} expressions in the value
+	// Pattern matches from ${{ to }} allowing nested content
+	exprPattern := regexp.MustCompile(`\$\{\{[^}]+\}\}`)
+	expressions := exprPattern.FindAllString(value, -1)
+
+	// For each expression, check if it contains secrets.VARIABLE_NAME
+	// This handles both simple cases like "${{ secrets.TOKEN }}"
+	// and complex sub-expressions like "${{ github.workflow && secrets.TOKEN }}"
+	secretPattern := regexp.MustCompile(`secrets\.([A-Z_][A-Z0-9_]*)`)
+	for _, expr := range expressions {
+		matches := secretPattern.FindAllStringSubmatch(expr, -1)
+		for _, match := range matches {
+			if len(match) >= 2 {
+				varName := match[1]
+				// Store the full expression that contains this secret
+				secrets[varName] = expr
+				secretLog.Printf("Extracted secret: %s from expression: %s", varName, expr)
+			}
 		}
-		startIdx += start
-
-		// Find the end of the expression
-		endIdx := strings.Index(value[startIdx:], "}}")
-		if endIdx == -1 {
-			break
-		}
-		endIdx += startIdx + 2 // Include the closing }}
-
-		// Extract the full expression
-		fullExpr := value[startIdx:endIdx]
-
-		// Extract the variable name from "secrets.VARIABLE_NAME" or "secrets.VARIABLE_NAME ||"
-		secretsPart := strings.TrimPrefix(fullExpr, "${{ secrets.")
-		secretsPart = strings.TrimSuffix(secretsPart, "}}")
-		secretsPart = strings.TrimSpace(secretsPart)
-
-		// Find the variable name (everything before space, ||, or end)
-		varName := secretsPart
-		if spaceIdx := strings.IndexAny(varName, " |"); spaceIdx != -1 {
-			varName = varName[:spaceIdx]
-		}
-
-		// Store the variable name and full expression
-		if varName != "" {
-			secrets[varName] = fullExpr
-			secretLog.Printf("Extracted secret: %s", varName)
-		}
-
-		start = endIdx
 	}
 
 	if len(secrets) > 0 {

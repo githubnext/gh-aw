@@ -116,11 +116,12 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 
 	// Determine permissions based on discussions field
 	// Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission
+	// Note: PR comments are issue comments, so only issues:write is needed, not pull_requests:write
 	var permissions *Permissions
 	if data.SafeOutputs.AddComments.Discussions != nil && !*data.SafeOutputs.AddComments.Discussions {
-		permissions = NewPermissionsContentsReadIssuesWritePRWrite()
+		permissions = NewPermissionsContentsReadIssuesWrite()
 	} else {
-		permissions = NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite()
+		permissions = NewPermissionsContentsReadIssuesWriteDiscussionsWrite()
 	}
 
 	// Use the shared builder function to create the job

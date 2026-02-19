@@ -942,6 +942,7 @@ jobs:
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"🧹 Starting draft PR cleanup... [{workflow_name}]({run_url}) is reviewing draft PRs for staleness\",\"runSuccess\":\"✅ Draft PR cleanup complete! [{workflow_name}]({run_url}) has reviewed and processed stale drafts.\",\"runFailure\":\"❌ Draft PR cleanup failed! [{workflow_name}]({run_url}) {status}. Some draft PRs may not be processed.\"}"
+          GH_AW_GROUP_REPORTS: "false"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

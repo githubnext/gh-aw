@@ -79,10 +79,9 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
-				PermissionIssues:       PermissionWrite,
-				PermissionPullRequests: PermissionWrite,
-				PermissionDiscussions:  PermissionWrite,
+				PermissionContents:    PermissionRead,
+				PermissionIssues:      PermissionWrite,
+				PermissionDiscussions: PermissionWrite,
 			},
 		},
 		{
@@ -94,9 +93,8 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
-				PermissionIssues:       PermissionWrite,
-				PermissionPullRequests: PermissionWrite,
+				PermissionContents: PermissionRead,
+				PermissionIssues:   PermissionWrite,
 			},
 		},
 		{
@@ -107,10 +105,9 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
-				PermissionIssues:       PermissionWrite,
-				PermissionPullRequests: PermissionWrite,
-				PermissionDiscussions:  PermissionWrite,
+				PermissionContents:    PermissionRead,
+				PermissionIssues:      PermissionWrite,
+				PermissionDiscussions: PermissionWrite,
 			},
 		},
 		{
@@ -122,9 +119,8 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
-				PermissionIssues:       PermissionWrite,
-				PermissionPullRequests: PermissionWrite,
+				PermissionContents: PermissionRead,
+				PermissionIssues:   PermissionWrite,
 			},
 		},
 		{

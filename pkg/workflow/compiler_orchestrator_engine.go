@@ -76,6 +76,14 @@ func (c *Compiler) setupEngineAndImports(result *parser.FrontmatterResult, clean
 		return nil, err
 	}
 
+	// Validate env secrets regardless of strict mode (error in strict, warning in non-strict)
+	if err := c.validateEnvSecrets(result.Frontmatter); err != nil {
+		orchestratorEngineLog.Printf("Env secrets validation failed: %v", err)
+		// Restore strict mode before returning error
+		c.strictMode = initialStrictMode
+		return nil, err
+	}
+
 	// Restore the initial strict mode state after validation
 	// This ensures strict mode doesn't leak to other workflows being compiled
 	c.strictMode = initialStrictMode

@@ -1036,6 +1036,7 @@ jobs:
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📝 *Documentation by [{workflow_name}]({run_url})*\",\"runStarted\":\"✍️ The Technical Writer begins! [{workflow_name}]({run_url}) is documenting this {event_type}...\",\"runSuccess\":\"📝 Documentation complete! [{workflow_name}]({run_url}) has written the docs. Clear as crystal! ✨\",\"runFailure\":\"✍️ Writer's block! [{workflow_name}]({run_url}) {status}. The page remains blank...\"}"
+          GH_AW_GROUP_REPORTS: "false"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

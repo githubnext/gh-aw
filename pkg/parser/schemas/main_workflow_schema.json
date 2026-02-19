@@ -6422,6 +6422,12 @@
           "default": true,
           "examples": [false, true]
         },
+        "group-reports": {
+          "type": "boolean",
+          "description": "When true, creates a parent '[agentics] Failed runs' issue that tracks all workflow failures as sub-issues. Helps organize failure tracking but may be unnecessary in smaller repositories. Defaults to false.",
+          "default": false,
+          "examples": [false, true]
+        },
         "runs-on": {
           "type": "string",
           "description": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest', 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'. See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/"

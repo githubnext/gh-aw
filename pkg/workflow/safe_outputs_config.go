@@ -428,6 +428,14 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				}
 			}
 
+			// Handle group-reports flag
+			if groupReports, exists := outputMap["group-reports"]; exists {
+				if groupReportsBool, ok := groupReports.(bool); ok {
+					config.GroupReports = groupReportsBool
+					safeOutputsConfigLog.Printf("Group reports control: %t", groupReportsBool)
+				}
+			}
+
 			// Handle jobs (safe-jobs must be under safe-outputs)
 			if jobs, exists := outputMap["jobs"]; exists {
 				if jobsMap, ok := jobs.(map[string]any); ok {

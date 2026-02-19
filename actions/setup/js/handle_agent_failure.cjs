@@ -416,13 +416,20 @@ async function main() {
     // Try to find a pull request for the current branch
     const pullRequest = await findPullRequestForCurrentBranch();
 
-    // Ensure parent issue exists first
+    // Check if parent issue creation is enabled (defaults to false)
+    const groupReports = process.env.GH_AW_GROUP_REPORTS === "true";
+
+    // Ensure parent issue exists first (only if enabled)
     let parentIssue;
-    try {
-      parentIssue = await ensureParentIssue();
-    } catch (error) {
-      core.warning(`Could not create parent issue, proceeding without parent: ${getErrorMessage(error)}`);
-      // Continue without parent issue
+    if (groupReports) {
+      try {
+        parentIssue = await ensureParentIssue();
+      } catch (error) {
+        core.warning(`Could not create parent issue, proceeding without parent: ${getErrorMessage(error)}`);
+        // Continue without parent issue
+      }
+    } else {
+      core.info("Parent issue creation is disabled (group-reports: false)");
     }
 
     // Sanitize workflow name for title

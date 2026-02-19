@@ -41,8 +41,10 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 )
@@ -246,6 +248,59 @@ func (c *Compiler) validateStrictDeprecatedFields(frontmatter map[string]any) er
 	return nil
 }
 
+// validateEnvSecrets detects secrets in the env section and raises an error in strict mode
+// or a warning in non-strict mode. Secrets in env will be leaked to the agent container.
+func (c *Compiler) validateEnvSecrets(frontmatter map[string]any) error {
+	// Check if env section exists
+	envValue, exists := frontmatter["env"]
+	if !exists {
+		strictModeValidationLog.Printf("No env section found, validation passed")
+		return nil
+	}
+
+	// Parse env as map[string]string
+	envMap, ok := envValue.(map[string]any)
+	if !ok {
+		strictModeValidationLog.Printf("Env section is not a map, skipping validation")
+		return nil
+	}
+
+	// Convert to map[string]string for secret extraction
+	envStrings := make(map[string]string)
+	for key, value := range envMap {
+		if strValue, ok := value.(string); ok {
+			envStrings[key] = strValue
+		}
+	}
+
+	// Extract secrets from env values
+	secrets := ExtractSecretsFromMap(envStrings)
+	if len(secrets) == 0 {
+		strictModeValidationLog.Printf("No secrets found in env section")
+		return nil
+	}
+
+	// Build list of secret references found
+	var secretRefs []string
+	for _, secretExpr := range secrets {
+		secretRefs = append(secretRefs, secretExpr)
+	}
+
+	strictModeValidationLog.Printf("Found %d secret(s) in env section: %v", len(secrets), secretRefs)
+
+	// In strict mode, this is an error
+	if c.strictMode {
+		return fmt.Errorf("strict mode: secrets detected in 'env' section will be leaked to the agent container. Found: %s. Use engine-specific secret configuration instead. See: https://github.github.com/gh-aw/reference/engines/", strings.Join(secretRefs, ", "))
+	}
+
+	// In non-strict mode, emit a warning
+	warningMsg := fmt.Sprintf("Warning: secrets detected in 'env' section will be leaked to the agent container. Found: %s. Consider using engine-specific secret configuration instead.", strings.Join(secretRefs, ", "))
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+	c.IncrementWarningCount()
+
+	return nil
+}
+
 // validateStrictMode performs strict mode validations on the workflow
 //
 // This is the main orchestrator that calls individual validation functions.
@@ -255,6 +310,9 @@ func (c *Compiler) validateStrictDeprecatedFields(frontmatter map[string]any) er
 //  3. validateStrictMCPNetwork() - Requires top-level network config for container-based MCP servers
 //  4. validateStrictTools() - Validates tools configuration (e.g., serena local mode)
 //  5. validateStrictDeprecatedFields() - Refuses deprecated fields
+//
+// Note: Env secrets validation (validateEnvSecrets) is called separately outside of strict mode
+// to emit warnings in non-strict mode and errors in strict mode.
 //
 // Note: Strict mode also affects zizmor security scanner behavior (see pkg/cli/zizmor.go)
 // When zizmor is enabled with --zizmor flag, strict mode will treat any security
@@ -344,18 +402,19 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 		return fmt.Errorf("strict mode: 'sandbox.agent: false' is not allowed because it disables the agent sandbox firewall. This removes important security protections. Remove 'sandbox.agent: false' or set 'strict: false' to disable strict mode. See: https://github.github.com/gh-aw/reference/sandbox/")
 	}
 
-	// In strict mode, ALL engines must use network domains from known ecosystems (not custom domains)
+	// In strict mode, suggest using ecosystem identifiers for domains that belong to known ecosystems
 	// This applies regardless of LLM gateway support
+	// Both ecosystem domains and truly custom domains are allowed, but we warn about ecosystem domains
 	if networkPermissions != nil && len(networkPermissions.Allowed) > 0 {
 		strictModeValidationLog.Printf("Validating network domains in strict mode for all engines")
 
-		// Check if allowed domains contain only known ecosystem identifiers
-		// Track domains that are not ecosystem identifiers (both individual ecosystem domains and truly custom domains)
+		// Check if allowed domains contain only known ecosystem identifiers or truly custom domains
+		// Track domains that belong to known ecosystems but are not specified as ecosystem identifiers
 		type domainSuggestion struct {
 			domain    string
 			ecosystem string // empty if no ecosystem found, non-empty if domain belongs to known ecosystem
 		}
-		var invalidDomains []domainSuggestion
+		var ecosystemDomainsNotAsIdentifiers []domainSuggestion
 
 		for _, domain := range networkPermissions.Allowed {
 			// Skip wildcards (handled below)
@@ -373,32 +432,32 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 
 			// Not an ecosystem identifier - check if it belongs to any ecosystem
 			ecosystem := GetDomainEcosystem(domain)
-			// Add to invalid domains (with or without ecosystem suggestion)
 			strictModeValidationLog.Printf("Domain '%s' ecosystem: '%s'", domain, ecosystem)
-			invalidDomains = append(invalidDomains, domainSuggestion{domain: domain, ecosystem: ecosystem})
+
+			if ecosystem != "" {
+				// This domain belongs to a known ecosystem but was not specified as an ecosystem identifier
+				// In strict mode, we suggest using ecosystem identifiers instead
+				ecosystemDomainsNotAsIdentifiers = append(ecosystemDomainsNotAsIdentifiers, domainSuggestion{domain: domain, ecosystem: ecosystem})
+			} else {
+				// This is a truly custom domain (not part of any known ecosystem) - allowed in strict mode
+				strictModeValidationLog.Printf("Domain '%s' is a truly custom domain, allowed in strict mode", domain)
+			}
 		}
 
-		if len(invalidDomains) > 0 {
-			strictModeValidationLog.Printf("Engine '%s' has invalid domains in strict mode, failing validation", engineID)
+		if len(ecosystemDomainsNotAsIdentifiers) > 0 {
+			strictModeValidationLog.Printf("Engine '%s' has ecosystem domains not specified as identifiers in strict mode, emitting warning", engineID)
 
-			// Build error message with ecosystem suggestions
-			errorMsg := "strict mode: network domains must be from known ecosystems (e.g., 'defaults', 'python', 'node') for all engines in strict mode. Custom domains are not allowed for security."
-
-			// Add suggestions for domains that belong to known ecosystems
+			// Build warning message with ecosystem suggestions
 			var suggestions []string
-			for _, ds := range invalidDomains {
-				if ds.ecosystem != "" {
-					suggestions = append(suggestions, fmt.Sprintf("'%s' belongs to ecosystem '%s'", ds.domain, ds.ecosystem))
-				}
+			for _, ds := range ecosystemDomainsNotAsIdentifiers {
+				suggestions = append(suggestions, fmt.Sprintf("'%s' → '%s'", ds.domain, ds.ecosystem))
 			}
 
-			if len(suggestions) > 0 {
-				errorMsg += " Did you mean: " + strings.Join(suggestions, ", ") + "?"
-			}
+			warningMsg := fmt.Sprintf("strict mode: recommend using ecosystem identifiers instead of individual domain names for better maintainability: %s", strings.Join(suggestions, ", "))
 
-			errorMsg += " Set 'strict: false' to use custom domains. See: https://github.github.com/gh-aw/reference/network/"
-
-			return fmt.Errorf("%s", errorMsg)
+			// Print warning message and increment warning count
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+			c.IncrementWarningCount()
 		}
 	}
 
