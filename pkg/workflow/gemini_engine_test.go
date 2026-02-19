@@ -189,8 +189,9 @@ func TestGeminiEngineExecution(t *testing.T) {
 
 		stepContent := strings.Join(steps[0], "\n")
 
-		assert.Contains(t, stepContent, "--mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json", "Should include MCP config")
-		assert.Contains(t, stepContent, "GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json", "Should set MCP config env var")
+		// Gemini CLI reads MCP config from .gemini/settings.json, not --mcp-config flag
+		assert.NotContains(t, stepContent, "--mcp-config", "Should NOT include --mcp-config flag (Gemini CLI does not support it)")
+		assert.Contains(t, stepContent, "GH_AW_MCP_CONFIG: ${{ github.workspace }}/.gemini/settings.json", "Should set MCP config env var to Gemini settings.json path")
 	})
 
 	t.Run("with custom command", func(t *testing.T) {

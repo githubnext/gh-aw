@@ -172,10 +172,9 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		geminiArgs = append(geminiArgs, "--model", workflowData.EngineConfig.Model)
 	}
 
-	// Add MCP config if servers are present
-	if HasMCPServers(workflowData) {
-		geminiArgs = append(geminiArgs, "--mcp-config", "/tmp/gh-aw/mcp-config/mcp-servers.json")
-	}
+	// Gemini CLI reads MCP config from .gemini/settings.json (project-level)
+	// The conversion script (convert_gateway_config_gemini.sh) writes settings.json
+	// during the MCP setup step, so no --mcp-config flag is needed here.
 
 	// Add headless mode with JSON output
 	geminiArgs = append(geminiArgs, "--output-format", "json")
@@ -225,9 +224,9 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
 	}
 
-	// Add MCP config env var if needed
+	// Add MCP config env var if needed (points to .gemini/settings.json for Gemini)
 	if HasMCPServers(workflowData) {
-		env["GH_AW_MCP_CONFIG"] = "/tmp/gh-aw/mcp-config/mcp-servers.json"
+		env["GH_AW_MCP_CONFIG"] = "${{ github.workspace }}/.gemini/settings.json"
 	}
 
 	// Add safe outputs env

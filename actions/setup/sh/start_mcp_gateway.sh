@@ -365,6 +365,10 @@ case "$ENGINE_TYPE" in
     echo "Using Claude converter..."
     bash /opt/gh-aw/actions/convert_gateway_config_claude.sh
     ;;
+  gemini)
+    echo "Using Gemini converter..."
+    bash /opt/gh-aw/actions/convert_gateway_config_gemini.sh
+    ;;
   *)
     echo "No agent-specific converter found for engine: $ENGINE_TYPE"
     echo "Using gateway output directly"
