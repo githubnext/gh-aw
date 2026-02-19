@@ -124,7 +124,7 @@ func TestGetDomainEcosystem_Determinism(t *testing.T) {
 		expected string
 	}{
 		{"cdn.jsdelivr.net", "node-cdns"},
-		{"crates.io", "rust"},     // also appears in python ecosystem
+		{"crates.io", "rust"}, // also appears in python ecosystem
 		{"index.crates.io", "rust"},
 		{"static.crates.io", "rust"},
 	}

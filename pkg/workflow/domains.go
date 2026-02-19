@@ -283,8 +283,8 @@ func GetAllowedDomains(network *NetworkPermissions) []string {
 // All known ecosystems are enumerated here; any ecosystem not in this list is checked last
 // in sorted order (for forward-compatibility with new entries).
 var ecosystemPriority = []string{
-	"node-cdns",     // before "node" — more specific CDN sub-ecosystem
-	"rust",          // before "python" — crates.io/index.crates.io/static.crates.io are native Rust domains
+	"node-cdns", // before "node" — more specific CDN sub-ecosystem
+	"rust",      // before "python" — crates.io/index.crates.io/static.crates.io are native Rust domains
 	"containers",
 	"dart",
 	"defaults",
