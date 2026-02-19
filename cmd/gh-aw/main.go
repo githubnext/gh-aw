@@ -111,7 +111,7 @@ to guide you through creating a workflow with custom settings.
 When called with a workflow name, creates a template file with comprehensive examples of:
 - All trigger types (on: events)
 - Permissions configuration
-- AI processor settings
+- AI engine settings
 - Tools configuration (github, claude, MCPs)
 - All frontmatter options with explanations
 
@@ -357,7 +357,7 @@ Examples:
   gh aw run daily-perf-improver --repeat 3  # Run 3 times total
   gh aw run daily-perf-improver --enable-if-needed # Enable if disabled, run, then restore state
   gh aw run daily-perf-improver --auto-merge-prs # Auto-merge any PRs created during execution
-  gh aw run daily-perf-improver -f name=value -f env=prod  # Pass workflow inputs
+  gh aw run daily-perf-improver -F name=value -F env=prod  # Pass workflow inputs
   gh aw run daily-perf-improver --push  # Commit and push workflow files before running
   gh aw run daily-perf-improver --dry-run  # Validate without actually running`,
 	Args: cobra.ArbitraryArgs,
@@ -574,8 +574,8 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	removeCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 
 	// Add flags to enable/disable commands
-	enableCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
-	disableCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
+	enableCmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format). Defaults to current repository")
+	disableCmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format). Defaults to current repository")
 	// Register completions for enable/disable commands
 	enableCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 	disableCmd.ValidArgsFunction = cli.CompleteWorkflowNames
@@ -584,7 +584,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
 	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
 	runCmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
-	runCmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
+	runCmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format). Defaults to current repository")
 	runCmd.Flags().String("ref", "", "Branch or tag name to run the workflow on (default: current branch)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
 	runCmd.Flags().StringArrayP("raw-field", "F", []string{}, "Add a string parameter in key=value format (can be used multiple times)")

@@ -39,7 +39,7 @@ Examples:
 	}
 
 	addJSONFlag(cmd)
-	cmd.Flags().StringP("repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
+	cmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format). Defaults to current repository")
 	cmd.Flags().String("ref", "", "Filter runs by branch or tag name (e.g., main, v1.0.0)")
 	cmd.Flags().String("label", "", "Filter workflows by label")
 

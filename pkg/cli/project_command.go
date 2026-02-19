@@ -80,7 +80,7 @@ Examples:
   gh aw project new "My Project" --owner @me                           # Create user project
   gh aw project new "Team Board" --owner myorg                         # Create org project  
   gh aw project new "Bugs" --owner myorg --link myorg/myrepo           # Create and link to repo
-	gh aw project new "Project Q1" --owner myorg --with-project-setup     # With project setup`,
+  gh aw project new "Project Q1" --owner myorg --with-project-setup     # With project setup`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			owner, _ := cmd.Flags().GetString("owner")
