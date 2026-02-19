@@ -32,10 +32,11 @@ func computePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 		safeOutputsPermissionsLog.Print("Adding permissions for add-comment")
 		// Check if discussions permission should be excluded (discussions: false)
 		// Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission
+		// Note: PR comments are issue comments, so only issues:write is needed, not pull_requests:write
 		if safeOutputs.AddComments.Discussions != nil && !*safeOutputs.AddComments.Discussions {
-			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
+			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
 		} else {
-			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite())
+			permissions.Merge(NewPermissionsContentsReadIssuesWriteDiscussionsWrite())
 		}
 	}
 	if safeOutputs.CloseIssues != nil {
@@ -105,10 +106,11 @@ func computePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 		safeOutputsPermissionsLog.Print("Adding permissions for hide-comment")
 		// Check if discussions permission should be excluded (discussions: false)
 		// Default (nil or true) includes discussions:write for GitHub Apps with Discussions permission
+		// Note: Hiding comments (issue/PR/discussion) only needs issues:write, not pull_requests:write
 		if safeOutputs.HideComment.Discussions != nil && !*safeOutputs.HideComment.Discussions {
-			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWrite())
+			permissions.Merge(NewPermissionsContentsReadIssuesWrite())
 		} else {
-			permissions.Merge(NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite())
+			permissions.Merge(NewPermissionsContentsReadIssuesWriteDiscussionsWrite())
 		}
 	}
 	if safeOutputs.DispatchWorkflow != nil {
