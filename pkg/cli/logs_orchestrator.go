@@ -717,6 +717,9 @@ func downloadRunArtifactsConcurrent(ctx context.Context, runs []WorkflowRun, out
 				}
 				result.MCPToolUsage = mcpToolUsage
 
+				// Count safe output items created in GitHub (from manifest artifact)
+				result.Run.SafeItemsCount = len(extractCreatedItemsFromManifest(runOutputDir))
+
 				// Fetch job details for the summary
 				jobDetails, jobErr := fetchJobDetails(run.DatabaseID, verbose)
 				if jobErr != nil {
