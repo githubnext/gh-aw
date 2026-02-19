@@ -3,6 +3,7 @@
 
 const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * Main handler factory for link_sub_issue
@@ -284,7 +285,7 @@ async function main(config = {}) {
 
       // If in staged mode, preview without executing
       if (isStaged) {
-        core.info(`Staged mode: Would link issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}`);
+        logStagedPreviewInfo(`Would link issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}`);
         return {
           success: true,
           staged: true,

@@ -4,6 +4,7 @@
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -369,7 +370,7 @@ async function main(config = {}, githubClient = null) {
 
       // If in staged mode, preview without executing
       if (isStaged) {
-        core.info(`Staged mode: Would create status update for project ${effectiveProjectUrl}`);
+        logStagedPreviewInfo(`Would create status update for project ${effectiveProjectUrl}`);
         return {
           success: true,
           staged: true,
