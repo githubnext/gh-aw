@@ -140,7 +140,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview the label removal without actually removing
     if (isStaged) {
-      core.info(`Staged mode: Would remove ${uniqueLabels.length} labels from ${contextType} #${itemNumber} in ${itemRepo}`);
+      core.info(`🎭 Staged Mode Preview — Would remove ${uniqueLabels.length} labels from ${contextType} #${itemNumber} in ${itemRepo}`);
       return {
         success: true,
         staged: true,

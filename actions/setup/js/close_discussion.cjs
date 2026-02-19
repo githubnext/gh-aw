@@ -250,7 +250,7 @@ async function main(config = {}) {
 
       // If in staged mode, preview the close without executing it
       if (isStaged) {
-        core.info(`Staged mode: Would close discussion #${discussionNumber}`);
+        core.info(`🎭 Staged Mode Preview — Would close discussion #${discussionNumber}`);
         return {
           success: true,
           staged: true,

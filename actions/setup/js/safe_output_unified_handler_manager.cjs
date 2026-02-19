@@ -973,7 +973,7 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
  */
 async function main() {
   // Detect staged mode before try/finally so it's accessible in the finally block.
-  // In staged mode no real items are created in GitHub so no manifest should be emitted.
+  // In staged mode (🎭 Staged Mode Preview) no real items are created in GitHub so no manifest should be emitted.
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   try {

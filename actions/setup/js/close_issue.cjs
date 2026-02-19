@@ -232,7 +232,7 @@ async function main(config = {}) {
 
       // If in staged mode, preview the close without executing it
       if (isStaged) {
-        core.info(`Staged mode: Would close issue #${issueNumber} in ${itemRepo}`);
+        core.info(`🎭 Staged Mode Preview — Would close issue #${issueNumber} in ${itemRepo}`);
         return {
           success: true,
           staged: true,

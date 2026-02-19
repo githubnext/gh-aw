@@ -284,7 +284,7 @@ async function main(config = {}) {
 
       // If in staged mode, preview without executing
       if (isStaged) {
-        core.info(`Staged mode: Would link issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}`);
+        core.info(`🎭 Staged Mode Preview — Would link issue #${subIssueNumber} as sub-issue of #${parentIssueNumber}`);
         return {
           success: true,
           staged: true,

@@ -146,7 +146,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview the labels without adding them
     if (isStaged) {
-      core.info(`Staged mode: Would add ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}`);
+      core.info(`🎭 Staged Mode Preview — Would add ${uniqueLabels.length} labels to ${contextType} #${itemNumber} in ${itemRepo}`);
       return {
         success: true,
         staged: true,

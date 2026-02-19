@@ -415,7 +415,7 @@ async function main(config = {}, githubClient = null) {
 
       // If in staged mode, preview without executing
       if (isStaged) {
-        core.info(`Staged mode: Would create project "${title}"`);
+        core.info(`🎭 Staged Mode Preview — Would create project "${title}"`);
         return {
           success: true,
           staged: true,

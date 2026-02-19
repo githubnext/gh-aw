@@ -478,7 +478,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview the comment without creating it
     if (isStaged) {
-      core.info(`Staged mode: Would add comment to ${isDiscussion ? "discussion" : "issue/PR"} #${itemNumber} in ${itemRepo}`);
+      core.info(`🎭 Staged Mode Preview — Would add comment to ${isDiscussion ? "discussion" : "issue/PR"} #${itemNumber} in ${itemRepo}`);
       return {
         success: true,
         staged: true,

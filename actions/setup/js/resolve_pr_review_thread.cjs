@@ -150,7 +150,7 @@ async function main(config = {}) {
 
       // If in staged mode, preview without executing
       if (isStaged) {
-        core.info(`Staged mode: Would resolve review thread ${threadId}`);
+        core.info(`🎭 Staged Mode Preview — Would resolve review thread ${threadId}`);
         return {
           success: true,
           staged: true,

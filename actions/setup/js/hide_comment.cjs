@@ -110,7 +110,7 @@ async function main(config = {}) {
 
       // If in staged mode, preview without executing
       if (isStaged) {
-        core.info(`Staged mode: Would hide comment ${commentId}`);
+        core.info(`🎭 Staged Mode Preview — Would hide comment ${commentId}`);
         return {
           success: true,
           staged: true,

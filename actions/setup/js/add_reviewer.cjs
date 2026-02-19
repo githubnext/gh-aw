@@ -87,7 +87,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview without executing
     if (isStaged) {
-      core.info(`Staged mode: Would add reviewers to PR #${prNumber}`);
+      core.info(`🎭 Staged Mode Preview — Would add reviewers to PR #${prNumber}`);
       return {
         success: true,
         staged: true,

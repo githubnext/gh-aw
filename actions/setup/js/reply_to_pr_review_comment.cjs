@@ -147,7 +147,7 @@ async function main(config = {}) {
 
       // In staged mode, skip the API call and return a preview result
       if (isStaged) {
-        core.info(`Staged mode: Would reply to review comment ${numericCommentId} on PR #${targetPRNumber} (${owner}/${repo})`);
+        core.info(`🎭 Staged Mode Preview — Would reply to review comment ${numericCommentId} on PR #${targetPRNumber} (${owner}/${repo})`);
         return { skipped: true, reason: "staged_mode" };
       }
 

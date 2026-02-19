@@ -194,7 +194,7 @@ function createUpdateHandlerFactory(handlerConfig) {
 
       // If in staged mode, preview the update without applying it
       if (isStaged) {
-        core.info(`Staged mode: Would update ${itemTypeName} #${itemNumber} with fields: ${JSON.stringify(updateFields)}`);
+        core.info(`🎭 Staged Mode Preview — Would update ${itemTypeName} #${itemNumber} with fields: ${JSON.stringify(updateFields)}`);
         return {
           success: true,
           staged: true,

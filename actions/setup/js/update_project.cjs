@@ -1302,7 +1302,7 @@ async function main(config = {}, githubClient = null) {
       // If in staged mode, preview without executing
       if (isStaged) {
         const operation = effectiveMessage?.operation || "update";
-        core.info(`Staged mode: Would ${operation} project ${effectiveProjectUrl}`);
+        core.info(`🎭 Staged Mode Preview — Would ${operation} project ${effectiveProjectUrl}`);
         return {
           success: true,
           staged: true,

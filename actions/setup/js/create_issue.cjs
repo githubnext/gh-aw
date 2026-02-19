@@ -480,7 +480,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview the issue without creating it
     if (isStaged) {
-      core.info(`Staged mode: Would create issue in ${qualifiedItemRepo} with title: ${title}`);
+      core.info(`🎭 Staged Mode Preview — Would create issue in ${qualifiedItemRepo} with title: ${title}`);
       // Return success with staged flag and preview info
       return {
         success: true,

@@ -109,9 +109,9 @@ async function main(config = {}) {
 
     // If in staged mode, preview without executing
     if (isStaged) {
-      core.info(`Staged mode: Would assign users to issue #${issueNumber} in ${itemRepo}`);
+      core.info(`🎭 Staged Mode Preview — Would assign users to issue #${issueNumber} in ${itemRepo}`);
       if (unassignFirst) {
-        core.info(`Staged mode: Would unassign all current assignees first`);
+        core.info(`🎭 Staged Mode Preview — Would unassign all current assignees first`);
       }
       return {
         success: true,

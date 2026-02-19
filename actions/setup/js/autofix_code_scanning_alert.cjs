@@ -21,7 +21,7 @@ async function main(config = {}) {
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   core.info(`Add code scanning autofix configuration: max=${maxCount}`);
-  core.info(`Staged mode: ${isStaged}`);
+  core.info(isStaged ? "🎭 Staged Mode Preview — no changes will be written" : "Staged mode: false");
 
   // Track how many items we've processed for max limit
   let processedCount = 0;

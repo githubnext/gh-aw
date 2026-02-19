@@ -27,7 +27,7 @@ async function main() {
 
   core.info(`Found ${assignItems.length} assign_to_agent item(s)`);
 
-  // Check if we're in staged mode
+  // Check if we're in staged mode — if so, emit 🎭 Staged Mode Preview via generateStagedPreview
   if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
     // Get defaults for preview
     const previewDefaultAgent = process.env.GH_AW_AGENT_DEFAULT?.trim() ?? "copilot";

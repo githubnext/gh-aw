@@ -36,7 +36,7 @@ async function main(config = {}) {
   return async function handleUpdateRelease(message, resolvedTemporaryIds = {}) {
     // In staged mode, skip actual processing (preview is handled elsewhere)
     if (isStaged) {
-      core.info(`Staged mode: Would update release with tag ${message.tag || "(inferred)"}`);
+      core.info(`🎭 Staged Mode Preview — Would update release with tag ${message.tag || "(inferred)"}`);
       return { skipped: true, reason: "staged_mode" };
     }
 

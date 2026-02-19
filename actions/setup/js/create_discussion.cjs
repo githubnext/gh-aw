@@ -552,7 +552,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview the discussion without creating it
     if (isStaged) {
-      core.info(`Staged mode: Would create discussion in ${qualifiedItemRepo}`);
+      core.info(`🎭 Staged Mode Preview — Would create discussion in ${qualifiedItemRepo}`);
       return {
         success: true,
         staged: true,

@@ -121,7 +121,7 @@ async function main(config = {}) {
     try {
       // If in staged mode, preview without executing
       if (isStaged) {
-        core.info(`Staged mode: Would assign milestone #${milestoneNumber} to issue #${issueNumber}`);
+        core.info(`🎭 Staged Mode Preview — Would assign milestone #${milestoneNumber} to issue #${issueNumber}`);
         return {
           success: true,
           staged: true,
