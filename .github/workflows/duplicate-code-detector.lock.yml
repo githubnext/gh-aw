@@ -1142,4 +1142,11 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/assign_copilot_to_created_issues.cjs');
             await main();
+      - name: Upload safe output items manifest
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: safe-output-items
+          path: /tmp/safe-output-items.jsonl
+          if-no-files-found: warn
 

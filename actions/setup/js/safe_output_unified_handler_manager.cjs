@@ -975,6 +975,10 @@ async function main() {
   try {
     core.info("=== Starting Unified Safe Output Handler Manager ===");
 
+    // Detect staged mode — in staged mode no real items are created in GitHub
+    // so we must not emit the manifest
+    const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+
     // Reset create_issue handler's global state to ensure clean state for this run
     // This prevents stale data accumulation if the module is reused
     const { resetIssuesToAssignCopilot } = require("./create_issue.cjs");
@@ -998,8 +1002,8 @@ async function main() {
     const agentOutput = loadAgentOutput();
     if (!agentOutput.success) {
       core.info("No agent output available - nothing to process");
-      // Ensure manifest file exists even when there is no agent output
-      ensureManifestExists();
+      // Ensure manifest file exists even when there is no agent output (skip in staged mode)
+      if (!isStaged) ensureManifestExists();
       // Set empty outputs for downstream steps
       core.setOutput("temporary_id_map", "{}");
       core.setOutput("processed_count", 0);
@@ -1030,16 +1034,17 @@ async function main() {
 
     if (messageHandlers.size === 0) {
       core.info("No handlers loaded - nothing to process");
-      // Ensure manifest file exists even when no handlers are loaded
-      ensureManifestExists();
+      // Ensure manifest file exists even when no handlers are loaded (skip in staged mode)
+      if (!isStaged) ensureManifestExists();
       // Set empty outputs for downstream steps
       core.setOutput("temporary_id_map", "{}");
       core.setOutput("processed_count", 0);
       return;
     }
 
-    // Create manifest logger for recording created items
-    const logCreatedItem = createManifestLogger();
+    // Create manifest logger for recording created items.
+    // In staged mode, pass null so no items are logged (nothing is actually created).
+    const logCreatedItem = isStaged ? null : createManifestLogger();
 
     // Process all messages in order of appearance
     // Pass the projectOctokit so project handlers can use it
@@ -1144,8 +1149,9 @@ async function main() {
       core.setOutput("issues_to_assign_copilot", "");
     }
 
-    // Ensure the manifest file always exists for artifact upload (even if no items were created)
-    ensureManifestExists();
+    // Ensure the manifest file always exists for artifact upload (even if no items were created).
+    // Skip in staged mode — no real items were created so no manifest should be emitted.
+    if (!isStaged) ensureManifestExists();
 
     core.info("=== Unified Safe Output Handler Manager Completed ===");
   } catch (error) {

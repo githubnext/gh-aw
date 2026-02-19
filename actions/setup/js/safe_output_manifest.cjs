@@ -95,7 +95,8 @@ function ensureManifestExists(manifestFile = MANIFEST_FILE_PATH) {
 
 /**
  * Extract created item details from a handler result for manifest logging.
- * Returns null if the result does not represent a created item with a URL.
+ * Returns null if the result does not represent a created item with a URL,
+ * or if the result is from a staged (preview) run where no item was actually created.
  *
  * @param {string} type - The handler type (e.g., "create_issue")
  * @param {any} result - The handler result object
@@ -103,6 +104,9 @@ function ensureManifestExists(manifestFile = MANIFEST_FILE_PATH) {
  */
 function extractCreatedItemFromResult(type, result) {
   if (!result || !CREATE_ITEM_TYPES.has(type)) return null;
+
+  // In staged mode, no item was actually created in GitHub — skip logging
+  if (result.staged === true) return null;
 
   // Normalize URL from different result shapes
   const url = result.url || result.projectUrl || result.html_url;

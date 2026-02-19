@@ -198,6 +198,20 @@ describe("safe_output_manifest", () => {
       expect(extractCreatedItemFromResult("noop", result)).toBeNull();
     });
 
+    it("should return null for staged results (no item actually created)", () => {
+      // Staged results have staged: true and no URL — nothing was really created
+      const stagedResult = { success: true, staged: true, previewInfo: { repo: "owner/repo", title: "Test" } };
+      expect(extractCreatedItemFromResult("create_issue", stagedResult)).toBeNull();
+      expect(extractCreatedItemFromResult("add_comment", stagedResult)).toBeNull();
+      expect(extractCreatedItemFromResult("create_discussion", stagedResult)).toBeNull();
+    });
+
+    it("should return null for staged results even if url is somehow present", () => {
+      // Defensive: staged flag takes precedence over any URL
+      const stagedResultWithUrl = { success: true, staged: true, url: "https://github.com/owner/repo/issues/1" };
+      expect(extractCreatedItemFromResult("create_issue", stagedResultWithUrl)).toBeNull();
+    });
+
     it("should return null when result has no URL", () => {
       const result = { success: true, repo: "owner/repo", number: 1 };
       expect(extractCreatedItemFromResult("create_issue", result)).toBeNull();
