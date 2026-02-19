@@ -218,35 +218,49 @@ The compiler validates workflows have sufficient permissions for their configure
 
 **Strict mode** (`gh aw compile --strict`): Treats under-provisioned permissions as compilation errors. Use for production workflows requiring enhanced security validation.
 
-### Repository Access Roles (`roles:`)
+### Repository Access Roles (`on.roles:`)
 
 Controls who can trigger agentic workflows based on repository permission level. Defaults to `[admin, maintainer, write]`.
 
 ```yaml wrap
-roles: [admin, maintainer, write]  # Default
-roles: all                         # Allow any user (⚠️ use with caution)
+on:
+  issues:
+    types: [opened]
+  roles: [admin, maintainer, write]  # Default
+```
+
+```yaml wrap
+on:
+  workflow_dispatch:
+  roles: all                         # Allow any user (⚠️ use with caution)
 ```
 
 Available roles: `admin`, `maintainer`, `write`, `read`, `all`. Workflows with unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce permission checks. Failed checks cancel the workflow with a warning.
 
-### Bot Filtering (`bots:`)
+> [!TIP]
+> Run `gh aw fix workflow.md --write` to automatically migrate top-level `roles:` to `on.roles:` using the built-in codemod.
+
+### Bot Filtering (`on.bots:`)
 
 Configure which GitHub bot accounts can trigger workflows. Useful for allowing specific automation bots while maintaining security controls.
 
 ```yaml wrap
-bots: 
-  - "dependabot[bot]"
-  - "renovate[bot]"
-  - "agentic-workflows-dev[bot]"
+on:
+  issues:
+    types: [opened]
+  bots:
+    - "dependabot[bot]"
+    - "renovate[bot]"
+    - "agentic-workflows-dev[bot]"
 ```
 
 **Behavior**:
 
 - When specified, only the listed bot accounts can trigger the workflow
 - The bot must be active (installed) on the repository to trigger the workflow
-- Combine with `roles:` for comprehensive access control
+- Combine with `on.roles:` for comprehensive access control
 - Applies to all workflow triggers (`pull_request`, `issues`, etc.)
-- When `roles: all` is set, bot filtering is not enforced
+- When `on.roles: all` is set, bot filtering is not enforced
 
 **Common bot names**:
 
@@ -254,6 +268,9 @@ bots:
 - `renovate[bot]` - Renovate bot for automated dependency management
 - `github-actions[bot]` - GitHub Actions bot
 - `agentic-workflows-dev[bot]` - Development bot for testing workflows
+
+> [!TIP]
+> Run `gh aw fix workflow.md --write` to automatically migrate top-level `bots:` to `on.bots:` using the built-in codemod.
 
 ### Skip Roles (`on.skip-roles`)
 
@@ -444,10 +461,14 @@ Standard GitHub Actions `env:` syntax for workflow-level environment variables:
 ```yaml wrap
 env:
   CUSTOM_VAR: "value"
-  SECRET_VAR: ${{ secrets.MY_SECRET }}
 ```
 
 Environment variables can be defined at multiple scopes (workflow, job, step, engine, safe-outputs, etc.) with clear precedence rules. See [Environment Variables](/gh-aw/reference/environment-variables/) for complete documentation on all 13 env scopes and precedence order.
+
+> [!WARNING]
+> Do not use `${{ secrets.* }}` expressions in the workflow-level `env:` section. Environment variables defined here are passed directly to the agent container, which means secret values would be visible to the AI model. In strict mode, this is a compilation error. In non-strict mode, it emits a warning.
+>
+> Use engine-specific secret configuration instead of the `env:` section to pass secrets securely.
 
 ## Secrets (`secrets:`)
 
