@@ -86,6 +86,7 @@ engine:
   id: copilot
   version: latest                       # defaults to latest
   model: gpt-5                          # defaults to claude-sonnet-4
+  command: /usr/local/bin/copilot       # custom executable path
   args: ["--add-dir", "/workspace"]     # custom CLI arguments
   agent: agent-id                       # custom agent file identifier
 ```
@@ -130,6 +131,49 @@ engine:
 ```
 
 Arguments are added in order and placed before the `--prompt` flag. Common uses include adding directories (`--add-dir`), enabling verbose logging (`--verbose`, `--debug`), and passing engine-specific flags. Consult the specific engine's CLI documentation for available flags.
+
+### Custom Engine Command
+
+All engines support specifying a custom executable path through the `command` field. When specified, the workflow will skip the standard installation steps and use the provided command instead:
+
+```yaml wrap
+engine:
+  id: copilot
+  command: /usr/local/bin/custom-copilot
+```
+
+The `command` field can be:
+
+- **Absolute path**: Full path to a custom engine executable (e.g., `/usr/local/bin/copilot`)
+- **Relative path**: Path relative to the workflow directory (e.g., `./bin/claude-cli`)
+- **Command with environment variable**: Use environment variable expansion (e.g., `$HOME/.local/bin/codex`)
+- **Command in PATH**: Any executable available in the system PATH (e.g., `copilot-dev`)
+
+**Use cases:**
+
+- Testing pre-release versions of an engine
+- Using a custom build or fork of an engine
+- Running engines installed in non-standard locations
+- Using engine binaries built from source
+
+**Example with custom Copilot build:**
+
+```yaml wrap
+engine:
+  id: copilot
+  command: /workspace/copilot-dev/bin/copilot
+  args: ["--verbose"]
+```
+
+**Example with environment variable:**
+
+```yaml wrap
+engine:
+  id: codex
+  command: $HOME/.local/bin/codex-experimental
+```
+
+When a custom `command` is specified, the workflow assumes the engine is already installed and available at the specified path. Installation steps will be skipped.
 
 ## Related Documentation
 
