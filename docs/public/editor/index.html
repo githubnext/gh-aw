@@ -506,7 +506,8 @@ async function doCompile() {
   const md = editorView.state.doc.toString();
   if (!md.trim()) {
     outputMount.style.display = 'none';
-    outputPlaceholder.style.display = 'flex';
+    outputPlaceholder.classList.remove('d-none');
+    outputPlaceholder.classList.add('d-flex');
     outputPlaceholder.textContent = 'Compiled YAML will appear here';
     currentYaml = '';
     return;
@@ -536,7 +537,8 @@ async function doCompile() {
         changes: { from: 0, to: outputView.state.doc.length, insert: result.yaml }
       });
       outputMount.style.display = 'block';
-      outputPlaceholder.style.display = 'none';
+      outputPlaceholder.classList.add('d-none');
+      outputPlaceholder.classList.remove('d-flex');
 
       if (result.warnings && result.warnings.length > 0) {
         warningText.textContent = result.warnings.join('\n');
