@@ -33,6 +33,7 @@ safe-outputs:
   upload-asset:
   create-discussion:
     expires: 3d
+    category: "announcements"
     title-prefix: "📰 "
     close-older-discussions: true
 imports:
