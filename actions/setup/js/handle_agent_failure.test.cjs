@@ -586,35 +586,19 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
           data: { total_count: 0, items: [] },
         })
         .mockResolvedValueOnce({
-          // Second search: parent issue
-          data: { total_count: 0, items: [] },
-        })
-        .mockResolvedValueOnce({
-          // Third search: failure issue
+          // Second search: failure issue
           data: { total_count: 0, items: [] },
         });
 
-      mockGithub.rest.issues.create
-        .mockResolvedValueOnce({
-          data: { number: 1, html_url: "https://example.com/1", node_id: "I_1" },
-        })
-        .mockResolvedValueOnce({
-          data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
-        });
-
-      // Mock GraphQL - new parent created, so just addSubIssue
-      mockGithub.graphql = vi.fn().mockResolvedValue({
-        addSubIssue: {
-          issue: { id: "I_1", number: 1 },
-          subIssue: { id: "I_2", number: 2 },
-        },
+      mockGithub.rest.issues.create.mockResolvedValueOnce({
+        data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
       });
 
       await main();
 
       // Should still attempt to create issue with defaults
       expect(mockGithub.rest.issues.create).toHaveBeenCalled();
-      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
+      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[0][0];
       expect(failureIssueCreateCall.title).toContain("[agentics] unknown failed");
     });
 
@@ -627,33 +611,17 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
           data: { total_count: 0, items: [] },
         })
         .mockResolvedValueOnce({
-          // Second search: parent issue
-          data: { total_count: 0, items: [] },
-        })
-        .mockResolvedValueOnce({
-          // Third search: failure issue
+          // Second search: failure issue
           data: { total_count: 0, items: [] },
         });
 
-      mockGithub.rest.issues.create
-        .mockResolvedValueOnce({
-          data: { number: 1, html_url: "https://example.com/1", node_id: "I_1" },
-        })
-        .mockResolvedValueOnce({
-          data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
-        });
-
-      // Mock GraphQL - new parent created, so just addSubIssue
-      mockGithub.graphql = vi.fn().mockResolvedValue({
-        addSubIssue: {
-          issue: { id: "I_1", number: 1 },
-          subIssue: { id: "I_2", number: 2 },
-        },
+      mockGithub.rest.issues.create.mockResolvedValueOnce({
+        data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
       });
 
       await main();
 
-      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
+      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[0][0];
       // Title should be truncated via sanitization
       // Title includes "[agentics] " prefix (5 chars) + workflow name (up to 100 chars) + " failed" (8 chars)
       // So max should be around 113 chars, but sanitize may add ... so let's be lenient
@@ -671,33 +639,17 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
           data: { total_count: 0, items: [] },
         })
         .mockResolvedValueOnce({
-          // Second search: parent issue
-          data: { total_count: 0, items: [] },
-        })
-        .mockResolvedValueOnce({
-          // Third search: failure issue
+          // Second search: failure issue
           data: { total_count: 0, items: [] },
         });
 
-      mockGithub.rest.issues.create
-        .mockResolvedValueOnce({
-          data: { number: 1, html_url: "https://example.com/1", node_id: "I_1" },
-        })
-        .mockResolvedValueOnce({
-          data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
-        });
-
-      // Mock GraphQL - new parent created, so just addSubIssue
-      mockGithub.graphql = vi.fn().mockResolvedValue({
-        addSubIssue: {
-          issue: { id: "I_1", number: 1 },
-          subIssue: { id: "I_2", number: 2 },
-        },
+      mockGithub.rest.issues.create.mockResolvedValueOnce({
+        data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
       });
 
       await main();
 
-      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
+      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[0][0];
       expect(failureIssueCreateCall.body).toContain("- [x] expires");
       expect(failureIssueCreateCall.body).toContain("<!-- gh-aw-expires:");
       expect(failureIssueCreateCall.body).toMatch(/- \[x\] expires <!-- gh-aw-expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z --> on .+ UTC/);
@@ -718,33 +670,17 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
           },
         })
         .mockResolvedValueOnce({
-          // Second search: parent issue
-          data: { total_count: 0, items: [] },
-        })
-        .mockResolvedValueOnce({
-          // Third search: failure issue
+          // Second search: failure issue
           data: { total_count: 0, items: [] },
         });
 
-      mockGithub.rest.issues.create
-        .mockResolvedValueOnce({
-          data: { number: 1, html_url: "https://example.com/1", node_id: "I_1" },
-        })
-        .mockResolvedValueOnce({
-          data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
-        });
-
-      // Mock GraphQL - new parent created, so just addSubIssue
-      mockGithub.graphql = vi.fn().mockResolvedValue({
-        addSubIssue: {
-          issue: { id: "I_1", number: 1 },
-          subIssue: { id: "I_2", number: 2 },
-        },
+      mockGithub.rest.issues.create.mockResolvedValueOnce({
+        data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
       });
 
       await main();
 
-      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
+      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[0][0];
       // Verify PR information is included in the issue body
       expect(failureIssueCreateCall.body).toContain("**Pull Request:**");
       expect(failureIssueCreateCall.body).toContain("#99");
@@ -758,33 +694,17 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
           data: { total_count: 0, items: [] },
         })
         .mockResolvedValueOnce({
-          // Second search: parent issue
-          data: { total_count: 0, items: [] },
-        })
-        .mockResolvedValueOnce({
-          // Third search: failure issue
+          // Second search: failure issue
           data: { total_count: 0, items: [] },
         });
 
-      mockGithub.rest.issues.create
-        .mockResolvedValueOnce({
-          data: { number: 1, html_url: "https://example.com/1", node_id: "I_1" },
-        })
-        .mockResolvedValueOnce({
-          data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
-        });
-
-      // Mock GraphQL - new parent created, so just addSubIssue
-      mockGithub.graphql = vi.fn().mockResolvedValue({
-        addSubIssue: {
-          issue: { id: "I_1", number: 1 },
-          subIssue: { id: "I_2", number: 2 },
-        },
+      mockGithub.rest.issues.create.mockResolvedValueOnce({
+        data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
       });
 
       await main();
 
-      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
+      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[0][0];
       // Verify PR information is NOT included in the issue body
       expect(failureIssueCreateCall.body).not.toContain("**Pull Request:**");
     });
@@ -796,33 +716,17 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
           data: { total_count: 0, items: [] },
         })
         .mockResolvedValueOnce({
-          // Second search: parent issue
-          data: { total_count: 0, items: [] },
-        })
-        .mockResolvedValueOnce({
-          // Third search: failure issue
+          // Second search: failure issue
           data: { total_count: 0, items: [] },
         });
 
-      mockGithub.rest.issues.create
-        .mockResolvedValueOnce({
-          data: { number: 1, html_url: "https://example.com/1", node_id: "I_1" },
-        })
-        .mockResolvedValueOnce({
-          data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
-        });
-
-      // Mock GraphQL - new parent created, so just addSubIssue
-      mockGithub.graphql = vi.fn().mockResolvedValue({
-        addSubIssue: {
-          issue: { id: "I_1", number: 1 },
-          subIssue: { id: "I_2", number: 2 },
-        },
+      mockGithub.rest.issues.create.mockResolvedValueOnce({
+        data: { number: 2, html_url: "https://example.com/2", node_id: "I_2" },
       });
 
       await main();
 
-      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[1][0];
+      const failureIssueCreateCall = mockGithub.rest.issues.create.mock.calls[0][0];
       // Verify branch information is included in the issue body
       expect(failureIssueCreateCall.body).toContain("**Branch:**");
       // The actual branch will be determined by getCurrentBranch() which may get it from git or env
@@ -1076,6 +980,9 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
     });
 
     it("should include create_discussion errors in failure issue", async () => {
+      // Enable parent issue creation for this test
+      process.env.GH_AW_GROUP_REPORTS = "true";
+
       // Set up create_discussion errors
       process.env.GH_AW_CREATE_DISCUSSION_ERRORS = "discussion:0:github/gh-aw:Test Discussion:Failed to create discussion in 'github/gh-aw': Discussions not enabled";
       process.env.GH_AW_CREATE_DISCUSSION_ERROR_COUNT = "1";
@@ -1144,6 +1051,9 @@ Debug this workflow failure using the \`agentic-workflows\` agent:
     });
 
     it("should include missing_data in failure issue", async () => {
+      // Enable parent issue creation for this test
+      process.env.GH_AW_GROUP_REPORTS = "true";
+
       // Create a temporary agent output file with missing_data messages
       const tempDir = `/tmp/test-agent-output-${Date.now()}`;
       const agentOutputPath = `${tempDir}/agent_output.json`;
